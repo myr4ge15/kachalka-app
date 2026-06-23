@@ -49,6 +49,23 @@ db.version(2).stores({
   feed: 'id, performed_at',
 })
 
+// v3: пользовательские упражнения (ТЗ 3.2 / 4.4 — «добавить своё»).
+//   - exercises получает индекс `_dirty` (1 → создано локально, ждёт отправки),
+//     чтобы pull не затирал ещё не синхронизированные упражнения;
+//   - ex_outbox — отдельная очередь на upsert упражнений в Supabase.
+// Очередь упражнений отправляется ПЕРЕД очередью тренировок: тренировка может
+// ссылаться на свежесозданное упражнение (FK), оно должно появиться на сервере
+// раньше. Старый `outbox` (тренировки) не трогаем.
+db.version(3).stores({
+  exercises: 'id, muscle_group, name, _dirty',
+  users: 'id, name',
+  workouts: 'id, user_id, performed_at, _dirty, _deleted',
+  outbox: '++seq, workoutId, type, createdAt',
+  meta: 'key',
+  feed: 'id, performed_at',
+  ex_outbox: '++seq, exerciseId, createdAt',
+})
+
 // Текущее серверное (UTC) время в ISO. crypto.randomUUID доступен на https и localhost.
 export const nowIso = () => new Date().toISOString()
 export const newId = () =>

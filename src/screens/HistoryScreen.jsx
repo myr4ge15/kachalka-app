@@ -1,6 +1,6 @@
 import { useState } from 'react'
 import { useLiveQuery } from 'dexie-react-hooks'
-import { getWorkouts, getExercises, saveWorkout, deleteWorkout as repoDelete } from '../db/repo.js'
+import { getWorkouts, getExercises, saveWorkout, createExercise, deleteWorkout as repoDelete } from '../db/repo.js'
 import { syncNow } from '../db/sync.js'
 import ExercisePicker from '../components/ExercisePicker.jsx'
 
@@ -248,6 +248,7 @@ export default function HistoryScreen({ user }) {
         <ExercisePicker
           exercises={exercises}
           onPick={addExercise}
+          onCreate={createExercise}
           onClose={() => setPickerOpen(false)}
         />
       )}

@@ -71,14 +71,20 @@ function rowToDoc(w) {
 }
 
 async function pull(userId) {
-  // справочник упражнений
+  // справочник упражнений. НЕ затираем локально созданные упражнения, которые
+  // ещё не доехали до сервера (_dirty=1) — иначе своё упражнение пропадёт из
+  // пикера до завершения синка.
   const ex = await withTimeout(
     supabase.from('exercises').select('id, name, muscle_group, is_bench_lift, is_custom')
   )
   if (!ex.error && ex.data) {
+    const serverExIds = new Set(ex.data.map((e) => e.id))
     await db.transaction('rw', db.exercises, async () => {
+      const dirty = await db.exercises.filter((e) => e._dirty).toArray()
       await db.exercises.clear()
       await db.exercises.bulkPut(ex.data)
+      // вернуть несинхронизированные локальные упражнения, если сервер их ещё не знает
+      for (const e of dirty) if (!serverExIds.has(e.id)) await db.exercises.put(e)
     })
   }
 
@@ -122,6 +128,44 @@ async function pull(userId) {
 }
 
 // ------------------------------- push --------------------------------------
+
+// Отправляем пользовательские упражнения (ex_outbox) в Supabase. Идёт ПЕРЕД
+// push() тренировок: запись может ссылаться на свежесозданное упражнение (FK),
+// поэтому упражнение должно появиться на сервере первым. Upsert по id
+// идемпотентен — повторная отправка после обрыва безопасна.
+async function pushExercises() {
+  const ops = await db.ex_outbox.orderBy('seq').toArray()
+  for (const op of ops) {
+    try {
+      const ex = await db.exercises.get(op.exerciseId)
+      if (!ex) {
+        await db.ex_outbox.delete(op.seq)
+        continue
+      }
+      const { error } = await withTimeout(
+        supabase.from('exercises').upsert(
+          {
+            id: ex.id,
+            name: ex.name,
+            muscle_group: ex.muscle_group ?? null,
+            is_custom: true,
+            is_bench_lift: Boolean(ex.is_bench_lift),
+          },
+          { onConflict: 'id' }
+        )
+      )
+      if (error) throw error
+      await db.exercises.update(ex.id, { _dirty: 0 })
+      await db.ex_outbox.delete(op.seq)
+    } catch (err) {
+      await db.ex_outbox.update(op.seq, {
+        attempts: (op.attempts ?? 0) + 1,
+        lastError: String(err?.message ?? err),
+      })
+      throw err // прекращаем проход, попробуем позже
+    }
+  }
+}
 
 // Отправляем очередь по порядку. На первой же ошибке прекращаем — сохранится
 // порядок и не словим частичную отправку при недоступной сети.
@@ -177,6 +221,7 @@ export async function syncNow(userId) {
   running = true
   setState({ syncing: true })
   try {
+    await pushExercises() // упражнения раньше тренировок (FK на exercise_id)
     await push()
     await pull(userId)
     const at = nowIso()

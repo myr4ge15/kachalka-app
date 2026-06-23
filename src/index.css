@@ -179,6 +179,25 @@ input { font-family: inherit; }
 }
 .picker-group { color: var(--muted); font-size: 12px; }
 
+/* кнопка «добавить своё» под списком + форма создания */
+.create-open { flex-shrink: 0; margin-top: 12px; margin-bottom: 0; }
+.create-label { flex-shrink: 0; margin-top: 14px; font-size: 13px; color: var(--muted); }
+.create-error { flex-shrink: 0; }
+.create-save { flex-shrink: 0; margin-top: auto; }
+
+.create-similar {
+  flex-shrink: 0; display: flex; flex-direction: column; gap: 6px;
+  margin-top: 12px; padding: 10px; border-radius: 10px;
+  background: var(--surface); border: 1px solid var(--border);
+}
+.create-similar > .muted { font-size: 12px; }
+.similar-item {
+  display: flex; justify-content: space-between; align-items: center;
+  padding: 10px 8px; background: var(--surface-2); border: 1px solid var(--border);
+  border-radius: 8px; color: var(--text); font-size: 15px; text-align: left;
+}
+.similar-item:active { background: var(--border); }
+
 /* ---------- history ---------- */
 .history-card { padding: 14px; }
 .history-head {

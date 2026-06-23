@@ -30,6 +30,47 @@ export async function getExercises() {
   )
 }
 
+// Добавить пользовательское упражнение в общий справочник (ТЗ 3.2 / 4.4).
+// Офлайн-first: пишем в локальный кэш (сразу видно в пикере) и ставим в очередь
+// `ex_outbox` на отправку в Supabase. Возвращает объект упражнения для UI.
+//
+// Анти-дубль (минимальный): если упражнение с тем же названием (без учёта
+// регистра/пробелов) уже есть — НЕ плодим копию, возвращаем существующее.
+export async function createExercise({ name, muscle_group }) {
+  const clean = String(name ?? '').trim()
+  if (!clean) throw new Error('Введите название упражнения.')
+  const group = muscle_group ? String(muscle_group).trim() : null
+
+  const key = clean.toLowerCase()
+  const all = await db.exercises.toArray()
+  const dup = all.find((e) => String(e.name ?? '').trim().toLowerCase() === key)
+  if (dup) {
+    return {
+      id: dup.id,
+      name: dup.name,
+      muscle_group: dup.muscle_group ?? null,
+      is_bench_lift: Boolean(dup.is_bench_lift),
+      is_custom: Boolean(dup.is_custom),
+    }
+  }
+
+  const id = newId()
+  await db.transaction('rw', db.exercises, db.ex_outbox, async () => {
+    await db.exercises.put({
+      id,
+      name: clean,
+      muscle_group: group,
+      is_custom: true,
+      is_bench_lift: false,
+      unit: 'kg',
+      _dirty: 1,
+    })
+    await db.ex_outbox.add({ exerciseId: id, createdAt: nowIso(), attempts: 0 })
+  })
+
+  return { id, name: clean, muscle_group: group, is_bench_lift: false, is_custom: true }
+}
+
 // Пользователи (для офлайн-входа по PIN).
 export async function getUsers() {
   const list = await db.users.toArray()
@@ -132,7 +173,8 @@ async function enqueue(type, workoutId) {
   }
 }
 
-// Сколько изменений ждут отправки.
+// Сколько изменений ждут отправки (тренировки + пользовательские упражнения).
 export async function pendingCount() {
-  return db.outbox.count()
+  const [w, e] = await Promise.all([db.outbox.count(), db.ex_outbox.count()])
+  return w + e
 }
