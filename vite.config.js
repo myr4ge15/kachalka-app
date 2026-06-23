@@ -1,9 +1,8 @@
-import { defineConfig } from 'vite'
+﻿import { defineConfig } from 'vite'
 import react from '@vitejs/plugin-react'
 import { VitePWA } from 'vite-plugin-pwa'
 
-// base: '/kachalka-app/' — имя репозитория GitHub Pages.
-// Если репозиторий назовёшь иначе — поправь это значение на '/<имя-репо>/'.
+// base must match your GitHub Pages repo name: '/<repo>/'
 export default defineConfig({
   base: '/kachalka-app/',
   plugins: [
@@ -12,9 +11,9 @@ export default defineConfig({
       registerType: 'autoUpdate',
       includeAssets: ['favicon.svg'],
       manifest: {
-        name: 'Журнал тренировок',
-        short_name: 'Тренировки',
-        description: 'Учёт силовых тренировок: подходы, веса, прогресс',
+        name: 'Gym Journal',
+        short_name: 'Gym',
+        description: 'Strength training tracker',
         lang: 'ru',
         theme_color: '#16a34a',
         background_color: '#0f172a',

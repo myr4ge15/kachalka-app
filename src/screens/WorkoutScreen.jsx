@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react'
 import { supabase } from '../db/supabase.js'
+import { withTimeout } from '../lib/withTimeout.js'
 import ExercisePicker from '../components/ExercisePicker.jsx'
 
 export default function WorkoutScreen({ user }) {
@@ -71,32 +72,39 @@ export default function WorkoutScreen({ user }) {
     setMessage(null)
     try {
       // 1) тренировка
-      const { data: w, error: we } = await supabase
-        .from('workouts')
-        .insert({ user_id: user.id })
-        .select('id')
-        .single()
+      const { data: w, error: we } = await withTimeout(
+        supabase.from('workouts').insert({ user_id: user.id }).select('id').single()
+      )
       if (we) throw we
 
-      // 2) упражнения + подходы
-      for (let i = 0; i < entries.length; i++) {
-        const entry = entries[i]
-        const { data: wex, error: wexErr } = await supabase
-          .from('workout_exercises')
-          .insert({ workout_id: w.id, exercise_id: entry.exercise.id, position: i })
-          .select('id')
-          .single()
-        if (wexErr) throw wexErr
+      // 2) упражнения — одной вставкой, ids возвращаем и сопоставляем по exercise_id
+      const wexRows = entries.map((entry, i) => ({
+        workout_id: w.id,
+        exercise_id: entry.exercise.id,
+        position: i,
+      }))
+      const { data: wexs, error: wexErr } = await withTimeout(
+        supabase.from('workout_exercises').insert(wexRows).select('id, exercise_id')
+      )
+      if (wexErr) throw wexErr
 
-        const rows = entry.sets.map((s, j) => ({
-          workout_exercise_id: wex.id,
-          set_number: j + 1,
-          weight: Number(s.weight),
-          reps: Number(s.reps),
-        }))
-        const { error: setsErr } = await supabase.from('sets').insert(rows)
-        if (setsErr) throw setsErr
+      const wexByExercise = new Map((wexs ?? []).map((r) => [r.exercise_id, r.id]))
+
+      // 3) подходы — одной вставкой на всю тренировку
+      const setRows = []
+      for (const entry of entries) {
+        const wexId = wexByExercise.get(entry.exercise.id)
+        entry.sets.forEach((s, j) => {
+          setRows.push({
+            workout_exercise_id: wexId,
+            set_number: j + 1,
+            weight: Number(s.weight),
+            reps: Number(s.reps),
+          })
+        })
       }
+      const { error: setsErr } = await withTimeout(supabase.from('sets').insert(setRows))
+      if (setsErr) throw setsErr
 
       setEntries([])
       setMessage({ type: 'ok', text: 'Тренировка сохранена 💪' })

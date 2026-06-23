@@ -2,13 +2,14 @@ import { useState, useEffect } from 'react'
 import { isConfigured } from './db/supabase.js'
 import LoginScreen from './screens/LoginScreen.jsx'
 import WorkoutScreen from './screens/WorkoutScreen.jsx'
+import HistoryScreen from './screens/HistoryScreen.jsx'
 import ProgressScreen from './screens/ProgressScreen.jsx'
 
 const SESSION_KEY = 'gym_app_user'
 
 export default function App() {
   const [user, setUser] = useState(null)
-  const [tab, setTab] = useState('workout') // 'workout' | 'progress'
+  const [tab, setTab] = useState('workout') // 'workout' | 'history' | 'progress'
 
   // Восстановление сессии после перезагрузки
   useEffect(() => {
@@ -56,9 +57,9 @@ export default function App() {
       </header>
 
       <main className="content">
-        {tab === 'workout'
-          ? <WorkoutScreen user={user} />
-          : <ProgressScreen user={user} />}
+        {tab === 'workout' && <WorkoutScreen user={user} />}
+        {tab === 'history' && <HistoryScreen user={user} />}
+        {tab === 'progress' && <ProgressScreen user={user} />}
       </main>
 
       <nav className="tabbar">
@@ -67,6 +68,12 @@ export default function App() {
           onClick={() => setTab('workout')}
         >
           Тренировка
+        </button>
+        <button
+          className={tab === 'history' ? 'tab active' : 'tab'}
+          onClick={() => setTab('history')}
+        >
+          История
         </button>
         <button
           className={tab === 'progress' ? 'tab active' : 'tab'}

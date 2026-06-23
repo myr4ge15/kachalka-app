@@ -130,28 +130,67 @@ input { font-family: inherit; }
   display: flex; align-items: flex-end; z-index: 20;
 }
 .sheet {
-  background: var(--bg); width: 100%; max-height: 80vh; border-radius: 16px 16px 0 0;
+  background: var(--bg); width: 100%; height: 85vh; max-height: 85vh;
+  border-radius: 16px 16px 0 0;
   padding: 16px; display: flex; flex-direction: column;
   border-top: 1px solid var(--border);
 }
-.sheet-head { display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px; }
+/* Шапка, поиск и чипы зафиксированы сверху и не сжимаются списком */
+.sheet-head {
+  display: flex; justify-content: space-between; align-items: center;
+  margin-bottom: 12px; flex-shrink: 0;
+}
 .search {
   width: 100%; padding: 12px; font-size: 16px; border-radius: 10px;
   border: 1px solid var(--border); background: var(--surface); color: var(--text);
+  flex-shrink: 0;
 }
-.chips { display: flex; gap: 8px; overflow-x: auto; padding: 12px 0; }
+.chips {
+  display: flex; gap: 8px; overflow-x: auto; overflow-y: hidden;
+  padding: 12px 0; flex-shrink: 0; -webkit-overflow-scrolling: touch;
+}
 .chip {
-  white-space: nowrap; padding: 7px 14px; border-radius: 999px;
+  display: inline-flex; align-items: center; flex-shrink: 0;
+  white-space: nowrap; line-height: 1.2; min-height: 36px;
+  padding: 7px 14px; border-radius: 999px;
   border: 1px solid var(--border); background: var(--surface); color: var(--muted); font-size: 14px;
 }
 .chip.active { background: var(--green); color: white; border-color: var(--green); }
-.picker-list { overflow-y: auto; display: flex; flex-direction: column; }
+.picker-list {
+  flex: 1; min-height: 0; overflow-y: auto; display: flex; flex-direction: column;
+  border-top: 1px solid var(--border); margin-top: 4px;
+}
 .picker-item {
   display: flex; justify-content: space-between; align-items: center;
   padding: 14px 8px; background: none; border: none; border-bottom: 1px solid var(--border);
   color: var(--text); font-size: 16px; text-align: left;
 }
 .picker-group { color: var(--muted); font-size: 12px; }
+
+/* ---------- history ---------- */
+.history-card { padding: 14px; }
+.history-head {
+  display: flex; justify-content: space-between; align-items: flex-start; gap: 8px;
+}
+.history-date { font-weight: 600; font-size: 16px; }
+.history-sub { font-size: 13px; margin-top: 2px; }
+.history-actions { display: flex; gap: 4px; flex-shrink: 0; }
+
+.history-list { list-style: none; margin: 10px 0 0; padding: 0; }
+.history-ex {
+  display: flex; justify-content: space-between; gap: 12px;
+  padding: 7px 0; border-top: 1px solid var(--border);
+}
+.history-ex:first-child { border-top: none; }
+.history-ex-name { font-size: 15px; }
+.history-ex-sets { color: var(--muted); font-size: 14px; text-align: right; white-space: nowrap; }
+
+.history-edit { margin-top: 10px; }
+.edit-ex {
+  background: var(--surface-2); border: 1px solid var(--border);
+  border-radius: 12px; padding: 12px; margin-bottom: 12px;
+}
+.full-link { display: block; width: 100%; text-align: center; margin-top: 10px; }
 
 /* ---------- banners / progress ---------- */
 .banner { padding: 12px 14px; border-radius: 10px; margin-bottom: 14px; font-size: 14px; }
