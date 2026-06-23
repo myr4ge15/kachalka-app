@@ -17,6 +17,7 @@
 //   }
 // ============================================================================
 import { db, newId, nowIso } from './local.js'
+import { normalizeName } from '../lib/similar.js'
 
 // ----------------------------- Чтение --------------------------------------
 
@@ -34,16 +35,17 @@ export async function getExercises() {
 // Офлайн-first: пишем в локальный кэш (сразу видно в пикере) и ставим в очередь
 // `ex_outbox` на отправку в Supabase. Возвращает объект упражнения для UI.
 //
-// Анти-дубль (минимальный): если упражнение с тем же названием (без учёта
-// регистра/пробелов) уже есть — НЕ плодим копию, возвращаем существующее.
+// Анти-дубль: если упражнение с тем же названием уже есть — НЕ плодим копию,
+// возвращаем существующее. Сравнение по нормализованному ключу (ё/е, регистр,
+// пунктуация, двойные пробелы), чтобы «Жим лёжа» и «жим  лежа» считались одним.
 export async function createExercise({ name, muscle_group }) {
   const clean = String(name ?? '').trim()
   if (!clean) throw new Error('Введите название упражнения.')
   const group = muscle_group ? String(muscle_group).trim() : null
 
-  const key = clean.toLowerCase()
+  const key = normalizeName(clean)
   const all = await db.exercises.toArray()
-  const dup = all.find((e) => String(e.name ?? '').trim().toLowerCase() === key)
+  const dup = all.find((e) => normalizeName(e.name) === key)
   if (dup) {
     return {
       id: dup.id,

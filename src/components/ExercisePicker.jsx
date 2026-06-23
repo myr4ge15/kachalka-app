@@ -1,4 +1,5 @@
 import { useState, useMemo } from 'react'
+import { findSimilar } from '../lib/similar.js'
 
 // Канонические группы мышц из ТЗ (Приложение A / п. 3.2). К ним добавляем
 // все группы, реально встретившиеся в справочнике, чтобы ничего не потерять.
@@ -40,14 +41,13 @@ export default function ExercisePicker({ exercises, onPick, onClose, onCreate })
     })
   }, [exercises, query, group])
 
-  // Похожие по названию — чтобы не плодить дубли (ТЗ 3.2).
-  const similar = useMemo(() => {
-    const q = newName.trim().toLowerCase()
-    if (q.length < 2) return []
-    return exercises
-      .filter((e) => e.name.toLowerCase().includes(q))
-      .slice(0, 4)
-  }, [exercises, newName])
+  // Похожие по названию — чтобы не плодить дубли (ТЗ 3.2 / 4.4). Нечёткое
+  // сопоставление (нормализация ё/е, пробелы, порядок слов, опечатки), а не
+  // голый includes(), который дубли вроде «жим лёжа»/«жим лежа» пропускает.
+  const similar = useMemo(
+    () => findSimilar(newName, exercises, { threshold: 0.45, limit: 5 }),
+    [exercises, newName]
+  )
 
   function openCreate() {
     setNewName(query.trim())
