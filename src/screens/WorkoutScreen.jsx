@@ -71,40 +71,20 @@ export default function WorkoutScreen({ user }) {
     setSaving(true)
     setMessage(null)
     try {
-      // 1) тренировка
-      const { data: w, error: we } = await withTimeout(
-        supabase.from('workouts').insert({ user_id: user.id }).select('id').single()
-      )
-      if (we) throw we
-
-      // 2) упражнения — одной вставкой, ids возвращаем и сопоставляем по exercise_id
-      const wexRows = entries.map((entry, i) => ({
-        workout_id: w.id,
+      // Вся тренировка — одним атомарным запросом (RPC save_workout).
+      // Нет промежуточных round-trip'ов и тренировок-сирот при таймауте.
+      const payload = entries.map((entry) => ({
         exercise_id: entry.exercise.id,
-        position: i,
+        sets: entry.sets.map((s) => ({
+          weight: Number(s.weight),
+          reps: Number(s.reps),
+        })),
       }))
-      const { data: wexs, error: wexErr } = await withTimeout(
-        supabase.from('workout_exercises').insert(wexRows).select('id, exercise_id')
+
+      const { error } = await withTimeout(
+        supabase.rpc('save_workout', { p_user_id: user.id, p_entries: payload })
       )
-      if (wexErr) throw wexErr
-
-      const wexByExercise = new Map((wexs ?? []).map((r) => [r.exercise_id, r.id]))
-
-      // 3) подходы — одной вставкой на всю тренировку
-      const setRows = []
-      for (const entry of entries) {
-        const wexId = wexByExercise.get(entry.exercise.id)
-        entry.sets.forEach((s, j) => {
-          setRows.push({
-            workout_exercise_id: wexId,
-            set_number: j + 1,
-            weight: Number(s.weight),
-            reps: Number(s.reps),
-          })
-        })
-      }
-      const { error: setsErr } = await withTimeout(supabase.from('sets').insert(setRows))
-      if (setsErr) throw setsErr
+      if (error) throw error
 
       setEntries([])
       setMessage({ type: 'ok', text: 'Тренировка сохранена 💪' })

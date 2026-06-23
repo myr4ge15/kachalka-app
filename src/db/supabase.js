@@ -14,3 +14,14 @@ if (!url || !key) {
 
 export const supabase = createClient(url ?? '', key ?? '')
 export const isConfigured = Boolean(url && key)
+
+// «Прогрев» базы: дешёвый запрос при старте приложения, чтобы разбудить
+// бесплатный проект Supabase из паузы заранее — до того как пользователь
+// нажмёт «Сохранить». Ошибки молча глотаем: это не критичный путь.
+export function warmup() {
+  if (!isConfigured) return
+  supabase
+    .from('exercises')
+    .select('id', { head: true, count: 'exact' })
+    .then(() => {}, () => {})
+}

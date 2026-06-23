@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react'
-import { isConfigured } from './db/supabase.js'
+import { isConfigured, warmup } from './db/supabase.js'
 import LoginScreen from './screens/LoginScreen.jsx'
 import WorkoutScreen from './screens/WorkoutScreen.jsx'
 import HistoryScreen from './screens/HistoryScreen.jsx'
@@ -10,6 +10,9 @@ const SESSION_KEY = 'gym_app_user'
 export default function App() {
   const [user, setUser] = useState(null)
   const [tab, setTab] = useState('workout') // 'workout' | 'history' | 'progress'
+
+  // Будим базу заранее, как только приложение открылось
+  useEffect(() => { warmup() }, [])
 
   // Восстановление сессии после перезагрузки
   useEffect(() => {

@@ -124,34 +124,20 @@ export default function HistoryScreen({ user }) {
     setBusy(true)
     setMessage(null)
     try {
-      const { error: delErr } = await withTimeout(
-        supabase.from('workout_exercises').delete().eq('workout_id', editId)
-      )
-      if (delErr) throw delErr
-
-      const wexRows = cleaned.map((e, i) => ({
-        workout_id: editId, exercise_id: e.exercise.id, position: i,
+      // Переписываем состав одним атомарным запросом (RPC replace_workout):
+      // delete + insert идут в одной транзакции на сервере, без сирот.
+      const payload = cleaned.map((e) => ({
+        exercise_id: e.exercise.id,
+        sets: e.sets.map((s) => ({
+          weight: Number(s.weight),
+          reps: Number(s.reps),
+        })),
       }))
-      const { data: wexs, error: wexErr } = await withTimeout(
-        supabase.from('workout_exercises').insert(wexRows).select('id, exercise_id')
-      )
-      if (wexErr) throw wexErr
 
-      const byExercise = new Map((wexs ?? []).map((r) => [r.exercise_id, r.id]))
-      const setRows = []
-      for (const e of cleaned) {
-        const wexId = byExercise.get(e.exercise.id)
-        e.sets.forEach((s, j) =>
-          setRows.push({
-            workout_exercise_id: wexId,
-            set_number: j + 1,
-            weight: Number(s.weight),
-            reps: Number(s.reps),
-          })
-        )
-      }
-      const { error: setsErr } = await withTimeout(supabase.from('sets').insert(setRows))
-      if (setsErr) throw setsErr
+      const { error } = await withTimeout(
+        supabase.rpc('replace_workout', { p_workout_id: editId, p_entries: payload })
+      )
+      if (error) throw error
 
       cancelEdit()
       setMessage({ type: 'ok', text: 'Изменения сохранены' })
