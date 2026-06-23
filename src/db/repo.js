@@ -18,6 +18,7 @@
 // ============================================================================
 import { db, newId, nowIso } from './local.js'
 import { normalizeName } from '../lib/similar.js'
+import { cmpIsoDesc } from '../lib/cmp.js'
 
 // ----------------------------- Чтение --------------------------------------
 
@@ -93,10 +94,17 @@ export async function getWorkouts(userId) {
   const list = await db.workouts.where('user_id').equals(userId).toArray()
   return list
     .filter((w) => !w._deleted)
-    .sort((a, b) => String(b.performed_at).localeCompare(String(a.performed_at)))
+    .sort((a, b) => cmpIsoDesc(a.performed_at, b.performed_at))
 }
 
 // ----------------------------- Запись --------------------------------------
+
+// Парсим число из инпута, принимая десятичную запятую (1,5 → 1.5).
+// Без этого Number('1,5') === NaN и подход молча отбрасывался.
+function toNum(v) {
+  if (typeof v === 'number') return v
+  return Number(String(v ?? '').trim().replace(',', '.'))
+}
 
 // Нормализуем подходы из формы (строки из input) в числа.
 function cleanEntries(entries) {
@@ -112,7 +120,7 @@ function cleanEntries(entries) {
           }
         : undefined,
       sets: (e.sets ?? [])
-        .map((s) => ({ weight: Number(s.weight), reps: Number(s.reps) }))
+        .map((s) => ({ weight: toNum(s.weight), reps: toNum(s.reps) }))
         .filter((s) => Number.isFinite(s.weight) && Number.isFinite(s.reps) && s.reps > 0),
     }))
     .filter((e) => e.exercise_id && e.sets.length > 0)
@@ -176,7 +184,11 @@ async function enqueue(type, workoutId) {
 }
 
 // Сколько изменений ждут отправки (тренировки + пользовательские упражнения).
+// Отравленные операции (_dead) в счётчик не входят — они уже не отправляются.
 export async function pendingCount() {
-  const [w, e] = await Promise.all([db.outbox.count(), db.ex_outbox.count()])
+  const [w, e] = await Promise.all([
+    db.outbox.filter((o) => !o._dead).count(),
+    db.ex_outbox.filter((o) => !o._dead).count(),
+  ])
   return w + e
 }

@@ -1,6 +1,7 @@
-import { useEffect, useState } from 'react'
+import { useEffect, useRef, useState, useCallback } from 'react'
 import { useLiveQuery } from 'dexie-react-hooks'
 import { getCachedFeed, fetchFeed } from '../db/feed.js'
+import { onOnline, onResume } from '../lib/appEvents.js'
 import Leaderboard from './Leaderboard.jsx'
 
 // «сегодня / вчера / дд.мм.гггг» + время
@@ -33,9 +34,14 @@ export default function FeedScreen({ user }) {
   const loading = feed === undefined
   const list = feed ?? []
 
-  async function refresh() {
+  // Свежий список держим в ref, чтобы стабильный refresh не ловил устаревшее
+  // значение list из замыкания первого рендера.
+  const listRef = useRef(list)
+  listRef.current = list
+
+  const refresh = useCallback(async () => {
     if (!navigator.onLine) {
-      setError(list.length ? null : 'Лента недоступна офлайн. Подключись к сети.')
+      setError(listRef.current.length ? null : 'Лента недоступна офлайн. Подключись к сети.')
       return
     }
     setRefreshing(true)
@@ -47,22 +53,16 @@ export default function FeedScreen({ user }) {
     } finally {
       setRefreshing(false)
     }
-  }
+  }, [])
 
-  // Обновляем при входе на экран, возврате вкладки и появлении сети.
+  // Обновляем при входе на экран, возврате вкладки и появлении сети
+  // (подписки — через общий хаб событий, см. lib/appEvents.js).
   useEffect(() => {
     refresh()
-    const onVisible = () => {
-      if (document.visibilityState === 'visible') refresh()
-    }
-    window.addEventListener('online', refresh)
-    document.addEventListener('visibilitychange', onVisible)
-    return () => {
-      window.removeEventListener('online', refresh)
-      document.removeEventListener('visibilitychange', onVisible)
-    }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [])
+    const off1 = onResume(refresh)
+    const off2 = onOnline(refresh)
+    return () => { off1(); off2() }
+  }, [refresh])
 
   return (
     <div className="screen">

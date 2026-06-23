@@ -1,21 +1,31 @@
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { useLiveQuery } from 'dexie-react-hooks'
 import { getExercises, saveWorkout, createExercise } from '../db/repo.js'
 import { syncNow } from '../db/sync.js'
+import { getCache, setCache, clearCache } from '../lib/cache.js'
 import ExercisePicker from '../components/ExercisePicker.jsx'
 
 export default function WorkoutScreen({ user }) {
   // Справочник — из локальной базы (офлайн-доступен). Обновляется автоматически,
   // когда фоновый синк подтянет свежий справочник с сервера.
   const exercises = useLiveQuery(() => getExercises(), [], [])
-  const [entries, setEntries] = useState([]) // [{ exercise, sets: [{weight, reps}] }]
+  // Черновик переживает переключение вкладок (экран монтируется заново при
+  // условном рендере App). Храним его в in-memory кэше по пользователю.
+  const DRAFT_KEY = `workout_draft_${user.id}`
+  const [entries, setEntries] = useState(() => getCache(DRAFT_KEY) ?? []) // [{ exercise, sets: [{weight, reps}] }]
   const [pickerOpen, setPickerOpen] = useState(false)
   const [saving, setSaving] = useState(false)
   const [message, setMessage] = useState(null) // {type, text}
 
+  // Сохраняем черновик при каждом изменении состава.
+  useEffect(() => { setCache(DRAFT_KEY, entries) }, [DRAFT_KEY, entries])
+
   function addExercise(ex) {
     setPickerOpen(false)
-    if (entries.some((e) => e.exercise.id === ex.id)) return
+    if (entries.some((e) => e.exercise.id === ex.id)) {
+      setMessage({ type: 'error', text: 'Это упражнение уже добавлено.' })
+      return
+    }
     setEntries([...entries, { exercise: ex, sets: [{ weight: 20, reps: 10 }] }])
   }
 
@@ -66,6 +76,7 @@ export default function WorkoutScreen({ user }) {
       // берёт на себя очередь синхронизации (toolbar покажет статус).
       await saveWorkout({ user_id: user.id, entries })
       setEntries([])
+      clearCache(DRAFT_KEY)
       if (navigator.onLine) {
         setMessage({ type: 'ok', text: 'Тренировка сохранена 💪' })
         syncNow(user.id) // отправим прямо сейчас, не дожидаясь таймера
@@ -111,8 +122,8 @@ export default function WorkoutScreen({ user }) {
               <div className="stepper">
                 <button onClick={() => step(ei, si, 'weight', -2.5)}>−</button>
                 <input
-                  type="number" inputMode="decimal" value={s.weight}
-                  onChange={(e) => updateSet(ei, si, 'weight', e.target.value)}
+                  type="text" inputMode="decimal" value={s.weight}
+                  onChange={(e) => updateSet(ei, si, 'weight', e.target.value.replace(',', '.'))}
                 />
                 <button onClick={() => step(ei, si, 'weight', 2.5)}>+</button>
               </div>

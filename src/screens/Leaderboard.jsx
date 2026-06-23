@@ -1,6 +1,7 @@
 import { useEffect } from 'react'
 import { useLiveQuery } from 'dexie-react-hooks'
 import { getCachedLeaderboard, fetchLeaderboard } from '../db/leaderboard.js'
+import { onOnline, onResume } from '../lib/appEvents.js'
 
 // Медаль для тройки призёров, дальше — номер места.
 function place(i) {
@@ -16,20 +17,15 @@ export default function Leaderboard({ user }) {
   const list = board ?? []
 
   // Тихо обновляем при входе на экран и появлении сети (ошибки не мешают ленте).
+  // Подписки — через общий хаб событий (lib/appEvents.js).
   useEffect(() => {
     const refresh = () => {
       if (navigator.onLine) fetchLeaderboard().catch(() => {})
     }
-    const onVisible = () => {
-      if (document.visibilityState === 'visible') refresh()
-    }
     refresh()
-    window.addEventListener('online', refresh)
-    document.addEventListener('visibilitychange', onVisible)
-    return () => {
-      window.removeEventListener('online', refresh)
-      document.removeEventListener('visibilitychange', onVisible)
-    }
+    const off1 = onResume(refresh)
+    const off2 = onOnline(refresh)
+    return () => { off1(); off2() }
   }, [])
 
   if (loading || list.length === 0) return null

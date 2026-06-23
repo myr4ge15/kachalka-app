@@ -76,7 +76,11 @@ export default function HistoryScreen({ user }) {
   }
   function addExercise(ex) {
     setPickerOpen(false)
-    setDraft((d) => (d.some((e) => e.exercise.id === ex.id) ? d : [...d, { exercise: ex, sets: [{ weight: 20, reps: 10 }] }]))
+    if (draft.some((e) => e.exercise.id === ex.id)) {
+      setMessage({ type: 'error', text: 'Это упражнение уже добавлено.' })
+      return
+    }
+    setDraft((d) => [...d, { exercise: ex, sets: [{ weight: 20, reps: 10 }] }])
   }
 
   // Сохранение правок: переписываем состав тренировки в локальной базе,
@@ -205,8 +209,8 @@ export default function HistoryScreen({ user }) {
                         <div className="stepper">
                           <button onClick={() => step(ei, si, 'weight', -2.5)}>−</button>
                           <input
-                            type="number" inputMode="decimal" value={s.weight}
-                            onChange={(e) => updateSet(ei, si, 'weight', e.target.value)}
+                            type="text" inputMode="decimal" value={s.weight}
+                            onChange={(e) => updateSet(ei, si, 'weight', e.target.value.replace(',', '.'))}
                           />
                           <button onClick={() => step(ei, si, 'weight', 2.5)}>+</button>
                         </div>

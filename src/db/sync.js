@@ -18,8 +18,18 @@ import { supabase, isConfigured } from './supabase.js'
 import { withTimeout } from '../lib/withTimeout.js'
 import { db, nowIso, setMeta } from './local.js'
 import { pendingCount } from './repo.js'
+import { onOnline, onOffline, onResume } from '../lib/appEvents.js'
+import { cmpIsoAsc } from '../lib/cmp.js'
 
 const POLL_MS = 20000
+// После стольких неудачных попыток операция считается «отравленной» и
+// откладывается в dead-letter (флаг _dead): она больше не блокирует очередь,
+// но остаётся в базе для диагностики. Иначе один битый upsert вешал синк навсегда.
+const MAX_ATTEMPTS = 5
+// Сколько последних тренировок тянем за один pull. Раньше тянули всю историю
+// каждые 20 c. Удаления реконсилируем только в пределах подтянутого окна,
+// чтобы не удалить локально записи, которые старше окна и просто не пришли.
+const PULL_LIMIT = 200
 const SELECT_WORKOUT =
   'id, performed_at, user_id, ' +
   'workout_exercises(id, position, exercise_id, ' +
@@ -104,10 +114,17 @@ async function pull(userId) {
       .select(SELECT_WORKOUT)
       .eq('user_id', userId)
       .order('performed_at', { ascending: false })
+      .limit(PULL_LIMIT)
   )
   if (wk.error) throw wk.error
   const serverRows = wk.data ?? []
   const serverIds = new Set(serverRows.map((r) => r.id))
+
+  // Если набралась полная страница — за окном могут быть ещё тренировки, которые
+  // мы не тянули. Их нельзя считать «удалёнными на сервере». Граница окна — самая
+  // старая подтянутая дата (выборка идёт по убыванию performed_at).
+  const partial = serverRows.length === PULL_LIMIT
+  const boundary = partial ? serverRows[serverRows.length - 1].performed_at : null
 
   await db.transaction('rw', db.workouts, async () => {
     // Не трогаем записи с несинхронизированными правками/удалением
@@ -118,11 +135,12 @@ async function pull(userId) {
       if (protectedIds.has(row.id)) continue
       await db.workouts.put(rowToDoc(row))
     }
-    // Удалённые на сервере (и чистые локально) — убираем локально
+    // Удалённые на сервере (и чистые локально) — убираем локально, но только в
+    // пределах подтянутого окна: записи старше границы мы просто не запрашивали.
     for (const w of locals) {
-      if (!serverIds.has(w.id) && !w._dirty && !w._deleted) {
-        await db.workouts.delete(w.id)
-      }
+      if (serverIds.has(w.id) || w._dirty || w._deleted) continue
+      if (partial && cmpIsoAsc(w.performed_at, boundary) < 0) continue
+      await db.workouts.delete(w.id)
     }
   })
 }
@@ -136,6 +154,7 @@ async function pull(userId) {
 async function pushExercises() {
   const ops = await db.ex_outbox.orderBy('seq').toArray()
   for (const op of ops) {
+    if (op._dead) continue // отравленная операция — пропускаем, очередь не блокируем
     try {
       const ex = await db.exercises.get(op.exerciseId)
       if (!ex) {
@@ -158,10 +177,14 @@ async function pushExercises() {
       await db.exercises.update(ex.id, { _dirty: 0 })
       await db.ex_outbox.delete(op.seq)
     } catch (err) {
+      const attempts = (op.attempts ?? 0) + 1
+      const dead = attempts >= MAX_ATTEMPTS
       await db.ex_outbox.update(op.seq, {
-        attempts: (op.attempts ?? 0) + 1,
+        attempts,
         lastError: String(err?.message ?? err),
+        ...(dead ? { _dead: 1 } : {}),
       })
+      if (dead) continue // в dead-letter — не вешаем очередь, идём дальше
       throw err // прекращаем проход, попробуем позже
     }
   }
@@ -172,6 +195,7 @@ async function pushExercises() {
 async function push() {
   const ops = await db.outbox.orderBy('seq').toArray()
   for (const op of ops) {
+    if (op._dead) continue // отравленная операция — пропускаем, очередь не блокируем
     try {
       if (op.type === 'upsert') {
         const doc = await db.workouts.get(op.workoutId)
@@ -203,10 +227,14 @@ async function push() {
         await db.outbox.delete(op.seq)
       }
     } catch (err) {
+      const attempts = (op.attempts ?? 0) + 1
+      const dead = attempts >= MAX_ATTEMPTS
       await db.outbox.update(op.seq, {
-        attempts: (op.attempts ?? 0) + 1,
+        attempts,
         lastError: String(err?.message ?? err),
+        ...(dead ? { _dead: 1 } : {}),
       })
+      if (dead) continue // в dead-letter — не вешаем очередь, идём дальше
       throw err // прекращаем проход, попробуем позже
     }
   }
@@ -237,26 +265,22 @@ export async function syncNow(userId) {
 
 // Запускаем фоновую синхронизацию для пользователя. Возвращает функцию остановки.
 export function startSync(getUserId) {
-  const onOnline = () => {
+  // Подписки через общий хаб событий (см. lib/appEvents.js): DOM-слушатели там
+  // регистрируются один раз на всё приложение.
+  const offOnline = onOnline(() => {
     setState({ online: true })
     syncNow(getUserId())
-  }
-  const onOffline = () => setState({ online: false })
-  const onVisible = () => {
-    if (document.visibilityState === 'visible') syncNow(getUserId())
-  }
-
-  window.addEventListener('online', onOnline)
-  window.addEventListener('offline', onOffline)
-  document.addEventListener('visibilitychange', onVisible)
+  })
+  const offOffline = onOffline(() => setState({ online: false }))
+  const offResume = onResume(() => syncNow(getUserId()))
   const timer = setInterval(() => syncNow(getUserId()), POLL_MS)
 
   syncNow(getUserId()) // первый прогон сразу
 
   return () => {
-    window.removeEventListener('online', onOnline)
-    window.removeEventListener('offline', onOffline)
-    document.removeEventListener('visibilitychange', onVisible)
+    offOnline()
+    offOffline()
+    offResume()
     clearInterval(timer)
   }
 }

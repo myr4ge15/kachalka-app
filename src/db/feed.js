@@ -13,6 +13,7 @@ import { supabase, isConfigured } from './supabase.js'
 import { withTimeout } from '../lib/withTimeout.js'
 import { db } from './local.js'
 import { bestOneRepMax } from '../lib/oneRepMax.js'
+import { cmpIsoAsc, cmpIsoDesc } from '../lib/cmp.js'
 
 // Сколько последних тренировок показываем в ленте.
 const FEED_LIMIT = 50
@@ -72,7 +73,7 @@ function rowToItem(w) {
 function computePrs(items) {
   const byUser = new Map() // user_id → Map(exercise_id → bestOrm)
   const chronological = [...items].sort((a, b) =>
-    String(a.performed_at).localeCompare(String(b.performed_at))
+    cmpIsoAsc(a.performed_at, b.performed_at)
   )
   for (const item of chronological) {
     let best = byUser.get(item.user_id)
@@ -118,7 +119,5 @@ export async function fetchFeed() {
 // Лента из локального кэша (офлайн-доступна), свежее сверху.
 export async function getCachedFeed() {
   const list = await db.feed.toArray()
-  return list.sort((a, b) =>
-    String(b.performed_at).localeCompare(String(a.performed_at))
-  )
+  return list.sort((a, b) => cmpIsoDesc(a.performed_at, b.performed_at))
 }
