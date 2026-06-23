@@ -1,0 +1,140 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Концепт — учёт тренировок</title>
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@tabler/icons-webfont@3.5.0/dist/tabler-icons.min.css">
+<style>
+  :root{
+    --bg:#f4f3ee; --surface:#ffffff; --line:#e3e1d8; --line2:#cfcdc3;
+    --text:#26261f; --muted:#6b6a62; --hint:#9a988f;
+    --info-bg:#e6f1fb; --info:#185fa5;
+    --ok-bg:#e1f5ee; --ok:#0f6e56;
+    --warn:#854f0b;
+  }
+  *{box-sizing:border-box}
+  body{margin:0;background:var(--bg);color:var(--text);
+    font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Helvetica,Arial,sans-serif;
+    padding:28px 18px;}
+  h1{font-size:20px;font-weight:500;text-align:center;margin:0 0 4px}
+  .sub{text-align:center;color:var(--muted);font-size:14px;margin:0 0 24px}
+  .grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(280px,1fr));
+    gap:20px;max-width:980px;margin:0 auto}
+  .phone{background:var(--surface);border:0.5px solid var(--line);border-radius:18px;overflow:hidden}
+  .bar{background:var(--bg);padding:8px 14px;font-size:12px;color:var(--hint);
+    display:flex;justify-content:space-between}
+  .pad{padding:16px}
+  .pill{font-size:12px;padding:3px 9px;border-radius:8px}
+  .row{display:flex;justify-content:space-between;align-items:center}
+  .card{border:0.5px solid var(--line);border-radius:8px;padding:10px 12px;margin-bottom:10px}
+  .dot{width:14px;height:14px;border-radius:50%}
+  .key{padding:10px 0;border:0.5px solid var(--line);border-radius:8px;font-size:18px;text-align:center}
+  .av{width:28px;height:28px;border-radius:50%;background:var(--info-bg);color:var(--info);
+    display:flex;align-items:center;justify-content:center;font-size:12px;font-weight:500}
+</style>
+</head>
+<body>
+<h1>Учёт тренировок — концепт экранов</h1>
+<p class="sub">Вход по PIN · ввод тренировки · прогресс · лидерборд</p>
+<div class="grid">
+
+  <!-- 1. PIN -->
+  <div class="phone">
+    <div class="bar"><span>9:41</span><span>Вход</span></div>
+    <div class="pad" style="text-align:center">
+      <div style="font-size:30px;color:var(--info);margin-bottom:4px"><i class="ti ti-barbell"></i></div>
+      <p style="font-weight:500;font-size:16px;margin:0 0 2px">Привет, Антон</p>
+      <p style="font-size:13px;color:var(--muted);margin:0 0 16px">Введите PIN-код</p>
+      <div style="display:flex;gap:10px;justify-content:center;margin-bottom:18px">
+        <span class="dot" style="background:var(--info)"></span>
+        <span class="dot" style="background:var(--info)"></span>
+        <span class="dot" style="border:1.5px solid var(--line2)"></span>
+        <span class="dot" style="border:1.5px solid var(--line2)"></span>
+      </div>
+      <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:8px;max-width:180px;margin:0 auto">
+        <span class="key">1</span><span class="key">2</span><span class="key">3</span>
+        <span class="key">4</span><span class="key">5</span><span class="key">6</span>
+        <span class="key">7</span><span class="key">8</span><span class="key">9</span>
+      </div>
+    </div>
+  </div>
+
+  <!-- 2. Новая тренировка -->
+  <div class="phone">
+    <div class="bar"><span>Новая тренировка</span><span></span></div>
+    <div class="pad">
+      <div class="row" style="margin-bottom:12px">
+        <span style="font-size:13px;color:var(--muted)"><i class="ti ti-calendar"></i> 23 июня</span>
+        <span class="pill" style="background:var(--info-bg);color:var(--info)">Шаблон: грудь</span>
+      </div>
+      <div class="card">
+        <p style="font-weight:500;font-size:14px;margin:0 0 8px">Жим лёжа со штангой</p>
+        <div class="row" style="font-size:13px;color:var(--muted);margin-bottom:5px"><span>Подход 1</span><span style="color:var(--text)">80 кг × 10</span></div>
+        <div class="row" style="font-size:13px;color:var(--muted);margin-bottom:5px"><span>Подход 2</span><span style="color:var(--text)">85 кг × 8</span></div>
+        <div class="row" style="font-size:13px;color:var(--info)"><span><i class="ti ti-plus"></i> Повторить подход</span><span>90 кг × 6</span></div>
+      </div>
+      <div class="card">
+        <p style="font-weight:500;font-size:14px;margin:0 0 4px">Разведение гантелей</p>
+        <span style="font-size:13px;color:var(--hint)">+ добавить подход</span>
+      </div>
+      <div style="text-align:center;font-size:13px;color:var(--info);border:0.5px dashed var(--line2);border-radius:8px;padding:9px">
+        <i class="ti ti-plus"></i> Добавить упражнение</div>
+    </div>
+  </div>
+
+  <!-- 3. Прогресс -->
+  <div class="phone">
+    <div class="bar"><span>Прогресс</span><span></span></div>
+    <div class="pad">
+      <p style="font-weight:500;font-size:14px;margin:0 0 2px">Жим лёжа · максимум на раз</p>
+      <div style="display:flex;gap:6px;margin:8px 0 12px">
+        <span class="pill" style="background:var(--info-bg);color:var(--info)">Месяц</span>
+        <span class="pill" style="border:0.5px solid var(--line);color:var(--muted)">Неделя</span>
+        <span class="pill" style="border:0.5px solid var(--line);color:var(--muted)">Период</span>
+      </div>
+      <svg viewBox="0 0 240 120" style="width:100%;height:auto">
+        <line x1="28" y1="10" x2="28" y2="100" stroke="var(--line)" stroke-width="1"/>
+        <line x1="28" y1="100" x2="232" y2="100" stroke="var(--line)" stroke-width="1"/>
+        <text x="6" y="22" font-size="9" fill="var(--hint)">100</text>
+        <text x="10" y="62" font-size="9" fill="var(--hint)">90</text>
+        <text x="10" y="102" font-size="9" fill="var(--hint)">80</text>
+        <polyline points="40,86 90,74 140,78 190,46 222,30" fill="none" stroke="#185fa5" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"/>
+        <circle cx="40" cy="86" r="3" fill="#185fa5"/><circle cx="90" cy="74" r="3" fill="#185fa5"/>
+        <circle cx="140" cy="78" r="3" fill="#185fa5"/><circle cx="190" cy="46" r="3" fill="#185fa5"/>
+        <circle cx="222" cy="30" r="4" fill="#0f6e56"/>
+      </svg>
+      <div class="row" style="margin-top:8px">
+        <span style="font-size:12px;color:var(--muted)">за месяц <span style="color:var(--ok)">▲ +7 кг</span></span>
+        <span class="pill" style="background:var(--ok-bg);color:var(--ok)"><i class="ti ti-trophy"></i> Рекорд 97 кг</span>
+      </div>
+    </div>
+  </div>
+
+  <!-- 4. Лидерборд -->
+  <div class="phone">
+    <div class="bar"><span>Лидерборд · жим</span><span></span></div>
+    <div class="pad">
+      <div class="row" style="gap:10px;padding:8px 10px;border-radius:8px;background:var(--bg);margin-bottom:6px">
+        <span style="width:18px;color:var(--warn)">1</span><div class="av">МК</div>
+        <span style="flex:1;font-size:14px">Максим</span><span style="font-size:14px;font-weight:500">110 кг</span>
+      </div>
+      <div class="row" style="gap:10px;padding:8px 10px;border-radius:8px;border:1.5px solid var(--info);margin-bottom:6px">
+        <span style="width:18px;color:var(--muted)">2</span><div class="av">АН</div>
+        <span style="flex:1;font-size:14px">Антон <span style="font-size:11px;color:var(--info)">· вы</span></span><span style="font-size:14px;font-weight:500">97 кг</span>
+      </div>
+      <div class="row" style="gap:10px;padding:8px 10px;border-radius:8px;margin-bottom:6px">
+        <span style="width:18px;color:var(--muted)">3</span><div class="av">ДС</div>
+        <span style="flex:1;font-size:14px">Денис</span><span style="font-size:14px;font-weight:500">92 кг</span>
+      </div>
+      <div style="border-top:0.5px solid var(--line);margin-top:10px;padding-top:10px">
+        <p style="font-size:12px;color:var(--hint);margin:0 0 6px">Лента</p>
+        <p style="font-size:13px;margin:0 0 4px"><span style="color:var(--info)">Денис</span> отметил тренировку · спина</p>
+        <p style="font-size:13px;margin:0"><span style="color:var(--info)">Максим</span> побил рекорд в жиме <i class="ti ti-trophy" style="color:var(--warn)"></i></p>
+      </div>
+    </div>
+  </div>
+
+</div>
+</body>
+</html>
