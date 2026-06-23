@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react'
 import { useLiveQuery } from 'dexie-react-hooks'
 import { getCachedFeed, fetchFeed } from '../db/feed.js'
+import Leaderboard from './Leaderboard.jsx'
 
 // «сегодня / вчера / дд.мм.гггг» + время
 function fmtWhen(iso) {
@@ -72,6 +73,8 @@ export default function FeedScreen({ user }) {
         </button>
       </div>
       <p className="muted sub">Последние тренировки друзей</p>
+
+      <Leaderboard user={user} />
 
       {error && <div className="banner error">{error}</div>}
 

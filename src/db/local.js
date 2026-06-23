@@ -66,6 +66,22 @@ db.version(3).stores({
   ex_outbox: '++seq, exerciseId, createdAt',
 })
 
+// v4: кэш лидерборда по жиму лёжа (ТЗ §4.3, §8.3 — MVP).
+// Read-only снимок «лучший расчётный 1ПМ в жиме на каждого участника»,
+// посчитанный по всей истории на сервере и закэшированный, чтобы рейтинг
+// открывался мгновенно и что-то показывал офлайн. Ключ — user_id (одна строка
+// на участника). Остальные таблицы не трогаем.
+db.version(4).stores({
+  exercises: 'id, muscle_group, name, _dirty',
+  users: 'id, name',
+  workouts: 'id, user_id, performed_at, _dirty, _deleted',
+  outbox: '++seq, workoutId, type, createdAt',
+  meta: 'key',
+  feed: 'id, performed_at',
+  ex_outbox: '++seq, exerciseId, createdAt',
+  leaderboard: 'user_id, orm',
+})
+
 // Текущее серверное (UTC) время в ISO. crypto.randomUUID доступен на https и localhost.
 export const nowIso = () => new Date().toISOString()
 export const newId = () =>
