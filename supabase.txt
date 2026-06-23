@@ -1,8 +1,0 @@
-Project ID
-lkrrbpbytinrdpfmhxep
-
-Publishable key
-sb_publishable_dSM3XqrmlG1KLStWMgzJ8w_OxlNTAQI
-
-Project URL
-https://lkrrbpbytinrdpfmhxep.supabase.co
