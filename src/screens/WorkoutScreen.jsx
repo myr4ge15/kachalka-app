@@ -1,28 +1,17 @@
-import { useState, useEffect } from 'react'
-import { supabase } from '../db/supabase.js'
-import { withTimeout } from '../lib/withTimeout.js'
-import { getCache, setCache } from '../lib/cache.js'
+import { useState } from 'react'
+import { useLiveQuery } from 'dexie-react-hooks'
+import { getExercises, saveWorkout } from '../db/repo.js'
+import { syncNow } from '../db/sync.js'
 import ExercisePicker from '../components/ExercisePicker.jsx'
 
 export default function WorkoutScreen({ user }) {
-  // Справочник кэшируем: повторные заходы на вкладку — мгновенные
-  const [exercises, setExercises] = useState(() => getCache('exercises') ?? [])
+  // Справочник — из локальной базы (офлайн-доступен). Обновляется автоматически,
+  // когда фоновый синк подтянет свежий справочник с сервера.
+  const exercises = useLiveQuery(() => getExercises(), [], [])
   const [entries, setEntries] = useState([]) // [{ exercise, sets: [{weight, reps}] }]
   const [pickerOpen, setPickerOpen] = useState(false)
   const [saving, setSaving] = useState(false)
   const [message, setMessage] = useState(null) // {type, text}
-
-  useEffect(() => {
-    supabase
-      .from('exercises')
-      .select('id, name, muscle_group, is_bench_lift')
-      .order('muscle_group')
-      .order('name')
-      .then(({ data, error }) => {
-        if (error) setMessage({ type: 'error', text: 'Справочник не загрузился: ' + error.message })
-        else { setExercises(data ?? []); setCache('exercises', data ?? []) }
-      })
-  }, [])
 
   function addExercise(ex) {
     setPickerOpen(false)
@@ -73,23 +62,16 @@ export default function WorkoutScreen({ user }) {
     setSaving(true)
     setMessage(null)
     try {
-      // Вся тренировка — одним атомарным запросом (RPC save_workout).
-      // Нет промежуточных round-trip'ов и тренировок-сирот при таймауте.
-      const payload = entries.map((entry) => ({
-        exercise_id: entry.exercise.id,
-        sets: entry.sets.map((s) => ({
-          weight: Number(s.weight),
-          reps: Number(s.reps),
-        })),
-      }))
-
-      const { error } = await withTimeout(
-        supabase.rpc('save_workout', { p_user_id: user.id, p_entries: payload })
-      )
-      if (error) throw error
-
+      // Пишем в локальную базу — мгновенно и без сети. Отправку на сервер
+      // берёт на себя очередь синхронизации (toolbar покажет статус).
+      await saveWorkout({ user_id: user.id, entries })
       setEntries([])
-      setMessage({ type: 'ok', text: 'Тренировка сохранена 💪' })
+      if (navigator.onLine) {
+        setMessage({ type: 'ok', text: 'Тренировка сохранена 💪' })
+        syncNow(user.id) // отправим прямо сейчас, не дожидаясь таймера
+      } else {
+        setMessage({ type: 'ok', text: 'Сохранено офлайн — отправлю, когда появится сеть 📥' })
+      }
     } catch (err) {
       setMessage({ type: 'error', text: 'Не сохранилось: ' + (err.message ?? err) })
     } finally {

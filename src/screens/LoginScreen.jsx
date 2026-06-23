@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react'
 import { supabase } from '../db/supabase.js'
+import { getUsers, cacheUsers } from '../db/repo.js'
 import { sha256Hex } from '../lib/hash.js'
 
 export default function LoginScreen({ onLogin }) {
@@ -9,16 +10,40 @@ export default function LoginScreen({ onLogin }) {
   const [error, setError] = useState('')
   const [loading, setLoading] = useState(true)
 
+  // Офлайн-вход: сначала показываем пользователей из кэша (IndexedDB),
+  // затем тихо обновляем их из сети и перекэшируем. PIN сверяется по хэшу
+  // локально, поэтому вход работает и без сети — если кэш уже наполнен.
   useEffect(() => {
-    supabase
-      .from('users')
-      .select('id, name, pin_hash, role')
-      .order('name')
-      .then(({ data, error }) => {
-        if (error) setError('Не удалось загрузить пользователей: ' + error.message)
-        else setUsers(data ?? [])
+    let alive = true
+    async function load() {
+      const cached = await getUsers()
+      if (alive && cached.length) {
+        setUsers(cached)
         setLoading(false)
-      })
+      }
+      try {
+        const { data, error } = await supabase
+          .from('users')
+          .select('id, name, pin_hash, role')
+          .order('name')
+        if (error) throw error
+        if (data) {
+          await cacheUsers(data)
+          if (alive) setUsers(data)
+        }
+      } catch (err) {
+        if (alive && cached.length === 0) {
+          setError(
+            'Не удалось загрузить пользователей и нет офлайн-кэша. ' +
+              'Подключись к сети хотя бы раз: ' + (err.message ?? err)
+          )
+        }
+      } finally {
+        if (alive) setLoading(false)
+      }
+    }
+    load()
+    return () => { alive = false }
   }, [])
 
   function pickUser(u) {

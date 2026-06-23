@@ -27,9 +27,33 @@ npm run dev
 
 1. Создай проект (см. `setup-supabase-github.md`).
 2. SQL Editor → New query → выполни `supabase/schema.sql`, затем `supabase/seed.sql` (создаст таблицы, политики RLS и стартовый справочник упражнений).
-3. Project URL и **publishable-ключ** (`sb_publishable_...`) пропиши в `.env` как `VITE_SUPABASE_URL` и `VITE_SUPABASE_KEY`.
+3. Выполни `supabase/rpc.sql` — транзакционные функции сохранения, включая `upsert_workout` (нужна для офлайн-синхронизации, см. ниже).
+4. Project URL и **publishable-ключ** (`sb_publishable_...`) пропиши в `.env` как `VITE_SUPABASE_URL` и `VITE_SUPABASE_KEY`.
 
 Стартовый PIN у всех пользователей из `seed.sql` — **0000** (поменяй имена и PIN в сидах; смена PIN из интерфейса — следующий проход).
+
+## Офлайн-режим и синхронизация
+
+Приложение работает офлайн-first: источник правды для интерфейса — локальная база
+**IndexedDB (Dexie)**, а не сеть.
+
+- **Чтение** (вход, справочник, история, прогресс) идёт из локальной базы → экраны
+  открываются мгновенно и без сети (после первого онлайн-захода, который наполняет кэш).
+- **Запись** (сохранение/правка/удаление тренировки) пишется локально и ставится в
+  очередь несинхронизированных операций (`outbox`). UI обновляется сразу.
+- **Синхронизация** (`src/db/sync.js`) при наличии сети: `push` отправляет очередь на
+  сервер (идемпотентный RPC `upsert_workout` + удаление), `pull` подтягивает свежие
+  данные, не затирая ещё не отправленные локальные изменения. Триггеры: вход, событие
+  `online`, возврат вкладки, таймер (20 с).
+- В шапке — индикатор состояния: `синхронизировано` / `N не синхр.` / `офлайн · N в очереди`.
+  Несинхронизированные тренировки в Истории помечены жёлтой точкой.
+
+> **Важно:** офлайн-синк требует функции `upsert_workout` из `supabase/rpc.sql` —
+> выполни этот файл в Supabase (шаг 3 выше). Тренировки получают UUID на клиенте, и
+> RPC идемпотентно создаёт/перезаписывает их по этому id (безопасно при повторной отправке).
+
+Слой данных: `src/db/local.js` (схема Dexie), `src/db/repo.js` (API для экранов),
+`src/db/sync.js` (движок pull/push + хук статуса).
 
 ## Деплой на GitHub Pages
 
@@ -45,12 +69,15 @@ npm run dev
 ```
 src/
   components/ExercisePicker.jsx   выбор упражнения (поиск + фильтр)
-  screens/   LoginScreen, WorkoutScreen, ProgressScreen
+  screens/   LoginScreen, WorkoutScreen, HistoryScreen, ProgressScreen
   db/        supabase.js          клиент Supabase
-  lib/       oneRepMax.js (1ПМ), hash.js (SHA-256 PIN)
-  App.jsx    сессия + вкладки
+             local.js             локальная база (Dexie/IndexedDB)
+             repo.js              API данных для экранов (только локально)
+             sync.js              движок офлайн-синхронизации + статус
+  lib/       oneRepMax.js (1ПМ), hash.js (SHA-256 PIN), withTimeout.js
+  App.jsx    сессия + вкладки + индикатор синхронизации
   main.jsx   точка входа
-supabase/    schema.sql, seed.sql
+supabase/    schema.sql, seed.sql, rpc.sql
 public/      иконки PWA, favicon
 .github/workflows/deploy.yml      сборка + деплой
 ```

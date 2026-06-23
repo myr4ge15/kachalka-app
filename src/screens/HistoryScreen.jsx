@@ -1,7 +1,7 @@
-import { useState, useEffect, useCallback } from 'react'
-import { supabase } from '../db/supabase.js'
-import { withTimeout } from '../lib/withTimeout.js'
-import { getCache, setCache } from '../lib/cache.js'
+import { useState } from 'react'
+import { useLiveQuery } from 'dexie-react-hooks'
+import { getWorkouts, getExercises, saveWorkout, deleteWorkout as repoDelete } from '../db/repo.js'
+import { syncNow } from '../db/sync.js'
 import ExercisePicker from '../components/ExercisePicker.jsx'
 
 function fmtDate(iso) {
@@ -11,70 +11,28 @@ function fmtDate(iso) {
   })
 }
 
-// workout из БД → редактируемая форма [{ exercise, sets:[{weight,reps}] }]
+// локальный документ тренировки → редактируемая форма [{ exercise, sets:[{weight,reps}] }]
 function toEntries(workout) {
-  return [...(workout.workout_exercises ?? [])]
-    .sort((a, b) => (a.position ?? 0) - (b.position ?? 0))
-    .map((we) => ({
-      exercise: we.exercise ?? { id: we.exercise_id, name: '—' },
-      sets: [...(we.sets ?? [])]
-        .sort((a, b) => (a.set_number ?? 0) - (b.set_number ?? 0))
-        .map((s) => ({ weight: s.weight, reps: s.reps })),
-    }))
+  return (workout.entries ?? []).map((e) => ({
+    exercise: e.exercise ?? { id: e.exercise_id, name: '—' },
+    sets: (e.sets ?? []).map((s) => ({ weight: s.weight, reps: s.reps })),
+  }))
 }
 
 export default function HistoryScreen({ user }) {
-  const wKey = 'history:' + user.id
-  const [workouts, setWorkouts] = useState(() => getCache(wKey) ?? [])
-  const [exercises, setExercises] = useState(() => getCache('exercises') ?? [])
-  // Если данные уже в кэше — не показываем «Загрузка…», обновляем в фоне
-  const [loading, setLoading] = useState(() => getCache(wKey) === undefined)
-  const [error, setError] = useState('')
+  // История и справочник — из локальной базы (офлайн-доступны). Любая правка
+  // пишется в Dexie и эти списки обновляются мгновенно (useLiveQuery), а
+  // отправку на сервер берёт на себя очередь синхронизации.
+  const workouts = useLiveQuery(() => getWorkouts(user.id), [user.id])
+  const exercises = useLiveQuery(() => getExercises(), [], [])
+  const loading = workouts === undefined
+  const list = workouts ?? []
 
   const [editId, setEditId] = useState(null)     // id редактируемой тренировки
   const [draft, setDraft] = useState([])          // entries в режиме правки
   const [pickerOpen, setPickerOpen] = useState(false)
   const [busy, setBusy] = useState(false)         // сохранение/удаление
   const [message, setMessage] = useState(null)
-
-  const load = useCallback(async () => {
-    // Спиннер только если показывать пока нечего; иначе тихо обновляем из кэша
-    if (getCache(wKey) === undefined) setLoading(true)
-    setError('')
-    try {
-      const { data, error: e } = await withTimeout(
-        supabase
-          .from('workouts')
-          .select(
-            'id, performed_at, workout_exercises(id, position, exercise_id, exercise:exercises(id, name, muscle_group), sets(id, set_number, weight, reps))'
-          )
-          .eq('user_id', user.id)
-          .order('performed_at', { ascending: false })
-      )
-      if (e) throw e
-      const rows = data ?? []
-      setWorkouts(rows)
-      setCache(wKey, rows)
-    } catch (err) {
-      setError('Не удалось загрузить историю: ' + (err.message ?? err))
-    } finally {
-      setLoading(false)
-    }
-  }, [user.id, wKey])
-
-  useEffect(() => { load() }, [load])
-
-  // справочник нужен для добавления упражнения в режиме правки
-  useEffect(() => {
-    supabase
-      .from('exercises')
-      .select('id, name, muscle_group, is_bench_lift')
-      .order('muscle_group')
-      .order('name')
-      .then(({ data }) => {
-        if (data) { setExercises(data); setCache('exercises', data) }
-      })
-  }, [])
 
   function startEdit(w) {
     setMessage(null)
@@ -121,8 +79,8 @@ export default function HistoryScreen({ user }) {
     setDraft((d) => (d.some((e) => e.exercise.id === ex.id) ? d : [...d, { exercise: ex, sets: [{ weight: 20, reps: 10 }] }]))
   }
 
-  // Сохранение правок: переписываем состав тренировки.
-  // workout_exercises удаляются с каскадом на sets, затем вставляем заново.
+  // Сохранение правок: переписываем состав тренировки в локальной базе,
+  // изменения встают в очередь и уходят на сервер при наличии сети.
   async function saveEdit() {
     const cleaned = draft.filter((e) => e.sets.length > 0)
     if (cleaned.length === 0) {
@@ -132,49 +90,13 @@ export default function HistoryScreen({ user }) {
     setBusy(true)
     setMessage(null)
     try {
-      // Переписываем состав одним атомарным запросом (RPC replace_workout):
-      // delete + insert идут в одной транзакции на сервере, без сирот.
-      const payload = cleaned.map((e) => ({
-        exercise_id: e.exercise.id,
-        sets: e.sets.map((s) => ({
-          weight: Number(s.weight),
-          reps: Number(s.reps),
-        })),
-      }))
-
-      const { error } = await withTimeout(
-        supabase.rpc('replace_workout', { p_workout_id: editId, p_entries: payload })
-      )
-      if (error) throw error
-
-      // Обновляем тренировку локально, без повторной загрузки всей истории.
-      // Реальные id подтянутся при следующей фоновой загрузке.
-      const newWEs = cleaned.map((e, i) => ({
-        id: `local-${i}`,
-        position: i,
-        exercise_id: e.exercise.id,
-        exercise: {
-          id: e.exercise.id,
-          name: e.exercise.name,
-          muscle_group: e.exercise.muscle_group,
-        },
-        sets: e.sets.map((s, j) => ({
-          id: `local-${i}-${j}`,
-          set_number: j + 1,
-          weight: Number(s.weight),
-          reps: Number(s.reps),
-        })),
-      }))
-      const savedId = editId
+      await saveWorkout({ id: editId, user_id: user.id, entries: cleaned })
       cancelEdit()
-      setWorkouts((ws) => {
-        const next = ws.map((w) =>
-          w.id === savedId ? { ...w, workout_exercises: newWEs } : w
-        )
-        setCache(wKey, next)
-        return next
+      setMessage({
+        type: 'ok',
+        text: navigator.onLine ? 'Изменения сохранены' : 'Сохранено офлайн — отправлю при сети 📥',
       })
-      setMessage({ type: 'ok', text: 'Изменения сохранены' })
+      if (navigator.onLine) syncNow(user.id)
     } catch (err) {
       setMessage({ type: 'error', text: 'Не сохранилось: ' + (err.message ?? err) })
     } finally {
@@ -187,16 +109,13 @@ export default function HistoryScreen({ user }) {
     setBusy(true)
     setMessage(null)
     try {
-      const { error: e } = await withTimeout(supabase.from('workouts').delete().eq('id', id))
-      if (e) throw e
+      await repoDelete(id)
       if (editId === id) cancelEdit()
-      // Убираем локально, без повторной загрузки всей истории
-      setWorkouts((ws) => {
-        const next = ws.filter((w) => w.id !== id)
-        setCache(wKey, next)
-        return next
+      setMessage({
+        type: 'ok',
+        text: navigator.onLine ? 'Тренировка удалена' : 'Удалено офлайн — синхронизирую при сети 📥',
       })
-      setMessage({ type: 'ok', text: 'Тренировка удалена' })
+      if (navigator.onLine) syncNow(user.id)
     } catch (err) {
       setMessage({ type: 'error', text: 'Не удалилось: ' + (err.message ?? err) })
     } finally {
@@ -206,9 +125,9 @@ export default function HistoryScreen({ user }) {
 
   // --- summary для свёрнутой карточки ---
   function summarize(w) {
-    const wes = w.workout_exercises ?? []
-    const exCount = wes.length
-    const setCount = wes.reduce((n, we) => n + (we.sets?.length ?? 0), 0)
+    const entries = w.entries ?? []
+    const exCount = entries.length
+    const setCount = entries.reduce((n, e) => n + (e.sets?.length ?? 0), 0)
     return { exCount, setCount }
   }
 
@@ -221,20 +140,23 @@ export default function HistoryScreen({ user }) {
       )}
 
       {loading && <p className="muted">Загрузка…</p>}
-      {error && <div className="banner error">{error}</div>}
 
-      {!loading && !error && workouts.length === 0 && (
+      {!loading && list.length === 0 && (
         <p className="muted empty">Пока нет записанных тренировок.</p>
       )}
 
-      {workouts.map((w) => {
+      {list.map((w) => {
         const editing = editId === w.id
         const { exCount, setCount } = summarize(w)
+        const unsynced = Boolean(w._dirty)
         return (
           <div key={w.id} className="card history-card">
             <div className="history-head">
               <div>
-                <div className="history-date">{fmtDate(w.performed_at)}</div>
+                <div className="history-date">
+                  {fmtDate(w.performed_at)}
+                  {unsynced && <span className="dot-unsynced" title="Ждёт синхронизации">●</span>}
+                </div>
                 {!editing && (
                   <div className="muted history-sub">
                     {exCount} упр · {setCount} подх.
@@ -255,19 +177,14 @@ export default function HistoryScreen({ user }) {
 
             {!editing && (
               <ul className="history-list">
-                {[...(w.workout_exercises ?? [])]
-                  .sort((a, b) => (a.position ?? 0) - (b.position ?? 0))
-                  .map((we) => {
-                    const sets = [...(we.sets ?? [])].sort((a, b) => (a.set_number ?? 0) - (b.set_number ?? 0))
-                    return (
-                      <li key={we.id} className="history-ex">
-                        <span className="history-ex-name">{we.exercise?.name ?? '—'}</span>
-                        <span className="history-ex-sets">
-                          {sets.map((s) => `${s.weight}×${s.reps}`).join(', ') || '—'}
-                        </span>
-                      </li>
-                    )
-                  })}
+                {(w.entries ?? []).map((e, i) => (
+                  <li key={i} className="history-ex">
+                    <span className="history-ex-name">{e.exercise?.name ?? '—'}</span>
+                    <span className="history-ex-sets">
+                      {(e.sets ?? []).map((s) => `${s.weight}×${s.reps}`).join(', ') || '—'}
+                    </span>
+                  </li>
+                ))}
               </ul>
             )}
 

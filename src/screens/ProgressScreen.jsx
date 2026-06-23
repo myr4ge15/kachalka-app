@@ -1,10 +1,9 @@
-import { useState, useEffect } from 'react'
+import { useMemo } from 'react'
 import {
   ResponsiveContainer, LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, Dot,
 } from 'recharts'
-import { supabase } from '../db/supabase.js'
-import { withTimeout } from '../lib/withTimeout.js'
-import { getCache, setCache } from '../lib/cache.js'
+import { useLiveQuery } from 'dexie-react-hooks'
+import { getWorkouts } from '../db/repo.js'
 import { bestOneRepMax } from '../lib/oneRepMax.js'
 
 function fmtDate(iso) {
@@ -12,61 +11,40 @@ function fmtDate(iso) {
   return d.toLocaleDateString('ru-RU', { day: '2-digit', month: '2-digit' })
 }
 
-export default function ProgressScreen({ user }) {
-  const pKey = 'progress:' + user.id
-  const [data, setData] = useState(() => getCache(pKey) ?? [])
-  const [loading, setLoading] = useState(() => getCache(pKey) === undefined)
-  const [error, setError] = useState('')
-
-  useEffect(() => {
-    async function load() {
-      if (getCache(pKey) === undefined) setLoading(true)
-      setError('')
-      try {
-        // Один запрос: все подходы пользователя в «жиме лёжа» (фильтр по
-        // встроенному exercises.is_bench_lift) + дата тренировки.
-        const { data: rows, error: re } = await withTimeout(
-          supabase
-            .from('workout_exercises')
-            .select(
-              'exercises!inner(is_bench_lift), workouts!inner(performed_at, user_id), sets(weight, reps)'
-            )
-            .eq('exercises.is_bench_lift', true)
-            .eq('workouts.user_id', user.id)
-        )
-        if (re) throw re
-
-        // лучший 1ПМ за каждый день
-        const byDay = new Map()
-        for (const r of rows ?? []) {
-          const sets = r.sets ?? []
-          if (sets.length === 0) continue
-          const orm = bestOneRepMax(sets)
-          const day = (r.workouts.performed_at ?? '').slice(0, 10)
-          byDay.set(day, Math.max(byDay.get(day) ?? 0, orm))
-        }
-
-        const series = Array.from(byDay.entries())
-          .map(([day, orm]) => ({ day, orm }))
-          .sort((a, b) => a.day.localeCompare(b.day))
-
-        // отметка рекордов (новый максимум по ходу истории)
-        let running = 0
-        for (const p of series) {
-          p.isPr = p.orm > running
-          if (p.isPr) running = p.orm
-        }
-
-        setData(series)
-        setCache(pKey, series)
-      } catch (err) {
-        setError('Не удалось загрузить прогресс: ' + (err.message ?? err))
-      } finally {
-        setLoading(false)
-      }
+// Из локальных тренировок строим серию «лучший 1ПМ в жиме лёжа по дням».
+// Считаем прямо на клиенте из денормализованных документов — поэтому график
+// работает офлайн и сразу учитывает несинхронизированные записи.
+function buildSeries(workouts) {
+  const byDay = new Map()
+  for (const w of workouts) {
+    const day = String(w.performed_at ?? '').slice(0, 10)
+    if (!day) continue
+    for (const e of w.entries ?? []) {
+      if (!e.exercise?.is_bench_lift) continue
+      const sets = e.sets ?? []
+      if (sets.length === 0) continue
+      const orm = bestOneRepMax(sets)
+      byDay.set(day, Math.max(byDay.get(day) ?? 0, orm))
     }
-    load()
-  }, [user.id])
+  }
+  const series = Array.from(byDay.entries())
+    .map(([day, orm]) => ({ day, orm }))
+    .sort((a, b) => a.day.localeCompare(b.day))
+
+  // отметка рекордов (новый максимум по ходу истории)
+  let running = 0
+  for (const p of series) {
+    p.isPr = p.orm > running
+    if (p.isPr) running = p.orm
+  }
+  return series
+}
+
+export default function ProgressScreen({ user }) {
+  const workouts = useLiveQuery(() => getWorkouts(user.id), [user.id])
+  const loading = workouts === undefined
+  const error = ''
+  const data = useMemo(() => buildSeries(workouts ?? []), [workouts])
 
   const best = data.reduce((m, p) => Math.max(m, p.orm), 0)
 
