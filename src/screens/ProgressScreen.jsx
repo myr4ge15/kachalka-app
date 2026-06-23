@@ -96,6 +96,13 @@ export default function ProgressScreen({ user }) {
             </ResponsiveContainer>
             <p className="muted legend">● зелёный — сессия · ● жёлтый — новый рекорд</p>
           </div>
+
+          <p className="formula-note">
+            1ПМ считается по формуле Эпли:{' '}
+            <code>вес × (1 + повторы ÷ 30)</code>. Это расчётная оценка
+            максимума «на раз», а не результат реального теста — чем больше
+            повторов в подходе, тем выше погрешность.
+          </p>
         </>
       )}
     </div>

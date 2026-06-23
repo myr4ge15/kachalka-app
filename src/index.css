@@ -28,7 +28,12 @@ input { font-family: inherit; }
 
 .topbar {
   display: flex; align-items: center; justify-content: space-between;
-  padding: 12px 16px; border-bottom: 1px solid var(--border);
+  padding: 12px 16px;
+  /* отступ под вырез/чёлку на мобиле */
+  padding-top: calc(12px + env(safe-area-inset-top));
+  padding-left: calc(16px + env(safe-area-inset-left));
+  padding-right: calc(16px + env(safe-area-inset-right));
+  border-bottom: 1px solid var(--border);
   position: sticky; top: 0; background: var(--bg); z-index: 5;
 }
 .topbar-user { font-weight: 600; margin-right: auto; }
@@ -45,7 +50,8 @@ input { font-family: inherit; }
 /* Метка несинхронизированной тренировки в Истории */
 .dot-unsynced { color: #fcd34d; font-size: 10px; margin-left: 6px; vertical-align: middle; }
 
-.content { flex: 1; padding-bottom: 72px; }
+/* нижний отступ учитывает высоту таббара + домашний индикатор */
+.content { flex: 1; padding-bottom: calc(72px + env(safe-area-inset-bottom)); }
 
 .tabbar {
   position: fixed; bottom: 0; left: 0; right: 0;
@@ -58,7 +64,11 @@ input { font-family: inherit; }
 }
 .tab.active { color: var(--green); }
 
-.screen { padding: 16px; max-width: 560px; margin: 0 auto; }
+.screen {
+  padding: 16px; max-width: 560px; margin: 0 auto;
+  padding-left: calc(16px + env(safe-area-inset-left));
+  padding-right: calc(16px + env(safe-area-inset-right));
+}
 .screen.center {
   min-height: 100vh; display: flex; align-items: center; justify-content: center;
 }
@@ -117,24 +127,29 @@ input { font-family: inherit; }
 .exercise-name { font-weight: 600; }
 
 .sets-head, .set-row {
-  display: grid; grid-template-columns: 28px 1fr 1fr 28px; gap: 8px; align-items: center;
+  display: grid; grid-template-columns: 22px 1fr 1fr 26px; gap: 6px; align-items: center;
 }
 .sets-head { color: var(--muted); font-size: 12px; margin-bottom: 6px; text-align: center; }
 .set-row { margin-bottom: 8px; }
 .set-num { text-align: center; color: var(--muted); }
 
-.stepper { display: flex; align-items: center; gap: 4px; }
+.stepper { display: flex; align-items: center; gap: 3px; }
 .stepper button {
-  width: 38px; height: 42px; flex-shrink: 0; font-size: 20px;
+  width: 34px; height: 42px; flex-shrink: 0; font-size: 20px;
   border-radius: 10px; border: 1px solid var(--border);
   background: var(--surface-2); color: var(--text);
 }
 .stepper button:active { background: var(--border); }
+/* Инпут занимает весь остаток строки, чтобы крупные значения (напр. «112.5») влезали целиком */
 .stepper input {
   width: 100%; min-width: 0; height: 42px; text-align: center; font-size: 17px;
-  border-radius: 10px; border: 1px solid var(--border);
+  padding: 0 2px; border-radius: 10px; border: 1px solid var(--border);
   background: var(--bg); color: var(--text);
 }
+/* Поджимаем нативные стрелки number, чтобы не воровали ширину у цифр */
+.stepper input::-webkit-outer-spin-button,
+.stepper input::-webkit-inner-spin-button { -webkit-appearance: none; margin: 0; }
+.stepper input[type=number] { -moz-appearance: textfield; appearance: textfield; }
 
 /* ---------- exercise picker ---------- */
 .overlay {
@@ -263,4 +278,31 @@ input { font-family: inherit; }
 .feed-foot {
   font-size: 13px; margin-top: 10px; padding-top: 8px;
   border-top: 1px solid var(--border);
+}
+
+/* Сноска с формулой под графиком прогресса */
+.formula-note {
+  margin-top: 10px; padding: 10px 12px; font-size: 12px; line-height: 1.5;
+  color: var(--muted); background: var(--surface);
+  border: 1px solid var(--border); border-radius: 10px;
+}
+.formula-note code {
+  color: var(--text); font-size: 12px;
+  background: var(--surface-2); padding: 1px 5px; border-radius: 5px;
+}
+
+/* ---------- адаптив узких экранов (≤380px) ---------- */
+@media (max-width: 380px) {
+  .screen { padding: 12px; }
+  .card { padding: 14px; }
+  .exercise-card, .history-card, .feed-card { padding: 12px; }
+  /* ещё сильнее поджимаем степперы, чтобы цифры влезали на маленьких телефонах */
+  .sets-head, .set-row { grid-template-columns: 20px 1fr 1fr 24px; gap: 5px; }
+  .stepper button { width: 30px; font-size: 18px; }
+}
+
+/* ---------- десктоп: чуть просторнее ---------- */
+@media (min-width: 600px) {
+  .stepper button { width: 40px; }
+  .stepper input { font-size: 18px; }
 }
