@@ -2,10 +2,10 @@ import { defineConfig } from 'vite'
 import react from '@vitejs/plugin-react'
 import { VitePWA } from 'vite-plugin-pwa'
 
-// base: '/gym-tracker/' — имя репозитория GitHub Pages.
+// base: '/kachalka-app/' — имя репозитория GitHub Pages.
 // Если репозиторий назовёшь иначе — поправь это значение на '/<имя-репо>/'.
 export default defineConfig({
-  base: '/gym-tracker/',
+  base: '/kachalka-app/',
   plugins: [
     react(),
     VitePWA({
