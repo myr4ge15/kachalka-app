@@ -36,6 +36,19 @@ db.version(1).stores({
   meta: 'key',
 })
 
+// v2: кэш общей ленты тренировок друзей (read-only снимок с сервера).
+// Храним отдельно от `workouts` (там только свои записи, с правкой и очередью).
+// Лента — это последние тренировки ВСЕХ пользователей; кэшируем, чтобы экран
+// открывался мгновенно и что-то показывал офлайн.
+db.version(2).stores({
+  exercises: 'id, muscle_group, name',
+  users: 'id, name',
+  workouts: 'id, user_id, performed_at, _dirty, _deleted',
+  outbox: '++seq, workoutId, type, createdAt',
+  meta: 'key',
+  feed: 'id, performed_at',
+})
+
 // Текущее серверное (UTC) время в ISO. crypto.randomUUID доступен на https и localhost.
 export const nowIso = () => new Date().toISOString()
 export const newId = () =>

@@ -5,6 +5,7 @@ import LoginScreen from './screens/LoginScreen.jsx'
 import WorkoutScreen from './screens/WorkoutScreen.jsx'
 import HistoryScreen from './screens/HistoryScreen.jsx'
 import ProgressScreen from './screens/ProgressScreen.jsx'
+import FeedScreen from './screens/FeedScreen.jsx'
 
 // Индикатор состояния синхронизации в шапке.
 function SyncBadge() {
@@ -35,7 +36,7 @@ export default function App() {
   // Активная вкладка переживает F5 (sessionStorage)
   const [tab, setTab] = useState(
     () => sessionStorage.getItem(TAB_KEY) || 'workout'
-  ) // 'workout' | 'history' | 'progress'
+  ) // 'workout' | 'history' | 'progress' | 'feed'
 
   // Будим базу заранее, как только приложение открылось
   useEffect(() => { warmup() }, [])
@@ -97,6 +98,7 @@ export default function App() {
 
       <main className="content">
         {tab === 'workout' && <WorkoutScreen user={user} />}
+        {tab === 'feed' && <FeedScreen user={user} />}
         {tab === 'history' && <HistoryScreen user={user} />}
         {tab === 'progress' && <ProgressScreen user={user} />}
       </main>
@@ -107,6 +109,12 @@ export default function App() {
           onClick={() => setTab('workout')}
         >
           Тренировка
+        </button>
+        <button
+          className={tab === 'feed' ? 'tab active' : 'tab'}
+          onClick={() => setTab('feed')}
+        >
+          Лента
         </button>
         <button
           className={tab === 'history' ? 'tab active' : 'tab'}
