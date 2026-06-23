@@ -1,6 +1,7 @@
 import { useState, useEffect, useCallback } from 'react'
 import { supabase } from '../db/supabase.js'
 import { withTimeout } from '../lib/withTimeout.js'
+import { getCache, setCache } from '../lib/cache.js'
 import ExercisePicker from '../components/ExercisePicker.jsx'
 
 function fmtDate(iso) {
@@ -23,9 +24,11 @@ function toEntries(workout) {
 }
 
 export default function HistoryScreen({ user }) {
-  const [workouts, setWorkouts] = useState([])
-  const [exercises, setExercises] = useState([])
-  const [loading, setLoading] = useState(true)
+  const wKey = 'history:' + user.id
+  const [workouts, setWorkouts] = useState(() => getCache(wKey) ?? [])
+  const [exercises, setExercises] = useState(() => getCache('exercises') ?? [])
+  // Если данные уже в кэше — не показываем «Загрузка…», обновляем в фоне
+  const [loading, setLoading] = useState(() => getCache(wKey) === undefined)
   const [error, setError] = useState('')
 
   const [editId, setEditId] = useState(null)     // id редактируемой тренировки
@@ -35,7 +38,8 @@ export default function HistoryScreen({ user }) {
   const [message, setMessage] = useState(null)
 
   const load = useCallback(async () => {
-    setLoading(true)
+    // Спиннер только если показывать пока нечего; иначе тихо обновляем из кэша
+    if (getCache(wKey) === undefined) setLoading(true)
     setError('')
     try {
       const { data, error: e } = await withTimeout(
@@ -48,13 +52,15 @@ export default function HistoryScreen({ user }) {
           .order('performed_at', { ascending: false })
       )
       if (e) throw e
-      setWorkouts(data ?? [])
+      const rows = data ?? []
+      setWorkouts(rows)
+      setCache(wKey, rows)
     } catch (err) {
       setError('Не удалось загрузить историю: ' + (err.message ?? err))
     } finally {
       setLoading(false)
     }
-  }, [user.id])
+  }, [user.id, wKey])
 
   useEffect(() => { load() }, [load])
 
@@ -65,7 +71,9 @@ export default function HistoryScreen({ user }) {
       .select('id, name, muscle_group, is_bench_lift')
       .order('muscle_group')
       .order('name')
-      .then(({ data }) => setExercises(data ?? []))
+      .then(({ data }) => {
+        if (data) { setExercises(data); setCache('exercises', data) }
+      })
   }, [])
 
   function startEdit(w) {
@@ -139,9 +147,34 @@ export default function HistoryScreen({ user }) {
       )
       if (error) throw error
 
+      // Обновляем тренировку локально, без повторной загрузки всей истории.
+      // Реальные id подтянутся при следующей фоновой загрузке.
+      const newWEs = cleaned.map((e, i) => ({
+        id: `local-${i}`,
+        position: i,
+        exercise_id: e.exercise.id,
+        exercise: {
+          id: e.exercise.id,
+          name: e.exercise.name,
+          muscle_group: e.exercise.muscle_group,
+        },
+        sets: e.sets.map((s, j) => ({
+          id: `local-${i}-${j}`,
+          set_number: j + 1,
+          weight: Number(s.weight),
+          reps: Number(s.reps),
+        })),
+      }))
+      const savedId = editId
       cancelEdit()
+      setWorkouts((ws) => {
+        const next = ws.map((w) =>
+          w.id === savedId ? { ...w, workout_exercises: newWEs } : w
+        )
+        setCache(wKey, next)
+        return next
+      })
       setMessage({ type: 'ok', text: 'Изменения сохранены' })
-      await load()
     } catch (err) {
       setMessage({ type: 'error', text: 'Не сохранилось: ' + (err.message ?? err) })
     } finally {
@@ -157,8 +190,13 @@ export default function HistoryScreen({ user }) {
       const { error: e } = await withTimeout(supabase.from('workouts').delete().eq('id', id))
       if (e) throw e
       if (editId === id) cancelEdit()
+      // Убираем локально, без повторной загрузки всей истории
+      setWorkouts((ws) => {
+        const next = ws.filter((w) => w.id !== id)
+        setCache(wKey, next)
+        return next
+      })
       setMessage({ type: 'ok', text: 'Тренировка удалена' })
-      await load()
     } catch (err) {
       setMessage({ type: 'error', text: 'Не удалилось: ' + (err.message ?? err) })
     } finally {

@@ -3,6 +3,8 @@ import {
   ResponsiveContainer, LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, Dot,
 } from 'recharts'
 import { supabase } from '../db/supabase.js'
+import { withTimeout } from '../lib/withTimeout.js'
+import { getCache, setCache } from '../lib/cache.js'
 import { bestOneRepMax } from '../lib/oneRepMax.js'
 
 function fmtDate(iso) {
@@ -11,33 +13,30 @@ function fmtDate(iso) {
 }
 
 export default function ProgressScreen({ user }) {
-  const [data, setData] = useState([])
-  const [loading, setLoading] = useState(true)
+  const pKey = 'progress:' + user.id
+  const [data, setData] = useState(() => getCache(pKey) ?? [])
+  const [loading, setLoading] = useState(() => getCache(pKey) === undefined)
   const [error, setError] = useState('')
 
   useEffect(() => {
     async function load() {
-      setLoading(true)
+      if (getCache(pKey) === undefined) setLoading(true)
       setError('')
       try {
-        // 1) упражнение для графика — жим лёжа
-        const { data: bench, error: be } = await supabase
-          .from('exercises')
-          .select('id, name')
-          .eq('is_bench_lift', true)
-          .limit(1)
-          .single()
-        if (be) throw be
-
-        // 2) все подходы пользователя в жиме, с датой тренировки
-        const { data: rows, error: re } = await supabase
-          .from('workout_exercises')
-          .select('workouts!inner(performed_at, user_id), sets(weight, reps)')
-          .eq('exercise_id', bench.id)
-          .eq('workouts.user_id', user.id)
+        // Один запрос: все подходы пользователя в «жиме лёжа» (фильтр по
+        // встроенному exercises.is_bench_lift) + дата тренировки.
+        const { data: rows, error: re } = await withTimeout(
+          supabase
+            .from('workout_exercises')
+            .select(
+              'exercises!inner(is_bench_lift), workouts!inner(performed_at, user_id), sets(weight, reps)'
+            )
+            .eq('exercises.is_bench_lift', true)
+            .eq('workouts.user_id', user.id)
+        )
         if (re) throw re
 
-        // 3) лучший 1ПМ за каждый день
+        // лучший 1ПМ за каждый день
         const byDay = new Map()
         for (const r of rows ?? []) {
           const sets = r.sets ?? []
@@ -59,6 +58,7 @@ export default function ProgressScreen({ user }) {
         }
 
         setData(series)
+        setCache(pKey, series)
       } catch (err) {
         setError('Не удалось загрузить прогресс: ' + (err.message ?? err))
       } finally {

@@ -6,13 +6,20 @@ import HistoryScreen from './screens/HistoryScreen.jsx'
 import ProgressScreen from './screens/ProgressScreen.jsx'
 
 const SESSION_KEY = 'gym_app_user'
+const TAB_KEY = 'gym_app_tab'
 
 export default function App() {
   const [user, setUser] = useState(null)
-  const [tab, setTab] = useState('workout') // 'workout' | 'history' | 'progress'
+  // Активная вкладка переживает F5 (sessionStorage)
+  const [tab, setTab] = useState(
+    () => sessionStorage.getItem(TAB_KEY) || 'workout'
+  ) // 'workout' | 'history' | 'progress'
 
   // Будим базу заранее, как только приложение открылось
   useEffect(() => { warmup() }, [])
+
+  // Запоминаем активную вкладку
+  useEffect(() => { sessionStorage.setItem(TAB_KEY, tab) }, [tab])
 
   // Восстановление сессии после перезагрузки
   useEffect(() => {

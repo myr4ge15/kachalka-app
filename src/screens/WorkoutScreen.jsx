@@ -1,10 +1,12 @@
 import { useState, useEffect } from 'react'
 import { supabase } from '../db/supabase.js'
 import { withTimeout } from '../lib/withTimeout.js'
+import { getCache, setCache } from '../lib/cache.js'
 import ExercisePicker from '../components/ExercisePicker.jsx'
 
 export default function WorkoutScreen({ user }) {
-  const [exercises, setExercises] = useState([])
+  // Справочник кэшируем: повторные заходы на вкладку — мгновенные
+  const [exercises, setExercises] = useState(() => getCache('exercises') ?? [])
   const [entries, setEntries] = useState([]) // [{ exercise, sets: [{weight, reps}] }]
   const [pickerOpen, setPickerOpen] = useState(false)
   const [saving, setSaving] = useState(false)
@@ -18,7 +20,7 @@ export default function WorkoutScreen({ user }) {
       .order('name')
       .then(({ data, error }) => {
         if (error) setMessage({ type: 'error', text: 'Справочник не загрузился: ' + error.message })
-        else setExercises(data ?? [])
+        else { setExercises(data ?? []); setCache('exercises', data ?? []) }
       })
   }, [])
 
