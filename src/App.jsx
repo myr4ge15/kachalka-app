@@ -1,7 +1,10 @@
 import { useState, useEffect, lazy, Suspense } from 'react'
+import { useLiveQuery } from 'dexie-react-hooks'
 import { isConfigured, warmup } from './db/supabase.js'
 import { startSync, useSyncStatus } from './db/sync.js'
+import { countUnread } from './db/notifications.js'
 import LoginScreen from './screens/LoginScreen.jsx'
+import Toast from './components/Toast.jsx'
 
 // Экраны-вкладки грузим лениво: код активной вкладки подтягивается по требованию.
 // Главный выигрыш — «Прогресс» тянет тяжёлый recharts, который теперь не попадает
@@ -9,6 +12,7 @@ import LoginScreen from './screens/LoginScreen.jsx'
 const HistoryScreen = lazy(() => import('./screens/HistoryScreen.jsx'))
 const ProgressScreen = lazy(() => import('./screens/ProgressScreen.jsx'))
 const FeedScreen = lazy(() => import('./screens/FeedScreen.jsx'))
+const NotificationsScreen = lazy(() => import('./screens/NotificationsScreen.jsx'))
 
 // Индикатор состояния синхронизации в шапке.
 function SyncBadge() {
@@ -41,7 +45,15 @@ export default function App() {
   const [tab, setTab] = useState(() => {
     const saved = sessionStorage.getItem(TAB_KEY)
     return saved && saved !== 'workout' ? saved : 'history'
-  }) // 'history' | 'feed' | 'progress'
+  }) // 'history' | 'feed' | 'progress' | 'notif'
+
+  // Счётчик непрочитанных рекордов-уведомлений (для бейджа на колокольчике).
+  // Живо пересчитывается при изменении своих тренировок, ленты и метки просмотра.
+  const unread = useLiveQuery(
+    () => (user?.id ? countUnread(user.id) : 0),
+    [user?.id],
+    0
+  )
 
   // Будим базу заранее, как только приложение открылось
   useEffect(() => { warmup() }, [])
@@ -98,6 +110,16 @@ export default function App() {
       <header className="topbar">
         <span className="topbar-user">{user.name}</span>
         <SyncBadge />
+        <button
+          className={'bell' + (unread > 0 ? ' has' : '')}
+          onClick={() => setTab('notif')}
+          aria-label={unread > 0 ? `Уведомления: ${unread} новых` : 'Уведомления'}
+        >
+          🔔
+          {unread > 0 && (
+            <span className="bell-count">{unread > 9 ? '9+' : unread}</span>
+          )}
+        </button>
         <button className="link-btn" onClick={handleLogout}>Выйти</button>
       </header>
 
@@ -106,6 +128,7 @@ export default function App() {
           {tab === 'history' && <HistoryScreen user={user} />}
           {tab === 'feed' && <FeedScreen user={user} />}
           {tab === 'progress' && <ProgressScreen user={user} />}
+          {tab === 'notif' && <NotificationsScreen user={user} />}
         </Suspense>
       </main>
 
@@ -129,6 +152,8 @@ export default function App() {
           Прогресс
         </button>
       </nav>
+
+      <Toast />
     </div>
   )
 }

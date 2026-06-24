@@ -1,8 +1,10 @@
 import { useState, useEffect } from 'react'
 import { useLiveQuery } from 'dexie-react-hooks'
 import { getExercises, getWorkout, saveWorkout, createExercise, deleteWorkout as repoDelete } from '../db/repo.js'
+import { detectNewPrsOnSave } from '../db/notifications.js'
 import { syncNow } from '../db/sync.js'
 import { getCache, setCache, clearCache } from '../lib/cache.js'
+import { showToast } from '../components/Toast.jsx'
 import ExercisePicker from '../components/ExercisePicker.jsx'
 import TemplatePicker from '../components/TemplatePicker.jsx'
 
@@ -138,13 +140,29 @@ export default function WorkoutScreen({ user, workoutId = null, onBack }) {
     setSaving(true)
     setMessage(null)
     try {
-      await saveWorkout({
+      const wId = await saveWorkout({
         id: isNew ? undefined : workoutId,
         user_id: user.id,
         performed_at: performedAt,
         entries,
       })
       if (isNew) clearCache(DRAFT_KEY)
+      // Поздравление с новым личным рекордом (ТЗ §4.5). Только для новой
+      // тренировки — чтобы повторная правка старой записи не поднимала ложный
+      // рекорд. Рекорды считаются из локальных данных, сеть не нужна.
+      if (isNew) {
+        try {
+          const prs = await detectNewPrsOnSave(user.id, wId)
+          if (prs.length) {
+            const top = prs.reduce((a, b) => (b.weight > a.weight ? b : a), prs[0])
+            const extra = prs.length > 1 ? ` +${prs.length - 1}` : ''
+            showToast({
+              title: 'Новый рекорд!',
+              sub: `${top.name} — ${top.weight} кг (было ${top.prev} кг)${extra}`,
+            })
+          }
+        } catch { /* тост необязателен */ }
+      }
       if (navigator.onLine) syncNow(user.id)
       onBack?.()
     } catch (err) {

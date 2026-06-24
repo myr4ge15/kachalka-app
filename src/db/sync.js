@@ -18,6 +18,7 @@ import { supabase, isConfigured } from './supabase.js'
 import { withTimeout } from '../lib/withTimeout.js'
 import { db, nowIso, setMeta } from './local.js'
 import { pendingCount } from './repo.js'
+import { fetchFeed } from './feed.js'
 import { onOnline, onOffline, onResume } from '../lib/appEvents.js'
 import { cmpIsoAsc } from '../lib/cmp.js'
 
@@ -363,6 +364,10 @@ export async function syncNow(userId) {
     await pushTemplates() // шаблоны после упражнений (FK), до/после тренировок неважно
     await push()
     await pull(userId)
+    // Обновляем кэш общей ленты в фоне: его читают и «Лента», и бейджи-
+    // уведомления о рекордах («друг побил твой рекорд» — из ленты). Ошибка ленты
+    // не должна валить синк своих тренировок, поэтому отдельный try/catch.
+    try { await fetchFeed() } catch { /* лента не критична для синка */ }
     const at = nowIso()
     await setMeta('lastSyncAt', at)
     setState({ lastError: null, lastSyncAt: at })
