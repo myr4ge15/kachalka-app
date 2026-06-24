@@ -89,12 +89,22 @@ export async function cacheUsers(list) {
   })
 }
 
-// Тренировки пользователя (без удалённых), свежие сверху.
+// Тренировки пользователя (без удалённых), свежесозданные сверху.
+// Сортируем по created_at; если его нет (старые записи) — фолбэк на performed_at.
 export async function getWorkouts(userId) {
   const list = await db.workouts.where('user_id').equals(userId).toArray()
   return list
     .filter((w) => !w._deleted)
-    .sort((a, b) => cmpIsoDesc(a.performed_at, b.performed_at))
+    .sort((a, b) =>
+      cmpIsoDesc(a.created_at ?? a.performed_at, b.created_at ?? b.performed_at)
+    )
+}
+
+// Одиночная тренировка по id (для экрана-детали). null, если нет/удалена.
+export async function getWorkout(id) {
+  const w = await db.workouts.get(id)
+  if (!w || w._deleted) return null
+  return w
 }
 
 // ----------------------------- Запись --------------------------------------
@@ -141,6 +151,9 @@ export async function saveWorkout({ id, user_id, performed_at, entries }) {
       id: wId,
       user_id,
       performed_at: performed_at ?? existing?.performed_at ?? now,
+      // created_at: при создании = now; при правке сохраняем существующий.
+      // Фолбэк на performed_at для записей, пришедших без него.
+      created_at: existing?.created_at ?? now,
       updated_at: now,
       entries: cleaned,
       _dirty: 1,

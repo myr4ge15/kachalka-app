@@ -1,24 +1,78 @@
 import { useState, useEffect } from 'react'
 import { useLiveQuery } from 'dexie-react-hooks'
-import { getExercises, saveWorkout, createExercise } from '../db/repo.js'
+import { getExercises, getWorkout, saveWorkout, createExercise, deleteWorkout as repoDelete } from '../db/repo.js'
 import { syncNow } from '../db/sync.js'
 import { getCache, setCache, clearCache } from '../lib/cache.js'
 import ExercisePicker from '../components/ExercisePicker.jsx'
 
-export default function WorkoutScreen({ user }) {
-  // Справочник — из локальной базы (офлайн-доступен). Обновляется автоматически,
-  // когда фоновый синк подтянет свежий справочник с сервера.
+// локальный документ → редактируемая форма [{ exercise, sets:[{weight,reps}] }]
+function toEntries(workout) {
+  return (workout?.entries ?? []).map((e) => ({
+    exercise: e.exercise ?? { id: e.exercise_id, name: '—' },
+    sets: (e.sets ?? []).map((s) => ({ weight: s.weight, reps: s.reps })),
+  }))
+}
+
+function fmtDate(iso) {
+  return new Date(iso).toLocaleDateString('ru-RU', {
+    day: '2-digit', month: '2-digit', year: 'numeric',
+  })
+}
+
+// ISO-дату (performed_at) → YYYY-MM-DD для <input type=date> и обратно.
+function toDateInput(iso) {
+  const d = iso ? new Date(iso) : new Date()
+  const off = d.getTimezoneOffset() * 60000
+  return new Date(d - off).toISOString().slice(0, 10)
+}
+function fromDateInput(value, prevIso) {
+  // сохраняем время суток из исходной даты (или текущее), меняем только день
+  const base = prevIso ? new Date(prevIso) : new Date()
+  const [y, m, d] = value.split('-').map(Number)
+  base.setFullYear(y, m - 1, d)
+  return base.toISOString()
+}
+
+// Экран-композер (новая тренировка) и экран-деталь (правка существующей).
+//   workoutId == null → новая (черновик в кэше переживает уход с экрана)
+//   workoutId != null → существующая (читаем из документа, кэш не трогаем)
+export default function WorkoutScreen({ user, workoutId = null, onBack }) {
+  const isNew = workoutId == null
+  // Справочник — из локальной базы (офлайн-доступен).
   const exercises = useLiveQuery(() => getExercises(), [], [])
-  // Черновик переживает переключение вкладок (экран монтируется заново при
-  // условном рендере App). Храним его в in-memory кэше по пользователю.
-  const DRAFT_KEY = `workout_draft_${user.id}`
-  const [entries, setEntries] = useState(() => getCache(DRAFT_KEY) ?? []) // [{ exercise, sets: [{weight, reps}] }]
+
+  // Черновик в памяти — только для новой тренировки (ключ привязан к пользователю).
+  const DRAFT_KEY = `workout_draft_new_${user.id}`
+
+  const [entries, setEntries] = useState(() => (isNew ? getCache(DRAFT_KEY) ?? [] : []))
+  const [performedAt, setPerformedAt] = useState(() => new Date().toISOString())
+  const [loading, setLoading] = useState(!isNew)
   const [pickerOpen, setPickerOpen] = useState(false)
   const [saving, setSaving] = useState(false)
   const [message, setMessage] = useState(null) // {type, text}
 
-  // Сохраняем черновик при каждом изменении состава.
-  useEffect(() => { setCache(DRAFT_KEY, entries) }, [DRAFT_KEY, entries])
+  // Сохраняем черновик новой тренировки при каждом изменении состава.
+  useEffect(() => {
+    if (isNew) setCache(DRAFT_KEY, entries)
+  }, [isNew, DRAFT_KEY, entries])
+
+  // Загрузка существующей тренировки на маунте (документ — источник правды).
+  useEffect(() => {
+    if (isNew) return
+    let alive = true
+    setLoading(true)
+    getWorkout(workoutId).then((w) => {
+      if (!alive) return
+      if (w) {
+        setEntries(toEntries(w))
+        setPerformedAt(w.performed_at ?? new Date().toISOString())
+      } else {
+        setMessage({ type: 'error', text: 'Тренировка не найдена.' })
+      }
+      setLoading(false)
+    })
+    return () => { alive = false }
+  }, [isNew, workoutId])
 
   function addExercise(ex) {
     setPickerOpen(false)
@@ -34,12 +88,11 @@ export default function WorkoutScreen({ user }) {
   }
 
   function updateSet(ei, si, field, value) {
-    const next = entries.map((e, i) => {
+    setEntries(entries.map((e, i) => {
       if (i !== ei) return e
       const sets = e.sets.map((s, j) => (j === si ? { ...s, [field]: value } : s))
       return { ...e, sets }
-    })
-    setEntries(next)
+    }))
   }
 
   function step(ei, si, field, delta) {
@@ -50,19 +103,14 @@ export default function WorkoutScreen({ user }) {
   }
 
   function addSet(ei) {
-    // повтор предыдущего подхода в один тап
     const last = entries[ei].sets[entries[ei].sets.length - 1] ?? { weight: 20, reps: 10 }
-    const next = entries.map((e, i) =>
-      i === ei ? { ...e, sets: [...e.sets, { ...last }] } : e
-    )
-    setEntries(next)
+    setEntries(entries.map((e, i) => (i === ei ? { ...e, sets: [...e.sets, { ...last }] } : e)))
   }
 
   function removeSet(ei, si) {
-    const next = entries.map((e, i) =>
+    setEntries(entries.map((e, i) =>
       i === ei ? { ...e, sets: e.sets.filter((_, j) => j !== si) } : e
-    )
-    setEntries(next)
+    ))
   }
 
   const totalSets = entries.reduce((n, e) => n + e.sets.length, 0)
@@ -72,27 +120,43 @@ export default function WorkoutScreen({ user }) {
     setSaving(true)
     setMessage(null)
     try {
-      // Пишем в локальную базу — мгновенно и без сети. Отправку на сервер
-      // берёт на себя очередь синхронизации (toolbar покажет статус).
-      await saveWorkout({ user_id: user.id, entries })
-      setEntries([])
-      clearCache(DRAFT_KEY)
-      if (navigator.onLine) {
-        setMessage({ type: 'ok', text: 'Тренировка сохранена 💪' })
-        syncNow(user.id) // отправим прямо сейчас, не дожидаясь таймера
-      } else {
-        setMessage({ type: 'ok', text: 'Сохранено офлайн — отправлю, когда появится сеть 📥' })
-      }
+      await saveWorkout({
+        id: isNew ? undefined : workoutId,
+        user_id: user.id,
+        performed_at: performedAt,
+        entries,
+      })
+      if (isNew) clearCache(DRAFT_KEY)
+      if (navigator.onLine) syncNow(user.id)
+      onBack?.()
     } catch (err) {
       setMessage({ type: 'error', text: 'Не сохранилось: ' + (err.message ?? err) })
-    } finally {
+      setSaving(false)
+    }
+  }
+
+  async function remove() {
+    if (!window.confirm('Удалить эту тренировку? Действие необратимо.')) return
+    setSaving(true)
+    setMessage(null)
+    try {
+      await repoDelete(workoutId)
+      if (navigator.onLine) syncNow(user.id)
+      onBack?.()
+    } catch (err) {
+      setMessage({ type: 'error', text: 'Не удалилось: ' + (err.message ?? err) })
       setSaving(false)
     }
   }
 
   return (
     <div className="screen">
-      <h2 className="screen-title">Новая тренировка</h2>
+      <div className="detail-head">
+        <button className="link-btn back-link" onClick={() => onBack?.()}>← Назад</button>
+        <h2 className="screen-title detail-title">
+          {isNew ? 'Новая тренировка' : fmtDate(performedAt)}
+        </h2>
+      </div>
 
       {message && (
         <div className={message.type === 'error' ? 'banner error' : 'banner ok'}>
@@ -100,60 +164,81 @@ export default function WorkoutScreen({ user }) {
         </div>
       )}
 
-      {entries.length === 0 && (
-        <p className="muted empty">Добавь упражнение, чтобы начать.</p>
-      )}
+      {loading ? (
+        <p className="muted">Загрузка…</p>
+      ) : (
+        <>
+          <label className="date-field">
+            <span className="muted">Дата</span>
+            <input
+              type="date"
+              value={toDateInput(performedAt)}
+              onChange={(e) => setPerformedAt(fromDateInput(e.target.value, performedAt))}
+            />
+          </label>
 
-      {entries.map((entry, ei) => (
-        <div key={entry.exercise.id} className="card exercise-card">
-          <div className="exercise-head">
-            <span className="exercise-name">{entry.exercise.name}</span>
-            <button className="link-btn danger" onClick={() => removeExercise(ei)}>убрать</button>
-          </div>
+          {entries.length === 0 && (
+            <p className="muted empty">Добавь упражнение, чтобы начать.</p>
+          )}
 
-          <div className="sets-head">
-            <span>#</span><span>кг</span><span>повт.</span><span></span>
-          </div>
-
-          {entry.sets.map((s, si) => (
-            <div key={si} className="set-row">
-              <span className="set-num">{si + 1}</span>
-
-              <div className="stepper">
-                <button onClick={() => step(ei, si, 'weight', -2.5)}>−</button>
-                <input
-                  type="text" inputMode="decimal" value={s.weight}
-                  onChange={(e) => updateSet(ei, si, 'weight', e.target.value.replace(',', '.'))}
-                />
-                <button onClick={() => step(ei, si, 'weight', 2.5)}>+</button>
+          {entries.map((entry, ei) => (
+            <div key={entry.exercise.id} className="card exercise-card">
+              <div className="exercise-head">
+                <span className="exercise-name">{entry.exercise.name}</span>
+                <button className="link-btn danger" onClick={() => removeExercise(ei)}>убрать</button>
               </div>
 
-              <div className="stepper">
-                <button onClick={() => step(ei, si, 'reps', -1)}>−</button>
-                <input
-                  type="number" inputMode="numeric" value={s.reps}
-                  onChange={(e) => updateSet(ei, si, 'reps', e.target.value)}
-                />
-                <button onClick={() => step(ei, si, 'reps', 1)}>+</button>
+              <div className="sets-head">
+                <span>#</span><span>кг</span><span>повт.</span><span></span>
               </div>
 
-              <button className="link-btn danger small" onClick={() => removeSet(ei, si)}>✕</button>
+              {entry.sets.map((s, si) => (
+                <div key={si} className="set-row">
+                  <span className="set-num">{si + 1}</span>
+
+                  <div className="stepper">
+                    <button onClick={() => step(ei, si, 'weight', -2.5)}>−</button>
+                    <input
+                      type="text" inputMode="decimal" value={s.weight}
+                      onChange={(e) => updateSet(ei, si, 'weight', e.target.value.replace(',', '.'))}
+                    />
+                    <button onClick={() => step(ei, si, 'weight', 2.5)}>+</button>
+                  </div>
+
+                  <div className="stepper">
+                    <button onClick={() => step(ei, si, 'reps', -1)}>−</button>
+                    <input
+                      type="number" inputMode="numeric" value={s.reps}
+                      onChange={(e) => updateSet(ei, si, 'reps', e.target.value)}
+                    />
+                    <button onClick={() => step(ei, si, 'reps', 1)}>+</button>
+                  </div>
+
+                  <button className="link-btn danger small" onClick={() => removeSet(ei, si)}>✕</button>
+                </div>
+              ))}
+
+              <button className="btn ghost full" onClick={() => addSet(ei)}>
+                + подход (повтор предыдущего)
+              </button>
             </div>
           ))}
 
-          <button className="btn ghost full" onClick={() => addSet(ei)}>
-            + подход (повтор предыдущего)
+          <button className="btn outline full" onClick={() => setPickerOpen(true)}>
+            + Добавить упражнение
           </button>
-        </div>
-      ))}
 
-      <button className="btn outline full" onClick={() => setPickerOpen(true)}>
-        + Добавить упражнение
-      </button>
+          <button className="btn primary full save-btn" disabled={!canSave} onClick={save}>
+            {saving ? 'Сохранение…' : `Сохранить${totalSets ? ` (${totalSets})` : ''}`}
+          </button>
 
-      <button className="btn primary full save-btn" disabled={!canSave} onClick={save}>
-        {saving ? 'Сохранение…' : `Сохранить${totalSets ? ` (${totalSets})` : ''}`}
-      </button>
+          {!isNew && (
+            <button className="link-btn danger full-link" disabled={saving} onClick={remove}>
+              Удалить тренировку
+            </button>
+          )}
+        </>
+      )}
 
       {pickerOpen && (
         <ExercisePicker

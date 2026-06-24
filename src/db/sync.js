@@ -31,7 +31,7 @@ const MAX_ATTEMPTS = 5
 // чтобы не удалить локально записи, которые старше окна и просто не пришли.
 const PULL_LIMIT = 200
 const SELECT_WORKOUT =
-  'id, performed_at, user_id, ' +
+  'id, performed_at, created_at, user_id, ' +
   'workout_exercises(id, position, exercise_id, ' +
   'exercise:exercises(id, name, muscle_group, is_bench_lift), ' +
   'sets(id, set_number, weight, reps))'
@@ -73,6 +73,9 @@ function rowToDoc(w) {
     id: w.id,
     user_id: w.user_id,
     performed_at: w.performed_at,
+    // created_at с сервера (для сортировки хаба). Фолбэк на performed_at,
+    // если сервер ещё не отдаёт это поле.
+    created_at: w.created_at ?? w.performed_at,
     updated_at: w.performed_at,
     entries,
     _dirty: 0,

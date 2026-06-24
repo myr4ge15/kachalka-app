@@ -213,8 +213,33 @@ input { font-family: inherit; }
 }
 .similar-item:active { background: var(--border); }
 
+/* ---------- хаб «Мои тренировки» ---------- */
+/* Кнопка создания тренировки над списком */
+.add-workout { margin-bottom: 16px; }
+
+/* Шапка экрана-детали: «← Назад» + заголовок */
+.detail-head { display: flex; align-items: center; gap: 8px; margin-bottom: 8px; }
+.back-link { font-size: 15px; padding: 8px 4px; min-height: 44px; }
+.detail-title { margin: 0; }
+
+/* Поле даты в детали */
+.date-field { display: flex; flex-direction: column; gap: 6px; margin-bottom: 14px; }
+.date-field > .muted { font-size: 13px; }
+.date-field input {
+  width: 100%; padding: 12px; font-size: 16px; min-height: 44px;
+  border-radius: 10px; border: 1px solid var(--border);
+  background: var(--surface); color: var(--text);
+}
+
 /* ---------- history ---------- */
 .history-card { padding: 14px; }
+/* Карточка-кнопка (тап → деталь): сбрасываем стили button, тянем на всю ширину */
+.history-tap {
+  display: block; text-align: left; cursor: pointer; color: inherit;
+  font: inherit; -webkit-appearance: none; appearance: none;
+}
+.history-tap:active { background: var(--surface-2); }
+.history-chevron { flex-shrink: 0; color: var(--muted); font-size: 24px; line-height: 1; }
 .history-head {
   display: flex; justify-content: space-between; align-items: flex-start; gap: 8px;
 }

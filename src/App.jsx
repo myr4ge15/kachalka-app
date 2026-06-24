@@ -2,7 +2,6 @@ import { useState, useEffect } from 'react'
 import { isConfigured, warmup } from './db/supabase.js'
 import { startSync, useSyncStatus } from './db/sync.js'
 import LoginScreen from './screens/LoginScreen.jsx'
-import WorkoutScreen from './screens/WorkoutScreen.jsx'
 import HistoryScreen from './screens/HistoryScreen.jsx'
 import ProgressScreen from './screens/ProgressScreen.jsx'
 import FeedScreen from './screens/FeedScreen.jsx'
@@ -33,10 +32,12 @@ const TAB_KEY = 'gym_app_tab'
 
 export default function App() {
   const [user, setUser] = useState(null)
-  // Активная вкладка переживает F5 (sessionStorage)
-  const [tab, setTab] = useState(
-    () => sessionStorage.getItem(TAB_KEY) || 'workout'
-  ) // 'workout' | 'history' | 'progress' | 'feed'
+  // Активная вкладка переживает F5 (sessionStorage). Старое значение 'workout'
+  // (вкладки больше нет) мигрируем в 'history' (хаб «Мои тренировки»).
+  const [tab, setTab] = useState(() => {
+    const saved = sessionStorage.getItem(TAB_KEY)
+    return saved && saved !== 'workout' ? saved : 'history'
+  }) // 'history' | 'feed' | 'progress'
 
   // Будим базу заранее, как только приложение открылось
   useEffect(() => { warmup() }, [])
@@ -61,7 +62,7 @@ export default function App() {
   function handleLogin(u) {
     sessionStorage.setItem(SESSION_KEY, JSON.stringify(u))
     setUser(u)
-    setTab('workout')
+    setTab('history')
   }
 
   function handleLogout() {
@@ -97,30 +98,23 @@ export default function App() {
       </header>
 
       <main className="content">
-        {tab === 'workout' && <WorkoutScreen user={user} />}
-        {tab === 'feed' && <FeedScreen user={user} />}
         {tab === 'history' && <HistoryScreen user={user} />}
+        {tab === 'feed' && <FeedScreen user={user} />}
         {tab === 'progress' && <ProgressScreen user={user} />}
       </main>
 
       <nav className="tabbar">
         <button
-          className={tab === 'workout' ? 'tab active' : 'tab'}
-          onClick={() => setTab('workout')}
+          className={tab === 'history' ? 'tab active' : 'tab'}
+          onClick={() => setTab('history')}
         >
-          Тренировка
+          Мои тренировки
         </button>
         <button
           className={tab === 'feed' ? 'tab active' : 'tab'}
           onClick={() => setTab('feed')}
         >
           Лента
-        </button>
-        <button
-          className={tab === 'history' ? 'tab active' : 'tab'}
-          onClick={() => setTab('history')}
-        >
-          История
         </button>
         <button
           className={tab === 'progress' ? 'tab active' : 'tab'}
