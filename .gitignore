@@ -15,6 +15,7 @@ yarn-error.log*
 BACKLOG.md
 WISHLIST.md
 concept.html
+CLAUDE.md
 setup-supabase-github.md
 
 # Настройка БД (схема, сид, RPC) — держим только локально
