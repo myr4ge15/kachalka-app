@@ -103,7 +103,7 @@ export default function FeedScreen({ user }) {
               <div className="pr-row">
                 {w.prs.map((pr, i) => (
                   <span key={i} className="pr-badge" title="Новый личный рекорд">
-                    🏆 {pr.name} · {pr.orm} кг
+                    🏆 {pr.name} · {pr.weight} кг
                   </span>
                 ))}
               </div>

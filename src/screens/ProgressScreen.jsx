@@ -63,9 +63,13 @@ function buildSeries(workouts, exerciseId, weighted) {
   const series = Array.from(byDay.values())
     .map((rec) => ({
       ...rec,
+      // Метрика весовых упражнений — ФАКТИЧЕСКИЙ макс. вес за день (самый тяжёлый
+      // подход): по нему строится линия и считаются рекорды. 1ПМ (orm) считаем
+      // отдельно — он показывается вторичным числом, но на рекорды не влияет.
       value: weighted
-        ? bestOneRepMax(rec.sets)
+        ? rec.sets.reduce((m, x) => Math.max(m, Number(x.weight) || 0), 0)
         : rec.sets.reduce((s, x) => s + (Number(x.reps) || 0), 0),
+      orm: weighted ? bestOneRepMax(rec.sets) : 0,
     }))
     .sort((a, b) => cmpIsoAsc(a.day, b.day))
 
@@ -143,19 +147,12 @@ export default function ProgressScreen({ user }) {
   const data = useMemo(() => fullData.filter((p) => inRange(p.day, range)), [fullData, range])
   const rows = useMemo(() => [...data].reverse(), [data])
 
+  // Метрика весовых упражнений — фактический вес, поэтому best = лучший вес.
   const best = data.reduce((m, p) => Math.max(m, p.value), 0)
-  // Лучший ФАКТИЧЕСКИЙ вес за период (самый тяжёлый реально поднятый подход).
-  const bestWeight = weighted
-    ? data.reduce((m, p) => {
-        for (const s of p.sets) {
-          const wt = Number(s.weight) || 0
-          if (wt > m) m = wt
-        }
-        return m
-      }, 0)
-    : 0
+  // Лучший расчётный 1ПМ за период — вторичное число (на рекорды не влияет).
+  const bestOrm = weighted ? data.reduce((m, p) => Math.max(m, p.orm || 0), 0) : 0
   const unit = weighted ? 'кг' : 'повт.'
-  const metricLabel = weighted ? '1ПМ' : 'Σ повторов'
+  const metricLabel = weighted ? 'вес' : 'Σ повторов'
 
   const c = useMemo(() => ({
     grid: cssVar('--surface', '#1e293b'),
@@ -197,7 +194,7 @@ export default function ProgressScreen({ user }) {
       <h2 className="screen-title">Прогресс</h2>
       <p className="muted sub">
         {weighted
-          ? 'Расчётный максимум на раз (1ПМ, формула Эпли)'
+          ? 'Рабочий вес по дням — самый тяжёлый подход; 1ПМ показан вторично'
           : 'Упражнение без веса — динамика по суммарным повторам'}
       </p>
 
@@ -260,9 +257,9 @@ export default function ProgressScreen({ user }) {
               <div className="card stat">
                 {weighted ? (
                   <>
-                    <span className="stat-num">{bestWeight} кг</span>
+                    <span className="stat-num">{best} кг</span>
                     <span className="muted">лучший фактический вес</span>
-                    <span className="muted stat-sub">в теории (1ПМ) ~{best} кг</span>
+                    <span className="muted stat-sub">в теории (1ПМ) ~{bestOrm} кг</span>
                   </>
                 ) : (
                   <>
@@ -329,6 +326,7 @@ export default function ProgressScreen({ user }) {
                       </span>
                       <span className="prog-val">
                         {r.value}{r.isPr ? ' 🏆' : ''}
+                        {weighted && <span className="prog-orm">1ПМ {r.orm}</span>}
                       </span>
                     </div>
                   ))}

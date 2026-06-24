@@ -367,7 +367,9 @@ input { font-family: inherit; }
 .prog-row-head { color: var(--muted); font-size: 12px; padding-top: 0; }
 .prog-sets { font-size: 14px; line-height: 1.4; word-break: break-word; }
 .prog-val { text-align: right; font-weight: 600; white-space: nowrap; }
+.prog-orm { display: block; font-size: 11px; font-weight: 400; color: var(--muted); }
 .prog-row.pr .prog-val { color: var(--yellow); }
+.prog-row.pr .prog-orm { color: var(--muted); }
 
 /* ---------- feed (общая лента) ---------- */
 .feed-head { display: flex; align-items: baseline; justify-content: space-between; }
