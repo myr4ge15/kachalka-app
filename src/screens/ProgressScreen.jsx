@@ -99,6 +99,11 @@ const PERIODS = [
   { id: 'custom', label: 'Период' },
 ]
 
+// Окно «формы сейчас» — лучший фактический вес за последние FORM_WEEKS недель.
+// Отдельная от «рекорда» метрика, чтобы возврат после паузы отслеживался сам по
+// себе и не упирался каждый раз в далёкий личный пик.
+const FORM_WEEKS = 6
+
 // Границы периода как ISO-дни (YYYY-MM-DD) или null = без ограничения.
 // ISO-строки сравниваются лексикографически, поэтому хватает строкового <,>.
 function periodRange(period, from, to) {
@@ -147,12 +152,24 @@ export default function ProgressScreen({ user }) {
   const data = useMemo(() => fullData.filter((p) => inRange(p.day, range)), [fullData, range])
   const rows = useMemo(() => [...data].reverse(), [data])
 
-  // Метрика весовых упражнений — фактический вес, поэтому best = лучший вес.
-  const best = data.reduce((m, p) => Math.max(m, p.value), 0)
-  // Лучший расчётный 1ПМ за период — вторичное число (на рекорды не влияет).
-  const bestOrm = weighted ? data.reduce((m, p) => Math.max(m, p.orm || 0), 0) : 0
   const unit = weighted ? 'кг' : 'повт.'
   const metricLabel = weighted ? 'вес' : 'Σ повторов'
+  // Для упражнений без веса — лучшее за выбранный период (суммарные повторы).
+  const best = data.reduce((m, p) => Math.max(m, p.value), 0)
+
+  // Шапка весовых упражнений: «рекорд» (макс. вес за всю историю) и «форма
+  // сейчас» (лучший вес за последние FORM_WEEKS недель) — обе считаются по ВСЕЙ
+  // истории, независимо от выбранного периода графика. 1ПМ — вторично.
+  const formCutoff = useMemo(() => {
+    const d = new Date()
+    d.setDate(d.getDate() - FORM_WEEKS * 7)
+    return d.toISOString().slice(0, 10)
+  }, [])
+  const allBest = weighted ? fullData.reduce((m, p) => Math.max(m, p.value), 0) : 0
+  const allBestOrm = weighted ? fullData.reduce((m, p) => Math.max(m, p.orm || 0), 0) : 0
+  const formData = weighted ? fullData.filter((p) => p.day >= formCutoff) : []
+  const formBest = formData.reduce((m, p) => Math.max(m, p.value), 0)
+  const formBestOrm = formData.reduce((m, p) => Math.max(m, p.orm || 0), 0)
 
   const c = useMemo(() => ({
     grid: cssVar('--surface', '#1e293b'),
@@ -254,20 +271,31 @@ export default function ProgressScreen({ user }) {
             </p>
           ) : (
             <>
-              <div className="card stat">
-                {weighted ? (
-                  <>
-                    <span className="stat-num">{best} кг</span>
-                    <span className="muted">лучший фактический вес</span>
-                    <span className="muted stat-sub">в теории (1ПМ) ~{bestOrm} кг</span>
-                  </>
-                ) : (
-                  <>
-                    <span className="stat-num">{best} {unit}</span>
-                    <span className="muted">макс. повторов за день</span>
-                  </>
-                )}
-              </div>
+              {weighted ? (
+                <div className="card stat-duo">
+                  <div className="stat-duo-row">
+                    <div className="stat-cell">
+                      <span className="stat-cell-label">🏆 Рекорд</span>
+                      <span className="stat-num gold">{allBest} кг</span>
+                      <span className="muted stat-sub">за всё время</span>
+                    </div>
+                    <div className="stat-cell stat-cell-right">
+                      <span className="stat-cell-label">Форма сейчас</span>
+                      <span className="stat-num">{formBest > 0 ? `${formBest} кг` : '—'}</span>
+                      <span className="muted stat-sub">лучшее за {FORM_WEEKS} нед.</span>
+                    </div>
+                  </div>
+                  <div className="muted stat-orm-note">
+                    в теории (1ПМ): рекорд ~{allBestOrm}
+                    {formBestOrm > 0 ? ` · сейчас ~${formBestOrm}` : ''} кг
+                  </div>
+                </div>
+              ) : (
+                <div className="card stat">
+                  <span className="stat-num">{best} {unit}</span>
+                  <span className="muted">макс. повторов за день</span>
+                </div>
+              )}
 
               <div className="card chart-card">
                 <ResponsiveContainer width="100%" height={260}>

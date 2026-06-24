@@ -89,14 +89,18 @@ export async function cacheUsers(list) {
   })
 }
 
-// Тренировки пользователя (без удалённых), свежесозданные сверху.
-// Сортируем по created_at; если его нет (старые записи) — фолбэк на performed_at.
+// Тренировки пользователя (без удалённых), свежие сверху по ДАТЕ ТРЕНИРОВКИ.
+// Сортируем по performed_at (дата самой тренировки), а не по моменту добавления:
+// запись, внесённая задним числом, уходит на своё хронологическое место, а не
+// всплывает наверх как новая. Тай-брейк для нескольких тренировок в один день —
+// created_at (что внесли позже, то выше).
 export async function getWorkouts(userId) {
   const list = await db.workouts.where('user_id').equals(userId).toArray()
   return list
     .filter((w) => !w._deleted)
     .sort((a, b) =>
-      cmpIsoDesc(a.created_at ?? a.performed_at, b.created_at ?? b.performed_at)
+      cmpIsoDesc(a.performed_at, b.performed_at) ||
+      cmpIsoDesc(a.created_at, b.created_at)
     )
 }
 

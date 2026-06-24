@@ -327,6 +327,19 @@ input { font-family: inherit; }
 .stat { display: flex; flex-direction: column; align-items: center; gap: 2px; }
 .stat-num { font-size: 32px; font-weight: 700; color: var(--green); }
 .stat-sub { font-size: 12px; }
+
+/* Шапка весовых упражнений: рекорд (всех времён) + форма сейчас (N недель). */
+.stat-duo { padding: 14px; }
+.stat-duo-row { display: grid; grid-template-columns: 1fr 1fr; }
+.stat-cell { display: flex; flex-direction: column; gap: 2px; }
+.stat-cell-right { border-left: 1px solid var(--border); padding-left: 12px; }
+.stat-cell-label { font-size: 12px; color: var(--muted); }
+.stat-duo .stat-num { font-size: 26px; }
+.stat-num.gold { color: var(--yellow); }
+.stat-orm-note {
+  margin-top: 10px; padding-top: 8px; border-top: 1px solid var(--border);
+  font-size: 11px; line-height: 1.4;
+}
 .chart-card { padding: 12px; }
 .legend { text-align: center; margin: 8px 0 0; }
 
