@@ -70,9 +70,14 @@ function buildSeries(workouts, exerciseId, weighted) {
     .sort((a, b) => cmpIsoAsc(a.day, b.day))
 
   let running = 0
+  let prev = null
   for (const p of series) {
     p.isPr = p.value > running
     if (p.isPr) running = p.value
+    // Направление относительно предыдущей сессии: для подсветки прогресса/
+    // регресса (ТЗ 4.2). Первая точка — старт, считаем «рост».
+    p.dir = prev == null ? 'up' : p.value > prev ? 'up' : p.value < prev ? 'down' : 'flat'
+    prev = p.value
   }
   return series
 }
@@ -111,11 +116,36 @@ export default function ProgressScreen({ user }) {
     grid: cssVar('--surface', '#1e293b'),
     axis: cssVar('--muted', '#94a3b8'),
     line: cssVar('--green', '#16a34a'),
+    down: cssVar('--red', '#ef4444'),
+    flat: cssVar('--muted', '#94a3b8'),
     pr: cssVar('--yellow', '#facc15'),
     bg: cssVar('--bg', '#0f172a'),
     border: cssVar('--border', '#334155'),
     text: cssVar('--text', '#e2e8f0'),
   }), [])
+
+  // Цвет точки по смыслу: рекорд > спад/рост. Жёлтый — новый максимум,
+  // зелёный — рост к прошлой сессии, красный — спад, серый — без изменений.
+  const dotColor = (p) =>
+    p.isPr ? c.pr : p.dir === 'down' ? c.down : p.dir === 'flat' ? c.flat : c.line
+
+  // Линию красим посегментно через градиент по оси X: каждый сегмент — своим
+  // цветом (рост зелёный / спад красный) с резкой границей (две стоп-точки на
+  // одном офсете). При одной точке линии нет — берём сплошной зелёный.
+  const gradId = 'progDir'
+  const stops = useMemo(() => {
+    const n = data.length
+    if (n < 2) return []
+    const out = []
+    for (let i = 0; i < n - 1; i++) {
+      const col = data[i + 1].dir === 'down' ? c.down : c.line
+      const o1 = (i / (n - 1)) * 100
+      const o2 = ((i + 1) / (n - 1)) * 100
+      out.push({ off: o1, col }, { off: o2, col })
+    }
+    return out
+  }, [data, c])
+  const lineStroke = data.length >= 2 ? `url(#${gradId})` : c.line
 
   return (
     <div className="screen">
@@ -161,6 +191,13 @@ export default function ProgressScreen({ user }) {
               <div className="card chart-card">
                 <ResponsiveContainer width="100%" height={260}>
                   <LineChart data={data} margin={{ top: 8, right: 8, left: -16, bottom: 0 }}>
+                    <defs>
+                      <linearGradient id={gradId} x1="0" y1="0" x2="1" y2="0">
+                        {stops.map((s, idx) => (
+                          <stop key={idx} offset={`${s.off}%`} stopColor={s.col} />
+                        ))}
+                      </linearGradient>
+                    </defs>
                     <CartesianGrid strokeDasharray="3 3" stroke={c.grid} />
                     <XAxis dataKey="day" tickFormatter={fmtDate} stroke={c.axis} fontSize={12} />
                     <YAxis
@@ -175,13 +212,13 @@ export default function ProgressScreen({ user }) {
                       labelStyle={{ color: c.text }}
                     />
                     <Line
-                      type="monotone" dataKey="value" stroke={c.line} strokeWidth={2}
+                      type="monotone" dataKey="value" stroke={lineStroke} strokeWidth={2}
                       dot={(props) => {
                         const { cx, cy, payload } = props
                         return (
                           <Dot
                             cx={cx} cy={cy} r={payload.isPr ? 5 : 3}
-                            fill={payload.isPr ? c.pr : c.line}
+                            fill={dotColor(payload)}
                             stroke={c.bg}
                           />
                         )
@@ -189,7 +226,7 @@ export default function ProgressScreen({ user }) {
                     />
                   </LineChart>
                 </ResponsiveContainer>
-                <p className="muted legend">● зелёный — сессия · ● жёлтый — новый рекорд</p>
+                <p className="muted legend">● зелёный — рост · ● красный — спад · ● жёлтый — новый рекорд</p>
               </div>
 
               <div className="card prog-card">
