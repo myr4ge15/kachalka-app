@@ -9,8 +9,9 @@ function place(i) {
 }
 
 // Лидерборд по жиму лёжа (ТЗ §4.3, §8.3 — MVP).
-// Компактный рейтинг наверху социального экрана: лучший расчётный 1ПМ каждого
-// участника по всей истории. Самодостаточен — сам тянет и кэширует данные.
+// Компактный рейтинг наверху социального экрана: место — по ФАКТИЧЕСКОМУ
+// максимальному весу каждого участника, расчётный 1ПМ показан сноской («кто в
+// теории может выжать больше»). Самодостаточен — сам тянет и кэширует данные.
 export default function Leaderboard({ user }) {
   const board = useLiveQuery(() => getCachedLeaderboard(), [], undefined)
   const [error, setError] = useState(null)
@@ -48,7 +49,7 @@ export default function Leaderboard({ user }) {
       <div className="card lb-card">
         <div className="lb-head">
           <h3 className="lb-title">🏋️ Лидерборд · жим лёжа</h3>
-          <span className="muted lb-metric">1ПМ</span>
+          <span className="muted lb-metric">факт, кг</span>
         </div>
         {error ? (
           <p className="muted lb-empty">Не удалось загрузить рейтинг. Проверь соединение и попробуй позже.</p>
@@ -75,12 +76,18 @@ export default function Leaderboard({ user }) {
                 <span className="lb-name">{row.user_name}</span>
                 {isMe && <span className="feed-me">ты</span>}
               </span>
-              <span className="lb-set muted">{row.weight}×{row.reps}</span>
-              <span className="lb-orm">{row.orm} кг</span>
+              <span className="lb-fact">
+                <span className="lb-weight">{row.weight} кг</span>
+                <span className="lb-sub muted">{row.reps} повт · 1ПМ ~{row.orm}</span>
+              </span>
             </li>
           )
         })}
       </ol>
+      <p className="muted lb-note">
+        Место — по фактическому весу. 1ПМ — расчётная оценка «на раз» (Эпли),
+        всегда ≥ факта: видно, кто в теории может выжать больше.
+      </p>
     </div>
   )
 }

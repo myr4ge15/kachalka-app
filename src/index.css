@@ -326,6 +326,7 @@ input { font-family: inherit; }
 
 .stat { display: flex; flex-direction: column; align-items: center; gap: 2px; }
 .stat-num { font-size: 32px; font-weight: 700; color: var(--green); }
+.stat-sub { font-size: 12px; }
 .chart-card { padding: 12px; }
 .legend { text-align: center; margin: 8px 0 0; }
 
@@ -429,11 +430,16 @@ input { font-family: inherit; }
   overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
 }
 .lb-who .feed-me { margin-left: 0; }
-.lb-set { font-size: 13px; flex-shrink: 0; }
-.lb-orm {
-  flex-shrink: 0; font-weight: 700; color: var(--green);
-  font-variant-numeric: tabular-nums;
+/* Правая колонка: фактический вес (крупно) + сноска «N повт · 1ПМ ~X». */
+.lb-fact {
+  flex-shrink: 0; display: flex; flex-direction: column;
+  align-items: flex-end; gap: 1px; text-align: right;
 }
+.lb-weight {
+  font-weight: 700; color: var(--green); font-variant-numeric: tabular-nums;
+}
+.lb-sub { font-size: 12px; line-height: 1.2; font-variant-numeric: tabular-nums; }
+.lb-note { margin: 8px 2px 0; font-size: 11px; line-height: 1.4; }
 .lb-empty { margin: 4px 2px 0; font-size: 13px; line-height: 1.4; }
 
 /* Сноска с формулой под графиком прогресса */

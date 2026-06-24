@@ -16,12 +16,23 @@ import { supabase, isConfigured } from './supabase.js'
 import { withTimeout } from '../lib/withTimeout.js'
 import { db } from './local.js'
 import { setOneRepMax } from '../lib/oneRepMax.js'
+import { cmpIsoAsc } from '../lib/cmp.js'
+
+// Порядок рейтинга — по ФАКТИЧЕСКОМУ весу: тяжелее выше; при равном весе —
+// больше повторов; при равных и весе, и повторах — кто достиг раньше.
+export function cmpBoard(a, b) {
+  return (
+    Number(b.weight) - Number(a.weight) ||
+    Number(b.reps) - Number(a.reps) ||
+    cmpIsoAsc(a.performed_at, b.performed_at)
+  )
+}
 
 // Обновить снимок лидерборда с сервера. Тихо выходит офлайн / без конфигурации.
 //
 // Агрегация целиком на сервере (RPC leaderboard_bench, см. supabase/rpc.sql):
-// Postgres сам считает лучший 1ПМ по жиму на каждого участника и возвращает по
-// одной строке. Раньше клиент тянул всю историю жимов и считал в браузере.
+// Postgres возвращает по одной строке на участника — самый тяжёлый ФАКТИЧЕСКИЙ
+// подход (weight/reps/performed_at) и лучший расчётный 1ПМ (orm) по всей истории.
 export async function fetchLeaderboard() {
   if (!isConfigured || !navigator.onLine) return
 
@@ -49,8 +60,12 @@ export async function fetchLeaderboard() {
 // `db.leaderboard` пуст, а рейтинг выглядит как «отсутствующая фича». Лента же
 // (`db.feed`) почти всегда наполнена обычным `select` без RPC и содержит
 // денормализованные `entries` с флагом `is_bench_lift` и подходами — этого
-// достаточно, чтобы посчитать лучший 1ПМ по жиму на каждого участника прямо в
-// браузере. Считаем по той же формуле Эпли (`setOneRepMax`), что и сервер.
+// достаточно, чтобы посчитать рейтинг по жиму на каждого участника прямо в
+// браузере. Считаем по той же логике, что и сервер.
+//
+// Метрика — фактический максимальный вес (самый тяжёлый подход); 1ПМ (orm) —
+// лучшая расчётная оценка по всей истории участника (формула Эпли,
+// `setOneRepMax`), возможно из ДРУГОГО подхода, чем самый тяжёлый по весу.
 //
 // NB: окно Ленты ограничено (FEED_LIMIT), поэтому фолбэк — «лучший по недавним
 // тренировкам», а не по всей истории. Точный рейтинг даёт серверный снимок;
@@ -60,31 +75,32 @@ export function computeBoardFromFeed(feedItems) {
   for (const w of feedItems ?? []) {
     for (const e of w.entries ?? []) {
       if (!e.is_bench_lift || !e.sets?.length) continue
-      // Лучший подход тренировки по 1ПМ (и сам подход — для подписи вес×повт.).
-      let bestOrm = 0
-      let bestSet = null
       for (const s of e.sets) {
-        const orm = setOneRepMax(Number(s.weight), Number(s.reps))
-        if (orm > bestOrm) {
-          bestOrm = orm
-          bestSet = s
-        }
-      }
-      if (bestOrm <= 0) continue
-      const prev = byUser.get(w.user_id)
-      if (!prev || bestOrm > prev.orm) {
-        byUser.set(w.user_id, {
+        const weight = Number(s.weight)
+        const reps = Number(s.reps)
+        if (!(weight > 0) || !(reps > 0)) continue
+        const orm = setOneRepMax(weight, reps)
+        const rec = byUser.get(w.user_id) ?? {
           user_id: w.user_id,
           user_name: w.user_name ?? 'Кто-то',
-          orm: bestOrm,
-          weight: Number(bestSet.weight),
-          reps: Number(bestSet.reps),
-          performed_at: w.performed_at ?? null,
-        })
+          weight: 0,
+          reps: 0,
+          performed_at: null,
+          orm: 0,
+        }
+        // Лучший фактический подход: тяжелее, при равном весе — больше повторов.
+        if (weight > rec.weight || (weight === rec.weight && reps > rec.reps)) {
+          rec.weight = weight
+          rec.reps = reps
+          rec.performed_at = w.performed_at ?? null
+        }
+        if (orm > rec.orm) rec.orm = orm
+        if (w.user_name) rec.user_name = w.user_name
+        byUser.set(w.user_id, rec)
       }
     }
   }
-  return [...byUser.values()].sort((a, b) => b.orm - a.orm)
+  return [...byUser.values()].sort(cmpBoard)
 }
 
 // Лидерборд из локального кэша (офлайн-доступен), сильнейший сверху.
@@ -94,6 +110,6 @@ export function computeBoardFromFeed(feedItems) {
 // рейтинг и при обновлении снимка, и при обновлении Ленты.
 export async function getCachedLeaderboard() {
   const snapshot = await db.leaderboard.toArray()
-  if (snapshot.length) return snapshot.sort((a, b) => b.orm - a.orm)
+  if (snapshot.length) return snapshot.sort(cmpBoard)
   return computeBoardFromFeed(await db.feed.toArray())
 }

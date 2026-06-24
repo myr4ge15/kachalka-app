@@ -144,6 +144,16 @@ export default function ProgressScreen({ user }) {
   const rows = useMemo(() => [...data].reverse(), [data])
 
   const best = data.reduce((m, p) => Math.max(m, p.value), 0)
+  // Лучший ФАКТИЧЕСКИЙ вес за период (самый тяжёлый реально поднятый подход).
+  const bestWeight = weighted
+    ? data.reduce((m, p) => {
+        for (const s of p.sets) {
+          const wt = Number(s.weight) || 0
+          if (wt > m) m = wt
+        }
+        return m
+      }, 0)
+    : 0
   const unit = weighted ? 'кг' : 'повт.'
   const metricLabel = weighted ? '1ПМ' : 'Σ повторов'
 
@@ -248,8 +258,18 @@ export default function ProgressScreen({ user }) {
           ) : (
             <>
               <div className="card stat">
-                <span className="stat-num">{best} {unit}</span>
-                <span className="muted">{weighted ? 'лучший 1ПМ' : 'макс. повторов за день'}</span>
+                {weighted ? (
+                  <>
+                    <span className="stat-num">{bestWeight} кг</span>
+                    <span className="muted">лучший фактический вес</span>
+                    <span className="muted stat-sub">в теории (1ПМ) ~{best} кг</span>
+                  </>
+                ) : (
+                  <>
+                    <span className="stat-num">{best} {unit}</span>
+                    <span className="muted">макс. повторов за день</span>
+                  </>
+                )}
               </div>
 
               <div className="card chart-card">
