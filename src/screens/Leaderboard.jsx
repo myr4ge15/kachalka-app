@@ -1,4 +1,4 @@
-import { useEffect } from 'react'
+import { useEffect, useState } from 'react'
 import { useLiveQuery } from 'dexie-react-hooks'
 import { getCachedLeaderboard, fetchLeaderboard } from '../db/leaderboard.js'
 import { onOnline, onResume } from '../lib/appEvents.js'
@@ -13,14 +13,24 @@ function place(i) {
 // участника по всей истории. Самодостаточен — сам тянет и кэширует данные.
 export default function Leaderboard({ user }) {
   const board = useLiveQuery(() => getCachedLeaderboard(), [], undefined)
+  const [error, setError] = useState(null)
   const loading = board === undefined
   const list = board ?? []
 
-  // Тихо обновляем при входе на экран и появлении сети (ошибки не мешают ленте).
-  // Подписки — через общий хаб событий (lib/appEvents.js).
+  // Обновляем при входе на экран и появлении сети. Ошибку НЕ глотаем молча:
+  // логируем и кладём в state. Частая причина — не задеплоен RPC
+  // `leaderboard_bench`; в этом случае рейтинг всё равно посчитается фолбэком из
+  // кэша Ленты (см. getCachedLeaderboard), поэтому баннер показываем только когда
+  // показать нечего (см. ниже). Подписки — через общий хаб (lib/appEvents.js).
   useEffect(() => {
     const refresh = () => {
-      if (navigator.onLine) fetchLeaderboard().catch(() => {})
+      if (!navigator.onLine) return
+      fetchLeaderboard()
+        .then(() => setError(null))
+        .catch((err) => {
+          console.warn('Лидерборд: обновление с сервера не удалось', err)
+          setError(err?.message ?? String(err))
+        })
     }
     refresh()
     const off1 = onResume(refresh)
@@ -28,7 +38,26 @@ export default function Leaderboard({ user }) {
     return () => { off1(); off2() }
   }, [])
 
-  if (loading || list.length === 0) return null
+  // Пока читаем кэш — ничего не мигаем.
+  if (loading) return null
+
+  // Видимые состояния вместо молчаливого null (раньше пустой/ошибочный рейтинг
+  // выглядел снаружи как «фичи нет»). Показываем компактную карточку-заглушку.
+  if (list.length === 0) {
+    return (
+      <div className="card lb-card">
+        <div className="lb-head">
+          <h3 className="lb-title">🏋️ Лидерборд · жим лёжа</h3>
+          <span className="muted lb-metric">1ПМ</span>
+        </div>
+        {error ? (
+          <p className="muted lb-empty">Не удалось загрузить рейтинг. Проверь соединение и попробуй позже.</p>
+        ) : (
+          <p className="muted lb-empty">Пока нет данных по жиму — запиши подход в жиме лёжа.</p>
+        )}
+      </div>
+    )
+  }
 
   return (
     <div className="card lb-card">

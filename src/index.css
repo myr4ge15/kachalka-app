@@ -331,6 +331,7 @@ input { font-family: inherit; }
   flex-shrink: 0; font-weight: 700; color: var(--green);
   font-variant-numeric: tabular-nums;
 }
+.lb-empty { margin: 4px 2px 0; font-size: 13px; line-height: 1.4; }
 
 /* Сноска с формулой под графиком прогресса */
 .formula-note {
