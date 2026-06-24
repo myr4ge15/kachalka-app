@@ -71,10 +71,8 @@ export default function Leaderboard({ user }) {
           return (
             <li key={row.user_id} className={isMe ? 'lb-row me' : 'lb-row'}>
               <span className="lb-place">{place(i)}</span>
-              <span className="lb-name">
-                {row.user_name}
-                {isMe && <span className="feed-me">ты</span>}
-              </span>
+              <span className="lb-name">{row.user_name}</span>
+              {isMe && <span className="feed-me">ты</span>}
               <span className="lb-set muted">{row.weight}×{row.reps}</span>
               <span className="lb-orm">{row.orm} кг</span>
             </li>
