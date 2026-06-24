@@ -88,6 +88,31 @@ function fmtSet(s, weighted) {
   return weighted && weight > 0 ? `${s.weight}×${reps}` : `${reps}`
 }
 
+const PERIODS = [
+  { id: 'week', label: 'Неделя' },
+  { id: 'month', label: 'Месяц' },
+  { id: 'all', label: 'Всё' },
+  { id: 'custom', label: 'Период' },
+]
+
+// Границы периода как ISO-дни (YYYY-MM-DD) или null = без ограничения.
+// ISO-строки сравниваются лексикографически, поэтому хватает строкового <,>.
+function periodRange(period, from, to) {
+  if (period === 'all') return null
+  if (period === 'custom') return { from: from || null, to: to || null }
+  const d = new Date()
+  if (period === 'week') d.setDate(d.getDate() - 7)
+  else if (period === 'month') d.setMonth(d.getMonth() - 1)
+  return { from: d.toISOString().slice(0, 10), to: null }
+}
+
+function inRange(day, range) {
+  if (!range) return true
+  if (range.from && day < range.from) return false
+  if (range.to && day > range.to) return false
+  return true
+}
+
 export default function ProgressScreen({ user }) {
   const workouts = useLiveQuery(() => getWorkouts(user.id), [user.id])
   const loading = workouts === undefined
@@ -102,10 +127,20 @@ export default function ProgressScreen({ user }) {
   }, [list, selId])
 
   const weighted = selected ? selected.hasWeight : true
-  const data = useMemo(
+
+  // PR и направление считаем по ВСЕЙ истории (рекорд — личный за всё время),
+  // а период лишь сужает отображаемые точки. Поэтому строим ряд целиком и
+  // фильтруем результат, а не входные тренировки.
+  const [period, setPeriod] = useState('all')
+  const [from, setFrom] = useState('')
+  const [to, setTo] = useState('')
+
+  const fullData = useMemo(
     () => (selected ? buildSeries(workouts ?? [], selected.id, weighted) : []),
     [workouts, selected, weighted]
   )
+  const range = useMemo(() => periodRange(period, from, to), [period, from, to])
+  const data = useMemo(() => fullData.filter((p) => inRange(p.day, range)), [fullData, range])
   const rows = useMemo(() => [...data].reverse(), [data])
 
   const best = data.reduce((m, p) => Math.max(m, p.value), 0)
@@ -179,8 +214,37 @@ export default function ProgressScreen({ user }) {
             </select>
           </label>
 
+          <div className="prog-periods">
+            {PERIODS.map((p) => (
+              <button
+                key={p.id}
+                className={`prog-chip${period === p.id ? ' active' : ''}`}
+                onClick={() => setPeriod(p.id)}
+              >
+                {p.label}
+              </button>
+            ))}
+          </div>
+
+          {period === 'custom' && (
+            <div className="prog-range">
+              <label>
+                <span>С</span>
+                <input type="date" value={from} max={to || undefined} onChange={(e) => setFrom(e.target.value)} />
+              </label>
+              <label>
+                <span>По</span>
+                <input type="date" value={to} min={from || undefined} onChange={(e) => setTo(e.target.value)} />
+              </label>
+            </div>
+          )}
+
           {data.length === 0 ? (
-            <p className="muted empty">Нет подходов по этому упражнению.</p>
+            <p className="muted empty">
+              {fullData.length > 0
+                ? 'Нет подходов за выбранный период.'
+                : 'Нет подходов по этому упражнению.'}
+            </p>
           ) : (
             <>
               <div className="card stat">

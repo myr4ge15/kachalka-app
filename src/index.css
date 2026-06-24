@@ -59,7 +59,7 @@ input { font-family: inherit; }
   background: var(--bg); padding-bottom: env(safe-area-inset-bottom);
 }
 .tab {
-  flex: 1; padding: 14px; background: none; border: none;
+  flex: 1; padding: 14px; min-height: 44px; background: none; border: none;
   color: var(--muted); font-size: 15px; font-weight: 600;
 }
 .tab.active { color: var(--green); }
@@ -135,14 +135,14 @@ input { font-family: inherit; }
 
 .stepper { display: flex; align-items: center; gap: 3px; }
 .stepper button {
-  width: 34px; height: 42px; flex-shrink: 0; font-size: 20px;
+  width: 34px; height: 44px; flex-shrink: 0; font-size: 20px;
   border-radius: 10px; border: 1px solid var(--border);
   background: var(--surface-2); color: var(--text);
 }
 .stepper button:active { background: var(--border); }
 /* Инпут занимает весь остаток строки, чтобы крупные значения (напр. «112.5») влезали целиком */
 .stepper input {
-  width: 100%; min-width: 0; height: 42px; text-align: center; font-size: 17px;
+  width: 100%; min-width: 0; height: 44px; text-align: center; font-size: 17px;
   padding: 0 2px; border-radius: 10px; border: 1px solid var(--border);
   background: var(--bg); color: var(--text);
 }
@@ -336,6 +336,22 @@ input { font-family: inherit; }
   width: 100%; padding: 12px; font-size: 16px; border-radius: 10px;
   border: 1px solid var(--border); background: var(--surface); color: var(--text);
   appearance: none; -webkit-appearance: none;
+}
+
+/* переключатель периода графика (неделя / месяц / всё / диапазон) */
+.prog-periods { display: flex; flex-wrap: wrap; gap: 8px; margin-bottom: 12px; }
+.prog-chip {
+  flex: 0 0 auto; min-height: 44px; padding: 0 16px;
+  display: inline-flex; align-items: center; line-height: 1.2;
+  border-radius: 999px; border: 1px solid var(--border);
+  background: var(--surface); color: var(--text); font-size: 14px; font-weight: 600;
+}
+.prog-chip.active { background: var(--green); border-color: var(--green); color: #08130b; }
+.prog-range { display: flex; flex-wrap: wrap; gap: 8px; margin-bottom: 14px; }
+.prog-range label { display: flex; flex-direction: column; gap: 4px; font-size: 12px; color: var(--muted); flex: 1; min-width: 120px; }
+.prog-range input {
+  min-height: 44px; padding: 0 10px; font-size: 15px; border-radius: 10px;
+  border: 1px solid var(--border); background: var(--bg); color: var(--text);
 }
 
 /* таблица «по дням»: дата · подходы · метрика */
