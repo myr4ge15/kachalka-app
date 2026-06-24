@@ -1,10 +1,14 @@
-import { useState, useEffect } from 'react'
+import { useState, useEffect, lazy, Suspense } from 'react'
 import { isConfigured, warmup } from './db/supabase.js'
 import { startSync, useSyncStatus } from './db/sync.js'
 import LoginScreen from './screens/LoginScreen.jsx'
-import HistoryScreen from './screens/HistoryScreen.jsx'
-import ProgressScreen from './screens/ProgressScreen.jsx'
-import FeedScreen from './screens/FeedScreen.jsx'
+
+// Экраны-вкладки грузим лениво: код активной вкладки подтягивается по требованию.
+// Главный выигрыш — «Прогресс» тянет тяжёлый recharts, который теперь не попадает
+// в стартовый бандл, а грузится отдельным чанком при открытии вкладки.
+const HistoryScreen = lazy(() => import('./screens/HistoryScreen.jsx'))
+const ProgressScreen = lazy(() => import('./screens/ProgressScreen.jsx'))
+const FeedScreen = lazy(() => import('./screens/FeedScreen.jsx'))
 
 // Индикатор состояния синхронизации в шапке.
 function SyncBadge() {
@@ -98,9 +102,11 @@ export default function App() {
       </header>
 
       <main className="content">
-        {tab === 'history' && <HistoryScreen user={user} />}
-        {tab === 'feed' && <FeedScreen user={user} />}
-        {tab === 'progress' && <ProgressScreen user={user} />}
+        <Suspense fallback={<div className="screen"><p className="muted">Загрузка…</p></div>}>
+          {tab === 'history' && <HistoryScreen user={user} />}
+          {tab === 'feed' && <FeedScreen user={user} />}
+          {tab === 'progress' && <ProgressScreen user={user} />}
+        </Suspense>
       </main>
 
       <nav className="tabbar">

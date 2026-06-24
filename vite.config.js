@@ -28,5 +28,20 @@ export default defineConfig({
         ]
       }
     })
-  ]
+  ],
+  build: {
+    rollupOptions: {
+      output: {
+        // Делим вендоров на отдельные кэшируемые чанки, чтобы ни один кусок не
+        // превышал лимит и обновление приложения не инвалидировало react/supabase.
+        // recharts (только в «Прогрессе») вынесен в свой чанк и грузится лениво.
+        manualChunks(id) {
+          if (!id.includes('node_modules')) return
+          if (id.includes('recharts') || id.includes('d3-') || id.includes('victory-vendor')) return 'charts'
+          if (id.includes('@supabase')) return 'supabase'
+          if (id.includes('/react/') || id.includes('/react-dom/') || id.includes('/scheduler/')) return 'react-vendor'
+        }
+      }
+    }
+  }
 })
