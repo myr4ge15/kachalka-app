@@ -35,6 +35,10 @@ const SELECT_WORKOUT =
   'workout_exercises(id, position, exercise_id, ' +
   'exercise:exercises(id, name, muscle_group, is_bench_lift), ' +
   'sets(id, set_number, weight, reps))'
+const SELECT_TEMPLATE =
+  'id, name, user_id, created_at, ' +
+  'template_exercises(position, exercise_id, ' +
+  'exercise:exercises(id, name, muscle_group, is_bench_lift))'
 
 // ----------------------- наблюдаемое состояние синка -----------------------
 let state = { online: navigator.onLine, syncing: false, lastError: null, lastSyncAt: null }
@@ -78,6 +82,34 @@ function rowToDoc(w) {
     created_at: w.created_at ?? w.performed_at,
     updated_at: w.performed_at,
     entries,
+    _dirty: 0,
+    _deleted: 0,
+  }
+}
+
+// server row → локальный денормализованный документ шаблона
+function templateRowToDoc(t) {
+  const exercises = [...(t.template_exercises ?? [])]
+    .sort((a, b) => (a.position ?? 0) - (b.position ?? 0))
+    .map((te, i) => ({
+      exercise_id: te.exercise_id,
+      exercise: te.exercise
+        ? {
+            id: te.exercise.id,
+            name: te.exercise.name,
+            muscle_group: te.exercise.muscle_group ?? null,
+            is_bench_lift: Boolean(te.exercise.is_bench_lift),
+          }
+        : { id: te.exercise_id, name: '—' },
+      position: i,
+    }))
+  return {
+    id: t.id,
+    user_id: t.user_id,
+    name: t.name,
+    created_at: t.created_at ?? nowIso(),
+    updated_at: t.created_at ?? nowIso(),
+    exercises,
     _dirty: 0,
     _deleted: 0,
   }
@@ -146,6 +178,30 @@ async function pull(userId) {
       await db.workouts.delete(w.id)
     }
   })
+
+  // шаблоны пользователя (их мало — тянем всё окно по user_id целиком,
+  // без partial-границы). Не затираем локальные несинхронизированные изменения.
+  const tpl = await withTimeout(
+    supabase.from('workout_templates').select(SELECT_TEMPLATE).eq('user_id', userId)
+  )
+  if (!tpl.error && tpl.data) {
+    const tplIds = new Set(tpl.data.map((r) => r.id))
+    await db.transaction('rw', db.templates, async () => {
+      const locals = await db.templates.where('user_id').equals(userId).toArray()
+      const protectedIds = new Set(
+        locals.filter((t) => t._dirty || t._deleted).map((t) => t.id)
+      )
+      for (const row of tpl.data) {
+        if (protectedIds.has(row.id)) continue
+        await db.templates.put(templateRowToDoc(row))
+      }
+      // удалить локально чистые шаблоны, которых нет на сервере
+      for (const t of locals) {
+        if (tplIds.has(t.id) || t._dirty || t._deleted) continue
+        await db.templates.delete(t.id)
+      }
+    })
+  }
 }
 
 // ------------------------------- push --------------------------------------
@@ -183,6 +239,57 @@ async function pushExercises() {
       const attempts = (op.attempts ?? 0) + 1
       const dead = attempts >= MAX_ATTEMPTS
       await db.ex_outbox.update(op.seq, {
+        attempts,
+        lastError: String(err?.message ?? err),
+        ...(dead ? { _dead: 1 } : {}),
+      })
+      if (dead) continue // в dead-letter — не вешаем очередь, идём дальше
+      throw err // прекращаем проход, попробуем позже
+    }
+  }
+}
+
+// Отправляем шаблоны (tpl_outbox) в Supabase. Идёт ПОСЛЕ pushExercises и ДО
+// push() тренировок: template_exercises.exercise_id ссылается на exercises (FK),
+// поэтому упражнение должно появиться на сервере раньше шаблона. Upsert по
+// клиентскому id идемпотентен — повтор после обрыва безопасен.
+async function pushTemplates() {
+  const ops = await db.tpl_outbox.orderBy('seq').toArray()
+  for (const op of ops) {
+    if (op._dead) continue // отравленная операция — пропускаем, очередь не блокируем
+    try {
+      if (op.type === 'upsert') {
+        const doc = await db.templates.get(op.templateId)
+        if (!doc || doc._deleted) {
+          await db.tpl_outbox.delete(op.seq)
+          continue
+        }
+        const exerciseIds = [...(doc.exercises ?? [])]
+          .sort((a, b) => (a.position ?? 0) - (b.position ?? 0))
+          .map((e) => e.exercise_id)
+        const { error } = await withTimeout(
+          supabase.rpc('upsert_template', {
+            p_template_id: doc.id,
+            p_user_id: doc.user_id,
+            p_name: doc.name,
+            p_exercise_ids: exerciseIds,
+          })
+        )
+        if (error) throw error
+        await db.templates.update(doc.id, { _dirty: 0 })
+        await db.tpl_outbox.delete(op.seq)
+      } else if (op.type === 'delete') {
+        const { error } = await withTimeout(
+          supabase.from('workout_templates').delete().eq('id', op.templateId)
+        )
+        if (error) throw error
+        await db.templates.delete(op.templateId)
+        await db.tpl_outbox.delete(op.seq)
+      }
+    } catch (err) {
+      const attempts = (op.attempts ?? 0) + 1
+      const dead = attempts >= MAX_ATTEMPTS
+      await db.tpl_outbox.update(op.seq, {
         attempts,
         lastError: String(err?.message ?? err),
         ...(dead ? { _dead: 1 } : {}),
@@ -252,7 +359,8 @@ export async function syncNow(userId) {
   running = true
   setState({ syncing: true })
   try {
-    await pushExercises() // упражнения раньше тренировок (FK на exercise_id)
+    await pushExercises() // упражнения раньше всего (FK на exercise_id)
+    await pushTemplates() // шаблоны после упражнений (FK), до/после тренировок неважно
     await push()
     await pull(userId)
     const at = nowIso()

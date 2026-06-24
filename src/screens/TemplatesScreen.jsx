@@ -1,0 +1,308 @@
+import { useState, useEffect, useRef } from 'react'
+import { useLiveQuery } from 'dexie-react-hooks'
+import {
+  getExercises,
+  getTemplates,
+  getTemplate,
+  saveTemplate,
+  deleteTemplate,
+  createExercise,
+} from '../db/repo.js'
+import { syncNow } from '../db/sync.js'
+import ExercisePicker from '../components/ExercisePicker.jsx'
+
+// локальный документ шаблона → редактируемая форма [{ exercise }]
+function toItems(tpl) {
+  return (tpl?.exercises ?? []).map((e) => ({
+    exercise: e.exercise ?? { id: e.exercise_id, name: '—' },
+  }))
+}
+
+// Экран шаблонов: список ↔ редактор (одно внутреннее состояние editing).
+//   editing === null  → список шаблонов
+//   editing === 'new' → создание нового
+//   editing === <id>  → правка существующего
+export default function TemplatesScreen({ user, onBack }) {
+  const [editing, setEditing] = useState(null)
+
+  if (editing !== null) {
+    return (
+      <TemplateEditor
+        user={user}
+        templateId={editing === 'new' ? null : editing}
+        onBack={() => setEditing(null)}
+      />
+    )
+  }
+
+  return <TemplateList user={user} onBack={onBack} onOpen={setEditing} />
+}
+
+// ----------------------------- список --------------------------------------
+function TemplateList({ user, onBack, onOpen }) {
+  const templates = useLiveQuery(() => getTemplates(user.id), [user.id])
+  const loading = templates === undefined
+  const list = templates ?? []
+
+  return (
+    <div className="screen">
+      <div className="detail-head">
+        <button className="link-btn back-link" onClick={() => onBack?.()}>← Назад</button>
+        <h2 className="screen-title detail-title">Шаблоны</h2>
+      </div>
+
+      <button className="btn primary full add-workout" onClick={() => onOpen('new')}>
+        + Новый шаблон
+      </button>
+
+      {loading && <p className="muted">Загрузка…</p>}
+
+      {!loading && list.length === 0 && (
+        <p className="muted empty">Пока нет шаблонов. Создай первый.</p>
+      )}
+
+      {list.map((t) => {
+        const exs = t.exercises ?? []
+        return (
+          <button
+            key={t.id}
+            className="card history-card history-tap"
+            onClick={() => onOpen(t.id)}
+          >
+            <div className="history-head">
+              <div>
+                <div className="history-date">
+                  {t.name}
+                  {Boolean(t._dirty) && (
+                    <span className="dot-unsynced" title="Ждёт синхронизации">●</span>
+                  )}
+                </div>
+                <div className="muted history-sub">{exs.length} упр.</div>
+              </div>
+              <span className="history-chevron" aria-hidden="true">›</span>
+            </div>
+
+            <ul className="history-list">
+              {exs.map((e, i) => (
+                <li key={i} className="history-ex">
+                  <span className="history-ex-name">{e.exercise?.name ?? '—'}</span>
+                </li>
+              ))}
+            </ul>
+          </button>
+        )
+      })}
+    </div>
+  )
+}
+
+// ----------------------------- редактор ------------------------------------
+function TemplateEditor({ user, templateId, onBack }) {
+  const isNew = templateId == null
+  const exercises = useLiveQuery(() => getExercises(), [], [])
+
+  const [name, setName] = useState('')
+  const [items, setItems] = useState([])
+  const [loading, setLoading] = useState(!isNew)
+  const [pickerOpen, setPickerOpen] = useState(false)
+  const [saving, setSaving] = useState(false)
+  const [message, setMessage] = useState(null)
+
+  // Загрузка существующего шаблона на маунте.
+  useEffect(() => {
+    if (isNew) return
+    let alive = true
+    setLoading(true)
+    getTemplate(templateId).then((t) => {
+      if (!alive) return
+      if (t) {
+        setName(t.name ?? '')
+        setItems(toItems(t))
+      } else {
+        setMessage({ type: 'error', text: 'Шаблон не найден.' })
+      }
+      setLoading(false)
+    })
+    return () => { alive = false }
+  }, [isNew, templateId])
+
+  function addExercise(ex) {
+    setPickerOpen(false)
+    if (items.some((it) => it.exercise.id === ex.id)) {
+      setMessage({ type: 'error', text: 'Это упражнение уже в шаблоне.' })
+      return
+    }
+    setItems([...items, { exercise: ex }])
+  }
+
+  function removeExercise(idx) {
+    setItems(items.filter((_, i) => i !== idx))
+  }
+
+  // ------------------------ drag-n-drop реордер ----------------------------
+  // Pointer-события (работают и на тач, в отличие от HTML5 dragstart).
+  const rowRefs = useRef([])
+  const dragRef = useRef(null) // индекс перетаскиваемого элемента
+  const [dragIndex, setDragIndex] = useState(null)
+
+  function move(from, to) {
+    setItems((prev) => {
+      if (to < 0 || to >= prev.length || from === to) return prev
+      const next = [...prev]
+      const [moved] = next.splice(from, 1)
+      next.splice(to, 0, moved)
+      return next
+    })
+  }
+
+  function onHandleDown(e, idx) {
+    e.preventDefault()
+    dragRef.current = idx
+    setDragIndex(idx)
+    e.currentTarget.setPointerCapture?.(e.pointerId)
+  }
+
+  function onHandleMove(e) {
+    if (dragRef.current == null) return
+    const y = e.clientY
+    // ищем строку, над которой находится палец, — она и есть целевая позиция
+    let target = dragRef.current
+    for (let i = 0; i < rowRefs.current.length; i++) {
+      const el = rowRefs.current[i]
+      if (!el) continue
+      const r = el.getBoundingClientRect()
+      if (y >= r.top && y <= r.bottom) {
+        target = i
+        break
+      }
+    }
+    if (target !== dragRef.current) {
+      move(dragRef.current, target)
+      dragRef.current = target
+      setDragIndex(target)
+    }
+  }
+
+  function onHandleUp(e) {
+    dragRef.current = null
+    setDragIndex(null)
+    e.currentTarget.releasePointerCapture?.(e.pointerId)
+  }
+
+  const canSave = name.trim().length > 0 && items.length > 0 && !saving
+
+  async function save() {
+    setSaving(true)
+    setMessage(null)
+    try {
+      await saveTemplate({
+        id: isNew ? undefined : templateId,
+        user_id: user.id,
+        name,
+        exercises: items,
+      })
+      if (navigator.onLine) syncNow(user.id)
+      onBack?.()
+    } catch (err) {
+      setMessage({ type: 'error', text: 'Не сохранилось: ' + (err.message ?? err) })
+      setSaving(false)
+    }
+  }
+
+  async function remove() {
+    if (!window.confirm('Удалить этот шаблон? Действие необратимо.')) return
+    setSaving(true)
+    setMessage(null)
+    try {
+      await deleteTemplate(templateId)
+      if (navigator.onLine) syncNow(user.id)
+      onBack?.()
+    } catch (err) {
+      setMessage({ type: 'error', text: 'Не удалилось: ' + (err.message ?? err) })
+      setSaving(false)
+    }
+  }
+
+  return (
+    <div className="screen">
+      <div className="detail-head">
+        <button className="link-btn back-link" onClick={() => onBack?.()}>← Назад</button>
+        <h2 className="screen-title detail-title">
+          {isNew ? 'Новый шаблон' : 'Шаблон'}
+        </h2>
+      </div>
+
+      {message && (
+        <div className={message.type === 'error' ? 'banner error' : 'banner ok'}>
+          {message.text}
+        </div>
+      )}
+
+      {loading ? (
+        <p className="muted">Загрузка…</p>
+      ) : (
+        <>
+          <label className="date-field">
+            <span className="muted">Название</span>
+            <input
+              type="text"
+              placeholder="Напр. «Понедельник: спина»"
+              value={name}
+              onChange={(e) => setName(e.target.value)}
+            />
+          </label>
+
+          {items.length === 0 && (
+            <p className="muted empty">Добавь упражнения в шаблон.</p>
+          )}
+
+          {items.map((it, idx) => (
+            <div
+              key={it.exercise.id}
+              ref={(el) => (rowRefs.current[idx] = el)}
+              className={dragIndex === idx ? 'tpl-row dragging' : 'tpl-row'}
+            >
+              <button
+                className="tpl-handle"
+                aria-label="Перетащить"
+                onPointerDown={(e) => onHandleDown(e, idx)}
+                onPointerMove={onHandleMove}
+                onPointerUp={onHandleUp}
+                onPointerCancel={onHandleUp}
+              >
+                ☰
+              </button>
+              <span className="tpl-name">{it.exercise.name}</span>
+              <button className="link-btn danger" onClick={() => removeExercise(idx)}>
+                убрать
+              </button>
+            </div>
+          ))}
+
+          <button className="btn outline full" onClick={() => setPickerOpen(true)}>
+            + Добавить упражнение
+          </button>
+
+          <button className="btn primary full save-btn" disabled={!canSave} onClick={save}>
+            {saving ? 'Сохранение…' : 'Сохранить'}
+          </button>
+
+          {!isNew && (
+            <button className="link-btn danger full-link" disabled={saving} onClick={remove}>
+              Удалить шаблон
+            </button>
+          )}
+        </>
+      )}
+
+      {pickerOpen && (
+        <ExercisePicker
+          exercises={exercises}
+          onPick={addExercise}
+          onCreate={createExercise}
+          onClose={() => setPickerOpen(false)}
+        />
+      )}
+    </div>
+  )
+}

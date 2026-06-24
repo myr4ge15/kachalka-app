@@ -82,6 +82,28 @@ db.version(4).stores({
   leaderboard: 'user_id, orm',
 })
 
+// v5: шаблоны тренировок (WISHLIST п.1 / фаза 2).
+// Новая параллельная сущность (схему тренировок/упражнений НЕ трогаем):
+//   - templates — денормализованные документы шаблона (имя + упорядоченный
+//     список упражнений), источник правды для UI, фильтр по user_id;
+//   - tpl_outbox — отдельная очередь upsert/delete шаблонов в Supabase
+//     (по образцу ex_outbox). Отправляется ПОСЛЕ упражнений из-за FK
+//     template_exercises.exercise_id → exercises.
+// Поля документа (name, created_at, exercises) не индексируем — читаем/сортируем
+// в памяти (шаблонов мало).
+db.version(5).stores({
+  exercises: 'id, muscle_group, name, _dirty',
+  users: 'id, name',
+  workouts: 'id, user_id, performed_at, _dirty, _deleted',
+  outbox: '++seq, workoutId, type, createdAt',
+  meta: 'key',
+  feed: 'id, performed_at',
+  ex_outbox: '++seq, exerciseId, createdAt',
+  leaderboard: 'user_id, orm',
+  templates: 'id, user_id, _dirty, _deleted',
+  tpl_outbox: '++seq, templateId, createdAt',
+})
+
 // Текущее серверное (UTC) время в ISO. crypto.randomUUID доступен на https и localhost.
 export const nowIso = () => new Date().toISOString()
 export const newId = () =>

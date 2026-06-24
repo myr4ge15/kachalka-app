@@ -2,6 +2,7 @@ import { useState } from 'react'
 import { useLiveQuery } from 'dexie-react-hooks'
 import { getWorkouts } from '../db/repo.js'
 import WorkoutScreen from './WorkoutScreen.jsx'
+import TemplatesScreen from './TemplatesScreen.jsx'
 
 function fmtDate(iso) {
   const d = new Date(iso)
@@ -28,6 +29,10 @@ export default function HistoryScreen({ user }) {
 
   const [selected, setSelected] = useState(null)
 
+  if (selected === 'templates') {
+    return <TemplatesScreen user={user} onBack={() => setSelected(null)} />
+  }
+
   if (selected !== null) {
     return (
       <WorkoutScreen
@@ -44,6 +49,10 @@ export default function HistoryScreen({ user }) {
 
       <button className="btn primary full add-workout" onClick={() => setSelected('new')}>
         + Добавить тренировку
+      </button>
+
+      <button className="btn outline full tpl-link" onClick={() => setSelected('templates')}>
+        📋 Шаблоны
       </button>
 
       {loading && <p className="muted">Загрузка…</p>}

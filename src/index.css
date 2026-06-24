@@ -263,6 +263,31 @@ input { font-family: inherit; }
 }
 .full-link { display: block; width: 100%; text-align: center; margin-top: 10px; }
 
+/* ---------- шаблоны ---------- */
+/* Вторичная кнопка «Шаблоны» под «+ Добавить тренировку» */
+.tpl-link { margin-top: -8px; margin-bottom: 16px; }
+
+/* Строка упражнения в редакторе шаблона: хват + название + «убрать» */
+.tpl-row {
+  display: flex; align-items: center; gap: 10px;
+  background: var(--surface); border: 1px solid var(--border);
+  border-radius: 12px; padding: 8px 12px; margin-bottom: 10px;
+  touch-action: none; /* чтобы pointer-drag не скроллил страницу */
+}
+.tpl-row.dragging { background: var(--surface-2); border-color: var(--green); opacity: .9; }
+.tpl-handle {
+  flex-shrink: 0; width: 44px; height: 44px; font-size: 20px;
+  background: none; border: none; color: var(--muted);
+  cursor: grab; touch-action: none;
+}
+.tpl-handle:active { cursor: grabbing; }
+.tpl-name { flex: 1; min-width: 0; font-size: 15px; }
+
+/* Карточка шаблона в пикере: имя + «N упр.» + краткий состав */
+.tpl-pick { flex-wrap: wrap; }
+.tpl-pick-name { font-weight: 600; }
+.tpl-pick-sub { flex-basis: 100%; font-size: 12px; margin-top: 4px; text-align: left; }
+
 /* ---------- banners / progress ---------- */
 .banner { padding: 12px 14px; border-radius: 10px; margin-bottom: 14px; font-size: 14px; }
 .banner.ok { background: rgba(22,163,74,.15); border: 1px solid var(--green); color: #86efac; }

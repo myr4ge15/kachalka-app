@@ -107,6 +107,26 @@ export async function getWorkout(id) {
   return w
 }
 
+// Шаблоны пользователя (без удалённых), свежесозданные сверху.
+// Сортируем по created_at (фолбэк на name) через cmpIsoDesc.
+export async function getTemplates(userId) {
+  const list = await db.templates.where('user_id').equals(userId).toArray()
+  return list
+    .filter((t) => !t._deleted)
+    .sort(
+      (a, b) =>
+        cmpIsoDesc(a.created_at, b.created_at) ||
+        String(a.name ?? '').localeCompare(String(b.name ?? ''))
+    )
+}
+
+// Одиночный шаблон по id (для редактора). null, если нет/удалён.
+export async function getTemplate(id) {
+  const t = await db.templates.get(id)
+  if (!t || t._deleted) return null
+  return t
+}
+
 // ----------------------------- Запись --------------------------------------
 
 // Парсим число из инпута, принимая десятичную запятую (1,5 → 1.5).
@@ -196,12 +216,91 @@ async function enqueue(type, workoutId) {
   }
 }
 
-// Сколько изменений ждут отправки (тренировки + пользовательские упражнения).
+// ------------------------- Шаблоны (запись) --------------------------------
+
+// Нормализуем список упражнений шаблона из формы → денормализованный вид
+// (exercise_id + вложенный exercise + position = индекс).
+function cleanTemplateExercises(exercises) {
+  return (exercises ?? [])
+    .map((e, i) => ({
+      exercise_id: e.exercise?.id ?? e.exercise_id,
+      exercise: e.exercise
+        ? {
+            id: e.exercise.id,
+            name: e.exercise.name,
+            muscle_group: e.exercise.muscle_group ?? null,
+            is_bench_lift: Boolean(e.exercise.is_bench_lift),
+          }
+        : undefined,
+      position: i,
+    }))
+    .filter((e) => e.exercise_id)
+    .map((e, i) => ({ ...e, position: i })) // переиндексация после отсева
+}
+
+// Создать новый или переписать существующий шаблон. Возвращает id.
+// Передай существующий id, чтобы отредактировать.
+export async function saveTemplate({ id, user_id, name, exercises }) {
+  const clean = String(name ?? '').trim()
+  if (!clean) throw new Error('Введите название шаблона.')
+  const cleaned = cleanTemplateExercises(exercises)
+  if (cleaned.length === 0) throw new Error('Добавь хотя бы одно упражнение.')
+
+  const tId = id ?? newId()
+  const now = nowIso()
+
+  await db.transaction('rw', db.templates, db.tpl_outbox, async () => {
+    const existing = id ? await db.templates.get(id) : null
+    const doc = {
+      id: tId,
+      user_id,
+      name: clean,
+      // created_at: при создании = now; при правке сохраняем существующий.
+      created_at: existing?.created_at ?? now,
+      updated_at: now,
+      exercises: cleaned,
+      _dirty: 1,
+      _deleted: 0,
+    }
+    await db.templates.put(doc)
+    await enqueueTpl('upsert', tId)
+  })
+
+  return tId
+}
+
+// Удалить шаблон. Помечаем tombstone и ставим в очередь удаление.
+export async function deleteTemplate(id) {
+  await db.transaction('rw', db.templates, db.tpl_outbox, async () => {
+    const doc = await db.templates.get(id)
+    if (!doc) return
+    await db.templates.update(id, { _deleted: 1, _dirty: 0, updated_at: nowIso() })
+    await enqueueTpl('delete', id)
+  })
+}
+
+// Очередь шаблонов (tpl_outbox) — та же логика схлопывания дублей, что у
+// enqueue (тренировки), но по полю templateId.
+async function enqueueTpl(type, templateId) {
+  const pending = await db.tpl_outbox.where('templateId').equals(templateId).toArray()
+  if (type === 'upsert') {
+    if (pending.some((o) => o.type === 'upsert')) return
+    for (const o of pending) if (o.type === 'delete') await db.tpl_outbox.delete(o.seq)
+    await db.tpl_outbox.add({ templateId, type, createdAt: nowIso(), attempts: 0 })
+  } else {
+    for (const o of pending) if (o.type === 'upsert') await db.tpl_outbox.delete(o.seq)
+    if (pending.some((o) => o.type === 'delete')) return
+    await db.tpl_outbox.add({ templateId, type, createdAt: nowIso(), attempts: 0 })
+  }
+}
+
+// Сколько изменений ждут отправки (тренировки + упражнения + шаблоны).
 // Отравленные операции (_dead) в счётчик не входят — они уже не отправляются.
 export async function pendingCount() {
-  const [w, e] = await Promise.all([
+  const [w, e, t] = await Promise.all([
     db.outbox.filter((o) => !o._dead).count(),
     db.ex_outbox.filter((o) => !o._dead).count(),
+    db.tpl_outbox.filter((o) => !o._dead).count(),
   ])
-  return w + e
+  return w + e + t
 }

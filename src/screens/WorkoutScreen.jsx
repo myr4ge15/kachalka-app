@@ -4,6 +4,7 @@ import { getExercises, getWorkout, saveWorkout, createExercise, deleteWorkout as
 import { syncNow } from '../db/sync.js'
 import { getCache, setCache, clearCache } from '../lib/cache.js'
 import ExercisePicker from '../components/ExercisePicker.jsx'
+import TemplatePicker from '../components/TemplatePicker.jsx'
 
 // локальный документ → редактируемая форма [{ exercise, sets:[{weight,reps}] }]
 function toEntries(workout) {
@@ -48,6 +49,7 @@ export default function WorkoutScreen({ user, workoutId = null, onBack }) {
   const [performedAt, setPerformedAt] = useState(() => new Date().toISOString())
   const [loading, setLoading] = useState(!isNew)
   const [pickerOpen, setPickerOpen] = useState(false)
+  const [tplPickerOpen, setTplPickerOpen] = useState(false)
   const [saving, setSaving] = useState(false)
   const [message, setMessage] = useState(null) // {type, text}
 
@@ -85,6 +87,22 @@ export default function WorkoutScreen({ user, workoutId = null, onBack }) {
 
   function removeExercise(idx) {
     setEntries(entries.filter((_, i) => i !== idx))
+  }
+
+  // Применение шаблона (только новая тренировка): добавляем упражнения шаблона,
+  // которых ещё нет (анти-дубль по exercise.id), каждому — дефолтный подход 20×10.
+  function applyTemplate(tpl) {
+    setTplPickerOpen(false)
+    const have = new Set(entries.map((e) => e.exercise.id))
+    const toAdd = (tpl.exercises ?? [])
+      .map((e) => e.exercise ?? { id: e.exercise_id, name: '—' })
+      .filter((ex) => ex.id && !have.has(ex.id))
+      .map((ex) => ({ exercise: ex, sets: [{ weight: 20, reps: 10 }] }))
+    if (toAdd.length === 0) {
+      setMessage({ type: 'error', text: 'Все упражнения шаблона уже добавлены.' })
+      return
+    }
+    setEntries([...entries, ...toAdd])
   }
 
   function updateSet(ei, si, field, value) {
@@ -224,6 +242,12 @@ export default function WorkoutScreen({ user, workoutId = null, onBack }) {
             </div>
           ))}
 
+          {isNew && (
+            <button className="btn outline full" onClick={() => setTplPickerOpen(true)}>
+              📋 Выбрать шаблон
+            </button>
+          )}
+
           <button className="btn outline full" onClick={() => setPickerOpen(true)}>
             + Добавить упражнение
           </button>
@@ -246,6 +270,14 @@ export default function WorkoutScreen({ user, workoutId = null, onBack }) {
           onPick={addExercise}
           onCreate={createExercise}
           onClose={() => setPickerOpen(false)}
+        />
+      )}
+
+      {tplPickerOpen && (
+        <TemplatePicker
+          user={user}
+          onPick={applyTemplate}
+          onClose={() => setTplPickerOpen(false)}
         />
       )}
     </div>
