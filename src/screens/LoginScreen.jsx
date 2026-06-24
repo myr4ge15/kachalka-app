@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react'
 import { supabase } from '../db/supabase.js'
 import { getUsers, cacheUsers } from '../db/repo.js'
-import { sha256Hex } from '../lib/hash.js'
+import { verifyPin } from '../lib/hash.js'
 
 export default function LoginScreen({ onLogin }) {
   const [users, setUsers] = useState([])
@@ -24,7 +24,7 @@ export default function LoginScreen({ onLogin }) {
       try {
         const { data, error } = await supabase
           .from('users')
-          .select('id, name, pin_hash, role')
+          .select('id, name, pin_hash, pin_salt, role')
           .order('name')
         if (error) throw error
         if (data) {
@@ -64,8 +64,7 @@ export default function LoginScreen({ onLogin }) {
 
   async function submit() {
     if (pin.length !== 4 || !selected) return
-    const hash = await sha256Hex(pin)
-    if (hash === selected.pin_hash) {
+    if (await verifyPin(pin, selected)) {
       onLogin({ id: selected.id, name: selected.name, role: selected.role })
     } else {
       setError('Неверный PIN')
