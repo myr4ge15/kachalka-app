@@ -154,13 +154,27 @@ input { font-family: inherit; }
 /* ---------- exercise picker ---------- */
 .overlay {
   position: fixed; inset: 0; background: rgba(0,0,0,.55);
-  display: flex; align-items: flex-end; z-index: 20;
+  display: flex; align-items: stretch; z-index: 20;
 }
+/* Мобайл: пикер на весь экран. Шапка/поиск/чипы зафиксированы сверху
+   (flex-shrink:0), под ними скроллится только .picker-list. */
 .sheet {
-  background: var(--bg); width: 100%; height: 85vh; max-height: 85vh;
-  border-radius: 16px 16px 0 0;
-  padding: 16px; display: flex; flex-direction: column;
-  border-top: 1px solid var(--border);
+  background: var(--bg); width: 100%;
+  height: 100dvh; max-height: 100dvh;
+  border-radius: 0;
+  display: flex; flex-direction: column;
+  padding: calc(16px + env(safe-area-inset-top)) calc(16px + env(safe-area-inset-right))
+           calc(16px + env(safe-area-inset-bottom)) calc(16px + env(safe-area-inset-left));
+}
+/* Десктоп/планшет: аккуратная модалка по центру, а не на весь экран. */
+@media (min-width: 600px) {
+  .overlay { align-items: center; justify-content: center; }
+  .sheet {
+    width: 480px; max-width: calc(100vw - 32px);
+    height: 80vh; max-height: 80vh;
+    border-radius: 16px; padding: 16px;
+    border: 1px solid var(--border);
+  }
 }
 /* Шапка, поиск и чипы зафиксированы сверху и не сжимаются списком */
 .sheet-head {
