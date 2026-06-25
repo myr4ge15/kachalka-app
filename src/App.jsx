@@ -67,10 +67,14 @@ export default function App() {
   // Запоминаем активную вкладку
   useEffect(() => { sessionStorage.setItem(TAB_KEY, tab) }, [tab])
 
-  // Скролл наверх при переключении вкладок: прокручивается внутренняя .content
-  // (см. index.css), поэтому сбрасываем её scrollTop, а не окно.
+  // Скроллится не окно, а внутренняя .content (overflow-y:auto, см. index.css).
+  // Тап по кнопке вкладки всегда возвращает её контент в самый верх — в т.ч.
+  // повторный тап по уже активной вкладке (как «прокрутка наверх» в iOS).
   const contentRef = useRef(null)
-  useEffect(() => { contentRef.current?.scrollTo(0, 0) }, [tab])
+  function goTab(next) {
+    contentRef.current?.scrollTo({ top: 0, behavior: 'smooth' })
+    setTab(next)
+  }
 
   // Восстановление сессии после перезагрузки
   useEffect(() => {
@@ -117,7 +121,7 @@ export default function App() {
         <SyncBadge />
         <button
           className={'bell' + (unread > 0 ? ' has' : '')}
-          onClick={() => setTab('notif')}
+          onClick={() => goTab('notif')}
           aria-label={unread > 0 ? `Уведомления: ${unread} новых` : 'Уведомления'}
         >
           🔔
@@ -140,19 +144,19 @@ export default function App() {
       <nav className="tabbar">
         <button
           className={tab === 'history' ? 'tab active' : 'tab'}
-          onClick={() => setTab('history')}
+          onClick={() => goTab('history')}
         >
           Мои тренировки
         </button>
         <button
           className={tab === 'feed' ? 'tab active' : 'tab'}
-          onClick={() => setTab('feed')}
+          onClick={() => goTab('feed')}
         >
           Лента
         </button>
         <button
           className={tab === 'progress' ? 'tab active' : 'tab'}
-          onClick={() => setTab('progress')}
+          onClick={() => goTab('progress')}
         >
           Прогресс
         </button>
