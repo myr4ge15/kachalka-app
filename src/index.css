@@ -321,11 +321,12 @@ input { font-family: inherit; }
 .history-list { list-style: none; margin: 10px 0 0; padding: 0; }
 .history-ex {
   display: flex; justify-content: space-between; gap: 12px;
-  padding: 7px 0; border-top: 1px solid var(--border);
+  padding: 8px 0; border-top: 1px solid var(--border);
+  align-items: baseline;
 }
 .history-ex:first-child { border-top: none; }
-.history-ex-name { font-size: 15px; }
-.history-ex-sets { color: var(--muted); font-size: 14px; text-align: right; white-space: nowrap; }
+.history-ex-name { font-size: 15px; line-height: 1.35; }
+.history-ex-sets { color: var(--muted); font-size: 14px; line-height: 1.35; text-align: right; white-space: nowrap; }
 
 .history-edit { margin-top: 10px; }
 .edit-ex {
@@ -501,7 +502,7 @@ input { font-family: inherit; }
   min-width: 0; font-weight: 600;
   overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
 }
-.lb-who .feed-me { margin-left: 0; }
+.lb-who .feed-me { margin-left: 0; font-size: 11px; padding: 2px 7px; }
 /* Правая колонка: фактический вес (крупно) + сноска «N повт · 1ПМ ~X». */
 .lb-fact {
   flex-shrink: 0; display: flex; flex-direction: column;
