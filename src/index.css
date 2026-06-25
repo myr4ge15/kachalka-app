@@ -193,9 +193,12 @@ input { font-family: inherit; }
 .stepper input[type=number] { -moz-appearance: textfield; appearance: textfield; }
 
 /* ---------- exercise picker ---------- */
+/* Оверлей рендерится порталом в <body> (см. ExercisePicker/TemplatePicker),
+   поэтому position:fixed точно относительно вьюпорта. z-index выше шапки (5),
+   таббара и баннера обновления (30) — модалка перекрывает всё чрезмерное. */
 .overlay {
   position: fixed; inset: 0; background: rgba(0,0,0,.55);
-  display: flex; align-items: stretch; z-index: 20;
+  display: flex; align-items: stretch; z-index: 100;
 }
 /* Мобайл: пикер на весь экран. Шапка/поиск/чипы зафиксированы сверху
    (flex-shrink:0), под ними скроллится только .picker-list. */

@@ -1,4 +1,5 @@
 import { useState, useMemo } from 'react'
+import { createPortal } from 'react-dom'
 import { findSimilar } from '../lib/similar.js'
 
 // Канонические группы мышц из ТЗ (Приложение A / п. 3.2). К ним добавляем
@@ -78,8 +79,11 @@ export default function ExercisePicker({ exercises, onPick, onClose, onCreate })
   }
 
   // -------------------------- форма создания --------------------------------
+  // Пикер рендерим порталом в <body>: оверлей position:fixed гарантированно
+  // относительно вьюпорта (а не застревает внутри прокручиваемой .content под
+  // шапкой/таббаром). Это и есть фикс «модалка не на весь экран».
   if (creating) {
-    return (
+    return createPortal(
       <div className="overlay" onClick={onClose}>
         <div className="sheet" onClick={(e) => e.stopPropagation()}>
           <div className="sheet-head">
@@ -130,12 +134,13 @@ export default function ExercisePicker({ exercises, onPick, onClose, onCreate })
             {busy ? 'Сохранение…' : 'Сохранить и добавить'}
           </button>
         </div>
-      </div>
+      </div>,
+      document.body
     )
   }
 
   // ---------------------------- список/поиск --------------------------------
-  return (
+  return createPortal(
     <div className="overlay" onClick={onClose}>
       <div className="sheet" onClick={(e) => e.stopPropagation()}>
         <div className="sheet-head">
@@ -181,6 +186,7 @@ export default function ExercisePicker({ exercises, onPick, onClose, onCreate })
           </button>
         )}
       </div>
-    </div>
+    </div>,
+    document.body
   )
 }

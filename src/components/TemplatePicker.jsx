@@ -1,3 +1,4 @@
+import { createPortal } from 'react-dom'
 import { useLiveQuery } from 'dexie-react-hooks'
 import { getTemplates } from '../db/repo.js'
 
@@ -8,7 +9,8 @@ export default function TemplatePicker({ user, onPick, onClose }) {
   const loading = templates === undefined
   const list = templates ?? []
 
-  return (
+  // Портал в <body>: оверлей на весь вьюпорт, не застревает под шапкой/таббаром.
+  return createPortal(
     <div className="overlay" onClick={onClose}>
       <div className="sheet" onClick={(e) => e.stopPropagation()}>
         <div className="sheet-head">
@@ -36,6 +38,7 @@ export default function TemplatePicker({ user, onPick, onClose }) {
           })}
         </div>
       </div>
-    </div>
+    </div>,
+    document.body
   )
 }
