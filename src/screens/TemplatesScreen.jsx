@@ -245,6 +245,7 @@ function TemplateEditor({ user, templateId, onBack }) {
           <label className="date-field">
             <span className="muted">Название</span>
             <input
+              className="search"
               type="text"
               placeholder="Напр. «Понедельник: спина»"
               value={name}
