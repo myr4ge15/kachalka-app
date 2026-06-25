@@ -142,7 +142,25 @@ export default function ProfileScreen({ user, onLogout, onOpenProgress, onOpenFe
                         type="button"
                         onClick={() => setEdWeight((w) => Math.max(2.5, Math.round((Number(w) - 2.5) * 10) / 10))}
                       >−</button>
-                      <span className="val">{edWeight} <span className="u">кг</span></span>
+                      <span className="val">
+                        <input
+                          className="val-field"
+                          type="text"
+                          inputMode="decimal"
+                          value={edWeight}
+                          onChange={(e) =>
+                            setEdWeight(e.target.value.replace(',', '.').replace(/[^\d.]/g, ''))
+                          }
+                          onBlur={() =>
+                            setEdWeight((w) => {
+                              const n = Number(w)
+                              return n > 0 ? Math.round(n * 10) / 10 : 2.5
+                            })
+                          }
+                          aria-label="Целевой вес в килограммах"
+                        />
+                        <span className="u">кг</span>
+                      </span>
                       <button
                         type="button"
                         onClick={() => setEdWeight((w) => Math.round((Number(w) + 2.5) * 10) / 10)}
