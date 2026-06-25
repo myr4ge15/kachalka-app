@@ -1,4 +1,4 @@
-import { useState, useEffect, lazy, Suspense } from 'react'
+import { useState, useEffect, useRef, lazy, Suspense } from 'react'
 import { useLiveQuery } from 'dexie-react-hooks'
 import { isConfigured, warmup } from './db/supabase.js'
 import { startSync, useSyncStatus } from './db/sync.js'
@@ -67,6 +67,11 @@ export default function App() {
   // Запоминаем активную вкладку
   useEffect(() => { sessionStorage.setItem(TAB_KEY, tab) }, [tab])
 
+  // Скролл наверх при переключении вкладок: прокручивается внутренняя .content
+  // (см. index.css), поэтому сбрасываем её scrollTop, а не окно.
+  const contentRef = useRef(null)
+  useEffect(() => { contentRef.current?.scrollTo(0, 0) }, [tab])
+
   // Восстановление сессии после перезагрузки
   useEffect(() => {
     const saved = sessionStorage.getItem(SESSION_KEY)
@@ -123,7 +128,7 @@ export default function App() {
         <button className="link-btn" onClick={handleLogout}>Выйти</button>
       </header>
 
-      <main className="content">
+      <main className="content" ref={contentRef}>
         <Suspense fallback={<div className="screen"><p className="muted">Загрузка…</p></div>}>
           {tab === 'history' && <HistoryScreen user={user} />}
           {tab === 'feed' && <FeedScreen user={user} />}
