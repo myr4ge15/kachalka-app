@@ -16,9 +16,10 @@ import { useSyncExternalStore } from 'react'
 import { useLiveQuery } from 'dexie-react-hooks'
 import { supabase, isConfigured } from './supabase.js'
 import { withTimeout } from '../lib/withTimeout.js'
-import { db, nowIso, setMeta } from './local.js'
+import { db, nowIso, setMeta, getMeta } from './local.js'
 import { pendingCount } from './repo.js'
 import { fetchFeed } from './feed.js'
+import { goalKey } from './notifications.js'
 import { onOnline, onOffline, onResume } from '../lib/appEvents.js'
 import { cmpIsoAsc } from '../lib/cmp.js'
 
@@ -353,6 +354,49 @@ async function push() {
   }
 }
 
+// ------------------------------- цель --------------------------------------
+// Личная цель (ЛК) живёт в meta (goal_${userId}). Для фазы 2b её надо отдать
+// на сервер, чтобы достижение увидел Telegram-бот. Пуш — только при _dirty
+// (пользователь поставил/сменил цель); сервер через upsert_goal сбрасывает
+// achieved_at при смене цели и возвращает актуальную строку. Всё обёрнуто в
+// try/catch на стороне вызова: если goals.sql ещё не задеплоен (RPC нет) —
+// синхронизация тренировок не должна падать.
+
+async function pushGoal(userId) {
+  const goal = await getMeta(goalKey(userId))
+  if (!goal || !goal._dirty || !goal.exerciseId || !(Number(goal.targetWeight) > 0)) return
+  const res = await withTimeout(
+    supabase.rpc('upsert_goal', {
+      p_user_id: userId,
+      p_exercise_id: goal.exerciseId,
+      p_target_weight: Number(goal.targetWeight),
+    })
+  )
+  if (res.error) throw res.error
+  const row = Array.isArray(res.data) ? res.data[0] : res.data
+  await setMeta(goalKey(userId), {
+    ...goal,
+    _dirty: 0,
+    achievedAt: row?.achieved_at ?? goal.achievedAt ?? null,
+  })
+}
+
+// Подтягиваем серверный achieved_at в локальную цель (мульти-устройство и
+// подтверждение от бота). Не трогаем цель, пока она не отправлена (_dirty),
+// и никогда не гасим уже выставленный локально achievedAt (?? local).
+async function pullGoal(userId) {
+  const local = await getMeta(goalKey(userId))
+  if (!local || local._dirty) return
+  const res = await withTimeout(
+    supabase.from('goals').select('achieved_at').eq('user_id', userId).maybeSingle()
+  )
+  if (res.error || !res.data) return
+  const achievedAt = res.data.achieved_at ?? local.achievedAt ?? null
+  if (achievedAt !== (local.achievedAt ?? null)) {
+    await setMeta(goalKey(userId), { ...local, achievedAt })
+  }
+}
+
 // --------------------------- оркестрация -----------------------------------
 let running = false
 
@@ -365,7 +409,11 @@ export async function syncNow(userId) {
     await pushExercises() // упражнения раньше всего (FK на exercise_id)
     await pushTemplates() // шаблоны после упражнений (FK), до/после тренировок неважно
     await push()
+    // Цель (ЛК 2b) — необязательная часть: ошибка/отсутствие RPC не должны
+    // ронять синхронизацию тренировок, поэтому отдельный try/catch.
+    try { await pushGoal(userId) } catch { /* goals.sql может быть ещё не задеплоен */ }
     await pull(userId)
+    try { await pullGoal(userId) } catch { /* цель не критична для синка */ }
     // Обновляем кэш общей ленты в фоне: его читают и «Лента», и бейджи-
     // уведомления о рекордах («друг побил твой рекорд» — из ленты). Ошибка ленты
     // не должна валить синк своих тренировок, поэтому отдельный try/catch.

@@ -70,14 +70,13 @@ export default function NotificationsScreen({ user }) {
 
       {items.map((n) => {
         const unread = cmpIsoAsc(seenRef.current, n.at) < 0
-        const isMine = n.type === 'mine'
-        const cls =
-          'notif ' + (isMine ? 'mine' : 'beaten') + (unread ? ' unread' : ' read')
+        const icon = n.type === 'mine' ? '🏆' : n.type === 'goal' ? '🎯' : '🔥'
+        const cls = 'notif ' + n.type + (unread ? ' unread' : ' read')
         return (
           <div key={n.id} className={cls}>
-            <div className="n-icon" aria-hidden="true">{isMine ? '🏆' : '🔥'}</div>
+            <div className="n-icon" aria-hidden="true">{icon}</div>
             <div className="n-body">
-              {isMine ? (
+              {n.type === 'mine' && (
                 <>
                   <div className="n-title">
                     Личный рекорд · <span className="hl">{n.name}</span>
@@ -87,7 +86,18 @@ export default function NotificationsScreen({ user }) {
                     {n.prev > 0 && ` (прошлый — ${n.prev} кг)`}
                   </div>
                 </>
-              ) : (
+              )}
+              {n.type === 'goal' && (
+                <>
+                  <div className="n-title">
+                    Цель достигнута · <span className="hl">{n.name}</span>
+                  </div>
+                  <div className="n-text">
+                    Ты дотянул до цели: <b>{n.weight} кг</b>
+                  </div>
+                </>
+              )}
+              {n.type === 'beaten' && (
                 <>
                   <div className="n-title">Твой рекорд побит</div>
                   <div className="n-text">

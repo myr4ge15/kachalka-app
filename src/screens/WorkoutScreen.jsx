@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react'
 import { useLiveQuery } from 'dexie-react-hooks'
 import { getExercises, getWorkout, saveWorkout, createExercise, deleteWorkout as repoDelete } from '../db/repo.js'
-import { detectNewPrsOnSave } from '../db/notifications.js'
+import { detectNewPrsOnSave, detectGoalReachedOnSave } from '../db/notifications.js'
 import { syncNow } from '../db/sync.js'
 import { getCache, setCache, clearCache } from '../lib/cache.js'
 import { showToast } from '../components/Toast.jsx'
@@ -196,6 +196,16 @@ export default function WorkoutScreen({ user, workoutId = null, onBack }) {
             showToast({
               title: 'Новый рекорд!',
               sub: `${top.name} — ${top.weight} кг (было ${top.prev} кг)${extra}`,
+            })
+          }
+          // Достижение личной цели (ЛК). Поздравляем один раз; если совпало с
+          // рекордом — поздравление о цели перекрывает тост рекорда (важнее).
+          const reached = await detectGoalReachedOnSave(user.id, wId)
+          if (reached) {
+            showToast({
+              emoji: '🎯',
+              title: 'Цель достигнута!',
+              sub: `${reached.name} — ${reached.weight} кг`,
             })
           }
         } catch { /* тост необязателен */ }
