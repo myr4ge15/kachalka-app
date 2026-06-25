@@ -135,7 +135,9 @@ async function pull(userId) {
   }
 
   // пользователи (для офлайн-входа)
-  const us = await withTimeout(supabase.from('users').select('id, name, pin_hash, role'))
+  // ВАЖНО: включаем pin_salt — иначе sync затирал бы соль в локальном кэше,
+  // и следующий вход уходил бы в legacy SHA-256 → ложный «неверный PIN».
+  const us = await withTimeout(supabase.from('users').select('id, name, pin_hash, pin_salt, role'))
   if (!us.error && us.data) {
     await db.transaction('rw', db.users, async () => {
       await db.users.clear()
