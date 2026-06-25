@@ -3,12 +3,14 @@ import { useLiveQuery } from 'dexie-react-hooks'
 import { getWorkouts } from '../db/repo.js'
 import { getMeta, setMeta } from '../db/local.js'
 import { goalKey } from '../db/notifications.js'
+import { syncNow } from '../db/sync.js'
 import { getCachedLeaderboard } from '../db/leaderboard.js'
 import { summarize, currentBest, goalProgress } from '../lib/profileStats.js'
 
-// Экран «Профиль» (ЛК, фаза 2a). Всё про самого пользователя; пер-упражненческую
+// Экран «Профиль» (ЛК). Всё про самого пользователя; пер-упражненческую
 // аналитику не дублируем — рекорды уводят в «Прогресс». Считаем на клиенте из
-// уже имеющихся денормализованных тренировок, сеть/схему не трогаем.
+// уже имеющихся денормализованных тренировок. Цель (фаза 2b) дополнительно
+// уходит на сервер при сохранении, чтобы достижение увидел Telegram-бот.
 //
 // Пропсы: user, onLogout, onOpenProgress(exerciseId), onOpenFeed().
 export default function ProfileScreen({ user, onLogout, onOpenProgress, onOpenFeed }) {
@@ -64,8 +66,12 @@ export default function ProfileScreen({ user, onLogout, onOpenProgress, onOpenFe
       exerciseName: ex?.name ?? '—',
       targetWeight: Number(edWeight) || 0,
       achievedAt: null, // новая/изменённая цель — можно достичь заново
+      _dirty: 1, // отправить на сервер (для Telegram-бота), фаза 2b
     })
     setEditing(false)
+    // Сразу пушим цель на сервер (если онлайн), чтобы бот увидел её до
+    // ближайшей тренировки. Офлайн — уедет следующим фоновым синком.
+    if (navigator.onLine) syncNow(user.id)
   }
 
   const avatar = (user.name ?? '?').trim().charAt(0).toUpperCase() || '?'

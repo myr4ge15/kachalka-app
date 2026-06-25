@@ -16,6 +16,9 @@ BACKLOG.md
 WISHLIST.md
 concept.html
 CLAUDE.md
+ПАСПОРТ.md
+PLAN-*.md
+prototype-*.html
 setup-supabase-github.md
 
 # Настройка БД (схема, сид, RPC) — держим только локально
