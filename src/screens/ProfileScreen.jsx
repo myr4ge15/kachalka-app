@@ -267,6 +267,14 @@ export default function ProfileScreen({ user, onLogout, onOpenProgress, onOpenFe
           <button className="act logout" onClick={onLogout}>Выйти</button>
         </div>
       </section>
+
+      {/* версия приложения — подставляется на сборке из package.json (vite define) */}
+      <p className="app-version">kachalka-app · v{APP_VERSION}</p>
     </div>
   )
 }
+
+// Версия из package.json, прокинутая через vite define. Fallback на случай
+// запуска без define (напр. тесты) — чтобы не падать на ReferenceError.
+const APP_VERSION =
+  typeof __APP_VERSION__ !== 'undefined' ? __APP_VERSION__ : 'dev'
