@@ -116,9 +116,14 @@ export async function fetchFeed() {
   const items = (res.data ?? []).map(rowToItem)
   computePrs(items)
 
+  // Пустой (но НЕ ошибочный) ответ не затираем валидным кэшем: при временном
+  // сбое выборки лента не должна «опустеть» на экране. Снимок заменяем целиком
+  // только когда с сервера реально пришли тренировки.
+  if (items.length === 0) return
+
   await db.transaction('rw', db.feed, async () => {
     await db.feed.clear()
-    if (items.length) await db.feed.bulkPut(items)
+    await db.feed.bulkPut(items)
   })
 }
 

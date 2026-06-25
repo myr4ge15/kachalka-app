@@ -2,24 +2,8 @@ import { useEffect, useRef, useState, useCallback } from 'react'
 import { useLiveQuery } from 'dexie-react-hooks'
 import { getCachedFeed, fetchFeed } from '../db/feed.js'
 import { onOnline, onResume } from '../lib/appEvents.js'
+import { fmtWhen } from '../lib/dates.js'
 import Leaderboard from './Leaderboard.jsx'
-
-// «сегодня / вчера / дд.мм.гггг» + время
-function fmtWhen(iso) {
-  const d = new Date(iso)
-  const today = new Date()
-  const y = new Date()
-  y.setDate(today.getDate() - 1)
-  const sameDay = (a, b) =>
-    a.getFullYear() === b.getFullYear() &&
-    a.getMonth() === b.getMonth() &&
-    a.getDate() === b.getDate()
-
-  const time = d.toLocaleTimeString('ru-RU', { hour: '2-digit', minute: '2-digit' })
-  if (sameDay(d, today)) return `сегодня · ${time}`
-  if (sameDay(d, y)) return `вчера · ${time}`
-  return d.toLocaleDateString('ru-RU', { day: '2-digit', month: '2-digit', year: 'numeric' })
-}
 
 function initial(name) {
   return (name ?? '?').trim().charAt(0).toUpperCase() || '?'
@@ -101,8 +85,8 @@ export default function FeedScreen({ user }) {
 
             {w.prs?.length > 0 && (
               <div className="pr-row">
-                {w.prs.map((pr, i) => (
-                  <span key={i} className="pr-badge" title="Новый личный рекорд">
+                {w.prs.map((pr) => (
+                  <span key={`${pr.name}-${pr.weight}`} className="pr-badge" title="Новый личный рекорд">
                     🏆 {pr.name} · {pr.weight} кг
                   </span>
                 ))}
@@ -111,7 +95,7 @@ export default function FeedScreen({ user }) {
 
             <ul className="history-list">
               {w.entries.map((e, i) => (
-                <li key={i} className="history-ex">
+                <li key={e.exercise_id ?? e.name ?? i} className="history-ex">
                   <span className="history-ex-name">{e.name}</span>
                   <span className="history-ex-sets">
                     {e.sets.map((s) => `${s.weight}×${s.reps}`).join(', ') || '—'}

@@ -5,12 +5,27 @@
 // подгружаются в фоне.
 const store = new Map()
 
+// Потолок числа ключей. Кэш живёт весь сеанс (черновики, снимки вкладок) и без
+// ограничения рос бы бесконечно. Map хранит порядок вставки — вытесняем самый
+// старый ключ (простая LRU: чтение/запись помечают ключ как свежий).
+const MAX_ENTRIES = 50
+
 export function getCache(key) {
-  return store.get(key)
+  if (!store.has(key)) return undefined
+  // Освежаем позицию ключа (перемещаем в конец = «недавно использован»).
+  const value = store.get(key)
+  store.delete(key)
+  store.set(key, value)
+  return value
 }
 
 export function setCache(key, value) {
+  if (store.has(key)) store.delete(key)
   store.set(key, value)
+  if (store.size > MAX_ENTRIES) {
+    // Вытесняем самый старый ключ (первый в порядке вставки).
+    store.delete(store.keys().next().value)
+  }
   return value
 }
 

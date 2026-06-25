@@ -48,9 +48,13 @@ export async function fetchLeaderboard() {
     performed_at: r.performed_at ?? null,
   }))
 
+  // Пустой (но НЕ ошибочный) ответ не затираем валидным снимком — иначе при
+  // временном сбое RPC рейтинг «схлопнется» в пустой. Заменяем только при данных.
+  if (rows.length === 0) return
+
   await db.transaction('rw', db.leaderboard, async () => {
     await db.leaderboard.clear()
-    if (rows.length) await db.leaderboard.bulkPut(rows)
+    await db.leaderboard.bulkPut(rows)
   })
 }
 

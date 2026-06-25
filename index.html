@@ -2,6 +2,13 @@
 <html lang="ru">
   <head>
     <meta charset="UTF-8" />
+    <!--
+      Content-Security-Policy (defense-in-depth на статике GitHub Pages, где
+      HTTP-заголовки задать нельзя). 'unsafe-inline' для style — из-за inline-
+      стилей recharts/SVG; скрипты — только со своего origin. connect-src открыт
+      на Supabase: если используете СВОЙ домен Supabase, добавьте его сюда.
+    -->
+    <meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline'; img-src 'self' data:; font-src 'self' data:; connect-src 'self' https://*.supabase.co wss://*.supabase.co; worker-src 'self'; manifest-src 'self'; object-src 'none'; base-uri 'self'" />
     <link rel="icon" type="image/svg+xml" href="./favicon.svg" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
     <meta name="theme-color" content="#16a34a" />

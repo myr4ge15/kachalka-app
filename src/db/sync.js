@@ -122,13 +122,18 @@ function templateRowToDoc(t) {
 }
 
 async function pull(userId) {
+  // Частичные сбои pull НЕ роняют весь синк (тренировки важнее справочника), но
+  // и не маскируются под успех: копим сообщения и возвращаем их наверх, чтобы
+  // статус показал «синхронизировано, но справочник/шаблоны не обновились».
+  const warnings = []
   // справочник упражнений. НЕ затираем локально созданные упражнения, которые
   // ещё не доехали до сервера (_dirty=1) — иначе своё упражнение пропадёт из
   // пикера до завершения синка.
   const ex = await withTimeout(
     supabase.from('exercises').select('id, name, muscle_group, is_bench_lift, is_custom')
   )
-  if (!ex.error && ex.data) {
+  if (ex.error) warnings.push('упражнения: ' + (ex.error.message ?? ex.error))
+  else if (ex.data) {
     const serverExIds = new Set(ex.data.map((e) => e.id))
     await db.transaction('rw', db.exercises, async () => {
       const dirty = await db.exercises.filter((e) => e._dirty).toArray()
@@ -143,7 +148,8 @@ async function pull(userId) {
   // ВАЖНО: включаем pin_salt — иначе sync затирал бы соль в локальном кэше,
   // и следующий вход уходил бы в legacy SHA-256 → ложный «неверный PIN».
   const us = await withTimeout(supabase.from('users').select('id, name, pin_hash, pin_salt, role'))
-  if (!us.error && us.data) {
+  if (us.error) warnings.push('пользователи: ' + (us.error.message ?? us.error))
+  else if (us.data) {
     await db.transaction('rw', db.users, async () => {
       await db.users.clear()
       await db.users.bulkPut(us.data)
@@ -195,7 +201,8 @@ async function pull(userId) {
       .select(SELECT_TEMPLATE)
       .or(`user_id.eq.${userId},is_public.eq.true`)
   )
-  if (!tpl.error && tpl.data) {
+  if (tpl.error) warnings.push('шаблоны: ' + (tpl.error.message ?? tpl.error))
+  else if (tpl.data) {
     const tplIds = new Set(tpl.data.map((r) => r.id))
     await db.transaction('rw', db.templates, async () => {
       // Окно реконсиляции = «мои ∪ общие» (совпадает с выборкой выше). Перебираем
@@ -219,6 +226,8 @@ async function pull(userId) {
       }
     })
   }
+
+  return warnings
 }
 
 // ------------------------------- push --------------------------------------
@@ -426,7 +435,7 @@ export async function syncNow(userId) {
     // Цель (ЛК 2b) — необязательная часть: ошибка/отсутствие RPC не должны
     // ронять синхронизацию тренировок, поэтому отдельный try/catch.
     try { await pushGoal(userId) } catch { /* goals.sql может быть ещё не задеплоен */ }
-    await pull(userId)
+    const warnings = await pull(userId)
     try { await pullGoal(userId) } catch { /* цель не критична для синка */ }
     // Обновляем кэш общей ленты в фоне: его читают и «Лента», и бейджи-
     // уведомления о рекордах («друг побил твой рекорд» — из ленты). Ошибка ленты
@@ -434,7 +443,9 @@ export async function syncNow(userId) {
     try { await fetchFeed() } catch { /* лента не критична для синка */ }
     const at = nowIso()
     await setMeta('lastSyncAt', at)
-    setState({ lastError: null, lastSyncAt: at })
+    // Частичные сбои pull (справочник/пользователи/шаблоны не обновились)
+    // показываем как lastError, но синк считается прошедшим — lastSyncAt обновлён.
+    setState({ lastError: warnings?.length ? warnings.join('; ') : null, lastSyncAt: at })
   } catch (err) {
     setState({ lastError: String(err?.message ?? err) })
   } finally {

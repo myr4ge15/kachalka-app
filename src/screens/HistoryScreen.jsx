@@ -81,7 +81,7 @@ export default function HistoryScreen({ user }) {
 
             <ul className="history-list">
               {(w.entries ?? []).map((e, i) => (
-                <li key={i} className="history-ex">
+                <li key={e.exercise_id ?? e.exercise?.id ?? i} className="history-ex">
                   <span className="history-ex-name">{e.exercise?.name ?? '—'}</span>
                   <span className="history-ex-sets">
                     {(e.sets ?? []).map((s) => `${s.weight}×${s.reps}`).join(', ') || '—'}

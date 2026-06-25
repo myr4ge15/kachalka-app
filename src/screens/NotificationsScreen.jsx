@@ -2,23 +2,7 @@ import { useEffect, useRef, useState } from 'react'
 import { useLiveQuery } from 'dexie-react-hooks'
 import { getNotifications, getSeenAt, markAllSeen } from '../db/notifications.js'
 import { cmpIsoAsc } from '../lib/cmp.js'
-
-// «сегодня / вчера / дд.мм.гггг» + время (как в ленте).
-function fmtWhen(iso) {
-  if (!iso) return ''
-  const d = new Date(iso)
-  const today = new Date()
-  const y = new Date()
-  y.setDate(today.getDate() - 1)
-  const sameDay = (a, b) =>
-    a.getFullYear() === b.getFullYear() &&
-    a.getMonth() === b.getMonth() &&
-    a.getDate() === b.getDate()
-  const time = d.toLocaleTimeString('ru-RU', { hour: '2-digit', minute: '2-digit' })
-  if (sameDay(d, today)) return `сегодня · ${time}`
-  if (sameDay(d, y)) return `вчера · ${time}`
-  return d.toLocaleDateString('ru-RU', { day: '2-digit', month: '2-digit', year: 'numeric' })
-}
+import { fmtWhen } from '../lib/dates.js'
 
 // Экран «Уведомления»: личные рекорды и кто обходит тебя в кругу (ТЗ §4.5, MVP).
 export default function NotificationsScreen({ user }) {

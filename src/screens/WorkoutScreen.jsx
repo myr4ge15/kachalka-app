@@ -134,9 +134,12 @@ export default function WorkoutScreen({ user, workoutId = null, onBack }) {
   }
 
   function step(ei, si, field, delta) {
-    const cur = entries[ei].sets[si][field]
     const min = field === 'reps' ? 1 : 0
-    const next = Math.max(min, Math.round((Number(cur) + delta) * 100) / 100)
+    // Значение в state — строка из инпута: '', '.', '1.2.3' дают NaN. В этом
+    // случае стартуем степпер от минимума, иначе в поле попадал бы «NaN».
+    const base = Number(entries[ei].sets[si][field])
+    const cur = Number.isFinite(base) ? base : min
+    const next = Math.max(min, Math.round((cur + delta) * 100) / 100)
     updateSet(ei, si, field, next)
   }
 

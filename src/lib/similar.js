@@ -68,15 +68,24 @@ export function similarityScore(aRaw, bRaw) {
     const setB = new Set(tb)
     const inter = ta.filter((w) => setB.has(w)).length
     const union = new Set([...ta, ...tb]).size
-    wordScore = inter / union
+    // Одно общее слово — слишком слабый сигнал дубля: иначе «жим» считался
+    // похожим на «жим ногами» / «французский жим» (Jaccard 1/2 = 0.5 > порога).
+    // Требуем пересечение ≥2 значимых слов; единичные совпадения и опечатки
+    // ловит символьная метрика (Левенштейн) и осмысленная подстрока ниже.
+    wordScore = inter >= 2 ? inter / union : 0
   }
 
   // --- символьная метрика (нормированный Левенштейн) ---
   const dist = levenshtein(a, b)
   const charScore = 1 - dist / Math.max(a.length, b.length)
 
-  // Подстрока («жим лежа» ⊂ «жим лежа узким хватом») — сильный сигнал дубля.
-  const substr = a.includes(b) || b.includes(a) ? 0.6 : 0
+  // Подстрока — сильный сигнал дубля («жим лежа» ⊂ «жим лежа узким хватом»),
+  // но ТОЛЬКО для содержательной вложенной строки. Короткий запрос вроде «жим»
+  // — подстрока десятка разных упражнений («жим ногами», «французский жим»), и
+  // раньше он давал им ложный score 0.6. Требуем, чтобы вложенная строка была
+  // ≥5 символов ИЛИ состояла из ≥2 значимых токенов.
+  const inner = a.includes(b) ? b : b.includes(a) ? a : null
+  const substr = inner && (inner.length >= 5 || tokens(inner).length >= 2) ? 0.6 : 0
 
   return Math.max(wordScore, charScore, substr)
 }

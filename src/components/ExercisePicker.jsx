@@ -1,4 +1,4 @@
-import { useState, useMemo } from 'react'
+import { useState, useMemo, useDeferredValue } from 'react'
 import { createPortal } from 'react-dom'
 import { findSimilar } from '../lib/similar.js'
 
@@ -33,21 +33,27 @@ export default function ExercisePicker({ exercises, onPick, onClose, onCreate })
     return Array.from(set)
   }, [exercises])
 
+  // Поиск и поиск похожих не блокируют ввод: фильтрация идёт по «отложенному»
+  // значению (useDeferredValue), пока поле остаётся отзывчивым на каждую букву —
+  // фактический debounce без таймеров. Заметно на мобильном и большом справочнике.
+  const deferredQuery = useDeferredValue(query)
+  const deferredNewName = useDeferredValue(newName)
+
   const filtered = useMemo(() => {
-    const q = query.trim().toLowerCase()
+    const q = deferredQuery.trim().toLowerCase()
     return exercises.filter((e) => {
       const okGroup = group === 'все' || e.muscle_group === group
       const okQuery = !q || e.name.toLowerCase().includes(q)
       return okGroup && okQuery
     })
-  }, [exercises, query, group])
+  }, [exercises, deferredQuery, group])
 
   // Похожие по названию — чтобы не плодить дубли (ТЗ 3.2 / 4.4). Нечёткое
   // сопоставление (нормализация ё/е, пробелы, порядок слов, опечатки), а не
   // голый includes(), который дубли вроде «жим лёжа»/«жим лежа» пропускает.
   const similar = useMemo(
-    () => findSimilar(newName, exercises, { threshold: 0.45, limit: 5 }),
-    [exercises, newName]
+    () => findSimilar(deferredNewName, exercises, { threshold: 0.45, limit: 5 }),
+    [exercises, deferredNewName]
   )
 
   function openCreate() {

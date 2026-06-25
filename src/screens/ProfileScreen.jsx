@@ -33,7 +33,10 @@ export default function ProfileScreen({ user, onLogout, onOpenProgress, onOpenFe
       })
       .catch(() => { if (alive) setPlace(null) })
     return () => { alive = false }
-  }, [user.id, workouts])
+    // Место в борде зависит от кэша лидерборда/ленты, а не от своих тренировок,
+    // поэтому workouts в зависимостях не нужен (он лишь плодил лишние чтения).
+    // Экран перемонтируется при входе в профиль — место и так пересчитывается.
+  }, [user.id])
 
   // ── Редактор цели ─────────────────────────────────────────────────────────
   const [editing, setEditing] = useState(false)
