@@ -88,7 +88,25 @@ export default function WorkoutScreen({ user, workoutId = null, onBack }) {
   }
 
   function removeExercise(idx) {
+    const removed = entries[idx]
     setEntries(entries.filter((_, i) => i !== idx))
+    if (!removed) return
+    // Удаление срабатывает сразу, но даём окно отмены — кнопка удаления
+    // соседствует с зоной сохранения/добавления, легко нажать случайно.
+    showToast({
+      emoji: '🗑',
+      title: 'Упражнение убрано',
+      sub: removed.exercise?.name,
+      actionLabel: 'Отменить',
+      duration: 6000,
+      onAction: () => setEntries((prev) => {
+        // Анти-дубль: если упражнение успели вернуть/добавить — не плодим копию.
+        if (prev.some((e) => e.exercise.id === removed.exercise.id)) return prev
+        const next = prev.slice()
+        next.splice(Math.min(idx, next.length), 0, removed)
+        return next
+      }),
+    })
   }
 
   // Применение шаблона (только новая тренировка): добавляем упражнения шаблона,
@@ -128,9 +146,28 @@ export default function WorkoutScreen({ user, workoutId = null, onBack }) {
   }
 
   function removeSet(ei, si) {
+    const entry = entries[ei]
+    const removed = entry?.sets[si]
     setEntries(entries.map((e, i) =>
       i === ei ? { ...e, sets: e.sets.filter((_, j) => j !== si) } : e
     ))
+    if (!removed) return
+    const exId = entry.exercise.id
+    // Точечная отмена: ищем упражнение по id (индекс мог сдвинуться) и
+    // возвращаем подход на прежнее место.
+    showToast({
+      emoji: '🗑',
+      title: 'Подход удалён',
+      sub: entry.exercise?.name,
+      actionLabel: 'Отменить',
+      duration: 6000,
+      onAction: () => setEntries((prev) => prev.map((e) => {
+        if (e.exercise.id !== exId) return e
+        const sets = e.sets.slice()
+        sets.splice(Math.min(si, sets.length), 0, removed)
+        return { ...e, sets }
+      })),
+    })
   }
 
   const totalSets = entries.reduce((n, e) => n + e.sets.length, 0)
@@ -206,11 +243,16 @@ export default function WorkoutScreen({ user, workoutId = null, onBack }) {
         <>
           <label className="date-field">
             <span className="muted">Дата</span>
-            <input
-              type="date"
-              value={toDateInput(performedAt)}
-              onChange={(e) => setPerformedAt(fromDateInput(e.target.value, performedAt))}
-            />
+            <span className="date-picker">
+              <span className="date-picker__icon" aria-hidden="true">📅</span>
+              <span className="date-picker__value">{fmtDate(performedAt)}</span>
+              <span className="date-picker__chevron" aria-hidden="true">▾</span>
+              <input
+                type="date"
+                value={toDateInput(performedAt)}
+                onChange={(e) => setPerformedAt(fromDateInput(e.target.value, performedAt))}
+              />
+            </span>
           </label>
 
           {entries.length === 0 && (

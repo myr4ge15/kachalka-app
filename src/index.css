@@ -24,7 +24,15 @@ button { font-family: inherit; cursor: pointer; }
 input { font-family: inherit; }
 
 /* ---------- layout ---------- */
-.app { min-height: 100vh; display: flex; flex-direction: column; }
+/* Приложение занимает ровно динамическую высоту вьюпорта (100dvh, без учёта
+   адресной строки) и само не скроллится — иначе на мобиле появлялся «резиновый»
+   скролл, даже когда контент влезал. Прокручивается только внутренняя .content
+   и только при переполнении. */
+.app {
+  height: 100vh; height: 100dvh;
+  display: flex; flex-direction: column;
+  overflow: hidden;
+}
 
 .topbar {
   display: flex; align-items: center; justify-content: space-between;
@@ -63,8 +71,16 @@ input { font-family: inherit; }
   display: flex; align-items: center; justify-content: center; border: 2px solid var(--bg);
 }
 
-/* нижний отступ учитывает высоту таббара + домашний индикатор */
-.content { flex: 1; padding-bottom: calc(72px + env(safe-area-inset-bottom)); }
+/* Единственная прокручиваемая область: скроллбар появляется только когда
+   контент реально выше доступного места. min-height:0 — чтобы flex-ребёнок мог
+   сжиматься и скроллиться, а не распирать .app. Нижний отступ учитывает высоту
+   таббара + домашний индикатор. */
+.content {
+  flex: 1; min-height: 0;
+  overflow-y: auto; overscroll-behavior: contain;
+  -webkit-overflow-scrolling: touch;
+  padding-bottom: calc(72px + env(safe-area-inset-bottom));
+}
 
 .tabbar {
   position: fixed; bottom: 0; left: 0; right: 0;
@@ -133,6 +149,18 @@ input { font-family: inherit; }
 .link-btn { background: none; border: none; color: var(--green); font-size: 14px; padding: 4px; }
 .link-btn.danger { color: var(--red); }
 .link-btn.small { font-size: 16px; }
+/* ✕ удаления подхода: приглушаем и сдвигаем к правому краю, подальше от «+»
+   степпера — чтобы не нажать случайно при добавлении подходов. Промах
+   подстрахован undo-тостом. */
+.set-row .link-btn.small { color: var(--muted); padding-left: 10px; justify-self: end; }
+.set-row .link-btn.small:active { color: var(--red); }
+/* «Удалить тренировку» — уводим от кнопки «Сохранить» отступом и разделителем. */
+.full-link.danger {
+  margin-top: 24px; padding-top: 14px;
+  border-top: 1px solid var(--border);
+  color: var(--muted); font-size: 13px;
+}
+.full-link.danger:active { color: var(--red); }
 
 /* ---------- workout ---------- */
 .exercise-card { padding: 14px; }
@@ -252,10 +280,23 @@ input { font-family: inherit; }
 /* Поле даты в детали */
 .date-field { display: flex; flex-direction: column; gap: 6px; margin-bottom: 14px; }
 .date-field > .muted { font-size: 13px; }
-.date-field input {
-  width: 100%; padding: 12px; font-size: 16px; min-height: 44px;
-  border-radius: 10px; border: 1px solid var(--border);
-  background: var(--surface); color: var(--text);
+/* Явно интерактивный пикер: рамка-акцент, иконка, стрелка.
+   Нативный input лежит прозрачным слоем поверх — тап в любую точку открывает выбор даты. */
+.date-picker {
+  position: relative; display: flex; align-items: center; gap: 10px;
+  min-height: 48px; padding: 12px 14px;
+  border-radius: 10px; border: 1px solid var(--green);
+  background: var(--surface-2); color: var(--text); cursor: pointer;
+}
+.date-picker:active { background: var(--surface); }
+.date-picker:focus-within { box-shadow: 0 0 0 2px rgba(22,163,74,.35); }
+.date-picker__icon { font-size: 18px; line-height: 1; }
+.date-picker__value { flex: 1; font-size: 16px; font-weight: 600; }
+.date-picker__chevron { color: var(--green); font-size: 14px; line-height: 1; }
+.date-picker input {
+  position: absolute; inset: 0; width: 100%; height: 100%;
+  margin: 0; padding: 0; border: 0; opacity: 0; cursor: pointer;
+  -webkit-appearance: none; appearance: none;
 }
 
 /* ---------- history ---------- */
@@ -531,6 +572,15 @@ input { font-family: inherit; }
 .toast-emoji { font-size: 24px; flex-shrink: 0; }
 .toast-title { font-weight: 700; font-size: 15px; }
 .toast-sub { font-size: 13px; color: var(--muted); margin-top: 1px; }
+.toast-body { flex: 1; min-width: 0; }
+/* Кнопка действия в тосте (напр. «Отменить» при удалении). */
+.toast-action {
+  flex-shrink: 0; margin-left: auto;
+  min-height: 44px; padding: 8px 14px; border-radius: 10px;
+  background: var(--green); color: white; border: none;
+  font-size: 14px; font-weight: 700;
+}
+.toast-action:active { filter: brightness(.9); }
 
 /* ---------- адаптив узких экранов (≤380px) ---------- */
 @media (max-width: 380px) {
