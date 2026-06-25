@@ -51,7 +51,7 @@ function TemplateCard({ t, mine, onOpen }) {
           <div className="history-date">
             {t.name}
             {mine && Boolean(t.is_public) && (
-              <span className="tpl-badge" title="Виден всему кругу">🌐 общий</span>
+              <span className="tpl-badge" title="Виден всем">🌐 общий</span>
             )}
             {Boolean(t._dirty) && (
               <span className="dot-unsynced" title="Ждёт синхронизации">●</span>
@@ -113,7 +113,7 @@ function TemplateList({ user, onBack, onOpen }) {
 
       {!loading && shared.length > 0 && (
         <>
-          <h3 className="group-title">Общие в круге</h3>
+          <h3 className="group-title">Общие</h3>
           {shared.map((t) => (
             <TemplateCard key={t.id} t={t} mine={false} onOpen={onOpen} />
           ))}
@@ -310,7 +310,7 @@ function TemplateEditor({ user, templateId, onBack }) {
               checked={isPublic}
               onChange={(e) => setIsPublic(e.target.checked)}
             />
-            <span>Виден всем в круге</span>
+            <span>Виден всем</span>
           </label>
 
           {items.length === 0 && (

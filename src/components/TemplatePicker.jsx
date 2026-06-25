@@ -13,7 +13,7 @@ function PickItem({ t, mine, onPick }) {
       <span className="tpl-pick-name">
         {t.name}
         {mine && Boolean(t.is_public) && (
-          <span className="tpl-badge" title="Виден всему кругу">🌐 общий</span>
+          <span className="tpl-badge" title="Виден всем">🌐 общий</span>
         )}
         {!mine && t.author_name && <span className="tpl-author"> · от {t.author_name}</span>}
       </span>
