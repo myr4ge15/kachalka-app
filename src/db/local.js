@@ -104,6 +104,23 @@ db.version(5).stores({
   tpl_outbox: '++seq, templateId, createdAt',
 })
 
+// v6: публичные/приватные шаблоны (фаза 2). К `templates` добавляем индекс
+// `is_public` под выборку общих шаблонов круга (pull тянет «мои ∪ общие»).
+// Остальные сторы — без изменений. Существующие документы без поля is_public
+// читаются как undefined → трактуются как приватные; первый pull проставит поле.
+db.version(6).stores({
+  exercises: 'id, muscle_group, name, _dirty',
+  users: 'id, name',
+  workouts: 'id, user_id, performed_at, _dirty, _deleted',
+  outbox: '++seq, workoutId, type, createdAt',
+  meta: 'key',
+  feed: 'id, performed_at',
+  ex_outbox: '++seq, exerciseId, createdAt',
+  leaderboard: 'user_id, orm',
+  templates: 'id, user_id, is_public, _dirty, _deleted',
+  tpl_outbox: '++seq, templateId, createdAt',
+})
+
 // Текущее серверное (UTC) время в ISO. crypto.randomUUID доступен на https и localhost.
 export const nowIso = () => new Date().toISOString()
 export const newId = () =>

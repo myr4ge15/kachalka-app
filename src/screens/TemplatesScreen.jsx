@@ -38,11 +38,52 @@ export default function TemplatesScreen({ user, onBack }) {
   return <TemplateList user={user} onBack={onBack} onOpen={setEditing} />
 }
 
+// Карточка шаблона в списке. mine → бейдж 🌐 у общих; чужой → пометка автора.
+function TemplateCard({ t, mine, onOpen }) {
+  const exs = t.exercises ?? []
+  return (
+    <button
+      className="card history-card history-tap"
+      onClick={() => onOpen(t.id)}
+    >
+      <div className="history-head">
+        <div>
+          <div className="history-date">
+            {t.name}
+            {mine && Boolean(t.is_public) && (
+              <span className="tpl-badge" title="Виден всему кругу">🌐 общий</span>
+            )}
+            {Boolean(t._dirty) && (
+              <span className="dot-unsynced" title="Ждёт синхронизации">●</span>
+            )}
+          </div>
+          <div className="muted history-sub">
+            {exs.length} упр.
+            {!mine && t.author_name && <span className="tpl-author"> · от {t.author_name}</span>}
+          </div>
+        </div>
+        <span className="history-chevron" aria-hidden="true">›</span>
+      </div>
+
+      <ul className="history-list">
+        {exs.map((e, i) => (
+          <li key={i} className="history-ex">
+            <span className="history-ex-name">{e.exercise?.name ?? '—'}</span>
+          </li>
+        ))}
+      </ul>
+    </button>
+  )
+}
+
 // ----------------------------- список --------------------------------------
 function TemplateList({ user, onBack, onOpen }) {
   const templates = useLiveQuery(() => getTemplates(user.id), [user.id])
   const loading = templates === undefined
   const list = templates ?? []
+
+  const mine = list.filter((t) => t.user_id === user.id)
+  const shared = list.filter((t) => t.user_id !== user.id) // чужие общие
 
   return (
     <div className="screen">
@@ -61,37 +102,23 @@ function TemplateList({ user, onBack, onOpen }) {
         <p className="muted empty">Пока нет шаблонов. Создай первый.</p>
       )}
 
-      {list.map((t) => {
-        const exs = t.exercises ?? []
-        return (
-          <button
-            key={t.id}
-            className="card history-card history-tap"
-            onClick={() => onOpen(t.id)}
-          >
-            <div className="history-head">
-              <div>
-                <div className="history-date">
-                  {t.name}
-                  {Boolean(t._dirty) && (
-                    <span className="dot-unsynced" title="Ждёт синхронизации">●</span>
-                  )}
-                </div>
-                <div className="muted history-sub">{exs.length} упр.</div>
-              </div>
-              <span className="history-chevron" aria-hidden="true">›</span>
-            </div>
+      {!loading && mine.length > 0 && (
+        <>
+          <h3 className="group-title">Мои шаблоны</h3>
+          {mine.map((t) => (
+            <TemplateCard key={t.id} t={t} mine onOpen={onOpen} />
+          ))}
+        </>
+      )}
 
-            <ul className="history-list">
-              {exs.map((e, i) => (
-                <li key={i} className="history-ex">
-                  <span className="history-ex-name">{e.exercise?.name ?? '—'}</span>
-                </li>
-              ))}
-            </ul>
-          </button>
-        )
-      })}
+      {!loading && shared.length > 0 && (
+        <>
+          <h3 className="group-title">Общие в круге</h3>
+          {shared.map((t) => (
+            <TemplateCard key={t.id} t={t} mine={false} onOpen={onOpen} />
+          ))}
+        </>
+      )}
     </div>
   )
 }
@@ -103,6 +130,11 @@ function TemplateEditor({ user, templateId, onBack }) {
 
   const [name, setName] = useState('')
   const [items, setItems] = useState([])
+  const [isPublic, setIsPublic] = useState(false)
+  // Чужой общий шаблон открывается в режиме просмотра (read-only): править
+  // может только автор. Для нового и своих — false.
+  const [readOnly, setReadOnly] = useState(false)
+  const [authorName, setAuthorName] = useState(null)
   const [loading, setLoading] = useState(!isNew)
   const [pickerOpen, setPickerOpen] = useState(false)
   const [saving, setSaving] = useState(false)
@@ -118,13 +150,16 @@ function TemplateEditor({ user, templateId, onBack }) {
       if (t) {
         setName(t.name ?? '')
         setItems(toItems(t))
+        setIsPublic(Boolean(t.is_public))
+        setReadOnly(t.user_id !== user.id)
+        setAuthorName(t.author_name ?? null)
       } else {
         setMessage({ type: 'error', text: 'Шаблон не найден.' })
       }
       setLoading(false)
     })
     return () => { alive = false }
-  }, [isNew, templateId])
+  }, [isNew, templateId, user.id])
 
   function addExercise(ex) {
     setPickerOpen(false)
@@ -200,6 +235,7 @@ function TemplateEditor({ user, templateId, onBack }) {
         user_id: user.id,
         name,
         exercises: items,
+        is_public: isPublic,
       })
       if (navigator.onLine) syncNow(user.id)
       onBack?.()
@@ -240,6 +276,21 @@ function TemplateEditor({ user, templateId, onBack }) {
 
       {loading ? (
         <p className="muted">Загрузка…</p>
+      ) : readOnly ? (
+        // Просмотр чужого общего шаблона: без полей ввода и кнопок.
+        <>
+          <h3 className="tpl-view-name">{name}</h3>
+          {authorName && <p className="muted tpl-author">от {authorName}</p>}
+
+          <ul className="history-list">
+            {items.map((it, idx) => (
+              <li key={idx} className="history-ex">
+                <span className="history-ex-name">{it.exercise.name}</span>
+              </li>
+            ))}
+          </ul>
+          <p className="muted empty">Чужой общий шаблон — только просмотр. Применить можно при создании тренировки.</p>
+        </>
       ) : (
         <>
           <label className="date-field">
@@ -251,6 +302,15 @@ function TemplateEditor({ user, templateId, onBack }) {
               value={name}
               onChange={(e) => setName(e.target.value)}
             />
+          </label>
+
+          <label className="tpl-toggle">
+            <input
+              type="checkbox"
+              checked={isPublic}
+              onChange={(e) => setIsPublic(e.target.checked)}
+            />
+            <span>Виден всем в круге</span>
           </label>
 
           {items.length === 0 && (

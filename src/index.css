@@ -369,6 +369,32 @@ input { font-family: inherit; }
 .tpl-pick-name { font-weight: 600; }
 .tpl-pick-sub { flex-basis: 100%; font-size: 12px; margin-top: 4px; text-align: left; }
 
+/* ---------- публичные/приватные шаблоны ---------- */
+/* Заголовок группы «Мои» / «Общие в круге» */
+.group-title {
+  font-size: 13px; font-weight: 600; color: var(--muted);
+  text-transform: uppercase; letter-spacing: .04em;
+  margin: 18px 0 8px;
+}
+/* Бейдж «общий» (🌐) у своих публичных шаблонов */
+.tpl-badge {
+  font-size: 12px; font-weight: 500; color: var(--green);
+  margin-left: 8px; vertical-align: middle; white-space: nowrap;
+}
+/* Пометка автора «от {Имя}» у чужих общих */
+.tpl-author { color: var(--muted); }
+
+/* Тоггл «Виден всем в круге» в редакторе шаблона (зона тапа ≥44px) */
+.tpl-toggle {
+  display: flex; align-items: center; gap: 10px;
+  min-height: 44px; margin: 4px 0 12px;
+  font-size: 15px; cursor: pointer;
+}
+.tpl-toggle input { width: 22px; height: 22px; accent-color: var(--green); flex-shrink: 0; }
+
+/* Просмотр чужого общего шаблона (read-only) */
+.tpl-view-name { font-size: 18px; font-weight: 600; margin: 4px 0 2px; }
+
 /* ---------- banners / progress ---------- */
 .banner { padding: 12px 14px; border-radius: 10px; margin-bottom: 14px; font-size: 14px; }
 .banner.ok { background: rgba(22,163,74,.15); border: 1px solid var(--green); color: #86efac; }

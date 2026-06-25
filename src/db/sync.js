@@ -38,7 +38,7 @@ const SELECT_WORKOUT =
   'exercise:exercises(id, name, muscle_group, is_bench_lift), ' +
   'sets(id, set_number, weight, reps))'
 const SELECT_TEMPLATE =
-  'id, name, user_id, created_at, ' +
+  'id, name, user_id, is_public, created_at, author:users(name), ' +
   'template_exercises(position, exercise_id, ' +
   'exercise:exercises(id, name, muscle_group, is_bench_lift))'
 
@@ -109,6 +109,10 @@ function templateRowToDoc(t) {
     id: t.id,
     user_id: t.user_id,
     name: t.name,
+    // Видимость как 0|1 (см. repo.saveTemplate). author_name — для пометки
+    // «от <Имя>» у чужих общих шаблонов (своё имя в UI не показываем).
+    is_public: t.is_public ? 1 : 0,
+    author_name: t.author?.name ?? null,
     created_at: t.created_at ?? nowIso(),
     updated_at: t.created_at ?? nowIso(),
     exercises,
@@ -183,15 +187,22 @@ async function pull(userId) {
     }
   })
 
-  // шаблоны пользователя (их мало — тянем всё окно по user_id целиком,
-  // без partial-границы). Не затираем локальные несинхронизированные изменения.
+  // шаблоны: «мои ∪ общие в круге» (их мало — тянем всё окно целиком, без
+  // partial-границы). Не затираем локальные несинхронизированные изменения.
   const tpl = await withTimeout(
-    supabase.from('workout_templates').select(SELECT_TEMPLATE).eq('user_id', userId)
+    supabase
+      .from('workout_templates')
+      .select(SELECT_TEMPLATE)
+      .or(`user_id.eq.${userId},is_public.eq.true`)
   )
   if (!tpl.error && tpl.data) {
     const tplIds = new Set(tpl.data.map((r) => r.id))
     await db.transaction('rw', db.templates, async () => {
-      const locals = await db.templates.where('user_id').equals(userId).toArray()
+      // Окно реконсиляции = «мои ∪ общие» (совпадает с выборкой выше). Перебираем
+      // ВСЕ локальные шаблоны: чистую запись, входившую в окно, но пропавшую из
+      // свежей выборки, удаляем — так уходит чужой общий, который автор сделал
+      // приватным. Свои _dirty/_deleted по-прежнему защищаем.
+      const locals = await db.templates.toArray()
       const protectedIds = new Set(
         locals.filter((t) => t._dirty || t._deleted).map((t) => t.id)
       )
@@ -199,9 +210,11 @@ async function pull(userId) {
         if (protectedIds.has(row.id)) continue
         await db.templates.put(templateRowToDoc(row))
       }
-      // удалить локально чистые шаблоны, которых нет на сервере
       for (const t of locals) {
         if (tplIds.has(t.id) || t._dirty || t._deleted) continue
+        // входила ли запись в окно выборки (моя или публичная)?
+        const inWindow = t.user_id === userId || t.is_public
+        if (!inWindow) continue
         await db.templates.delete(t.id)
       }
     })
@@ -277,6 +290,7 @@ async function pushTemplates() {
             p_user_id: doc.user_id,
             p_name: doc.name,
             p_exercise_ids: exerciseIds,
+            p_is_public: !!doc.is_public,
           })
         )
         if (error) throw error

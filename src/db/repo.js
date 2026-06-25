@@ -111,12 +111,13 @@ export async function getWorkout(id) {
   return w
 }
 
-// Шаблоны пользователя (без удалённых), свежесозданные сверху.
-// Сортируем по created_at (фолбэк на name) через cmpIsoDesc.
+// Шаблоны, видимые пользователю: СВОИ (любые) + ЧУЖИЕ ОБЩИЕ (is_public).
+// Чужой приватный шаблон не виден. Свежесозданные сверху (created_at, тай-брейк
+// по имени). Шаблонов мало — читаем всё и фильтруем в памяти.
 export async function getTemplates(userId) {
-  const list = await db.templates.where('user_id').equals(userId).toArray()
+  const list = await db.templates.toArray()
   return list
-    .filter((t) => !t._deleted)
+    .filter((t) => !t._deleted && (t.user_id === userId || t.is_public))
     .sort(
       (a, b) =>
         cmpIsoDesc(a.created_at, b.created_at) ||
@@ -244,7 +245,7 @@ function cleanTemplateExercises(exercises) {
 
 // Создать новый или переписать существующий шаблон. Возвращает id.
 // Передай существующий id, чтобы отредактировать.
-export async function saveTemplate({ id, user_id, name, exercises }) {
+export async function saveTemplate({ id, user_id, name, exercises, is_public }) {
   const clean = String(name ?? '').trim()
   if (!clean) throw new Error('Введите название шаблона.')
   const cleaned = cleanTemplateExercises(exercises)
@@ -259,6 +260,8 @@ export async function saveTemplate({ id, user_id, name, exercises }) {
       id: tId,
       user_id,
       name: clean,
+      // Видимость храним как 0|1 (Dexie индексирует числа, не булевы).
+      is_public: is_public ? 1 : 0,
       // created_at: при создании = now; при правке сохраняем существующий.
       created_at: existing?.created_at ?? now,
       updated_at: now,
