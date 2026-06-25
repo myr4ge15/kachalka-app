@@ -144,10 +144,10 @@ async function pull(userId) {
     })
   }
 
-  // пользователи (для офлайн-входа)
-  // ВАЖНО: включаем pin_salt — иначе sync затирал бы соль в локальном кэше,
-  // и следующий вход уходил бы в legacy SHA-256 → ложный «неверный PIN».
-  const us = await withTimeout(supabase.from('users').select('id, name, pin_hash, pin_salt, role'))
+  // пользователи (имена для пикера входа). Тянем из view login_users — только
+  // id и name, без pin_hash/pin_salt/role: хэши больше не отдаются клиентам
+  // (сверка PIN — в auth-login онлайн или по своему кэшу офлайн, см. lib/auth.js).
+  const us = await withTimeout(supabase.from('login_users').select('id, name'))
   if (us.error) warnings.push('пользователи: ' + (us.error.message ?? us.error))
   else if (us.data) {
     await db.transaction('rw', db.users, async () => {

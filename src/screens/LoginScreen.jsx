@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react'
 import { supabase } from '../db/supabase.js'
 import { getUsers, cacheUsers } from '../db/repo.js'
-import { verifyPin } from '../lib/hash.js'
+import { login as authLogin, verifyPinOffline, LoginError } from '../lib/auth.js'
 
 export default function LoginScreen({ onLogin }) {
   const [users, setUsers] = useState([])
@@ -9,10 +9,12 @@ export default function LoginScreen({ onLogin }) {
   const [pin, setPin] = useState('')
   const [error, setError] = useState('')
   const [loading, setLoading] = useState(true)
+  const [busy, setBusy] = useState(false)
 
-  // Офлайн-вход: сначала показываем пользователей из кэша (IndexedDB),
-  // затем тихо обновляем их из сети и перекэшируем. PIN сверяется по хэшу
-  // локально, поэтому вход работает и без сети — если кэш уже наполнен.
+  // Имена для пикера: сначала из кэша (IndexedDB) — мгновенно и офлайн, затем
+  // тихо обновляем из login_users (view БЕЗ хэшей/соли/роли, доступен анониму).
+  // PIN здесь больше не тянем: сверка идёт в auth-login (онлайн) либо по
+  // локальному кэшу своего хэша (офлайн, verifyPinOffline).
   useEffect(() => {
     let alive = true
     async function load() {
@@ -23,8 +25,8 @@ export default function LoginScreen({ onLogin }) {
       }
       try {
         const { data, error } = await supabase
-          .from('users')
-          .select('id, name, pin_hash, pin_salt, role')
+          .from('login_users')
+          .select('id, name')
           .order('name')
         if (error) throw error
         if (data) {
@@ -53,22 +55,54 @@ export default function LoginScreen({ onLogin }) {
   }
 
   function pressDigit(d) {
-    if (pin.length >= 4) return
+    if (busy || pin.length >= 4) return
     setError('')
     setPin(pin + d)
   }
 
   function backspace() {
+    if (busy) return
     setPin(pin.slice(0, -1))
   }
 
   async function submit() {
-    if (pin.length !== 4 || !selected) return
-    if (await verifyPin(pin, selected)) {
-      onLogin({ id: selected.id, name: selected.name, role: selected.role })
-    } else {
-      setError('Неверный PIN')
+    if (pin.length !== 4 || !selected || busy) return
+    setBusy(true)
+    try {
+      // 1) Офлайн-разблокировка по локальному кэшу своего хэша (мгновенно).
+      const offline = await verifyPinOffline(selected.id, pin)
+      if (offline === false) {
+        setError('Неверный PIN')
+        setPin('')
+        return
+      }
+      if (offline) {
+        // UI открываем сразу; если есть сеть — молча перевыпускаем сессию.
+        if (navigator.onLine) authLogin(selected.id, pin).catch(() => {})
+        onLogin(offline)
+        return
+      }
+
+      // 2) Кэша нет (первый вход на устройстве) — нужен онлайн-вход.
+      if (!navigator.onLine) {
+        setError('Нет сети, а на этом устройстве ещё не входили. Подключись к сети для первого входа.')
+        setPin('')
+        return
+      }
+      const user = await authLogin(selected.id, pin)
+      onLogin(user)
+    } catch (e) {
+      if (e instanceof LoginError && e.code === 'locked') {
+        const mins = e.retryAfter ? Math.ceil(e.retryAfter / 60) : null
+        setError(mins ? `Слишком много попыток. Попробуй через ${mins} мин.` : 'Слишком много попыток. Подожди немного.')
+      } else if (e instanceof LoginError) {
+        setError(e.message)
+      } else {
+        setError('Ошибка входа: ' + (e?.message ?? e))
+      }
       setPin('')
+    } finally {
+      setBusy(false)
     }
   }
 

@@ -1,6 +1,7 @@
 import { useState, useEffect, useRef, lazy, Suspense } from 'react'
 import { useLiveQuery } from 'dexie-react-hooks'
-import { isConfigured, warmup } from './db/supabase.js'
+import { isConfigured, warmup, supabase } from './db/supabase.js'
+import { logout as authLogout } from './lib/auth.js'
 import { startSync, useSyncStatus } from './db/sync.js'
 import { countUnread } from './db/notifications.js'
 import LoginScreen from './screens/LoginScreen.jsx'
@@ -36,6 +37,9 @@ function SyncBadge() {
   return <span className={cls}>{text}</span>
 }
 
+// Профиль вошедшего (id,name,role) храним в localStorage — переживает
+// перезапуск приложения, как и сессия Supabase Auth (persistSession). PIN
+// спрашивается заново лишь когда refresh-токен умрёт (~7 дней) или после logout.
 const SESSION_KEY = 'gym_app_user'
 const TAB_KEY = 'gym_app_tab'
 
@@ -86,22 +90,38 @@ export default function App() {
     goTab('progress')
   }
 
-  // Восстановление сессии после перезагрузки
+  // Восстановление профиля после перезапуска (из localStorage — работает и
+  // офлайн, когда сервер недоступен и сессию не проверить).
   useEffect(() => {
-    const saved = sessionStorage.getItem(SESSION_KEY)
+    const saved = localStorage.getItem(SESSION_KEY)
     if (saved) {
       try { setUser(JSON.parse(saved)) } catch { /* ignore */ }
     }
   }, [])
 
+  // Если сессия Supabase завершилась (refresh-токен истёк через ~7 дней или
+  // logout) — возвращаем на экран входа. Офлайн событие не приходит, поэтому
+  // UI остаётся доступным до появления сети (тогда либо тихий перевыпуск, либо
+  // SIGNED_OUT → PIN заново).
+  useEffect(() => {
+    const { data } = supabase.auth.onAuthStateChange((event) => {
+      if (event === 'SIGNED_OUT') {
+        localStorage.removeItem(SESSION_KEY)
+        setUser(null)
+      }
+    })
+    return () => data?.subscription?.unsubscribe?.()
+  }, [])
+
   function handleLogin(u) {
-    sessionStorage.setItem(SESSION_KEY, JSON.stringify(u))
+    localStorage.setItem(SESSION_KEY, JSON.stringify(u))
     setUser(u)
     setTab('history')
   }
 
-  function handleLogout() {
-    sessionStorage.removeItem(SESSION_KEY)
+  async function handleLogout() {
+    await authLogout()
+    localStorage.removeItem(SESSION_KEY)
     setUser(null)
   }
 

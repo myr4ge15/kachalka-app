@@ -74,7 +74,9 @@ export async function createExercise({ name, muscle_group }) {
   return { id, name: clean, muscle_group: group, is_bench_lift: false, is_custom: true }
 }
 
-// Пользователи (для офлайн-входа по PIN).
+// Пользователи (имена для пикера входа). Только {id,name} из login_users —
+// pin_hash/pin_salt тут больше не хранятся (офлайн-сверка PIN идёт по
+// отдельному кэшу своего хэша в meta, см. src/lib/auth.js).
 export async function getUsers() {
   const list = await db.users.toArray()
   return list.sort((a, b) => String(a.name).localeCompare(String(b.name)))
