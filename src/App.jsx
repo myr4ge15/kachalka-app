@@ -13,6 +13,7 @@ const HistoryScreen = lazy(() => import('./screens/HistoryScreen.jsx'))
 const ProgressScreen = lazy(() => import('./screens/ProgressScreen.jsx'))
 const FeedScreen = lazy(() => import('./screens/FeedScreen.jsx'))
 const NotificationsScreen = lazy(() => import('./screens/NotificationsScreen.jsx'))
+const ProfileScreen = lazy(() => import('./screens/ProfileScreen.jsx'))
 
 // Индикатор состояния синхронизации в шапке.
 function SyncBadge() {
@@ -45,7 +46,10 @@ export default function App() {
   const [tab, setTab] = useState(() => {
     const saved = sessionStorage.getItem(TAB_KEY)
     return saved && saved !== 'workout' ? saved : 'history'
-  }) // 'history' | 'feed' | 'progress' | 'notif'
+  }) // 'history' | 'feed' | 'progress' | 'notif' | 'profile'
+
+  // Упражнение, с которым открыть «Прогресс» (проброс из ЛК по тапу на рекорд).
+  const [progressExId, setProgressExId] = useState(null)
 
   // Счётчик непрочитанных рекордов-уведомлений (для бейджа на колокольчике).
   // Живо пересчитывается при изменении своих тренировок, ленты и метки просмотра.
@@ -74,6 +78,12 @@ export default function App() {
   function goTab(next) {
     contentRef.current?.scrollTo({ top: 0, behavior: 'smooth' })
     setTab(next)
+  }
+
+  // Связка ЛК → «Прогресс»: открыть вкладку с заранее выбранным упражнением.
+  function openProgressFor(exerciseId) {
+    setProgressExId(exerciseId)
+    goTab('progress')
   }
 
   // Восстановление сессии после перезагрузки
@@ -117,7 +127,13 @@ export default function App() {
   return (
     <div className="app">
       <header className="topbar">
-        <span className="topbar-user">{user.name}</span>
+        <button
+          className={'topbar-user' + (tab === 'profile' ? ' active' : '')}
+          onClick={() => goTab('profile')}
+          aria-label="Открыть профиль"
+        >
+          {user.name} <span className="chev" aria-hidden="true">▾</span>
+        </button>
         <SyncBadge />
         <button
           className={'bell' + (unread > 0 ? ' has' : '')}
@@ -129,15 +145,22 @@ export default function App() {
             <span className="bell-count">{unread > 9 ? '9+' : unread}</span>
           )}
         </button>
-        <button className="link-btn" onClick={handleLogout}>Выйти</button>
       </header>
 
       <main className="content" ref={contentRef}>
         <Suspense fallback={<div className="screen"><p className="muted">Загрузка…</p></div>}>
           {tab === 'history' && <HistoryScreen user={user} />}
           {tab === 'feed' && <FeedScreen user={user} />}
-          {tab === 'progress' && <ProgressScreen user={user} />}
+          {tab === 'progress' && <ProgressScreen user={user} initialExerciseId={progressExId} />}
           {tab === 'notif' && <NotificationsScreen user={user} />}
+          {tab === 'profile' && (
+            <ProfileScreen
+              user={user}
+              onLogout={handleLogout}
+              onOpenProgress={openProgressFor}
+              onOpenFeed={() => goTab('feed')}
+            />
+          )}
         </Suspense>
       </main>
 

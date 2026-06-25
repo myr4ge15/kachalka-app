@@ -113,6 +113,15 @@ export function computeBeaten(feedItems, userId, myBest) {
   return out
 }
 
+// Пересекла ли цель порог именно сейчас: прежний лучший вес был НИЖЕ цели, а
+// текущий стал ≥ цели. Момент достижения ловим один раз (как рекорд). target ≤ 0
+// или отсутствие цели → не событие.
+export function crossedGoal(prevBest, curBest, target) {
+  const t = Number(target) || 0
+  if (t <= 0) return false
+  return (Number(prevBest) || 0) < t && (Number(curBest) || 0) >= t
+}
+
 // Новые личные рекорды ИМЕННО этой тренировки (для тоста после сохранения).
 // savedEntries — entries сохранённой тренировки; othersBest — лучшее по ВСЕМ
 // ОСТАЛЬНЫМ моим тренировкам (Map exId → { weight }). Считаем рекордом только

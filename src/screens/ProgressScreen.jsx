@@ -1,4 +1,4 @@
-import { useMemo, useState } from 'react'
+import { useEffect, useMemo, useState } from 'react'
 import {
   ResponsiveContainer, LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, Dot,
 } from 'recharts'
@@ -122,12 +122,17 @@ function inRange(day, range) {
   return true
 }
 
-export default function ProgressScreen({ user }) {
+export default function ProgressScreen({ user, initialExerciseId = null }) {
   const workouts = useLiveQuery(() => getWorkouts(user.id), [user.id])
   const loading = workouts === undefined
 
   const list = useMemo(() => collectExercises(workouts ?? []), [workouts])
-  const [selId, setSelId] = useState(null)
+  const [selId, setSelId] = useState(initialExerciseId)
+
+  // Открытие из ЛК по тапу на рекорд: подхватываем переданное упражнение.
+  useEffect(() => {
+    if (initialExerciseId != null) setSelId(initialExerciseId)
+  }, [initialExerciseId])
 
   const selected = useMemo(() => {
     if (list.length === 0) return null
