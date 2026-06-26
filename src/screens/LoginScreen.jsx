@@ -164,15 +164,22 @@ export default function LoginScreen({ onLogin }) {
             <span key={i} className={i < pin.length ? 'dot filled' : 'dot'} />
           ))}
         </div>
-        {error && <p className="error">{error}</p>}
+        {busy ? (
+          <div className="login-busy">
+            <span className="spinner" aria-hidden="true" />
+            <span>Входим…</span>
+          </div>
+        ) : (
+          error && <p className="error">{error}</p>
+        )}
 
-        <div className="keypad">
+        <div className={busy ? 'keypad dim' : 'keypad'}>
           {[1, 2, 3, 4, 5, 6, 7, 8, 9].map((n) => (
-            <button key={n} className="key" onClick={() => pressDigit(String(n))}>{n}</button>
+            <button key={n} className="key" disabled={busy} onClick={() => pressDigit(String(n))}>{n}</button>
           ))}
           <span />
-          <button className="key" onClick={() => pressDigit('0')}>0</button>
-          <button className="key key-del" onClick={backspace}>⌫</button>
+          <button className="key" disabled={busy} onClick={() => pressDigit('0')}>0</button>
+          <button className="key key-del" disabled={busy} onClick={backspace}>⌫</button>
         </div>
       </div>
     </div>
