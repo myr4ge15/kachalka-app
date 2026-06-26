@@ -2,6 +2,7 @@ import { useEffect, useRef, useState, useCallback, useMemo } from 'react'
 import { useLiveQuery } from 'dexie-react-hooks'
 import { getCachedFeed, fetchFeed } from '../db/feed.js'
 import { getUsers } from '../db/repo.js'
+import { getMeta } from '../db/local.js'
 import { onOnline, onResume } from '../lib/appEvents.js'
 import { fmtWhen } from '../lib/dates.js'
 import Leaderboard from './Leaderboard.jsx'
@@ -21,6 +22,14 @@ export default function FeedScreen({ user }) {
   const [refreshing, setRefreshing] = useState(false)
   const [error, setError] = useState(null)
 
+  // Приватный пользователь не участвует в социалке: ленту друзей и лидерборд ему
+  // не показываем (свои тренировки — во вкладке «Мои тренировки»). Флаг кэшируется
+  // на pull в meta `priv_${id}` (sync.js / my_is_private). Держим в ref, чтобы
+  // refresh не тянул чужие данные.
+  const myPrivate = useLiveQuery(() => getMeta(`priv_${user.id}`), [user.id], false)
+  const privRef = useRef(false)
+  privRef.current = myPrivate
+
   const loading = feed === undefined
   const list = feed ?? []
 
@@ -30,6 +39,7 @@ export default function FeedScreen({ user }) {
   listRef.current = list
 
   const refresh = useCallback(async () => {
+    if (privRef.current) return // приватному ленту не подтягиваем вовсе
     if (!navigator.onLine) {
       setError(listRef.current.length ? null : 'Лента недоступна офлайн. Подключись к сети.')
       return
@@ -53,6 +63,21 @@ export default function FeedScreen({ user }) {
     const off2 = onOnline(refresh)
     return () => { off1(); off2() }
   }, [refresh])
+
+  // Приватный режим: лента друзей и лидерборд скрыты целиком.
+  if (myPrivate) {
+    return (
+      <div className="screen">
+        <div className="feed-head">
+          <h2 className="screen-title">Лента</h2>
+        </div>
+        <p className="muted empty">
+          Приватный режим включён — лента и рейтинг скрыты. Свои тренировки смотри
+          во вкладке «Мои тренировки».
+        </p>
+      </div>
+    )
+  }
 
   return (
     <div className="screen">
