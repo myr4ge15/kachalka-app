@@ -988,6 +988,7 @@ img.avatar-lg.has-img {
 
 /* Порядок учёток на входе (drag-and-drop) */
 .user-reorder { margin-top: 6px; }
+.user-reorder .admin-ex-actions { margin-top: 16px; margin-bottom: 8px; }
 .admin-list.reorder { margin-top: 8px; gap: 10px; }
 .reorder-row { display: flex; align-items: center; gap: 12px; padding: 6px 13px; }
 .reorder-row.dragging { background: var(--surface); border-color: var(--green); opacity: .9; }
