@@ -886,6 +886,20 @@ img.avatar-lg.has-img {
   color: #fcd34d; background: rgba(250,204,21,.10); border: 1px solid rgba(250,204,21,.35);
 }
 
+/* Навигация по разделам админки — аккордеон (свёрнуты по умолчанию). */
+.admin-nav { display: flex; flex-direction: column; gap: 8px; }
+.admin-nav-btn {
+  display: flex; align-items: center; justify-content: space-between; gap: 10px;
+  width: 100%; box-sizing: border-box; text-align: left;
+  background: var(--surface); border: 1px solid var(--border); border-radius: 12px;
+  color: var(--text); font-size: 15px; font-weight: 700; padding: 13px 14px; min-height: 50px;
+}
+.admin-nav-btn.open { border-color: var(--green); }
+.admin-nav-chev { flex: 0 0 auto; font-size: 18px; color: var(--muted); }
+.admin-nav-btn.open .admin-nav-chev { color: var(--green); }
+.admin-panel { padding: 2px 0 4px; }
+.admin-panel .sec { margin-bottom: 0; }
+
 .admin-search {
   width: 100%; box-sizing: border-box; background: var(--bg);
   border: 1px solid var(--border); border-radius: 10px; padding: 11px 13px;

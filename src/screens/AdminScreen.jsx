@@ -18,6 +18,10 @@ export default function AdminScreen({ user, onBack }) {
   const { online } = useSyncStatus()
   const exercises = useLiveQuery(() => getAllExercisesForAdmin(), [], [])
 
+  // Разделы свёрнуты по умолчанию; раскрывается тот, что админ сам открыл (аккордеон).
+  const [open, setOpen] = useState(null) // null | 'exercises' | 'users'
+  const toggle = (key) => setOpen((cur) => (cur === key ? null : key))
+
   const errMsg = (e) => (e instanceof AdminError ? e.message : String(e?.message ?? e))
 
   return (
@@ -33,16 +37,43 @@ export default function AdminScreen({ user, onBack }) {
         </p>
       )}
 
-      <ExercisesSection
-        exercises={exercises ?? []}
-        online={online}
-        errMsg={errMsg}
-      />
-      <UsersSection
-        meId={user.id}
-        online={online}
-        errMsg={errMsg}
-      />
+      <div className="admin-nav">
+        <button
+          className={'admin-nav-btn' + (open === 'exercises' ? ' open' : '')}
+          onClick={() => toggle('exercises')}
+          aria-expanded={open === 'exercises'}
+        >
+          <span className="admin-nav-name">Справочник упражнений</span>
+          <span className="admin-nav-chev" aria-hidden="true">{open === 'exercises' ? '⌄' : '›'}</span>
+        </button>
+        {open === 'exercises' && (
+          <div className="admin-panel">
+            <ExercisesSection
+              exercises={exercises ?? []}
+              online={online}
+              errMsg={errMsg}
+            />
+          </div>
+        )}
+
+        <button
+          className={'admin-nav-btn' + (open === 'users' ? ' open' : '')}
+          onClick={() => toggle('users')}
+          aria-expanded={open === 'users'}
+        >
+          <span className="admin-nav-name">Пользователи</span>
+          <span className="admin-nav-chev" aria-hidden="true">{open === 'users' ? '⌄' : '›'}</span>
+        </button>
+        {open === 'users' && (
+          <div className="admin-panel">
+            <UsersSection
+              meId={user.id}
+              online={online}
+              errMsg={errMsg}
+            />
+          </div>
+        )}
+      </div>
     </div>
   )
 }
@@ -132,8 +163,6 @@ function ExercisesSection({ exercises, online, errMsg }) {
 
   return (
     <section className="sec">
-      <p className="sec-title">Справочник упражнений</p>
-
       <input
         className="admin-search"
         type="search"
@@ -330,8 +359,6 @@ function UsersSection({ meId, online, errMsg }) {
 
   return (
     <section className="sec">
-      <p className="sec-title">Пользователи</p>
-
       {loadErr && <p className="admin-offline" role="alert">{loadErr}</p>}
       {users === null && <p className="muted">Загрузка…</p>}
 
