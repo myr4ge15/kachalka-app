@@ -21,8 +21,8 @@ export default defineConfig({
       registerType: 'prompt',
       includeAssets: ['favicon.svg'],
       manifest: {
-        name: 'Gym Journal',
-        short_name: 'Gym',
+        name: 'kachalka-app',
+        short_name: 'kachalka-app',
         description: 'Strength training tracker',
         lang: 'ru',
         theme_color: '#16a34a',
