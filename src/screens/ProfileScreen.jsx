@@ -1,13 +1,15 @@
 import { useEffect, useMemo, useState } from 'react'
 import { useLiveQuery } from 'dexie-react-hooks'
-import { getWorkouts } from '../db/repo.js'
+import { getWorkouts, getCachedUser, setCachedAvatar } from '../db/repo.js'
 import { getMeta, setMeta } from '../db/local.js'
 import { goalKey } from '../db/notifications.js'
 import { syncNow } from '../db/sync.js'
 import { getCachedLeaderboard } from '../db/leaderboard.js'
 import { summarize, currentBest, goalProgress } from '../lib/profileStats.js'
 import { setPin, LoginError } from '../lib/auth.js'
+import { uploadMyAvatar } from '../lib/avatar.js'
 import { showToast } from '../components/Toast.jsx'
+import Avatar from '../components/Avatar.jsx'
 
 // Экран «Профиль» (ЛК). Всё про самого пользователя; пер-упражненческую
 // аналитику не дублируем — рекорды уводят в «Прогресс». Считаем на клиенте из
@@ -18,6 +20,7 @@ import { showToast } from '../components/Toast.jsx'
 export default function ProfileScreen({ user, onLogout, onOpenProgress, onOpenFeed }) {
   const workouts = useLiveQuery(() => getWorkouts(user.id), [user.id])
   const goal = useLiveQuery(() => getMeta(goalKey(user.id)), [user.id])
+  const myCached = useLiveQuery(() => getCachedUser(user.id), [user.id])
   const loading = workouts === undefined
 
   const summary = useMemo(() => summarize(workouts ?? []), [workouts])
@@ -78,6 +81,28 @@ export default function ProfileScreen({ user, onLogout, onOpenProgress, onOpenFe
     }
   }
 
+  // ── Аватар (фаза 2c) ────────────────────────────────────────────────────
+  const [avBusy, setAvBusy] = useState(false)
+  async function onPickAvatar(e) {
+    const file = e.target.files?.[0]
+    e.target.value = '' // позволить выбрать тот же файл повторно
+    if (!file) return
+    if (!navigator.onLine) {
+      showToast({ emoji: '📷', title: 'Нужна сеть', sub: 'Аватар загружается онлайн.' })
+      return
+    }
+    setAvBusy(true)
+    try {
+      const url = await uploadMyAvatar(user.id, file)
+      await setCachedAvatar(user.id, url) // мгновенно обновить шапку/ЛК до pull
+      showToast({ emoji: '📷', title: 'Аватар обновлён' })
+    } catch (err) {
+      showToast({ emoji: '⚠️', title: 'Не удалось загрузить', sub: String(err?.message ?? err) })
+    } finally {
+      setAvBusy(false)
+    }
+  }
+
   const goalEx = goal?.exerciseId
     ? records.find((r) => r.exId === goal.exerciseId)
     : null
@@ -112,13 +137,15 @@ export default function ProfileScreen({ user, onLogout, onOpenProgress, onOpenFe
     if (navigator.onLine) syncNow(user.id)
   }
 
-  const avatar = (user.name ?? '?').trim().charAt(0).toUpperCase() || '?'
-
   return (
     <div className="screen profile">
       {/* шапка профиля */}
       <div className="prof-head">
-        <div className="avatar-lg" aria-hidden="true">{avatar}</div>
+        <label className={'avatar-edit' + (avBusy ? ' busy' : '')} title="Сменить аватар">
+          <Avatar name={user.name} url={myCached?.avatar_url} className="avatar-lg" />
+          <span className="avatar-cam" aria-hidden="true">{avBusy ? '…' : '📷'}</span>
+          <input type="file" accept="image/*" onChange={onPickAvatar} disabled={avBusy} hidden />
+        </label>
         <div>
           <div className="prof-name">{user.name}</div>
           {user.role === 'admin' && <span className="role-badge">админ</span>}

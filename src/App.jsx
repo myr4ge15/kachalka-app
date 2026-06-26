@@ -4,8 +4,10 @@ import { isConfigured, warmup, supabase } from './db/supabase.js'
 import { logout as authLogout } from './lib/auth.js'
 import { startSync, useSyncStatus } from './db/sync.js'
 import { countUnread } from './db/notifications.js'
+import { getCachedUser } from './db/repo.js'
 import LoginScreen from './screens/LoginScreen.jsx'
 import Toast from './components/Toast.jsx'
+import Avatar from './components/Avatar.jsx'
 
 // Экраны-вкладки грузим лениво: код активной вкладки подтягивается по требованию.
 // Главный выигрыш — «Прогресс» тянет тяжёлый recharts, который теперь не попадает
@@ -61,6 +63,13 @@ export default function App() {
     () => (user?.id ? countUnread(user.id) : 0),
     [user?.id],
     0
+  )
+
+  // Свой аватар для шапки — из кэша пользователей (пополняется pull'ом login_users
+  // и мгновенно после загрузки своего аватара в ЛК). Нет картинки → инициал.
+  const myCached = useLiveQuery(
+    () => (user?.id ? getCachedUser(user.id) : null),
+    [user?.id]
   )
 
   // Будим базу заранее, как только приложение открылось
@@ -152,6 +161,7 @@ export default function App() {
           onClick={() => goTab('profile')}
           aria-label="Открыть профиль"
         >
+          <Avatar name={user.name} url={myCached?.avatar_url} className="avatar-sm" />
           {user.name} <span className="chev" aria-hidden="true">▾</span>
         </button>
         <SyncBadge />

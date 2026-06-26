@@ -1,17 +1,23 @@
-import { useEffect, useRef, useState, useCallback } from 'react'
+import { useEffect, useRef, useState, useCallback, useMemo } from 'react'
 import { useLiveQuery } from 'dexie-react-hooks'
 import { getCachedFeed, fetchFeed } from '../db/feed.js'
+import { getUsers } from '../db/repo.js'
 import { onOnline, onResume } from '../lib/appEvents.js'
 import { fmtWhen } from '../lib/dates.js'
 import Leaderboard from './Leaderboard.jsx'
-
-function initial(name) {
-  return (name ?? '?').trim().charAt(0).toUpperCase() || '?'
-}
+import Avatar from '../components/Avatar.jsx'
 
 export default function FeedScreen({ user }) {
   // Кэш ленты (офлайн-доступен, обновляется мгновенно при фоновой подтяжке).
   const feed = useLiveQuery(() => getCachedFeed(), [], undefined)
+
+  // Аватары участников — из кэша пользователей (по user_id строки ленты).
+  const users = useLiveQuery(() => getUsers(), [], [])
+  const avatarById = useMemo(() => {
+    const m = new Map()
+    for (const u of users ?? []) m.set(u.id, u.avatar_url)
+    return m
+  }, [users])
   const [refreshing, setRefreshing] = useState(false)
   const [error, setError] = useState(null)
 
@@ -73,7 +79,7 @@ export default function FeedScreen({ user }) {
         return (
           <div key={w.id} className="card feed-card">
             <div className="feed-card-head">
-              <div className="avatar" aria-hidden>{initial(w.user_name)}</div>
+              <Avatar name={w.user_name} url={avatarById.get(w.user_id)} className="avatar" />
               <div className="feed-who">
                 <div className="feed-name">
                   {w.user_name}

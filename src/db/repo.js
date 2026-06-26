@@ -91,6 +91,18 @@ export async function cacheUsers(list) {
   })
 }
 
+// Один пользователь из кэша (для аватара текущего пользователя в шапке/ЛК).
+export async function getCachedUser(userId) {
+  return db.users.get(userId)
+}
+
+// Локально проставить свой avatar_url сразу после загрузки (до следующего pull),
+// чтобы шапка/ЛК обновились мгновенно. Мержим, чтобы не затереть name.
+export async function setCachedAvatar(userId, url) {
+  const u = await db.users.get(userId)
+  await db.users.put({ ...(u ?? { id: userId }), avatar_url: url })
+}
+
 // Тренировки пользователя (без удалённых), свежие сверху по ДАТЕ ТРЕНИРОВКИ.
 // Сортируем по performed_at (дата самой тренировки), а не по моменту добавления:
 // запись, внесённая задним числом, уходит на своё хронологическое место, а не

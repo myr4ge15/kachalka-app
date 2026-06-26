@@ -487,6 +487,21 @@ input { font-family: inherit; }
   background: var(--surface-2); border: 1px solid var(--border);
   font-weight: 700; font-size: 17px; color: var(--green);
 }
+
+/* Маленький аватар для шапки и строк лидерборда (ЛК 2c). */
+.avatar-sm {
+  width: 26px; height: 26px; flex-shrink: 0; border-radius: 50%;
+  display: flex; align-items: center; justify-content: center;
+  background: var(--surface-2); border: 1px solid var(--border);
+  font-weight: 700; font-size: 12px; color: var(--green);
+}
+
+/* Картиночный вариант аватара (есть avatar_url): img с тем же размером, обрезка по кругу. */
+img.avatar.has-img,
+img.avatar-sm.has-img,
+img.avatar-lg.has-img {
+  object-fit: cover; padding: 0;
+}
 .feed-who { display: flex; flex-direction: column; }
 .feed-name { font-weight: 600; font-size: 16px; }
 .feed-me {
@@ -683,7 +698,7 @@ input { font-family: inherit; }
   color: var(--text); font-size: 22px; font-weight: 700; border-radius: 11px;
 }
 .goal-stepper .val {
-  flex: 1; display: flex; align-items: center; justify-content: center; gap: 6px;
+  flex: 1; display: flex; align-items: baseline; justify-content: center; gap: 4px;
   background: var(--surface-2); border: 1px solid var(--border); border-radius: 11px;
   font-size: 20px; font-weight: 400;
 }
@@ -691,7 +706,7 @@ input { font-family: inherit; }
 /* Поле ручного ввода целевого веса (кнопки ±1.5 остаются для подстройки). */
 .goal-stepper .val .val-field {
   width: 4ch; min-width: 0; padding: 0; border: none; background: none;
-  color: var(--text); font-size: 20px; font-weight: 400; text-align: center;
+  color: var(--text); font-size: 20px; font-weight: 400; text-align: right;
   font-variant-numeric: tabular-nums; -moz-appearance: textfield;
 }
 .goal-stepper .val .val-field:focus { outline: none; }
@@ -767,6 +782,16 @@ input { font-family: inherit; }
 .pin-err { margin: 0; color: var(--red); font-size: 13px; font-weight: 600; }
 .pin-form-actions { display: flex; gap: 10px; margin-top: 2px; }
 .pin-form-actions .btn { flex: 1; margin-top: 0; }
+
+/* редактор аватара в шапке профиля (ЛК 2c) */
+.avatar-edit { position: relative; display: inline-flex; flex-shrink: 0; cursor: pointer; }
+.avatar-edit.busy { opacity: .6; pointer-events: none; }
+.avatar-edit .avatar-cam {
+  position: absolute; right: -2px; bottom: -2px;
+  width: 22px; height: 22px; border-radius: 50%;
+  display: flex; align-items: center; justify-content: center;
+  font-size: 12px; background: var(--surface); border: 1px solid var(--border);
+}
 
 .app-version {
   margin: 18px 0 4px; text-align: center;

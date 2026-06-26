@@ -147,7 +147,7 @@ async function pull(userId) {
   // пользователи (имена для пикера входа). Тянем из view login_users — только
   // id и name, без pin_hash/pin_salt/role: хэши больше не отдаются клиентам
   // (сверка PIN — в auth-login онлайн или по своему кэшу офлайн, см. lib/auth.js).
-  const us = await withTimeout(supabase.from('login_users').select('id, name'))
+  const us = await withTimeout(supabase.from('login_users').select('id, name, avatar_url'))
   if (us.error) warnings.push('пользователи: ' + (us.error.message ?? us.error))
   else if (us.data) {
     await db.transaction('rw', db.users, async () => {
@@ -404,20 +404,41 @@ async function pushGoal(userId) {
   })
 }
 
-// Подтягиваем серверный achieved_at в локальную цель (мульти-устройство и
-// подтверждение от бота). Не трогаем цель, пока она не отправлена (_dirty),
-// и никогда не гасим уже выставленный локально achievedAt (?? local).
+// Подтягиваем серверную цель целиком в локальную (мульти-устройство: цель,
+// поставленную на другом устройстве, надо увидеть здесь; плюс подтверждение
+// достижения от бота). Тянем не только achieved_at, но и exercise_id/target_weight,
+// иначе цель с другого устройства сюда никогда не доезжает. Пока локальная цель
+// не отправлена (_dirty) — не трогаем её (last-write-wins, как у тренировок).
 async function pullGoal(userId) {
   const local = await getMeta(goalKey(userId))
-  if (!local || local._dirty) return
+  if (local?._dirty) return
   const res = await withTimeout(
-    supabase.from('goals').select('achieved_at').eq('user_id', userId).maybeSingle()
+    supabase
+      .from('goals')
+      .select('exercise_id, target_weight, achieved_at')
+      .eq('user_id', userId)
+      .maybeSingle()
   )
-  if (res.error || !res.data) return
-  const achievedAt = res.data.achieved_at ?? local.achievedAt ?? null
-  if (achievedAt !== (local.achievedAt ?? null)) {
-    await setMeta(goalKey(userId), { ...local, achievedAt })
+  if (res.error) return
+  const row = res.data
+  if (!row) return // на сервере цели ещё нет — оставляем локальную как есть
+  // Имя упражнения берём из локального справочника (он синкается отдельно и
+  // полнее, чем records); фолбэк — прежнее имя, чтобы не показать пустоту.
+  const ex = await db.exercises.get(row.exercise_id)
+  const next = {
+    exerciseId: row.exercise_id,
+    exerciseName: ex?.name ?? local?.exerciseName ?? '—',
+    targetWeight: Number(row.target_weight),
+    achievedAt: row.achieved_at ?? null,
+    _dirty: 0,
   }
+  const changed =
+    !local ||
+    local.exerciseId !== next.exerciseId ||
+    Number(local.targetWeight) !== next.targetWeight ||
+    (local.exerciseName ?? null) !== next.exerciseName ||
+    (local.achievedAt ?? null) !== next.achievedAt
+  if (changed) await setMeta(goalKey(userId), next)
 }
 
 // --------------------------- оркестрация -----------------------------------

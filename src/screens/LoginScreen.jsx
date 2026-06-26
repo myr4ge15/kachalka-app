@@ -26,7 +26,7 @@ export default function LoginScreen({ onLogin }) {
       try {
         const { data, error } = await supabase
           .from('login_users')
-          .select('id, name')
+          .select('id, name, avatar_url')
           .order('name')
         if (error) throw error
         if (data) {

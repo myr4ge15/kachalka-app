@@ -1,7 +1,9 @@
-import { useEffect, useState } from 'react'
+import { useEffect, useMemo, useState } from 'react'
 import { useLiveQuery } from 'dexie-react-hooks'
 import { getCachedLeaderboard, fetchLeaderboard } from '../db/leaderboard.js'
+import { getUsers } from '../db/repo.js'
 import { onOnline, onResume } from '../lib/appEvents.js'
+import Avatar from './../components/Avatar.jsx'
 
 // Медаль для тройки призёров, дальше — номер места.
 function place(i) {
@@ -14,6 +16,12 @@ function place(i) {
 // теории может выжать больше»). Самодостаточен — сам тянет и кэширует данные.
 export default function Leaderboard({ user }) {
   const board = useLiveQuery(() => getCachedLeaderboard(), [], undefined)
+  const users = useLiveQuery(() => getUsers(), [], [])
+  const avatarById = useMemo(() => {
+    const m = new Map()
+    for (const u of users ?? []) m.set(u.id, u.avatar_url)
+    return m
+  }, [users])
   const [error, setError] = useState(null)
   const loading = board === undefined
   const list = board ?? []
@@ -72,6 +80,7 @@ export default function Leaderboard({ user }) {
           return (
             <li key={row.user_id} className={isMe ? 'lb-row me' : 'lb-row'}>
               <span className="lb-place">{place(i)}</span>
+              <Avatar name={row.user_name} url={avatarById.get(row.user_id)} className="avatar-sm" />
               <span className="lb-who">
                 <span className="lb-name">{row.user_name}</span>
                 {isMe && <span className="feed-me">ты</span>}
