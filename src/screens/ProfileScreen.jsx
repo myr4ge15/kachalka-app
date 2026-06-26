@@ -1,8 +1,7 @@
 import { useEffect, useMemo, useState } from 'react'
 import { useLiveQuery } from 'dexie-react-hooks'
 import { getWorkouts, getCachedUser, setCachedAvatar, setCachedName, softDeleteMyWorkouts } from '../db/repo.js'
-import { getMeta, setMeta } from '../db/local.js'
-import { goalKey } from '../db/notifications.js'
+import { readGoals, writeGoals } from '../db/notifications.js'
 import { syncNow } from '../db/sync.js'
 import { getCachedLeaderboard } from '../db/leaderboard.js'
 import { summarize, currentBest, goalProgress } from '../lib/profileStats.js'
@@ -19,7 +18,7 @@ import Avatar from '../components/Avatar.jsx'
 // Пропсы: user, onLogout, onOpenProgress(exerciseId), onOpenFeed().
 export default function ProfileScreen({ user, onLogout, onOpenProgress, onOpenFeed, onRenamed }) {
   const workouts = useLiveQuery(() => getWorkouts(user.id), [user.id])
-  const goal = useLiveQuery(() => getMeta(goalKey(user.id)), [user.id])
+  const goals = useLiveQuery(() => readGoals(user.id), [user.id])
   const myCached = useLiveQuery(() => getCachedUser(user.id), [user.id])
   const loading = workouts === undefined
 
@@ -43,10 +42,11 @@ export default function ProfileScreen({ user, onLogout, onOpenProgress, onOpenFe
     // Экран перемонтируется при входе в профиль — место и так пересчитывается.
   }, [user.id])
 
-  // ── Редактор цели ─────────────────────────────────────────────────────────
+  // ── Редактор целей (мульти-цели, фаза 2c) ──────────────────────────────────
   const [editing, setEditing] = useState(false)
   const [edExId, setEdExId] = useState(null)
   const [edWeight, setEdWeight] = useState(100)
+  const [edIsNew, setEdIsNew] = useState(false) // добавляем новую (можно выбрать упражнение) или правим вес существующей
 
   // ── Смена PIN (фаза 2c) ─────────────────────────────────────────────────
   const [pinOpen, setPinOpen] = useState(false)
@@ -152,37 +152,78 @@ export default function ProfileScreen({ user, onLogout, onOpenProgress, onOpenFe
     }
   }
 
-  const goalEx = goal?.exerciseId
-    ? records.find((r) => r.exId === goal.exerciseId)
-    : null
-  const goalCurrent = goal?.exerciseId ? currentBest(workouts ?? [], goal.exerciseId) : 0
-  const goalPct = goal ? goalProgress(goalCurrent, goal.targetWeight) : 0
-  const goalLeft = goal ? Math.max(0, Math.round((goal.targetWeight - goalCurrent) * 10) / 10) : 0
+  // Видимые цели (без tombstone'ов) и упражнения, по которым цели ещё нет
+  // (для пикера «добавить»). Имя редактируемой цели — из самого списка.
+  const goalList = (goals ?? []).filter((g) => !g._deleted)
+  const addOptions = records.filter((r) => !goalList.some((g) => g.exerciseId === r.exId))
+  const edName = edExId
+    ? (goalList.find((g) => g.exerciseId === edExId)?.exerciseName ??
+       records.find((r) => r.exId === edExId)?.name ?? '—')
+    : '—'
 
-  function openEditor() {
-    const base = goal?.exerciseId
-      ? records.find((r) => r.exId === goal.exerciseId)
-      : records.find((r) => r.isBench) || records[0]
-    const exId = goal?.exerciseId ?? base?.exId ?? null
-    const start = goal?.targetWeight ?? (base ? Math.max(base.weight + 5, 20) : 100)
-    setEdExId(exId)
-    setEdWeight(start)
+  // Открыть редактор: новая цель (выбор упражнения из ещё-без-цели) или правка
+  // веса существующей (упражнение фиксировано).
+  function openAddGoal() {
+    if (addOptions.length === 0) {
+      showToast({ emoji: '🎯', title: 'Цели уже на всех упражнениях' })
+      return
+    }
+    const base = addOptions.find((r) => r.isBench) || addOptions[0]
+    setEdIsNew(true)
+    setEdExId(base?.exId ?? null)
+    setEdWeight(base ? Math.max(base.weight + 5, 20) : 100)
+    setEditing(true)
+  }
+  function openEditGoal(g) {
+    setEdIsNew(false)
+    setEdExId(g.exerciseId)
+    setEdWeight(g.targetWeight)
     setEditing(true)
   }
 
   async function saveGoal() {
     if (!edExId) return
     const ex = records.find((r) => r.exId === edExId)
-    await setMeta(goalKey(user.id), {
-      exerciseId: edExId,
-      exerciseName: ex?.name ?? '—',
-      targetWeight: Number(edWeight) || 0,
-      achievedAt: null, // новая/изменённая цель — можно достичь заново
-      _dirty: 1, // отправить на сервер (для Telegram-бота), фаза 2b
-    })
+    const target = Number(edWeight) || 0
+    const list = await readGoals(user.id) // свежий массив (вкл. tombstone'ы)
+    const idx = list.findIndex((g) => g.exerciseId === edExId)
+    let next
+    if (idx >= 0) {
+      const prevW = Number(list[idx].targetWeight)
+      next = list.map((g, i) =>
+        i === idx
+          ? {
+              ...g,
+              exerciseName: ex?.name ?? g.exerciseName ?? '—',
+              targetWeight: target,
+              _dirty: 1,
+              _deleted: 0,
+              // смена веса → цель можно достичь заново; вес тот же → не сбрасываем
+              achievedAt: prevW !== target ? null : g.achievedAt ?? null,
+            }
+          : g
+      )
+    } else {
+      next = [
+        ...list,
+        { exerciseId: edExId, exerciseName: ex?.name ?? '—', targetWeight: target, achievedAt: null, _dirty: 1 },
+      ]
+    }
+    await writeGoals(user.id, next)
     setEditing(false)
-    // Сразу пушим цель на сервер (если онлайн), чтобы бот увидел её до
-    // ближайшей тренировки. Офлайн — уедет следующим фоновым синком.
+    // Сразу пушим (если онлайн), чтобы бот увидел цель до ближайшей тренировки.
+    if (navigator.onLine) syncNow(user.id)
+  }
+
+  // Удалить цель: tombstone (_deleted+_dirty) — синк отправит delete_my_goal и
+  // выкинет её из массива; из списка пропадает сразу.
+  async function deleteGoal(exerciseId) {
+    const list = await readGoals(user.id)
+    const next = list.map((g) =>
+      g.exerciseId === exerciseId ? { ...g, _deleted: 1, _dirty: 1 } : g
+    )
+    await writeGoals(user.id, next)
+    setEditing(false)
     if (navigator.onLine) syncNow(user.id)
   }
 
@@ -247,26 +288,33 @@ export default function ProfileScreen({ user, onLogout, onOpenProgress, onOpenFe
             </div>
           </div>
 
-          {/* личная цель */}
+          {/* личные цели (мульти-цели) */}
           <section className="sec">
-            <p className="sec-title">Моя цель</p>
-            <div className="goal">
-              {editing ? (
+            <p className="sec-title">Мои цели</p>
+            {editing ? (
+              <div className="goal">
                 <div className="goal-editor">
-                  <label className="field">
-                    <span className="field-lab">Упражнение</span>
-                    <select
-                      className="prog-select"
-                      value={String(edExId ?? '')}
-                      onChange={(e) => setEdExId(e.target.value)}
-                    >
-                      {records.map((r) => (
-                        <option key={r.exId} value={String(r.exId)}>
-                          {r.name}{r.isBench ? ' ⭐' : ''}
-                        </option>
-                      ))}
-                    </select>
-                  </label>
+                  {edIsNew ? (
+                    <label className="field">
+                      <span className="field-lab">Упражнение</span>
+                      <select
+                        className="prog-select"
+                        value={String(edExId ?? '')}
+                        onChange={(e) => setEdExId(e.target.value)}
+                      >
+                        {addOptions.map((r) => (
+                          <option key={r.exId} value={String(r.exId)}>
+                            {r.name}{r.isBench ? ' ⭐' : ''}
+                          </option>
+                        ))}
+                      </select>
+                    </label>
+                  ) : (
+                    <div className="field">
+                      <span className="field-lab">Упражнение</span>
+                      <div className="goal-editor-ex">{edName}</div>
+                    </div>
+                  )}
                   <label className="field">
                     <span className="field-lab">Целевой вес</span>
                     <div className="goal-stepper">
@@ -300,36 +348,45 @@ export default function ProfileScreen({ user, onLogout, onOpenProgress, onOpenFe
                     </div>
                   </label>
                   <div className="goal-editor-actions">
+                    {!edIsNew && (
+                      <button className="btn danger-ghost" onClick={() => deleteGoal(edExId)}>Удалить</button>
+                    )}
                     <button className="btn ghost" onClick={() => setEditing(false)}>Отмена</button>
                     <button className="btn primary" onClick={saveGoal} disabled={!edExId}>Сохранить</button>
                   </div>
                 </div>
-              ) : goal ? (
-                <>
-                  <div className="goal-top">
-                    <span className="lbl">
-                      {goalEx?.name ?? goal.exerciseName} <b>{goal.targetWeight} <span className="u">кг</span></b>
-                    </span>
-                    <span className="pct">{goalPct}%</span>
-                  </div>
-                  <div className="bar"><i style={{ width: `${goalPct}%` }} /></div>
-                  {goal.achievedAt ? (
-                    <div className="goal-sub achieved">🎯 Цель достигнута! Поставь новую.</div>
-                  ) : (
-                    <div className="goal-sub">
-                      текущий рекорд {goalCurrent} кг · осталось {goalLeft} кг
+              </div>
+            ) : goalList.length === 0 ? (
+              <div className="goal">
+                <button className="goal-edit set" onClick={openAddGoal}>+ Поставить цель</button>
+              </div>
+            ) : (
+              <div className="goals-list">
+                {goalList.map((g) => {
+                  const cur = currentBest(workouts ?? [], g.exerciseId)
+                  const pct = goalProgress(cur, g.targetWeight)
+                  const left = Math.max(0, Math.round((g.targetWeight - cur) * 10) / 10)
+                  return (
+                    <div className="goal" key={g.exerciseId}>
+                      <div className="goal-top">
+                        <span className="lbl">
+                          {g.exerciseName} <b>{g.targetWeight} <span className="u">кг</span></b>
+                        </span>
+                        <span className="pct">{pct}%</span>
+                      </div>
+                      <div className="bar"><i style={{ width: `${pct}%` }} /></div>
+                      {g.achievedAt ? (
+                        <div className="goal-sub achieved">🎯 Цель достигнута!</div>
+                      ) : (
+                        <div className="goal-sub">текущий рекорд {cur} кг · осталось {left} кг</div>
+                      )}
+                      <button className="goal-edit" onClick={() => openEditGoal(g)}>✎ Изменить цель</button>
                     </div>
-                  )}
-                  <button className="goal-edit" onClick={openEditor}>
-                    {goal.achievedAt ? '🎯 Поставить новую цель' : '✎ Изменить цель'}
-                  </button>
-                </>
-              ) : (
-                <button className="goal-edit set" onClick={openEditor}>
-                  + Поставить цель
-                </button>
-              )}
-            </div>
+                  )
+                })}
+                <button className="goal-add" onClick={openAddGoal}>+ Добавить цель</button>
+              </div>
+            )}
           </section>
 
           {/* личные рекорды → Прогресс */}

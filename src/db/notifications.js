@@ -17,9 +17,32 @@ import { myBestByExercise, minePrs, computeBeaten, computeNewPrs, crossedGoal } 
 const SEEN_KEY = 'notif_seen_at'
 const LIMIT = 40 // сколько последних уведомлений держим в списке
 
-// Ключ личной цели в meta (одна цель на пользователя). Объект цели:
-//   { exerciseId, exerciseName, targetWeight, achievedAt }  (achievedAt: null | ISO)
+// Ключ личных целей в meta. Мульти-цели (фаза 2c): значение — МАССИВ целей:
+//   [{ exerciseId, exerciseName, targetWeight, achievedAt, _dirty, _deleted }]
+//   (achievedAt: null | ISO; _deleted: 1 → tombstone до отправки delete на сервер).
 export const goalKey = (userId) => `goal_${userId}`
+
+// Прочитать цели как МАССИВ. Совместимость: старое значение — одиночный объект
+// цели (до мульти-целей) — мигрируем в массив на лету. Не персистим здесь (чтение
+// зовётся и из useLiveQuery); первая же запись (save/sync) сохранит массив.
+export async function readGoals(userId) {
+  const v = await getMeta(goalKey(userId))
+  if (Array.isArray(v)) return v
+  if (v && v.exerciseId) {
+    return [{
+      exerciseId: v.exerciseId,
+      exerciseName: v.exerciseName ?? '—',
+      targetWeight: v.targetWeight,
+      achievedAt: v.achievedAt ?? null,
+      _dirty: v._dirty ? 1 : 0,
+    }]
+  }
+  return []
+}
+
+export async function writeGoals(userId, goals) {
+  await setMeta(goalKey(userId), goals)
+}
 
 // Мои тренировки (без удалённых).
 async function myWorkouts(userId) {
@@ -27,19 +50,20 @@ async function myWorkouts(userId) {
   return list.filter((w) => !w._deleted)
 }
 
-// Уведомление о достигнутой цели (🎯), если цель есть и уже достигнута.
-// Один объект на пользователя (дедуп — через achievedAt в самой цели).
+// Уведомления о достигнутых целях (🎯) — по одному на каждую достигнутую цель
+// (дедуп — через achievedAt в самой цели).
 async function goalNotif(userId) {
-  const goal = await getMeta(goalKey(userId))
-  if (!goal?.achievedAt) return []
-  return [{
-    id: `goal:${goal.exerciseId}:${goal.targetWeight}`,
-    type: 'goal',
-    exId: goal.exerciseId,
-    name: goal.exerciseName ?? '—',
-    weight: goal.targetWeight,
-    at: goal.achievedAt,
-  }]
+  const goals = await readGoals(userId)
+  return goals
+    .filter((g) => !g._deleted && g.achievedAt)
+    .map((g) => ({
+      id: `goal:${g.exerciseId}:${g.targetWeight}`,
+      type: 'goal',
+      exId: g.exerciseId,
+      name: g.exerciseName ?? '—',
+      weight: g.targetWeight,
+      at: g.achievedAt,
+    }))
 }
 
 // Полный список уведомлений (свежие сверху), ограниченный LIMIT.
@@ -86,18 +110,29 @@ export async function detectNewPrsOnSave(userId, workoutId) {
   return computeNewPrs(saved.entries, othersBest)
 }
 
-// Достигла ли сохранённая тренировка личную цель ВПЕРВЫЕ. Цель — в meta
-// (goalKey). Считаем как рекорд: лучший вес по упражнению цели ДО этой
-// тренировки был ниже target, а с её учётом стал ≥ target. При срабатывании
-// проставляем achievedAt (дедуп — больше не сработает) и возвращаем
-// { name, weight } для тоста; иначе null.
+// Какие личные цели достигнуты ВПЕРВЫЕ именно этой тренировкой. Идём по ВСЕМ
+// не-достигнутым целям: лучший вес по упражнению цели ДО этой тренировки был ниже
+// target, а с её учётом стал ≥ target (как рекорд). Достигнутым проставляем
+// achievedAt (дедуп — больше не сработают) и возвращаем массив { name, weight }
+// для тоста (пусто — ничего не достигнуто). bestPrev/bestAll считаем один раз.
 export async function detectGoalReachedOnSave(userId, workoutId) {
-  const goal = await getMeta(goalKey(userId))
-  if (!goal || !goal.exerciseId || !goal.targetWeight || goal.achievedAt) return null
+  const goals = await readGoals(userId)
+  const hasActive = goals.some((g) => !g._deleted && g.exerciseId && g.targetWeight && !g.achievedAt)
+  if (!hasActive) return []
   const all = await myWorkouts(userId)
-  const cur = myBestByExercise(all).get(goal.exerciseId)?.weight ?? 0
-  const prev = myBestByExercise(all.filter((w) => w.id !== workoutId)).get(goal.exerciseId)?.weight ?? 0
-  if (!crossedGoal(prev, cur, goal.targetWeight)) return null
-  await setMeta(goalKey(userId), { ...goal, achievedAt: nowIso() })
-  return { name: goal.exerciseName ?? '—', weight: goal.targetWeight }
+  const bestAll = myBestByExercise(all)
+  const bestPrev = myBestByExercise(all.filter((w) => w.id !== workoutId))
+  const reached = []
+  let changed = false
+  const next = goals.map((g) => {
+    if (g._deleted || g.achievedAt || !g.exerciseId || !g.targetWeight) return g
+    const cur = bestAll.get(g.exerciseId)?.weight ?? 0
+    const prev = bestPrev.get(g.exerciseId)?.weight ?? 0
+    if (!crossedGoal(prev, cur, g.targetWeight)) return g
+    changed = true
+    reached.push({ name: g.exerciseName ?? '—', weight: g.targetWeight })
+    return { ...g, achievedAt: nowIso() }
+  })
+  if (changed) await writeGoals(userId, next)
+  return reached
 }

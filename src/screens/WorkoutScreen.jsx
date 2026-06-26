@@ -204,11 +204,13 @@ export default function WorkoutScreen({ user, workoutId = null, onBack }) {
           // Достижение личной цели (ЛК). Поздравляем один раз; если совпало с
           // рекордом — поздравление о цели перекрывает тост рекорда (важнее).
           const reached = await detectGoalReachedOnSave(user.id, wId)
-          if (reached) {
+          if (reached.length) {
+            const top = reached.reduce((a, b) => (Number(b.weight) > Number(a.weight) ? b : a), reached[0])
+            const extra = reached.length > 1 ? ` +${reached.length - 1}` : ''
             showToast({
               emoji: '🎯',
-              title: 'Цель достигнута!',
-              sub: `${reached.name} — ${reached.weight} кг`,
+              title: reached.length > 1 ? 'Цели достигнуты!' : 'Цель достигнута!',
+              sub: `${top.name} — ${top.weight} кг${extra}`,
             })
           }
         } catch { /* тост необязателен */ }

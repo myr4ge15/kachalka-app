@@ -19,7 +19,7 @@ import { withTimeout } from '../lib/withTimeout.js'
 import { db, nowIso, setMeta, getMeta } from './local.js'
 import { pendingCount } from './repo.js'
 import { fetchFeed } from './feed.js'
-import { goalKey } from './notifications.js'
+import { readGoals, writeGoals } from './notifications.js'
 import { onOnline, onOffline, onResume } from '../lib/appEvents.js'
 import { cmpIsoAsc } from '../lib/cmp.js'
 
@@ -377,77 +377,87 @@ async function push() {
   }
 }
 
-// ------------------------------- цель --------------------------------------
-// Личная цель (ЛК) живёт в meta (goal_${userId}). Для фазы 2b её надо отдать
-// на сервер, чтобы достижение увидел Telegram-бот. Пуш — только при _dirty
-// (пользователь поставил/сменил цель); сервер через upsert_goal сбрасывает
-// achieved_at при смене цели и возвращает актуальную строку. Всё обёрнуто в
-// try/catch на стороне вызова: если goals.sql ещё не задеплоен (RPC нет) —
-// синхронизация тренировок не должна падать.
+// ------------------------------- цели --------------------------------------
+// Личные цели (ЛК) живут в meta (goal_${userId}) МАССИВОМ. Их надо отдать на
+// сервер (таблица goals, составной ключ user_id+exercise_id), чтобы достижение
+// увидел Telegram-бот. Пуш — только при _dirty у конкретной цели: upsert_goal
+// апсертит/сбрасывает achieved_at при смене веса, delete_my_goal удаляет
+// помеченную tombstone (_deleted). Всё обёрнуто в try/catch на стороне вызова:
+// если goals-multi.sql ещё не задеплоен (RPC нет) — синк тренировок не падает.
 
 async function pushGoal(userId) {
-  const goal = await getMeta(goalKey(userId))
-  if (!goal || !goal._dirty || !goal.exerciseId || !(Number(goal.targetWeight) > 0)) return
-  const res = await withTimeout(
-    supabase.rpc('upsert_goal', {
-      p_user_id: userId,
-      p_exercise_id: goal.exerciseId,
-      p_target_weight: Number(goal.targetWeight),
-    })
-  )
-  if (res.error) throw res.error
-  const row = Array.isArray(res.data) ? res.data[0] : res.data
-  await setMeta(goalKey(userId), {
-    ...goal,
-    _dirty: 0,
-    achievedAt: row?.achieved_at ?? goal.achievedAt ?? null,
-  })
+  const goals = await readGoals(userId)
+  if (!goals.some((g) => g._dirty)) return
+  const out = []
+  let changed = false
+  for (const g of goals) {
+    // Удаление цели (tombstone): шлём delete_my_goal и выкидываем из массива.
+    if (g._deleted && g._dirty) {
+      const res = await withTimeout(
+        supabase.rpc('delete_my_goal', { p_exercise_id: g.exerciseId })
+      )
+      if (res.error) throw res.error
+      changed = true
+      continue
+    }
+    // Поставлена/изменена цель: апсерт по составному ключу.
+    if (g._dirty && g.exerciseId && Number(g.targetWeight) > 0) {
+      const res = await withTimeout(
+        supabase.rpc('upsert_goal', {
+          p_user_id: userId,
+          p_exercise_id: g.exerciseId,
+          p_target_weight: Number(g.targetWeight),
+        })
+      )
+      if (res.error) throw res.error
+      const row = Array.isArray(res.data) ? res.data[0] : res.data
+      out.push({ ...g, _dirty: 0, achievedAt: row?.achieved_at ?? g.achievedAt ?? null })
+      changed = true
+      continue
+    }
+    out.push(g)
+  }
+  if (changed) await writeGoals(userId, out)
 }
 
-// Подтягиваем серверную цель целиком в локальную (мульти-устройство: цель,
-// поставленную на другом устройстве, надо увидеть здесь; плюс подтверждение
-// достижения от бота). Тянем не только achieved_at, но и exercise_id/target_weight,
-// иначе цель с другого устройства сюда никогда не доезжает. Пока локальная цель
-// не отправлена (_dirty) — не трогаем её (last-write-wins, как у тренировок).
+// Подтягиваем серверные цели в локальный массив. Сервер — источник правды, пока
+// нет локальных несинхронизированных правок (если есть хоть один _dirty — ждём
+// ближайший pushGoal, last-write-wins как у тренировок). Так сюда приезжают цели
+// с других устройств, исчезают удалённые там и обновляется achieved_at от бота.
+// Имя упражнения — из локального справочника (фолбэк — прежнее имя).
 async function pullGoal(userId) {
-  const local = await getMeta(goalKey(userId))
-  if (local?._dirty) return
+  const local = await readGoals(userId)
+  if (local.some((g) => g._dirty)) return
   const res = await withTimeout(
     supabase
       .from('goals')
       .select('exercise_id, target_weight, achieved_at')
       .eq('user_id', userId)
-      .maybeSingle()
   )
   if (res.error) return
-  const row = res.data
-  if (!row) {
-    // На сервере цели нет, а локально валидная есть (типично: цель поставлена
-    // ДО фазы 2b, когда _dirty ещё не ставился, поэтому pushGoal её никогда не
-    // отправлял) — помечаем на отправку, ближайший pushGoal зальёт её. Цели
-    // на сервере не удаляются, так что «нет строки + есть локальная» = не доехала.
-    if (local && local.exerciseId && Number(local.targetWeight) > 0 && !local._dirty) {
-      await setMeta(goalKey(userId), { ...local, _dirty: 1 })
-    }
-    return
+  const rows = res.data ?? []
+  const byEx = new Map(local.map((g) => [g.exerciseId, g]))
+  const next = []
+  for (const row of rows) {
+    const ex = await db.exercises.get(row.exercise_id)
+    next.push({
+      exerciseId: row.exercise_id,
+      exerciseName: ex?.name ?? byEx.get(row.exercise_id)?.exerciseName ?? '—',
+      targetWeight: Number(row.target_weight),
+      achievedAt: row.achieved_at ?? null,
+      _dirty: 0,
+    })
   }
-  // Имя упражнения берём из локального справочника (он синкается отдельно и
-  // полнее, чем records); фолбэк — прежнее имя, чтобы не показать пустоту.
-  const ex = await db.exercises.get(row.exercise_id)
-  const next = {
-    exerciseId: row.exercise_id,
-    exerciseName: ex?.name ?? local?.exerciseName ?? '—',
-    targetWeight: Number(row.target_weight),
-    achievedAt: row.achieved_at ?? null,
-    _dirty: 0,
-  }
-  const changed =
-    !local ||
-    local.exerciseId !== next.exerciseId ||
-    Number(local.targetWeight) !== next.targetWeight ||
-    (local.exerciseName ?? null) !== next.exerciseName ||
-    (local.achievedAt ?? null) !== next.achievedAt
-  if (changed) await setMeta(goalKey(userId), next)
+  // Пишем только при реальном изменении состава/значений (чтобы не дёргать
+  // useLiveQuery вхолостую). Сравнение нормализованное, по ключу exerciseId.
+  const norm = (arr) =>
+    JSON.stringify(
+      arr
+        .filter((g) => !g._deleted)
+        .map((g) => [g.exerciseId, Number(g.targetWeight), g.exerciseName ?? '—', g.achievedAt ?? null])
+        .sort((a, b) => String(a[0]).localeCompare(String(b[0])))
+    )
+  if (norm(local) !== norm(next)) await writeGoals(userId, next)
 }
 
 // --------------------------- оркестрация -----------------------------------
