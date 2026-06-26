@@ -103,6 +103,14 @@ export async function setCachedAvatar(userId, url) {
   await db.users.put({ ...(u ?? { id: userId }), avatar_url: url })
 }
 
+// Локально проставить своё имя сразу после смены (до следующего pull), чтобы
+// пикер входа и кэш пользователей показывали новое имя. Мержим, чтобы не
+// затереть avatar_url.
+export async function setCachedName(userId, name) {
+  const u = await db.users.get(userId)
+  await db.users.put({ ...(u ?? { id: userId }), name })
+}
+
 // Тренировки пользователя (без удалённых), свежие сверху по ДАТЕ ТРЕНИРОВКИ.
 // Сортируем по performed_at (дата самой тренировки), а не по моменту добавления:
 // запись, внесённая задним числом, уходит на своё хронологическое место, а не
@@ -212,6 +220,25 @@ export async function deleteWorkout(id) {
     if (!doc) return
     await db.workouts.update(id, { _deleted: 1, _dirty: 0, updated_at: nowIso() })
     await enqueue('delete', id)
+  })
+}
+
+// Soft-delete всех своих тренировок (ЛК 2c, «Удалить мои данные»). Каждую
+// помечаем tombstone и ставим удаление в очередь — синк отправит на сервер тем
+// же путём, что и одиночное удаление. Учётку, цели и шаблоны НЕ трогаем
+// (восстановимо: на сервере записи стираются, но аккаунт и история на других
+// устройствах до синка остаются). Возвращает число помеченных тренировок.
+export async function softDeleteMyWorkouts(userId) {
+  return db.transaction('rw', db.workouts, db.outbox, async () => {
+    const mine = await db.workouts.where('user_id').equals(userId).toArray()
+    let n = 0
+    for (const w of mine) {
+      if (w._deleted) continue // уже помечена — не плодим дубль в очереди
+      await db.workouts.update(w.id, { _deleted: 1, _dirty: 0, updated_at: nowIso() })
+      await enqueue('delete', w.id)
+      n++
+    }
+    return n
   })
 }
 

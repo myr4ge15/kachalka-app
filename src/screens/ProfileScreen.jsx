@@ -1,12 +1,12 @@
 import { useEffect, useMemo, useState } from 'react'
 import { useLiveQuery } from 'dexie-react-hooks'
-import { getWorkouts, getCachedUser, setCachedAvatar } from '../db/repo.js'
+import { getWorkouts, getCachedUser, setCachedAvatar, setCachedName, softDeleteMyWorkouts } from '../db/repo.js'
 import { getMeta, setMeta } from '../db/local.js'
 import { goalKey } from '../db/notifications.js'
 import { syncNow } from '../db/sync.js'
 import { getCachedLeaderboard } from '../db/leaderboard.js'
 import { summarize, currentBest, goalProgress } from '../lib/profileStats.js'
-import { setPin, LoginError } from '../lib/auth.js'
+import { setPin, setName, LoginError } from '../lib/auth.js'
 import { uploadMyAvatar } from '../lib/avatar.js'
 import { showToast } from '../components/Toast.jsx'
 import Avatar from '../components/Avatar.jsx'
@@ -17,7 +17,7 @@ import Avatar from '../components/Avatar.jsx'
 // уходит на сервер при сохранении, чтобы достижение увидел Telegram-бот.
 //
 // Пропсы: user, onLogout, onOpenProgress(exerciseId), onOpenFeed().
-export default function ProfileScreen({ user, onLogout, onOpenProgress, onOpenFeed }) {
+export default function ProfileScreen({ user, onLogout, onOpenProgress, onOpenFeed, onRenamed }) {
   const workouts = useLiveQuery(() => getWorkouts(user.id), [user.id])
   const goal = useLiveQuery(() => getMeta(goalKey(user.id)), [user.id])
   const myCached = useLiveQuery(() => getCachedUser(user.id), [user.id])
@@ -103,6 +103,55 @@ export default function ProfileScreen({ user, onLogout, onOpenProgress, onOpenFe
     }
   }
 
+  // ── Смена имени (фаза 2c) ───────────────────────────────────────────────
+  const [nameEditing, setNameEditing] = useState(false)
+  const [nameVal, setNameVal] = useState('')
+  const [nameErr, setNameErr] = useState('')
+  const [nameBusy, setNameBusy] = useState(false)
+
+  function openName() { setNameVal(user.name ?? ''); setNameErr(''); setNameEditing(true) }
+  async function saveName() {
+    setNameErr('')
+    const clean = nameVal.trim()
+    if (clean.length < 1 || clean.length > 40) { setNameErr('Имя — от 1 до 40 символов.'); return }
+    if (clean === user.name) { setNameEditing(false); return }
+    setNameBusy(true)
+    try {
+      const saved = await setName(user.id, clean)
+      await setCachedName(user.id, saved) // пикер входа/кэш — сразу новое имя
+      onRenamed?.(saved)                  // шапка + localStorage профиля
+      setNameEditing(false)
+      showToast({ emoji: '✏️', title: 'Имя обновлено' })
+      // Имя в Ленте/лидерборде приходит join'ом с сервера — освежим на pull.
+      if (navigator.onLine) syncNow(user.id)
+    } catch (e) {
+      setNameErr(e instanceof LoginError ? e.message : 'Не удалось сменить имя.')
+    } finally {
+      setNameBusy(false)
+    }
+  }
+
+  // ── Удалить мои данные (фаза 2c, soft-delete) ───────────────────────────
+  const [delArm, setDelArm] = useState(false)
+  const [delBusy, setDelBusy] = useState(false)
+  async function confirmDelete() {
+    setDelBusy(true)
+    try {
+      const n = await softDeleteMyWorkouts(user.id)
+      setDelArm(false)
+      showToast({
+        emoji: '🗑',
+        title: 'Данные удалены',
+        sub: n ? `Помечено тренировок: ${n}` : 'Удалять было нечего.',
+      })
+      if (navigator.onLine) syncNow(user.id) // отправить удаления на сервер
+    } catch (e) {
+      showToast({ emoji: '⚠️', title: 'Не удалось удалить', sub: String(e?.message ?? e) })
+    } finally {
+      setDelBusy(false)
+    }
+  }
+
   const goalEx = goal?.exerciseId
     ? records.find((r) => r.exId === goal.exerciseId)
     : null
@@ -146,8 +195,32 @@ export default function ProfileScreen({ user, onLogout, onOpenProgress, onOpenFe
           <span className="avatar-cam" aria-hidden="true">{avBusy ? '…' : '📷'}</span>
           <input type="file" accept="image/*" onChange={onPickAvatar} disabled={avBusy} hidden />
         </label>
-        <div>
-          <div className="prof-name">{user.name}</div>
+        <div className="prof-id">
+          {nameEditing ? (
+            <div className="name-editor">
+              <input
+                className="name-input"
+                type="text"
+                maxLength={40}
+                value={nameVal}
+                onChange={(e) => setNameVal(e.target.value)}
+                aria-label="Новое имя"
+                autoFocus
+              />
+              {nameErr && <p className="name-err" role="alert">{nameErr}</p>}
+              <div className="name-editor-actions">
+                <button className="btn ghost" onClick={() => setNameEditing(false)} disabled={nameBusy}>Отмена</button>
+                <button className="btn primary" onClick={saveName} disabled={nameBusy}>
+                  {nameBusy ? 'Сохраняю…' : 'Сохранить'}
+                </button>
+              </div>
+            </div>
+          ) : (
+            <div className="prof-name">
+              <span className="txt">{user.name}</span>
+              <button className="name-edit" onClick={openName} aria-label="Изменить имя">✎</button>
+            </div>
+          )}
           {user.role === 'admin' && <span className="role-badge">админ</span>}
         </div>
       </div>
@@ -356,7 +429,23 @@ export default function ProfileScreen({ user, onLogout, onOpenProgress, onOpenFe
           ) : (
             <button className="act" onClick={() => setPinOpen(true)}>🔑 Сменить PIN</button>
           )}
-          <button className="act soon" disabled>⬇️ Экспорт моих данных <span className="tag">фаза 2c</span></button>
+          <button className="act soon" disabled>⬇️ Экспорт моих данных <span className="tag">скоро</span></button>
+          {delArm ? (
+            <div className="danger-confirm">
+              <p className="danger-text">
+                Удалить все свои тренировки? Восстановить можно только из бэкапа сервера.
+                Учётная запись, цель и шаблоны останутся.
+              </p>
+              <div className="danger-actions">
+                <button className="btn ghost" onClick={() => setDelArm(false)} disabled={delBusy}>Отмена</button>
+                <button className="btn danger" onClick={confirmDelete} disabled={delBusy}>
+                  {delBusy ? 'Удаляю…' : 'Да, удалить'}
+                </button>
+              </div>
+            </div>
+          ) : (
+            <button className="act danger" onClick={() => setDelArm(true)}>🗑 Удалить мои данные</button>
+          )}
           <button className="act logout" onClick={onLogout}>Выйти</button>
         </div>
       </section>

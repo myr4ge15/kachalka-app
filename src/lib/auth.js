@@ -17,7 +17,7 @@
 import { supabase } from '../db/supabase.js'
 import { getMeta, setMeta } from '../db/local.js'
 import { verifyPin } from './hash.js'
-import { DB_TIMEOUT_MS } from './withTimeout.js'
+import { DB_TIMEOUT_MS, withTimeout } from './withTimeout.js'
 
 // fetch с жёстким таймаутом через AbortController: подвисшая сеть (корпоративный
 // прокси/фаервол «держит» соединение, не отклоняя его) иначе вешала вход на
@@ -172,6 +172,36 @@ export async function setPin(userId, currentPin, newPin) {
   })
   sessionPin = newPin
   return true
+}
+
+// Смена своего имени (PLAN-cabinet-2c). Требует ОНЛАЙН и валидную сессию: пишем
+// users.name через SECURITY DEFINER set_my_name (скоуп app_uid() из JWT —
+// клиентского UPDATE на users нет). На успех обновляем имя в офлайн-кэше
+// (meta pin_${id}), чтобы экран входа офлайн показывал новое имя. Возвращает
+// очищенное имя; ошибки — LoginError ('network' | 'invalid' | 'server').
+export async function setName(userId, name) {
+  const clean = String(name ?? '').trim()
+  if (clean.length < 1 || clean.length > 40) {
+    throw new LoginError('invalid', 'Имя — от 1 до 40 символов.')
+  }
+  if (!navigator.onLine) {
+    throw new LoginError('network', 'Смена имени — только онлайн.')
+  }
+  let res
+  try {
+    res = await withTimeout(supabase.rpc('set_my_name', { p_name: clean }))
+  } catch (e) {
+    throw new LoginError('network', 'Нет сети — попробуй позже.')
+  }
+  if (res.error) {
+    // 42501 — нет сессии/не владелец; иначе общий серверный отказ (вкл. «RPC
+    // ещё не задеплоен»: set_my_name не существует → message с 'function'/'schema').
+    throw new LoginError('server', res.error.message ?? 'Не удалось сменить имя.')
+  }
+  // Обновляем имя в офлайн-кэше своего профиля (хэш/соль/роль сохраняем).
+  const cached = (await getMeta(pinCacheKey(userId))) ?? {}
+  await setMeta(pinCacheKey(userId), { ...cached, name: clean })
+  return clean
 }
 
 // Молчаливый перевыпуск сессии (сеть появилась, UI уже открыт офлайн).

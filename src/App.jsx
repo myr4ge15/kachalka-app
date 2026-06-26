@@ -128,6 +128,17 @@ export default function App() {
     setTab('history')
   }
 
+  // Имя сменили в ЛК — обновляем профиль в стейте и localStorage, чтобы шапка
+  // и инициал-аватар сразу показали новое имя и оно пережило перезапуск.
+  function handleRenamed(name) {
+    setUser((u) => {
+      if (!u) return u
+      const next = { ...u, name }
+      localStorage.setItem(SESSION_KEY, JSON.stringify(next))
+      return next
+    })
+  }
+
   async function handleLogout() {
     await authLogout()
     localStorage.removeItem(SESSION_KEY)
@@ -189,6 +200,7 @@ export default function App() {
               onLogout={handleLogout}
               onOpenProgress={openProgressFor}
               onOpenFeed={() => goTab('feed')}
+              onRenamed={handleRenamed}
             />
           )}
         </Suspense>

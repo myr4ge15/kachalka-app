@@ -658,7 +658,6 @@ img.avatar-lg.has-img {
   font-weight: 800; font-size: 26px; color: var(--green);
   background: var(--surface-2); border: 1px solid var(--green);
 }
-.prof-name { font-size: 23px; font-weight: 800; line-height: 1.15; }
 .role-badge {
   display: inline-block; margin-top: 7px; font-size: 11px; font-weight: 700;
   letter-spacing: .05em; text-transform: uppercase; color: var(--yellow);
@@ -782,6 +781,39 @@ img.avatar-lg.has-img {
 .pin-err { margin: 0; color: var(--red); font-size: 13px; font-weight: 600; }
 .pin-form-actions { display: flex; gap: 10px; margin-top: 2px; }
 .pin-form-actions .btn { flex: 1; margin-top: 0; }
+
+/* инлайн-редактор имени в шапке профиля (ЛК 2c) */
+.prof-id { min-width: 0; flex: 1; }
+.prof-name { font-size: 23px; font-weight: 800; line-height: 1.15; display: flex; align-items: center; gap: 8px; min-width: 0; }
+.prof-name .txt { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.name-edit {
+  flex-shrink: 0; background: none; border: none; color: var(--muted);
+  font-size: 16px; line-height: 1; padding: 4px; min-height: 32px; min-width: 32px;
+}
+.name-edit:active { color: var(--green); }
+.name-editor { display: flex; flex-direction: column; gap: 8px; }
+.name-input {
+  width: 100%; box-sizing: border-box; background: var(--bg);
+  border: 1px solid var(--border); border-radius: 10px; padding: 10px 12px;
+  color: var(--text); font-size: 18px; font-weight: 700; min-height: 44px;
+}
+.name-input:focus { outline: none; border-color: var(--green); }
+.name-err { margin: 0; color: var(--red); font-size: 13px; font-weight: 600; }
+.name-editor-actions { display: flex; gap: 10px; }
+.name-editor-actions .btn { flex: 1; margin-top: 0; }
+
+/* опасная зона: удаление своих данных (ЛК 2c, soft-delete) */
+.act.danger { color: #fca5a5; border-color: rgba(239,68,68,.4); background: rgba(239,68,68,.08); font-weight: 700; }
+.act.danger:active { background: rgba(239,68,68,.16); }
+.danger-confirm {
+  background: rgba(239,68,68,.08); border: 1px solid var(--red); border-radius: 13px;
+  padding: 14px; display: flex; flex-direction: column; gap: 12px;
+}
+.danger-text { margin: 0; font-size: 13px; color: #fca5a5; line-height: 1.5; }
+.danger-actions { display: flex; gap: 10px; }
+.danger-actions .btn { flex: 1; margin-top: 0; }
+.btn.danger { background: var(--red); color: #fff; }
+.btn.danger:disabled { background: var(--surface-2); color: var(--muted); }
 
 /* редактор аватара в шапке профиля (ЛК 2c) */
 .avatar-edit { position: relative; display: inline-flex; flex-shrink: 0; cursor: pointer; }
