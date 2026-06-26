@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react'
 import { supabase } from '../db/supabase.js'
 import { getUsers, cacheUsers } from '../db/repo.js'
 import { login as authLogin, verifyPinOffline, LoginError } from '../lib/auth.js'
+import { withTimeout } from '../lib/withTimeout.js'
 
 export default function LoginScreen({ onLogin }) {
   const [users, setUsers] = useState([])
@@ -24,10 +25,15 @@ export default function LoginScreen({ onLogin }) {
         setLoading(false)
       }
       try {
-        const { data, error } = await supabase
-          .from('login_users')
-          .select('id, name, avatar_url')
-          .order('name')
+        // withTimeout: подвисшая сеть иначе держала экран на «Загрузка…» ~минуту
+        // (запрос без таймаута). При наличии кэша список уже показан выше —
+        // обновление просто тихо отвалится по таймауту.
+        const { data, error } = await withTimeout(
+          supabase
+            .from('login_users')
+            .select('id, name, avatar_url')
+            .order('name')
+        )
         if (error) throw error
         if (data) {
           await cacheUsers(data)

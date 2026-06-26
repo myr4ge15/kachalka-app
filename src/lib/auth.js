@@ -17,6 +17,21 @@
 import { supabase } from '../db/supabase.js'
 import { getMeta, setMeta } from '../db/local.js'
 import { verifyPin } from './hash.js'
+import { DB_TIMEOUT_MS } from './withTimeout.js'
+
+// fetch с жёстким таймаутом через AbortController: подвисшая сеть (корпоративный
+// прокси/фаервол «держит» соединение, не отклоняя его) иначе вешала вход на
+// минуту+. По истечении DB_TIMEOUT_MS запрос прерывается → fetch бросает →
+// вызов мапит это в LoginError('network'), а не крутит спиннер бесконечно.
+async function fetchWithTimeout(url, opts, ms = DB_TIMEOUT_MS) {
+  const ctrl = new AbortController()
+  const t = setTimeout(() => ctrl.abort(), ms)
+  try {
+    return await fetch(url, { ...opts, signal: ctrl.signal })
+  } finally {
+    clearTimeout(t)
+  }
+}
 
 const FN_URL = (import.meta.env.VITE_SUPABASE_URL ?? '') + '/functions/v1/auth-login'
 const SET_PIN_URL = (import.meta.env.VITE_SUPABASE_URL ?? '') + '/functions/v1/auth-set-pin'
@@ -42,7 +57,7 @@ export class LoginError extends Error {
 export async function login(userId, pin) {
   let res
   try {
-    res = await fetch(FN_URL, {
+    res = await fetchWithTimeout(FN_URL, {
       method: 'POST',
       headers: {
         'content-type': 'application/json',
@@ -116,7 +131,7 @@ export async function setPin(userId, currentPin, newPin) {
 
   let res
   try {
-    res = await fetch(SET_PIN_URL, {
+    res = await fetchWithTimeout(SET_PIN_URL, {
       method: 'POST',
       headers: {
         'content-type': 'application/json',
