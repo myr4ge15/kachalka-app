@@ -299,6 +299,7 @@ function UsersSection({ meId, online, errMsg }) {
   const [addName, setAddName] = useState('')
   const [addRole, setAddRole] = useState('member')
   const [addPin, setAddPin] = useState('')
+  const [addPrivate, setAddPrivate] = useState(false)
   const [addBusy, setAddBusy] = useState(false)
 
   const onlyDigits = (s) => s.replace(/\D/g, '').slice(0, 4)
@@ -352,8 +353,11 @@ function UsersSection({ meId, online, errMsg }) {
     setAddBusy(true)
     try {
       const u = await adminCreateUser(addName, addRole, addPin)
+      // Приватность ставим отдельным шагом (создание идёт через Edge Function,
+      // флаг — через RPC admin_set_private), чтобы не трогать серверную функцию.
+      if (addPrivate) await adminSetPrivate(u.id, true)
       showToast({ emoji: '🎉', title: 'Участник добавлен', sub: `${u.name} может входить PIN ${addPin}.` })
-      setAddOpen(false); setAddName(''); setAddRole('member'); setAddPin('')
+      setAddOpen(false); setAddName(''); setAddRole('member'); setAddPin(''); setAddPrivate(false)
       reload()
     } catch (e) {
       showToast({ emoji: '⚠️', title: 'Не удалось', sub: errMsg(e) })
@@ -444,6 +448,11 @@ function UsersSection({ meId, online, errMsg }) {
             <span className="field-lab">Стартовый PIN (4 цифры)</span>
             <input className="pin-input" type="text" inputMode="numeric" placeholder="••••"
               value={addPin} onChange={(e) => setAddPin(onlyDigits(e.target.value))} />
+          </label>
+          <label className="admin-check">
+            <input type="checkbox" checked={addPrivate}
+              onChange={(e) => setAddPrivate(e.target.checked)} />
+            <span>Приватный (виден только себе и админу) 🔒</span>
           </label>
           <div className="admin-ex-actions">
             <button className="btn ghost" onClick={() => setAddOpen(false)} disabled={addBusy}>Отмена</button>

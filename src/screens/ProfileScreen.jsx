@@ -493,7 +493,6 @@ export default function ProfileScreen({ user, onLogout, onOpenProgress, onOpenFe
           {user.role === 'admin' && (
             <button className="act" onClick={() => onOpenAdmin?.()}>🛠 Админка</button>
           )}
-          <button className="act soon" disabled>⬇️ Экспорт моих данных <span className="tag">скоро</span></button>
           {delArm ? (
             <div className="danger-confirm">
               <p className="danger-text">
