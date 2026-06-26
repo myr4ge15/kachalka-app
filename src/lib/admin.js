@@ -58,8 +58,20 @@ export async function adminListUsers() {
     id: u.id,
     name: u.name,
     role: u.role,
+    is_private: Boolean(u.is_private),
     created_at: u.created_at,
   }))
+}
+
+// Включить/выключить приватный режим участника: его результаты (лента,
+// лидерборд, цели) видит только он сам и админ, а сам он видит только свои.
+// RPC с серверным гейтом is_admin().
+export async function adminSetPrivate(id, isPrivate) {
+  const res = await withTimeout(
+    supabase.rpc('admin_set_private', { p_id: id, p_private: Boolean(isPrivate) })
+  )
+  if (res.error) throw new AdminError(humanRpc(res.error.message))
+  return { id, is_private: Boolean(isPrivate) }
 }
 
 // Сменить имя/роль участника. Сервер бережёт последнего админа от разжалования.

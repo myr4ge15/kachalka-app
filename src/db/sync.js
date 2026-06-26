@@ -156,6 +156,14 @@ async function pull(userId) {
     })
   }
 
+  // свой флаг приватности (для UI: у приватного прячем блок лидерборда и место в
+  // профиле). Колонка is_private клиентам не грантится → берём через RPC
+  // my_is_private (DEFINER). Не критично для синка — ошибку только проглатываем.
+  try {
+    const pv = await withTimeout(supabase.rpc('my_is_private'))
+    if (!pv.error) await setMeta(`priv_${userId}`, Boolean(pv.data))
+  } catch { /* офлайн/старый сервер — оставляем прежнее значение флага */ }
+
   // тренировки пользователя
   const wk = await withTimeout(
     supabase

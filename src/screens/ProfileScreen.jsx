@@ -4,6 +4,7 @@ import { getWorkouts, getCachedUser, setCachedAvatar, setCachedName, softDeleteM
 import { readGoals, writeGoals } from '../db/notifications.js'
 import { syncNow } from '../db/sync.js'
 import { getCachedLeaderboard } from '../db/leaderboard.js'
+import { getMeta } from '../db/local.js'
 import { summarize, currentBest, goalProgress } from '../lib/profileStats.js'
 import { setPin, setName, LoginError } from '../lib/auth.js'
 import { uploadMyAvatar } from '../lib/avatar.js'
@@ -29,13 +30,16 @@ export default function ProfileScreen({ user, onLogout, onOpenProgress, onOpenFe
   const [place, setPlace] = useState(null)
   useEffect(() => {
     let alive = true
-    getCachedLeaderboard()
-      .then((board) => {
+    ;(async () => {
+      // Приватный в рейтинге не участвует — место не показываем.
+      if (await getMeta(`priv_${user.id}`)) { if (alive) setPlace(null); return }
+      try {
+        const board = await getCachedLeaderboard()
         if (!alive) return
         const idx = board.findIndex((r) => r.user_id === user.id)
         setPlace(idx >= 0 ? idx + 1 : null)
-      })
-      .catch(() => { if (alive) setPlace(null) })
+      } catch { if (alive) setPlace(null) }
+    })()
     return () => { alive = false }
     // Место в борде зависит от кэша лидерборда/ленты, а не от своих тренировок,
     // поэтому workouts в зависимостях не нужен (он лишь плодил лишние чтения).

@@ -2,6 +2,7 @@ import { useEffect, useMemo, useState } from 'react'
 import { useLiveQuery } from 'dexie-react-hooks'
 import { getCachedLeaderboard, fetchLeaderboard } from '../db/leaderboard.js'
 import { getUsers } from '../db/repo.js'
+import { getMeta } from '../db/local.js'
 import { onOnline, onResume } from '../lib/appEvents.js'
 import Avatar from './../components/Avatar.jsx'
 
@@ -15,6 +16,9 @@ function place(i) {
 // максимальному весу каждого участника, расчётный 1ПМ показан сноской («кто в
 // теории может выжать больше»). Самодостаточен — сам тянет и кэширует данные.
 export default function Leaderboard({ user }) {
+  // Приватный пользователь не участвует в рейтинге — блок прячем целиком (флаг
+  // кэшируется на pull в meta `priv_${id}`, см. sync.js / my_is_private).
+  const myPrivate = useLiveQuery(() => getMeta(`priv_${user.id}`), [user.id], false)
   const board = useLiveQuery(() => getCachedLeaderboard(), [], undefined)
   const users = useLiveQuery(() => getUsers(), [], [])
   const avatarById = useMemo(() => {
@@ -46,6 +50,9 @@ export default function Leaderboard({ user }) {
     const off2 = onOnline(refresh)
     return () => { off1(); off2() }
   }, [])
+
+  // Приватный — рейтинг не показываем вовсе.
+  if (myPrivate) return null
 
   // Пока читаем кэш — ничего не мигаем.
   if (loading) return null

@@ -4,7 +4,7 @@ import { getAllExercisesForAdmin } from '../db/repo.js'
 import { useSyncStatus } from '../db/sync.js'
 import { findExactDuplicate } from '../lib/similar.js'
 import {
-  adminListUsers, adminSetUser, adminResetPin, adminCreateUser,
+  adminListUsers, adminSetUser, adminSetPrivate, adminResetPin, adminCreateUser,
   adminUpdateExercise, adminMergeExercise, AdminError,
 } from '../lib/admin.js'
 import { showToast } from '../components/Toast.jsx'
@@ -286,6 +286,7 @@ function UsersSection({ meId, online, errMsg }) {
   const [edId, setEdId] = useState(null)
   const [edName, setEdName] = useState('')
   const [edRole, setEdRole] = useState('member')
+  const [edPrivate, setEdPrivate] = useState(false)
   const [edBusy, setEdBusy] = useState(false)
 
   // сброс PIN
@@ -314,13 +315,17 @@ function UsersSection({ meId, online, errMsg }) {
   }
   useEffect(() => { if (online) reload(); else setUsers([]) /* офлайн — без RPC */ }, [online])
 
-  function openEdit(u) { setEdId(u.id); setEdName(u.name ?? ''); setEdRole(u.role ?? 'member') }
+  function openEdit(u) {
+    setEdId(u.id); setEdName(u.name ?? ''); setEdRole(u.role ?? 'member')
+    setEdPrivate(Boolean(u.is_private))
+  }
   function closeEdit() { setEdId(null); setEdBusy(false) }
 
   async function saveUser() {
     setEdBusy(true)
     try {
       await adminSetUser(edId, edName, edRole)
+      await adminSetPrivate(edId, edPrivate)
       showToast({ emoji: '✅', title: 'Участник обновлён' })
       closeEdit()
       reload()
@@ -379,6 +384,11 @@ function UsersSection({ meId, online, errMsg }) {
                     <option value="admin">админ</option>
                   </select>
                 </label>
+                <label className="admin-check">
+                  <input type="checkbox" checked={edPrivate}
+                    onChange={(e) => setEdPrivate(e.target.checked)} />
+                  <span>Приватный (виден только себе и админу) 🔒</span>
+                </label>
                 <div className="admin-ex-actions">
                   <button className="btn ghost" onClick={closeEdit} disabled={edBusy}>Отмена</button>
                   <button className="btn primary" onClick={saveUser} disabled={edBusy || !online}>
@@ -393,7 +403,10 @@ function UsersSection({ meId, online, errMsg }) {
                     {u.name}
                     {u.id === meId && <span className="admin-you">вы</span>}
                   </span>
-                  <span className="admin-ex-meta">{u.role === 'admin' ? 'админ' : 'участник'}</span>
+                  <span className="admin-ex-meta">
+                    {u.role === 'admin' ? 'админ' : 'участник'}
+                    {u.is_private ? ' · 🔒 приватный' : ''}
+                  </span>
                 </div>
                 <div className="admin-ex-btns">
                   <button className="admin-mini" onClick={() => openEdit(u)} disabled={!online} aria-label="Изменить">✎</button>
