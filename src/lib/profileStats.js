@@ -6,8 +6,8 @@
 // поэтому всё тестируется в node.
 //
 // Разграничение с «Прогрессом»: тут только КРОСС-упражненческие цифры «обо мне
-// в целом» (всего тренировок, стрик недель, за месяц) и витрина рекордов по
-// ВСЕМ упражнениям сразу. Пер-упражненческая динамика во времени — в «Прогрессе».
+// в целом» (всего тренировок, за месяц) и витрина рекордов по ВСЕМ упражнениям
+// сразу. Пер-упражненческая динамика во времени — в «Прогрессе».
 //
 // Рекорд = максимальный ФАКТИЧЕСКИЙ вес (как в ленте/лидерборде/уведомлениях) —
 // переиспользуем myBestByExercise/bestWeight из records.js, формулу не дублируем.
@@ -15,44 +15,6 @@
 import { myBestByExercise, bestWeight } from './records.js'
 
 const entryExId = (e) => e.exercise_id ?? e.exercise?.id ?? null
-
-// Понедельник недели (локально), как объект Date на 00:00.
-function mondayOf(date) {
-  const d = new Date(date)
-  d.setHours(0, 0, 0, 0)
-  const dow = (d.getDay() + 6) % 7 // Пн=0 … Вс=6
-  d.setDate(d.getDate() - dow)
-  return d
-}
-
-// YYYY-MM-DD по ЛОКАЛЬНЫМ компонентам (без сдвига часового пояса toISOString).
-function localYmd(d) {
-  const y = d.getFullYear()
-  const m = String(d.getMonth() + 1).padStart(2, '0')
-  const day = String(d.getDate()).padStart(2, '0')
-  return `${y}-${m}-${day}`
-}
-
-// Сколько недель подряд (по ISO-неделям, Пн–Вс) была ≥1 тренировка, считая до
-// сегодня. Грейс на текущую неделю: если на этой неделе ещё не тренировался,
-// стартуем с прошлой — стрик «жив», пока ходил на прошлой неделе. Первый пропуск
-// обрывает счёт.
-export function weeklyStreak(workouts) {
-  const weeks = new Set()
-  for (const w of workouts ?? []) {
-    if (!w.performed_at) continue
-    weeks.add(localYmd(mondayOf(new Date(w.performed_at))))
-  }
-  if (weeks.size === 0) return 0
-  let cur = mondayOf(new Date())
-  if (!weeks.has(localYmd(cur))) cur.setDate(cur.getDate() - 7) // грейс на текущую неделю
-  let streak = 0
-  while (weeks.has(localYmd(cur))) {
-    streak++
-    cur.setDate(cur.getDate() - 7)
-  }
-  return streak
-}
 
 // Число тренировок в текущем КАЛЕНДАРНОМ месяце (по дате тренировки).
 export function workoutsThisMonth(workouts) {
@@ -124,7 +86,6 @@ export function summarize(workouts) {
   return {
     totalWorkouts: list.length,
     workoutsThisMonth: workoutsThisMonth(list),
-    weeklyStreak: weeklyStreak(list),
     personalRecords: personalRecords(list),
     favExercise: favExercise(list),
   }

@@ -667,7 +667,7 @@ img.avatar-lg.has-img {
 }
 
 /* сетка цифр */
-.profile .stat-grid { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 10px; margin-bottom: 18px; }
+.profile .stat-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-bottom: 18px; }
 .profile .stat-cell {
   background: var(--surface); border: 1px solid var(--border); border-radius: 14px;
   padding: 14px 8px; text-align: center;

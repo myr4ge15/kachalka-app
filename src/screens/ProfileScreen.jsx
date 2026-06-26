@@ -156,7 +156,7 @@ export default function ProfileScreen({ user, onLogout, onOpenProgress, onOpenFe
 
       {!loading && summary.totalWorkouts === 0 && (
         <p className="muted empty">
-          Здесь будет твоя сводка: рекорды, стрик и цель. Запиши первую тренировку 💪
+          Здесь будет твоя сводка: рекорды и цель. Запиши первую тренировку 💪
         </p>
       )}
 
@@ -167,12 +167,6 @@ export default function ProfileScreen({ user, onLogout, onOpenProgress, onOpenFe
             <div className="stat-cell">
               <div className="stat-num">{summary.totalWorkouts}</div>
               <div className="stat-lab">тренировок<br />всего</div>
-            </div>
-            <div className="stat-cell">
-              <div className="stat-num">
-                {summary.weeklyStreak}<span className="u"> нед</span>
-              </div>
-              <div className="stat-lab">подряд<br />в зале</div>
             </div>
             <div className="stat-cell">
               <div className="stat-num">{summary.workoutsThisMonth}</div>
