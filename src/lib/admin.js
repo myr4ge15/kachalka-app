@@ -59,8 +59,18 @@ export async function adminListUsers() {
     name: u.name,
     role: u.role,
     is_private: Boolean(u.is_private),
+    sort_order: u.sort_order ?? null,
     created_at: u.created_at,
   }))
+}
+
+// Задать порядок учёток на экране входа (drag-and-drop в админке). ids — полный
+// список id в нужном порядке; позиция в массиве = sort_order. RPC с is_admin().
+export async function adminSetUserOrder(ids) {
+  if (!Array.isArray(ids) || ids.length === 0) throw new AdminError('Пустой список.')
+  const res = await withTimeout(supabase.rpc('admin_set_user_order', { p_ids: ids }))
+  if (res.error) throw new AdminError(humanRpc(res.error.message))
+  return true
 }
 
 // Включить/выключить приватный режим участника: его результаты (лента,

@@ -31,8 +31,9 @@ export default function LoginScreen({ onLogin }) {
         const { data, error } = await withTimeout(
           supabase
             .from('login_users')
-            .select('id, name, avatar_url')
-            .order('name')
+            .select('id, name, avatar_url, sort_order')
+            .order('sort_order', { nullsFirst: false })
+            .order('id')
         )
         if (error) throw error
         if (data) {

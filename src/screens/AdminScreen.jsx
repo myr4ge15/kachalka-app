@@ -1,11 +1,11 @@
-import { useEffect, useMemo, useState } from 'react'
+import { useEffect, useMemo, useRef, useState } from 'react'
 import { useLiveQuery } from 'dexie-react-hooks'
 import { getAllExercisesForAdmin } from '../db/repo.js'
 import { useSyncStatus } from '../db/sync.js'
 import { findExactDuplicate } from '../lib/similar.js'
 import {
   adminListUsers, adminSetUser, adminSetPrivate, adminResetPin, adminCreateUser,
-  adminUpdateExercise, adminMergeExercise, AdminError,
+  adminSetUserOrder, adminUpdateExercise, adminMergeExercise, AdminError,
 } from '../lib/admin.js'
 import { showToast } from '../components/Toast.jsx'
 
@@ -294,6 +294,9 @@ function UsersSection({ meId, online, errMsg }) {
   const [pinBusy, setPinBusy] = useState(false)
   const [shownPin, setShownPin] = useState(null) // { id, pin }
 
+  // порядок учёток на экране входа (drag-and-drop)
+  const [reorder, setReorder] = useState(false)
+
   // добавить участника
   const [addOpen, setAddOpen] = useState(false)
   const [addName, setAddName] = useState('')
@@ -371,6 +374,21 @@ function UsersSection({ meId, online, errMsg }) {
       {loadErr && <p className="admin-offline" role="alert">{loadErr}</p>}
       {users === null && <p className="muted">Загрузка…</p>}
 
+      {reorder ? (
+        <UserReorderList
+          users={users ?? []}
+          meId={meId}
+          onCancel={() => setReorder(false)}
+          onSave={async (ids) => {
+            await adminSetUserOrder(ids)
+            showToast({ emoji: '↕️', title: 'Порядок сохранён', sub: 'Так учётки идут на экране входа.' })
+            setReorder(false)
+            reload()
+          }}
+          errMsg={errMsg}
+        />
+      ) : (
+      <>
       <ul className="admin-list">
         {(users ?? []).map((u) => (
           <li key={u.id} className="admin-user">
@@ -467,6 +485,103 @@ function UsersSection({ meId, online, errMsg }) {
           + Добавить участника
         </button>
       )}
+
+      {(users?.length ?? 0) > 1 && (
+        <button className="admin-add-link" onClick={() => setReorder(true)} disabled={!online}>
+          ↕️ Порядок на экране входа
+        </button>
+      )}
+      </>
+      )}
     </section>
   )
+}
+
+// Перетаскивание учёток для задания порядка на экране входа. Pointer Events
+// (работает на тач-экранах: setPointerCapture + touch-action:none на ручке).
+// Порядок мутируется локально при перетаскивании, на сервер уходит одним RPC.
+function UserReorderList({ users, meId, onCancel, onSave, errMsg }) {
+  const [order, setOrder] = useState(users)
+  const [dragId, setDragId] = useState(null)
+  const [busy, setBusy] = useState(false)
+  const orderRef = useRef(order)
+  const rowEls = useRef({})
+  useEffect(() => { orderRef.current = order }, [order])
+
+  function startDrag(e, id) {
+    try { e.currentTarget.setPointerCapture(e.pointerId) } catch { /* нет capture — ок */ }
+    setDragId(id)
+  }
+  function onMove(e) {
+    if (dragId == null) return
+    const y = e.clientY
+    const cur = orderRef.current
+    let target = cur.length - 1
+    for (let i = 0; i < cur.length; i++) {
+      const el = rowEls.current[cur[i].id]
+      if (!el) continue
+      const r = el.getBoundingClientRect()
+      if (y < r.top + r.height / 2) { target = i; break }
+    }
+    const from = cur.findIndex((u) => u.id === dragId)
+    if (from !== -1 && from !== target) setOrder(moveItem(cur, from, target))
+  }
+  function endDrag(e) {
+    try { e.currentTarget.releasePointerCapture(e.pointerId) } catch { /* ок */ }
+    setDragId(null)
+  }
+
+  const changed = order.some((u, i) => u.id !== users[i]?.id)
+
+  async function save() {
+    setBusy(true)
+    try {
+      await onSave(order.map((u) => u.id))
+    } catch (e) {
+      setBusy(false)
+      showToast({ emoji: '⚠️', title: 'Не удалось', sub: errMsg(e) })
+    }
+  }
+
+  return (
+    <div className="user-reorder">
+      <p className="admin-hint">Перетащи за ☰, чтобы задать порядок учёток на экране входа.</p>
+      <ul className="admin-list reorder">
+        {order.map((u) => (
+          <li
+            key={u.id}
+            ref={(el) => { rowEls.current[u.id] = el }}
+            className={'admin-user reorder-row' + (dragId === u.id ? ' dragging' : '')}
+          >
+            <span
+              className="user-drag-handle"
+              onPointerDown={(e) => startDrag(e, u.id)}
+              onPointerMove={onMove}
+              onPointerUp={endDrag}
+              onPointerCancel={endDrag}
+              role="button"
+              aria-label={`Перетащить ${u.name}`}
+            >☰</span>
+            <span className="admin-ex-name">
+              {u.name}
+              {u.id === meId && <span className="admin-you">вы</span>}
+            </span>
+          </li>
+        ))}
+      </ul>
+      <div className="admin-ex-actions">
+        <button className="btn ghost" onClick={onCancel} disabled={busy}>Отмена</button>
+        <button className="btn primary" onClick={save} disabled={busy || !changed}>
+          {busy ? 'Сохраняю…' : 'Сохранить порядок'}
+        </button>
+      </div>
+    </div>
+  )
+}
+
+function moveItem(arr, from, to) {
+  const a = [...arr]
+  const [x] = a.splice(from, 1)
+  a.splice(to, 0, x)
+  return a
 }

@@ -147,7 +147,7 @@ async function pull(userId) {
   // пользователи (имена для пикера входа). Тянем из view login_users — только
   // id и name, без pin_hash/pin_salt/role: хэши больше не отдаются клиентам
   // (сверка PIN — в auth-login онлайн или по своему кэшу офлайн, см. lib/auth.js).
-  const us = await withTimeout(supabase.from('login_users').select('id, name, avatar_url'))
+  const us = await withTimeout(supabase.from('login_users').select('id, name, avatar_url, sort_order'))
   if (us.error) warnings.push('пользователи: ' + (us.error.message ?? us.error))
   else if (us.data) {
     await db.transaction('rw', db.users, async () => {

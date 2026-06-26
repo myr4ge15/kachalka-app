@@ -19,6 +19,7 @@
 import { db, newId, nowIso } from './local.js'
 import { normalizeName } from '../lib/similar.js'
 import { cmpIsoDesc } from '../lib/cmp.js'
+import { sortUsersByOrder } from '../lib/userOrder.js'
 
 // ----------------------------- Чтение --------------------------------------
 
@@ -109,7 +110,8 @@ export async function createExercise({ name, muscle_group }) {
 // отдельному кэшу своего хэша в meta, см. src/lib/auth.js).
 export async function getUsers() {
   const list = await db.users.toArray()
-  return list.sort((a, b) => String(a.name).localeCompare(String(b.name)))
+  // Порядок входа: по sort_order (задаёт админ), учётки без порядка — в конец.
+  return sortUsersByOrder(list)
 }
 
 // Сохранить список пользователей в кэш (вызывает экран входа, пока синк не запущен).

@@ -985,3 +985,16 @@ img.avatar-lg.has-img {
   border-radius: 12px; color: var(--muted); font-size: 14px; font-weight: 600; padding: 12px; min-height: 46px;
 }
 .admin-add-link:disabled { opacity: .45; }
+
+/* Порядок учёток на входе (drag-and-drop) */
+.user-reorder { margin-top: 6px; }
+.admin-list.reorder { margin-top: 8px; }
+.reorder-row { display: flex; align-items: center; gap: 12px; }
+.reorder-row.dragging { background: var(--surface); border-color: var(--green); opacity: .9; }
+.user-drag-handle {
+  display: inline-flex; align-items: center; justify-content: center;
+  min-width: 44px; min-height: 44px; margin: -8px 0; flex: 0 0 auto;
+  color: var(--muted); font-size: 20px; cursor: grab; user-select: none;
+  touch-action: none; /* не скроллить экран при перетаскивании пальцем */
+}
+.user-drag-handle:active { cursor: grabbing; }
