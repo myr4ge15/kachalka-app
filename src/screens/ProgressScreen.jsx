@@ -216,7 +216,7 @@ export default function ProgressScreen({ user, initialExerciseId = null }) {
       <h2 className="screen-title">Прогресс</h2>
       <p className="muted sub">
         {weighted
-          ? 'Рабочий вес по дням — самый тяжёлый подход; 1ПМ показан вторично'
+          ? 'По дням — максимальный поднятый вес. 1ПМ (расчётный) — справочно'
           : 'Упражнение без веса — динамика по суммарным повторам'}
       </p>
 

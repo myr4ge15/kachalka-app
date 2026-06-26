@@ -665,6 +665,7 @@ input { font-family: inherit; }
 .goal { background: var(--surface); border: 1px solid var(--border); border-radius: 16px; padding: 15px; }
 .goal-top { display: flex; justify-content: space-between; align-items: baseline; gap: 10px; margin-bottom: 10px; font-size: 15px; }
 .goal-top .lbl b { font-weight: 800; }
+.goal-top .lbl b .u { font-size: 13px; color: var(--muted); font-weight: 600; }
 .goal-top .pct { color: var(--green); font-weight: 800; font-size: 16px; }
 .bar { height: 10px; border-radius: 999px; background: var(--surface-2); overflow: hidden; }
 .bar > i { display: block; height: 100%; border-radius: 999px; background: linear-gradient(90deg, var(--green-d), var(--green)); }
@@ -748,6 +749,11 @@ input { font-family: inherit; }
   justify-content: center; font-weight: 700;
 }
 .act.logout:active { background: rgba(239,68,68,.16); }
+
+.app-version {
+  margin: 18px 0 4px; text-align: center;
+  color: var(--muted); font-size: 12px; opacity: .7;
+}
 
 /* ---------- адаптив узких экранов (≤380px) ---------- */
 @media (max-width: 380px) {

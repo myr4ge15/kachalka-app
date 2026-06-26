@@ -288,12 +288,12 @@ export default function WorkoutScreen({ user, workoutId = null, onBack }) {
                   <span className="set-num">{si + 1}</span>
 
                   <div className="stepper">
-                    <button onClick={() => step(ei, si, 'weight', -2.5)}>−</button>
+                    <button onClick={() => step(ei, si, 'weight', -1.25)}>−</button>
                     <input
                       type="text" inputMode="decimal" value={s.weight}
                       onChange={(e) => updateSet(ei, si, 'weight', e.target.value.replace(',', '.'))}
                     />
-                    <button onClick={() => step(ei, si, 'weight', 2.5)}>+</button>
+                    <button onClick={() => step(ei, si, 'weight', 1.25)}>+</button>
                   </div>
 
                   <div className="stepper">

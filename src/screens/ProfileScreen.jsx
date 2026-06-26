@@ -179,7 +179,7 @@ export default function ProfileScreen({ user, onLogout, onOpenProgress, onOpenFe
                 <>
                   <div className="goal-top">
                     <span className="lbl">
-                      {goalEx?.name ?? goal.exerciseName} <b>{goal.targetWeight} кг</b>
+                      {goalEx?.name ?? goal.exerciseName} <b>{goal.targetWeight} <span className="u">кг</span></b>
                     </span>
                     <span className="pct">{goalPct}%</span>
                   </div>
