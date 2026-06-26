@@ -6,6 +6,8 @@ import { goalKey } from '../db/notifications.js'
 import { syncNow } from '../db/sync.js'
 import { getCachedLeaderboard } from '../db/leaderboard.js'
 import { summarize, currentBest, goalProgress } from '../lib/profileStats.js'
+import { setPin, LoginError } from '../lib/auth.js'
+import { showToast } from '../components/Toast.jsx'
 
 // Экран «Профиль» (ЛК). Всё про самого пользователя; пер-упражненческую
 // аналитику не дублируем — рекорды уводят в «Прогресс». Считаем на клиенте из
@@ -42,6 +44,39 @@ export default function ProfileScreen({ user, onLogout, onOpenProgress, onOpenFe
   const [editing, setEditing] = useState(false)
   const [edExId, setEdExId] = useState(null)
   const [edWeight, setEdWeight] = useState(100)
+
+  // ── Смена PIN (фаза 2c) ─────────────────────────────────────────────────
+  const [pinOpen, setPinOpen] = useState(false)
+  const [curPin, setCurPin] = useState('')
+  const [newPin, setNewPin] = useState('')
+  const [rptPin, setRptPin] = useState('')
+  const [pinErr, setPinErr] = useState('')
+  const [pinBusy, setPinBusy] = useState(false)
+
+  const onlyDigits = (s) => s.replace(/\D/g, '').slice(0, 4)
+
+  function resetPinForm() {
+    setCurPin(''); setNewPin(''); setRptPin(''); setPinErr(''); setPinBusy(false)
+  }
+  function closePinForm() { setPinOpen(false); resetPinForm() }
+
+  async function submitPin() {
+    setPinErr('')
+    if (curPin.length !== 4 || newPin.length !== 4 || rptPin.length !== 4) {
+      setPinErr('PIN — 4 цифры.'); return
+    }
+    if (newPin !== rptPin) { setPinErr('Новый PIN и повтор не совпадают.'); return }
+    if (newPin === curPin) { setPinErr('Новый PIN совпадает с текущим.'); return }
+    setPinBusy(true)
+    try {
+      await setPin(user.id, curPin, newPin)
+      closePinForm()
+      showToast({ emoji: '🔑', title: 'PIN обновлён', sub: 'Вход — уже новым PIN.' })
+    } catch (e) {
+      setPinBusy(false)
+      setPinErr(e instanceof LoginError ? e.message : 'Не удалось сменить PIN.')
+    }
+  }
 
   const goalEx = goal?.exerciseId
     ? records.find((r) => r.exId === goal.exerciseId)
@@ -262,7 +297,44 @@ export default function ProfileScreen({ user, onLogout, onOpenProgress, onOpenFe
       <section className="sec">
         <p className="sec-title">Настройки</p>
         <div className="actions">
-          <button className="act soon" disabled>🔑 Сменить PIN <span className="tag">фаза 2c</span></button>
+          {pinOpen ? (
+            <div className="pin-form">
+              <p className="pin-form-title">Смена PIN</p>
+              <label className="field">
+                <span className="field-lab">Текущий PIN</span>
+                <input
+                  className="pin-input" type="password" inputMode="numeric"
+                  autoComplete="current-password" placeholder="••••"
+                  value={curPin} onChange={(e) => setCurPin(onlyDigits(e.target.value))}
+                />
+              </label>
+              <label className="field">
+                <span className="field-lab">Новый PIN</span>
+                <input
+                  className="pin-input" type="password" inputMode="numeric"
+                  autoComplete="new-password" placeholder="4 цифры"
+                  value={newPin} onChange={(e) => setNewPin(onlyDigits(e.target.value))}
+                />
+              </label>
+              <label className="field">
+                <span className="field-lab">Повтор нового PIN</span>
+                <input
+                  className="pin-input" type="password" inputMode="numeric"
+                  autoComplete="new-password" placeholder="ещё раз"
+                  value={rptPin} onChange={(e) => setRptPin(onlyDigits(e.target.value))}
+                />
+              </label>
+              {pinErr && <p className="pin-err" role="alert">{pinErr}</p>}
+              <div className="pin-form-actions">
+                <button className="btn ghost" onClick={closePinForm} disabled={pinBusy}>Отмена</button>
+                <button className="btn primary" onClick={submitPin} disabled={pinBusy}>
+                  {pinBusy ? 'Сохраняю…' : 'Сменить PIN'}
+                </button>
+              </div>
+            </div>
+          ) : (
+            <button className="act" onClick={() => setPinOpen(true)}>🔑 Сменить PIN</button>
+          )}
           <button className="act soon" disabled>⬇️ Экспорт моих данных <span className="tag">фаза 2c</span></button>
           <button className="act logout" onClick={onLogout}>Выйти</button>
         </div>

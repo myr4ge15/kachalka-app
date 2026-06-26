@@ -19,6 +19,7 @@ import { getMeta, setMeta } from '../db/local.js'
 import { verifyPin } from './hash.js'
 
 const FN_URL = (import.meta.env.VITE_SUPABASE_URL ?? '') + '/functions/v1/auth-login'
+const SET_PIN_URL = (import.meta.env.VITE_SUPABASE_URL ?? '') + '/functions/v1/auth-set-pin'
 const ANON = import.meta.env.VITE_SUPABASE_KEY ?? ''
 
 // Ключ локального кэша офлайн-разблокировки (свои хэш+соль+имя+роль).
@@ -95,6 +96,67 @@ export async function verifyPinOffline(userId, pin) {
   if (!ok) return false
   sessionPin = pin
   return { id: userId, name: cached.name, role: cached.role }
+}
+
+// Смена своего PIN (PLAN-cabinet-2c §1). Требует ОНЛАЙН и валидную сессию:
+// шлём { user_id, current_pin, new_pin } в Edge Function auth-set-pin с Bearer
+// текущего access_token (а не anon — серверу нужен claim app_user_id для
+// проверки владельца). На успех обновляем офлайн-кэш своими новыми хэш/солью,
+// чтобы офлайн-разблокировка сразу принимала новый PIN. Ошибки — LoginError.
+export async function setPin(userId, currentPin, newPin) {
+  // Реальный токен сессии (логин-мост уже положил его через setSession).
+  let accessToken = null
+  try {
+    const { data } = await supabase.auth.getSession()
+    accessToken = data?.session?.access_token ?? null
+  } catch { /* ниже обработаем как отсутствие сессии */ }
+  if (!accessToken) {
+    throw new LoginError('server', 'Сессия не найдена — войди заново.')
+  }
+
+  let res
+  try {
+    res = await fetch(SET_PIN_URL, {
+      method: 'POST',
+      headers: {
+        'content-type': 'application/json',
+        apikey: ANON,
+        authorization: `Bearer ${accessToken}`,
+      },
+      body: JSON.stringify({ user_id: userId, current_pin: currentPin, new_pin: newPin }),
+    })
+  } catch {
+    throw new LoginError('network', 'Нет сети — попробуй позже.')
+  }
+
+  let body = null
+  try { body = await res.json() } catch { /* пустое/нестандартное тело */ }
+
+  if (res.status === 429) {
+    throw new LoginError('locked', 'Слишком много попыток. Подожди немного.', body?.retry_after ?? null)
+  }
+  if (res.status === 401) {
+    // no_session/invalid_session — сессия протухла; invalid_credentials — неверный текущий PIN.
+    const code = body?.error === 'invalid_credentials' ? 'invalid' : 'server'
+    const msg = code === 'invalid' ? 'Неверный текущий PIN' : 'Сессия истекла — войди заново.'
+    throw new LoginError(code, msg)
+  }
+  if (res.status === 403) {
+    throw new LoginError('server', 'Нельзя сменить чужой PIN.')
+  }
+  if (!res.ok || !body?.ok) {
+    throw new LoginError('server', body?.error ?? 'Не удалось сменить PIN.')
+  }
+
+  // Обновляем офлайн-кэш своими новыми значениями (имя/роль сохраняем).
+  const cached = (await getMeta(pinCacheKey(userId))) ?? {}
+  await setMeta(pinCacheKey(userId), {
+    ...cached,
+    pin_hash: body.pin_hash,
+    pin_salt: body.pin_salt ?? null,
+  })
+  sessionPin = newPin
+  return true
 }
 
 // Молчаливый перевыпуск сессии (сеть появилась, UI уже открыт офлайн).
