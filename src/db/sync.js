@@ -421,7 +421,16 @@ async function pullGoal(userId) {
   )
   if (res.error) return
   const row = res.data
-  if (!row) return // на сервере цели ещё нет — оставляем локальную как есть
+  if (!row) {
+    // На сервере цели нет, а локально валидная есть (типично: цель поставлена
+    // ДО фазы 2b, когда _dirty ещё не ставился, поэтому pushGoal её никогда не
+    // отправлял) — помечаем на отправку, ближайший pushGoal зальёт её. Цели
+    // на сервере не удаляются, так что «нет строки + есть локальная» = не доехала.
+    if (local && local.exerciseId && Number(local.targetWeight) > 0 && !local._dirty) {
+      await setMeta(goalKey(userId), { ...local, _dirty: 1 })
+    }
+    return
+  }
   // Имя упражнения берём из локального справочника (он синкается отдельно и
   // полнее, чем records); фолбэк — прежнее имя, чтобы не показать пустоту.
   const ex = await db.exercises.get(row.exercise_id)
@@ -454,19 +463,28 @@ export async function syncNow(userId) {
     await pushTemplates() // шаблоны после упражнений (FK), до/после тренировок неважно
     await push()
     // Цель (ЛК 2b) — необязательная часть: ошибка/отсутствие RPC не должны
-    // ронять синхронизацию тренировок, поэтому отдельный try/catch.
-    try { await pushGoal(userId) } catch { /* goals.sql может быть ещё не задеплоен */ }
+    // ронять синхронизацию тренировок, поэтому отдельный try/catch. Ошибку пуша
+    // больше не глотаем молча — показываем как lastError (раньше из-за тихого
+    // catch было не видно, почему цель не доезжает до сервера).
+    let goalWarn = null
+    try { await pushGoal(userId) } catch (e) { goalWarn = 'цель не отправлена: ' + String(e?.message ?? e) }
     const warnings = await pull(userId)
-    try { await pullGoal(userId) } catch { /* цель не критична для синка */ }
+    // pullGoal может пометить локальную цель на отправку (бэкофилл старой цели
+    // без _dirty) — сразу доливаем её вторым pushGoal в этом же цикле.
+    try {
+      await pullGoal(userId)
+      await pushGoal(userId)
+    } catch (e) { if (!goalWarn) goalWarn = 'цель не отправлена: ' + String(e?.message ?? e) }
     // Обновляем кэш общей ленты в фоне: его читают и «Лента», и бейджи-
     // уведомления о рекордах («друг побил твой рекорд» — из ленты). Ошибка ленты
     // не должна валить синк своих тренировок, поэтому отдельный try/catch.
     try { await fetchFeed() } catch { /* лента не критична для синка */ }
     const at = nowIso()
     await setMeta('lastSyncAt', at)
-    // Частичные сбои pull (справочник/пользователи/шаблоны не обновились)
-    // показываем как lastError, но синк считается прошедшим — lastSyncAt обновлён.
-    setState({ lastError: warnings?.length ? warnings.join('; ') : null, lastSyncAt: at })
+    // Частичные сбои pull (справочник/пользователи/шаблоны не обновились) и сбой
+    // пуша цели показываем как lastError, но синк считается прошедшим — lastSyncAt обновлён.
+    const allWarn = [...(warnings ?? []), ...(goalWarn ? [goalWarn] : [])]
+    setState({ lastError: allWarn.length ? allWarn.join('; ') : null, lastSyncAt: at })
   } catch (err) {
     setState({ lastError: String(err?.message ?? err) })
   } finally {
