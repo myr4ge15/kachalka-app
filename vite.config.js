@@ -20,6 +20,10 @@ export default defineConfig({
     VitePWA({
       registerType: 'prompt',
       includeAssets: ['favicon.svg'],
+      // heic2any (~1.35 МБ) грузится лениво и только онлайн (конверсия HEIC при
+      // выборе аватара) — из precache его исключаем, иначе SW тянул бы его всем
+      // на установке. На лету подгрузится при необходимости.
+      workbox: { globIgnores: ['**/heic2any-*.js'] },
       manifest: {
         name: 'kachalka-app',
         short_name: 'kachalka-app',

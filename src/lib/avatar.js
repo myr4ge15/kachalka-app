@@ -20,7 +20,46 @@ export function fitDimensions(w, h, max = 256) {
   }
 }
 
+// HEIC/HEIF (формат фото iPhone по умолчанию) <img> не декодирует нигде, кроме
+// Safari/WebKit → аватар с айфона падал на onerror. Распознаём такой файл и
+// конвертируем в JPEG до сжатия. Определяем по MIME, расширению и magic-bytes
+// (ISO-BMFF box `ftyp` + brand) — браузеры часто отдают для HEIC пустой type.
+const HEIF_BRANDS = new Set([
+  'heic', 'heix', 'heim', 'heis', 'hevc', 'hevx', 'hevm', 'hevs',
+  'mif1', 'msf1', 'heif',
+])
+
+export async function isHeic(file) {
+  if (/image\/hei[cf]/i.test(file.type || '')) return true
+  if (/\.(heic|heif)$/i.test(file.name || '')) return true
+  try {
+    const buf = new Uint8Array(await file.slice(0, 16).arrayBuffer())
+    if (buf.length < 12) return false
+    const at = (i) => String.fromCharCode(buf[i], buf[i + 1], buf[i + 2], buf[i + 3])
+    return at(4) === 'ftyp' && HEIF_BRANDS.has(at(8).toLowerCase())
+  } catch {
+    return false
+  }
+}
+
+// Привести файл к декодируемому <img> виду: HEIC → JPEG (heic2any грузим лениво,
+// только когда реально нужен, чтобы не тянуть libheif в основной бандл).
+async function toDecodableFile(file) {
+  if (!(await isHeic(file))) return file
+  let heic2any
+  try {
+    ;({ default: heic2any } = await import('heic2any'))
+  } catch {
+    throw new Error('Не удалось загрузить конвертер HEIC')
+  }
+  const out = await heic2any({ blob: file, toType: 'image/jpeg', quality: 0.9 })
+  const blob = Array.isArray(out) ? out[0] : out
+  return new File([blob], 'avatar.jpg', { type: 'image/jpeg' })
+}
+
 // Загрузить File в HTMLImageElement (через object URL, который потом отзываем).
+// URL отзываем после загрузки/ошибки, но картинку уже декодированной отдаём
+// наружу — drawImage по ней безопасен.
 function loadImage(file) {
   return new Promise((resolve, reject) => {
     const url = URL.createObjectURL(file)
@@ -33,7 +72,7 @@ function loadImage(file) {
 
 // Сжать картинку до JPEG ≤max px по большей стороне. Возвращает Blob.
 export async function compressToJpeg(file, max = 256, quality = 0.8) {
-  const img = await loadImage(file)
+  const img = await loadImage(await toDecodableFile(file))
   const { w, h } = fitDimensions(img.naturalWidth || img.width, img.naturalHeight || img.height, max)
   const canvas = document.createElement('canvas')
   canvas.width = w
