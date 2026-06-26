@@ -76,12 +76,10 @@ export default function LoginScreen({ onLogin }) {
     setBusy(true)
     try {
       // 1) Офлайн-разблокировка по локальному кэшу своего хэша (мгновенно).
+      //    offline: {id,name,role} — кэш есть и PIN совпал;
+      //             false          — кэш есть, но PIN не совпал;
+      //             null           — кэша нет (первый вход на устройстве).
       const offline = await verifyPinOffline(selected.id, pin)
-      if (offline === false) {
-        setError('Неверный PIN')
-        setPin('')
-        return
-      }
       if (offline) {
         // UI открываем сразу; если есть сеть — молча перевыпускаем сессию.
         if (navigator.onLine) authLogin(selected.id, pin).catch(() => {})
@@ -89,12 +87,22 @@ export default function LoginScreen({ onLogin }) {
         return
       }
 
-      // 2) Кэша нет (первый вход на устройстве) — нужен онлайн-вход.
+      // 2) Кэш не подошёл (false) или его нет (null). Офлайн — судим по локальному
+      //    вердикту: промах кэша → «Неверный PIN», отсутствие кэша → нужна сеть.
       if (!navigator.onLine) {
-        setError('Нет сети, а на этом устройстве ещё не входили. Подключись к сети для первого входа.')
+        setError(
+          offline === false
+            ? 'Неверный PIN'
+            : 'Нет сети, а на этом устройстве ещё не входили. Подключись к сети для первого входа.'
+        )
         setPin('')
         return
       }
+
+      // 3) Онлайн — сверяем PIN на сервере, НЕ отбивая по устаревшему кэшу. Это чинит
+      //    «новый PIN после смены не заходит» (старый локальный хэш давал false):
+      //    успех authLogin перезапишет кэш свежим хэшем. Реально неверный PIN придёт
+      //    как LoginError('invalid') → «Неверный PIN» (обработка в catch ниже).
       const user = await authLogin(selected.id, pin)
       onLogin(user)
     } catch (e) {
