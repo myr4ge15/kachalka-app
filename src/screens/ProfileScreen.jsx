@@ -143,7 +143,7 @@ export default function ProfileScreen({ user, onLogout, onOpenProgress, onOpenFe
                     <div className="goal-stepper">
                       <button
                         type="button"
-                        onClick={() => setEdWeight((w) => Math.max(2.5, Math.round((Number(w) - 2.5) * 10) / 10))}
+                        onClick={() => setEdWeight((w) => Math.max(1.5, Math.round((Number(w) - 1.5) * 10) / 10))}
                       >−</button>
                       <span className="val">
                         <input
@@ -166,7 +166,7 @@ export default function ProfileScreen({ user, onLogout, onOpenProgress, onOpenFe
                       </span>
                       <button
                         type="button"
-                        onClick={() => setEdWeight((w) => Math.round((Number(w) + 2.5) * 10) / 10)}
+                        onClick={() => setEdWeight((w) => Math.round((Number(w) + 1.5) * 10) / 10)}
                       >+</button>
                     </div>
                   </label>
