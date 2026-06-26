@@ -130,7 +130,7 @@ async function pull(userId) {
   // ещё не доехали до сервера (_dirty=1) — иначе своё упражнение пропадёт из
   // пикера до завершения синка.
   const ex = await withTimeout(
-    supabase.from('exercises').select('id, name, muscle_group, is_bench_lift, is_custom')
+    supabase.from('exercises').select('id, name, muscle_group, is_bench_lift, is_custom, is_hidden')
   )
   if (ex.error) warnings.push('упражнения: ' + (ex.error.message ?? ex.error))
   else if (ex.data) {

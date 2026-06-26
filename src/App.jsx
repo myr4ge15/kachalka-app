@@ -17,6 +17,7 @@ const ProgressScreen = lazy(() => import('./screens/ProgressScreen.jsx'))
 const FeedScreen = lazy(() => import('./screens/FeedScreen.jsx'))
 const NotificationsScreen = lazy(() => import('./screens/NotificationsScreen.jsx'))
 const ProfileScreen = lazy(() => import('./screens/ProfileScreen.jsx'))
+const AdminScreen = lazy(() => import('./screens/AdminScreen.jsx'))
 
 // Индикатор состояния синхронизации в шапке.
 function SyncBadge() {
@@ -52,7 +53,7 @@ export default function App() {
   const [tab, setTab] = useState(() => {
     const saved = sessionStorage.getItem(TAB_KEY)
     return saved && saved !== 'workout' ? saved : 'history'
-  }) // 'history' | 'feed' | 'progress' | 'notif' | 'profile'
+  }) // 'history' | 'feed' | 'progress' | 'notif' | 'profile' | 'admin'
 
   // Упражнение, с которым открыть «Прогресс» (проброс из ЛК по тапу на рекорд).
   const [progressExId, setProgressExId] = useState(null)
@@ -201,7 +202,11 @@ export default function App() {
               onOpenProgress={openProgressFor}
               onOpenFeed={() => goTab('feed')}
               onRenamed={handleRenamed}
+              onOpenAdmin={() => goTab('admin')}
             />
+          )}
+          {tab === 'admin' && user.role === 'admin' && (
+            <AdminScreen user={user} onBack={() => goTab('profile')} />
           )}
         </Suspense>
       </main>

@@ -22,14 +22,44 @@ import { cmpIsoDesc } from '../lib/cmp.js'
 
 // ----------------------------- Чтение --------------------------------------
 
-// Справочник упражнений (из локального кэша).
+// Справочник упражнений для ПИКЕРА (из локального кэша). Скрытые админкой
+// (is_hidden) сюда не попадают — их нельзя выбрать в новой тренировке/шаблоне,
+// но уже записанные с ними тренировки в истории остаются (soft-hide).
 export async function getExercises() {
+  const list = await db.exercises.toArray()
+  return list
+    .filter((e) => !e.is_hidden)
+    .sort(
+      (a, b) =>
+        String(a.muscle_group ?? '').localeCompare(String(b.muscle_group ?? '')) ||
+        String(a.name ?? '').localeCompare(String(b.name ?? ''))
+    )
+}
+
+// Полный справочник для АДМИНКИ — включая скрытые (помечаются в UI). Сортировка
+// та же (группа, затем имя), чтобы список был предсказуем.
+export async function getAllExercisesForAdmin() {
   const list = await db.exercises.toArray()
   return list.sort(
     (a, b) =>
       String(a.muscle_group ?? '').localeCompare(String(b.muscle_group ?? '')) ||
       String(a.name ?? '').localeCompare(String(b.name ?? ''))
   )
+}
+
+// Локально применить правку упражнения из админки (мгновенный UI до следующего
+// pull). Мержим в существующую запись кэша. Сеть — в lib/admin.js.
+export async function applyExerciseEditLocal(id, fields) {
+  const ex = await db.exercises.get(id)
+  if (!ex) return
+  await db.exercises.put({ ...ex, ...fields })
+}
+
+// Локально применить слияние дублей: старое упражнение прячем (is_hidden=1).
+// Денормализованные снимки в тренировках починятся на следующем pull.
+export async function applyExerciseMergeLocal(fromId) {
+  const ex = await db.exercises.get(fromId)
+  if (ex) await db.exercises.put({ ...ex, is_hidden: true })
 }
 
 // Добавить пользовательское упражнение в общий справочник (ТЗ 3.2 / 4.4).

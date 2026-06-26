@@ -16,7 +16,7 @@ import Avatar from '../components/Avatar.jsx'
 // уходит на сервер при сохранении, чтобы достижение увидел Telegram-бот.
 //
 // Пропсы: user, onLogout, onOpenProgress(exerciseId), onOpenFeed().
-export default function ProfileScreen({ user, onLogout, onOpenProgress, onOpenFeed, onRenamed }) {
+export default function ProfileScreen({ user, onLogout, onOpenProgress, onOpenFeed, onRenamed, onOpenAdmin }) {
   const workouts = useLiveQuery(() => getWorkouts(user.id), [user.id])
   const goals = useLiveQuery(() => readGoals(user.id), [user.id])
   const myCached = useLiveQuery(() => getCachedUser(user.id), [user.id])
@@ -485,6 +485,9 @@ export default function ProfileScreen({ user, onLogout, onOpenProgress, onOpenFe
             </div>
           ) : (
             <button className="act" onClick={() => setPinOpen(true)}>🔑 Сменить PIN</button>
+          )}
+          {user.role === 'admin' && (
+            <button className="act" onClick={() => onOpenAdmin?.()}>🛠 Админка</button>
           )}
           <button className="act soon" disabled>⬇️ Экспорт моих данных <span className="tag">скоро</span></button>
           {delArm ? (

@@ -859,3 +859,81 @@ img.avatar-lg.has-img {
   .stepper button { width: 40px; }
   .stepper input { font-size: 18px; }
 }
+
+/* ======================= Админка (PLAN-admin) ======================= */
+.admin-head { display: flex; align-items: center; gap: 10px; margin-bottom: 6px; }
+.admin-back {
+  background: var(--surface); border: 1px solid var(--border); border-radius: 10px;
+  color: var(--text); font-size: 14px; font-weight: 600; padding: 8px 12px; min-height: 40px;
+}
+.admin-title { margin: 0; font-size: 20px; font-weight: 800; color: var(--text); }
+.admin-offline {
+  margin: 0 0 10px; padding: 10px 12px; border-radius: 10px; font-size: 13px; font-weight: 600;
+  color: #fcd34d; background: rgba(250,204,21,.10); border: 1px solid rgba(250,204,21,.35);
+}
+
+.admin-search {
+  width: 100%; box-sizing: border-box; background: var(--bg);
+  border: 1px solid var(--border); border-radius: 10px; padding: 11px 13px;
+  color: var(--text); font-size: 15px; min-height: 44px; margin-bottom: 10px;
+}
+.admin-search:focus { outline: none; border-color: var(--green); }
+
+.admin-list { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 8px; }
+.admin-ex, .admin-user {
+  background: var(--surface); border: 1px solid var(--border); border-radius: 12px; padding: 11px 13px;
+}
+.admin-ex.hidden { opacity: .6; }
+.admin-ex-row, .admin-user-row { display: flex; align-items: center; gap: 10px; }
+.admin-ex-main { display: flex; flex-direction: column; gap: 2px; min-width: 0; flex: 1; }
+.admin-ex-name {
+  font-size: 15px; font-weight: 700; color: var(--text);
+  display: flex; align-items: center; gap: 6px; min-width: 0;
+}
+.admin-ex-name > :last-child { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.admin-star { flex: 0 0 auto; }
+.admin-ex-meta { font-size: 12px; color: var(--muted); }
+.admin-you {
+  font-size: 10px; font-weight: 700; text-transform: uppercase; letter-spacing: .04em;
+  color: var(--green); border: 1px solid var(--green); border-radius: 999px; padding: 1px 6px; margin-left: 7px;
+}
+.admin-ex-btns { display: flex; gap: 6px; flex: 0 0 auto; }
+.admin-mini {
+  min-width: 40px; min-height: 40px; display: inline-flex; align-items: center; justify-content: center;
+  background: var(--bg); border: 1px solid var(--border); border-radius: 10px; color: var(--text); font-size: 16px;
+}
+.admin-mini:disabled { opacity: .4; }
+
+.admin-ex-edit, .admin-user-edit, .admin-merge, .admin-add {
+  display: flex; flex-direction: column; gap: 10px;
+}
+.admin-input {
+  width: 100%; box-sizing: border-box; background: var(--bg);
+  border: 1px solid var(--border); border-radius: 10px; padding: 11px 13px;
+  color: var(--text); font-size: 15px; min-height: 44px;
+}
+.admin-input:focus { outline: none; border-color: var(--green); }
+.admin-check { display: flex; align-items: center; gap: 9px; font-size: 14px; color: var(--text); }
+.admin-check input { width: 20px; height: 20px; accent-color: var(--green); }
+.admin-ex-actions { display: flex; gap: 10px; }
+.admin-ex-actions .btn { flex: 1; margin-top: 0; }
+
+.admin-pin-shown {
+  margin-top: 9px; padding: 9px 11px; border-radius: 10px; font-size: 14px;
+  color: var(--text); background: rgba(22,163,74,.12); border: 1px solid rgba(22,163,74,.4);
+  display: flex; align-items: center; gap: 8px;
+}
+.admin-pin-shown b { font-size: 18px; letter-spacing: .2em; }
+.admin-pin-shown .admin-mini { margin-left: auto; min-width: 32px; min-height: 32px; font-size: 13px; }
+
+.admin-merge, .admin-add {
+  margin-top: 10px; background: var(--surface); border: 1px solid var(--border);
+  border-radius: 12px; padding: 13px;
+}
+.admin-merge-title { margin: 0; font-size: 15px; font-weight: 700; color: var(--text); }
+.admin-hint { margin: 0; font-size: 12px; color: var(--muted); line-height: 1.4; }
+.admin-add-link {
+  margin-top: 10px; width: 100%; background: transparent; border: 1px dashed var(--border);
+  border-radius: 12px; color: var(--muted); font-size: 14px; font-weight: 600; padding: 12px; min-height: 46px;
+}
+.admin-add-link:disabled { opacity: .45; }
