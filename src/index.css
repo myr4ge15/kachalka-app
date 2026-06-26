@@ -351,6 +351,26 @@ input { font-family: inherit; }
 .history-ex-name { font-size: 15px; line-height: 1.35; }
 .history-ex-sets { color: var(--muted); font-size: 14px; line-height: 1.35; text-align: right; white-space: nowrap; }
 
+/* Теги дня — автосводка групп мышц на карточке тренировки (BACKLOG «Теги дня»). */
+.day-tags { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 10px; }
+.day-tag {
+  display: inline-flex; align-items: center; white-space: nowrap;
+  font-size: 12px; line-height: 1.2; padding: 3px 10px; border-radius: 999px;
+  border: 1px solid var(--border); background: var(--surface-2); color: var(--muted);
+}
+/* Цвет на группу мышц (тёмная тема: мягкий фон-тинт + рамка + светлый текст). */
+.day-tag.tag-chest     { background: rgba(250,204,21,.14); border-color: var(--yellow); color: #facc15; }
+.day-tag.tag-back      { background: rgba(125,119,221,.16); border-color: #534ab7; color: #afa9ec; }
+.day-tag.tag-legs      { background: rgba(56,138,221,.16); border-color: #185fa5; color: #85b7eb; }
+.day-tag.tag-shoulders { background: rgba(216,90,48,.16); border-color: #993c1d; color: #f0997b; }
+.day-tag.tag-biceps    { background: rgba(22,163,74,.16); border-color: var(--green); color: #86efac; }
+.day-tag.tag-triceps   { background: rgba(29,158,117,.16); border-color: #0f6e56; color: #5dcaa5; }
+.day-tag.tag-abs       { background: rgba(212,83,126,.16); border-color: #993556; color: #ed93b1; }
+.day-tag.tag-other     { background: var(--surface-2); border-color: var(--border); color: var(--muted); }
+
+/* Строка фильтра по группам над списком тренировок/ленты. */
+.tag-filter { padding-top: 0; margin-bottom: 4px; }
+
 .history-edit { margin-top: 10px; }
 .edit-ex {
   background: var(--surface-2); border: 1px solid var(--border);

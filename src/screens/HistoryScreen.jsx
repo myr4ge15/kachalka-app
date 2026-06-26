@@ -1,6 +1,7 @@
-import { useState } from 'react'
+import { useState, useMemo } from 'react'
 import { useLiveQuery } from 'dexie-react-hooks'
 import { getWorkouts } from '../db/repo.js'
+import { dayTags, tagSlug, matchesGroup, availableGroups } from '../lib/dayTags.js'
 import WorkoutScreen from './WorkoutScreen.jsx'
 import TemplatesScreen from './TemplatesScreen.jsx'
 
@@ -28,6 +29,14 @@ export default function HistoryScreen({ user }) {
   const list = workouts ?? []
 
   const [selected, setSelected] = useState(null)
+  // Фильтр по группе мышц (null = «Все»). Чипы строим только из реально
+  // встречающихся групп, чтобы не показывать пустые.
+  const [filter, setFilter] = useState(null)
+  const groups = useMemo(() => availableGroups(list), [list])
+  const shown = useMemo(
+    () => list.filter((w) => matchesGroup(w.entries, filter)),
+    [list, filter]
+  )
 
   if (selected === 'templates') {
     return <TemplatesScreen user={user} onBack={() => setSelected(null)} />
@@ -61,8 +70,33 @@ export default function HistoryScreen({ user }) {
         <p className="muted empty">Пока нет записанных тренировок.</p>
       )}
 
-      {list.map((w) => {
+      {groups.length > 0 && (
+        <div className="chips tag-filter">
+          <button
+            className={filter === null ? 'chip active' : 'chip'}
+            onClick={() => setFilter(null)}
+          >
+            Все
+          </button>
+          {groups.map((g) => (
+            <button
+              key={g}
+              className={filter === g ? 'chip active' : 'chip'}
+              onClick={() => setFilter(filter === g ? null : g)}
+            >
+              {g}
+            </button>
+          ))}
+        </div>
+      )}
+
+      {!loading && list.length > 0 && shown.length === 0 && (
+        <p className="muted empty">Нет тренировок с группой «{filter}».</p>
+      )}
+
+      {shown.map((w) => {
         const { exCount, setCount } = summarize(w)
+        const tags = dayTags(w.entries)
         const unsynced = Boolean(w._dirty)
         return (
           <button key={w.id} className="card history-card history-tap" onClick={() => setSelected(w.id)}>
@@ -78,6 +112,14 @@ export default function HistoryScreen({ user }) {
               </div>
               <span className="history-chevron" aria-hidden="true">›</span>
             </div>
+
+            {tags.length > 0 && (
+              <div className="day-tags">
+                {tags.map((g) => (
+                  <span key={g} className={`day-tag tag-${tagSlug(g)}`}>{g}</span>
+                ))}
+              </div>
+            )}
 
             <ul className="history-list">
               {(w.entries ?? []).map((e, i) => (
