@@ -222,5 +222,10 @@ export function getSessionPin() {
 
 export async function logout() {
   sessionPin = null
-  try { await supabase.auth.signOut() } catch { /* офлайн — локальная сессия и так уйдёт */ }
+  // scope:'local' — чистим ТОЛЬКО локально сохранённую сессию, без сетевого
+  // вызова /logout (по умолчанию scope:'global' дёргает сервер и в авиарежиме
+  // висел минутами/не отвечал). Таймаут — страховка на случай зависшего I/O.
+  try {
+    await withTimeout(supabase.auth.signOut({ scope: 'local' }), 3000)
+  } catch { /* офлайн/таймаут — sessionPin уже сброшен, App снимет user */ }
 }

@@ -23,7 +23,24 @@ export default defineConfig({
       // heic2any (~1.35 МБ) грузится лениво и только онлайн (конверсия HEIC при
       // выборе аватара) — из precache его исключаем, иначе SW тянул бы его всем
       // на установке. На лету подгрузится при необходимости.
-      workbox: { globIgnores: ['**/heic2any-*.js'] },
+      workbox: {
+        globIgnores: ['**/heic2any-*.js'],
+        // Аватары лежат в Supabase Storage (кросс-домен, не в precache) — без
+        // рантайм-кэша в офлайне они не грузились. CacheFirst: один раз увиденная
+        // картинка отдаётся из кэша и работает в авиарежиме. URL меняется при
+        // замене (?v=<ts>), так что CacheFirst не залипает на старой версии.
+        runtimeCaching: [
+          {
+            urlPattern: /\/storage\/v1\/object\/public\/avatars\//,
+            handler: 'CacheFirst',
+            options: {
+              cacheName: 'avatars',
+              expiration: { maxEntries: 50, maxAgeSeconds: 60 * 60 * 24 * 30 },
+              cacheableResponse: { statuses: [0, 200] },
+            },
+          },
+        ],
+      },
       manifest: {
         name: 'kachalka-app',
         short_name: 'kachalka-app',
