@@ -1,10 +1,20 @@
 import { defineConfig } from 'vite'
 import react from '@vitejs/plugin-react'
 import { VitePWA } from 'vite-plugin-pwa'
+import { readFileSync } from 'node:fs'
+
+// Версия приложения — единый источник правды package.json; показывается внизу
+// «Профиля» (см. ProfileScreen). Подставляется на сборке в __APP_VERSION__,
+// рантайма не трогает. Читаем через fs, а не `import … assert { type: 'json' }`:
+// import-assertion удалён в Node 22+/24 и даёт deprecation-предупреждение.
+const pkg = JSON.parse(readFileSync(new URL('./package.json', import.meta.url), 'utf-8'))
 
 // base must match your GitHub Pages repo name: '/<repo>/'
 export default defineConfig({
   base: '/kachalka-app/',
+  define: {
+    __APP_VERSION__: JSON.stringify(pkg.version),
+  },
   plugins: [
     react(),
     VitePWA({
