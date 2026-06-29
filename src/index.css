@@ -954,6 +954,8 @@ img.avatar-lg.has-img {
 .admin-ex-name > :last-child { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .admin-star { flex: 0 0 auto; }
 .admin-ex-meta { font-size: 12px; color: var(--muted); }
+/* Глифы ♀/♂ имеют свою базовую линию и без выравнивания «проседают» под строку. */
+.admin-sex { display: inline-block; vertical-align: middle; line-height: 1; font-size: 13px; }
 .admin-you {
   font-size: 10px; font-weight: 700; text-transform: uppercase; letter-spacing: .04em;
   color: var(--green); border: 1px solid var(--green); border-radius: 999px; padding: 1px 6px; margin-left: 7px;

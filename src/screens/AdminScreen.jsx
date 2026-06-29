@@ -448,7 +448,9 @@ function UsersSection({ meId, online, errMsg }) {
                   </span>
                   <span className="admin-ex-meta">
                     {u.role === 'admin' ? 'админ' : 'участник'}
-                    {u.sex === 'f' ? ' · ♀' : u.sex === 'm' ? ' · ♂' : ''}
+                    {(u.sex === 'f' || u.sex === 'm') && (
+                      <> · <span className="admin-sex">{u.sex === 'f' ? '♀' : '♂'}</span></>
+                    )}
                     {u.is_private ? ' · 🔒 приватный' : ''}
                   </span>
                 </div>
