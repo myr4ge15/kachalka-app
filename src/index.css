@@ -187,8 +187,9 @@ input { font-family: inherit; }
 
 /* ---------- workout ---------- */
 .exercise-card { padding: 14px; }
-.exercise-head { display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px; }
+.exercise-head { display: flex; justify-content: space-between; align-items: center; gap: 8px; margin-bottom: 10px; }
 .exercise-name { font-weight: 600; }
+.exercise-actions { display: flex; align-items: center; gap: 4px; flex-shrink: 0; }
 
 .sets-head, .set-row {
   display: grid; grid-template-columns: 22px 1fr 1fr 26px; gap: 6px; align-items: center;
@@ -281,6 +282,8 @@ input { font-family: inherit; }
   color: var(--text); font-size: 16px; text-align: left;
 }
 .picker-group { color: var(--muted); font-size: 12px; }
+/* Предложение создать упражнение по введённому названию (нет в справочнике) */
+.create-suggest { color: var(--green); font-weight: 600; }
 
 /* кнопка «добавить своё» под списком + форма создания */
 .create-open { flex-shrink: 0; margin-top: 12px; margin-bottom: 0; }

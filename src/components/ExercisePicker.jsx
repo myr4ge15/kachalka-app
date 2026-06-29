@@ -10,7 +10,7 @@ const BASE_GROUPS = ['грудь', 'спина', 'ноги', 'плечи', 'би
 // Если нужного упражнения нет — «+ добавить своё» (ТЗ 3.2 / 4.4): задаём
 // название и группу, упражнение сохраняется в общий справочник (onCreate) и
 // сразу добавляется в тренировку.
-export default function ExercisePicker({ exercises, onPick, onClose, onCreate }) {
+export default function ExercisePicker({ exercises, onPick, onClose, onCreate, title = 'Упражнение' }) {
   const [query, setQuery] = useState('')
   const [group, setGroup] = useState('все')
 
@@ -48,6 +48,15 @@ export default function ExercisePicker({ exercises, onPick, onClose, onCreate })
       return okGroup && okQuery
     })
   }, [exercises, deferredQuery, group])
+
+  // Введённого названия нет в справочнике (точного совпадения) → предлагаем
+  // создать его прямо из поля. Анти-дубли подтянутся в форме создания (similar).
+  const qTrim = deferredQuery.trim()
+  const hasExact = useMemo(
+    () => !!qTrim && exercises.some((e) => e.name.trim().toLowerCase() === qTrim.toLowerCase()),
+    [exercises, qTrim]
+  )
+  const suggestCreate = !!onCreate && !!qTrim && !hasExact
 
   // Похожие по названию — чтобы не плодить дубли (ТЗ 3.2 / 4.4). Нечёткое
   // сопоставление (нормализация ё/е, пробелы, порядок слов, опечатки), а не
@@ -174,7 +183,7 @@ export default function ExercisePicker({ exercises, onPick, onClose, onCreate })
     <div className="overlay" onClick={onClose}>
       <div className="sheet" onClick={(e) => e.stopPropagation()}>
         <div className="sheet-head">
-          <strong>Упражнение</strong>
+          <strong>{title}</strong>
           <button className="link-btn" onClick={onClose}>закрыть</button>
         </div>
 
@@ -205,12 +214,18 @@ export default function ExercisePicker({ exercises, onPick, onClose, onCreate })
               <span className="picker-group">{e.muscle_group}</span>
             </button>
           ))}
-          {filtered.length === 0 && (
+          {filtered.length === 0 && !suggestCreate && (
             <p className="muted">Ничего не найдено.</p>
+          )}
+          {suggestCreate && (
+            <button className="picker-item create-suggest" onClick={openCreate}>
+              <span>+ Создать «{qTrim}»</span>
+              <span className="picker-group">новое</span>
+            </button>
           )}
         </div>
 
-        {onCreate && (
+        {onCreate && !suggestCreate && (
           <button className="btn outline full create-open" onClick={openCreate}>
             + добавить своё упражнение
           </button>

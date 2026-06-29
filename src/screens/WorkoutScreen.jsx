@@ -63,6 +63,8 @@ export default function WorkoutScreen({ user, workoutId = null, onBack }) {
   const [performedAt, setPerformedAt] = useState(() => new Date().toISOString())
   const [loading, setLoading] = useState(!isNew)
   const [pickerOpen, setPickerOpen] = useState(false)
+  // null → пикер в режиме «добавить»; число → индекс entry, который заменяем.
+  const [replaceIdx, setReplaceIdx] = useState(null)
   const [tplPickerOpen, setTplPickerOpen] = useState(false)
   const [saving, setSaving] = useState(false)
   const [message, setMessage] = useState(null) // {type, text}
@@ -90,6 +92,27 @@ export default function WorkoutScreen({ user, workoutId = null, onBack }) {
     return () => { alive = false }
   }, [isNew, workoutId])
 
+  function openAddPicker() {
+    setReplaceIdx(null)
+    setPickerOpen(true)
+  }
+
+  function openReplacePicker(idx) {
+    setReplaceIdx(idx)
+    setPickerOpen(true)
+  }
+
+  function closePicker() {
+    setPickerOpen(false)
+    setReplaceIdx(null)
+  }
+
+  // Роутер выбора из пикера: добавить новое упражнение или заменить существующее.
+  function handlePick(ex) {
+    if (replaceIdx != null) replaceExercise(replaceIdx, ex)
+    else addExercise(ex)
+  }
+
   function addExercise(ex) {
     setPickerOpen(false)
     if (entries.some((e) => e.exercise.id === ex.id)) {
@@ -97,6 +120,22 @@ export default function WorkoutScreen({ user, workoutId = null, onBack }) {
       return
     }
     setEntries([...entries, { exercise: ex, sets: [defaultSet(ex)] }])
+  }
+
+  // Замена упражнения в записи: подходы сохраняем (не вводить заново). Для
+  // не-весового нового упражнения обнуляем weight — инвариант «вес=0 у не-весовых».
+  function replaceExercise(idx, ex) {
+    setPickerOpen(false)
+    setReplaceIdx(null)
+    const cur = entries[idx]
+    if (!cur || cur.exercise.id === ex.id) return
+    if (entries.some((e, i) => i !== idx && e.exercise.id === ex.id)) {
+      setMessage({ type: 'error', text: 'Это упражнение уже добавлено.' })
+      return
+    }
+    const count = isCountMetric(exerciseMetric(ex))
+    const sets = count ? cur.sets.map((s) => ({ ...s, weight: 0 })) : cur.sets
+    setEntries(entries.map((e, i) => (i === idx ? { exercise: ex, sets } : e)))
   }
 
   function removeExercise(idx) {
@@ -296,7 +335,10 @@ export default function WorkoutScreen({ user, workoutId = null, onBack }) {
             <div key={entry.exercise.id} className={`card exercise-card${count ? ' count' : ''}`}>
               <div className="exercise-head">
                 <span className="exercise-name">{entry.exercise.name}</span>
-                <button className="link-btn danger" onClick={() => removeExercise(ei)}>убрать</button>
+                <span className="exercise-actions">
+                  <button className="link-btn" onClick={() => openReplacePicker(ei)}>заменить</button>
+                  <button className="link-btn danger" onClick={() => removeExercise(ei)}>убрать</button>
+                </span>
               </div>
 
               <div className="sets-head">
@@ -357,7 +399,7 @@ export default function WorkoutScreen({ user, workoutId = null, onBack }) {
             </button>
           )}
 
-          <button className="btn outline full" onClick={() => setPickerOpen(true)}>
+          <button className="btn outline full" onClick={openAddPicker}>
             + Добавить упражнение
           </button>
 
@@ -376,9 +418,10 @@ export default function WorkoutScreen({ user, workoutId = null, onBack }) {
       {pickerOpen && (
         <ExercisePicker
           exercises={exercises}
-          onPick={addExercise}
+          title={replaceIdx != null ? 'Заменить упражнение' : 'Упражнение'}
+          onPick={handlePick}
           onCreate={createExercise}
-          onClose={() => setPickerOpen(false)}
+          onClose={closePicker}
         />
       )}
 
