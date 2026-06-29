@@ -71,13 +71,17 @@ export default function Leaderboard({ user }) {
   // Нет данных в своём борде — компактная карточка-заглушка (видимое состояние
   // вместо молчаливого null, иначе пустой рейтинг выглядит как «фичи нет»).
   if (rows.length === 0) {
+    // Баннер ошибки — ТОЛЬКО когда не загрузилось вообще ничего (пусты оба борда).
+    // Если чужой борд наполнен, значит снимок/фолбэк работают, а свой борд просто
+    // пуст (нет своих подходов) — показываем «пока нет данных», а не ошибку сети.
+    const nothingLoaded = (board.male?.length ?? 0) === 0 && (board.female?.length ?? 0) === 0
     return (
       <div className="card lb-card">
         <div className="lb-head">
           <h3 className="lb-title">{title}</h3>
           <span className="muted lb-metric">факт, кг</span>
         </div>
-        {error ? (
+        {error && nothingLoaded ? (
           <p className="muted lb-empty">Не удалось загрузить рейтинг. Проверь соединение и попробуй позже.</p>
         ) : (
           <p className="muted lb-empty">
