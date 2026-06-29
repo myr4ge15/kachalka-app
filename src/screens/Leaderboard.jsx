@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useState } from 'react'
 import { useLiveQuery } from 'dexie-react-hooks'
-import { getCachedLeaderboard, fetchLeaderboard, getLeadExerciseNames } from '../db/leaderboard.js'
-import { getUsers } from '../db/repo.js'
+import { getCachedLeaderboard, fetchLeaderboard, getLeadExerciseNames, viewerBoard } from '../db/leaderboard.js'
+import { getUsers, getCachedUser } from '../db/repo.js'
 import { getMeta } from '../db/local.js'
 import { onOnline, onResume } from '../lib/appEvents.js'
 import Avatar from './../components/Avatar.jsx'
@@ -11,11 +11,12 @@ function place(i) {
   return ['🥇', '🥈', '🥉'][i] ?? `${i + 1}`
 }
 
-// Лидерборд (ТЗ §4.3, §8.3) — два борда по полу (v1.13.0).
+// Лидерборд (ТЗ §4.3, §8.3) — борд по полу зрителя (v1.13.1).
 // Мужской — по жиму лёжа (`is_bench_lift`), женский — по ягодичному мостику
-// (`is_female_lift`). Место — по ФАКТИЧЕСКОМУ макс. весу, расчётный 1ПМ (Эпли) —
-// сноской. Самодостаточен: сам тянет и кэширует данные. Пол участника — users.sex
-// (неизвестный → мужской борд). У девушек жим в рейтинге не показывается.
+// (`is_female_lift`). Зритель видит ТОЛЬКО свой борд: мужчинам (и не заданному
+// полу) — мужской, женщинам — женский (чужой борд не показываем). Место — по
+// ФАКТИЧЕСКОМУ макс. весу, расчётный 1ПМ (Эпли) — сноской. Самодостаточен: сам
+// тянет и кэширует данные. Пол зрителя — users.sex из кэша (getCachedUser).
 export default function Leaderboard({ user }) {
   // Приватный пользователь не участвует в рейтинге — блок прячем целиком (флаг
   // кэшируется на pull в meta `priv_${id}`, см. sync.js / my_is_private).
@@ -23,6 +24,9 @@ export default function Leaderboard({ user }) {
   const board = useLiveQuery(() => getCachedLeaderboard(), [], undefined)
   const names = useLiveQuery(() => getLeadExerciseNames(), [], null)
   const users = useLiveQuery(() => getUsers(), [], [])
+  // Пол зрителя — чтобы показать только его борд. Дефолт false = «ещё грузим»
+  // (отличаем от undefined «строки нет в кэше» → фолбэк в мужской борд).
+  const meRow = useLiveQuery(() => getCachedUser(user.id), [user.id], false)
   const avatarById = useMemo(() => {
     const m = new Map()
     for (const u of users ?? []) m.set(u.id, u.avatar_url)
@@ -53,50 +57,38 @@ export default function Leaderboard({ user }) {
 
   // Приватный — рейтинг не показываем вовсе.
   if (myPrivate) return null
-  // Пока читаем кэш — ничего не мигаем.
-  if (board === undefined) return null
+  // Пока читаем кэш (рейтинг или свой профиль) — ничего не мигаем.
+  if (board === undefined || meRow === false) return null
 
-  const male = board.male ?? []
-  const female = board.female ?? []
+  // Показываем ТОЛЬКО борд зрителя по его полу: женщине — женский (мостик),
+  // мужчине и не заданному полу — мужской (жим). Чужой борд не показываем.
+  const isFemaleViewer = viewerBoard(meRow?.sex) === 'f'
+  const rows = (isFemaleViewer ? board.female : board.male) ?? []
+  const title = isFemaleViewer
+    ? `🍑 Лидерборд · ${names?.female ?? 'ягодичный мостик'}`
+    : `🏋️ Лидерборд · ${names?.male ?? 'жим лёжа'}`
 
-  // Совсем нет данных — компактная карточка-заглушка (видимое состояние вместо
-  // молчаливого null, иначе пустой рейтинг выглядит как «фичи нет»).
-  if (male.length === 0 && female.length === 0) {
+  // Нет данных в своём борде — компактная карточка-заглушка (видимое состояние
+  // вместо молчаливого null, иначе пустой рейтинг выглядит как «фичи нет»).
+  if (rows.length === 0) {
     return (
       <div className="card lb-card">
         <div className="lb-head">
-          <h3 className="lb-title">🏋️ Лидерборд · жим лёжа</h3>
+          <h3 className="lb-title">{title}</h3>
           <span className="muted lb-metric">факт, кг</span>
         </div>
         {error ? (
           <p className="muted lb-empty">Не удалось загрузить рейтинг. Проверь соединение и попробуй позже.</p>
         ) : (
-          <p className="muted lb-empty">Пока нет данных — запиши подход в жиме лёжа или ягодичном мостике.</p>
+          <p className="muted lb-empty">
+            Пока нет данных — запиши подход в {isFemaleViewer ? 'ягодичном мостике' : 'жиме лёжа'}.
+          </p>
         )}
       </div>
     )
   }
 
-  return (
-    <>
-      {male.length > 0 && (
-        <BoardCard
-          title={`🏋️ Лидерборд · ${names?.male ?? 'жим лёжа'}`}
-          rows={male}
-          user={user}
-          avatarById={avatarById}
-        />
-      )}
-      {female.length > 0 && (
-        <BoardCard
-          title={`🍑 Лидерборд · ${names?.female ?? 'ягодичный мостик'}`}
-          rows={female}
-          user={user}
-          avatarById={avatarById}
-        />
-      )}
-    </>
-  )
+  return <BoardCard title={title} rows={rows} user={user} avatarById={avatarById} />
 }
 
 // Одна карточка рейтинга (мужской или женский борд). Разметка/классы — как были,
