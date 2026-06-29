@@ -4,7 +4,7 @@ import { findSimilar } from '../lib/similar.js'
 
 // Канонические группы мышц из ТЗ (Приложение A / п. 3.2). К ним добавляем
 // все группы, реально встретившиеся в справочнике, чтобы ничего не потерять.
-const BASE_GROUPS = ['грудь', 'спина', 'ноги', 'плечи', 'бицепс', 'трицепс', 'пресс']
+const BASE_GROUPS = ['грудь', 'спина', 'ноги', 'плечи', 'бицепс', 'трицепс', 'пресс', 'кардио']
 
 // Подбор упражнения из справочника: поиск по названию + фильтр по группе.
 // Если нужного упражнения нет — «+ добавить своё» (ТЗ 3.2 / 4.4): задаём
@@ -18,7 +18,7 @@ export default function ExercisePicker({ exercises, onPick, onClose, onCreate })
   const [creating, setCreating] = useState(false)
   const [newName, setNewName] = useState('')
   const [newGroup, setNewGroup] = useState('')
-  const [newMetric, setNewMetric] = useState('weight') // weight | reps
+  const [newMetric, setNewMetric] = useState('weight') // weight | reps | time
   const [busy, setBusy] = useState(false)
   const [error, setError] = useState(null)
 
@@ -132,6 +132,12 @@ export default function ExercisePicker({ exercises, onPick, onClose, onCreate })
               onClick={() => setNewMetric('reps')}
             >
               Только повторы
+            </button>
+            <button
+              className={newMetric === 'time' ? 'chip active' : 'chip'}
+              onClick={() => setNewMetric('time')}
+            >
+              На время
             </button>
           </div>
 

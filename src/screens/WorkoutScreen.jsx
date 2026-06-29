@@ -5,7 +5,7 @@ import { detectNewPrsOnSave, detectGoalReachedOnSave } from '../db/notifications
 import { syncNow } from '../db/sync.js'
 import { getCache, setCache, clearCache } from '../lib/cache.js'
 import { showToast } from '../components/Toast.jsx'
-import { exerciseMetric, isCountMetric, fmtMetricValue } from '../lib/metric.js'
+import { exerciseMetric, isCountMetric, fmtMetricValue, fmtTime, parseTime } from '../lib/metric.js'
 import ExercisePicker from '../components/ExercisePicker.jsx'
 import TemplatePicker from '../components/TemplatePicker.jsx'
 
@@ -17,10 +17,14 @@ function toEntries(workout) {
   }))
 }
 
-// Дефолтный подход по типу упражнения. Весовое — степпер веса 20×10; своего веса
-// (reps) — без веса, 10 повторов (weight=0, чтобы тоннаж/лидерборд не засорять).
+// Дефолтный подход по типу упражнения (weight=0 у не-весовых, чтобы тоннаж/
+// лидерборд не засорять): весовое — 20×10; reps — 10 повторов; time — 60 с (1:00,
+// время хранится секундами в reps).
 function defaultSet(ex) {
-  return isCountMetric(exerciseMetric(ex)) ? { weight: 0, reps: 10 } : { weight: 20, reps: 10 }
+  const m = exerciseMetric(ex)
+  if (m === 'time') return { weight: 0, reps: 60 }
+  if (m === 'reps') return { weight: 0, reps: 10 }
+  return { weight: 20, reps: 10 }
 }
 
 function fmtDate(iso) {
@@ -285,7 +289,8 @@ export default function WorkoutScreen({ user, workoutId = null, onBack }) {
           {entries.map((entry, ei) => {
             const metric = exerciseMetric(entry.exercise)
             const count = isCountMetric(metric) // своего веса / на время — без столбца «кг»
-            const valLabel = metric === 'time' ? 'сек' : 'повт.'
+            const isTime = metric === 'time'
+            const valLabel = isTime ? 'мин:сек' : 'повт.'
             return (
             <div key={entry.exercise.id} className={`card exercise-card${count ? ' count' : ''}`}>
               <div className="exercise-head">
@@ -314,14 +319,25 @@ export default function WorkoutScreen({ user, workoutId = null, onBack }) {
                     </div>
                   )}
 
-                  <div className="stepper">
-                    <button onClick={() => step(ei, si, 'reps', -1)}>−</button>
-                    <input
-                      type="number" inputMode="numeric" value={s.reps}
-                      onChange={(e) => updateSet(ei, si, 'reps', e.target.value)}
-                    />
-                    <button onClick={() => step(ei, si, 'reps', 1)}>+</button>
-                  </div>
+                  {isTime ? (
+                    <div className="stepper">
+                      <button onClick={() => step(ei, si, 'reps', -15)}>−</button>
+                      <input
+                        type="text" inputMode="numeric" value={fmtTime(s.reps)}
+                        onChange={(e) => updateSet(ei, si, 'reps', parseTime(e.target.value))}
+                      />
+                      <button onClick={() => step(ei, si, 'reps', 15)}>+</button>
+                    </div>
+                  ) : (
+                    <div className="stepper">
+                      <button onClick={() => step(ei, si, 'reps', -1)}>−</button>
+                      <input
+                        type="number" inputMode="numeric" value={s.reps}
+                        onChange={(e) => updateSet(ei, si, 'reps', e.target.value)}
+                      />
+                      <button onClick={() => step(ei, si, 'reps', 1)}>+</button>
+                    </div>
+                  )}
 
                   <button className="link-btn danger small" onClick={() => removeSet(ei, si)}>✕</button>
                 </div>

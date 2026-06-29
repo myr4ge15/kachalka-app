@@ -6,7 +6,7 @@ import { useLiveQuery } from 'dexie-react-hooks'
 import { getWorkouts } from '../db/repo.js'
 import { bestOneRepMax } from '../lib/oneRepMax.js'
 import { cmpIsoAsc } from '../lib/cmp.js'
-import { fmtSet as fmtSetMetric } from '../lib/metric.js'
+import { fmtSet as fmtSetMetric, fmtTime } from '../lib/metric.js'
 
 function fmtDate(iso) {
   const d = new Date(iso)
@@ -161,8 +161,8 @@ export default function ProgressScreen({ user, initialExerciseId = null }) {
   const data = useMemo(() => fullData.filter((p) => inRange(p.day, range)), [fullData, range])
   const rows = useMemo(() => [...data].reverse(), [data])
 
-  const unit = weighted ? 'кг' : metric === 'time' ? 'сек' : 'повт.'
-  const metricLabel = weighted ? 'вес' : metric === 'time' ? 'сек' : 'повт.'
+  const unit = weighted ? 'кг' : metric === 'time' ? 'мин:сек' : 'повт.'
+  const metricLabel = weighted ? 'вес' : metric === 'time' ? 'время' : 'повт.'
   // Для упражнений без веса — лучший подход за выбранный период.
   const best = data.reduce((m, p) => Math.max(m, p.value), 0)
 
@@ -222,7 +222,7 @@ export default function ProgressScreen({ user, initialExerciseId = null }) {
         {weighted
           ? 'По дням — максимальный поднятый вес. 1ПМ (расчётный) — справочно'
           : metric === 'time'
-            ? 'Упражнение на время — динамика по лучшему подходу (сек)'
+            ? 'Упражнение на время — динамика по лучшему подходу (мин:сек)'
             : 'Упражнение без веса — динамика по лучшему подходу (повт.)'}
       </p>
 
@@ -303,7 +303,7 @@ export default function ProgressScreen({ user, initialExerciseId = null }) {
                 </div>
               ) : (
                 <div className="card stat">
-                  <span className="stat-num">{best} {unit}</span>
+                  <span className="stat-num">{metric === 'time' ? fmtTime(best) : `${best} ${unit}`}</span>
                   <span className="muted">лучший подход за день</span>
                 </div>
               )}
@@ -327,7 +327,7 @@ export default function ProgressScreen({ user, initialExerciseId = null }) {
                     />
                     <Tooltip
                       labelFormatter={(v) => fmtDate(v)}
-                      formatter={(v) => [`${v} ${unit}`, metricLabel]}
+                      formatter={(v) => [metric === 'time' ? fmtTime(v) : `${v} ${unit}`, metricLabel]}
                       contentStyle={{ background: c.bg, border: `1px solid ${c.border}`, borderRadius: 8 }}
                       labelStyle={{ color: c.text }}
                     />
@@ -364,7 +364,7 @@ export default function ProgressScreen({ user, initialExerciseId = null }) {
                         {r.sets.map((s) => fmtSetMetric(metric, s)).join(', ')}
                       </span>
                       <span className="prog-val">
-                        {r.value}{r.isPr ? ' 🏆' : ''}
+                        {metric === 'time' ? fmtTime(r.value) : r.value}{r.isPr ? ' 🏆' : ''}
                         {weighted && <span className="prog-orm">1ПМ {r.orm}</span>}
                       </span>
                     </div>
