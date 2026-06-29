@@ -28,7 +28,8 @@ export default function ProfileScreen({ user, onLogout, onOpenProgress, onOpenFe
   const summary = useMemo(() => summarize(workouts ?? []), [workouts])
   const records = summary.personalRecords
 
-  // Место в лидерборде по жиму (кэш Ленты/снимок). Только чтение, без запросов.
+  // Место в лидерборде в СВОЁМ борде (мужской — жим, женский — ягодичный мостик).
+  // Кэш Ленты/снимок, только чтение. { n, board } | null.
   const [place, setPlace] = useState(null)
   useEffect(() => {
     let alive = true
@@ -38,8 +39,11 @@ export default function ProfileScreen({ user, onLogout, onOpenProgress, onOpenFe
       try {
         const board = await getCachedLeaderboard()
         if (!alive) return
-        const idx = board.findIndex((r) => r.user_id === user.id)
-        setPlace(idx >= 0 ? idx + 1 : null)
+        const inF = (board.female ?? []).findIndex((r) => r.user_id === user.id)
+        const inM = (board.male ?? []).findIndex((r) => r.user_id === user.id)
+        if (inF >= 0) setPlace({ n: inF + 1, board: 'f' })
+        else if (inM >= 0) setPlace({ n: inM + 1, board: 'm' })
+        else setPlace(null)
       } catch { if (alive) setPlace(null) }
     })()
     return () => { alive = false }
@@ -442,7 +446,7 @@ export default function ProfileScreen({ user, onLogout, onOpenProgress, onOpenFe
               <p className="sec-title">А на фоне друзей</p>
               <button className="leader-link" onClick={() => onOpenFeed?.()}>
                 <div>
-                  <div className="v">{place}-е место по жиму</div>
+                  <div className="v">{place.n}-е место {place.board === 'f' ? 'по ягодичному мостику' : 'по жиму'}</div>
                   <div className="k">лидерборд живёт в Ленте</div>
                 </div>
                 <span className="go">Лента ›</span>

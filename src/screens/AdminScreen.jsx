@@ -4,7 +4,7 @@ import { getAllExercisesForAdmin } from '../db/repo.js'
 import { useSyncStatus } from '../db/sync.js'
 import { findExactDuplicate } from '../lib/similar.js'
 import {
-  adminListUsers, adminSetUser, adminSetPrivate, adminResetPin, adminCreateUser,
+  adminListUsers, adminSetUser, adminSetPrivate, adminSetSex, adminResetPin, adminCreateUser,
   adminSetUserOrder, adminUpdateExercise, adminMergeExercise, AdminError,
 } from '../lib/admin.js'
 import { showToast } from '../components/Toast.jsx'
@@ -82,7 +82,7 @@ export default function AdminScreen({ user, onBack }) {
 function ExercisesSection({ exercises, online, errMsg }) {
   const [query, setQuery] = useState('')
   const [edId, setEdId] = useState(null)
-  const [form, setForm] = useState({ name: '', muscle_group: '', is_bench_lift: false, is_hidden: false })
+  const [form, setForm] = useState({ name: '', muscle_group: '', is_bench_lift: false, is_female_lift: false, is_hidden: false })
   const [busy, setBusy] = useState(false)
 
   // Слияние дублей
@@ -103,6 +103,7 @@ function ExercisesSection({ exercises, online, errMsg }) {
       name: ex.name ?? '',
       muscle_group: ex.muscle_group ?? '',
       is_bench_lift: Boolean(ex.is_bench_lift),
+      is_female_lift: Boolean(ex.is_female_lift),
       is_hidden: Boolean(ex.is_hidden),
     })
   }
@@ -130,6 +131,7 @@ function ExercisesSection({ exercises, online, errMsg }) {
         name: ex.name,
         muscle_group: ex.muscle_group ?? '',
         is_bench_lift: Boolean(ex.is_bench_lift),
+        is_female_lift: Boolean(ex.is_female_lift),
         is_hidden: !ex.is_hidden,
       })
       showToast({ emoji: ex.is_hidden ? '👁' : '🙈', title: ex.is_hidden ? 'Показано в пикере' : 'Скрыто из пикера' })
@@ -194,7 +196,12 @@ function ExercisesSection({ exercises, online, errMsg }) {
                 <label className="admin-check">
                   <input type="checkbox" checked={form.is_bench_lift}
                     onChange={(e) => setForm((f) => ({ ...f, is_bench_lift: e.target.checked }))} />
-                  <span>Жим лёжа (для лидерборда) ⭐</span>
+                  <span>Жим лёжа — мужской лидерборд ⭐</span>
+                </label>
+                <label className="admin-check">
+                  <input type="checkbox" checked={form.is_female_lift}
+                    onChange={(e) => setForm((f) => ({ ...f, is_female_lift: e.target.checked }))} />
+                  <span>Женский лидерборд (ягодичный мостик) 🍑</span>
                 </label>
                 <label className="admin-check">
                   <input type="checkbox" checked={form.is_hidden}
@@ -212,7 +219,8 @@ function ExercisesSection({ exercises, online, errMsg }) {
               <div className="admin-ex-row">
                 <div className="admin-ex-main">
                   <span className="admin-ex-name">
-                    {ex.is_bench_lift && <span className="admin-star" title="Жим — лидерборд">⭐</span>}
+                    {ex.is_bench_lift && <span className="admin-star" title="Жим — мужской лидерборд">⭐</span>}
+                    {ex.is_female_lift && <span className="admin-star" title="Женский лидерборд">🍑</span>}
                     {ex.name}
                   </span>
                   <span className="admin-ex-meta">
@@ -287,6 +295,7 @@ function UsersSection({ meId, online, errMsg }) {
   const [edName, setEdName] = useState('')
   const [edRole, setEdRole] = useState('member')
   const [edPrivate, setEdPrivate] = useState(false)
+  const [edSex, setEdSex] = useState('') // '' | 'm' | 'f'
   const [edBusy, setEdBusy] = useState(false)
 
   // сброс PIN
@@ -303,6 +312,7 @@ function UsersSection({ meId, online, errMsg }) {
   const [addRole, setAddRole] = useState('member')
   const [addPin, setAddPin] = useState('')
   const [addPrivate, setAddPrivate] = useState(false)
+  const [addSex, setAddSex] = useState('') // '' | 'm' | 'f'
   const [addBusy, setAddBusy] = useState(false)
 
   const onlyDigits = (s) => s.replace(/\D/g, '').slice(0, 4)
@@ -322,6 +332,7 @@ function UsersSection({ meId, online, errMsg }) {
   function openEdit(u) {
     setEdId(u.id); setEdName(u.name ?? ''); setEdRole(u.role ?? 'member')
     setEdPrivate(Boolean(u.is_private))
+    setEdSex(u.sex === 'm' || u.sex === 'f' ? u.sex : '')
   }
   function closeEdit() { setEdId(null); setEdBusy(false) }
 
@@ -330,6 +341,7 @@ function UsersSection({ meId, online, errMsg }) {
     try {
       await adminSetUser(edId, edName, edRole)
       await adminSetPrivate(edId, edPrivate)
+      await adminSetSex(edId, edSex || null)
       showToast({ emoji: '✅', title: 'Участник обновлён' })
       closeEdit()
       reload()
@@ -356,11 +368,12 @@ function UsersSection({ meId, online, errMsg }) {
     setAddBusy(true)
     try {
       const u = await adminCreateUser(addName, addRole, addPin)
-      // Приватность ставим отдельным шагом (создание идёт через Edge Function,
-      // флаг — через RPC admin_set_private), чтобы не трогать серверную функцию.
+      // Приватность/пол ставим отдельными шагами (создание идёт через Edge
+      // Function, флаги — через RPC), чтобы не трогать серверную функцию создания.
       if (addPrivate) await adminSetPrivate(u.id, true)
+      if (addSex) await adminSetSex(u.id, addSex)
       showToast({ emoji: '🎉', title: 'Участник добавлен', sub: `${u.name} может входить PIN ${addPin}.` })
-      setAddOpen(false); setAddName(''); setAddRole('member'); setAddPin(''); setAddPrivate(false)
+      setAddOpen(false); setAddName(''); setAddRole('member'); setAddPin(''); setAddPrivate(false); setAddSex('')
       reload()
     } catch (e) {
       showToast({ emoji: '⚠️', title: 'Не удалось', sub: errMsg(e) })
@@ -406,6 +419,14 @@ function UsersSection({ meId, online, errMsg }) {
                     <option value="admin">админ</option>
                   </select>
                 </label>
+                <label className="field">
+                  <span className="field-lab">Пол (для лидерборда)</span>
+                  <select className="prog-select" value={edSex} onChange={(e) => setEdSex(e.target.value)}>
+                    <option value="">не задан (жим)</option>
+                    <option value="m">М · жим лёжа</option>
+                    <option value="f">Ж · ягодичный мостик</option>
+                  </select>
+                </label>
                 <label className="admin-check">
                   <input type="checkbox" checked={edPrivate}
                     onChange={(e) => setEdPrivate(e.target.checked)} />
@@ -427,6 +448,7 @@ function UsersSection({ meId, online, errMsg }) {
                   </span>
                   <span className="admin-ex-meta">
                     {u.role === 'admin' ? 'админ' : 'участник'}
+                    {u.sex === 'f' ? ' · ♀' : u.sex === 'm' ? ' · ♂' : ''}
                     {u.is_private ? ' · 🔒 приватный' : ''}
                   </span>
                 </div>
@@ -466,6 +488,14 @@ function UsersSection({ meId, online, errMsg }) {
             <span className="field-lab">Стартовый PIN (4 цифры)</span>
             <input className="pin-input" type="text" inputMode="numeric" placeholder="••••"
               value={addPin} onChange={(e) => setAddPin(onlyDigits(e.target.value))} />
+          </label>
+          <label className="field">
+            <span className="field-lab">Пол (для лидерборда)</span>
+            <select className="prog-select" value={addSex} onChange={(e) => setAddSex(e.target.value)}>
+              <option value="">не задан (жим)</option>
+              <option value="m">М · жим лёжа</option>
+              <option value="f">Ж · ягодичный мостик</option>
+            </select>
           </label>
           <label className="admin-check">
             <input type="checkbox" checked={addPrivate}

@@ -132,7 +132,7 @@ async function pull(userId) {
   // ещё не доехали до сервера (_dirty=1) — иначе своё упражнение пропадёт из
   // пикера до завершения синка.
   const ex = await withTimeout(
-    supabase.from('exercises').select('id, name, muscle_group, is_bench_lift, is_custom, is_hidden, metric')
+    supabase.from('exercises').select('id, name, muscle_group, is_bench_lift, is_female_lift, is_custom, is_hidden, metric')
   )
   if (ex.error) warnings.push('упражнения: ' + (ex.error.message ?? ex.error))
   else if (ex.data) {
@@ -149,7 +149,7 @@ async function pull(userId) {
   // пользователи (имена для пикера входа). Тянем из view login_users — только
   // id и name, без pin_hash/pin_salt/role: хэши больше не отдаются клиентам
   // (сверка PIN — в auth-login онлайн или по своему кэшу офлайн, см. lib/auth.js).
-  const us = await withTimeout(supabase.from('login_users').select('id, name, avatar_url, sort_order'))
+  const us = await withTimeout(supabase.from('login_users').select('id, name, avatar_url, sort_order, sex'))
   if (us.error) warnings.push('пользователи: ' + (us.error.message ?? us.error))
   else if (us.data) {
     await db.transaction('rw', db.users, async () => {

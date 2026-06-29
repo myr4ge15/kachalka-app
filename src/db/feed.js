@@ -23,7 +23,7 @@ const SELECT_FEED =
   'id, performed_at, user_id, ' +
   'user:users(id, name), ' +
   'workout_exercises(id, position, exercise_id, ' +
-  'exercise:exercises(id, name, muscle_group, is_bench_lift, metric), ' +
+  'exercise:exercises(id, name, muscle_group, is_bench_lift, is_female_lift, metric), ' +
   'sets(id, set_number, weight, reps))'
 
 // server row → элемент ленты (денормализованный, с готовой сводкой).
@@ -39,6 +39,7 @@ function rowToItem(w) {
         name: we.exercise?.name ?? '—',
         muscle_group: we.exercise?.muscle_group ?? null,
         is_bench_lift: Boolean(we.exercise?.is_bench_lift),
+        is_female_lift: Boolean(we.exercise?.is_female_lift),
         metric: normMetric(we.exercise?.metric),
         sets,
       }

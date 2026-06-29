@@ -59,6 +59,7 @@ export async function adminListUsers() {
     name: u.name,
     role: u.role,
     is_private: Boolean(u.is_private),
+    sex: u.sex ?? null,
     sort_order: u.sort_order ?? null,
     created_at: u.created_at,
   }))
@@ -82,6 +83,17 @@ export async function adminSetPrivate(id, isPrivate) {
   )
   if (res.error) throw new AdminError(humanRpc(res.error.message))
   return { id, is_private: Boolean(isPrivate) }
+}
+
+// Задать пол участника ('m' | 'f' | null) — для раздельного лидерборда М/Ж.
+// null/'' = «не задан» (участник попадает в мужской борд). RPC с is_admin().
+export async function adminSetSex(id, sex) {
+  const v = sex === 'm' || sex === 'f' ? sex : null
+  const res = await withTimeout(
+    supabase.rpc('admin_set_sex', { p_id: id, p_sex: v })
+  )
+  if (res.error) throw new AdminError(humanRpc(res.error.message))
+  return { id, sex: v }
 }
 
 // Сменить имя/роль участника. Сервер бережёт последнего админа от разжалования.
@@ -159,18 +171,20 @@ export async function adminCreateUser(name, role, pin) {
 // ----------------------------- Упражнения ----------------------------------
 
 // Правка карточки упражнения + soft-hide. После успеха зеркалим в локальный
-// кэш (мгновенный UI). Жим — единственный: при is_bench_lift локально снимаем
-// флаг с остальных (сервер делает то же).
-export async function adminUpdateExercise({ id, name, muscle_group, is_bench_lift, is_hidden }) {
+// кэш (мгновенный UI). Жим и женское упражнение — каждое единственное: при
+// установке флага локально снимаем его с остальных (сервер делает то же).
+export async function adminUpdateExercise({ id, name, muscle_group, is_bench_lift, is_female_lift, is_hidden }) {
   const clean = String(name ?? '').trim()
   if (clean.length < 1 || clean.length > 60) throw new AdminError('Название — от 1 до 60 символов.')
   const bench = Boolean(is_bench_lift)
+  const female = Boolean(is_female_lift)
   const res = await withTimeout(
     supabase.rpc('admin_update_exercise', {
       p_id: id,
       p_name: clean,
       p_muscle_group: muscle_group ? String(muscle_group).trim() : null,
       p_is_bench_lift: bench,
+      p_is_female_lift: female,
       p_hidden: Boolean(is_hidden),
     })
   )
@@ -181,13 +195,19 @@ export async function adminUpdateExercise({ id, name, muscle_group, is_bench_lif
     const others = await db.exercises.filter((e) => e.is_bench_lift && e.id !== id).toArray()
     for (const o of others) await applyExerciseEditLocal(o.id, { is_bench_lift: false })
   }
+  if (female) {
+    // снять прежний флаг женского упражнения с других в локальном кэше
+    const others = await db.exercises.filter((e) => e.is_female_lift && e.id !== id).toArray()
+    for (const o of others) await applyExerciseEditLocal(o.id, { is_female_lift: false })
+  }
   await applyExerciseEditLocal(id, {
     name: clean,
     muscle_group: muscle_group ? String(muscle_group).trim() : null,
     is_bench_lift: bench,
+    is_female_lift: female,
     is_hidden: Boolean(is_hidden),
   })
-  return { id, name: clean, muscle_group: muscle_group ?? null, is_bench_lift: bench, is_hidden: Boolean(is_hidden) }
+  return { id, name: clean, muscle_group: muscle_group ?? null, is_bench_lift: bench, is_female_lift: female, is_hidden: Boolean(is_hidden) }
 }
 
 // Слить дубль: from → into. После успеха локально прячем старое (снимки в
