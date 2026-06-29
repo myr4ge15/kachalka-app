@@ -6,6 +6,7 @@ import { syncNow } from '../db/sync.js'
 import { getCachedLeaderboard } from '../db/leaderboard.js'
 import { getMeta } from '../db/local.js'
 import { summarize, currentBest, goalProgress } from '../lib/profileStats.js'
+import { fmtMetricValue, isCountMetric } from '../lib/metric.js'
 import { setPin, setName, LoginError } from '../lib/auth.js'
 import { uploadMyAvatar } from '../lib/avatar.js'
 import { showToast } from '../components/Toast.jsx'
@@ -159,7 +160,11 @@ export default function ProfileScreen({ user, onLogout, onOpenProgress, onOpenFe
   // Видимые цели (без tombstone'ов) и упражнения, по которым цели ещё нет
   // (для пикера «добавить»). Имя редактируемой цели — из самого списка.
   const goalList = (goals ?? []).filter((g) => !g._deleted)
-  const addOptions = records.filter((r) => !goalList.some((g) => g.exerciseId === r.exId))
+  // Цели — только весовые (в кг): не-весовые упражнения в пикер цели не предлагаем
+  // (цели по повторам/времени — вне этого плана).
+  const addOptions = records.filter(
+    (r) => !isCountMetric(r.metric) && !goalList.some((g) => g.exerciseId === r.exId)
+  )
   const edName = edExId
     ? (goalList.find((g) => g.exerciseId === edExId)?.exerciseName ??
        records.find((r) => r.exId === edExId)?.name ?? '—')
@@ -175,7 +180,7 @@ export default function ProfileScreen({ user, onLogout, onOpenProgress, onOpenFe
     const base = addOptions.find((r) => r.isBench) || addOptions[0]
     setEdIsNew(true)
     setEdExId(base?.exId ?? null)
-    setEdWeight(base ? Math.max(base.weight + 5, 20) : 100)
+    setEdWeight(base ? Math.max(base.value + 5, 20) : 100)
     setEditing(true)
   }
   function openEditGoal(g) {
@@ -406,7 +411,7 @@ export default function ProfileScreen({ user, onLogout, onOpenProgress, onOpenFe
                         <span className="txt">{r.name}</span>
                       </span>
                       <span className="pr-val">
-                        {r.weight} <span className="u">кг</span> <span className="arr">›</span>
+                        {fmtMetricValue(r.metric, r.value)} <span className="arr">›</span>
                       </span>
                     </button>
                   </li>

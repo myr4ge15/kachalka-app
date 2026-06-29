@@ -20,6 +20,7 @@ import { db, newId, nowIso } from './local.js'
 import { normalizeName } from '../lib/similar.js'
 import { cmpIsoDesc } from '../lib/cmp.js'
 import { sortUsersByOrder } from '../lib/userOrder.js'
+import { normMetric } from '../lib/metric.js'
 
 // ----------------------------- Чтение --------------------------------------
 
@@ -70,10 +71,11 @@ export async function applyExerciseMergeLocal(fromId) {
 // Анти-дубль: если упражнение с тем же названием уже есть — НЕ плодим копию,
 // возвращаем существующее. Сравнение по нормализованному ключу (ё/е, регистр,
 // пунктуация, двойные пробелы), чтобы «Жим лёжа» и «жим  лежа» считались одним.
-export async function createExercise({ name, muscle_group }) {
+export async function createExercise({ name, muscle_group, metric }) {
   const clean = String(name ?? '').trim()
   if (!clean) throw new Error('Введите название упражнения.')
   const group = muscle_group ? String(muscle_group).trim() : null
+  const mtr = normMetric(metric)
 
   const key = normalizeName(clean)
   const all = await db.exercises.toArray()
@@ -84,6 +86,7 @@ export async function createExercise({ name, muscle_group }) {
       name: dup.name,
       muscle_group: dup.muscle_group ?? null,
       is_bench_lift: Boolean(dup.is_bench_lift),
+      metric: normMetric(dup.metric),
       is_custom: Boolean(dup.is_custom),
     }
   }
@@ -96,13 +99,14 @@ export async function createExercise({ name, muscle_group }) {
       muscle_group: group,
       is_custom: true,
       is_bench_lift: false,
+      metric: mtr,
       unit: 'kg',
       _dirty: 1,
     })
     await db.ex_outbox.add({ exerciseId: id, createdAt: nowIso(), attempts: 0 })
   })
 
-  return { id, name: clean, muscle_group: group, is_bench_lift: false, is_custom: true }
+  return { id, name: clean, muscle_group: group, is_bench_lift: false, metric: mtr, is_custom: true }
 }
 
 // Пользователи (имена для пикера входа). Только {id,name} из login_users —
@@ -206,6 +210,7 @@ function cleanEntries(entries) {
             name: e.exercise.name,
             muscle_group: e.exercise.muscle_group ?? null,
             is_bench_lift: Boolean(e.exercise.is_bench_lift),
+            metric: normMetric(e.exercise.metric),
           }
         : undefined,
       sets: (e.sets ?? [])
@@ -308,6 +313,7 @@ function cleanTemplateExercises(exercises) {
             name: e.exercise.name,
             muscle_group: e.exercise.muscle_group ?? null,
             is_bench_lift: Boolean(e.exercise.is_bench_lift),
+            metric: normMetric(e.exercise.metric),
           }
         : undefined,
       position: i,

@@ -2,6 +2,7 @@ import { useState, useMemo } from 'react'
 import { useLiveQuery } from 'dexie-react-hooks'
 import { getWorkouts } from '../db/repo.js'
 import { dayTags, tagSlug, matchesGroup, availableGroups } from '../lib/dayTags.js'
+import { exerciseMetric, fmtSet } from '../lib/metric.js'
 import WorkoutScreen from './WorkoutScreen.jsx'
 import TemplatesScreen from './TemplatesScreen.jsx'
 
@@ -126,7 +127,7 @@ export default function HistoryScreen({ user }) {
                 <li key={e.exercise_id ?? e.exercise?.id ?? i} className="history-ex">
                   <span className="history-ex-name">{e.exercise?.name ?? '—'}</span>
                   <span className="history-ex-sets">
-                    {(e.sets ?? []).map((s) => `${s.weight}×${s.reps}`).join(', ') || '—'}
+                    {(e.sets ?? []).map((s) => fmtSet(exerciseMetric(e.exercise), s)).join(', ') || '—'}
                   </span>
                 </li>
               ))}

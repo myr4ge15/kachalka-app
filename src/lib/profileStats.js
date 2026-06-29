@@ -9,10 +9,12 @@
 // в целом» (всего тренировок, за месяц) и витрина рекордов по ВСЕМ упражнениям
 // сразу. Пер-упражненческая динамика во времени — в «Прогрессе».
 //
-// Рекорд = максимальный ФАКТИЧЕСКИЙ вес (как в ленте/лидерборде/уведомлениях) —
-// переиспользуем myBestByExercise/bestWeight из records.js, формулу не дублируем.
+// Рекорд = лучший ВЕДУЩИЙ показатель упражнения (вес / повторы / секунды — как в
+// ленте/лидерборде/уведомлениях) — переиспользуем myBestByExercise/bestWeight из
+// records.js, формулу не дублируем.
 // ============================================================================
 import { myBestByExercise, bestWeight } from './records.js'
+import { isCountMetric } from './metric.js'
 
 const entryExId = (e) => e.exercise_id ?? e.exercise?.id ?? null
 
@@ -30,11 +32,11 @@ export function workoutsThisMonth(workouts) {
   return n
 }
 
-// Личные рекорды по ВСЕМ весовым упражнениям: [{ exId, name, weight, isBench }],
-// жим лёжа сверху, далее по убыванию веса. Упражнения без веса в рекорды не
-// попадают (как и в minePrs/лидерборде).
+// Личные рекорды по ВСЕМ упражнениям: [{ exId, name, value, metric, isBench }],
+// жим лёжа сверху, далее весовые (по убыванию веса), затем не-весовые (повторы/
+// время). Значение форматируется в UI через fmtMetricValue по metric.
 export function personalRecords(workouts) {
-  const best = myBestByExercise(workouts) // Map(exId → { weight, name })
+  const best = myBestByExercise(workouts) // Map(exId → { value, metric, name })
   const bench = new Set()
   for (const w of workouts ?? []) {
     for (const e of w.entries ?? []) {
@@ -46,13 +48,17 @@ export function personalRecords(workouts) {
     .map(([exId, v]) => ({
       exId,
       name: v.name ?? '—',
-      weight: v.weight,
+      value: v.value,
+      metric: v.metric,
       isBench: bench.has(exId),
     }))
     .sort(
       (a, b) =>
         Number(b.isBench) - Number(a.isBench) ||
-        b.weight - a.weight ||
+        // весовые выше не-весовых (их значения в разных единицах — не сравниваем
+        // напрямую), внутри группы — по убыванию значения, затем по имени.
+        Number(isCountMetric(a.metric)) - Number(isCountMetric(b.metric)) ||
+        b.value - a.value ||
         String(a.name).localeCompare(String(b.name), 'ru')
     )
 }

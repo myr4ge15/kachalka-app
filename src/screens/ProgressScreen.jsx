@@ -6,6 +6,7 @@ import { useLiveQuery } from 'dexie-react-hooks'
 import { getWorkouts } from '../db/repo.js'
 import { bestOneRepMax } from '../lib/oneRepMax.js'
 import { cmpIsoAsc } from '../lib/cmp.js'
+import { fmtSet as fmtSetMetric } from '../lib/metric.js'
 
 function fmtDate(iso) {
   const d = new Date(iso)
@@ -31,9 +32,11 @@ function collectExercises(workouts) {
         name: e.exercise?.name ?? 'Упражнение',
         is_bench_lift: false,
         hasWeight: false,
+        metric: undefined, // явный тип упражнения (если задан в денормализ. снимке)
       }
       if (e.exercise?.name) rec.name = e.exercise.name
       if (e.exercise?.is_bench_lift) rec.is_bench_lift = true
+      if (e.exercise?.metric) rec.metric = e.exercise.metric
       if (sets.some((s) => Number(s.weight) > 0)) rec.hasWeight = true
       map.set(id, rec)
     }
@@ -63,12 +66,12 @@ function buildSeries(workouts, exerciseId, weighted) {
   const series = Array.from(byDay.values())
     .map((rec) => ({
       ...rec,
-      // Метрика весовых упражнений — ФАКТИЧЕСКИЙ макс. вес за день (самый тяжёлый
-      // подход): по нему строится линия и считаются рекорды. 1ПМ (orm) считаем
-      // отдельно — он показывается вторичным числом, но на рекорды не влияет.
+      // Ведущий показатель за день = лучший единичный подход (как и рекорд):
+      // для весовых — макс. вес, для своего веса/времени — макс. повторов/секунд.
+      // 1ПМ (orm) считаем отдельно — вторичное число, на рекорды не влияет.
       value: weighted
         ? rec.sets.reduce((m, x) => Math.max(m, Number(x.weight) || 0), 0)
-        : rec.sets.reduce((s, x) => s + (Number(x.reps) || 0), 0),
+        : rec.sets.reduce((m, x) => Math.max(m, Number(x.reps) || 0), 0),
       orm: weighted ? bestOneRepMax(rec.sets) : 0,
     }))
     .sort((a, b) => cmpIsoAsc(a.day, b.day))
@@ -84,12 +87,6 @@ function buildSeries(workouts, exerciseId, weighted) {
     prev = p.value
   }
   return series
-}
-
-function fmtSet(s, weighted) {
-  const reps = Number(s.reps) || 0
-  const weight = Number(s.weight) || 0
-  return weighted && weight > 0 ? `${s.weight}×${reps}` : `${reps}`
 }
 
 const PERIODS = [
@@ -140,7 +137,14 @@ export default function ProgressScreen({ user, initialExerciseId = null }) {
     return picked || list.find((x) => x.is_bench_lift) || list[0]
   }, [list, selId])
 
-  const weighted = selected ? selected.hasWeight : true
+  // Тип берём из явного metric (приходит в денормализованном снимке упражнения);
+  // для легаси-записей без поля — фолбэк на «есть ли вес в подходах» (hasWeight).
+  const metric = selected
+    ? (selected.metric ?? (selected.hasWeight ? 'weight' : 'reps'))
+    : 'weight'
+  const weighted = selected
+    ? (selected.metric ? selected.metric === 'weight' : selected.hasWeight)
+    : true
 
   // PR и направление считаем по ВСЕЙ истории (рекорд — личный за всё время),
   // а период лишь сужает отображаемые точки. Поэтому строим ряд целиком и
@@ -157,9 +161,9 @@ export default function ProgressScreen({ user, initialExerciseId = null }) {
   const data = useMemo(() => fullData.filter((p) => inRange(p.day, range)), [fullData, range])
   const rows = useMemo(() => [...data].reverse(), [data])
 
-  const unit = weighted ? 'кг' : 'повт.'
-  const metricLabel = weighted ? 'вес' : 'Σ повторов'
-  // Для упражнений без веса — лучшее за выбранный период (суммарные повторы).
+  const unit = weighted ? 'кг' : metric === 'time' ? 'сек' : 'повт.'
+  const metricLabel = weighted ? 'вес' : metric === 'time' ? 'сек' : 'повт.'
+  // Для упражнений без веса — лучший подход за выбранный период.
   const best = data.reduce((m, p) => Math.max(m, p.value), 0)
 
   // Шапка весовых упражнений: «рекорд» (макс. вес за всю историю) и «форма
@@ -217,7 +221,9 @@ export default function ProgressScreen({ user, initialExerciseId = null }) {
       <p className="muted sub">
         {weighted
           ? 'По дням — максимальный поднятый вес. 1ПМ (расчётный) — справочно'
-          : 'Упражнение без веса — динамика по суммарным повторам'}
+          : metric === 'time'
+            ? 'Упражнение на время — динамика по лучшему подходу (сек)'
+            : 'Упражнение без веса — динамика по лучшему подходу (повт.)'}
       </p>
 
       {loading && <p className="muted">Загрузка…</p>}
@@ -298,7 +304,7 @@ export default function ProgressScreen({ user, initialExerciseId = null }) {
               ) : (
                 <div className="card stat">
                   <span className="stat-num">{best} {unit}</span>
-                  <span className="muted">макс. повторов за день</span>
+                  <span className="muted">лучший подход за день</span>
                 </div>
               )}
 
@@ -348,14 +354,14 @@ export default function ProgressScreen({ user, initialExerciseId = null }) {
                 <div className="prog-table">
                   <div className="prog-row prog-row-head">
                     <span>Дата</span>
-                    <span>Подходы ({weighted ? 'кг×повт.' : 'повт.'})</span>
+                    <span>Подходы ({weighted ? 'кг×повт.' : unit})</span>
                     <span className="prog-val">{metricLabel}</span>
                   </div>
                   {rows.map((r) => (
                     <div key={r.day} className={`prog-row${r.isPr ? ' pr' : ''}`}>
                       <span>{fmtDate(r.day)}</span>
                       <span className="prog-sets">
-                        {r.sets.map((s) => fmtSet(s, weighted)).join(', ')}
+                        {r.sets.map((s) => fmtSetMetric(metric, s)).join(', ')}
                       </span>
                       <span className="prog-val">
                         {r.value}{r.isPr ? ' 🏆' : ''}

@@ -3,6 +3,7 @@ import { useLiveQuery } from 'dexie-react-hooks'
 import { getNotifications, getSeenAt, markAllSeen } from '../db/notifications.js'
 import { cmpIsoAsc } from '../lib/cmp.js'
 import { fmtWhen } from '../lib/dates.js'
+import { fmtMetricValue } from '../lib/metric.js'
 
 // Экран «Уведомления»: личные рекорды и кто обходит тебя в кругу (ТЗ §4.5, MVP).
 export default function NotificationsScreen({ user }) {
@@ -66,8 +67,8 @@ export default function NotificationsScreen({ user }) {
                     Личный рекорд · <span className="hl">{n.name}</span>
                   </div>
                   <div className="n-text">
-                    Новый максимум: <b>{n.weight} кг</b>
-                    {n.prev > 0 && ` (прошлый — ${n.prev} кг)`}
+                    Новый максимум: <b>{fmtMetricValue(n.metric, n.value)}</b>
+                    {n.prev > 0 && ` (прошлый — ${fmtMetricValue(n.metric, n.prev)})`}
                   </div>
                 </>
               )}
@@ -85,8 +86,8 @@ export default function NotificationsScreen({ user }) {
                 <>
                   <div className="n-title">Твой рекорд побит</div>
                   <div className="n-text">
-                    <b>{n.who}</b> обошёл тебя в «{n.name}»: <b>{n.weight} кг</b>
-                    {` (твой ${n.myWeight} кг)`}
+                    <b>{n.who}</b> обошёл тебя в «{n.name}»: <b>{fmtMetricValue(n.metric, n.value)}</b>
+                    {` (твой ${fmtMetricValue(n.metric, n.myValue)})`}
                   </div>
                 </>
               )}

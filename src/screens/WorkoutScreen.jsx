@@ -5,6 +5,7 @@ import { detectNewPrsOnSave, detectGoalReachedOnSave } from '../db/notifications
 import { syncNow } from '../db/sync.js'
 import { getCache, setCache, clearCache } from '../lib/cache.js'
 import { showToast } from '../components/Toast.jsx'
+import { exerciseMetric, isCountMetric, fmtMetricValue } from '../lib/metric.js'
 import ExercisePicker from '../components/ExercisePicker.jsx'
 import TemplatePicker from '../components/TemplatePicker.jsx'
 
@@ -14,6 +15,12 @@ function toEntries(workout) {
     exercise: e.exercise ?? { id: e.exercise_id, name: '—' },
     sets: (e.sets ?? []).map((s) => ({ weight: s.weight, reps: s.reps })),
   }))
+}
+
+// Дефолтный подход по типу упражнения. Весовое — степпер веса 20×10; своего веса
+// (reps) — без веса, 10 повторов (weight=0, чтобы тоннаж/лидерборд не засорять).
+function defaultSet(ex) {
+  return isCountMetric(exerciseMetric(ex)) ? { weight: 0, reps: 10 } : { weight: 20, reps: 10 }
 }
 
 function fmtDate(iso) {
@@ -84,7 +91,7 @@ export default function WorkoutScreen({ user, workoutId = null, onBack }) {
       setMessage({ type: 'error', text: 'Это упражнение уже добавлено.' })
       return
     }
-    setEntries([...entries, { exercise: ex, sets: [{ weight: 20, reps: 10 }] }])
+    setEntries([...entries, { exercise: ex, sets: [defaultSet(ex)] }])
   }
 
   function removeExercise(idx) {
@@ -117,7 +124,7 @@ export default function WorkoutScreen({ user, workoutId = null, onBack }) {
     const toAdd = (tpl.exercises ?? [])
       .map((e) => e.exercise ?? { id: e.exercise_id, name: '—' })
       .filter((ex) => ex.id && !have.has(ex.id))
-      .map((ex) => ({ exercise: ex, sets: [{ weight: 20, reps: 10 }] }))
+      .map((ex) => ({ exercise: ex, sets: [defaultSet(ex)] }))
     if (toAdd.length === 0) {
       setMessage({ type: 'error', text: 'Все упражнения шаблона уже добавлены.' })
       return
@@ -144,7 +151,8 @@ export default function WorkoutScreen({ user, workoutId = null, onBack }) {
   }
 
   function addSet(ei) {
-    const last = entries[ei].sets[entries[ei].sets.length - 1] ?? { weight: 20, reps: 10 }
+    const entry = entries[ei]
+    const last = entry.sets[entry.sets.length - 1] ?? defaultSet(entry.exercise)
     setEntries(entries.map((e, i) => (i === ei ? { ...e, sets: [...e.sets, { ...last }] } : e)))
   }
 
@@ -194,11 +202,11 @@ export default function WorkoutScreen({ user, workoutId = null, onBack }) {
         try {
           const prs = await detectNewPrsOnSave(user.id, wId)
           if (prs.length) {
-            const top = prs.reduce((a, b) => (b.weight > a.weight ? b : a), prs[0])
+            const top = prs.reduce((a, b) => (b.value > a.value ? b : a), prs[0])
             const extra = prs.length > 1 ? ` +${prs.length - 1}` : ''
             showToast({
               title: 'Новый рекорд!',
-              sub: `${top.name} — ${top.weight} кг (было ${top.prev} кг)${extra}`,
+              sub: `${top.name} — ${fmtMetricValue(top.metric, top.value)} (было ${fmtMetricValue(top.metric, top.prev)})${extra}`,
             })
           }
           // Достижение личной цели (ЛК). Поздравляем один раз; если совпало с
@@ -274,29 +282,37 @@ export default function WorkoutScreen({ user, workoutId = null, onBack }) {
             <p className="muted empty">Добавь упражнение, чтобы начать.</p>
           )}
 
-          {entries.map((entry, ei) => (
-            <div key={entry.exercise.id} className="card exercise-card">
+          {entries.map((entry, ei) => {
+            const metric = exerciseMetric(entry.exercise)
+            const count = isCountMetric(metric) // своего веса / на время — без столбца «кг»
+            const valLabel = metric === 'time' ? 'сек' : 'повт.'
+            return (
+            <div key={entry.exercise.id} className={`card exercise-card${count ? ' count' : ''}`}>
               <div className="exercise-head">
                 <span className="exercise-name">{entry.exercise.name}</span>
                 <button className="link-btn danger" onClick={() => removeExercise(ei)}>убрать</button>
               </div>
 
               <div className="sets-head">
-                <span>#</span><span>кг</span><span>повт.</span><span></span>
+                {count
+                  ? <><span>#</span><span>{valLabel}</span><span></span></>
+                  : <><span>#</span><span>кг</span><span>повт.</span><span></span></>}
               </div>
 
               {entry.sets.map((s, si) => (
                 <div key={si} className="set-row">
                   <span className="set-num">{si + 1}</span>
 
-                  <div className="stepper">
-                    <button onClick={() => step(ei, si, 'weight', -1.25)}>−</button>
-                    <input
-                      type="text" inputMode="decimal" value={s.weight}
-                      onChange={(e) => updateSet(ei, si, 'weight', e.target.value.replace(',', '.'))}
-                    />
-                    <button onClick={() => step(ei, si, 'weight', 1.25)}>+</button>
-                  </div>
+                  {!count && (
+                    <div className="stepper">
+                      <button onClick={() => step(ei, si, 'weight', -1.25)}>−</button>
+                      <input
+                        type="text" inputMode="decimal" value={s.weight}
+                        onChange={(e) => updateSet(ei, si, 'weight', e.target.value.replace(',', '.'))}
+                      />
+                      <button onClick={() => step(ei, si, 'weight', 1.25)}>+</button>
+                    </div>
+                  )}
 
                   <div className="stepper">
                     <button onClick={() => step(ei, si, 'reps', -1)}>−</button>
@@ -315,7 +331,8 @@ export default function WorkoutScreen({ user, workoutId = null, onBack }) {
                 + подход (повтор предыдущего)
               </button>
             </div>
-          ))}
+            )
+          })}
 
           {isNew && (
             <button className="btn outline full" onClick={() => setTplPickerOpen(true)}>

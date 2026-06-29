@@ -193,6 +193,10 @@ input { font-family: inherit; }
 .sets-head, .set-row {
   display: grid; grid-template-columns: 22px 1fr 1fr 26px; gap: 6px; align-items: center;
 }
+/* Упражнение без веса (своего веса / на время): один столбец значения */
+.exercise-card.count .sets-head, .exercise-card.count .set-row {
+  grid-template-columns: 22px 1fr 26px;
+}
 .sets-head { color: var(--muted); font-size: 12px; margin-bottom: 6px; text-align: center; }
 .set-row { margin-bottom: 8px; }
 .set-num { text-align: center; color: var(--muted); }
@@ -884,6 +888,7 @@ img.avatar-lg.has-img {
   .exercise-card, .history-card, .feed-card { padding: 12px; }
   /* ещё сильнее поджимаем степперы, чтобы цифры влезали на маленьких телефонах */
   .sets-head, .set-row { grid-template-columns: 20px 1fr 1fr 24px; gap: 5px; }
+  .exercise-card.count .sets-head, .exercise-card.count .set-row { grid-template-columns: 20px 1fr 24px; }
   .stepper button { width: 30px; font-size: 18px; }
   .profile .stat-num { font-size: 22px; }
 }

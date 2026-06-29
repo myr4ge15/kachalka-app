@@ -13,11 +13,7 @@ import { supabase, isConfigured, hasSession } from './supabase.js'
 import { withTimeout } from '../lib/withTimeout.js'
 import { db } from './local.js'
 import { cmpIsoAsc, cmpIsoDesc } from '../lib/cmp.js'
-
-// Максимальный фактический вес среди подходов [{weight, reps}].
-function bestWeight(sets) {
-  return sets.reduce((m, s) => Math.max(m, Number(s.weight) || 0), 0)
-}
+import { leadingValue, normMetric } from '../lib/metric.js'
 
 // Сколько последних тренировок показываем в ленте.
 const FEED_LIMIT = 50
@@ -27,7 +23,7 @@ const SELECT_FEED =
   'id, performed_at, user_id, ' +
   'user:users(id, name), ' +
   'workout_exercises(id, position, exercise_id, ' +
-  'exercise:exercises(id, name, muscle_group, is_bench_lift), ' +
+  'exercise:exercises(id, name, muscle_group, is_bench_lift, metric), ' +
   'sets(id, set_number, weight, reps))'
 
 // server row → элемент ленты (денормализованный, с готовой сводкой).
@@ -43,11 +39,13 @@ function rowToItem(w) {
         name: we.exercise?.name ?? '—',
         muscle_group: we.exercise?.muscle_group ?? null,
         is_bench_lift: Boolean(we.exercise?.is_bench_lift),
+        metric: normMetric(we.exercise?.metric),
         sets,
       }
     })
 
-  // Сводка для подвала карточки
+  // Сводка для подвала карточки. Тоннаж — только по весовым подходам (у reps/time
+  // weight=0, поэтому слагаемое и так 0; формула остаётся прежней).
   const exCount = entries.length
   const setCount = entries.reduce((n, e) => n + e.sets.length, 0)
   const tonnage = entries.reduce(
@@ -70,14 +68,13 @@ function rowToItem(w) {
 
 // Отметки новых рекордов в ленте (ТЗ §4.3).
 // Идём по всему окну ленты в хронологическом порядке и для каждого автора
-// отдельно отслеживаем лучший ФАКТИЧЕСКИЙ вес по упражнению. Если в тренировке
-// упражнение превысило прежний максимум веса этого автора (в пределах окна) —
-// это рекорд. Согласовано с лидербордом: рекорд = новый максимальный реальный
-// вес, а не расчётный 1ПМ (раньше всплывал «рекорд» с весом, который не жали).
-// NB: окно ограничено FEED_LIMIT, поэтому рекорды считаются «по недавним
-// тренировкам», а не по всей истории — для ленты этого достаточно.
+// отдельно отслеживаем лучший ВЕДУЩИЙ показатель по упражнению (вес для weight,
+// макс. повторов/секунд для reps/time). Если в тренировке упражнение превысило
+// прежний максимум этого автора (в пределах окна) — это рекорд. Рекорд = лучший
+// единичный подход (а не расчётный 1ПМ). NB: окно ограничено FEED_LIMIT, поэтому
+// рекорды считаются «по недавним тренировкам», а не по всей истории.
 function computePrs(items) {
-  const byUser = new Map() // user_id → Map(exercise_id → bestWeight)
+  const byUser = new Map() // user_id → Map(exercise_id → лучшее ведущее значение)
   const chronological = [...items].sort((a, b) =>
     cmpIsoAsc(a.performed_at, b.performed_at)
   )
@@ -89,13 +86,13 @@ function computePrs(items) {
     }
     for (const e of item.entries) {
       if (e.sets.length === 0) continue
-      const weight = bestWeight(e.sets)
-      if (weight <= 0) continue
+      const value = leadingValue(e.metric, e.sets)
+      if (value <= 0) continue
       const prev = best.get(e.exercise_id) ?? 0
-      if (weight > prev) {
+      if (value > prev) {
         // первый замер по упражнению рекордом не считаем (нечего бить)
-        if (prev > 0) item.prs.push({ name: e.name, weight })
-        best.set(e.exercise_id, weight)
+        if (prev > 0) item.prs.push({ name: e.name, metric: e.metric, value })
+        best.set(e.exercise_id, value)
       }
     }
   }

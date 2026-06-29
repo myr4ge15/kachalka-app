@@ -5,6 +5,7 @@ import { getUsers } from '../db/repo.js'
 import { getMeta } from '../db/local.js'
 import { onOnline, onResume } from '../lib/appEvents.js'
 import { fmtWhen } from '../lib/dates.js'
+import { fmtMetricValue, fmtSet } from '../lib/metric.js'
 import Leaderboard from './Leaderboard.jsx'
 import Avatar from '../components/Avatar.jsx'
 
@@ -117,8 +118,8 @@ export default function FeedScreen({ user }) {
             {w.prs?.length > 0 && (
               <div className="pr-row">
                 {w.prs.map((pr) => (
-                  <span key={`${pr.name}-${pr.weight}`} className="pr-badge" title="Новый личный рекорд">
-                    🏆 {pr.name} · {pr.weight} кг
+                  <span key={`${pr.name}-${pr.value}`} className="pr-badge" title="Новый личный рекорд">
+                    🏆 {pr.name} · {fmtMetricValue(pr.metric, pr.value)}
                   </span>
                 ))}
               </div>
@@ -129,7 +130,7 @@ export default function FeedScreen({ user }) {
                 <li key={e.exercise_id ?? e.name ?? i} className="history-ex">
                   <span className="history-ex-name">{e.name}</span>
                   <span className="history-ex-sets">
-                    {e.sets.map((s) => `${s.weight}×${s.reps}`).join(', ') || '—'}
+                    {e.sets.map((s) => fmtSet(e.metric, s)).join(', ') || '—'}
                   </span>
                 </li>
               ))}

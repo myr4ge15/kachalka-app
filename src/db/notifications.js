@@ -126,8 +126,9 @@ export async function detectGoalReachedOnSave(userId, workoutId) {
   let changed = false
   const next = goals.map((g) => {
     if (g._deleted || g.achievedAt || !g.exerciseId || !g.targetWeight) return g
-    const cur = bestAll.get(g.exerciseId)?.weight ?? 0
-    const prev = bestPrev.get(g.exerciseId)?.weight ?? 0
+    // Цели — только весовые: ведущее значение весового упражнения = макс. вес.
+    const cur = bestAll.get(g.exerciseId)?.value ?? 0
+    const prev = bestPrev.get(g.exerciseId)?.value ?? 0
     if (!crossedGoal(prev, cur, g.targetWeight)) return g
     changed = true
     reached.push({ name: g.exerciseName ?? '—', weight: g.targetWeight })

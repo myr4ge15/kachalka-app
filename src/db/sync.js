@@ -35,12 +35,12 @@ const PULL_LIMIT = 200
 const SELECT_WORKOUT =
   'id, performed_at, created_at, user_id, ' +
   'workout_exercises(id, position, exercise_id, ' +
-  'exercise:exercises(id, name, muscle_group, is_bench_lift), ' +
+  'exercise:exercises(id, name, muscle_group, is_bench_lift, metric), ' +
   'sets(id, set_number, weight, reps))'
 const SELECT_TEMPLATE =
   'id, name, user_id, is_public, created_at, author:users(name), ' +
   'template_exercises(position, exercise_id, ' +
-  'exercise:exercises(id, name, muscle_group, is_bench_lift))'
+  'exercise:exercises(id, name, muscle_group, is_bench_lift, metric))'
 
 // ----------------------- наблюдаемое состояние синка -----------------------
 let state = { online: navigator.onLine, syncing: false, lastError: null, lastSyncAt: null }
@@ -69,6 +69,7 @@ function rowToDoc(w) {
             name: we.exercise.name,
             muscle_group: we.exercise.muscle_group ?? null,
             is_bench_lift: Boolean(we.exercise.is_bench_lift),
+            metric: we.exercise.metric ?? 'weight',
           }
         : { id: we.exercise_id, name: '—' },
       sets: [...(we.sets ?? [])]
@@ -101,6 +102,7 @@ function templateRowToDoc(t) {
             name: te.exercise.name,
             muscle_group: te.exercise.muscle_group ?? null,
             is_bench_lift: Boolean(te.exercise.is_bench_lift),
+            metric: te.exercise.metric ?? 'weight',
           }
         : { id: te.exercise_id, name: '—' },
       position: i,
@@ -130,7 +132,7 @@ async function pull(userId) {
   // ещё не доехали до сервера (_dirty=1) — иначе своё упражнение пропадёт из
   // пикера до завершения синка.
   const ex = await withTimeout(
-    supabase.from('exercises').select('id, name, muscle_group, is_bench_lift, is_custom, is_hidden')
+    supabase.from('exercises').select('id, name, muscle_group, is_bench_lift, is_custom, is_hidden, metric')
   )
   if (ex.error) warnings.push('упражнения: ' + (ex.error.message ?? ex.error))
   else if (ex.data) {
@@ -262,6 +264,7 @@ async function pushExercises() {
             muscle_group: ex.muscle_group ?? null,
             is_custom: true,
             is_bench_lift: Boolean(ex.is_bench_lift),
+            metric: ex.metric ?? 'weight',
           },
           { onConflict: 'id' }
         )

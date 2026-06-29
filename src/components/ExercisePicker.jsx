@@ -18,6 +18,7 @@ export default function ExercisePicker({ exercises, onPick, onClose, onCreate })
   const [creating, setCreating] = useState(false)
   const [newName, setNewName] = useState('')
   const [newGroup, setNewGroup] = useState('')
+  const [newMetric, setNewMetric] = useState('weight') // weight | reps
   const [busy, setBusy] = useState(false)
   const [error, setError] = useState(null)
 
@@ -59,6 +60,7 @@ export default function ExercisePicker({ exercises, onPick, onClose, onCreate })
   function openCreate() {
     setNewName(query.trim())
     setNewGroup(group !== 'все' ? group : '')
+    setNewMetric('weight')
     setError(null)
     setCreating(true)
   }
@@ -76,7 +78,7 @@ export default function ExercisePicker({ exercises, onPick, onClose, onCreate })
     setBusy(true)
     setError(null)
     try {
-      const ex = await onCreate({ name, muscle_group: newGroup })
+      const ex = await onCreate({ name, muscle_group: newGroup, metric: newMetric })
       onPick(ex) // добавляем в тренировку; родитель закроет пикер
     } catch (err) {
       setError('Не удалось сохранить: ' + (err?.message ?? err))
@@ -116,6 +118,22 @@ export default function ExercisePicker({ exercises, onPick, onClose, onCreate })
               ))}
             </div>
           )}
+
+          <div className="create-label">Тип</div>
+          <div className="chips">
+            <button
+              className={newMetric === 'weight' ? 'chip active' : 'chip'}
+              onClick={() => setNewMetric('weight')}
+            >
+              Вес и повторы
+            </button>
+            <button
+              className={newMetric === 'reps' ? 'chip active' : 'chip'}
+              onClick={() => setNewMetric('reps')}
+            >
+              Только повторы
+            </button>
+          </div>
 
           <div className="create-label">Группа мышц</div>
           <div className="chips">
