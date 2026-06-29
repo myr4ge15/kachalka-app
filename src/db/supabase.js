@@ -25,6 +25,23 @@ export const supabase = createClient(url ?? '', key ?? '', {
 })
 export const isConfigured = Boolean(url && key)
 
+// true, если у клиента УЖЕ поднята настоящая Auth-сессия. Нужно, чтобы не
+// дёргать защищённые RLS-таблицы (`workouts` и пр.) ролью `anon` в момент, когда
+// React-профиль уже восстановлен из localStorage (синхронно), а сессия Supabase
+// Auth ещё поднимается из своего хранилища асинхронно — иначе первый запрос
+// уходит без JWT и RLS отвечает «permission denied for table workouts» (баг при
+// первом входе/перезапуске). `getSession()` дожидается окончания инициализации
+// GoTrue, поэтому здесь же снимается и гонка восстановления сессии после рестарта.
+export async function hasSession() {
+  if (!isConfigured) return false
+  try {
+    const { data } = await supabase.auth.getSession()
+    return Boolean(data?.session)
+  } catch {
+    return false
+  }
+}
+
 // «Прогрев» базы: дешёвый запрос при старте приложения, чтобы разбудить
 // бесплатный проект Supabase из паузы заранее — до того как пользователь
 // нажмёт «Сохранить». Ошибки молча глотаем: это не критичный путь.

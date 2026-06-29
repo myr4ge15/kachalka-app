@@ -12,7 +12,7 @@
 // Офлайн-first: экран читает из локального кэша `leaderboard` (мгновенно и
 // работает без сети), а `fetchLeaderboard()` в фоне обновляет снимок с сервера.
 // ============================================================================
-import { supabase, isConfigured } from './supabase.js'
+import { supabase, isConfigured, hasSession } from './supabase.js'
 import { withTimeout } from '../lib/withTimeout.js'
 import { db } from './local.js'
 import { setOneRepMax } from '../lib/oneRepMax.js'
@@ -35,6 +35,9 @@ export function cmpBoard(a, b) {
 // подход (weight/reps/performed_at) и лучший расчётный 1ПМ (orm) по всей истории.
 export async function fetchLeaderboard() {
   if (!isConfigured || !navigator.onLine) return
+  // Та же гонка, что и в fetchFeed: до готовности сессии RPC уходит ролью `anon`
+  // и ловит «permission denied». Ждём сессию (см. hasSession), иначе тихо выходим.
+  if (!(await hasSession())) return
 
   const res = await withTimeout(supabase.rpc('leaderboard_bench'))
   if (res.error) throw res.error

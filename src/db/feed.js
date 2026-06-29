@@ -9,7 +9,7 @@
 // сети), а `fetchFeed()` в фоне обновляет снимок с сервера. Отметки рекордов
 // считаются на клиенте по загруженному окну ленты.
 // ============================================================================
-import { supabase, isConfigured } from './supabase.js'
+import { supabase, isConfigured, hasSession } from './supabase.js'
 import { withTimeout } from '../lib/withTimeout.js'
 import { db } from './local.js'
 import { cmpIsoAsc, cmpIsoDesc } from '../lib/cmp.js'
@@ -104,6 +104,11 @@ function computePrs(items) {
 // Обновить снимок ленты с сервера. Тихо выходит офлайн / без конфигурации.
 export async function fetchFeed() {
   if (!isConfigured || !navigator.onLine) return
+  // Не читаем `workouts`, пока не поднята настоящая сессия: иначе запрос уходит
+  // ролью `anon` (после auth-harden у неё нет грантов) → «permission denied for
+  // table workouts». Тихо выходим, как при офлайне; повторно дёрнет либо poll
+  // синка, либо ре-триггер по onAuthStateChange (SIGNED_IN), см. sync.startSync.
+  if (!(await hasSession())) return
   const res = await withTimeout(
     supabase
       .from('workouts')

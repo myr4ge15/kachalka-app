@@ -14,7 +14,7 @@
 // ============================================================================
 import { useSyncExternalStore } from 'react'
 import { useLiveQuery } from 'dexie-react-hooks'
-import { supabase, isConfigured } from './supabase.js'
+import { supabase, isConfigured, hasSession } from './supabase.js'
 import { withTimeout } from '../lib/withTimeout.js'
 import { db, nowIso, setMeta, getMeta } from './local.js'
 import { pendingCount } from './repo.js'
@@ -474,6 +474,10 @@ let running = false
 // Полный цикл: сначала отдаём локальные изменения, затем забираем серверные.
 export async function syncNow(userId) {
   if (!isConfigured || !navigator.onLine || running || !userId) return
+  // Не синкаем, пока не поднята настоящая сессия: pull/push защищённых таблиц
+  // ролью `anon` ловят «permission denied» (баг ленты при первом входе). Как
+  // только сессия появится, прогон вызовет ре-триггер по onAuthStateChange.
+  if (!(await hasSession())) return
   running = true
   setState({ syncing: true })
   try {
@@ -523,6 +527,16 @@ export function startSync(getUserId) {
   const offResume = onResume(() => syncNow(getUserId()))
   const timer = setInterval(() => syncNow(getUserId()), POLL_MS)
 
+  // Сессия поднялась (восстановление из хранилища после рестарта ИЛИ молчаливый
+  // онлайн-логин по офлайн-кэшу, см. LoginScreen) → сразу синкаем. Без этого
+  // первый прогон мог отвалиться по hasSession()=false, а следующего ждать до
+  // POLL_MS; теперь pull/feed/лидерборд подтянутся, как только появится JWT.
+  const { data: authSub } = supabase.auth.onAuthStateChange((event) => {
+    if (event === 'SIGNED_IN' || event === 'TOKEN_REFRESHED' || event === 'INITIAL_SESSION') {
+      syncNow(getUserId())
+    }
+  })
+
   syncNow(getUserId()) // первый прогон сразу
 
   return () => {
@@ -530,6 +544,7 @@ export function startSync(getUserId) {
     offOffline()
     offResume()
     clearInterval(timer)
+    authSub?.subscription?.unsubscribe?.()
   }
 }
 
