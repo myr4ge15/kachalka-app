@@ -10,6 +10,7 @@ import { fmtMetricValue, isCountMetric } from '../lib/metric.js'
 import { setPin, setName, LoginError } from '../lib/auth.js'
 import { uploadMyAvatar } from '../lib/avatar.js'
 import { showToast } from '../components/Toast.jsx'
+import HoldButton from '../components/HoldButton.jsx'
 import Avatar from '../components/Avatar.jsx'
 
 // Экран «Профиль» (ЛК). Всё про самого пользователя; пер-упражненческую
@@ -327,10 +328,9 @@ export default function ProfileScreen({ user, onLogout, onOpenProgress, onOpenFe
                   <label className="field">
                     <span className="field-lab">Целевой вес</span>
                     <div className="goal-stepper">
-                      <button
-                        type="button"
-                        onClick={() => setEdWeight((w) => Math.max(1.5, Math.round((Number(w) - 1.5) * 10) / 10))}
-                      >−</button>
+                      <HoldButton
+                        onTrigger={() => setEdWeight((w) => Math.max(1.5, Math.round((Number(w) - 1.5) * 10) / 10))}
+                      >−</HoldButton>
                       <span className="val">
                         <input
                           className="val-field"
@@ -350,10 +350,9 @@ export default function ProfileScreen({ user, onLogout, onOpenProgress, onOpenFe
                         />
                         <span className="u">кг</span>
                       </span>
-                      <button
-                        type="button"
-                        onClick={() => setEdWeight((w) => Math.round((Number(w) + 1.5) * 10) / 10)}
-                      >+</button>
+                      <HoldButton
+                        onTrigger={() => setEdWeight((w) => Math.round((Number(w) + 1.5) * 10) / 10)}
+                      >+</HoldButton>
                     </div>
                   </label>
                   <div className="goal-editor-actions">

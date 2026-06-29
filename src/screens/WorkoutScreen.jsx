@@ -6,6 +6,7 @@ import { syncNow } from '../db/sync.js'
 import { getCache, setCache, clearCache } from '../lib/cache.js'
 import { showToast } from '../components/Toast.jsx'
 import { exerciseMetric, isCountMetric, fmtMetricValue, fmtTime, parseTime } from '../lib/metric.js'
+import HoldButton from '../components/HoldButton.jsx'
 import ExercisePicker from '../components/ExercisePicker.jsx'
 import TemplatePicker from '../components/TemplatePicker.jsx'
 
@@ -310,32 +311,32 @@ export default function WorkoutScreen({ user, workoutId = null, onBack }) {
 
                   {!count && (
                     <div className="stepper">
-                      <button onClick={() => step(ei, si, 'weight', -1.25)}>−</button>
+                      <HoldButton onTrigger={() => step(ei, si, 'weight', -1.25)}>−</HoldButton>
                       <input
                         type="text" inputMode="decimal" value={s.weight}
                         onChange={(e) => updateSet(ei, si, 'weight', e.target.value.replace(',', '.'))}
                       />
-                      <button onClick={() => step(ei, si, 'weight', 1.25)}>+</button>
+                      <HoldButton onTrigger={() => step(ei, si, 'weight', 1.25)}>+</HoldButton>
                     </div>
                   )}
 
                   {isTime ? (
                     <div className="stepper">
-                      <button onClick={() => step(ei, si, 'reps', -15)}>−</button>
+                      <HoldButton onTrigger={() => step(ei, si, 'reps', -15)}>−</HoldButton>
                       <input
                         type="text" inputMode="numeric" value={fmtTime(s.reps)}
                         onChange={(e) => updateSet(ei, si, 'reps', parseTime(e.target.value))}
                       />
-                      <button onClick={() => step(ei, si, 'reps', 15)}>+</button>
+                      <HoldButton onTrigger={() => step(ei, si, 'reps', 15)}>+</HoldButton>
                     </div>
                   ) : (
                     <div className="stepper">
-                      <button onClick={() => step(ei, si, 'reps', -1)}>−</button>
+                      <HoldButton onTrigger={() => step(ei, si, 'reps', -1)}>−</HoldButton>
                       <input
                         type="number" inputMode="numeric" value={s.reps}
                         onChange={(e) => updateSet(ei, si, 'reps', e.target.value)}
                       />
-                      <button onClick={() => step(ei, si, 'reps', 1)}>+</button>
+                      <HoldButton onTrigger={() => step(ei, si, 'reps', 1)}>+</HoldButton>
                     </div>
                   )}
 
