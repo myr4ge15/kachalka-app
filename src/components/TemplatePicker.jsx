@@ -1,13 +1,20 @@
 import { createPortal } from 'react-dom'
 import { useLiveQuery } from 'dexie-react-hooks'
 import { getTemplates } from '../db/repo.js'
+import { exerciseMetric, fmtTemplateTarget } from '../lib/metric.js'
 
 // Шит выбора шаблона при создании новой тренировки. onPick(template) →
 // родитель (WorkoutScreen) применяет состав к entries. Стиль — как ExercisePicker.
 // Карточка шаблона в пикере. mine → бейдж 🌐 у общих; чужой → пометка автора.
 function PickItem({ t, mine, onPick }) {
   const exs = t.exercises ?? []
-  const summary = exs.map((e) => e.exercise?.name).filter(Boolean).join(', ')
+  const summary = exs
+    .filter((e) => e.exercise?.name)
+    .map((e) => {
+      const tg = fmtTemplateTarget(exerciseMetric(e.exercise), e)
+      return tg ? `${e.exercise.name} ${tg}` : e.exercise.name
+    })
+    .join(', ')
   return (
     <button className="picker-item tpl-pick" onClick={() => onPick(t)}>
       <span className="tpl-pick-name">

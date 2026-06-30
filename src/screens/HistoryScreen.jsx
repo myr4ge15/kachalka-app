@@ -1,4 +1,4 @@
-import { useState, useMemo } from 'react'
+import { useState, useMemo, useEffect } from 'react'
 import { useLiveQuery } from 'dexie-react-hooks'
 import { getWorkouts } from '../db/repo.js'
 import { dayTags, tagSlug, matchesGroup, availableGroups } from '../lib/dayTags.js'
@@ -38,6 +38,14 @@ export default function HistoryScreen({ user }) {
     () => list.filter((w) => matchesGroup(w.entries, filter)),
     [list, filter]
   )
+
+  // Вход в редактор/деталь и возврат к списку должны начинаться с верха страницы.
+  // Скроллится не окно, а внешняя .content (overflow-y:auto, см. App.jsx/index.css);
+  // при смене под-вида внутри хаба её позиция не сбрасывалась — после «Сохранить»
+  // (кнопка внизу редактора) пользователь возвращался к списку, прокрученному вниз.
+  useEffect(() => {
+    document.querySelector('.content')?.scrollTo({ top: 0 })
+  }, [selected])
 
   if (selected === 'templates') {
     return <TemplatesScreen user={user} onBack={() => setSelected(null)} />

@@ -160,15 +160,29 @@ export default function WorkoutScreen({ user, workoutId = null, onBack }) {
     })
   }
 
+  // Подходы из целевого плана упражнения шаблона: sets подходов по reps повторов
+  // (× weight у весовых). Нет плана (легаси-шаблон) → один дефолтный подход.
+  function setsFromTemplate(ex, item) {
+    const n = Math.max(1, Math.round(Number(item?.sets)) || 0)
+    if (!item?.sets) return [defaultSet(ex)]
+    const count = isCountMetric(exerciseMetric(ex))
+    const reps = Math.max(1, Math.round(Number(item.reps)) || defaultSet(ex).reps)
+    const weight = count ? 0 : (Number(item.weight) || 0)
+    return Array.from({ length: n }, () => ({ weight, reps }))
+  }
+
   // Применение шаблона (только новая тренировка): добавляем упражнения шаблона,
-  // которых ещё нет (анти-дубль по exercise.id), каждому — дефолтный подход 20×10.
+  // которых ещё нет (анти-дубль по exercise.id), каждому — подходы по целевому
+  // плану шаблона (подходы × повторы × вес), либо один дефолтный, если плана нет.
   function applyTemplate(tpl) {
     setTplPickerOpen(false)
     const have = new Set(entries.map((e) => e.exercise.id))
     const toAdd = (tpl.exercises ?? [])
-      .map((e) => e.exercise ?? { id: e.exercise_id, name: '—' })
-      .filter((ex) => ex.id && !have.has(ex.id))
-      .map((ex) => ({ exercise: ex, sets: [defaultSet(ex)] }))
+      .filter((item) => (item.exercise?.id ?? item.exercise_id) && !have.has(item.exercise?.id ?? item.exercise_id))
+      .map((item) => {
+        const ex = item.exercise ?? { id: item.exercise_id, name: '—' }
+        return { exercise: ex, sets: setsFromTemplate(ex, item) }
+      })
     if (toAdd.length === 0) {
       setMessage({ type: 'error', text: 'Все упражнения шаблона уже добавлены.' })
       return

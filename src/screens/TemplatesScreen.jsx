@@ -9,13 +9,30 @@ import {
   createExercise,
 } from '../db/repo.js'
 import { syncNow } from '../db/sync.js'
+import {
+  exerciseMetric, isCountMetric, fmtTemplateTarget, fmtTime, parseTime,
+} from '../lib/metric.js'
 import ExercisePicker from '../components/ExercisePicker.jsx'
 
-// локальный документ шаблона → редактируемая форма [{ exercise }]
+// Дефолтный целевой план по типу упражнения: 3 подхода × 10 повторов (время —
+// 1:00 = 60 с), без целевого веса. Используется для новых и легаси-упражнений.
+function defaultTarget(metric) {
+  return { sets: 3, reps: metric === 'time' ? 60 : 10, weight: 0 }
+}
+
+// локальный документ шаблона → редактируемая форма
+// [{ exercise, sets, reps, weight }]. Легаси-упражнения без плана получают дефолт.
 function toItems(tpl) {
-  return (tpl?.exercises ?? []).map((e) => ({
-    exercise: e.exercise ?? { id: e.exercise_id, name: '—' },
-  }))
+  return (tpl?.exercises ?? []).map((e) => {
+    const exercise = e.exercise ?? { id: e.exercise_id, name: '—' }
+    const d = defaultTarget(exerciseMetric(exercise))
+    return {
+      exercise,
+      sets: e.sets ?? d.sets,
+      reps: e.reps ?? d.reps,
+      weight: e.weight ?? d.weight,
+    }
+  })
 }
 
 // Экран шаблонов: список ↔ редактор (одно внутреннее состояние editing).
@@ -66,11 +83,15 @@ function TemplateCard({ t, mine, onOpen }) {
       </div>
 
       <ul className="history-list">
-        {exs.map((e, i) => (
-          <li key={i} className="history-ex">
-            <span className="history-ex-name">{e.exercise?.name ?? '—'}</span>
-          </li>
-        ))}
+        {exs.map((e, i) => {
+          const target = fmtTemplateTarget(exerciseMetric(e.exercise), e)
+          return (
+            <li key={i} className="history-ex">
+              <span className="history-ex-name">{e.exercise?.name ?? '—'}</span>
+              {target && <span className="history-ex-sets">{target}</span>}
+            </li>
+          )
+        })}
       </ul>
     </button>
   )
@@ -167,11 +188,17 @@ function TemplateEditor({ user, templateId, onBack }) {
       setMessage({ type: 'error', text: 'Это упражнение уже в шаблоне.' })
       return
     }
-    setItems([...items, { exercise: ex }])
+    setItems([...items, { exercise: ex, ...defaultTarget(exerciseMetric(ex)) }])
   }
 
   function removeExercise(idx) {
     setItems(items.filter((_, i) => i !== idx))
+  }
+
+  // Правка целевого плана упражнения (подходы/повторы/вес). Значения хранятся
+  // как есть из инпутов; нормализация в числа — на сохранении (repo.saveTemplate).
+  function updateTarget(idx, field, value) {
+    setItems((prev) => prev.map((it, i) => (i === idx ? { ...it, [field]: value } : it)))
   }
 
   // ------------------------ drag-n-drop реордер ----------------------------
@@ -283,11 +310,15 @@ function TemplateEditor({ user, templateId, onBack }) {
           {authorName && <p className="muted tpl-author">от {authorName}</p>}
 
           <ul className="history-list">
-            {items.map((it, idx) => (
-              <li key={idx} className="history-ex">
-                <span className="history-ex-name">{it.exercise.name}</span>
-              </li>
-            ))}
+            {items.map((it, idx) => {
+              const target = fmtTemplateTarget(exerciseMetric(it.exercise), it)
+              return (
+                <li key={idx} className="history-ex">
+                  <span className="history-ex-name">{it.exercise.name}</span>
+                  {target && <span className="history-ex-sets">{target}</span>}
+                </li>
+              )
+            })}
           </ul>
           <p className="muted empty">Чужой общий шаблон — только просмотр. Применить можно при создании тренировки.</p>
         </>
@@ -317,7 +348,11 @@ function TemplateEditor({ user, templateId, onBack }) {
             <p className="muted empty">Добавь упражнения в шаблон.</p>
           )}
 
-          {items.map((it, idx) => (
+          {items.map((it, idx) => {
+            const metric = exerciseMetric(it.exercise)
+            const isTime = metric === 'time'
+            const count = isCountMetric(metric) // свой вес / на время — без столбца «кг»
+            return (
             <div
               key={it.exercise.id}
               ref={(el) => (rowRefs.current[idx] = el)}
@@ -333,12 +368,57 @@ function TemplateEditor({ user, templateId, onBack }) {
               >
                 ☰
               </button>
-              <span className="tpl-name">{it.exercise.name}</span>
-              <button className="link-btn danger" onClick={() => removeExercise(idx)}>
-                убрать
-              </button>
+              <div className="tpl-main">
+                <div className="tpl-name-line">
+                  <span className="tpl-name">{it.exercise.name}</span>
+                  <button className="link-btn danger" onClick={() => removeExercise(idx)}>
+                    убрать
+                  </button>
+                </div>
+                <div className="tpl-targets">
+                  <label className="tpl-target">
+                    <span className="tpl-target-lab">подходы</span>
+                    <input
+                      type="number" inputMode="numeric" min="1"
+                      value={it.sets}
+                      onChange={(e) => updateTarget(idx, 'sets', e.target.value)}
+                    />
+                  </label>
+                  <span className="tpl-target-x" aria-hidden="true">×</span>
+                  <label className="tpl-target">
+                    <span className="tpl-target-lab">{isTime ? 'мин:сек' : 'повт.'}</span>
+                    {isTime ? (
+                      <input
+                        type="text" inputMode="numeric"
+                        value={fmtTime(it.reps)}
+                        onChange={(e) => updateTarget(idx, 'reps', parseTime(e.target.value))}
+                      />
+                    ) : (
+                      <input
+                        type="number" inputMode="numeric" min="1"
+                        value={it.reps}
+                        onChange={(e) => updateTarget(idx, 'reps', e.target.value)}
+                      />
+                    )}
+                  </label>
+                  {!count && (
+                    <>
+                      <span className="tpl-target-x" aria-hidden="true">×</span>
+                      <label className="tpl-target">
+                        <span className="tpl-target-lab">кг</span>
+                        <input
+                          type="text" inputMode="decimal"
+                          value={it.weight}
+                          onChange={(e) => updateTarget(idx, 'weight', e.target.value.replace(',', '.'))}
+                        />
+                      </label>
+                    </>
+                  )}
+                </div>
+              </div>
             </div>
-          ))}
+            )
+          })}
 
           <button className="btn outline full" onClick={() => setPickerOpen(true)}>
             + Добавить упражнение

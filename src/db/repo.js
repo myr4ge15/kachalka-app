@@ -301,23 +301,40 @@ async function enqueue(type, workoutId) {
 
 // ------------------------- Шаблоны (запись) --------------------------------
 
+// Нормализуем целевой план упражнения шаблона: подходы × повторы (× вес).
+//   sets   — число подходов (≥1, дефолт 3);
+//   reps   — повторы на подход (≥1, дефолт 10; для time — секунды);
+//   weight — целевой вес, кг (≥0; у не-весовых = 0).
+// Значения хранятся числами; на сервере — колонки target_sets/reps/weight.
+function cleanTargets(e, metric) {
+  const sets = Math.max(1, Math.round(toNum(e.sets)) || 3)
+  const reps = Math.max(1, Math.round(toNum(e.reps)) || 10)
+  const w = toNum(e.weight)
+  const weight = metric === 'weight' && Number.isFinite(w) && w > 0 ? w : 0
+  return { sets, reps, weight }
+}
+
 // Нормализуем список упражнений шаблона из формы → денормализованный вид
-// (exercise_id + вложенный exercise + position = индекс).
+// (exercise_id + вложенный exercise + position = индекс + целевой план).
 function cleanTemplateExercises(exercises) {
   return (exercises ?? [])
-    .map((e, i) => ({
-      exercise_id: e.exercise?.id ?? e.exercise_id,
-      exercise: e.exercise
-        ? {
-            id: e.exercise.id,
-            name: e.exercise.name,
-            muscle_group: e.exercise.muscle_group ?? null,
-            is_bench_lift: Boolean(e.exercise.is_bench_lift),
-            metric: normMetric(e.exercise.metric),
-          }
-        : undefined,
-      position: i,
-    }))
+    .map((e, i) => {
+      const metric = normMetric(e.exercise?.metric)
+      return {
+        exercise_id: e.exercise?.id ?? e.exercise_id,
+        exercise: e.exercise
+          ? {
+              id: e.exercise.id,
+              name: e.exercise.name,
+              muscle_group: e.exercise.muscle_group ?? null,
+              is_bench_lift: Boolean(e.exercise.is_bench_lift),
+              metric,
+            }
+          : undefined,
+        position: i,
+        ...cleanTargets(e, metric),
+      }
+    })
     .filter((e) => e.exercise_id)
     .map((e, i) => ({ ...e, position: i })) // переиндексация после отсева
 }

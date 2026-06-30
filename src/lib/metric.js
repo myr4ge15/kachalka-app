@@ -79,6 +79,24 @@ export function fmtMetricValue(metric, v) {
   return `${Number(v) || 0} кг`
 }
 
+// Целевой план упражнения в ШАБЛОНЕ — «подходы × повторы (× вес)». В отличие от
+// fmtSet (один фактический подход) описывает план: сколько подходов и по сколько.
+//   weight → '3×10' или '3×10×60 кг' (если задан вес);
+//   reps   → '3×10';
+//   time   → '3×1:30' (повторы трактуются как секунды на подход).
+// Нет подходов (sets=0) → '' (упражнение без заданного плана).
+export function fmtTemplateTarget(metric, t) {
+  const sets = Math.max(0, Math.round(Number(t?.sets) || 0))
+  if (!sets) return ''
+  const reps = Math.max(0, Math.round(Number(t?.reps) || 0))
+  const weight = Number(t?.weight) || 0
+  const m = normMetric(metric)
+  const per = m === 'time' ? fmtTime(reps) : String(reps)
+  let s = `${sets}×${per}`
+  if (m === 'weight' && weight > 0) s += `×${weight} кг`
+  return s
+}
+
 // Короткая запись ОДНОГО подхода для списков (история/лента/прогресс):
 //   weight → '80×8' (или просто '8', если веса нет);
 //   reps   → '12'; time → '1:30'.

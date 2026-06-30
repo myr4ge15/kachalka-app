@@ -39,7 +39,7 @@ const SELECT_WORKOUT =
   'sets(id, set_number, weight, reps))'
 const SELECT_TEMPLATE =
   'id, name, user_id, is_public, created_at, author:users(name), ' +
-  'template_exercises(position, exercise_id, ' +
+  'template_exercises(position, exercise_id, target_sets, target_reps, target_weight, ' +
   'exercise:exercises(id, name, muscle_group, is_bench_lift, metric))'
 
 // ----------------------- наблюдаемое состояние синка -----------------------
@@ -106,6 +106,11 @@ function templateRowToDoc(t) {
           }
         : { id: te.exercise_id, name: '—' },
       position: i,
+      // Целевой план (подходы × повторы × вес). Легаси-строки без целей → null;
+      // редактор/применение подставят дефолты.
+      sets: te.target_sets ?? null,
+      reps: te.target_reps ?? null,
+      weight: te.target_weight != null ? Number(te.target_weight) : null,
     }))
   return {
     id: t.id,
@@ -301,9 +306,17 @@ async function pushTemplates() {
           await db.tpl_outbox.delete(op.seq)
           continue
         }
+        // Передаём упорядоченный массив объектов {id, sets, reps, weight}.
+        // Серверный upsert_template принимает и легаси-форму (массив строк-uuid),
+        // поэтому совместим при поэтапной раскатке (сервер обновляется раньше).
         const exerciseIds = [...(doc.exercises ?? [])]
           .sort((a, b) => (a.position ?? 0) - (b.position ?? 0))
-          .map((e) => e.exercise_id)
+          .map((e) => ({
+            id: e.exercise_id,
+            sets: e.sets ?? null,
+            reps: e.reps ?? null,
+            weight: e.weight ?? null,
+          }))
         const { error } = await withTimeout(
           supabase.rpc('upsert_template', {
             p_template_id: doc.id,
