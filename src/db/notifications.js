@@ -15,7 +15,11 @@ import { cmpIsoAsc, cmpIsoDesc } from '../lib/cmp.js'
 import { myBestByExercise, minePrs, computeBeaten, computeNewPrs, crossedGoal, goalMetByExercise } from '../lib/records.js'
 import { normMetric } from '../lib/metric.js'
 
-const SEEN_KEY = 'notif_seen_at'
+// Метка «прочитано» неймспейснута по userId — иначе на общем устройстве второй
+// вошедший наследует «прочитано» первого (notif_seen_at был глобальным). Старый
+// глобальный ключ больше не читаем (станет мёртвым; одноразовый эффект — при
+// первом открытии после обновления уведомления покажутся непрочитанными).
+const seenKey = (userId) => `notif_seen_at_${userId}`
 const LIMIT = 40 // сколько последних уведомлений держим в списке
 
 // Ключ личных целей в meta. Мульти-цели (фаза 2c): значение — МАССИВ целей:
@@ -85,25 +89,25 @@ export async function getNotifications(userId) {
     .slice(0, LIMIT)
 }
 
-// Метка «последнего просмотра» (ISO, '' если ещё не открывали).
-export async function getSeenAt() {
-  return (await getMeta(SEEN_KEY)) ?? ''
+// Метка «последнего просмотра» (ISO, '' если ещё не открывали) — для своего userId.
+export async function getSeenAt(userId) {
+  return (await getMeta(seenKey(userId))) ?? ''
 }
 
 // Число непрочитанных (событие новее метки просмотра).
 export async function countUnread(userId) {
-  const [seen, list] = await Promise.all([getSeenAt(), getNotifications(userId)])
+  const [seen, list] = await Promise.all([getSeenAt(userId), getNotifications(userId)])
   return list.filter((n) => cmpIsoAsc(seen, n.at) < 0).length
 }
 
 // Двигаем метку на время самого свежего уведомления (всё прочитано).
-export async function markAllSeen(list) {
-  const seen = await getSeenAt()
+export async function markAllSeen(userId, list) {
+  const seen = await getSeenAt(userId)
   const newest = (list ?? []).reduce(
     (m, n) => (cmpIsoAsc(m, n.at) < 0 ? n.at : m),
     seen
   )
-  await setMeta(SEEN_KEY, newest || nowIso())
+  await setMeta(seenKey(userId), newest || nowIso())
 }
 
 // Новые личные рекорды, установленные ИМЕННО этой тренировкой (для тоста после

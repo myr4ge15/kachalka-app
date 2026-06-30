@@ -139,3 +139,17 @@ export async function getMeta(key) {
 export async function setMeta(key, value) {
   await db.meta.put({ key, value })
 }
+
+// Чистка кросс-пользовательских кэшей при смене учётки на общем устройстве
+// («закрытый круг», общие телефоны). Лента и лидерборд — это read-only снимки
+// ВСЕХ участников, не привязанные к user_id; без чистки следующий вошедший до
+// своего первого fetchFeed/fetchLeaderboard видит данные предыдущего (а для
+// приватного — getNotifications читает чужую db.feed). Зовём на login И logout.
+//
+// db.workouts НЕ трогаем: записи скоупятся по user_id в запросах (чужое в UI не
+// течёт), а среди них могут быть свои несинхронизированные (_dirty) тренировки —
+// их чистка = потеря данных. notif_seen_at неймспейснут по userId (см.
+// notifications.js), отдельной чистки не требует.
+export async function clearSessionData() {
+  await Promise.all([db.feed.clear(), db.leaderboard.clear()])
+}

@@ -17,21 +17,21 @@ export default function NotificationsScreen({ user }) {
   const [ready, setReady] = useState(false)
   useEffect(() => {
     let alive = true
-    getSeenAt().then((s) => {
+    getSeenAt(user.id).then((s) => {
       if (alive) {
         seenRef.current = s
         setReady(true)
       }
     })
     return () => { alive = false }
-  }, [])
+  }, [user.id])
 
   // Как только список и метка готовы — помечаем всё прочитанным (один раз).
   const marked = useRef(false)
   useEffect(() => {
     if (!ready || loading || marked.current) return
     marked.current = true
-    markAllSeen(items)
+    markAllSeen(user.id, items)
   }, [ready, loading, items])
 
   const unreadCount = items.filter((n) => cmpIsoAsc(seenRef.current, n.at) < 0).length

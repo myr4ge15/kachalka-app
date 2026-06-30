@@ -5,6 +5,7 @@ import { logout as authLogout } from './lib/auth.js'
 import { startSync, useSyncStatus } from './db/sync.js'
 import { countUnread } from './db/notifications.js'
 import { getCachedUser } from './db/repo.js'
+import { clearSessionData } from './db/local.js'
 import LoginScreen from './screens/LoginScreen.jsx'
 import Toast from './components/Toast.jsx'
 import Avatar from './components/Avatar.jsx'
@@ -131,7 +132,11 @@ export default function App() {
     return () => data?.subscription?.unsubscribe?.()
   }, [])
 
-  function handleLogin(u) {
+  async function handleLogin(u) {
+    // Чистим кросс-пользовательские кэши ДО показа экранов: на общем устройстве
+    // иначе новый вошедший видит ленту/лидерборд/уведомления предыдущего, пока не
+    // отработает первый fetch. Покрывает и путь авто-SIGNED_OUT (там чистки нет).
+    await clearSessionData()
     localStorage.setItem(SESSION_KEY, JSON.stringify(u))
     setUser(u)
     setTab('history')
@@ -150,6 +155,7 @@ export default function App() {
 
   async function handleLogout() {
     await authLogout()
+    await clearSessionData() // не оставляем ленту/лидерборд прошлой учётки «на покое»
     localStorage.removeItem(SESSION_KEY)
     setUser(null)
   }
