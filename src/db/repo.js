@@ -407,3 +407,63 @@ export async function pendingCount() {
   ])
   return w + e + t
 }
+
+// ------------------------- Dead-letter (мёртвая очередь) -------------------
+// Операция, провалившая MAX_ATTEMPTS попыток, помечается `_dead` и больше не
+// отправляется (чтобы не блокировать очередь). Без разбора такие копятся вечно —
+// даём пользователю их пересобрать (retry) или отклонить (discard).
+
+// Сколько мёртвых операций ждут разбора (по всем трём очередям).
+export async function deadLetterCount() {
+  const [w, e, t] = await Promise.all([
+    db.outbox.filter((o) => o._dead).count(),
+    db.ex_outbox.filter((o) => o._dead).count(),
+    db.tpl_outbox.filter((o) => o._dead).count(),
+  ])
+  return w + e + t
+}
+
+// Вернуть мёртвые операции в строй: снять `_dead`, обнулить счётчик попыток во
+// всех трёх очередях. Следующий sync попробует отправить их заново (типичная
+// причина dead-letter — затянувшийся холодный старт/обрыв, а не «ядовитые» данные).
+// Возвращает число воскрешённых операций.
+export async function retryDeadLetter() {
+  let n = 0
+  await db.transaction('rw', db.outbox, db.ex_outbox, db.tpl_outbox, async () => {
+    for (const tbl of [db.outbox, db.ex_outbox, db.tpl_outbox]) {
+      const dead = await tbl.filter((o) => o._dead).toArray()
+      for (const o of dead) {
+        await tbl.update(o.seq, { _dead: 0, attempts: 0, lastError: null })
+        n++
+      }
+    }
+  })
+  return n
+}
+
+// Отклонить мёртвые операции: удалить их из очередей и снять локальные флаги
+// `_dirty`/`_deleted` с затронутых документов, чтобы следующий pull привёл их к
+// серверной правде (несохранённая правка/создание при этом теряется — это и есть
+// «отклонить»). Возвращает число удалённых операций.
+export async function discardDeadLetter() {
+  let n = 0
+  await db.transaction(
+    'rw',
+    db.outbox, db.ex_outbox, db.tpl_outbox, db.workouts, db.exercises, db.templates,
+    async () => {
+      for (const o of await db.outbox.filter((x) => x._dead).toArray()) {
+        await db.workouts.update(o.workoutId, { _dirty: 0, _deleted: 0 })
+        await db.outbox.delete(o.seq); n++
+      }
+      for (const o of await db.ex_outbox.filter((x) => x._dead).toArray()) {
+        await db.exercises.update(o.exerciseId, { _dirty: 0 })
+        await db.ex_outbox.delete(o.seq); n++
+      }
+      for (const o of await db.tpl_outbox.filter((x) => x._dead).toArray()) {
+        await db.templates.update(o.templateId, { _dirty: 0, _deleted: 0 })
+        await db.tpl_outbox.delete(o.seq); n++
+      }
+    }
+  )
+  return n
+}

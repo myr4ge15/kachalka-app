@@ -1,6 +1,9 @@
 import { useEffect, useMemo, useState } from 'react'
 import { useLiveQuery } from 'dexie-react-hooks'
-import { getWorkouts, getCachedUser, setCachedAvatar, setCachedName, softDeleteMyWorkouts } from '../db/repo.js'
+import {
+  getWorkouts, getCachedUser, setCachedAvatar, setCachedName, softDeleteMyWorkouts,
+  deadLetterCount, retryDeadLetter, discardDeadLetter,
+} from '../db/repo.js'
 import { readGoals, writeGoals } from '../db/notifications.js'
 import { syncNow } from '../db/sync.js'
 import { getCachedLeaderboard } from '../db/leaderboard.js'
@@ -167,6 +170,38 @@ export default function ProfileScreen({ user, onLogout, onOpenProgress, onOpenFe
       showToast({ emoji: '⚠️', title: 'Не удалось удалить', sub: String(e?.message ?? e) })
     } finally {
       setDelBusy(false)
+    }
+  }
+
+  // ── Застрявшие изменения (dead-letter) ─────────────────────────────────
+  // Операции, провалившие все попытки отправки. Обычно — затянувшийся холодный
+  // старт/обрыв; даём пересобрать или отклонить, чтобы не копились молча.
+  const deadCount = useLiveQuery(() => deadLetterCount(), [], 0)
+  const [dlBusy, setDlBusy] = useState(false)
+  const [dlArm, setDlArm] = useState(false) // подтверждение «отклонить» (теряет правки)
+  async function retryDead() {
+    setDlBusy(true)
+    try {
+      const n = await retryDeadLetter()
+      showToast({ emoji: '🔄', title: 'Повторная отправка', sub: `Операций в очереди: ${n}` })
+      if (navigator.onLine) syncNow(user.id)
+    } catch (e) {
+      showToast({ emoji: '⚠️', title: 'Не удалось', sub: String(e?.message ?? e) })
+    } finally {
+      setDlBusy(false)
+    }
+  }
+  async function discardDead() {
+    setDlBusy(true)
+    try {
+      const n = await discardDeadLetter()
+      setDlArm(false)
+      showToast({ emoji: '🧹', title: 'Изменения отклонены', sub: `Удалено операций: ${n}` })
+      if (navigator.onLine) syncNow(user.id)
+    } catch (e) {
+      showToast({ emoji: '⚠️', title: 'Не удалось', sub: String(e?.message ?? e) })
+    } finally {
+      setDlBusy(false)
     }
   }
 
@@ -633,6 +668,29 @@ export default function ProfileScreen({ user, onLogout, onOpenProgress, onOpenFe
           )}
           {user.role === 'admin' && (
             <button className="act" onClick={() => onOpenAdmin?.()}>🛠 Админка</button>
+          )}
+          {deadCount > 0 && (
+            <div className="danger-confirm">
+              <p className="danger-text">
+                ⚠️ Не удалось отправить изменений: {deadCount}. Обычно помогает повторить
+                (например, после восстановления связи).
+              </p>
+              {dlArm ? (
+                <div className="danger-actions">
+                  <button className="btn ghost" onClick={() => setDlArm(false)} disabled={dlBusy}>Отмена</button>
+                  <button className="btn danger" onClick={discardDead} disabled={dlBusy}>
+                    {dlBusy ? 'Отклоняю…' : 'Да, отклонить (потерять правки)'}
+                  </button>
+                </div>
+              ) : (
+                <div className="danger-actions">
+                  <button className="btn primary" onClick={retryDead} disabled={dlBusy}>
+                    {dlBusy ? 'Отправляю…' : '🔄 Повторить отправку'}
+                  </button>
+                  <button className="btn ghost" onClick={() => setDlArm(true)} disabled={dlBusy}>Отклонить</button>
+                </div>
+              )}
+            </div>
           )}
           {delArm ? (
             <div className="danger-confirm">

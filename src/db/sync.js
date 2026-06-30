@@ -85,7 +85,12 @@ function rowToDoc(w) {
     // created_at с сервера (для сортировки хаба). Фолбэк на performed_at,
     // если сервер ещё не отдаёт это поле.
     created_at: w.created_at ?? w.performed_at,
-    updated_at: w.performed_at,
+    // updated_at — ЛОКАЛЬНОЕ служебное поле, НЕ merge-clock: конфликты решаются
+    // _dirty, не временем (на сервере колонки updated_at вообще нет). Раньше тут
+    // стоял редактируемый performed_at — обманчивая «ловушка» для будущего
+    // time-based merge (бэкдейтнутая правка выглядела бы «старой»). Берём
+    // created_at (как у шаблонов, sync.js ниже) — иммутабельную дату создания.
+    updated_at: w.created_at ?? nowIso(),
     entries,
     _dirty: 0,
     _deleted: 0,
