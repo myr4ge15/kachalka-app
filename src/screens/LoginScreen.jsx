@@ -1,6 +1,7 @@
 import { useState, useEffect, useRef } from 'react'
 import { supabase } from '../db/supabase.js'
 import { getUsers, cacheUsers } from '../db/repo.js'
+import { migrateLoginZone } from '../db/local.js'
 import { login as authLogin, verifyPinOffline, LoginError } from '../lib/auth.js'
 import { withTimeout } from '../lib/withTimeout.js'
 
@@ -24,6 +25,9 @@ export default function LoginScreen({ onLogin }) {
   useEffect(() => {
     let alive = true
     async function load() {
+      // Перенос «загрузочной зоны» со старой общей базы (ростер + офлайн-кэш PIN),
+      // чтобы пикер и офлайн-вход пережили апдейт на персональные базы. Идемпотентно.
+      await migrateLoginZone()
       const cached = await getUsers()
       if (alive && cached.length) {
         setUsers(cached)

@@ -15,7 +15,7 @@
 // запасной путь молчаливого перевыпуска сессии.
 // ============================================================================
 import { supabase } from '../db/supabase.js'
-import { getMeta, setMeta } from '../db/local.js'
+import { getLoginMeta, setLoginMeta } from '../db/local.js'
 import { verifyPin } from './hash.js'
 import { DB_TIMEOUT_MS, withTimeout } from './withTimeout.js'
 
@@ -38,6 +38,9 @@ const SET_PIN_URL = (import.meta.env.VITE_SUPABASE_URL ?? '') + '/functions/v1/a
 const ANON = import.meta.env.VITE_SUPABASE_KEY ?? ''
 
 // Ключ локального кэша офлайн-разблокировки (свои хэш+соль+имя+роль).
+// Кэш лежит в ОБЩЕЙ login-базе (loginDb.meta), а не в персональной: офлайн-
+// разблокировка читает его ДО входа, когда личная база ещё не открыта
+// (PLAN-user-isolation). Ключ уже неймспейснут по userId.
 const pinCacheKey = (userId) => `pin_${userId}`
 
 // PIN текущей сессии в памяти (чистится при logout). Не на диске.
@@ -90,7 +93,7 @@ export async function login(userId, pin) {
   if (error) throw new LoginError('server', error.message)
 
   // Кэш офлайн-разблокировки — только свои значения текущего пользователя.
-  await setMeta(pinCacheKey(userId), {
+  await setLoginMeta(pinCacheKey(userId), {
     pin_hash: body.pin_hash,
     pin_salt: body.pin_salt ?? null,
     name: body.user.name,
@@ -105,7 +108,7 @@ export async function login(userId, pin) {
 //   false              — кэш есть, но PIN неверный;
 //   null               — кэша нет (первый вход на устройстве → нужна сеть).
 export async function verifyPinOffline(userId, pin) {
-  const cached = await getMeta(pinCacheKey(userId))
+  const cached = await getLoginMeta(pinCacheKey(userId))
   if (!cached?.pin_hash) return null
   const ok = await verifyPin(pin, { pin_hash: cached.pin_hash, pin_salt: cached.pin_salt })
   if (!ok) return false
@@ -164,8 +167,8 @@ export async function setPin(userId, currentPin, newPin) {
   }
 
   // Обновляем офлайн-кэш своими новыми значениями (имя/роль сохраняем).
-  const cached = (await getMeta(pinCacheKey(userId))) ?? {}
-  await setMeta(pinCacheKey(userId), {
+  const cached = (await getLoginMeta(pinCacheKey(userId))) ?? {}
+  await setLoginMeta(pinCacheKey(userId), {
     ...cached,
     pin_hash: body.pin_hash,
     pin_salt: body.pin_salt ?? null,
@@ -199,8 +202,8 @@ export async function setName(userId, name) {
     throw new LoginError('server', res.error.message ?? 'Не удалось сменить имя.')
   }
   // Обновляем имя в офлайн-кэше своего профиля (хэш/соль/роль сохраняем).
-  const cached = (await getMeta(pinCacheKey(userId))) ?? {}
-  await setMeta(pinCacheKey(userId), { ...cached, name: clean })
+  const cached = (await getLoginMeta(pinCacheKey(userId))) ?? {}
+  await setLoginMeta(pinCacheKey(userId), { ...cached, name: clean })
   return clean
 }
 

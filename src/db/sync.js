@@ -18,7 +18,7 @@ import { useSyncExternalStore } from 'react'
 import { useLiveQuery } from 'dexie-react-hooks'
 import { supabase, isConfigured, hasSession } from './supabase.js'
 import { withTimeout } from '../lib/withTimeout.js'
-import { db, nowIso, setMeta, getMeta } from './local.js'
+import { db, loginDb, nowIso, setMeta, getMeta } from './local.js'
 import { pendingCount } from './repo.js'
 import { fetchFeed } from './feed.js'
 import { readGoals, writeGoals } from './notifications.js'
@@ -173,9 +173,11 @@ async function pull(userId, justPushed = new Set()) {
   const us = await withTimeout(supabase.from('login_users').select('id, name, avatar_url, sort_order, sex'))
   if (us.error) warnings.push('пользователи: ' + (us.error.message ?? us.error))
   else if (us.data) {
-    await db.transaction('rw', db.users, async () => {
-      await db.users.clear()
-      await db.users.bulkPut(us.data)
+    // Ростер — общий для устройства (loginDb), а не персональный: его читает
+    // пикер входа до выбора учётки. См. local.js / repo.getUsers.
+    await loginDb.transaction('rw', loginDb.users, async () => {
+      await loginDb.users.clear()
+      await loginDb.users.bulkPut(us.data)
     })
   }
 
@@ -608,6 +610,9 @@ let running = false
 // Полный цикл: сначала отдаём локальные изменения, затем забираем серверные.
 export async function syncNow(userId) {
   if (!isConfigured || !navigator.onLine || running || !userId) return
+  // Персональная база ещё не открыта (или уже закрыта после выхода) — синкать
+  // некуда. Страховка от запоздалого таймера/события после logout.
+  if (!db) return
   // Не синкаем, пока не поднята настоящая сессия: pull/push защищённых таблиц
   // ролью `anon` ловят «permission denied» (баг ленты при первом входе). Как
   // только сессия появится, прогон вызовет ре-триггер по onAuthStateChange.

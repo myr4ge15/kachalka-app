@@ -15,7 +15,7 @@
 // ============================================================================
 import { supabase, isConfigured, hasSession } from './supabase.js'
 import { withTimeout } from '../lib/withTimeout.js'
-import { db } from './local.js'
+import { db, loginDb } from './local.js'
 import { setOneRepMax } from '../lib/oneRepMax.js'
 import { cmpIsoAsc } from '../lib/cmp.js'
 
@@ -147,7 +147,8 @@ export function computeBoardFromFeed(feedItems, sexById) {
 export async function getCachedLeaderboard() {
   const snapshot = await db.leaderboard.toArray()
   if (snapshot.length) return splitBoards(snapshot)
-  const users = await db.users.toArray()
+  // Ростер (пол участников) — общий, в loginDb (см. local.js).
+  const users = await loginDb.users.toArray()
   const sexById = new Map(users.map((u) => [u.id, u.sex]))
   return computeBoardFromFeed(await db.feed.toArray(), sexById)
 }

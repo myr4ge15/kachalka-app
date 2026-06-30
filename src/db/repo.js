@@ -16,7 +16,7 @@
 //     ]
 //   }
 // ============================================================================
-import { db, newId, nowIso } from './local.js'
+import { db, loginDb, newId, nowIso } from './local.js'
 import { normalizeName } from '../lib/similar.js'
 import { cmpIsoDesc } from '../lib/cmp.js'
 import { sortUsersByOrder } from '../lib/userOrder.js'
@@ -109,11 +109,13 @@ export async function createExercise({ name, muscle_group, metric }) {
   return { id, name: clean, muscle_group: group, is_bench_lift: false, metric: mtr, is_custom: true }
 }
 
-// Пользователи (имена для пикера входа). Только {id,name} из login_users —
+// Пользователи (имена для пикера входа). Только {id,name,...} из login_users —
 // pin_hash/pin_salt тут больше не хранятся (офлайн-сверка PIN идёт по
-// отдельному кэшу своего хэша в meta, см. src/lib/auth.js).
+// отдельному кэшу своего хэша в meta, см. src/lib/auth.js). Ростер — ОБЩИЙ для
+// всех учёток устройства, поэтому живёт в loginDb (а не в персональной базе):
+// пикер входа читает его ДО выбора пользователя, когда личная база не открыта.
 export async function getUsers() {
-  const list = await db.users.toArray()
+  const list = await loginDb.users.toArray()
   // Порядок входа: по sort_order (задаёт админ), учётки без порядка — в конец.
   return sortUsersByOrder(list)
 }
@@ -121,30 +123,30 @@ export async function getUsers() {
 // Сохранить список пользователей в кэш (вызывает экран входа, пока синк не запущен).
 export async function cacheUsers(list) {
   if (!Array.isArray(list)) return
-  await db.transaction('rw', db.users, async () => {
-    await db.users.clear()
-    await db.users.bulkPut(list)
+  await loginDb.transaction('rw', loginDb.users, async () => {
+    await loginDb.users.clear()
+    await loginDb.users.bulkPut(list)
   })
 }
 
 // Один пользователь из кэша (для аватара текущего пользователя в шапке/ЛК).
 export async function getCachedUser(userId) {
-  return db.users.get(userId)
+  return loginDb.users.get(userId)
 }
 
 // Локально проставить свой avatar_url сразу после загрузки (до следующего pull),
 // чтобы шапка/ЛК обновились мгновенно. Мержим, чтобы не затереть name.
 export async function setCachedAvatar(userId, url) {
-  const u = await db.users.get(userId)
-  await db.users.put({ ...(u ?? { id: userId }), avatar_url: url })
+  const u = await loginDb.users.get(userId)
+  await loginDb.users.put({ ...(u ?? { id: userId }), avatar_url: url })
 }
 
 // Локально проставить своё имя сразу после смены (до следующего pull), чтобы
 // пикер входа и кэш пользователей показывали новое имя. Мержим, чтобы не
 // затереть avatar_url.
 export async function setCachedName(userId, name) {
-  const u = await db.users.get(userId)
-  await db.users.put({ ...(u ?? { id: userId }), name })
+  const u = await loginDb.users.get(userId)
+  await loginDb.users.put({ ...(u ?? { id: userId }), name })
 }
 
 // Тренировки пользователя (без удалённых), свежие сверху по ДАТЕ ТРЕНИРОВКИ.

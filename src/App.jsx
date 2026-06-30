@@ -5,7 +5,7 @@ import { logout as authLogout } from './lib/auth.js'
 import { startSync, useSyncStatus } from './db/sync.js'
 import { countUnread } from './db/notifications.js'
 import { getCachedUser } from './db/repo.js'
-import { clearSessionData } from './db/local.js'
+import { openUserDb, closeUserDb } from './db/local.js'
 import LoginScreen from './screens/LoginScreen.jsx'
 import Toast from './components/Toast.jsx'
 import Avatar from './components/Avatar.jsx'
@@ -110,12 +110,14 @@ export default function App() {
   }
 
   // Восстановление профиля после перезапуска (из localStorage — работает и
-  // офлайн, когда сервер недоступен и сессию не проверить).
+  // офлайн, когда сервер недоступен и сессию не проверить). Персональную базу
+  // открываем ДО setUser, иначе экраны/синк прочитают ещё закрытый `db`.
   useEffect(() => {
     const saved = localStorage.getItem(SESSION_KEY)
-    if (saved) {
-      try { setUser(JSON.parse(saved)) } catch { /* ignore */ }
-    }
+    if (!saved) return
+    let u
+    try { u = JSON.parse(saved) } catch { return }
+    if (u?.id) openUserDb(u.id).then(() => setUser(u)).catch(() => {})
   }, [])
 
   // Если сессия Supabase завершилась (refresh-токен истёк через ~7 дней или
@@ -127,16 +129,18 @@ export default function App() {
       if (event === 'SIGNED_OUT') {
         localStorage.removeItem(SESSION_KEY)
         setUser(null)
+        closeUserDb()
       }
     })
     return () => data?.subscription?.unsubscribe?.()
   }, [])
 
   async function handleLogin(u) {
-    // Чистим кросс-пользовательские кэши ДО показа экранов: на общем устройстве
-    // иначе новый вошедший видит ленту/лидерборд/уведомления предыдущего, пока не
-    // отработает первый fetch. Покрывает и путь авто-SIGNED_OUT (там чистки нет).
-    await clearSessionData()
+    // Открываем ПЕРСОНАЛЬНУЮ базу пользователя ДО показа экранов (изоляция данных:
+    // у каждого своя физическая IndexedDB, чужое в принципе не видно). openUserDb
+    // закроет базу предыдущей учётки и перенесёт несинхрон. правки со старой общей
+    // базы. Чистка кросс-пользовательских кэшей больше не нужна — изоляция физическая.
+    await openUserDb(u.id)
     localStorage.setItem(SESSION_KEY, JSON.stringify(u))
     setUser(u)
     setTab('history')
@@ -155,9 +159,9 @@ export default function App() {
 
   async function handleLogout() {
     await authLogout()
-    await clearSessionData() // не оставляем ленту/лидерборд прошлой учётки «на покое»
     localStorage.removeItem(SESSION_KEY)
-    setUser(null)
+    setUser(null)      // сначала размонтируем экраны и их live-queries…
+    closeUserDb()      // …затем закрываем персональную базу
   }
 
   if (!isConfigured) {
