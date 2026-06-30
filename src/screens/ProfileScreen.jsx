@@ -551,7 +551,8 @@ export default function ProfileScreen({ user, onLogout, onOpenProgress, onOpenFe
                 <span className="field-lab">Текущий PIN</span>
                 <input
                   className="pin-input" type="password" inputMode="numeric"
-                  autoComplete="current-password" placeholder="••••"
+                  autoComplete="off" name="cur-code" data-lpignore="true" data-1p-ignore
+                  placeholder="••••"
                   value={curPin} onChange={(e) => setCurPin(onlyDigits(e.target.value))}
                 />
               </label>
@@ -559,7 +560,8 @@ export default function ProfileScreen({ user, onLogout, onOpenProgress, onOpenFe
                 <span className="field-lab">Новый PIN</span>
                 <input
                   className="pin-input" type="password" inputMode="numeric"
-                  autoComplete="new-password" placeholder="4 цифры"
+                  autoComplete="off" name="new-code" data-lpignore="true" data-1p-ignore
+                  placeholder="4 цифры"
                   value={newPin} onChange={(e) => setNewPin(onlyDigits(e.target.value))}
                 />
               </label>
@@ -567,7 +569,8 @@ export default function ProfileScreen({ user, onLogout, onOpenProgress, onOpenFe
                 <span className="field-lab">Повтор нового PIN</span>
                 <input
                   className="pin-input" type="password" inputMode="numeric"
-                  autoComplete="new-password" placeholder="ещё раз"
+                  autoComplete="off" name="rpt-code" data-lpignore="true" data-1p-ignore
+                  placeholder="ещё раз"
                   value={rptPin} onChange={(e) => setRptPin(onlyDigits(e.target.value))}
                 />
               </label>
