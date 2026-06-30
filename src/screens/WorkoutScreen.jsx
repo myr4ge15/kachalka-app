@@ -274,10 +274,12 @@ export default function WorkoutScreen({ user, workoutId = null, onBack }) {
           if (reached.length) {
             const top = reached.reduce((a, b) => (Number(b.value) > Number(a.value) ? b : a), reached[0])
             const extra = reached.length > 1 ? ` +${reached.length - 1}` : ''
+            // Повторы при целевом весе (PLAN-goal-reps) — показываем «× N», как в карточке цели.
+            const repsStr = top.metric === 'weight' && Number(top.reps) > 0 ? ` × ${Math.round(Number(top.reps))}` : ''
             showToast({
               emoji: '🎯',
               title: reached.length > 1 ? 'Цели достигнуты!' : 'Цель достигнута!',
-              sub: `${top.name} — ${fmtMetricValue(top.metric, top.value)}${extra}`,
+              sub: `${top.name} — ${fmtMetricValue(top.metric, top.value)}${repsStr}${extra}`,
             })
           }
         } catch { /* тост необязателен */ }
