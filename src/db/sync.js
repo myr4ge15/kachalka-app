@@ -20,8 +20,10 @@ import { db, nowIso, setMeta, getMeta } from './local.js'
 import { pendingCount } from './repo.js'
 import { fetchFeed } from './feed.js'
 import { readGoals, writeGoals } from './notifications.js'
+import { normMetric } from '../lib/metric.js'
 import { onOnline, onOffline, onResume } from '../lib/appEvents.js'
 import { cmpIsoAsc } from '../lib/cmp.js'
+import { protectedFromPull } from '../lib/outboxProtect.js'
 
 const POLL_MS = 20000
 // После стольких неудачных попыток операция считается «отравленной» и
@@ -219,18 +221,25 @@ async function pull(userId) {
   if (tpl.error) warnings.push('шаблоны: ' + (tpl.error.message ?? tpl.error))
   else if (tpl.data) {
     const tplIds = new Set(tpl.data.map((r) => r.id))
-    await db.transaction('rw', db.templates, async () => {
+    await db.transaction('rw', db.templates, db.tpl_outbox, async () => {
       // Окно реконсиляции = «мои ∪ общие» (совпадает с выборкой выше). Перебираем
       // ВСЕ локальные шаблоны: чистую запись, входившую в окно, но пропавшую из
       // свежей выборки, удаляем — так уходит чужой общий, который автор сделал
-      // приватным. Свои _dirty/_deleted по-прежнему защищаем.
+      // приватным. Тумбстоны и _dirty с ЖИВОЙ операцией в очереди защищаем; _dirty
+      // без живой операции (очередь умерла в dead-letter/пуста) НЕ защищаем — её
+      // флаг иначе не снять, отдаём приоритет серверу и гасим «вечный» кружок.
       const locals = await db.templates.toArray()
-      const protectedIds = new Set(
-        locals.filter((t) => t._dirty || t._deleted).map((t) => t.id)
-      )
+      const ops = await db.tpl_outbox.toArray()
+      const protectedIds = protectedFromPull(locals, ops)
+      const dirtyIds = new Set(locals.filter((t) => t._dirty).map((t) => t.id))
       for (const row of tpl.data) {
         if (protectedIds.has(row.id)) continue
         await db.templates.put(templateRowToDoc(row))
+        // Приняли серверную версию ранее «грязной» записи → выкидываем её
+        // осиротевшие/мёртвые операции, чтобы очередь не копила мусор.
+        if (dirtyIds.has(row.id)) {
+          for (const o of ops) if (o.templateId === row.id) await db.tpl_outbox.delete(o.seq)
+        }
       }
       for (const t of locals) {
         if (tplIds.has(t.id) || t._dirty || t._deleted) continue
@@ -426,11 +435,14 @@ async function pushGoal(userId) {
     }
     // Поставлена/изменена цель: апсерт по составному ключу.
     if (g._dirty && g.exerciseId && Number(g.targetWeight) > 0) {
+      // p_target_weight несёт целевое ведущее значение в единицах метрики
+      // (кг / повторы / секунды); p_metric говорит серверу/боту, как трактовать.
       const res = await withTimeout(
         supabase.rpc('upsert_goal', {
           p_user_id: userId,
           p_exercise_id: g.exerciseId,
           p_target_weight: Number(g.targetWeight),
+          p_metric: normMetric(g.metric),
         })
       )
       if (res.error) throw res.error
@@ -452,12 +464,23 @@ async function pushGoal(userId) {
 async function pullGoal(userId) {
   const local = await readGoals(userId)
   if (local.some((g) => g._dirty)) return
-  const res = await withTimeout(
+  // metric читаем отдельной попыткой: на не-обновлённом сервере колонки ещё нет
+  // (тогда select с ней вернёт ошибку → откат на старый набор полей, цели тянутся
+  // как весовые). Метрику цели всё равно дублирует metric упражнения в справочнике.
+  let res = await withTimeout(
     supabase
       .from('goals')
-      .select('exercise_id, target_weight, achieved_at')
+      .select('exercise_id, target_weight, metric, achieved_at')
       .eq('user_id', userId)
   )
+  if (res.error) {
+    res = await withTimeout(
+      supabase
+        .from('goals')
+        .select('exercise_id, target_weight, achieved_at')
+        .eq('user_id', userId)
+    )
+  }
   if (res.error) return
   const rows = res.data ?? []
   const byEx = new Map(local.map((g) => [g.exerciseId, g]))
@@ -467,6 +490,8 @@ async function pullGoal(userId) {
     next.push({
       exerciseId: row.exercise_id,
       exerciseName: ex?.name ?? byEx.get(row.exercise_id)?.exerciseName ?? '—',
+      // metric: с сервера, иначе из упражнения (одна метрика на упражнение), иначе 'weight'.
+      metric: normMetric(row.metric ?? ex?.metric ?? byEx.get(row.exercise_id)?.metric),
       targetWeight: Number(row.target_weight),
       achievedAt: row.achieved_at ?? null,
       _dirty: 0,
@@ -478,7 +503,7 @@ async function pullGoal(userId) {
     JSON.stringify(
       arr
         .filter((g) => !g._deleted)
-        .map((g) => [g.exerciseId, Number(g.targetWeight), g.exerciseName ?? '—', g.achievedAt ?? null])
+        .map((g) => [g.exerciseId, Number(g.targetWeight), normMetric(g.metric), g.exerciseName ?? '—', g.achievedAt ?? null])
         .sort((a, b) => String(a[0]).localeCompare(String(b[0])))
     )
   if (norm(local) !== norm(next)) await writeGoals(userId, next)
