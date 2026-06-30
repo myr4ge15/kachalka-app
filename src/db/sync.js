@@ -130,7 +130,7 @@ function templateRowToDoc(t) {
   }
 }
 
-async function pull(userId) {
+async function pull(userId, justPushed = new Set()) {
   // Частичные сбои pull НЕ роняют весь синк (тренировки важнее справочника), но
   // и не маскируются под успех: копим сообщения и возвращаем их наверх, чтобы
   // статус показал «синхронизировано, но справочник/шаблоны не обновились».
@@ -144,12 +144,19 @@ async function pull(userId) {
   if (ex.error) warnings.push('упражнения: ' + (ex.error.message ?? ex.error))
   else if (ex.data) {
     const serverExIds = new Set(ex.data.map((e) => e.id))
-    await db.transaction('rw', db.exercises, async () => {
+    await db.transaction('rw', db.exercises, db.ex_outbox, async () => {
       const dirty = await db.exercises.filter((e) => e._dirty).toArray()
+      const ops = await db.ex_outbox.toArray()
       await db.exercises.clear()
       await db.exercises.bulkPut(ex.data)
       // вернуть несинхронизированные локальные упражнения, если сервер их ещё не знает
       for (const e of dirty) if (!serverExIds.has(e.id)) await db.exercises.put(e)
+      // Сервер уже знает ранее «грязное» упражнение → его версия принята выше
+      // (clear+bulkPut), а операция в очереди осиротела. Выкидываем её, чтобы не
+      // слать лишний upsert на следующем push (симметрично обработке шаблонов).
+      for (const e of dirty)
+        if (serverExIds.has(e.id))
+          for (const o of ops) if (o.exerciseId === e.id) await db.ex_outbox.delete(o.seq)
     })
   }
 
@@ -205,6 +212,9 @@ async function pull(userId) {
     // пределах подтянутого окна: записи старше границы мы просто не запрашивали.
     for (const w of locals) {
       if (serverIds.has(w.id) || w._dirty || w._deleted) continue
+      // Только что отправили её в этом же цикле — не удаляем, даже если SELECT её
+      // ещё не вернул (лаг read-replica). Иначе чистая запись пропала бы локально.
+      if (justPushed.has(w.id)) continue
       if (partial && cmpIsoAsc(w.performed_at, boundary) < 0) continue
       await db.workouts.delete(w.id)
     }
@@ -363,6 +373,10 @@ async function pushTemplates() {
 // Отправляем очередь по порядку. На первой же ошибке прекращаем — сохранится
 // порядок и не словим частичную отправку при недоступной сети.
 async function push() {
+  // id'шники только что отправленных (upsert) тренировок — отдаём наверх, чтобы
+  // последующий pull в этом же цикле не «удалил» их, если read-replica сервера
+  // ещё не показывает свежую запись в SELECT (push идёт ДО pull).
+  const justPushed = new Set()
   const ops = await db.outbox.orderBy('seq').toArray()
   for (const op of ops) {
     if (op._dead) continue // отравленная операция — пропускаем, очередь не блокируем
@@ -388,6 +402,7 @@ async function push() {
         if (error) throw error
         await db.workouts.update(doc.id, { _dirty: 0 })
         await db.outbox.delete(op.seq)
+        justPushed.add(doc.id)
       } else if (op.type === 'delete') {
         const { error } = await withTimeout(
           supabase.from('workouts').delete().eq('id', op.workoutId)
@@ -408,6 +423,7 @@ async function push() {
       throw err // прекращаем проход, попробуем позже
     }
   }
+  return justPushed
 }
 
 // ------------------------------- цели --------------------------------------
@@ -421,8 +437,14 @@ async function push() {
 async function pushGoal(userId) {
   const goals = await readGoals(userId)
   if (!goals.some((g) => g._dirty)) return
-  const out = []
-  let changed = false
+  // Рабочая копия ПОЛНОГО массива целей: мутируем по мере успешных операций и
+  // персистим СРАЗУ после каждой. Раньше локальное состояние писалось один раз в
+  // конце — если 2-я цель кидала, серверная операция по 1-й уже закоммичена, а
+  // writeGoals не вызывался → 1-я «залипала» dirty, а tombstone удалённой не
+  // снимался. Теперь прерывание в середине оставляет согласованную картину:
+  // обработанные цели отражены локально, остаток ждёт следующего pushGoal.
+  let next = goals.slice()
+  const commit = () => writeGoals(userId, next)
   for (const g of goals) {
     // Удаление цели (tombstone): шлём delete_my_goal и выкидываем из массива.
     if (g._deleted && g._dirty) {
@@ -430,7 +452,8 @@ async function pushGoal(userId) {
         supabase.rpc('delete_my_goal', { p_exercise_id: g.exerciseId })
       )
       if (res.error) throw res.error
-      changed = true
+      next = next.filter((x) => x.exerciseId !== g.exerciseId)
+      await commit()
       continue
     }
     // Поставлена/изменена цель: апсерт по составному ключу.
@@ -451,13 +474,15 @@ async function pushGoal(userId) {
       )
       if (res.error) throw res.error
       const row = Array.isArray(res.data) ? res.data[0] : res.data
-      out.push({ ...g, _dirty: 0, achievedAt: row?.achieved_at ?? g.achievedAt ?? null })
-      changed = true
+      next = next.map((x) =>
+        x.exerciseId === g.exerciseId
+          ? { ...x, _dirty: 0, achievedAt: row?.achieved_at ?? x.achievedAt ?? null }
+          : x
+      )
+      await commit()
       continue
     }
-    out.push(g)
   }
-  if (changed) await writeGoals(userId, out)
 }
 
 // Подтягиваем серверные цели в локальный массив. Сервер — источник правды, пока
@@ -532,14 +557,14 @@ export async function syncNow(userId) {
   try {
     await pushExercises() // упражнения раньше всего (FK на exercise_id)
     await pushTemplates() // шаблоны после упражнений (FK), до/после тренировок неважно
-    await push()
+    const justPushed = await push()
     // Цель (ЛК 2b) — необязательная часть: ошибка/отсутствие RPC не должны
     // ронять синхронизацию тренировок, поэтому отдельный try/catch. Ошибку пуша
     // больше не глотаем молча — показываем как lastError (раньше из-за тихого
     // catch было не видно, почему цель не доезжает до сервера).
     let goalWarn = null
     try { await pushGoal(userId) } catch (e) { goalWarn = 'цель не отправлена: ' + String(e?.message ?? e) }
-    const warnings = await pull(userId)
+    const warnings = await pull(userId, justPushed)
     // pullGoal может пометить локальную цель на отправку (бэкофилл старой цели
     // без _dirty) — сразу доливаем её вторым pushGoal в этом же цикле.
     try {
