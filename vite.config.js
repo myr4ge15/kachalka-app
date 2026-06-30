@@ -15,6 +15,13 @@ export default defineConfig({
   define: {
     __APP_VERSION__: JSON.stringify(pkg.version),
   },
+  // Тест-сьют (Vitest) — только чистый слой src/lib (без Dexie/сети/UI), поэтому
+  // окружение node (jsdom не нужен). Vitest сам подхватывает этот конфиг, значит
+  // тесты видят тот же define __APP_VERSION__, что и сборка. См. docs/PLAN-tests.md.
+  test: {
+    environment: 'node',
+    include: ['src/**/*.test.js'],
+  },
   plugins: [
     react(),
     VitePWA({

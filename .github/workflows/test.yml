@@ -1,0 +1,28 @@
+name: Tests
+
+# Юнит-тесты чистого слоя (Vitest) + smoke-сборка.
+# CI на GitHub Actions делает чистый npm ci, поэтому проблемы песочницы с битым
+# node_modules здесь нет. См. docs/PLAN-tests.md.
+
+on:
+  push:
+  pull_request:
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+
+      - run: npm ci
+
+      - name: Unit tests (Vitest)
+        run: npm test
+
+      - name: Smoke build
+        run: npx vite build

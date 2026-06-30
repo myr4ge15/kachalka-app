@@ -1,13 +1,15 @@
 {
   "name": "gym-app",
   "private": true,
-  "version": "1.17.6",
+  "version": "1.17.7",
   "type": "module",
   "description": "PWA для учёта силовых тренировок (MVP, первый проход)",
   "scripts": {
     "dev": "vite",
     "build": "vite build",
-    "preview": "vite preview"
+    "preview": "vite preview",
+    "test": "vitest run",
+    "test:watch": "vitest"
   },
   "dependencies": {
     "@supabase/supabase-js": "^2.45.4",
@@ -21,6 +23,7 @@
   "devDependencies": {
     "@vitejs/plugin-react": "^4.3.1",
     "vite": "^5.4.21",
-    "vite-plugin-pwa": "^0.20.5"
+    "vite-plugin-pwa": "^0.20.5",
+    "vitest": "^2.1.9"
   }
 }
