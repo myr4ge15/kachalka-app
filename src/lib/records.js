@@ -135,6 +135,32 @@ export function crossedGoal(prevBest, curBest, target) {
   return (Number(prevBest) || 0) < t && (Number(curBest) || 0) >= t
 }
 
+// Цель «вес × повторы» (PLAN-goal-reps): есть ли среди подходов ХОТЯ БЫ ОДИН, где
+// weight ≥ targetWeight И reps ≥ targetReps. Нужен ОДИН подход на оба условия —
+// повторы из разных подходов не «склеиваются». targetReps пуст/0 → требование по
+// повторам снимается (только вес, старое поведение). Только для весовых целей.
+export function hasSetMeetingGoal(sets, targetWeight, targetReps) {
+  const w = Number(targetWeight) || 0
+  if (w <= 0) return false
+  const r = Number(targetReps) || 0
+  return (sets ?? []).some(
+    (s) => (Number(s.weight) || 0) >= w && (r <= 0 || (Number(s.reps) || 0) >= r)
+  )
+}
+
+// Достигнута ли весовая цель «вес × повторы» хотя бы одним подходом за всю
+// переданную историю по упражнению exerciseId. Перебираем подходы (а не агрегат
+// по весу), потому что условие двойное и должно выполняться в одном подходе.
+export function goalMetByExercise(workouts, exerciseId, targetWeight, targetReps) {
+  for (const w of workouts ?? []) {
+    for (const e of w.entries ?? []) {
+      if (entryExId(e) !== exerciseId) continue
+      if (hasSetMeetingGoal(e.sets, targetWeight, targetReps)) return true
+    }
+  }
+  return false
+}
+
 // Новые личные рекорды ИМЕННО этой тренировки (для тоста после сохранения).
 // savedEntries — entries сохранённой тренировки; othersBest — лучшее по ВСЕМ
 // ОСТАЛЬНЫМ моим тренировкам (Map exId → { value, metric }). Считаем рекордом

@@ -437,12 +437,16 @@ async function pushGoal(userId) {
     if (g._dirty && g.exerciseId && Number(g.targetWeight) > 0) {
       // p_target_weight несёт целевое ведущее значение в единицах метрики
       // (кг / повторы / секунды); p_metric говорит серверу/боту, как трактовать.
+      // p_target_reps (PLAN-goal-reps) — необязательные повторы при целевом весе
+      // (только у весовой цели); null → требования по повторам нет.
+      const reps = Number(g.targetReps)
       const res = await withTimeout(
         supabase.rpc('upsert_goal', {
           p_user_id: userId,
           p_exercise_id: g.exerciseId,
           p_target_weight: Number(g.targetWeight),
           p_metric: normMetric(g.metric),
+          p_target_reps: reps > 0 ? Math.round(reps) : null,
         })
       )
       if (res.error) throw res.error
@@ -470,7 +474,7 @@ async function pullGoal(userId) {
   let res = await withTimeout(
     supabase
       .from('goals')
-      .select('exercise_id, target_weight, metric, achieved_at')
+      .select('exercise_id, target_weight, metric, target_reps, achieved_at')
       .eq('user_id', userId)
   )
   if (res.error) {
@@ -487,12 +491,16 @@ async function pullGoal(userId) {
   const next = []
   for (const row of rows) {
     const ex = await db.exercises.get(row.exercise_id)
+    // target_reps (PLAN-goal-reps) — необязательные повторы при целевом весе у
+    // весовой цели; на не-обновлённом сервере поля нет → undefined → null.
+    const reps = Number(row.target_reps)
     next.push({
       exerciseId: row.exercise_id,
       exerciseName: ex?.name ?? byEx.get(row.exercise_id)?.exerciseName ?? '—',
       // metric: с сервера, иначе из упражнения (одна метрика на упражнение), иначе 'weight'.
       metric: normMetric(row.metric ?? ex?.metric ?? byEx.get(row.exercise_id)?.metric),
       targetWeight: Number(row.target_weight),
+      targetReps: reps > 0 ? Math.round(reps) : null,
       achievedAt: row.achieved_at ?? null,
       _dirty: 0,
     })
@@ -503,7 +511,7 @@ async function pullGoal(userId) {
     JSON.stringify(
       arr
         .filter((g) => !g._deleted)
-        .map((g) => [g.exerciseId, Number(g.targetWeight), normMetric(g.metric), g.exerciseName ?? '—', g.achievedAt ?? null])
+        .map((g) => [g.exerciseId, Number(g.targetWeight), normMetric(g.metric), Number(g.targetReps) || 0, g.exerciseName ?? '—', g.achievedAt ?? null])
         .sort((a, b) => String(a[0]).localeCompare(String(b[0])))
     )
   if (norm(local) !== norm(next)) await writeGoals(userId, next)

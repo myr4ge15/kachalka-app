@@ -12,7 +12,7 @@
 // ============================================================================
 import { db, getMeta, setMeta, nowIso } from './local.js'
 import { cmpIsoAsc, cmpIsoDesc } from '../lib/cmp.js'
-import { myBestByExercise, minePrs, computeBeaten, computeNewPrs, crossedGoal } from '../lib/records.js'
+import { myBestByExercise, minePrs, computeBeaten, computeNewPrs, crossedGoal, goalMetByExercise } from '../lib/records.js'
 import { normMetric } from '../lib/metric.js'
 
 const SEEN_KEY = 'notif_seen_at'
@@ -128,17 +128,31 @@ export async function detectGoalReachedOnSave(userId, workoutId) {
   const hasActive = goals.some((g) => !g._deleted && g.exerciseId && g.targetWeight && !g.achievedAt)
   if (!hasActive) return []
   const all = await myWorkouts(userId)
+  const prevAll = all.filter((w) => w.id !== workoutId)
   const bestAll = myBestByExercise(all)
-  const bestPrev = myBestByExercise(all.filter((w) => w.id !== workoutId))
+  const bestPrev = myBestByExercise(prevAll)
   const reached = []
   let changed = false
   const next = goals.map((g) => {
     if (g._deleted || g.achievedAt || !g.exerciseId || !g.targetWeight) return g
-    const cur = bestAll.get(g.exerciseId)?.value ?? 0
-    const prev = bestPrev.get(g.exerciseId)?.value ?? 0
-    if (!crossedGoal(prev, cur, g.targetWeight)) return g
+    const m = normMetric(g.metric)
+    let crossed
+    if (m === 'weight') {
+      // Весовая цель «вес × повторы» (PLAN-goal-reps): достижение — по ПОДХОДУ
+      // (вес≥W И повт≥R), повторы необязательны (targetReps пуст → только вес).
+      // Поэтому смотрим подходы, а не агрегированный максимум по весу.
+      const prevMet = goalMetByExercise(prevAll, g.exerciseId, g.targetWeight, g.targetReps)
+      const curMet = goalMetByExercise(all, g.exerciseId, g.targetWeight, g.targetReps)
+      crossed = !prevMet && curMet
+    } else {
+      // reps/time: ведущая метрика одна (повторы/секунды) — старый расчёт по максимуму.
+      const cur = bestAll.get(g.exerciseId)?.value ?? 0
+      const prev = bestPrev.get(g.exerciseId)?.value ?? 0
+      crossed = crossedGoal(prev, cur, g.targetWeight)
+    }
+    if (!crossed) return g
     changed = true
-    reached.push({ name: g.exerciseName ?? '—', metric: normMetric(g.metric), value: g.targetWeight })
+    reached.push({ name: g.exerciseName ?? '—', metric: m, value: g.targetWeight, reps: g.targetReps ?? null })
     return { ...g, achievedAt: nowIso() }
   })
   if (changed) await writeGoals(userId, next)

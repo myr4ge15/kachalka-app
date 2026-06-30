@@ -61,6 +61,9 @@ export default function ProfileScreen({ user, onLogout, onOpenProgress, onOpenFe
   const [edMetric, setEdMetric] = useState('weight')
   const [edVal, setEdVal] = useState(100)
   const [edTimeStr, setEdTimeStr] = useState('1:00')
+  // Необязательные повторы при целевом весе (PLAN-goal-reps) — только у весовой
+  // цели. 0/'' → требования по повторам нет (старое поведение).
+  const [edReps, setEdReps] = useState(0)
   const [edIsNew, setEdIsNew] = useState(false) // добавляем новую (можно выбрать упражнение) или правим цель существующей
 
   // ── Смена PIN (фаза 2c) ─────────────────────────────────────────────────
@@ -209,6 +212,7 @@ export default function ProfileScreen({ user, onLogout, onOpenProgress, onOpenFe
     setEdExId(base?.exId ?? null)
     setEdMetric(m)
     setEdValue(m, goalDefault(m, base?.value ?? 0))
+    setEdReps(0) // повторы по умолчанию не требуем
     setEditing(true)
   }
   // Смена упражнения в пикере новой цели → подхватываем его метрику и дефолт.
@@ -218,6 +222,7 @@ export default function ProfileScreen({ user, onLogout, onOpenProgress, onOpenFe
     setEdExId(r?.exId ?? exId)
     setEdMetric(m)
     setEdValue(m, goalDefault(m, r?.value ?? 0))
+    setEdReps(0)
   }
   function openEditGoal(g) {
     const m = normMetric(g.metric)
@@ -225,6 +230,7 @@ export default function ProfileScreen({ user, onLogout, onOpenProgress, onOpenFe
     setEdExId(g.exerciseId)
     setEdMetric(m)
     setEdValue(m, g.targetWeight)
+    setEdReps(Number(g.targetReps) > 0 ? Math.round(Number(g.targetReps)) : 0)
     setEditing(true)
   }
 
@@ -235,11 +241,16 @@ export default function ProfileScreen({ user, onLogout, onOpenProgress, onOpenFe
     // целевое значение в единицах метрики: вес — десятые, повторы/время — целое.
     const target =
       metric === 'weight' ? Math.round((Number(edVal) || 0) * 10) / 10 : Math.max(0, Math.round(Number(edVal) || 0))
+    // Повторы при целевом весе — только у весовой цели; 0/'' → нет требования (null).
+    const reps = metric === 'weight' && Number(edReps) > 0 ? Math.round(Number(edReps)) : null
     const list = await readGoals(user.id) // свежий массив (вкл. tombstone'ы)
     const idx = list.findIndex((g) => g.exerciseId === edExId)
     let next
     if (idx >= 0) {
       const prevW = Number(list[idx].targetWeight)
+      const prevR = Number(list[idx].targetReps) || 0
+      // смена веса ИЛИ повторов → цель можно достичь заново; иначе не сбрасываем.
+      const changed = prevW !== target || prevR !== (reps || 0)
       next = list.map((g, i) =>
         i === idx
           ? {
@@ -247,17 +258,17 @@ export default function ProfileScreen({ user, onLogout, onOpenProgress, onOpenFe
               exerciseName: ex?.name ?? g.exerciseName ?? '—',
               metric,
               targetWeight: target,
+              targetReps: reps,
               _dirty: 1,
               _deleted: 0,
-              // смена значения → цель можно достичь заново; то же → не сбрасываем
-              achievedAt: prevW !== target ? null : g.achievedAt ?? null,
+              achievedAt: changed ? null : g.achievedAt ?? null,
             }
           : g
       )
     } else {
       next = [
         ...list,
-        { exerciseId: edExId, exerciseName: ex?.name ?? '—', metric, targetWeight: target, achievedAt: null, _dirty: 1 },
+        { exerciseId: edExId, exerciseName: ex?.name ?? '—', metric, targetWeight: target, targetReps: reps, achievedAt: null, _dirty: 1 },
       ]
     }
     await writeGoals(user.id, next)
@@ -442,6 +453,32 @@ export default function ProfileScreen({ user, onLogout, onOpenProgress, onOpenFe
                       </div>
                     )}
                   </label>
+                  {edMetric === 'weight' && (
+                    <label className="field">
+                      <span className="field-lab">Повторы при этом весе <span className="muted">(необязательно)</span></span>
+                      <div className="goal-stepper">
+                        <HoldButton
+                          onTrigger={() => setEdReps((v) => Math.max(0, Math.round(Number(v) || 0) - 1))}
+                        >−</HoldButton>
+                        <span className="val">
+                          <input
+                            className="val-field"
+                            type="text"
+                            inputMode="numeric"
+                            value={edReps ? String(edReps) : ''}
+                            placeholder="—"
+                            onChange={(e) => setEdReps(e.target.value.replace(/[^\d]/g, ''))}
+                            onBlur={() => setEdReps((v) => Math.max(0, Math.round(Number(v) || 0)))}
+                            aria-label="Повторы при целевом весе (необязательно)"
+                          />
+                          <span className="u">повт.</span>
+                        </span>
+                        <HoldButton
+                          onTrigger={() => setEdReps((v) => Math.round(Number(v) || 0) + 1)}
+                        >+</HoldButton>
+                      </div>
+                    </label>
+                  )}
                   <div className="goal-editor-actions">
                     {!edIsNew && (
                       <button className="btn danger-ghost" onClick={() => deleteGoal(edExId)}>Удалить</button>
@@ -462,11 +499,13 @@ export default function ProfileScreen({ user, onLogout, onOpenProgress, onOpenFe
                   const cur = currentBestValue(workouts ?? [], g.exerciseId, m)
                   const pct = goalProgress(cur, g.targetWeight)
                   const left = Math.max(0, g.targetWeight - cur)
+                  // Повторы при целевом весе (PLAN-goal-reps) — только у весовой цели.
+                  const reps = m === 'weight' && Number(g.targetReps) > 0 ? Math.round(Number(g.targetReps)) : 0
                   return (
                     <div className="goal" key={g.exerciseId}>
                       <div className="goal-top">
                         <span className="lbl">
-                          {g.exerciseName} <b>{fmtMetricValue(m, g.targetWeight)}</b>
+                          {g.exerciseName} <b>{fmtMetricValue(m, g.targetWeight)}{reps ? ` × ${reps}` : ''}</b>
                         </span>
                         <span className="pct">{pct}%</span>
                       </div>
@@ -474,7 +513,10 @@ export default function ProfileScreen({ user, onLogout, onOpenProgress, onOpenFe
                       {g.achievedAt ? (
                         <div className="goal-sub achieved">🎯 Цель достигнута!</div>
                       ) : (
-                        <div className="goal-sub">текущий рекорд {fmtMetricValue(m, cur)} · осталось {fmtMetricValue(m, left)}</div>
+                        <div className="goal-sub">
+                          текущий рекорд {fmtMetricValue(m, cur)} · осталось {fmtMetricValue(m, left)}
+                          {reps ? <> · нужно ≥{reps} повт. в подходе</> : null}
+                        </div>
                       )}
                       <button className="goal-edit" onClick={() => openEditGoal(g)}>✎ Изменить цель</button>
                     </div>
