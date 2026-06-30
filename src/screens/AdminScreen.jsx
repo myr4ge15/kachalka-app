@@ -317,12 +317,18 @@ function UsersSection({ meId, online, errMsg }) {
 
   const onlyDigits = (s) => s.replace(/\D/g, '').slice(0, 4)
 
+  // Guard от setState после размонтирования (секцию можно свернуть на лету, пока
+  // RPC в полёте) — как в Login/Profile. Иначе React варнит «update on unmounted».
+  const alive = useRef(true)
+  useEffect(() => { alive.current = true; return () => { alive.current = false } }, [])
+
   async function reload() {
     setLoadErr('')
     try {
       const list = await adminListUsers()
-      setUsers(list)
+      if (alive.current) setUsers(list)
     } catch (e) {
+      if (!alive.current) return
       setLoadErr(errMsg(e))
       setUsers([])
     }

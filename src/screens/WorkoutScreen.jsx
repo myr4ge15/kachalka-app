@@ -12,10 +12,16 @@ import ExercisePicker from '../components/ExercisePicker.jsx'
 import TemplatePicker from '../components/TemplatePicker.jsx'
 
 // локальный документ → редактируемая форма [{ exercise, sets:[{weight,reps}] }]
+// Стабильный ключ строки подхода — ТОЛЬКО для React key. В БД/на сервер не идёт
+// (cleanEntries сериализует подход как {weight,reps}). Нужен, чтобы при undo-вставке
+// подхода в середину React не переиспользовал DOM/значение инпута соседней строки.
+let _setKeySeq = 0
+const sk = () => `s${++_setKeySeq}`
+
 function toEntries(workout) {
   return (workout?.entries ?? []).map((e) => ({
     exercise: e.exercise ?? { id: e.exercise_id, name: '—' },
-    sets: (e.sets ?? []).map((s) => ({ weight: s.weight, reps: s.reps })),
+    sets: (e.sets ?? []).map((s) => ({ weight: s.weight, reps: s.reps, _k: sk() })),
   }))
 }
 
@@ -24,9 +30,9 @@ function toEntries(workout) {
 // время хранится секундами в reps).
 function defaultSet(ex) {
   const m = exerciseMetric(ex)
-  if (m === 'time') return { weight: 0, reps: 60 }
-  if (m === 'reps') return { weight: 0, reps: 10 }
-  return { weight: 20, reps: 10 }
+  if (m === 'time') return { weight: 0, reps: 60, _k: sk() }
+  if (m === 'reps') return { weight: 0, reps: 10, _k: sk() }
+  return { weight: 20, reps: 10, _k: sk() }
 }
 
 function fmtDate(iso) {
@@ -169,7 +175,7 @@ export default function WorkoutScreen({ user, workoutId = null, onBack }) {
     const count = isCountMetric(exerciseMetric(ex))
     const reps = Math.max(1, Math.round(Number(item.reps)) || defaultSet(ex).reps)
     const weight = count ? 0 : (Number(item.weight) || 0)
-    return Array.from({ length: n }, () => ({ weight, reps }))
+    return Array.from({ length: n }, () => ({ weight, reps, _k: sk() }))
   }
 
   // Применение шаблона (только новая тренировка): добавляем упражнения шаблона,
@@ -212,7 +218,7 @@ export default function WorkoutScreen({ user, workoutId = null, onBack }) {
   function addSet(ei) {
     const entry = entries[ei]
     const last = entry.sets[entry.sets.length - 1] ?? defaultSet(entry.exercise)
-    setEntries(entries.map((e, i) => (i === ei ? { ...e, sets: [...e.sets, { ...last }] } : e)))
+    setEntries(entries.map((e, i) => (i === ei ? { ...e, sets: [...e.sets, { ...last, _k: sk() }] } : e)))
   }
 
   function removeSet(ei, si) {
@@ -374,7 +380,7 @@ export default function WorkoutScreen({ user, workoutId = null, onBack }) {
               </div>
 
               {entry.sets.map((s, si) => (
-                <div key={si} className="set-row">
+                <div key={s._k ?? si} className="set-row">
                   <span className="set-num">{si + 1}</span>
 
                   {!count && (

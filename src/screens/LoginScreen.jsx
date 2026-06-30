@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useRef } from 'react'
 import { supabase } from '../db/supabase.js'
 import { getUsers, cacheUsers } from '../db/repo.js'
 import { login as authLogin, verifyPinOffline, LoginError } from '../lib/auth.js'
@@ -11,6 +11,11 @@ export default function LoginScreen({ onLogin }) {
   const [error, setError] = useState('')
   const [loading, setLoading] = useState(true)
   const [busy, setBusy] = useState(false)
+  // Синхронный замок «попытка в полёте»: setBusy(true) применяется асинхронно,
+  // поэтому гонка backspace+перенабор до 4 цифр могла вызвать submit() дважды до
+  // ре-рендера (лишняя попытка → инфляция серверного счётчика блокировки). Ref
+  // меняется синхронно и не зависит от тайминга коммита состояния.
+  const inFlight = useRef(false)
 
   // Имена для пикера: сначала из кэша (IndexedDB) — мгновенно и офлайн, затем
   // тихо обновляем из login_users (view БЕЗ хэшей/соли/роли, доступен анониму).
@@ -73,7 +78,8 @@ export default function LoginScreen({ onLogin }) {
   }
 
   async function submit() {
-    if (pin.length !== 4 || !selected || busy) return
+    if (pin.length !== 4 || !selected || busy || inFlight.current) return
+    inFlight.current = true
     setBusy(true)
     try {
       // 1) Офлайн-разблокировка по локальному кэшу своего хэша (мгновенно).
@@ -118,6 +124,7 @@ export default function LoginScreen({ onLogin }) {
       setPin('')
     } finally {
       setBusy(false)
+      inFlight.current = false
     }
   }
 

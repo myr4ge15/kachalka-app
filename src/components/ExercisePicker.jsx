@@ -101,7 +101,10 @@ export default function ExercisePicker({ exercises, onPick, onClose, onCreate, t
   // шапкой/таббаром). Это и есть фикс «модалка не на весь экран».
   if (creating) {
     return createPortal(
-      <div className="overlay" onClick={onClose}>
+      // В режиме создания клик по фону = «назад» к списку (setCreating(false)),
+      // а НЕ onClose: иначе промах мимо листа стирал заполненную форму, а во время
+      // сохранения ещё и размонтировал пикер на лету. Во время busy фон не реагирует.
+      <div className="overlay" onClick={() => { if (!busy) setCreating(false) }}>
         <div className="sheet" onClick={(e) => e.stopPropagation()}>
           <div className="sheet-head">
             <strong>Своё упражнение</strong>

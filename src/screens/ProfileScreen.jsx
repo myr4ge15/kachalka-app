@@ -241,6 +241,10 @@ export default function ProfileScreen({ user, onLogout, onOpenProgress, onOpenFe
     // целевое значение в единицах метрики: вес — десятые, повторы/время — целое.
     const target =
       metric === 'weight' ? Math.round((Number(edVal) || 0) * 10) / 10 : Math.max(0, Math.round(Number(edVal) || 0))
+    // Защита от «сохранил с непрожатым полем»: на мобильной клавиатуре тап по
+    // «Сохранить» без blur оставляет edVal пустой строкой → Number('')→0 молча
+    // записал бы бессмысленную цель в 0. Цель ≤ 0 не сохраняем (оставляем диалог).
+    if (!(target > 0)) return
     // Повторы при целевом весе — только у весовой цели; 0/'' → нет требования (null).
     const reps = metric === 'weight' && Number(edReps) > 0 ? Math.round(Number(edReps)) : null
     const list = await readGoals(user.id) // свежий массив (вкл. tombstone'ы)
