@@ -6,6 +6,7 @@ import { syncNow } from '../db/sync.js'
 import { getCache, setCache, clearCache } from '../lib/cache.js'
 import { showToast } from '../components/Toast.jsx'
 import { exerciseMetric, isCountMetric, fmtMetricValue, fmtTime, parseTime } from '../lib/metric.js'
+import { exportWorkouts } from '../lib/exportWorkout.js'
 import HoldButton from '../components/HoldButton.jsx'
 import ExercisePicker from '../components/ExercisePicker.jsx'
 import TemplatePicker from '../components/TemplatePicker.jsx'
@@ -271,12 +272,12 @@ export default function WorkoutScreen({ user, workoutId = null, onBack }) {
           // рекордом — поздравление о цели перекрывает тост рекорда (важнее).
           const reached = await detectGoalReachedOnSave(user.id, wId)
           if (reached.length) {
-            const top = reached.reduce((a, b) => (Number(b.weight) > Number(a.weight) ? b : a), reached[0])
+            const top = reached.reduce((a, b) => (Number(b.value) > Number(a.value) ? b : a), reached[0])
             const extra = reached.length > 1 ? ` +${reached.length - 1}` : ''
             showToast({
               emoji: '🎯',
               title: reached.length > 1 ? 'Цели достигнуты!' : 'Цель достигнута!',
-              sub: `${top.name} — ${top.weight} кг${extra}`,
+              sub: `${top.name} — ${fmtMetricValue(top.metric, top.value)}${extra}`,
             })
           }
         } catch { /* тост необязателен */ }
@@ -287,6 +288,15 @@ export default function WorkoutScreen({ user, workoutId = null, onBack }) {
       setMessage({ type: 'error', text: 'Не сохранилось: ' + (err.message ?? err) })
       setSaving(false)
     }
+  }
+
+  // Экспорт этой тренировки в JSON-файл (из текущего состава формы).
+  function exportOne() {
+    const appVersion = typeof __APP_VERSION__ !== 'undefined' ? __APP_VERSION__ : 'dev'
+    exportWorkouts(
+      { id: workoutId, performed_at: performedAt, created_at: null, entries },
+      appVersion
+    )
   }
 
   async function remove() {
@@ -420,6 +430,12 @@ export default function WorkoutScreen({ user, workoutId = null, onBack }) {
           <button className="btn primary full save-btn" disabled={!canSave} onClick={save}>
             {saving ? 'Сохранение…' : `Сохранить${totalSets ? ` (${totalSets})` : ''}`}
           </button>
+
+          {!isNew && (
+            <button className="link-btn full-link" disabled={saving} onClick={exportOne}>
+              ⬇ Экспорт в JSON
+            </button>
+          )}
 
           {!isNew && (
             <button className="link-btn danger full-link" disabled={saving} onClick={remove}>

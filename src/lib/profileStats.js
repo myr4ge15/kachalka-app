@@ -14,7 +14,7 @@
 // records.js, формулу не дублируем.
 // ============================================================================
 import { myBestByExercise, bestWeight } from './records.js'
-import { isCountMetric } from './metric.js'
+import { isCountMetric, leadingValue, normMetric } from './metric.js'
 
 const entryExId = (e) => e.exercise_id ?? e.exercise?.id ?? null
 
@@ -97,7 +97,7 @@ export function summarize(workouts) {
   }
 }
 
-// Текущий лучший фактический вес по упражнению (для прогресс-бара цели).
+// Текущий лучший фактический вес по упражнению (для прогресс-бара ВЕСОВОЙ цели).
 // 0, если такого упражнения/веса в истории нет.
 export function currentBest(workouts, exerciseId) {
   if (!exerciseId) return 0
@@ -106,6 +106,22 @@ export function currentBest(workouts, exerciseId) {
     for (const e of w.entries ?? []) {
       if (entryExId(e) !== exerciseId) continue
       best = Math.max(best, bestWeight(e.sets))
+    }
+  }
+  return best
+}
+
+// Текущий лучший ВЕДУЩИЙ показатель по метрике упражнения (для прогресс-бара
+// цели любой метрики): weight → макс. вес, reps → макс. повторов, time → макс.
+// секунд. 0, если упражнения/подходов в истории нет.
+export function currentBestValue(workouts, exerciseId, metric) {
+  if (!exerciseId) return 0
+  const m = normMetric(metric)
+  let best = 0
+  for (const w of workouts ?? []) {
+    for (const e of w.entries ?? []) {
+      if (entryExId(e) !== exerciseId) continue
+      best = Math.max(best, leadingValue(m, e.sets))
     }
   }
   return best

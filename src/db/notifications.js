@@ -13,13 +13,17 @@
 import { db, getMeta, setMeta, nowIso } from './local.js'
 import { cmpIsoAsc, cmpIsoDesc } from '../lib/cmp.js'
 import { myBestByExercise, minePrs, computeBeaten, computeNewPrs, crossedGoal } from '../lib/records.js'
+import { normMetric } from '../lib/metric.js'
 
 const SEEN_KEY = 'notif_seen_at'
 const LIMIT = 40 // сколько последних уведомлений держим в списке
 
 // Ключ личных целей в meta. Мульти-цели (фаза 2c): значение — МАССИВ целей:
-//   [{ exerciseId, exerciseName, targetWeight, achievedAt, _dirty, _deleted }]
+//   [{ exerciseId, exerciseName, metric, targetWeight, achievedAt, _dirty, _deleted }]
 //   (achievedAt: null | ISO; _deleted: 1 → tombstone до отправки delete на сервер).
+// metric (v1.16) — тип цели ('weight'/'reps'/'time'), как у упражнения; targetWeight
+// несёт ЦЕЛЕВОЕ ведущее значение в единицах метрики (кг / повторы / секунды), как
+// reps хранит секунды для time-упражнений. Легаси-цель без metric → 'weight'.
 export const goalKey = (userId) => `goal_${userId}`
 
 // Прочитать цели как МАССИВ. Совместимость: старое значение — одиночный объект
@@ -32,6 +36,7 @@ export async function readGoals(userId) {
     return [{
       exerciseId: v.exerciseId,
       exerciseName: v.exerciseName ?? '—',
+      metric: v.metric ?? 'weight',
       targetWeight: v.targetWeight,
       achievedAt: v.achievedAt ?? null,
       _dirty: v._dirty ? 1 : 0,
@@ -61,7 +66,8 @@ async function goalNotif(userId) {
       type: 'goal',
       exId: g.exerciseId,
       name: g.exerciseName ?? '—',
-      weight: g.targetWeight,
+      metric: normMetric(g.metric),
+      value: g.targetWeight,
       at: g.achievedAt,
     }))
 }
@@ -111,10 +117,12 @@ export async function detectNewPrsOnSave(userId, workoutId) {
 }
 
 // Какие личные цели достигнуты ВПЕРВЫЕ именно этой тренировкой. Идём по ВСЕМ
-// не-достигнутым целям: лучший вес по упражнению цели ДО этой тренировки был ниже
-// target, а с её учётом стал ≥ target (как рекорд). Достигнутым проставляем
-// achievedAt (дедуп — больше не сработают) и возвращаем массив { name, weight }
-// для тоста (пусто — ничего не достигнуто). bestPrev/bestAll считаем один раз.
+// не-достигнутым целям: ведущий показатель по упражнению цели (вес / повторы /
+// секунды — по метрике упражнения) ДО этой тренировки был ниже target, а с её
+// учётом стал ≥ target (как рекорд). myBestByExercise возвращает ведущее значение
+// в единицах метрики упражнения, поэтому сравнение работает для всех метрик.
+// Достигнутым проставляем achievedAt (дедуп) и возвращаем массив
+// { name, metric, value } для тоста (пусто — ничего не достигнуто).
 export async function detectGoalReachedOnSave(userId, workoutId) {
   const goals = await readGoals(userId)
   const hasActive = goals.some((g) => !g._deleted && g.exerciseId && g.targetWeight && !g.achievedAt)
@@ -126,12 +134,11 @@ export async function detectGoalReachedOnSave(userId, workoutId) {
   let changed = false
   const next = goals.map((g) => {
     if (g._deleted || g.achievedAt || !g.exerciseId || !g.targetWeight) return g
-    // Цели — только весовые: ведущее значение весового упражнения = макс. вес.
     const cur = bestAll.get(g.exerciseId)?.value ?? 0
     const prev = bestPrev.get(g.exerciseId)?.value ?? 0
     if (!crossedGoal(prev, cur, g.targetWeight)) return g
     changed = true
-    reached.push({ name: g.exerciseName ?? '—', weight: g.targetWeight })
+    reached.push({ name: g.exerciseName ?? '—', metric: normMetric(g.metric), value: g.targetWeight })
     return { ...g, achievedAt: nowIso() }
   })
   if (changed) await writeGoals(userId, next)

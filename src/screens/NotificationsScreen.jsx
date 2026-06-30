@@ -78,7 +78,7 @@ export default function NotificationsScreen({ user }) {
                     Цель достигнута · <span className="hl">{n.name}</span>
                   </div>
                   <div className="n-text">
-                    Ты дотянул до цели: <b>{n.weight} кг</b>
+                    Ты дотянул до цели: <b>{fmtMetricValue(n.metric, n.value)}</b>
                   </div>
                 </>
               )}

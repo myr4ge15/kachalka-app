@@ -3,6 +3,7 @@ import { useLiveQuery } from 'dexie-react-hooks'
 import { getWorkouts } from '../db/repo.js'
 import { dayTags, tagSlug, matchesGroup, availableGroups } from '../lib/dayTags.js'
 import { exerciseMetric, fmtSet } from '../lib/metric.js'
+import { exportWorkouts } from '../lib/exportWorkout.js'
 import WorkoutScreen from './WorkoutScreen.jsx'
 import TemplatesScreen from './TemplatesScreen.jsx'
 
@@ -39,6 +40,33 @@ export default function HistoryScreen({ user }) {
     [list, filter]
   )
 
+  // Режим экспорта: мультивыбор тренировок из списка → выгрузка в JSON.
+  const [selectMode, setSelectMode] = useState(false)
+  const [picked, setPicked] = useState(() => new Set())
+  function toggleSelectMode() {
+    setSelectMode((on) => !on)
+    setPicked(new Set())
+  }
+  function togglePick(id) {
+    setPicked((prev) => {
+      const next = new Set(prev)
+      if (next.has(id)) next.delete(id)
+      else next.add(id)
+      return next
+    })
+  }
+  function pickAll() {
+    setPicked(new Set(shown.map((w) => w.id)))
+  }
+  function exportPicked() {
+    const chosen = list.filter((w) => picked.has(w.id))
+    if (!chosen.length) return
+    const appVersion = typeof __APP_VERSION__ !== 'undefined' ? __APP_VERSION__ : 'dev'
+    exportWorkouts(chosen, appVersion)
+    setSelectMode(false)
+    setPicked(new Set())
+  }
+
   // Вход в редактор/деталь и возврат к списку должны начинаться с верха страницы.
   // Скроллится не окно, а внешняя .content (overflow-y:auto, см. App.jsx/index.css);
   // при смене под-вида внутри хаба её позиция не сбрасывалась — после «Сохранить»
@@ -72,6 +100,25 @@ export default function HistoryScreen({ user }) {
       <button className="btn outline full tpl-link" onClick={() => setSelected('templates')}>
         📋 Шаблоны
       </button>
+
+      {!loading && list.length > 0 && (
+        selectMode ? (
+          <div className="export-bar">
+            <span className="muted">Выбрано: {picked.size}</span>
+            <div className="export-bar-actions">
+              <button className="link-btn" onClick={pickAll}>Все</button>
+              <button className="link-btn" onClick={toggleSelectMode}>Отмена</button>
+              <button className="btn primary" disabled={picked.size === 0} onClick={exportPicked}>
+                ⬇ Скачать{picked.size ? ` (${picked.size})` : ''}
+              </button>
+            </div>
+          </div>
+        ) : (
+          <button className="link-btn export-toggle" onClick={toggleSelectMode}>
+            ⬇ Экспорт тренировок
+          </button>
+        )
+      )}
 
       {loading && <p className="muted">Загрузка…</p>}
 
@@ -108,7 +155,11 @@ export default function HistoryScreen({ user }) {
         const tags = dayTags(w.entries)
         const unsynced = Boolean(w._dirty)
         return (
-          <button key={w.id} className="card history-card history-tap" onClick={() => setSelected(w.id)}>
+          <button
+            key={w.id}
+            className={'card history-card history-tap' + (selectMode && picked.has(w.id) ? ' picked' : '')}
+            onClick={() => (selectMode ? togglePick(w.id) : setSelected(w.id))}
+          >
             <div className="history-head">
               <div>
                 <div className="history-date">
@@ -119,7 +170,13 @@ export default function HistoryScreen({ user }) {
                   {exCount} упр · {setCount} подх.
                 </div>
               </div>
-              <span className="history-chevron" aria-hidden="true">›</span>
+              {selectMode ? (
+                <span className={'history-check' + (picked.has(w.id) ? ' on' : '')} aria-hidden="true">
+                  {picked.has(w.id) ? '✓' : ''}
+                </span>
+              ) : (
+                <span className="history-chevron" aria-hidden="true">›</span>
+              )}
             </div>
 
             {tags.length > 0 && (

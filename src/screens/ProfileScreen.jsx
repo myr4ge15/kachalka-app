@@ -5,8 +5,8 @@ import { readGoals, writeGoals } from '../db/notifications.js'
 import { syncNow } from '../db/sync.js'
 import { getCachedLeaderboard } from '../db/leaderboard.js'
 import { getMeta } from '../db/local.js'
-import { summarize, currentBest, goalProgress } from '../lib/profileStats.js'
-import { fmtMetricValue, isCountMetric } from '../lib/metric.js'
+import { summarize, currentBestValue, goalProgress } from '../lib/profileStats.js'
+import { fmtMetricValue, normMetric, parseTime, fmtTime } from '../lib/metric.js'
 import { setPin, setName, LoginError } from '../lib/auth.js'
 import { uploadMyAvatar } from '../lib/avatar.js'
 import { showToast } from '../components/Toast.jsx'
@@ -55,8 +55,13 @@ export default function ProfileScreen({ user, onLogout, onOpenProgress, onOpenFe
   // ── Редактор целей (мульти-цели, фаза 2c) ──────────────────────────────────
   const [editing, setEditing] = useState(false)
   const [edExId, setEdExId] = useState(null)
-  const [edWeight, setEdWeight] = useState(100)
-  const [edIsNew, setEdIsNew] = useState(false) // добавляем новую (можно выбрать упражнение) или правим вес существующей
+  // Цель любой метрики: edMetric — тип ('weight'/'reps'/'time'), edVal — целевое
+  // ведущее значение в единицах метрики (кг / повторы / секунды). edTimeStr —
+  // отдельная строка ввода для time (мм:сс), чтобы не реформатить при наборе.
+  const [edMetric, setEdMetric] = useState('weight')
+  const [edVal, setEdVal] = useState(100)
+  const [edTimeStr, setEdTimeStr] = useState('1:00')
+  const [edIsNew, setEdIsNew] = useState(false) // добавляем новую (можно выбрать упражнение) или правим цель существующей
 
   // ── Смена PIN (фаза 2c) ─────────────────────────────────────────────────
   const [pinOpen, setPinOpen] = useState(false)
@@ -165,40 +170,71 @@ export default function ProfileScreen({ user, onLogout, onOpenProgress, onOpenFe
   // Видимые цели (без tombstone'ов) и упражнения, по которым цели ещё нет
   // (для пикера «добавить»). Имя редактируемой цели — из самого списка.
   const goalList = (goals ?? []).filter((g) => !g._deleted)
-  // Цели — только весовые (в кг): не-весовые упражнения в пикер цели не предлагаем
-  // (цели по повторам/времени — вне этого плана).
+  // Цели — по любой метрике (вес/повторы/время): предлагаем все упражнения из
+  // рекордов, по которым цели ещё нет.
   const addOptions = records.filter(
-    (r) => !isCountMetric(r.metric) && !goalList.some((g) => g.exerciseId === r.exId)
+    (r) => !goalList.some((g) => g.exerciseId === r.exId)
   )
   const edName = edExId
     ? (goalList.find((g) => g.exerciseId === edExId)?.exerciseName ??
        records.find((r) => r.exId === edExId)?.name ?? '—')
     : '—'
 
+  // Разумный дефолт цели «чуть выше текущего» по метрике (base — текущий рекорд).
+  function goalDefault(metric, base) {
+    const b = Number(base) || 0
+    const m = normMetric(metric)
+    if (m === 'time') return Math.max(Math.round(b) + 15, 30)   // +15 с, минимум 0:30
+    if (m === 'reps') return Math.max(Math.round(b) + 2, 5)     // +2 повтора, минимум 5
+    return Math.max(b + 5, 20)                                  // +5 кг, минимум 20
+  }
+  // Установить редактируемое значение (секунды для time дублируем в строку мм:сс).
+  function setEdValue(metric, v) {
+    const m = normMetric(metric)
+    const n = m === 'weight' ? v : Math.max(0, Math.round(Number(v) || 0))
+    setEdVal(n)
+    if (m === 'time') setEdTimeStr(fmtTime(n))
+  }
+
   // Открыть редактор: новая цель (выбор упражнения из ещё-без-цели) или правка
-  // веса существующей (упражнение фиксировано).
+  // существующей (упражнение фиксировано).
   function openAddGoal() {
     if (addOptions.length === 0) {
       showToast({ emoji: '🎯', title: 'Цели уже на всех упражнениях' })
       return
     }
     const base = addOptions.find((r) => r.isBench) || addOptions[0]
+    const m = normMetric(base?.metric)
     setEdIsNew(true)
     setEdExId(base?.exId ?? null)
-    setEdWeight(base ? Math.max(base.value + 5, 20) : 100)
+    setEdMetric(m)
+    setEdValue(m, goalDefault(m, base?.value ?? 0))
     setEditing(true)
   }
+  // Смена упражнения в пикере новой цели → подхватываем его метрику и дефолт.
+  function chooseGoalExercise(exId) {
+    const r = addOptions.find((x) => String(x.exId) === String(exId))
+    const m = normMetric(r?.metric)
+    setEdExId(r?.exId ?? exId)
+    setEdMetric(m)
+    setEdValue(m, goalDefault(m, r?.value ?? 0))
+  }
   function openEditGoal(g) {
+    const m = normMetric(g.metric)
     setEdIsNew(false)
     setEdExId(g.exerciseId)
-    setEdWeight(g.targetWeight)
+    setEdMetric(m)
+    setEdValue(m, g.targetWeight)
     setEditing(true)
   }
 
   async function saveGoal() {
     if (!edExId) return
     const ex = records.find((r) => r.exId === edExId)
-    const target = Number(edWeight) || 0
+    const metric = normMetric(edMetric)
+    // целевое значение в единицах метрики: вес — десятые, повторы/время — целое.
+    const target =
+      metric === 'weight' ? Math.round((Number(edVal) || 0) * 10) / 10 : Math.max(0, Math.round(Number(edVal) || 0))
     const list = await readGoals(user.id) // свежий массив (вкл. tombstone'ы)
     const idx = list.findIndex((g) => g.exerciseId === edExId)
     let next
@@ -209,10 +245,11 @@ export default function ProfileScreen({ user, onLogout, onOpenProgress, onOpenFe
           ? {
               ...g,
               exerciseName: ex?.name ?? g.exerciseName ?? '—',
+              metric,
               targetWeight: target,
               _dirty: 1,
               _deleted: 0,
-              // смена веса → цель можно достичь заново; вес тот же → не сбрасываем
+              // смена значения → цель можно достичь заново; то же → не сбрасываем
               achievedAt: prevW !== target ? null : g.achievedAt ?? null,
             }
           : g
@@ -220,7 +257,7 @@ export default function ProfileScreen({ user, onLogout, onOpenProgress, onOpenFe
     } else {
       next = [
         ...list,
-        { exerciseId: edExId, exerciseName: ex?.name ?? '—', targetWeight: target, achievedAt: null, _dirty: 1 },
+        { exerciseId: edExId, exerciseName: ex?.name ?? '—', metric, targetWeight: target, achievedAt: null, _dirty: 1 },
       ]
     }
     await writeGoals(user.id, next)
@@ -314,7 +351,7 @@ export default function ProfileScreen({ user, onLogout, onOpenProgress, onOpenFe
                       <select
                         className="prog-select"
                         value={String(edExId ?? '')}
-                        onChange={(e) => setEdExId(e.target.value)}
+                        onChange={(e) => chooseGoalExercise(e.target.value)}
                       >
                         {addOptions.map((r) => (
                           <option key={r.exId} value={String(r.exId)}>
@@ -330,34 +367,80 @@ export default function ProfileScreen({ user, onLogout, onOpenProgress, onOpenFe
                     </div>
                   )}
                   <label className="field">
-                    <span className="field-lab">Целевой вес</span>
-                    <div className="goal-stepper">
-                      <HoldButton
-                        onTrigger={() => setEdWeight((w) => Math.max(1.5, Math.round((Number(w) - 1.5) * 10) / 10))}
-                      >−</HoldButton>
-                      <span className="val">
-                        <input
-                          className="val-field"
-                          type="text"
-                          inputMode="decimal"
-                          value={edWeight}
-                          onChange={(e) =>
-                            setEdWeight(e.target.value.replace(',', '.').replace(/[^\d.]/g, ''))
-                          }
-                          onBlur={() =>
-                            setEdWeight((w) => {
-                              const n = Number(w)
-                              return n > 0 ? Math.round(n * 10) / 10 : 2.5
-                            })
-                          }
-                          aria-label="Целевой вес в килограммах"
-                        />
-                        <span className="u">кг</span>
-                      </span>
-                      <HoldButton
-                        onTrigger={() => setEdWeight((w) => Math.round((Number(w) + 1.5) * 10) / 10)}
-                      >+</HoldButton>
-                    </div>
+                    <span className="field-lab">
+                      {edMetric === 'time' ? 'Цель (время)' : edMetric === 'reps' ? 'Цель (повторы)' : 'Целевой вес'}
+                    </span>
+                    {edMetric === 'weight' ? (
+                      <div className="goal-stepper">
+                        <HoldButton
+                          onTrigger={() => setEdVal((w) => Math.max(1.5, Math.round((Number(w) - 1.5) * 10) / 10))}
+                        >−</HoldButton>
+                        <span className="val">
+                          <input
+                            className="val-field"
+                            type="text"
+                            inputMode="decimal"
+                            value={edVal}
+                            onChange={(e) =>
+                              setEdVal(e.target.value.replace(',', '.').replace(/[^\d.]/g, ''))
+                            }
+                            onBlur={() =>
+                              setEdVal((w) => {
+                                const n = Number(w)
+                                return n > 0 ? Math.round(n * 10) / 10 : 2.5
+                              })
+                            }
+                            aria-label="Целевой вес в килограммах"
+                          />
+                          <span className="u">кг</span>
+                        </span>
+                        <HoldButton
+                          onTrigger={() => setEdVal((w) => Math.round((Number(w) + 1.5) * 10) / 10)}
+                        >+</HoldButton>
+                      </div>
+                    ) : edMetric === 'reps' ? (
+                      <div className="goal-stepper">
+                        <HoldButton
+                          onTrigger={() => setEdVal((v) => Math.max(1, Math.round(Number(v) || 0) - 1))}
+                        >−</HoldButton>
+                        <span className="val">
+                          <input
+                            className="val-field"
+                            type="text"
+                            inputMode="numeric"
+                            value={edVal}
+                            onChange={(e) => setEdVal(e.target.value.replace(/[^\d]/g, ''))}
+                            onBlur={() => setEdVal((v) => Math.max(1, Math.round(Number(v) || 0)))}
+                            aria-label="Целевое число повторов"
+                          />
+                          <span className="u">повт.</span>
+                        </span>
+                        <HoldButton
+                          onTrigger={() => setEdVal((v) => Math.round(Number(v) || 0) + 1)}
+                        >+</HoldButton>
+                      </div>
+                    ) : (
+                      <div className="goal-stepper">
+                        <HoldButton
+                          onTrigger={() => setEdVal((v) => { const n = Math.max(5, Math.round(Number(v) || 0) - 5); setEdTimeStr(fmtTime(n)); return n })}
+                        >−</HoldButton>
+                        <span className="val">
+                          <input
+                            className="val-field"
+                            type="text"
+                            inputMode="numeric"
+                            value={edTimeStr}
+                            onChange={(e) => { setEdTimeStr(e.target.value); setEdVal(parseTime(e.target.value)) }}
+                            onBlur={() => { const n = parseTime(edTimeStr); setEdVal(n); setEdTimeStr(fmtTime(n)) }}
+                            aria-label="Целевое время в формате минуты:секунды"
+                          />
+                          <span className="u">мин:сек</span>
+                        </span>
+                        <HoldButton
+                          onTrigger={() => setEdVal((v) => { const n = Math.round(Number(v) || 0) + 5; setEdTimeStr(fmtTime(n)); return n })}
+                        >+</HoldButton>
+                      </div>
+                    )}
                   </label>
                   <div className="goal-editor-actions">
                     {!edIsNew && (
@@ -375,14 +458,15 @@ export default function ProfileScreen({ user, onLogout, onOpenProgress, onOpenFe
             ) : (
               <div className="goals-list">
                 {goalList.map((g) => {
-                  const cur = currentBest(workouts ?? [], g.exerciseId)
+                  const m = normMetric(g.metric)
+                  const cur = currentBestValue(workouts ?? [], g.exerciseId, m)
                   const pct = goalProgress(cur, g.targetWeight)
-                  const left = Math.max(0, Math.round((g.targetWeight - cur) * 10) / 10)
+                  const left = Math.max(0, g.targetWeight - cur)
                   return (
                     <div className="goal" key={g.exerciseId}>
                       <div className="goal-top">
                         <span className="lbl">
-                          {g.exerciseName} <b>{g.targetWeight} <span className="u">кг</span></b>
+                          {g.exerciseName} <b>{fmtMetricValue(m, g.targetWeight)}</b>
                         </span>
                         <span className="pct">{pct}%</span>
                       </div>
@@ -390,7 +474,7 @@ export default function ProfileScreen({ user, onLogout, onOpenProgress, onOpenFe
                       {g.achievedAt ? (
                         <div className="goal-sub achieved">🎯 Цель достигнута!</div>
                       ) : (
-                        <div className="goal-sub">текущий рекорд {cur} кг · осталось {left} кг</div>
+                        <div className="goal-sub">текущий рекорд {fmtMetricValue(m, cur)} · осталось {fmtMetricValue(m, left)}</div>
                       )}
                       <button className="goal-edit" onClick={() => openEditGoal(g)}>✎ Изменить цель</button>
                     </div>
