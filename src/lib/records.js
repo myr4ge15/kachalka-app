@@ -52,8 +52,14 @@ export function myBestByExercise(workouts) {
 export function minePrs(workouts) {
   const best = new Map() // exId → value
   const out = []
-  const chron = [...(workouts ?? [])].sort((a, b) =>
-    cmpIsoAsc(a.performed_at, b.performed_at)
+  // Тай-брейк: при равных performed_at (импорт, два сохранения в одну секунду)
+  // порядок массива недетерминирован → PR/prev мог приписаться не той тренировке.
+  // Дотягиваем хронологию по created_at, затем по id (стабильно и без локали).
+  const chron = [...(workouts ?? [])].sort(
+    (a, b) =>
+      cmpIsoAsc(a.performed_at, b.performed_at) ||
+      cmpIsoAsc(a.created_at, b.created_at) ||
+      cmpIsoAsc(String(a.id), String(b.id))
   )
   for (const w of chron) {
     for (const e of w.entries ?? []) {
@@ -93,7 +99,12 @@ export function minePrs(workouts) {
 export function computeBeaten(feedItems, userId, myBest) {
   const chron = [...(feedItems ?? [])]
     .filter((it) => it.user_id !== userId)
-    .sort((a, b) => cmpIsoAsc(a.performed_at, b.performed_at))
+    .sort(
+      (a, b) =>
+        cmpIsoAsc(a.performed_at, b.performed_at) ||
+        cmpIsoAsc(a.created_at, b.created_at) ||
+        cmpIsoAsc(String(a.id), String(b.id))
+    )
   const bar = new Map() // `${friend}:${exId}` → текущая планка
   const out = []
   for (const it of chron) {

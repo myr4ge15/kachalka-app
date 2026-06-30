@@ -19,6 +19,11 @@ import { isCountMetric, leadingValue, normMetric } from './metric.js'
 const entryExId = (e) => e.exercise_id ?? e.exercise?.id ?? null
 
 // Число тренировок в текущем КАЛЕНДАРНОМ месяце (по дате тренировки).
+// TZ — намеренно ЛОКАЛЬНАЯ: дата выбирается пользователем как локальный день
+// (WorkoutScreen.fromDateInput: local setFullYear → ISO), и отображается везде
+// тоже локально (toLocaleDateString/fmtWhen). Считать месяц в UTC значило бы
+// разойтись с днём, который видит пользователь (ревью 30.06 #8 — проверено,
+// не баг: «по той же зоне, что хранение» = по той же зоне, что показ = local).
 export function workoutsThisMonth(workouts) {
   const now = new Date()
   const y = now.getFullYear()

@@ -12,7 +12,12 @@ export function setOneRepMax(weight, reps) {
   return Math.round(epley(weight, reps) * 2) / 2
 }
 
-// Лучший 1ПМ среди списка подходов [{weight, reps}]
+// Лучший 1ПМ среди списка подходов [{weight, reps}].
+// ВНИМАНИЕ: 1ПМ осмыслен только для ВЕСОВЫХ упражнений (metric==='weight') —
+// у reps/time-упражнений weight=0 (вернёт 0) либо может быть фиктивным (напр.
+// подтягивания с весом), поэтому звать имеет смысл лишь когда metric==='weight'
+// (так и сделано в ProgressScreen: orm = weighted ? bestOneRepMax(...) : 0).
+// guard (sets ?? []) — как у прочих хелперов: запись без sets не должна падать.
 export function bestOneRepMax(sets) {
-  return sets.reduce((max, s) => Math.max(max, setOneRepMax(s.weight, s.reps)), 0)
+  return (sets ?? []).reduce((max, s) => Math.max(max, setOneRepMax(s.weight, s.reps)), 0)
 }
