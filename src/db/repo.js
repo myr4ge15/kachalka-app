@@ -8,7 +8,7 @@
 //
 // Каноничный документ тренировки:
 //   {
-//     id, user_id, performed_at, updated_at,
+//     id, user_id, performed_at, updated_at, _base_updated_at,
 //     _dirty, _deleted,
 //     entries: [
 //       { exercise_id, exercise: {id,name,muscle_group,is_bench_lift},
@@ -238,7 +238,14 @@ export async function saveWorkout({ id, user_id, performed_at, entries }) {
       // created_at: при создании = now; при правке сохраняем существующий.
       // Фолбэк на performed_at для записей, пришедших без него.
       created_at: existing?.created_at ?? now,
+      // updated_at — клиентское время правки (для UI-очереди и тай-брейка
+      // конфликта). Истинные merge-часы ведёт сервер (PLAN-merge-clock).
       updated_at: now,
+      // Базис merge-часов: серверный updated_at на момент начала правки. Для уже
+      // грязной записи сохраняем ИСХОДНЫЙ базис (правок могло быть несколько до
+      // push'а); для чистой серверной — её updated_at; для новой — null (на
+      // сервере записи ещё нет, сравнивать не с чем).
+      _base_updated_at: existing?._base_updated_at ?? existing?.updated_at ?? null,
       entries: cleaned,
       _dirty: 1,
       _deleted: 0,

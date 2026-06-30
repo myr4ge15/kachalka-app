@@ -8,9 +8,11 @@
 //           на ошибке останавливаемся и пробуем позже (сеть/сервер недоступны).
 //
 // Триггеры: вход, событие `online`, возврат вкладки на экран, таймер.
-// Конфликты разрешаются по времени (last-write-wins): пока у записи есть
-// локальные правки — она в очереди и сервером не перетирается; как только
-// отправлена, источником правды снова становится сервер.
+// Конфликты тренировок разрешаются часами (PLAN-merge-clock): сервер ведёт
+// монотонный updated_at, на pull он сравнивается с локальным базисом
+// (_base_updated_at). Чужая правка позже нашего базиса → конфликт: выживает
+// более поздняя версия, проигравшая логируется (видимость вместо тихой потери).
+// Шаблоны/упражнения/цели пока по-старому (last-write-wins по _dirty).
 // ============================================================================
 import { useSyncExternalStore } from 'react'
 import { useLiveQuery } from 'dexie-react-hooks'
@@ -24,6 +26,7 @@ import { normMetric } from '../lib/metric.js'
 import { onOnline, onOffline, onResume } from '../lib/appEvents.js'
 import { cmpIsoAsc } from '../lib/cmp.js'
 import { protectedFromPull } from '../lib/outboxProtect.js'
+import { mergeDecision } from '../lib/mergeClock.js'
 
 const POLL_MS = 20000
 // После стольких неудачных попыток операция считается «отравленной» и
@@ -35,7 +38,7 @@ const MAX_ATTEMPTS = 5
 // чтобы не удалить локально записи, которые старше окна и просто не пришли.
 const PULL_LIMIT = 200
 const SELECT_WORKOUT =
-  'id, performed_at, created_at, user_id, ' +
+  'id, performed_at, created_at, updated_at, user_id, ' +
   'workout_exercises(id, position, exercise_id, ' +
   'exercise:exercises(id, name, muscle_group, is_bench_lift, metric), ' +
   'sets(id, set_number, weight, reps))'
@@ -85,12 +88,11 @@ function rowToDoc(w) {
     // created_at с сервера (для сортировки хаба). Фолбэк на performed_at,
     // если сервер ещё не отдаёт это поле.
     created_at: w.created_at ?? w.performed_at,
-    // updated_at — ЛОКАЛЬНОЕ служебное поле, НЕ merge-clock: конфликты решаются
-    // _dirty, не временем (на сервере колонки updated_at вообще нет). Раньше тут
-    // стоял редактируемый performed_at — обманчивая «ловушка» для будущего
-    // time-based merge (бэкдейтнутая правка выглядела бы «старой»). Берём
-    // created_at (как у шаблонов, sync.js ниже) — иммутабельную дату создания.
-    updated_at: w.created_at ?? nowIso(),
+    // updated_at — СЕРВЕРНЫЕ merge-часы (PLAN-merge-clock): монотонное время
+    // последней правки, назначается сервером в upsert_workout. Сравнивается на
+    // pull с локальным базисом (_base_updated_at). Фолбэк на created_at для строк
+    // со старого сервера, ещё не отдающего колонку.
+    updated_at: w.updated_at ?? w.created_at ?? nowIso(),
     entries,
     _dirty: 0,
     _deleted: 0,
@@ -204,14 +206,55 @@ async function pull(userId, justPushed = new Set()) {
   const partial = serverRows.length === PULL_LIMIT
   const boundary = partial ? serverRows[serverRows.length - 1].performed_at : null
 
-  await db.transaction('rw', db.workouts, async () => {
-    // Не трогаем записи с несинхронизированными правками/удалением
+  // Конфликты merge-часов копим и логируем ПОСЛЕ транзакции (db.meta — другая
+  // таблица, не в скоупе db.workouts/db.outbox этой транзакции).
+  const conflicts = []
+  await db.transaction('rw', db.workouts, db.outbox, async () => {
     const locals = await db.workouts.where('user_id').equals(userId).toArray()
-    const protectedIds = new Set(locals.filter((w) => w._dirty || w._deleted).map((w) => w.id))
+    const localById = new Map(locals.map((w) => [w.id, w]))
 
     for (const row of serverRows) {
-      if (protectedIds.has(row.id)) continue
-      await db.workouts.put(rowToDoc(row))
+      const local = localById.get(row.id)
+      const serverDoc = rowToDoc(row)
+      if (!local) {
+        await db.workouts.put(serverDoc)
+        continue
+      }
+      // Часы-осведомлённое решение (PLAN-merge-clock): сравниваем серверный
+      // updated_at с локальным базисом (_base_updated_at).
+      const decision = mergeDecision({
+        dirty: Boolean(local._dirty),
+        deleted: Boolean(local._deleted),
+        baseUpdatedAt: local._base_updated_at,
+        serverUpdatedAt: serverDoc.updated_at,
+      })
+      if (decision === 'take-server') {
+        await db.workouts.put(serverDoc)
+      } else if (decision === 'conflict') {
+        // Slice 1: выживает более поздняя по updated_at правка, проигравшую
+        // логируем — тихая потеря становится видимой. Сравнение «локальное
+        // клиентское время vs серверное» — best-effort (часы устройств могут
+        // расходиться), но единственный сигнал времени для ещё не отправленной
+        // локальной правки.
+        const serverLater = cmpIsoAsc(local.updated_at, serverDoc.updated_at) <= 0
+        conflicts.push({
+          id: row.id,
+          at: nowIso(),
+          winner: serverLater ? 'server' : 'local',
+          base: local._base_updated_at ?? null,
+          server: serverDoc.updated_at ?? null,
+          local: local.updated_at ?? null,
+        })
+        if (serverLater) {
+          // Серверная правка позже — принимаем её и снимаем осиротевшую очередь
+          // этой тренировки, чтобы наша проигравшая версия не уехала обратно.
+          await db.workouts.put(serverDoc)
+          const ops = await db.outbox.where('workoutId').equals(row.id).toArray()
+          for (const o of ops) if (o.type === 'upsert') await db.outbox.delete(o.seq)
+        }
+        // serverLater=false → наша правка позже: оставляем локальную (push довезёт).
+      }
+      // decision === 'keep-local' → запись не трогаем (правка ждёт push'а).
     }
     // Удалённые на сервере (и чистые локально) — убираем локально, но только в
     // пределах подтянутого окна: записи старше границы мы просто не запрашивали.
@@ -224,6 +267,15 @@ async function pull(userId, justPushed = new Set()) {
       await db.workouts.delete(w.id)
     }
   })
+
+  // Журнал конфликтов merge-часов (последние 50) + предупреждение в статус синка.
+  if (conflicts.length) {
+    try {
+      const prev = (await getMeta('merge_conflicts')) ?? []
+      await setMeta('merge_conflicts', [...prev, ...conflicts].slice(-50))
+    } catch { /* журнал диагностики не критичен для синка */ }
+    warnings.push(`правок перезаписано новее с другого устройства: ${conflicts.length}`)
+  }
 
   // шаблоны: «мои ∪ общие в круге» (их мало — тянем всё окно целиком, без
   // partial-границы). Не затираем локальные несинхронизированные изменения.
@@ -405,7 +457,10 @@ async function push() {
           })
         )
         if (error) throw error
-        await db.workouts.update(doc.id, { _dirty: 0 })
+        // Снимаем _dirty и базис merge-часов: запись уехала, серверный updated_at
+        // (истинное время правки) подтянет следующий pull в этом же цикле как
+        // чистую (take-server). Базис заново захватит первая локальная правка.
+        await db.workouts.update(doc.id, { _dirty: 0, _base_updated_at: null })
         await db.outbox.delete(op.seq)
         justPushed.add(doc.id)
       } else if (op.type === 'delete') {
