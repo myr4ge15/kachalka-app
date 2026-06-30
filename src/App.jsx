@@ -73,6 +73,14 @@ export default function App() {
     [user?.id]
   )
 
+  // Имя сменили извне (админка/другое устройство) — pull обновил кэш login_users
+  // (getCachedUser), но локальная сессия (localStorage) держит старое имя, из-за
+  // чего профиль и шапка отстают от лидерборда. Сверяем и подтягиваем из кэша.
+  useEffect(() => {
+    const fresh = myCached?.name
+    if (fresh && user?.id && fresh !== user.name) handleRenamed(fresh)
+  }, [myCached?.name, user?.id, user?.name])
+
   // Будим базу заранее, как только приложение открылось
   useEffect(() => { warmup() }, [])
 
