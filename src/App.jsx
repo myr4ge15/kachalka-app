@@ -6,6 +6,7 @@ import { startSync, useSyncStatus } from './db/sync.js'
 import { countUnread } from './db/notifications.js'
 import { getCachedUser } from './db/repo.js'
 import { openUserDb, closeUserDb } from './db/local.js'
+import { syncBadgeState } from './lib/syncStatus.js'
 import LoginScreen from './screens/LoginScreen.jsx'
 import Toast from './components/Toast.jsx'
 import Avatar from './components/Avatar.jsx'
@@ -22,23 +23,12 @@ const AdminScreen = lazy(() => import('./screens/AdminScreen.jsx'))
 
 // Индикатор состояния синхронизации в шапке.
 function SyncBadge() {
-  const { online, syncing, pending } = useSyncStatus()
-  let cls = 'sync-badge'
-  let text
-  if (!online) {
-    cls += ' offline'
-    text = pending > 0 ? `офлайн · ${pending} в очереди` : 'офлайн'
-  } else if (syncing) {
-    cls += ' busy'
-    text = 'синхронизация…'
-  } else if (pending > 0) {
-    cls += ' busy'
-    text = `${pending} не синхр.`
-  } else {
-    cls += ' ok'
-    text = 'синхронизировано'
-  }
-  return <span className={cls}>{text}</span>
+  const { online, syncing, pending, dead } = useSyncStatus()
+  // Класс/текст — чистой логикой (см. lib/syncStatus.js). Застрявшие изменения
+  // (dead) делают бейдж предупреждающим, а не «синхронизировано», пока карточки
+  // висят с жёлтым кружком.
+  const { cls, text } = syncBadgeState({ online, syncing, pending, dead })
+  return <span className={`sync-badge ${cls}`}>{text}</span>
 }
 
 // Профиль вошедшего (id,name,role) храним в localStorage — переживает

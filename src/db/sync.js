@@ -19,7 +19,7 @@ import { useLiveQuery } from 'dexie-react-hooks'
 import { supabase, isConfigured, hasSession } from './supabase.js'
 import { withTimeout } from '../lib/withTimeout.js'
 import { db, loginDb, nowIso, setMeta, getMeta } from './local.js'
-import { pendingCount } from './repo.js'
+import { pendingCount, deadLetterCount } from './repo.js'
 import { fetchFeed } from './feed.js'
 import { readGoals, writeGoals } from './notifications.js'
 import { normMetric } from '../lib/metric.js'
@@ -692,5 +692,8 @@ export function startSync(getUserId) {
 export function useSyncStatus() {
   const s = useSyncExternalStore(subscribe, getSnapshot, getSnapshot)
   const pending = useLiveQuery(() => pendingCount(), [], 0)
-  return { ...s, pending: pending ?? 0 }
+  // Застрявшие (dead-letter) операции: в pending не входят, но карточки их
+  // тренировок висят с _dirty — бейдж должен это отражать (см. lib/syncStatus.js).
+  const dead = useLiveQuery(() => deadLetterCount(), [], 0)
+  return { ...s, pending: pending ?? 0, dead: dead ?? 0 }
 }

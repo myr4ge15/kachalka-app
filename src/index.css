@@ -63,6 +63,8 @@ input { font-family: inherit; }
 .sync-badge.ok      { color: #86efac; background: rgba(22,163,74,.12); border-color: var(--green); }
 .sync-badge.busy    { color: #fcd34d; background: rgba(202,138,4,.14); border-color: #ca8a04; }
 .sync-badge.offline { color: #fca5a5; background: rgba(239,68,68,.10); border-color: var(--red); }
+/* Застрявшие изменения (dead-letter): отличаем от busy — «нужно действие» */
+.sync-badge.warn    { color: #fdba74; background: rgba(234,88,12,.14); border-color: #ea580c; }
 
 /* Метка несинхронизированной тренировки в Истории */
 .dot-unsynced { color: #fcd34d; font-size: 10px; margin-left: 6px; vertical-align: middle; }
