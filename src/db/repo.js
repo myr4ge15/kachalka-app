@@ -21,6 +21,7 @@ import { normalizeName } from '../lib/similar.js'
 import { cmpIsoDesc } from '../lib/cmp.js'
 import { sortUsersByOrder } from '../lib/userOrder.js'
 import { normMetric } from '../lib/metric.js'
+import { clampSet } from '../lib/setLimits.js'
 
 // ----------------------------- Чтение --------------------------------------
 
@@ -201,24 +202,31 @@ function toNum(v) {
   return Number(String(v ?? '').trim().replace(',', '.'))
 }
 
-// Нормализуем подходы из формы (строки из input) в числа.
+// Нормализуем подходы из формы (строки из input) в числа. clampSet отсекает
+// отрицательные/NaN/абсурдные вес и повторы и приводит их к допустимым границам
+// (см. lib/setLimits.js) — иначе кривые значения ломают рекорды/лидерборд/цели и
+// бьются о серверные CHECK (push тихо падает). Метрика упражнения определяет
+// границу «повторного» поля (у time там секунды) и обнуляет вес у не-весовых.
 function cleanEntries(entries) {
   return (entries ?? [])
-    .map((e) => ({
-      exercise_id: e.exercise?.id ?? e.exercise_id,
-      exercise: e.exercise
-        ? {
-            id: e.exercise.id,
-            name: e.exercise.name,
-            muscle_group: e.exercise.muscle_group ?? null,
-            is_bench_lift: Boolean(e.exercise.is_bench_lift),
-            metric: normMetric(e.exercise.metric),
-          }
-        : undefined,
-      sets: (e.sets ?? [])
-        .map((s) => ({ weight: toNum(s.weight), reps: toNum(s.reps) }))
-        .filter((s) => Number.isFinite(s.weight) && Number.isFinite(s.reps) && s.reps > 0),
-    }))
+    .map((e) => {
+      const metric = normMetric(e.exercise?.metric)
+      return {
+        exercise_id: e.exercise?.id ?? e.exercise_id,
+        exercise: e.exercise
+          ? {
+              id: e.exercise.id,
+              name: e.exercise.name,
+              muscle_group: e.exercise.muscle_group ?? null,
+              is_bench_lift: Boolean(e.exercise.is_bench_lift),
+              metric,
+            }
+          : undefined,
+        sets: (e.sets ?? [])
+          .map((s) => clampSet(toNum(s.weight), toNum(s.reps), metric))
+          .filter(Boolean),
+      }
+    })
     .filter((e) => e.exercise_id && e.sets.length > 0)
 }
 

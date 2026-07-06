@@ -6,6 +6,7 @@ import { syncNow } from '../db/sync.js'
 import { getCache, setCache, clearCache } from '../lib/cache.js'
 import { showToast } from '../components/Toast.jsx'
 import { exerciseMetric, isCountMetric, fmtMetricValue, fmtTime, parseTime } from '../lib/metric.js'
+import { WEIGHT_MAX, repsMax } from '../lib/setLimits.js'
 import { exportWorkouts } from '../lib/exportWorkout.js'
 import HoldButton from '../components/HoldButton.jsx'
 import ExercisePicker from '../components/ExercisePicker.jsx'
@@ -207,11 +208,14 @@ export default function WorkoutScreen({ user, workoutId = null, onBack }) {
 
   function step(ei, si, field, delta) {
     const min = field === 'reps' ? 1 : 0
+    // Верхняя граница степпера (та же, что клампит сохранение): вес → WEIGHT_MAX,
+    // повторы/секунды → по метрике упражнения (у time там секунды).
+    const max = field === 'weight' ? WEIGHT_MAX : repsMax(exerciseMetric(entries[ei].exercise))
     // Значение в state — строка из инпута: '', '.', '1.2.3' дают NaN. В этом
     // случае стартуем степпер от минимума, иначе в поле попадал бы «NaN».
     const base = Number(entries[ei].sets[si][field])
     const cur = Number.isFinite(base) ? base : min
-    const next = Math.max(min, Math.round((cur + delta) * 100) / 100)
+    const next = Math.min(max, Math.max(min, Math.round((cur + delta) * 100) / 100))
     updateSet(ei, si, field, next)
   }
 
