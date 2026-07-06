@@ -17,7 +17,6 @@ export default function Avatar({ name, url, className = 'avatar' }) {
         src={url}
         alt=""
         aria-hidden="true"
-        loading="lazy"
         onError={() => setFailed(true)}
       />
     )
