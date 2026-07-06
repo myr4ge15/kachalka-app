@@ -334,9 +334,10 @@ export default function ProgressScreen({ user, initialExerciseId = null }) {
                     <Line
                       type="monotone" dataKey="value" stroke={lineStroke} strokeWidth={2}
                       dot={(props) => {
-                        const { cx, cy, payload } = props
+                        const { cx, cy, payload, index } = props
                         return (
                           <Dot
+                            key={`dot-${index}`}
                             cx={cx} cy={cy} r={payload.isPr ? 5 : 3}
                             fill={dotColor(payload)}
                             stroke={c.bg}
