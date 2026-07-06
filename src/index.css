@@ -109,8 +109,15 @@ input { font-family: inherit; }
   padding-left: calc(16px + env(safe-area-inset-left));
   padding-right: calc(16px + env(safe-area-inset-right));
 }
+/* Полноэкранные центрированные виды (вход/загрузка/ошибки) рендерятся ВНЕ .app,
+   поэтому фиксируем высоту по ВИДИМОМУ вьюпорту (100dvh, без адресной строки).
+   Раньше был min-height:100vh — выше видимой области, отсюда «резиновый» скролл,
+   даже когда карточка влезала. Скролл разрешаем только при реальном переполнении
+   (длинный список / очень низкий экран), overscroll-behavior гасит rubber-band. */
 .screen.center {
-  min-height: 100vh; display: flex; align-items: center; justify-content: center;
+  height: 100vh; height: 100dvh;
+  display: flex; align-items: center; justify-content: center;
+  overflow-y: auto; overscroll-behavior: contain;
 }
 .screen-title { margin: 4px 0 12px; font-size: 20px; }
 .sub { margin-top: -6px; }
