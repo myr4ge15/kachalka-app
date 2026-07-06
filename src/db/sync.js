@@ -27,15 +27,18 @@ import { onOnline, onOffline, onResume } from '../lib/appEvents.js'
 import { cmpIsoAsc } from '../lib/cmp.js'
 import { protectedFromPull } from '../lib/outboxProtect.js'
 import { mergeDecision } from '../lib/mergeClock.js'
+import { selectStaleWorkoutIds } from '../lib/pullReconcile.js'
 
 const POLL_MS = 20000
 // После стольких неудачных попыток операция считается «отравленной» и
 // откладывается в dead-letter (флаг _dead): она больше не блокирует очередь,
 // но остаётся в базе для диагностики. Иначе один битый upsert вешал синк навсегда.
 const MAX_ATTEMPTS = 5
-// Сколько последних тренировок тянем за один pull. Раньше тянули всю историю
-// каждые 20 c. Удаления реконсилируем только в пределах подтянутого окна,
-// чтобы не удалить локально записи, которые старше окна и просто не пришли.
+// Сколько последних тренировок тянем за один pull ДЛЯ КОНТЕНТА (тяжёлый join с
+// упражнениями/подходами). Раньше тянули всю историю каждые 20 c. Удаления же
+// сверяем отдельно — по ПОЛНОМУ дешёвому списку серверных id (select id), а не
+// по этому окну: иначе удаление тренировки старше окна не доезжало (см.
+// lib/pullReconcile.js, «зазор реконсиляции»).
 const PULL_LIMIT = 200
 const SELECT_WORKOUT =
   'id, performed_at, created_at, updated_at, user_id, ' +
@@ -200,13 +203,19 @@ async function pull(userId, justPushed = new Set()) {
   )
   if (wk.error) throw wk.error
   const serverRows = wk.data ?? []
-  const serverIds = new Set(serverRows.map((r) => r.id))
 
-  // Если набралась полная страница — за окном могут быть ещё тренировки, которые
-  // мы не тянули. Их нельзя считать «удалёнными на сервере». Граница окна — самая
-  // старая подтянутая дата (выборка идёт по убыванию performed_at).
-  const partial = serverRows.length === PULL_LIMIT
-  const boundary = partial ? serverRows[serverRows.length - 1].performed_at : null
+  // ПОЛНЫЙ набор серверных id тренировок пользователя (без join'ов — дёшево, лишь
+  // UUID'ы) для НАДЁЖНОЙ реконсиляции удалений. Контент тянем окном (PULL_LIMIT),
+  // но удаления сверяем с полным списком — иначе удаление записи СТАРШЕ окна не
+  // доезжало до других устройств («зазор», см. lib/pullReconcile.js). Если этот
+  // запрос упал — реконсиляцию удалений в этом прогоне ПРОПУСКАЕМ (не удаляем
+  // ничего вслепую), контент/конфликты обрабатываем как обычно.
+  const idsRes = await withTimeout(
+    supabase.from('workouts').select('id').eq('user_id', userId)
+  )
+  let allServerIds = null
+  if (idsRes.error) warnings.push('удаления не сверены: ' + (idsRes.error.message ?? idsRes.error))
+  else allServerIds = new Set((idsRes.data ?? []).map((r) => r.id))
 
   // Конфликты merge-часов копим и логируем ПОСЛЕ транзакции (db.meta — другая
   // таблица, не в скоупе db.workouts/db.outbox этой транзакции).
@@ -258,15 +267,15 @@ async function pull(userId, justPushed = new Set()) {
       }
       // decision === 'keep-local' → запись не трогаем (правка ждёт push'а).
     }
-    // Удалённые на сервере (и чистые локально) — убираем локально, но только в
-    // пределах подтянутого окна: записи старше границы мы просто не запрашивали.
-    for (const w of locals) {
-      if (serverIds.has(w.id) || w._dirty || w._deleted) continue
-      // Только что отправили её в этом же цикле — не удаляем, даже если SELECT её
-      // ещё не вернул (лаг read-replica). Иначе чистая запись пропала бы локально.
-      if (justPushed.has(w.id)) continue
-      if (partial && cmpIsoAsc(w.performed_at, boundary) < 0) continue
-      await db.workouts.delete(w.id)
+    // Удалённые на сервере (и чистые локально) — убираем локально. Сверка по
+    // ПОЛНОМУ набору серверных id (allServerIds), а не по окну контента: так
+    // доезжает и удаление записи старше окна. _dirty/_deleted и только что
+    // отправленные (лаг read-replica) защищены внутри selectStaleWorkoutIds.
+    // allServerIds === null → запрос id упал, реконсиляцию удалений пропускаем.
+    if (allServerIds) {
+      for (const id of selectStaleWorkoutIds(locals, allServerIds, justPushed)) {
+        await db.workouts.delete(id)
+      }
     }
   })
 
