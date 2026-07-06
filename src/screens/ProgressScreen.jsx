@@ -358,7 +358,11 @@ export default function ProgressScreen({ user, initialExerciseId = null }) {
                     />
                   </LineChart>
                 </ResponsiveContainer>
-                <p className="muted legend">● зелёный — рост · ● красный — спад · ● жёлтый — новый рекорд</p>
+                <p className="muted legend">
+                  <span style={{ color: c.line }}>●</span> зелёный — рост ·{' '}
+                  <span style={{ color: c.down }}>●</span> красный — спад ·{' '}
+                  <span style={{ color: c.pr }}>●</span> жёлтый — новый рекорд
+                </p>
               </div>
 
               <div className="card prog-card">
