@@ -17,7 +17,7 @@ export default defineConfig({
   },
   // Тест-сьют (Vitest) — только чистый слой src/lib (без Dexie/сети/UI), поэтому
   // окружение node (jsdom не нужен). Vitest сам подхватывает этот конфиг, значит
-  // тесты видят тот же define __APP_VERSION__, что и сборка. См. docs/PLAN-tests.md.
+  // тесты видят тот же define __APP_VERSION__, что и сборка. См. docs/plans/PLAN-tests.md.
   test: {
     environment: 'node',
     include: ['src/**/*.test.js'],

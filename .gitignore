@@ -11,6 +11,8 @@ dist-ssr
 npm-debug.log*
 yarn-debug.log*
 yarn-error.log*
+
+# Рабочая документация — держим только локально (см. CLAUDE.md, «Где задачи и документация»)
 ТЗ.md
 BACKLOG.md
 WISHLIST.md
@@ -18,8 +20,15 @@ concept.html
 CLAUDE.md
 ПАСПОРТ.md
 PLAN-*.md
-prototype-*.html
 setup-supabase-github.md
+# подпапки docs/ (планы уже ловятся PLAN-*.md; ревью и гайды — по папкам)
+docs/reviews/
+docs/guides/
+# кликабельные прототипы/мокапы — целиком
+prototypes/
+# локальный мусор в корне (старые скриншоты, вендорные бинарники)
+debug/
+deno/
 
 # Настройка БД (схема, сид, RPC) — держим только локально
 supabase/
