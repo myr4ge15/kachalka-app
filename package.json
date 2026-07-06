@@ -1,7 +1,7 @@
 {
   "name": "gym-app",
   "private": true,
-  "version": "3.0.5",
+  "version": "3.0.6",
   "type": "module",
   "description": "PWA для учёта силовых тренировок (MVP, первый проход)",
   "scripts": {
@@ -22,6 +22,7 @@
   },
   "devDependencies": {
     "@vitejs/plugin-react": "^4.3.1",
+    "fake-indexeddb": "^6.2.5",
     "vite": "^5.4.21",
     "vite-plugin-pwa": "^0.20.5",
     "vitest": "^2.1.9"
