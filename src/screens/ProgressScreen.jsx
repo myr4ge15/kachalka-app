@@ -344,6 +344,17 @@ export default function ProgressScreen({ user, initialExerciseId = null }) {
                           />
                         )
                       }}
+                      activeDot={(props) => {
+                        const { cx, cy, payload, index } = props
+                        return (
+                          <Dot
+                            key={`active-dot-${index}`}
+                            cx={cx} cy={cy} r={payload.isPr ? 6 : 5}
+                            fill={dotColor(payload)}
+                            stroke={c.text}
+                          />
+                        )
+                      }}
                     />
                   </LineChart>
                 </ResponsiveContainer>
