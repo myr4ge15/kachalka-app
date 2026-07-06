@@ -36,9 +36,15 @@ export default defineConfig({
         // рантайм-кэша в офлайне они не грузились. CacheFirst: один раз увиденная
         // картинка отдаётся из кэша и работает в авиарежиме. URL меняется при
         // замене (?v=<ts>), так что CacheFirst не залипает на старой версии.
+        // ВАЖНО: паттерн заякорен на НАЧАЛО полного URL (включая origin). Для
+        // кросс-доменных запросов Workbox матчит RegExp только если он совпадает
+        // с началом URL (result.index === 0) — защита от случайных матчей. Прежний
+        // паттерн /\/storage\/…\/avatars\// совпадал в СЕРЕДИНЕ (после
+        // https://<ref>.supabase.co) → для кросс-домена игнорировался, аватары
+        // никогда не кэшировались (онлайн — грузились заново, офлайн — серый кружок).
         runtimeCaching: [
           {
-            urlPattern: /\/storage\/v1\/object\/public\/avatars\//,
+            urlPattern: /^https:\/\/[^/]+\.supabase\.co\/storage\/v1\/object\/public\/avatars\//,
             handler: 'CacheFirst',
             options: {
               cacheName: 'avatars',
