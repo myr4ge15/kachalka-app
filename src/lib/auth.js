@@ -116,6 +116,17 @@ export async function verifyPinOffline(userId, pin) {
   return { id: userId, name: cached.name, role: cached.role }
 }
 
+// Профиль из офлайн-кэша PIN (loginDb.meta pin_${id}) для восстановления сессии
+// БЕЗ хранения имени/роли в localStorage (на общих телефонах они лежали открыто).
+// Роль в ростер/view login_users не отдаётся, поэтому role берём именно отсюда.
+// Возвращает { id, name, role } или null, если кэша нет (на устройстве не входили).
+export async function getCachedProfile(userId) {
+  if (!userId) return null
+  const cached = await getLoginMeta(pinCacheKey(userId))
+  if (!cached) return null
+  return { id: userId, name: cached.name ?? null, role: cached.role ?? null }
+}
+
 // Смена своего PIN (PLAN-cabinet-2c §1). Требует ОНЛАЙН и валидную сессию:
 // шлём { user_id, current_pin, new_pin } в Edge Function auth-set-pin с Bearer
 // текущего access_token (а не anon — серверу нужен claim app_user_id для

@@ -1,12 +1,13 @@
 import { useState, useEffect, useRef, lazy, Suspense } from 'react'
 import { useLiveQuery } from 'dexie-react-hooks'
 import { isConfigured, warmup, supabase } from './db/supabase.js'
-import { logout as authLogout } from './lib/auth.js'
+import { logout as authLogout, getCachedProfile } from './lib/auth.js'
 import { startSync, useSyncStatus } from './db/sync.js'
 import { countUnread } from './db/notifications.js'
 import { getCachedUser } from './db/repo.js'
 import { openUserDb, closeUserDb } from './db/local.js'
 import { syncBadgeState } from './lib/syncStatus.js'
+import { readStoredUserId, hydrateProfile } from './lib/sessionProfile.js'
 import LoginScreen from './screens/LoginScreen.jsx'
 import Toast from './components/Toast.jsx'
 import Avatar from './components/Avatar.jsx'
@@ -31,9 +32,11 @@ function SyncBadge() {
   return <span className={`sync-badge ${cls}`}>{text}</span>
 }
 
-// Профиль вошедшего (id,name,role) храним в localStorage — переживает
-// перезапуск приложения, как и сессия Supabase Auth (persistSession). PIN
-// спрашивается заново лишь когда refresh-токен умрёт (~7 дней) или после logout.
+// В localStorage держим ТОЛЬКО id вошедшего (не имя/роль): на общих телефонах
+// профиль лежал открыто и читался через devtools. Имя/роль восстанавливаем из
+// loginDb (ростер + офлайн-кэш PIN, см. handleLogin/restore). id переживает
+// перезапуск, как и сессия Supabase Auth (persistSession); PIN спрашивается
+// заново лишь когда refresh-токен умрёт (~7 дней) или после logout.
 const SESSION_KEY = 'gym_app_user'
 const TAB_KEY = 'gym_app_tab'
 
@@ -99,15 +102,21 @@ export default function App() {
     goTab('progress')
   }
 
-  // Восстановление профиля после перезапуска (из localStorage — работает и
-  // офлайн, когда сервер недоступен и сессию не проверить). Персональную базу
-  // открываем ДО setUser, иначе экраны/синк прочитают ещё закрытый `db`.
+  // Восстановление профиля после перезапуска. В localStorage лежит только id;
+  // имя берём из ростера (loginDb.users, свежий после pull), роль — из офлайн-
+  // кэша PIN (в ростер роль не отдаётся). Работает офлайн (оба источника
+  // локальные). Персональную базу открываем ДО setUser, иначе экраны/синк
+  // прочитают ещё закрытый `db`. Старый «толстый» блок {id,name,role} читаем по
+  // id и тут же перезаписываем тонким — стираем утёкшие имя/роль.
   useEffect(() => {
-    const saved = localStorage.getItem(SESSION_KEY)
-    if (!saved) return
-    let u
-    try { u = JSON.parse(saved) } catch { return }
-    if (u?.id) openUserDb(u.id).then(() => setUser(u)).catch(() => {})
+    const id = readStoredUserId(localStorage.getItem(SESSION_KEY))
+    if (!id) return
+    ;(async () => {
+      const [roster, cache] = await Promise.all([getCachedUser(id), getCachedProfile(id)])
+      await openUserDb(id)
+      localStorage.setItem(SESSION_KEY, JSON.stringify({ id }))
+      setUser(hydrateProfile(id, roster, cache))
+    })().catch(() => {})
   }, [])
 
   // Если сессия Supabase завершилась (refresh-токен истёк через ~7 дней или
@@ -131,20 +140,16 @@ export default function App() {
     // закроет базу предыдущей учётки и перенесёт несинхрон. правки со старой общей
     // базы. Чистка кросс-пользовательских кэшей больше не нужна — изоляция физическая.
     await openUserDb(u.id)
-    localStorage.setItem(SESSION_KEY, JSON.stringify(u))
+    localStorage.setItem(SESSION_KEY, JSON.stringify({ id: u.id }))
     setUser(u)
     setTab('history')
   }
 
-  // Имя сменили в ЛК — обновляем профиль в стейте и localStorage, чтобы шапка
-  // и инициал-аватар сразу показали новое имя и оно пережило перезапуск.
+  // Имя сменили в ЛК — обновляем профиль в стейте, чтобы шапка и инициал-аватар
+  // сразу показали новое имя. Персистить в localStorage не нужно (там только id):
+  // новое имя переживёт перезапуск через ростер/офлайн-кэш PIN (setName их пишет).
   function handleRenamed(name) {
-    setUser((u) => {
-      if (!u) return u
-      const next = { ...u, name }
-      localStorage.setItem(SESSION_KEY, JSON.stringify(next))
-      return next
-    })
+    setUser((u) => (u ? { ...u, name } : u))
   }
 
   async function handleLogout() {
