@@ -58,10 +58,27 @@ export async function pbkdf2Hex(pin, saltHex, iterations = PIN_ITERATIONS) {
   return toHex(bits)
 }
 
-// Проверка PIN: соль есть → PBKDF2, нет → legacy SHA-256.
-export async function verifyPin(pin, user) {
-  if (user?.pin_salt) {
-    return (await pbkdf2Hex(pin, user.pin_salt)) === user.pin_hash
+// Сравнение двух hex-строк за постоянное время (constant-time): длину сверяем
+// заранее (у PIN-хэшей она фиксирована), дальше XOR-аккумулятор по символам —
+// раннего выхода на первом несовпадении нет, поэтому по таймингу нельзя
+// подбирать хэш побайтово. Паритет с сервером (_shared/pin.ts#constantTimeEqual).
+export function constantTimeHexEqual(a, b) {
+  if (typeof a !== 'string' || typeof b !== 'string') return false
+  if (a.length !== b.length) return false
+  let diff = 0
+  for (let i = 0; i < a.length; i++) {
+    diff |= a.charCodeAt(i) ^ b.charCodeAt(i)
   }
-  return (await sha256Hex(pin)) === user.pin_hash
+  return diff === 0
+}
+
+// Проверка PIN: соль есть → PBKDF2, нет → legacy SHA-256. Сравнение хэшей —
+// constant-time (см. выше): офлайн-анлок 4-значного PIN всё равно слабое место
+// (техдолг), но латентный тайминг-сайдченел закрываем.
+export async function verifyPin(pin, user) {
+  if (!user?.pin_hash) return false
+  const actual = user.pin_salt
+    ? await pbkdf2Hex(pin, user.pin_salt)
+    : await sha256Hex(pin)
+  return constantTimeHexEqual(actual, user.pin_hash)
 }
