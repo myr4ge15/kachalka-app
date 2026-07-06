@@ -26,6 +26,7 @@
 // ============================================================================
 import Dexie from 'dexie'
 import { selectDirtyForMigration } from '../lib/migration.js'
+import { createSerialQueue } from '../lib/serialQueue.js'
 
 // Имя старой ОБЩЕЙ базы (до изоляции). С неё переносим несинхронизированные
 // правки в персональные базы; см. migrateUserFromOldDb / migrateLoginZone.
@@ -116,10 +117,22 @@ loginDb.version(1).stores({ users: 'id, name', meta: 'key' })
 export let db = null
 let currentUserId = null
 
+// Мьютекс открытия/закрытия базы. openUserDb внутри держит долгую миграцию
+// (migrateUserFromOldDb), а close/повторный open меняют общий `db`. Без
+// сериализации быстрый выход-вход другой учёткой во время миграции пересекался:
+// база закрывалась из-под работающей миграции, та писала в закрытый инстанс →
+// несинхрон. правки терялись. Гоняем оба через одну цепочку → следующая
+// операция ждёт полного завершения предыдущей (включая миграцию).
+const dbQueue = createSerialQueue()
+
 // Открыть (или вернуть уже открытую) персональную базу пользователя. Закрывает
 // предыдущую при смене юзера и запускает одноразовую миграцию его несинхрон.
-// правок со старой общей `gym_app`. Возвращает инстанс.
-export async function openUserDb(userId) {
+// правок со старой общей `gym_app`. Возвращает инстанс. Сериализовано (dbQueue).
+export function openUserDb(userId) {
+  return dbQueue(() => openUserDbUnsafe(userId))
+}
+
+async function openUserDbUnsafe(userId) {
   if (!userId) return db
   if (currentUserId === userId && db) return db
   if (db) { try { db.close() } catch { /* ignore */ } }
@@ -131,11 +144,14 @@ export async function openUserDb(userId) {
 }
 
 // Закрыть текущую персональную базу (выход). Изоляция и без этого физическая
-// (разные базы), поэтому закрытие best-effort; ошибки глотаем.
+// (разные базы), поэтому закрытие best-effort; ошибки глотаем. Сериализовано
+// (dbQueue): не закроет базу из-под ещё идущей миграции предыдущего входа.
 export function closeUserDb() {
-  if (db) { try { db.close() } catch { /* ignore */ } }
-  db = null
-  currentUserId = null
+  return dbQueue(() => {
+    if (db) { try { db.close() } catch { /* ignore */ } }
+    db = null
+    currentUserId = null
+  })
 }
 
 // Текущее серверное (UTC) время в ISO. crypto.randomUUID доступен на https и localhost.
