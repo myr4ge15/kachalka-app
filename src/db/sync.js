@@ -29,8 +29,12 @@ import { protectedFromPull } from '../lib/outboxProtect.js'
 import { mergeDecision } from '../lib/mergeClock.js'
 import { selectStaleWorkoutIds } from '../lib/pullReconcile.js'
 import { maxUpdatedAt, changedSince, rosterSignature } from '../lib/pullWatermark.js'
+import { pollIntervalFor, isRealtimeAlive, makeDebouncer } from '../lib/realtimeSync.js'
 
-const POLL_MS = 20000
+// Свернуть всплеск Realtime-событий в один syncNow (несколько правок подряд на
+// сервере не должны дёргать pull лавиной). Инкрементальный pull дёшев, поэтому
+// небольшого окна хватает, чтобы «друг побил рекорд» ощущалось мгновенным.
+const REALTIME_DEBOUNCE_MS = 1200
 // После стольких неудачных попыток операция считается «отравленной» и
 // откладывается в dead-letter (флаг _dead): она больше не блокирует очередь,
 // но остаётся в базе для диагностики. Иначе один битый upsert вешал синк навсегда.
@@ -766,15 +770,57 @@ export function startSync(getUserId) {
   })
   const offOffline = onOffline(() => setState({ online: false }))
   const offResume = onResume(() => syncNow(getUserId()))
-  const timer = setInterval(() => syncNow(getUserId()), POLL_MS)
+
+  // Адаптивный поллинг: пока Realtime не подтверждён — частый опрос (как раньше),
+  // при живом канале растягиваем интервал до страховочного (Realtime сам толкает
+  // изменения). Пересоздаём таймер только при смене интервала (см. applyRealtimeStatus).
+  let timer = null
+  let pollMs = pollIntervalFor(false)
+  const restartTimer = (ms) => {
+    if (timer) clearInterval(timer)
+    pollMs = ms
+    timer = setInterval(() => syncNow(getUserId()), ms)
+  }
+  restartTimer(pollMs)
+
+  // Realtime-триггер (виш BACKLOG): postgres_changes по workouts/goals даёт
+  // мгновенное «друг побил рекорд» вместо потолка латентности в POLL_FAST_MS.
+  // Событие несёт лишь сигнал «что-то изменилось» → дебаунсим и запускаем обычный
+  // syncNow (инкрементальный pull дешёвый). Офлайн-модель не трогаем: канал —
+  // ДОПОЛНЕНИЕ к поллингу и очередям, а не замена. RLS фильтрует события до
+  // видимых зрителю строк, поэтому каналу нужна поднятая сессия (см. lifecycle ниже).
+  const debounced = makeDebouncer(() => syncNow(getUserId()), REALTIME_DEBOUNCE_MS)
+  let channel = null
+  const applyRealtimeStatus = (status) => {
+    const ms = pollIntervalFor(isRealtimeAlive(status))
+    if (ms !== pollMs) restartTimer(ms)
+  }
+  const openChannel = () => {
+    if (channel) return // канал уже поднят — supabase-js сам обновляет его токен на refresh
+    channel = supabase
+      .channel('live-sync')
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'workouts' }, () => debounced.trigger())
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'goals' }, () => debounced.trigger())
+      .subscribe((status) => applyRealtimeStatus(status))
+  }
+  const closeChannel = () => {
+    if (channel) { supabase.removeChannel(channel); channel = null }
+    applyRealtimeStatus('CLOSED') // вернуть таймер к частому опросу-страховке
+  }
 
   // Сессия поднялась (восстановление из хранилища после рестарта ИЛИ молчаливый
   // онлайн-логин по офлайн-кэшу, см. LoginScreen) → сразу синкаем. Без этого
   // первый прогон мог отвалиться по hasSession()=false, а следующего ждать до
-  // POLL_MS; теперь pull/feed/лидерборд подтянутся, как только появится JWT.
-  const { data: authSub } = supabase.auth.onAuthStateChange((event) => {
+  // интервала поллинга; теперь pull/feed/лидерборд подтянутся, как только появится
+  // JWT. Тогда же (появился JWT) поднимаем Realtime-канал — без сессии RLS его
+  // отвергнет; supabase-js сам обновляет токен канала на TOKEN_REFRESHED, поэтому
+  // канал поднимаем ОДИН раз (openChannel идемпотентен), а на SIGNED_OUT — рвём.
+  const { data: authSub } = supabase.auth.onAuthStateChange((event, session) => {
     if (event === 'SIGNED_IN' || event === 'TOKEN_REFRESHED' || event === 'INITIAL_SESSION') {
       syncNow(getUserId())
+      if (session) openChannel()
+    } else if (event === 'SIGNED_OUT') {
+      closeChannel()
     }
   })
 
@@ -784,7 +830,9 @@ export function startSync(getUserId) {
     offOnline()
     offOffline()
     offResume()
-    clearInterval(timer)
+    if (timer) clearInterval(timer)
+    debounced.cancel()
+    if (channel) { supabase.removeChannel(channel); channel = null }
     authSub?.subscription?.unsubscribe?.()
   }
 }
