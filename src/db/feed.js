@@ -20,10 +20,14 @@ import { applyReactionQueue } from '../lib/reactions.js'
 // Сколько последних тренировок показываем в ленте.
 const FEED_LIMIT = 50
 
-// Тянем тренировку целиком, плюс имя автора (join users).
+// Тянем тренировку целиком, плюс имя автора (join users). Связь users указываем
+// ЯВНО по FK-констрейнту workouts_user_id_fkey: после появления таблицы reactions
+// (ссылается и на workouts, и на users) у PostgREST стало ДВА пути workouts↔users
+// (прямой + через reactions), и неявный `users(...)` падает с «more than one
+// relationship was found». Явный `!fk` снимает неоднозначность.
 const SELECT_FEED =
   'id, performed_at, user_id, ' +
-  'user:users(id, name), ' +
+  'user:users!workouts_user_id_fkey(id, name), ' +
   'workout_exercises(id, position, exercise_id, ' +
   'exercise:exercises(id, name, muscle_group, is_bench_lift, is_female_lift, metric), ' +
   'sets(id, set_number, weight, reps))'
@@ -80,7 +84,7 @@ async function attachReactions(items) {
     const res = await withTimeout(
       supabase
         .from('reactions')
-        .select('workout_id, user_id, kind, user:users(name)')
+        .select('workout_id, user_id, kind, user:users!reactions_user_id_fkey(name)')
         .in('workout_id', ids)
     )
     if (res.error || !res.data) return

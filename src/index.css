@@ -632,6 +632,8 @@ img.avatar-lg.has-img {
   color: var(--text); font-size: 15px; line-height: 1; cursor: pointer;
 }
 .reaction-btn:active { background: var(--border); }
+.reaction-btn.static { cursor: default; }
+.reaction-btn.static:active { background: var(--surface-2); }
 .reaction-btn.mine { border-color: var(--green); background: rgba(22,163,74,.16); }
 .reaction-emoji { font-size: 16px; }
 .reaction-count { font-size: 13px; font-weight: 600; color: var(--muted); }

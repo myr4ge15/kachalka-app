@@ -155,8 +155,27 @@ export default function FeedScreen({ user }) {
             </div>
 
             {(() => {
-              const { kinds, names } = summarizeReactions(w.reactions, user.id)
+              const { kinds, names, total } = summarizeReactions(w.reactions, user.id)
               const line = reactorLine(names)
+              // Своя тренировка — самолайк запрещён: показываем только СВОДКУ
+              // реакций других (статичные чипы + имена), без кнопок. Нет реакций
+              // — не рендерим блок вовсе.
+              if (isMe) {
+                if (total === 0) return null
+                return (
+                  <div className="reactions">
+                    <div className="reaction-btns">
+                      {kinds.filter((k) => k.count > 0).map((k) => (
+                        <span key={k.kind} className="reaction-btn static">
+                          <span className="reaction-emoji">{k.emoji}</span>
+                          <span className="reaction-count">{k.count}</span>
+                        </span>
+                      ))}
+                    </div>
+                    {line && <div className="muted reaction-who">{line}</div>}
+                  </div>
+                )
+              }
               return (
                 <div className="reactions">
                   <div className="reaction-btns">
