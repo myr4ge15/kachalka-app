@@ -54,7 +54,10 @@ function TabIcon({ name }) {
     </svg>
   )
   return (
-    <svg {...p}><path d="M4 19h16M4 15l4-6 4 2 4-5 4 4" /></svg>
+    <svg {...p}>
+      <path d="M3 17l6-6 4 4 8-8" />
+      <path d="M14 7h7v7" />
+    </svg>
   )
 }
 
