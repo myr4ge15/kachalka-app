@@ -1170,6 +1170,35 @@ img.avatar-lg.has-img {
     grid-area: rail; order: 0;
     position: sticky; top: 12px;
   }
+
+  /* Мои тренировки (слайс 3): master-detail — список слева (липкий), редактор
+     справа. .md-screen шире прочих; список прилипает при прокрутке длинной детали. */
+  .md-screen { padding: 16px 24px 40px; max-width: 1240px; margin: 0 auto; }
+  .md-layout {
+    display: grid; grid-template-columns: 360px minmax(0, 1fr);
+    gap: 24px; align-items: start;
+  }
+  .md-list-col { position: sticky; top: 12px; align-self: start; min-width: 0; }
+  .md-detail-col { min-width: 0; }
+  /* WorkoutScreen в детали занимает всю колонку (не клампится до 820, не центрируется). */
+  .md-detail-col .screen { max-width: none; margin: 0; }
+  /* Липкую «Сохранить» в детали делаем обычной (в потоке колонки), а не плавающей
+     по центру всего контента. */
+  .md-detail-col .wk-save-bar {
+    position: static; left: auto; transform: none;
+    width: 100%; max-width: none; margin-top: 10px;
+  }
+  .md-detail-col .wk-save-spacer { display: none; }
+  /* Открытая (просматриваемая) карточка в списке — зелёная рамка. */
+  .history-card.open { border-color: var(--green); background: rgba(22,163,74,.06); }
+  /* Заглушка правой колонки, пока ничего не выбрано. */
+  .md-empty {
+    display: flex; flex-direction: column; align-items: center; justify-content: center;
+    min-height: 320px; text-align: center; color: var(--muted); line-height: 1.5;
+    border: 1px dashed var(--border); border-radius: 16px; padding: 32px;
+  }
+  .md-empty-ico { font-size: 40px; margin-bottom: 12px; opacity: .8; }
+  .md-empty p { max-width: 320px; margin: 0; }
 }
 
 /* ======================= Админка (PLAN-admin) ======================= */
