@@ -22,14 +22,42 @@ const NotificationsScreen = lazy(() => import('./screens/NotificationsScreen.jsx
 const ProfileScreen = lazy(() => import('./screens/ProfileScreen.jsx'))
 const AdminScreen = lazy(() => import('./screens/AdminScreen.jsx'))
 
+// Иконка состояния синхронизации — инлайн-SVG (без зависимостей), как TabIcon.
+// Красится через currentColor (цвет задаёт класс .sync-badge.<cls>), спиннер
+// крутит CSS (.sync-ico.spin).
+function SyncIcon({ name }) {
+  const p = {
+    className: name === 'syncing' ? 'sync-ico spin' : 'sync-ico',
+    viewBox: '0 0 24 24', fill: 'none', stroke: 'currentColor', strokeWidth: 2.2,
+    strokeLinecap: 'round', strokeLinejoin: 'round', 'aria-hidden': true,
+  }
+  if (name === 'ok') return <svg {...p}><path d="M4 12.5l5 5L20 6" /></svg>
+  if (name === 'syncing') return <svg {...p}><path d="M21 12a9 9 0 1 1-2.64-6.36" /><path d="M21 4v5h-5" /></svg>
+  if (name === 'pending') return <svg {...p}><path d="M12 19V6" /><path d="M6 11l6-6 6 6" /></svg>
+  if (name === 'offline') return (
+    <svg {...p}>
+      <path d="M7 18a4 4 0 0 1-.5-7.97 5.5 5.5 0 0 1 9.9-2.2A4 4 0 0 1 18 17" />
+      <path d="M4 4l16 16" />
+    </svg>
+  )
+  // warn
+  return <svg {...p}><path d="M12 4l9 16H3z" /><path d="M12 10v4" /><path d="M12 17h.01" /></svg>
+}
+
 // Индикатор состояния синхронизации в шапке.
 function SyncBadge() {
   const { online, syncing, pending, dead } = useSyncStatus()
-  // Класс/текст — чистой логикой (см. lib/syncStatus.js). Застрявшие изменения
-  // (dead) делают бейдж предупреждающим, а не «синхронизировано», пока карточки
-  // висят с жёлтым кружком.
-  const { cls, text } = syncBadgeState({ online, syncing, pending, dead })
-  return <span className={`sync-badge ${cls}`}>{text}</span>
+  // Класс/иконка/текст — чистой логикой (см. lib/syncStatus.js). Иконка есть всегда,
+  // текст — только когда есть что чинить (очередь/офлайн/застряло). Застрявшие
+  // изменения (dead) делают бейдж предупреждающим, а не «синхронизировано», пока
+  // карточки висят с жёлтым кружком.
+  const { cls, icon, text, title } = syncBadgeState({ online, syncing, pending, dead })
+  return (
+    <span className={`sync-badge ${cls}`} role="status" aria-label={title} title={title}>
+      <SyncIcon name={icon} />
+      {text && <span className="sync-badge-txt">{text}</span>}
+    </span>
+  )
 }
 
 // Иконки нижней панели — инлайн-SVG (без зависимостей), красятся через currentColor,

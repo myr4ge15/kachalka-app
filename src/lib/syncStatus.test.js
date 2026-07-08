@@ -2,38 +2,48 @@ import { describe, it, expect } from 'vitest'
 import { syncBadgeState } from './syncStatus.js'
 
 describe('syncBadgeState', () => {
-  it('офлайн без очереди', () => {
+  it('офлайн без очереди — иконка облака, без текста', () => {
     expect(syncBadgeState({ online: false, syncing: false })).toEqual({
       cls: 'offline',
-      text: 'офлайн',
+      icon: 'offline',
+      text: '',
+      title: 'Офлайн',
     })
   })
 
   it('офлайн с очередью показывает счётчик', () => {
     expect(syncBadgeState({ online: false, syncing: false, pending: 3 })).toEqual({
       cls: 'offline',
-      text: 'офлайн · 3 в очереди',
+      icon: 'offline',
+      text: '3',
+      title: 'Офлайн · 3 в очереди',
     })
   })
 
-  it('идёт синхронизация — приоритетнее очереди', () => {
+  it('идёт синхронизация — крутящийся кружок, приоритетнее очереди', () => {
     expect(syncBadgeState({ online: true, syncing: true, pending: 2 })).toEqual({
       cls: 'busy',
-      text: 'синхронизация…',
+      icon: 'syncing',
+      text: '',
+      title: 'Синхронизация…',
     })
   })
 
-  it('есть живая очередь', () => {
+  it('есть живая очередь — стрелка + число', () => {
     expect(syncBadgeState({ online: true, syncing: false, pending: 2 })).toEqual({
       cls: 'busy',
-      text: '2 не синхр.',
+      icon: 'pending',
+      text: '2',
+      title: '2 не синхронизировано',
     })
   })
 
-  it('всё отправлено', () => {
+  it('всё отправлено — только галочка, без текста', () => {
     expect(syncBadgeState({ online: true, syncing: false, pending: 0, dead: 0 })).toEqual({
       cls: 'ok',
-      text: 'синхронизировано',
+      icon: 'ok',
+      text: '',
+      title: 'Синхронизировано',
     })
   })
 
@@ -42,14 +52,18 @@ describe('syncBadgeState', () => {
   it('застрявшие изменения (dead-letter) — предупреждение, а не «синхронизировано»', () => {
     expect(syncBadgeState({ online: true, syncing: false, pending: 0, dead: 2 })).toEqual({
       cls: 'warn',
-      text: '2 не отправлено',
+      icon: 'warn',
+      text: '2 не отпр.',
+      title: '2 не отправлено',
     })
   })
 
   it('живая очередь приоритетнее застрявшей', () => {
     expect(syncBadgeState({ online: true, syncing: false, pending: 1, dead: 5 })).toEqual({
       cls: 'busy',
-      text: '1 не синхр.',
+      icon: 'pending',
+      text: '1',
+      title: '1 не синхронизировано',
     })
   })
 })
