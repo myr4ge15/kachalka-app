@@ -528,20 +528,33 @@ input { font-family: inherit; }
 .error { color: var(--red); font-size: 14px; text-align: center; margin-top: 10px; }
 
 /* ---------- баннер обновления PWA ---------- */
-.update-banner {
+/* Концепт A «тихая пилюля»: компактная плашка обновления по центру над таббаром —
+   точка-акцент + «Новая версия» + кнопка «Обновить», сбоку × (Позже/snooze). */
+.update-pill {
   position: fixed; z-index: 30;
   left: 50%; transform: translateX(-50%);
-  width: calc(100% - 24px); max-width: 536px;
   bottom: calc(72px + env(safe-area-inset-bottom));
-  display: flex; align-items: center; justify-content: space-between; gap: 12px;
-  padding: 12px 14px; border-radius: 12px;
+  max-width: calc(100% - 24px);
+  display: inline-flex; align-items: center; gap: 8px;
+  padding: 6px 8px 6px 14px; border-radius: 999px;
   background: var(--surface-2); border: 1px solid var(--green); color: var(--text);
   box-shadow: 0 8px 24px rgba(0,0,0,.45);
 }
-.update-banner-text { font-size: 15px; font-weight: 600; }
-.update-banner-actions { display: flex; align-items: center; gap: 6px; flex-shrink: 0; }
-.update-banner .btn { padding: 12px 16px; font-size: 15px; }
-.update-banner .link-btn { padding: 12px 8px; color: var(--muted); }
+.update-pill-dot {
+  width: 8px; height: 8px; flex-shrink: 0; border-radius: 50%;
+  background: var(--green); box-shadow: 0 0 0 3px rgba(22,163,74,.2);
+}
+.update-pill-text { font-size: 14px; font-weight: 600; white-space: nowrap; }
+.update-pill-go {
+  flex-shrink: 0; min-height: 34px; padding: 0 14px; border: none; border-radius: 999px;
+  background: var(--green); color: #08130b; font-size: 14px; font-weight: 600; cursor: pointer;
+}
+.update-pill-go:active { background: var(--green-d); }
+.update-pill-close {
+  flex-shrink: 0; width: 34px; height: 34px; padding: 0; border: none; border-radius: 999px;
+  background: none; color: var(--muted); font-size: 22px; line-height: 1; cursor: pointer;
+}
+.update-pill-close:active { background: var(--border); }
 
 .stat { display: flex; flex-direction: column; align-items: center; gap: 2px; }
 .stat-num { font-size: 32px; font-weight: 700; color: var(--green); }

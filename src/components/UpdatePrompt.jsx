@@ -69,16 +69,15 @@ export default function UpdatePrompt() {
   if (!needRefresh) return null
 
   return (
-    <div className="update-banner" role="alert">
-      <span className="update-banner-text">Доступна новая версия</span>
-      <div className="update-banner-actions">
-        <button className="btn primary" onClick={() => updateServiceWorker(true)}>
-          Обновить
-        </button>
-        <button className="link-btn" onClick={snooze}>
-          Позже
-        </button>
-      </div>
+    <div className="update-pill" role="alert">
+      <span className="update-pill-dot" aria-hidden="true" />
+      <span className="update-pill-text">Новая версия</span>
+      <button className="update-pill-go" onClick={() => updateServiceWorker(true)}>
+        Обновить
+      </button>
+      <button className="update-pill-close" onClick={snooze} aria-label="Позже">
+        &times;
+      </button>
     </div>
   )
 }
