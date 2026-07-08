@@ -8,7 +8,7 @@ import { readGoals, writeGoals } from '../db/notifications.js'
 import { syncNow } from '../db/sync.js'
 import { getCachedLeaderboard } from '../db/leaderboard.js'
 import { getMeta } from '../db/local.js'
-import { summarize, currentBestValue, goalProgress } from '../lib/profileStats.js'
+import { summarize, currentBestValue, goalProgress, fmtTonnage } from '../lib/profileStats.js'
 import { fmtMetricValue, normMetric, parseTime, fmtTime } from '../lib/metric.js'
 import { setPin, setName, LoginError } from '../lib/auth.js'
 import { uploadMyAvatar } from '../lib/avatar.js'
@@ -68,6 +68,10 @@ export default function ProfileScreen({ user, onLogout, onOpenProgress, onOpenFe
   // цели. 0/'' → требования по повторам нет (старое поведение).
   const [edReps, setEdReps] = useState(0)
   const [edIsNew, setEdIsNew] = useState(false) // добавляем новую (можно выбрать упражнение) или правим цель существующей
+
+  // Блок «Настройки» свёрнут по умолчанию: экран профиля длинный (статы + цели +
+  // рекорды + настройки + danger-zone), редко используемые действия прячем.
+  const [settingsOpen, setSettingsOpen] = useState(false)
 
   // ── Смена PIN (фаза 2c) ─────────────────────────────────────────────────
   const [pinOpen, setPinOpen] = useState(false)
@@ -387,6 +391,22 @@ export default function ProfileScreen({ user, onLogout, onOpenProgress, onOpenFe
               <div className="stat-num">{summary.workoutsThisMonth}</div>
               <div className="stat-lab">за этот<br />месяц</div>
             </div>
+            <div className="stat-cell">
+              <div className="stat-num">
+                {summary.streak}
+                {summary.streak > 0 && <span className="u"> 🔥</span>}
+              </div>
+              <div className="stat-lab">{summary.streak === 1 ? 'неделя' : 'недель'}<br />подряд</div>
+            </div>
+            <div className="stat-cell">
+              {(() => {
+                const t = fmtTonnage(summary.tonnage)
+                return (
+                  <div className="stat-num">{t.value}<span className="u"> {t.unit}</span></div>
+                )
+              })()}
+              <div className="stat-lab">поднято<br />всего</div>
+            </div>
           </div>
 
           {/* личные цели (мульти-цели) */}
@@ -621,9 +641,43 @@ export default function ProfileScreen({ user, onLogout, onOpenProgress, onOpenFe
         </>
       )}
 
-      {/* настройки и выход */}
-      <section className="sec">
-        <p className="sec-title">Настройки</p>
+      {/* настройки и выход — свёрнуто по умолчанию, чтобы длинный экран не пух */}
+      <section className="sec settings-sec">
+        <button
+          className="sec-title settings-toggle"
+          onClick={() => setSettingsOpen((o) => !o)}
+          aria-expanded={settingsOpen}
+        >
+          <span>Настройки</span>
+          <span className="settings-chev" aria-hidden="true">{settingsOpen ? '▾' : '▸'}</span>
+        </button>
+
+        {/* Проблема с отправкой — важный алерт: виден всегда, даже когда свёрнуто. */}
+        {deadCount > 0 && (
+          <div className="danger-confirm">
+            <p className="danger-text">
+              ⚠️ Не удалось отправить изменений: {deadCount}. Обычно помогает повторить
+              (например, после восстановления связи).
+            </p>
+            {dlArm ? (
+              <div className="danger-actions">
+                <button className="btn ghost" onClick={() => setDlArm(false)} disabled={dlBusy}>Отмена</button>
+                <button className="btn danger" onClick={discardDead} disabled={dlBusy}>
+                  {dlBusy ? 'Отклоняю…' : 'Да, отклонить (потерять правки)'}
+                </button>
+              </div>
+            ) : (
+              <div className="danger-actions">
+                <button className="btn primary" onClick={retryDead} disabled={dlBusy}>
+                  {dlBusy ? 'Отправляю…' : '🔄 Повторить отправку'}
+                </button>
+                <button className="btn ghost" onClick={() => setDlArm(true)} disabled={dlBusy}>Отклонить</button>
+              </div>
+            )}
+          </div>
+        )}
+
+        {settingsOpen && (
         <div className="actions">
           {pinOpen ? (
             <div className="pin-form">
@@ -669,29 +723,6 @@ export default function ProfileScreen({ user, onLogout, onOpenProgress, onOpenFe
           {user.role === 'admin' && (
             <button className="act" onClick={() => onOpenAdmin?.()}>🛠 Админка</button>
           )}
-          {deadCount > 0 && (
-            <div className="danger-confirm">
-              <p className="danger-text">
-                ⚠️ Не удалось отправить изменений: {deadCount}. Обычно помогает повторить
-                (например, после восстановления связи).
-              </p>
-              {dlArm ? (
-                <div className="danger-actions">
-                  <button className="btn ghost" onClick={() => setDlArm(false)} disabled={dlBusy}>Отмена</button>
-                  <button className="btn danger" onClick={discardDead} disabled={dlBusy}>
-                    {dlBusy ? 'Отклоняю…' : 'Да, отклонить (потерять правки)'}
-                  </button>
-                </div>
-              ) : (
-                <div className="danger-actions">
-                  <button className="btn primary" onClick={retryDead} disabled={dlBusy}>
-                    {dlBusy ? 'Отправляю…' : '🔄 Повторить отправку'}
-                  </button>
-                  <button className="btn ghost" onClick={() => setDlArm(true)} disabled={dlBusy}>Отклонить</button>
-                </div>
-              )}
-            </div>
-          )}
           {delArm ? (
             <div className="danger-confirm">
               <p className="danger-text">
@@ -708,6 +739,11 @@ export default function ProfileScreen({ user, onLogout, onOpenProgress, onOpenFe
           ) : (
             <button className="act danger" onClick={() => setDelArm(true)}>🗑 Удалить мои данные</button>
           )}
+        </div>
+        )}
+
+        {/* Выход — частое действие, держим на виду всегда (вне сворачивания). */}
+        <div className="actions">
           <button className="act logout" onClick={onLogout}>Выйти</button>
         </div>
       </section>

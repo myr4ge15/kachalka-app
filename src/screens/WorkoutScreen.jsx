@@ -76,6 +76,7 @@ export default function WorkoutScreen({ user, workoutId = null, onBack }) {
   const [tplPickerOpen, setTplPickerOpen] = useState(false)
   const [saving, setSaving] = useState(false)
   const [message, setMessage] = useState(null) // {type, text}
+  const [delArm, setDelArm] = useState(false)   // in-app подтверждение удаления (как везде)
 
   // Сохраняем черновик новой тренировки при каждом изменении состава.
   useEffect(() => {
@@ -325,8 +326,10 @@ export default function WorkoutScreen({ user, workoutId = null, onBack }) {
     )
   }
 
+  // Удаление тренировки. Подтверждение — in-app arm/confirm (как «удалить мои
+  // данные»/dead-letter), а не нативный window.confirm — единый паттерн по всему
+  // приложению.
   async function remove() {
-    if (!window.confirm('Удалить эту тренировку? Действие необратимо.')) return
     setSaving(true)
     setMessage(null)
     try {
@@ -453,10 +456,6 @@ export default function WorkoutScreen({ user, workoutId = null, onBack }) {
             + Добавить упражнение
           </button>
 
-          <button className="btn primary full save-btn" disabled={!canSave} onClick={save}>
-            {saving ? 'Сохранение…' : `Сохранить${totalSets ? ` (${totalSets})` : ''}`}
-          </button>
-
           {!isNew && (
             <button className="link-btn full-link" disabled={saving} onClick={exportOne}>
               ⬇ Экспорт в JSON
@@ -464,10 +463,34 @@ export default function WorkoutScreen({ user, workoutId = null, onBack }) {
           )}
 
           {!isNew && (
-            <button className="link-btn danger full-link" disabled={saving} onClick={remove}>
-              Удалить тренировку
-            </button>
+            delArm ? (
+              <div className="danger-confirm">
+                <p className="danger-text">Удалить эту тренировку? Действие необратимо.</p>
+                <div className="danger-actions">
+                  <button className="btn ghost" onClick={() => setDelArm(false)} disabled={saving}>Отмена</button>
+                  <button className="btn danger" onClick={remove} disabled={saving}>
+                    {saving ? 'Удаляю…' : 'Да, удалить'}
+                  </button>
+                </div>
+              </div>
+            ) : (
+              <button className="link-btn danger full-link" disabled={saving} onClick={() => setDelArm(true)}>
+                Удалить тренировку
+              </button>
+            )
           )}
+
+          {/* Место под липкий бар, чтобы последний элемент можно было проскроллить
+              выше плавающей кнопки «Сохранить». */}
+          <div className="wk-save-spacer" aria-hidden="true" />
+
+          {/* Липкая кнопка «Сохранить»: при длинной тренировке не уезжает вниз,
+              всегда над таббаром (fixed, как тост/бар шаблона). */}
+          <div className="wk-save-bar">
+            <button className="btn primary full save-btn" disabled={!canSave} onClick={save}>
+              {saving ? 'Сохранение…' : `Сохранить${totalSets ? ` (${totalSets})` : ''}`}
+            </button>
+          </div>
         </>
       )}
 

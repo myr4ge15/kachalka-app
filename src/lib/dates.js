@@ -25,3 +25,19 @@ export function fmtWhen(iso) {
   if (sameDay(d, yesterday)) return `вчера · ${time}`
   return d.toLocaleDateString('ru-RU', { day: '2-digit', month: '2-digit', year: 'numeric' })
 }
+
+// «N назад» — относительная свежесть (для метки обновления Ленты). На вход — метка
+// времени в мс (Date.now()) и текущее время (инъектируется в тестах). Единицы —
+// сокращённые (мин/ч/дн), чтобы обойти русскую плюрализацию. Пустой/невалидный/
+// будущий вход → ''.
+export function fmtAgo(updatedMs, now = Date.now()) {
+  const t = Number(updatedMs)
+  if (!Number.isFinite(t) || t <= 0) return ''
+  const sec = Math.floor(Math.max(0, now - t) / 1000)
+  if (sec < 45) return 'только что'
+  const min = Math.round(sec / 60)
+  if (min < 60) return `${min} мин назад`
+  const hr = Math.round(min / 60)
+  if (hr < 24) return `${hr} ч назад`
+  return `${Math.round(hr / 24)} дн назад`
+}

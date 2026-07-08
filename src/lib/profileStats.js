@@ -68,6 +68,66 @@ export function personalRecords(workouts) {
     )
 }
 
+// Индекс НЕДЕЛИ (Monday-based, ЛОКАЛЬНО) для даты. Считаем через Date.UTC от
+// ЛОКАЛЬНЫХ компонентов Y/M/D — так на любой TZ получаем ровно целое число дней
+// от эпохи без дробей/сдвигов (день тренировки везде трактуется как локальный,
+// см. workoutsThisMonth). +3 сдвигает так, что неделя начинается с понедельника
+// (эпоха, 1970-01-01, — четверг).
+function weekIndexOf(date) {
+  const days = Math.floor(
+    Date.UTC(date.getFullYear(), date.getMonth(), date.getDate()) / 86400000
+  )
+  return Math.floor((days + 3) / 7)
+}
+
+// Текущая серия: сколько КАЛЕНДАРНЫХ недель подряд (по понедельникам) есть хотя
+// бы одна тренировка, считая до текущей недели включительно. Грейс в одну неделю:
+// если на этой неделе ещё не тренировался, серия не рвётся — считаем от прошлой
+// недели (иначе счётчик обнулялся бы каждый понедельник до первой тренировки).
+// Нет активности ни на этой, ни на прошлой неделе → 0. now инъектируется в тестах.
+export function currentStreak(workouts, now = new Date()) {
+  const weeks = new Set()
+  for (const w of workouts ?? []) {
+    if (!w.performed_at) continue
+    weeks.add(weekIndexOf(new Date(w.performed_at)))
+  }
+  if (weeks.size === 0) return 0
+  const cur = weekIndexOf(now)
+  let wk
+  if (weeks.has(cur)) wk = cur
+  else if (weeks.has(cur - 1)) wk = cur - 1
+  else return 0
+  let n = 0
+  while (weeks.has(wk)) { n++; wk-- }
+  return n
+}
+
+// Суммарный тоннаж за всю историю: Σ (вес × повторы) по всем подходам. Считаем
+// только подходы С весом (weight>0 и reps>0) — упражнения своего веса/на время
+// (weight:0, reps=повторы/секунды) внешней нагрузки не несут и в тоннаж не идут.
+export function totalTonnage(workouts) {
+  let kg = 0
+  for (const w of workouts ?? []) {
+    for (const e of w.entries ?? []) {
+      for (const s of e.sets ?? []) {
+        const wt = Number(s.weight) || 0
+        const reps = Number(s.reps) || 0
+        if (wt > 0 && reps > 0) kg += wt * reps
+      }
+    }
+  }
+  return kg
+}
+
+// Формат тоннажа для витрины: до тонны — в кг, дальше — в тоннах (1 знак до 100 т,
+// потом целое). Возвращает { value, unit } под .stat-num + .u.
+export function fmtTonnage(kg) {
+  const n = Number(kg) || 0
+  if (n < 1000) return { value: String(Math.round(n)), unit: 'кг' }
+  const t = n / 1000
+  return { value: t >= 100 ? String(Math.round(t)) : String(Math.round(t * 10) / 10), unit: 'т' }
+}
+
 // Любимое упражнение = с наибольшим числом подходов за всю историю.
 // { exId, name, sets } или null, если подходов нет.
 export function favExercise(workouts) {
@@ -97,6 +157,8 @@ export function summarize(workouts) {
   return {
     totalWorkouts: list.length,
     workoutsThisMonth: workoutsThisMonth(list),
+    streak: currentStreak(list),
+    tonnage: totalTonnage(list),
     personalRecords: personalRecords(list),
     favExercise: favExercise(list),
   }

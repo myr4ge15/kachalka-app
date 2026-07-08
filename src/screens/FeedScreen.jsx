@@ -5,7 +5,7 @@ import { getUsers, toggleReaction } from '../db/repo.js'
 import { getMeta } from '../db/local.js'
 import { syncNow } from '../db/sync.js'
 import { onOnline, onResume } from '../lib/appEvents.js'
-import { fmtWhen } from '../lib/dates.js'
+import { fmtWhen, fmtAgo } from '../lib/dates.js'
 import { fmtMetricValue, fmtSet } from '../lib/metric.js'
 import { summarizeReactions, reactorLine } from '../lib/reactions.js'
 import Leaderboard from './Leaderboard.jsx'
@@ -29,6 +29,14 @@ export default function FeedScreen({ user }) {
   )
   const [refreshing, setRefreshing] = useState(false)
   const [error, setError] = useState(null)
+  // Когда лента последний раз успешно обновлялась (мс) + тикающее «сейчас», чтобы
+  // метка «обновлено N назад» освежалась без действий пользователя.
+  const [updatedAt, setUpdatedAt] = useState(null)
+  const [nowTick, setNowTick] = useState(() => Date.now())
+  useEffect(() => {
+    const id = setInterval(() => setNowTick(Date.now()), 30_000)
+    return () => clearInterval(id)
+  }, [])
 
   // Приватный пользователь не участвует в социалке: ленту друзей и лидерборд ему
   // не показываем (свои тренировки — во вкладке «Мои тренировки»). Флаг кэшируется
@@ -63,6 +71,8 @@ export default function FeedScreen({ user }) {
     setError(null)
     try {
       await fetchFeed(user.id)
+      setUpdatedAt(Date.now())
+      setNowTick(Date.now())
     } catch (err) {
       setError('Не удалось обновить ленту: ' + (err?.message ?? err))
     } finally {
@@ -98,8 +108,12 @@ export default function FeedScreen({ user }) {
     <div className="screen">
       <div className="feed-head">
         <h2 className="screen-title">Лента</h2>
-        <button className="link-btn" onClick={refresh} disabled={refreshing}>
-          {refreshing ? 'обновление…' : 'обновить'}
+        <button className="link-btn feed-refresh" onClick={refresh} disabled={refreshing} title="Обновить">
+          {refreshing
+            ? '↻ обновление…'
+            : updatedAt
+              ? `↻ обновлено ${fmtAgo(updatedAt, nowTick)}`
+              : '↻ обновить'}
         </button>
       </div>
       <p className="muted sub">Последние тренировки друзей</p>

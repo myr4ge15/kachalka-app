@@ -101,25 +101,6 @@ export default function HistoryScreen({ user }) {
         📋 Шаблоны
       </button>
 
-      {!loading && list.length > 0 && (
-        selectMode ? (
-          <div className="export-bar">
-            <span className="muted">Выбрано: {picked.size}</span>
-            <div className="export-bar-actions">
-              <button className="link-btn" onClick={pickAll}>Все</button>
-              <button className="link-btn" onClick={toggleSelectMode}>Отмена</button>
-              <button className="btn primary" disabled={picked.size === 0} onClick={exportPicked}>
-                ⬇ Скачать{picked.size ? ` (${picked.size})` : ''}
-              </button>
-            </div>
-          </div>
-        ) : (
-          <button className="link-btn export-toggle" onClick={toggleSelectMode}>
-            ⬇ Экспорт тренировок
-          </button>
-        )
-      )}
-
       {loading && <p className="muted">Загрузка…</p>}
 
       {!loading && list.length === 0 && (
@@ -200,6 +181,31 @@ export default function HistoryScreen({ user }) {
           </button>
         )
       })}
+
+      {/* Экспорт уведён из верхнего слота под список, чтобы верх занимали фильтры.
+          Вне режима выбора — приглушённая ссылка внизу; в режиме выбора — фиксир.
+          бар над таббаром, чтобы счётчик/«Скачать» были видны при прокрутке. */}
+      {!loading && list.length > 0 && !selectMode && (
+        <button className="link-btn export-toggle export-toggle--bottom" onClick={toggleSelectMode}>
+          ⬇ Экспорт тренировок
+        </button>
+      )}
+
+      {selectMode && (
+        <>
+          <div className="wk-save-spacer" aria-hidden="true" />
+          <div className="export-bar export-bar--fixed">
+            <span className="muted">Выбрано: {picked.size}</span>
+            <div className="export-bar-actions">
+              <button className="link-btn" onClick={pickAll}>Все</button>
+              <button className="link-btn" onClick={toggleSelectMode}>Отмена</button>
+              <button className="btn primary" disabled={picked.size === 0} onClick={exportPicked}>
+                ⬇ Скачать{picked.size ? ` (${picked.size})` : ''}
+              </button>
+            </div>
+          </div>
+        </>
+      )}
     </div>
   )
 }

@@ -7,6 +7,9 @@ import {
   currentBest,
   currentBestValue,
   goalProgress,
+  currentStreak,
+  totalTonnage,
+  fmtTonnage,
 } from './profileStats.js'
 
 const wk = (id, performed_at, entries) => ({ id, performed_at, entries })
@@ -74,10 +77,70 @@ describe('summarize', () => {
     expect(summarize([])).toEqual({
       totalWorkouts: 0,
       workoutsThisMonth: 0,
+      streak: 0,
+      tonnage: 0,
       personalRecords: [],
       favExercise: null,
     })
     expect(summarize(undefined).totalWorkouts).toBe(0)
+  })
+})
+
+describe('currentStreak', () => {
+  // 2026-07-08 — среда; неделя (пн-вс) 2026-07-06..12.
+  const now = new Date(2026, 6, 8)
+  const d = (y, m, day) => new Date(y, m, day).toISOString()
+  it('три недели подряд, считая текущую', () => {
+    const workouts = [
+      wk('w1', d(2026, 6, 8), []),   // эта неделя
+      wk('w2', d(2026, 6, 1), []),   // прошлая
+      wk('w3', d(2026, 5, 24), []),  // позапрошлая
+    ]
+    expect(currentStreak(workouts, now)).toBe(3)
+  })
+  it('несколько тренировок в одной неделе не двоят серию', () => {
+    const workouts = [wk('a', d(2026, 6, 6), []), wk('b', d(2026, 6, 8), [])]
+    expect(currentStreak(workouts, now)).toBe(1)
+  })
+  it('грейс: пропуск текущей недели, но прошлая есть → серия жива', () => {
+    const workouts = [wk('a', d(2026, 6, 1), []), wk('b', d(2026, 5, 24), [])]
+    expect(currentStreak(workouts, now)).toBe(2)
+  })
+  it('разрыв: ни этой, ни прошлой недели → 0', () => {
+    const workouts = [wk('a', d(2026, 5, 10), [])]
+    expect(currentStreak(workouts, now)).toBe(0)
+  })
+  it('пусто → 0', () => {
+    expect(currentStreak([], now)).toBe(0)
+    expect(currentStreak(undefined, now)).toBe(0)
+  })
+})
+
+describe('totalTonnage', () => {
+  it('сумма вес × повторы по всем подходам', () => {
+    const workouts = [
+      wk('w1', '2026-01-01', [
+        { exercise_id: 'a', sets: [{ weight: 100, reps: 5 }, { weight: 90, reps: 8 }] },
+      ]),
+      wk('w2', '2026-01-02', [{ exercise_id: 'a', sets: [{ weight: 50, reps: 10 }] }]),
+    ]
+    expect(totalTonnage(workouts)).toBe(100 * 5 + 90 * 8 + 50 * 10)
+  })
+  it('подходы без веса (свой вес/время) в тоннаж не идут', () => {
+    const workouts = [wk('w1', '2026-01-01', [{ exercise_id: 'p', sets: [{ weight: 0, reps: 20 }] }])]
+    expect(totalTonnage(workouts)).toBe(0)
+    expect(totalTonnage([])).toBe(0)
+  })
+})
+
+describe('fmtTonnage', () => {
+  it('до тонны — в кг', () => {
+    expect(fmtTonnage(0)).toEqual({ value: '0', unit: 'кг' })
+    expect(fmtTonnage(850)).toEqual({ value: '850', unit: 'кг' })
+  })
+  it('от тонны — в тоннах (1 знак до 100 т, дальше целое)', () => {
+    expect(fmtTonnage(12340)).toEqual({ value: '12.3', unit: 'т' })
+    expect(fmtTonnage(250000)).toEqual({ value: '250', unit: 'т' })
   })
 })
 

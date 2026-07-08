@@ -186,6 +186,18 @@ input { font-family: inherit; }
 .btn.ghost { background: var(--surface-2); color: var(--text); border-color: var(--border); margin-top: 6px; }
 .save-btn { margin-top: 4px; }
 
+/* Липкая кнопка «Сохранить» в композере тренировки: плавает над таббаром, чтобы
+   при длинной тренировке не приходилось скроллить до самого низа. Паттерн — как у
+   тоста/бара шаблона (fixed + отступ снизу под таббар и home-индикатор). */
+.wk-save-bar {
+  position: fixed; left: 50%; transform: translateX(-50%); z-index: 6;
+  width: calc(100% - 24px); max-width: 536px;
+  bottom: calc(72px + env(safe-area-inset-bottom));
+}
+.wk-save-bar .save-btn { margin: 0; }
+/* Резерв, чтобы последний контент прокручивался выше плавающей кнопки. */
+.wk-save-spacer { height: 76px; }
+
 .link-btn { background: none; border: none; color: var(--green); font-size: 14px; padding: 4px; }
 .link-btn.danger { color: var(--red); }
 .link-btn.small { font-size: 16px; }
@@ -368,6 +380,17 @@ input { font-family: inherit; }
   flex-wrap: wrap; margin: -8px 0 16px;
 }
 .export-bar-actions { display: flex; align-items: center; gap: 12px; }
+/* Экспорт уведён под список: ссылка внизу по центру, а в режиме выбора — бар
+   фиксируется над таббаром (как «Сохранить»), чтобы счётчик/«Скачать» не терялись
+   при прокрутке длинного списка. */
+.export-toggle--bottom { margin: 20px 0 4px; text-align: center; }
+.export-bar--fixed {
+  position: fixed; left: 50%; transform: translateX(-50%); z-index: 6;
+  width: calc(100% - 24px); max-width: 536px; margin: 0;
+  bottom: calc(72px + env(safe-area-inset-bottom));
+  padding: 10px 14px; border-radius: 12px;
+  background: var(--surface-2); border: 1px solid var(--border);
+}
 /* Чекбокс-индикатор карточки в режиме выбора */
 .history-check {
   flex-shrink: 0; width: 26px; height: 26px; border-radius: 50%;
@@ -574,6 +597,9 @@ input { font-family: inherit; }
 
 /* ---------- feed (общая лента) ---------- */
 .feed-head { display: flex; align-items: baseline; justify-content: space-between; }
+/* Метка свежести ленты (кликабельна = обновить): приглушённая и мельче, т.к.
+   несёт в первую очередь информацию «обновлено N назад». */
+.feed-refresh { color: var(--muted); font-size: 12px; white-space: nowrap; }
 .feed-card { padding: 14px; }
 .feed-card-head { display: flex; align-items: center; gap: 12px; margin-bottom: 10px; }
 .avatar {
@@ -762,6 +788,13 @@ img.avatar-lg.has-img {
   font-size: 12px; font-weight: 700; color: var(--muted); text-transform: uppercase;
   letter-spacing: .05em; margin: 0 0 9px 2px;
 }
+/* «Настройки» — раскрывающийся заголовок-кнопка (сворачивает длинный хвост
+   профиля: смена PIN, админка, danger-zone). Наследует вид .sec-title. */
+.settings-toggle {
+  display: flex; align-items: center; justify-content: space-between; width: 100%;
+  background: none; border: none; cursor: pointer; text-align: left;
+}
+.settings-chev { font-size: 11px; }
 
 /* шапка профиля */
 .prof-head { display: flex; align-items: center; gap: 14px; margin-bottom: 16px; }
