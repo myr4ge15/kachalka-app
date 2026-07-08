@@ -41,7 +41,11 @@ function TabIcon({ name }) {
     strokeLinecap: 'round', strokeLinejoin: 'round', 'aria-hidden': true,
   }
   if (name === 'history') return (
-    <svg {...p}><path d="M6 8v8M9 6v12M15 6v12M18 8v8M6 12h12M2 12h1M22 12h-1" /></svg>
+    <svg {...p}>
+      <rect x="2" y="8" width="4" height="8" rx="1.5" />
+      <rect x="18" y="8" width="4" height="8" rx="1.5" />
+      <path d="M6 12h12" />
+    </svg>
   )
   if (name === 'feed') return (
     <svg {...p}>
