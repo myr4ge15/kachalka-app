@@ -22,6 +22,8 @@ import { cmpIsoDesc } from '../lib/cmp.js'
 import { sortUsersByOrder } from '../lib/userOrder.js'
 import { normMetric } from '../lib/metric.js'
 import { clampSet } from '../lib/setLimits.js'
+import { pickLastSets } from '../lib/lastSets.js'
+import { isReactionKind } from '../lib/reactions.js'
 
 // ----------------------------- Чтение --------------------------------------
 
@@ -163,6 +165,16 @@ export async function getWorkouts(userId) {
       cmpIsoDesc(a.performed_at, b.performed_at) ||
       cmpIsoDesc(a.created_at, b.created_at)
     )
+}
+
+// Подходы последнего выполнения упражнения (автоподстановка при добавлении в
+// тренировку, виш из BACKLOG). Читаем СВОИ тренировки из локальной базы и отдаём
+// подходы самой свежей, где встречается это упражнение (см. lib/lastSets.js);
+// null → упражнение ещё не делали, форма подставит дефолт. Сеть не нужна.
+export async function getLastSetsForExercise(userId, exerciseId) {
+  if (!userId || !exerciseId) return null
+  const list = await db.workouts.where('user_id').equals(userId).toArray()
+  return pickLastSets(list, exerciseId)
 }
 
 // Одиночная тренировка по id (для экрана-детали). null, если нет/удалена.
@@ -314,6 +326,52 @@ async function enqueue(type, workoutId) {
     if (pending.some((o) => o.type === 'delete')) return
     await db.outbox.add({ workoutId, type, createdAt: nowIso(), attempts: 0 })
   }
+}
+
+// ------------------------- Реакции в ленте ---------------------------------
+// Виш BACKLOG: под карточкой ленты можно поставить реакцию (💪/🔥/👏/😮).
+// Офлайн-first по образцу outbox: тап пишет операцию в `reaction_outbox` и
+// ОПТИМИСТИЧНО правит элемент кэша ленты (карточка реагирует мгновенно). Отправку
+// очереди на сервер ведёт src/db/sync.js (pushReactions). Реакции всегда СВОИ
+// (RLS: user_id = app_uid()), поэтому userId в операции не храним — его знает синк.
+
+// Схлопывание очереди: держим ≤1 операцию на (workoutId, kind). Тап туда-обратно
+// (add затем remove или наоборот) взаимно отменяется — возврат к серверному
+// состоянию, лишняя операция не уезжает.
+async function enqueueReaction(workoutId, kind, op) {
+  const same = (await db.reaction_outbox.where('workoutId').equals(workoutId).toArray())
+    .filter((o) => o.kind === kind)
+  const hadOpposite = same.some((o) => o.op !== op)
+  for (const o of same) await db.reaction_outbox.delete(o.seq)
+  if (!hadOpposite) await db.reaction_outbox.add({ workoutId, kind, op, createdAt: nowIso() })
+}
+
+// Оптимистичная правка элемента кэша ленты: добавить/убрать МОЮ реакцию, чтобы
+// карточка обновилась через useLiveQuery сразу, ещё до подтверждения сервером.
+async function patchFeedReaction(workoutId, kind, op, me) {
+  const item = await db.feed.get(workoutId)
+  if (!item) return
+  const has = (item.reactions ?? []).some((r) => r.user_id === me.id && r.kind === kind)
+  let reactions = item.reactions ?? []
+  if (op === 'add' && !has) {
+    reactions = [...reactions, { user_id: me.id, name: me.name ?? '—', kind }]
+  } else if (op === 'remove' && has) {
+    reactions = reactions.filter((r) => !(r.user_id === me.id && r.kind === kind))
+  } else {
+    return // состояние уже соответствует — не дёргаем кэш
+  }
+  await db.feed.put({ ...item, reactions })
+}
+
+// Переключить реакцию текущего пользователя. mine — стоит ли она сейчас (из UI).
+// Ставит операцию в очередь + мгновенно правит кэш ленты. Дальше — syncNow.
+export async function toggleReaction({ userId, userName, workoutId, kind, mine }) {
+  if (!isReactionKind(kind) || !workoutId || !userId) return
+  const op = mine ? 'remove' : 'add'
+  await db.transaction('rw', db.reaction_outbox, db.feed, async () => {
+    await enqueueReaction(workoutId, kind, op)
+    await patchFeedReaction(workoutId, kind, op, { id: userId, name: userName })
+  })
 }
 
 // ------------------------- Шаблоны (запись) --------------------------------

@@ -12,8 +12,10 @@
 import { supabase, isConfigured, hasSession } from './supabase.js'
 import { withTimeout } from '../lib/withTimeout.js'
 import { db } from './local.js'
+import { getCachedUser } from './repo.js'
 import { cmpIsoAsc, cmpIsoDesc } from '../lib/cmp.js'
 import { leadingValue, normMetric } from '../lib/metric.js'
+import { applyReactionQueue } from '../lib/reactions.js'
 
 // Сколько последних тренировок показываем в ленте.
 const FEED_LIMIT = 50
@@ -64,7 +66,35 @@ function rowToItem(w) {
     setCount,
     tonnage: Math.round(tonnage),
     prs: [], // заполняется в computePrs()
+    reactions: [], // [{ user_id, name, kind }] — заполняется в attachReactions()
   }
+}
+
+// Догрузить реакции для окна ленты и приклеить к элементам. Отдельным запросом
+// (а не вложенным select) — проще и не зависит от RLS-join. Таблицы reactions
+// может ещё не быть на сервере (поэтапная раскатка) → тихо оставляем пусто.
+async function attachReactions(items) {
+  if (items.length === 0) return
+  const ids = items.map((i) => i.id)
+  try {
+    const res = await withTimeout(
+      supabase
+        .from('reactions')
+        .select('workout_id, user_id, kind, user:users(name)')
+        .in('workout_id', ids)
+    )
+    if (res.error || !res.data) return
+    const byWorkout = new Map()
+    for (const r of res.data) {
+      if (!byWorkout.has(r.workout_id)) byWorkout.set(r.workout_id, [])
+      byWorkout.get(r.workout_id).push({
+        user_id: r.user_id,
+        name: r.user?.name ?? '—',
+        kind: r.kind,
+      })
+    }
+    for (const item of items) item.reactions = byWorkout.get(item.id) ?? []
+  } catch { /* нет таблицы/офлайн — карточки без реакций */ }
 }
 
 // Отметки новых рекордов в ленте (ТЗ §4.3).
@@ -100,7 +130,9 @@ function computePrs(items) {
 }
 
 // Обновить снимок ленты с сервера. Тихо выходит офлайн / без конфигурации.
-export async function fetchFeed() {
+// userId — текущий пользователь: нужен, чтобы наложить его локальную очередь
+// реакций (reaction_outbox) на свежий снимок (оптимистичные тапы не пропадают).
+export async function fetchFeed(userId) {
   if (!isConfigured || !navigator.onLine) return
   // Не читаем `workouts`, пока не поднята настоящая сессия: иначе запрос уходит
   // ролью `anon` (после auth-harden у неё нет грантов) → «permission denied for
@@ -118,6 +150,19 @@ export async function fetchFeed() {
 
   const items = (res.data ?? []).map(rowToItem)
   computePrs(items)
+  await attachReactions(items)
+
+  // Оптимистичная очередь реакций поверх серверного снимка: ещё не отправленные
+  // (или отправляемые прямо сейчас) МОИ тапы не должны пропадать при перезаписи
+  // кэша. me — из общего ростра (loginDb) по userId.
+  let finalItems = items
+  try {
+    const ops = await db.reaction_outbox.toArray()
+    if (ops.length && userId) {
+      const me = await getCachedUser(userId)
+      finalItems = applyReactionQueue(items, ops, { id: userId, name: me?.name })
+    }
+  } catch { /* нет очереди/ростра — показываем как есть */ }
 
   // Успешный ответ (в т.ч. ПУСТОЙ) применяем целиком: сетевые/серверные сбои
   // уходят в throw выше и сюда не доходят, поэтому пустой список здесь —
@@ -126,7 +171,7 @@ export async function fetchFeed() {
   // затирал кэш, и приватный видел устаревший снимок общей ленты.
   await db.transaction('rw', db.feed, async () => {
     await db.feed.clear()
-    await db.feed.bulkPut(items)
+    await db.feed.bulkPut(finalItems)
   })
 }
 

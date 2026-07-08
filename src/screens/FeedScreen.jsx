@@ -1,11 +1,13 @@
 import { useEffect, useRef, useState, useCallback, useMemo } from 'react'
 import { useLiveQuery } from 'dexie-react-hooks'
 import { getCachedFeed, fetchFeed } from '../db/feed.js'
-import { getUsers } from '../db/repo.js'
+import { getUsers, toggleReaction } from '../db/repo.js'
 import { getMeta } from '../db/local.js'
+import { syncNow } from '../db/sync.js'
 import { onOnline, onResume } from '../lib/appEvents.js'
 import { fmtWhen } from '../lib/dates.js'
 import { fmtMetricValue, fmtSet } from '../lib/metric.js'
+import { summarizeReactions, reactorLine } from '../lib/reactions.js'
 import Leaderboard from './Leaderboard.jsx'
 import Avatar from '../components/Avatar.jsx'
 
@@ -20,6 +22,11 @@ export default function FeedScreen({ user }) {
     for (const u of users ?? []) m.set(u.id, u.avatar_url)
     return m
   }, [users])
+  // Своё имя (для оптимистичной строки реакций). Из ростра, фолбэк — user.name.
+  const myName = useMemo(
+    () => (users ?? []).find((u) => u.id === user.id)?.name ?? user.name ?? 'Ты',
+    [users, user.id, user.name]
+  )
   const [refreshing, setRefreshing] = useState(false)
   const [error, setError] = useState(null)
 
@@ -33,6 +40,13 @@ export default function FeedScreen({ user }) {
 
   const loading = feed === undefined
   const list = feed ?? []
+
+  // Тап по реакции: оптимистично (очередь + правка кэша ленты), затем отправка.
+  const onReact = useCallback((workoutId, kind, mine) => {
+    toggleReaction({ userId: user.id, userName: myName, workoutId, kind, mine })
+      .then(() => { if (navigator.onLine) syncNow(user.id) })
+      .catch(() => { /* оптимистичная правка уже в кэше; синк догонит позже */ })
+  }, [user.id, myName])
 
   // Свежий список держим в ref, чтобы стабильный refresh не ловил устаревшее
   // значение list из замыкания первого рендера.
@@ -48,13 +62,13 @@ export default function FeedScreen({ user }) {
     setRefreshing(true)
     setError(null)
     try {
-      await fetchFeed()
+      await fetchFeed(user.id)
     } catch (err) {
       setError('Не удалось обновить ленту: ' + (err?.message ?? err))
     } finally {
       setRefreshing(false)
     }
-  }, [])
+  }, [user.id])
 
   // Обновляем при входе на экран, возврате вкладки и появлении сети
   // (подписки — через общий хаб событий, см. lib/appEvents.js).
@@ -139,6 +153,30 @@ export default function FeedScreen({ user }) {
             <div className="muted feed-foot">
               {w.exCount} упр · {w.setCount} подх. · {w.tonnage.toLocaleString('ru-RU')} кг тоннаж
             </div>
+
+            {(() => {
+              const { kinds, names } = summarizeReactions(w.reactions, user.id)
+              const line = reactorLine(names)
+              return (
+                <div className="reactions">
+                  <div className="reaction-btns">
+                    {kinds.map((k) => (
+                      <button
+                        key={k.kind}
+                        className={`reaction-btn${k.mine ? ' mine' : ''}`}
+                        onClick={() => onReact(w.id, k.kind, k.mine)}
+                        aria-pressed={k.mine}
+                        title={k.mine ? 'Убрать реакцию' : 'Поставить реакцию'}
+                      >
+                        <span className="reaction-emoji">{k.emoji}</span>
+                        {k.count > 0 && <span className="reaction-count">{k.count}</span>}
+                      </button>
+                    ))}
+                  </div>
+                  {line && <div className="muted reaction-who">{line}</div>}
+                </div>
+              )
+            })()}
           </div>
         )
       })}

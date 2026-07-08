@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react'
 import { useLiveQuery } from 'dexie-react-hooks'
-import { getExercises, getWorkout, saveWorkout, createExercise, deleteWorkout as repoDelete } from '../db/repo.js'
+import { getExercises, getWorkout, saveWorkout, createExercise, deleteWorkout as repoDelete, getLastSetsForExercise } from '../db/repo.js'
 import { detectNewPrsOnSave, detectGoalReachedOnSave } from '../db/notifications.js'
 import { syncNow } from '../db/sync.js'
 import { getCache, setCache, clearCache } from '../lib/cache.js'
@@ -121,13 +121,27 @@ export default function WorkoutScreen({ user, workoutId = null, onBack }) {
     else addExercise(ex)
   }
 
-  function addExercise(ex) {
+  async function addExercise(ex) {
     setPickerOpen(false)
     if (entries.some((e) => e.exercise.id === ex.id)) {
       setMessage({ type: 'error', text: 'Это упражнение уже добавлено.' })
       return
     }
-    setEntries([...entries, { exercise: ex, sets: [defaultSet(ex)] }])
+    // Автоподстановка (виш BACKLOG): предзаполняем подходы весом/повторами из
+    // последней тренировки по этому упражнению. Нет истории (или сбой чтения) →
+    // один дефолтный подход. Данные локальные — сеть не нужна.
+    let sets
+    try {
+      const last = await getLastSetsForExercise(user.id, ex.id)
+      sets = last?.length ? last.map((s) => ({ ...s, _k: sk() })) : [defaultSet(ex)]
+    } catch {
+      sets = [defaultSet(ex)]
+    }
+    // Пока читали историю, состав мог измениться (двойной тап/undo) — анти-дубль
+    // на свежем состоянии внутри апдейтера.
+    setEntries((prev) =>
+      prev.some((e) => e.exercise.id === ex.id) ? prev : [...prev, { exercise: ex, sets }]
+    )
   }
 
   // Замена упражнения в записи: подходы сохраняем (не вводить заново). Для

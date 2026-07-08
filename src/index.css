@@ -622,6 +622,22 @@ img.avatar-lg.has-img {
   border-top: 1px solid var(--border);
 }
 
+/* ---------- реакции в ленте (💪/🔥/👏/😮) ---------- */
+.reactions { margin-top: 10px; }
+.reaction-btns { display: flex; flex-wrap: wrap; gap: 8px; }
+.reaction-btn {
+  display: inline-flex; align-items: center; gap: 5px;
+  min-height: 34px; padding: 4px 11px; border-radius: 999px;
+  border: 1px solid var(--border); background: var(--surface-2);
+  color: var(--text); font-size: 15px; line-height: 1; cursor: pointer;
+}
+.reaction-btn:active { background: var(--border); }
+.reaction-btn.mine { border-color: var(--green); background: rgba(22,163,74,.16); }
+.reaction-emoji { font-size: 16px; }
+.reaction-count { font-size: 13px; font-weight: 600; color: var(--muted); }
+.reaction-btn.mine .reaction-count { color: #86efac; }
+.reaction-who { font-size: 12px; margin-top: 6px; }
+
 /* ---------- лидерборд (жим лёжа, ТЗ §4.3) ---------- */
 .lb-card { padding: 14px; }
 .lb-head {

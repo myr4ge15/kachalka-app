@@ -497,6 +497,44 @@ async function push() {
   return justPushed
 }
 
+// ----------------------------- реакции -------------------------------------
+// Отправляем очередь реакций (reaction_outbox) в Supabase. Реакции всегда СВОИ
+// (RLS: user_id = app_uid()), поэтому user_id берём из userId синка. Идёт ПОСЛЕ
+// push() тренировок: реакция ссылается на workout (FK) — своя тренировка должна
+// уехать раньше (чужие в ленте на сервере уже есть). insert идемпотентен
+// (onConflict → ignore), delete по составному ключу. Реакции низкоприоритетны:
+// на ошибке НЕ роняем весь синк (вызов обёрнут в try/catch выше), а операцию
+// после MAX_ATTEMPTS попыток просто выбрасываем (без dead-letter UI).
+async function pushReactions(userId) {
+  const ops = await db.reaction_outbox.orderBy('seq').toArray()
+  for (const op of ops) {
+    try {
+      if (op.op === 'add') {
+        const { error } = await withTimeout(
+          supabase.from('reactions').upsert(
+            { user_id: userId, workout_id: op.workoutId, kind: op.kind },
+            { onConflict: 'user_id,workout_id,kind', ignoreDuplicates: true }
+          )
+        )
+        if (error) throw error
+      } else {
+        const { error } = await withTimeout(
+          supabase.from('reactions').delete().match({
+            user_id: userId, workout_id: op.workoutId, kind: op.kind,
+          })
+        )
+        if (error) throw error
+      }
+      await db.reaction_outbox.delete(op.seq)
+    } catch (err) {
+      const attempts = (op.attempts ?? 0) + 1
+      if (attempts >= MAX_ATTEMPTS) { await db.reaction_outbox.delete(op.seq); continue }
+      await db.reaction_outbox.update(op.seq, { attempts, lastError: String(err?.message ?? err) })
+      // не блокируем остальную очередь реакций — пробуем следующие
+    }
+  }
+}
+
 // ------------------------------- цели --------------------------------------
 // Личные цели (ЛК) живут в meta (goal_${userId}) МАССИВОМ. Их надо отдать на
 // сервер (таблица goals, составной ключ user_id+exercise_id), чтобы достижение
@@ -632,6 +670,9 @@ export async function syncNow(userId) {
     await pushExercises() // упражнения раньше всего (FK на exercise_id)
     await pushTemplates() // шаблоны после упражнений (FK), до/после тренировок неважно
     const justPushed = await push()
+    // Реакции (виш BACKLOG) — необязательная соц-часть: ошибка/отсутствие таблицы
+    // не должна ронять синк тренировок, поэтому отдельный try/catch.
+    try { await pushReactions(userId) } catch { /* реакции не критичны для синка */ }
     // Цель (ЛК 2b) — необязательная часть: ошибка/отсутствие RPC не должны
     // ронять синхронизацию тренировок, поэтому отдельный try/catch. Ошибку пуша
     // больше не глотаем молча — показываем как lastError (раньше из-за тихого
@@ -648,7 +689,7 @@ export async function syncNow(userId) {
     // Обновляем кэш общей ленты в фоне: его читают и «Лента», и бейджи-
     // уведомления о рекордах («друг побил твой рекорд» — из ленты). Ошибка ленты
     // не должна валить синк своих тренировок, поэтому отдельный try/catch.
-    try { await fetchFeed() } catch { /* лента не критична для синка */ }
+    try { await fetchFeed(userId) } catch { /* лента не критична для синка */ }
     const at = nowIso()
     await setMeta('lastSyncAt', at)
     // Частичные сбои pull (справочник/пользователи/шаблоны не обновились) и сбой

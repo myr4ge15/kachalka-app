@@ -8,7 +8,7 @@ import { uniqueUserId } from '../test/idbHarness.js'
 import {
   saveWorkout, deleteWorkout, softDeleteMyWorkouts, getWorkout, getWorkouts,
   createExercise, getExercises, pendingCount, deadLetterCount,
-  retryDeadLetter, discardDeadLetter,
+  retryDeadLetter, discardDeadLetter, getLastSetsForExercise, toggleReaction,
 } from './repo.js'
 
 // Упражнение-заготовка (весовое).
@@ -201,5 +201,64 @@ describe('dead-letter: pendingCount / retry / discard', () => {
     const doc = await db.workouts.get(id)
     expect(doc._dirty).toBe(0)
     expect(doc._deleted).toBe(0)
+  })
+})
+
+describe('getLastSetsForExercise (автоподстановка)', () => {
+  it('отдаёт подходы последней тренировки по упражнению', async () => {
+    await saveWorkout({ user_id: userId, performed_at: '2026-01-01',
+      entries: [entry(bench, [{ weight: 80, reps: 8 }])] })
+    await saveWorkout({ user_id: userId, performed_at: '2026-03-01',
+      entries: [entry(bench, [{ weight: 100, reps: 5 }, { weight: 100, reps: 4 }])] })
+    const sets = await getLastSetsForExercise(userId, 'ex_bench')
+    expect(sets).toEqual([{ weight: 100, reps: 5 }, { weight: 100, reps: 4 }])
+  })
+  it('null, если упражнение ещё не делали', async () => {
+    expect(await getLastSetsForExercise(userId, 'ex_bench')).toBe(null)
+  })
+})
+
+describe('toggleReaction (очередь реакций + кэш ленты)', () => {
+  // Кладём заготовку карточки ленты, чтобы проверить оптимистичную правку.
+  async function seedFeed(workoutId, reactions = []) {
+    await db.feed.put({ id: workoutId, performed_at: '2026-05-01', reactions })
+  }
+
+  it('add: ставит операцию и добавляет мою реакцию в кэш ленты', async () => {
+    await seedFeed('w1')
+    await toggleReaction({ userId, userName: 'Я', workoutId: 'w1', kind: 'fire', mine: false })
+    const ops = await db.reaction_outbox.toArray()
+    expect(ops).toHaveLength(1)
+    expect(ops[0]).toMatchObject({ workoutId: 'w1', kind: 'fire', op: 'add' })
+    const item = await db.feed.get('w1')
+    expect(item.reactions).toEqual([{ user_id: userId, name: 'Я', kind: 'fire' }])
+  })
+
+  it('add затем remove того же вида — взаимно отменяются (очередь пуста)', async () => {
+    await seedFeed('w1')
+    await toggleReaction({ userId, userName: 'Я', workoutId: 'w1', kind: 'fire', mine: false })
+    await toggleReaction({ userId, userName: 'Я', workoutId: 'w1', kind: 'fire', mine: true })
+    expect(await db.reaction_outbox.count()).toBe(0)
+    const item = await db.feed.get('w1')
+    expect(item.reactions).toEqual([]) // моя реакция снята из кэша
+  })
+
+  it('разные виды — независимые операции', async () => {
+    await seedFeed('w1')
+    await toggleReaction({ userId, userName: 'Я', workoutId: 'w1', kind: 'fire', mine: false })
+    await toggleReaction({ userId, userName: 'Я', workoutId: 'w1', kind: 'muscle', mine: false })
+    expect(await db.reaction_outbox.count()).toBe(2)
+    const item = await db.feed.get('w1')
+    expect(item.reactions.map((r) => r.kind).sort()).toEqual(['fire', 'muscle'])
+  })
+
+  it('remove по серверной реакции ставит одну операцию remove', async () => {
+    await seedFeed('w1', [{ user_id: userId, name: 'Я', kind: 'clap' }])
+    await toggleReaction({ userId, userName: 'Я', workoutId: 'w1', kind: 'clap', mine: true })
+    const ops = await db.reaction_outbox.toArray()
+    expect(ops).toHaveLength(1)
+    expect(ops[0]).toMatchObject({ kind: 'clap', op: 'remove' })
+    const item = await db.feed.get('w1')
+    expect(item.reactions).toEqual([])
   })
 })

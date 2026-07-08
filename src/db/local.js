@@ -100,6 +100,23 @@ function defineSchema(d) {
     templates: 'id, user_id, is_public, _dirty, _deleted',
     tpl_outbox: '++seq, templateId, createdAt',
   })
+  // v7: очередь реакций в ленте (reaction_outbox). Аддитивно (новая таблица),
+  // прочие сторы без изменений → апгрейд с v6 безболезненный. Сами реакции в
+  // локальной базе НЕ храним отдельной таблицей — они лежат внутри элементов
+  // кэша `feed` (как отметки рекордов), очередь нужна лишь для офлайн-отправки.
+  d.version(7).stores({
+    exercises: 'id, muscle_group, name, _dirty',
+    users: 'id, name',
+    workouts: 'id, user_id, performed_at, _dirty, _deleted',
+    outbox: '++seq, workoutId, type, createdAt',
+    meta: 'key',
+    feed: 'id, performed_at',
+    ex_outbox: '++seq, exerciseId, createdAt',
+    leaderboard: 'user_id, orm',
+    templates: 'id, user_id, is_public, _dirty, _deleted',
+    tpl_outbox: '++seq, templateId, createdAt',
+    reaction_outbox: '++seq, workoutId, createdAt',
+  })
   return d
 }
 
