@@ -287,7 +287,7 @@ export default function App() {
             превращается в левую колонку. На мобиле скрыта (display:none). */}
         <div className="side-brand" aria-hidden="true">
           <span className="side-logo">🏋️</span>
-          <span className="side-brand-txt">Журнал</span>
+          <span className="side-brand-txt">kachalka-app</span>
         </div>
         <button
           className={tab === 'history' ? 'tab active' : 'tab'}
