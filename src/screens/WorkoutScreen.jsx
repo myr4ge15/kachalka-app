@@ -77,6 +77,7 @@ export default function WorkoutScreen({ user, workoutId = null, onBack }) {
   const [saving, setSaving] = useState(false)
   const [message, setMessage] = useState(null) // {type, text}
   const [delArm, setDelArm] = useState(false)   // in-app подтверждение удаления (как везде)
+  const [clearArm, setClearArm] = useState(false) // подтверждение отказа от черновика новой
 
   // Сохраняем черновик новой тренировки при каждом изменении состава.
   useEffect(() => {
@@ -317,6 +318,16 @@ export default function WorkoutScreen({ user, workoutId = null, onBack }) {
     }
   }
 
+  // Отказ от новой тренировки. Экран «Назад» намеренно СОХРАНЯЕТ черновик в кэше
+  // (случайный уход не теряет набранный состав — в т.ч. упражнения из шаблона),
+  // поэтому явный отказ вынесен в отдельную кнопку: чистим кэш + состав и уходим.
+  function clearDraft() {
+    clearCache(DRAFT_KEY)
+    setEntries([])
+    setClearArm(false)
+    onBack?.()
+  }
+
   // Экспорт этой тренировки в JSON-файл (из текущего состава формы).
   function exportOne() {
     const appVersion = typeof __APP_VERSION__ !== 'undefined' ? __APP_VERSION__ : 'dev'
@@ -455,6 +466,22 @@ export default function WorkoutScreen({ user, workoutId = null, onBack }) {
           <button className="btn outline full" onClick={openAddPicker}>
             + Добавить упражнение
           </button>
+
+          {isNew && entries.length > 0 && (
+            clearArm ? (
+              <div className="danger-confirm">
+                <p className="danger-text">Очистить черновик? Добавленные упражнения будут удалены.</p>
+                <div className="danger-actions">
+                  <button className="btn ghost" onClick={() => setClearArm(false)} disabled={saving}>Отмена</button>
+                  <button className="btn danger" onClick={clearDraft} disabled={saving}>Да, очистить</button>
+                </div>
+              </div>
+            ) : (
+              <button className="link-btn danger full-link" disabled={saving} onClick={() => setClearArm(true)}>
+                Очистить черновик
+              </button>
+            )
+          )}
 
           {!isNew && (
             <button className="link-btn full-link" disabled={saving} onClick={exportOne}>
