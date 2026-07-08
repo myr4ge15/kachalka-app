@@ -15,6 +15,7 @@ const srv = vi.hoisted(() => ({
     workoutIds: [],   // ответ дешёвого select('id') для реконсиляции удалений
     upsertWorkout: () => ({ error: null }), // (args) => {error}
     deleteWorkout: () => ({ error: null }),
+    exFullFetches: 0, // сколько раз дёрнут ПОЛНЫЙ select справочника (не проба updated_at)
   },
 }))
 
@@ -25,13 +26,25 @@ vi.mock('./supabase.js', () => {
   function resolveFrom(b) {
     if (b._table === 'exercises') {
       if (b._upsert) return { error: null } // pushExercises upsert
+      // проба инкрементального pull: select только updated_at (order desc limit 1)
+      if (b._select === 'updated_at') {
+        const rows = [...state.exercises].filter((e) => e.updated_at)
+          .sort((a, c) => (a.updated_at < c.updated_at ? 1 : -1))
+        return { data: rows.slice(0, 1), error: null }
+      }
+      state.exFullFetches++ // ПОЛНЫЙ select (id, name, ...) — считаем для теста «skip»
       return { data: state.exercises, error: null }
     }
     if (b._table === 'login_users') return { data: state.loginUsers, error: null }
     if (b._table === 'workouts') {
       if (b._delete) return state.deleteWorkout(b)
       if (b._select === 'id') return { data: state.workoutIds.map((id) => ({ id })), error: null }
-      if (b._eqUser) return { data: state.workoutsMain, error: null } // основной оконный запрос
+      if (b._eqUser) {
+        // инкрементально: если задан .gt('updated_at', wm) — отдаём только дельту
+        let rows = state.workoutsMain
+        if (b._gtUpdated) rows = rows.filter((r) => r.updated_at > b._gtUpdated)
+        return { data: rows, error: null }
+      }
       return { data: [], error: null } // запрос ленты (fetchFeed) — пусто
     }
     if (b._table === 'workout_templates') return { data: [], error: null }
@@ -40,9 +53,10 @@ vi.mock('./supabase.js', () => {
   }
   function builder(table) {
     return {
-      _table: table, _select: null, _delete: false, _upsert: null, _eqUser: false,
+      _table: table, _select: null, _delete: false, _upsert: null, _eqUser: false, _gtUpdated: null,
       select(s) { this._select = s; return this },
       eq(k, v) { if (k === 'user_id') this._eqUser = true; return this },
+      gt(k, v) { if (k === 'updated_at') this._gtUpdated = v; return this },
       order() { return this },
       limit() { return this },
       or() { return this },
@@ -115,6 +129,7 @@ beforeEach(async () => {
   srv.state.workoutIds = []
   srv.state.upsertWorkout = () => ({ error: null })
   srv.state.deleteWorkout = () => ({ error: null })
+  srv.state.exFullFetches = 0
 })
 afterEach(async () => {
   await closeUserDb()
@@ -202,5 +217,59 @@ describe('pull: merge-часы', () => {
     srv.state.workoutIds = []
     await syncNow(userId)
     expect(await db.workouts.get('localonly')).toBeTruthy() // несинхрон. правка защищена
+  })
+})
+
+describe('pull: инкрементальный watermark', () => {
+  const T1 = '2026-01-10T00:00:00.000Z'
+  const T2 = '2026-02-01T00:00:00.000Z'
+
+  it('тренировки: правка БЕЗ роста updated_at не тянется, с ростом — тянется', async () => {
+    // 1-й прогон: пришла w1@T1 (weight 100) → local, watermark = T1
+    srv.state.workoutsMain = [serverRow({ id: 'w1', user_id: userId, updated_at: T1, weight: 100 })]
+    srv.state.workoutIds = ['w1']
+    await syncNow(userId)
+    expect((await db.workouts.get('w1')).entries[0].sets[0].weight).toBe(100)
+
+    // сервер «изменил» контент, но updated_at НЕ вырос (== T1) → дельта пуста →
+    // локальная версия остаётся прежней (инкрементальный фильтр .gt отсёк строку)
+    srv.state.workoutsMain = [serverRow({ id: 'w1', user_id: userId, updated_at: T1, weight: 999 })]
+    await syncNow(userId)
+    expect((await db.workouts.get('w1')).entries[0].sets[0].weight).toBe(100)
+
+    // теперь updated_at вырос до T2 → строка попадает в дельту → принимаем 999
+    srv.state.workoutsMain = [serverRow({ id: 'w1', user_id: userId, updated_at: T2, weight: 999 })]
+    await syncNow(userId)
+    expect((await db.workouts.get('w1')).entries[0].sets[0].weight).toBe(999)
+  })
+
+  it('тренировки: новая запись в дельте добавляется, старая не перекачивается', async () => {
+    srv.state.workoutsMain = [serverRow({ id: 'w1', user_id: userId, updated_at: T1, weight: 100 })]
+    srv.state.workoutIds = ['w1']
+    await syncNow(userId)
+
+    // добавилась w2@T2; w1 остаётся @T1 (не в дельте > T1)
+    srv.state.workoutsMain = [
+      serverRow({ id: 'w1', user_id: userId, updated_at: T1, weight: 100 }),
+      serverRow({ id: 'w2', user_id: userId, updated_at: T2, weight: 80 }),
+    ]
+    srv.state.workoutIds = ['w1', 'w2']
+    await syncNow(userId)
+    expect(await db.workouts.get('w1')).toBeTruthy()
+    expect((await db.workouts.get('w2')).entries[0].sets[0].weight).toBe(80)
+  })
+
+  it('справочник: не перекачивается, если max(updated_at) не вырос', async () => {
+    srv.state.exercises = [{ ...bench, updated_at: T1 }]
+    await syncNow(userId)
+    const after1 = srv.state.exFullFetches
+    expect(after1).toBeGreaterThanOrEqual(1) // первый прогон — полный refetch
+    // второй прогон, справочник тот же → проба видит тот же T1 → полного fetch НЕТ
+    await syncNow(userId)
+    expect(srv.state.exFullFetches).toBe(after1)
+    // справочник изменился (updated_at вырос) → снова полный refetch
+    srv.state.exercises = [{ ...bench, updated_at: T2 }]
+    await syncNow(userId)
+    expect(srv.state.exFullFetches).toBe(after1 + 1)
   })
 })

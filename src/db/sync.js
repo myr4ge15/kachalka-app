@@ -28,25 +28,32 @@ import { cmpIsoAsc } from '../lib/cmp.js'
 import { protectedFromPull } from '../lib/outboxProtect.js'
 import { mergeDecision } from '../lib/mergeClock.js'
 import { selectStaleWorkoutIds } from '../lib/pullReconcile.js'
+import { maxUpdatedAt, changedSince, rosterSignature } from '../lib/pullWatermark.js'
 
 const POLL_MS = 20000
 // После стольких неудачных попыток операция считается «отравленной» и
 // откладывается в dead-letter (флаг _dead): она больше не блокирует очередь,
 // но остаётся в базе для диагностики. Иначе один битый upsert вешал синк навсегда.
 const MAX_ATTEMPTS = 5
-// Сколько последних тренировок тянем за один pull ДЛЯ КОНТЕНТА (тяжёлый join с
-// упражнениями/подходами). Раньше тянули всю историю каждые 20 c. Удаления же
-// сверяем отдельно — по ПОЛНОМУ дешёвому списку серверных id (select id), а не
-// по этому окну: иначе удаление тренировки старше окна не доезжало (см.
+// Инкрементальный pull (BACKLOG-техдолг): вместо полного снапшота всей базы каждые
+// 20 c тянем ТОЛЬКО дельту по серверному watermark updated_at. Тренировки —
+// `updated_at > wm_workouts` (тяжёлый join лишь по изменённым); справочник/ростер/
+// шаблоны — дешёвая проба (max updated_at / сигнатура id) и полный refetch только
+// при изменении. Watermark'и/сигнатуры лежат в meta (ключи ниже). Удаления
+// тренировок watermark не двигают (строка исчезает) → сверяем отдельно, по
+// ПОЛНОМУ дешёвому списку серверных id (select id), как и раньше (см.
 // lib/pullReconcile.js, «зазор реконсиляции»).
-const PULL_LIMIT = 200
+const WM_WORKOUTS = 'wm_workouts'   // max updated_at принятых тренировок
+const WM_EXERCISES = 'wm_exercises' // max updated_at справочника
+const SIG_USERS = 'sig_login_users' // сигнатура ростера (id + max updated_at)
+const SIG_TEMPLATES = 'sig_templates' // сигнатура окна шаблонов «мои ∪ общие»
 const SELECT_WORKOUT =
   'id, performed_at, created_at, updated_at, user_id, ' +
   'workout_exercises(id, position, exercise_id, ' +
   'exercise:exercises(id, name, muscle_group, is_bench_lift, metric), ' +
   'sets(id, set_number, weight, reps))'
 const SELECT_TEMPLATE =
-  'id, name, user_id, is_public, created_at, author:users(name), ' +
+  'id, name, user_id, is_public, created_at, updated_at, author:users(name), ' +
   'template_exercises(position, exercise_id, target_sets, target_reps, target_weight, ' +
   'exercise:exercises(id, name, muscle_group, is_bench_lift, metric))'
 
@@ -133,7 +140,7 @@ function templateRowToDoc(t) {
     is_public: t.is_public ? 1 : 0,
     author_name: t.author?.name ?? null,
     created_at: t.created_at ?? nowIso(),
-    updated_at: t.created_at ?? nowIso(),
+    updated_at: t.updated_at ?? t.created_at ?? nowIso(),
     exercises,
     _dirty: 0,
     _deleted: 0,
@@ -145,43 +152,67 @@ async function pull(userId, justPushed = new Set()) {
   // и не маскируются под успех: копим сообщения и возвращаем их наверх, чтобы
   // статус показал «синхронизировано, но справочник/шаблоны не обновились».
   const warnings = []
-  // справочник упражнений. НЕ затираем локально созданные упражнения, которые
-  // ещё не доехали до сервера (_dirty=1) — иначе своё упражнение пропадёт из
-  // пикера до завершения синка.
-  const ex = await withTimeout(
-    supabase.from('exercises').select('id, name, muscle_group, is_bench_lift, is_female_lift, is_custom, is_hidden, metric')
+  // справочник упражнений. Инкрементально: сперва дешёвая проба самого свежего
+  // updated_at (1 строка). Не вырос с прошлого раза → пропускаем целиком (ни
+  // трансфера, ни churn'а Dexie). Удаления справочника не бывает (soft-hide через
+  // is_hidden — строка остаётся, триггер двигает updated_at), поэтому max-watermark
+  // ПОЛНЫЙ: пропущенного нет. Проба упала (старый сервер без колонки / сеть) →
+  // деградируем к прежнему полному refetch, чтобы синк справочника не встал.
+  const exProbe = await withTimeout(
+    supabase.from('exercises').select('updated_at').order('updated_at', { ascending: false }).limit(1)
   )
-  if (ex.error) warnings.push('упражнения: ' + (ex.error.message ?? ex.error))
-  else if (ex.data) {
-    const serverExIds = new Set(ex.data.map((e) => e.id))
-    await db.transaction('rw', db.exercises, db.ex_outbox, async () => {
-      const dirty = await db.exercises.filter((e) => e._dirty).toArray()
-      const ops = await db.ex_outbox.toArray()
-      await db.exercises.clear()
-      await db.exercises.bulkPut(ex.data)
-      // вернуть несинхронизированные локальные упражнения, если сервер их ещё не знает
-      for (const e of dirty) if (!serverExIds.has(e.id)) await db.exercises.put(e)
-      // Сервер уже знает ранее «грязное» упражнение → его версия принята выше
-      // (clear+bulkPut), а операция в очереди осиротела. Выкидываем её, чтобы не
-      // слать лишний upsert на следующем push (симметрично обработке шаблонов).
-      for (const e of dirty)
-        if (serverExIds.has(e.id))
-          for (const o of ops) if (o.exerciseId === e.id) await db.ex_outbox.delete(o.seq)
-    })
+  const exServerMax = exProbe.error ? null : (exProbe.data?.[0]?.updated_at ?? null)
+  const exChanged = exProbe.error ? true : changedSince(exServerMax, await getMeta(WM_EXERCISES))
+  if (exChanged) {
+    // НЕ затираем локально созданные упражнения, которые ещё не доехали до сервера
+    // (_dirty=1) — иначе своё упражнение пропадёт из пикера до завершения синка.
+    const ex = await withTimeout(
+      supabase.from('exercises').select('id, name, muscle_group, is_bench_lift, is_female_lift, is_custom, is_hidden, metric, updated_at')
+    )
+    if (ex.error) warnings.push('упражнения: ' + (ex.error.message ?? ex.error))
+    else if (ex.data) {
+      const serverExIds = new Set(ex.data.map((e) => e.id))
+      await db.transaction('rw', db.exercises, db.ex_outbox, async () => {
+        const dirty = await db.exercises.filter((e) => e._dirty).toArray()
+        const ops = await db.ex_outbox.toArray()
+        await db.exercises.clear()
+        await db.exercises.bulkPut(ex.data)
+        // вернуть несинхронизированные локальные упражнения, если сервер их ещё не знает
+        for (const e of dirty) if (!serverExIds.has(e.id)) await db.exercises.put(e)
+        // Сервер уже знает ранее «грязное» упражнение → его версия принята выше
+        // (clear+bulkPut), а операция в очереди осиротела. Выкидываем её, чтобы не
+        // слать лишний upsert на следующем push (симметрично обработке шаблонов).
+        for (const e of dirty)
+          if (serverExIds.has(e.id))
+            for (const o of ops) if (o.exerciseId === e.id) await db.ex_outbox.delete(o.seq)
+      })
+      // watermark = max по фактически принятым строкам (safe против лага реплики:
+      // если проба видела свежее, чем refetch, следующий прогон дотянет).
+      await setMeta(WM_EXERCISES, maxUpdatedAt(ex.data) ?? exServerMax)
+    }
   }
 
   // пользователи (имена для пикера входа). Тянем из view login_users — только
   // id и name, без pin_hash/pin_salt/role: хэши больше не отдаются клиентам
   // (сверка PIN — в auth-login онлайн или по своему кэшу офлайн, см. lib/auth.js).
-  const us = await withTimeout(supabase.from('login_users').select('id, name, avatar_url, sort_order, sex'))
-  if (us.error) warnings.push('пользователи: ' + (us.error.message ?? us.error))
-  else if (us.data) {
-    // Ростер — общий для устройства (loginDb), а не персональный: его читает
-    // пикер входа до выбора учётки. См. local.js / repo.getUsers.
-    await loginDb.transaction('rw', loginDb.users, async () => {
-      await loginDb.users.clear()
-      await loginDb.users.bulkPut(us.data)
-    })
+  // Инкрементально: дешёвая проба (id, updated_at) → сигнатура. Не изменилась →
+  // пропуск. Сигнатура (набор id + max updated_at) ловит и правку (updated_at
+  // растёт), и удаление/появление учётки (меняется набор id) — одного max мало.
+  const usProbe = await withTimeout(supabase.from('login_users').select('id, updated_at'))
+  const usSig = usProbe.error ? null : rosterSignature(usProbe.data ?? [])
+  const usChanged = usProbe.error ? true : usSig !== (await getMeta(SIG_USERS))
+  if (usChanged) {
+    const us = await withTimeout(supabase.from('login_users').select('id, name, avatar_url, sort_order, sex'))
+    if (us.error) warnings.push('пользователи: ' + (us.error.message ?? us.error))
+    else if (us.data) {
+      // Ростер — общий для устройства (loginDb), а не персональный: его читает
+      // пикер входа до выбора учётки. См. local.js / repo.getUsers.
+      await loginDb.transaction('rw', loginDb.users, async () => {
+        await loginDb.users.clear()
+        await loginDb.users.bulkPut(us.data)
+      })
+      if (usSig !== null) await setMeta(SIG_USERS, usSig)
+    }
   }
 
   // свой флаг приватности (для UI: у приватного прячем блок лидерборда и место в
@@ -192,24 +223,24 @@ async function pull(userId, justPushed = new Set()) {
     if (!pv.error) await setMeta(`priv_${userId}`, Boolean(pv.data))
   } catch { /* офлайн/старый сервер — оставляем прежнее значение флага */ }
 
-  // тренировки пользователя
-  const wk = await withTimeout(
-    supabase
-      .from('workouts')
-      .select(SELECT_WORKOUT)
-      .eq('user_id', userId)
-      .order('performed_at', { ascending: false })
-      .limit(PULL_LIMIT)
-  )
+  // тренировки пользователя — ТОЛЬКО дельта по watermark. Первый прогон (wm пуст)
+  // тянет всю историю один раз, дальше — лишь `updated_at > wm` (обычно 0 строк).
+  // Порядок по updated_at asc, чтобы watermark двигался монотонно. Лимита нет:
+  // ограничивать нельзя (отсечённые старше wm строки иначе не доедут никогда).
+  const wmWorkouts = await getMeta(WM_WORKOUTS)
+  let wkQuery = supabase.from('workouts').select(SELECT_WORKOUT).eq('user_id', userId)
+  if (wmWorkouts) wkQuery = wkQuery.gt('updated_at', wmWorkouts)
+  wkQuery = wkQuery.order('updated_at', { ascending: true })
+  const wk = await withTimeout(wkQuery)
   if (wk.error) throw wk.error
   const serverRows = wk.data ?? []
 
   // ПОЛНЫЙ набор серверных id тренировок пользователя (без join'ов — дёшево, лишь
-  // UUID'ы) для НАДЁЖНОЙ реконсиляции удалений. Контент тянем окном (PULL_LIMIT),
-  // но удаления сверяем с полным списком — иначе удаление записи СТАРШЕ окна не
-  // доезжало до других устройств («зазор», см. lib/pullReconcile.js). Если этот
-  // запрос упал — реконсиляцию удалений в этом прогоне ПРОПУСКАЕМ (не удаляем
-  // ничего вслепую), контент/конфликты обрабатываем как обычно.
+  // UUID'ы) для НАДЁЖНОЙ реконсиляции удалений. Контент тянем инкрементально (по
+  // watermark), но удаления так не увидеть (строка исчезает, updated_at не растёт)
+  // → сверяем с полным списком id. Если этот запрос упал — реконсиляцию удалений
+  // в этом прогоне ПРОПУСКАЕМ (не удаляем ничего вслепую), контент/конфликты
+  // обрабатываем как обычно.
   const idsRes = await withTimeout(
     supabase.from('workouts').select('id').eq('user_id', userId)
   )
@@ -279,6 +310,15 @@ async function pull(userId, justPushed = new Set()) {
     }
   })
 
+  // Двигаем watermark тренировок = max updated_at по ФАКТИЧЕСКИ полученным строкам
+  // (не по пробе): если реплика отстала и отдала меньше, чем есть на праймари,
+  // непришедшие строки останутся > wm и дотянутся следующим прогоном — без потери.
+  // Пусто (дельты не было) → watermark не трогаем.
+  const fetchedMax = maxUpdatedAt(serverRows)
+  if (fetchedMax && changedSince(fetchedMax, wmWorkouts)) {
+    await setMeta(WM_WORKOUTS, fetchedMax)
+  }
+
   // Журнал конфликтов merge-часов (последние 50) + предупреждение в статус синка.
   if (conflicts.length) {
     try {
@@ -288,8 +328,18 @@ async function pull(userId, justPushed = new Set()) {
     warnings.push(`правок перезаписано новее с другого устройства: ${conflicts.length}`)
   }
 
-  // шаблоны: «мои ∪ общие в круге» (их мало — тянем всё окно целиком, без
-  // partial-границы). Не затираем локальные несинхронизированные изменения.
+  // шаблоны: «мои ∪ общие в круге» (их мало). Инкрементально: дешёвая проба
+  // (id, updated_at) по окну → сигнатура. Не изменилась → пропуск тяжёлого fetch'а
+  // (join с template_exercises). Сигнатура ловит и правку (updated_at растёт), и
+  // пропажу чужого общего (автор сделал приватным → id выпал из окна) — одного max
+  // мало. Проба упала → деградируем к полному refetch.
+  const tplProbe = await withTimeout(
+    supabase.from('workout_templates').select('id, updated_at').or(`user_id.eq.${userId},is_public.eq.true`)
+  )
+  const tplSig = tplProbe.error ? null : rosterSignature(tplProbe.data ?? [])
+  const tplChanged = tplProbe.error ? true : tplSig !== (await getMeta(SIG_TEMPLATES))
+  if (tplChanged) {
+  // Не затираем локальные несинхронизированные изменения.
   const tpl = await withTimeout(
     supabase
       .from('workout_templates')
@@ -327,6 +377,8 @@ async function pull(userId, justPushed = new Set()) {
         await db.templates.delete(t.id)
       }
     })
+      if (tplSig !== null) await setMeta(SIG_TEMPLATES, tplSig)
+  }
   }
 
   return warnings
