@@ -216,7 +216,7 @@ export default function ProgressScreen({ user, initialExerciseId = null }) {
   const lineStroke = data.length >= 2 ? `url(#${gradId})` : c.line
 
   return (
-    <div className="screen">
+    <div className="screen prog-screen">
       <h2 className="screen-title">Прогресс</h2>
       <p className="muted sub">
         {weighted
@@ -234,6 +234,11 @@ export default function ProgressScreen({ user, initialExerciseId = null }) {
 
       {!loading && list.length > 0 && selected && (
         <>
+          {/* Десктоп (≥900px) раскладывает это в две колонки: слева контролы
+              (выбор упражнения + период), справа сводка/график/таблица. На мобиле
+              .prog-layout — обычный блок, всё стекается как раньше. */}
+          <div className="prog-layout">
+          <div className="prog-aside">
           <label className="prog-pick">
             <span className="muted">Упражнение</span>
             <select
@@ -273,7 +278,9 @@ export default function ProgressScreen({ user, initialExerciseId = null }) {
               </label>
             </div>
           )}
+          </div>
 
+          <div className="prog-main">
           {data.length === 0 ? (
             <p className="muted empty">
               {fullData.length > 0
@@ -398,6 +405,8 @@ export default function ProgressScreen({ user, initialExerciseId = null }) {
               )}
             </>
           )}
+          </div>
+          </div>
         </>
       )}
     </div>
