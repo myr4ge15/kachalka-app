@@ -32,6 +32,28 @@ function SyncBadge() {
   return <span className={`sync-badge ${cls}`}>{text}</span>
 }
 
+// Иконки нижней панели — инлайн-SVG (без зависимостей), красятся через currentColor,
+// плавную смену цвета и лёгкое увеличение активной задаёт CSS (.tab / .tab-ico).
+function TabIcon({ name }) {
+  const p = {
+    className: 'tab-ico', viewBox: '0 0 24 24', width: 24, height: 24,
+    fill: 'none', stroke: 'currentColor', strokeWidth: 2,
+    strokeLinecap: 'round', strokeLinejoin: 'round', 'aria-hidden': true,
+  }
+  if (name === 'history') return (
+    <svg {...p}><path d="M6 8v8M9 6v12M15 6v12M18 8v8M6 12h12M2 12h1M22 12h-1" /></svg>
+  )
+  if (name === 'feed') return (
+    <svg {...p}>
+      <path d="M16 6h3a1 1 0 0 1 1 1v11a2 2 0 0 1-4 0v-13a1 1 0 0 0-1-1h-10a1 1 0 0 0-1 1v12a3 3 0 0 0 3 3h11" />
+      <path d="M8 8h4M8 12h4M8 16h4" />
+    </svg>
+  )
+  return (
+    <svg {...p}><path d="M4 19h16M4 15l4-6 4 2 4-5 4 4" /></svg>
+  )
+}
+
 // В localStorage держим ТОЛЬКО id вошедшего (не имя/роль): на общих телефонах
 // профиль лежал открыто и читался через devtools. Имя/роль восстанавливаем из
 // loginDb (ростер + офлайн-кэш PIN, см. handleLogin/restore). id переживает
@@ -229,19 +251,22 @@ export default function App() {
           className={tab === 'history' ? 'tab active' : 'tab'}
           onClick={() => goTab('history')}
         >
-          Мои тренировки
+          <TabIcon name="history" />
+          <span>Тренировки</span>
         </button>
         <button
           className={tab === 'feed' ? 'tab active' : 'tab'}
           onClick={() => goTab('feed')}
         >
-          Лента
+          <TabIcon name="feed" />
+          <span>Лента</span>
         </button>
         <button
           className={tab === 'progress' ? 'tab active' : 'tab'}
           onClick={() => goTab('progress')}
         >
-          Прогресс
+          <TabIcon name="progress" />
+          <span>Прогресс</span>
         </button>
       </nav>
 
