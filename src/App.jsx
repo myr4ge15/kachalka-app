@@ -283,6 +283,12 @@ export default function App() {
       </main>
 
       <nav className="tabbar">
+        {/* Бренд-шапка сайдбара: видна только на десктопе (≥900px), где .tabbar
+            превращается в левую колонку. На мобиле скрыта (display:none). */}
+        <div className="side-brand" aria-hidden="true">
+          <span className="side-logo">🏋️</span>
+          <span className="side-brand-txt">Журнал</span>
+        </div>
         <button
           className={tab === 'history' ? 'tab active' : 'tab'}
           onClick={() => goTab('history')}
