@@ -789,12 +789,19 @@ img.avatar-lg.has-img {
   letter-spacing: .05em; margin: 0 0 9px 2px;
 }
 /* «Настройки» — раскрывающийся заголовок-кнопка (сворачивает длинный хвост
-   профиля: смена PIN, админка, danger-zone). Наследует вид .sec-title. */
+   профиля: смена PIN, админка, danger-zone). Оформлена как явная кнопка-строка
+   (surface + рамка), чтобы её было легко заметить внизу длинного профиля. */
 .settings-toggle {
   display: flex; align-items: center; justify-content: space-between; width: 100%;
-  background: none; border: none; cursor: pointer; text-align: left;
+  background: var(--surface); border: 1px solid var(--border); border-radius: 13px;
+  padding: 14px; cursor: pointer; text-align: left; min-height: 48px;
 }
-.settings-chev { font-size: 11px; }
+.settings-toggle:active { background: var(--surface-2); }
+.settings-title {
+  display: inline-flex; align-items: center; gap: 9px;
+  font-size: 15px; font-weight: 600; color: var(--text);
+}
+.settings-chev { font-size: 12px; color: var(--muted); }
 
 /* шапка профиля */
 .prof-head { display: flex; align-items: center; gap: 14px; margin-bottom: 16px; }
@@ -912,6 +919,12 @@ img.avatar-lg.has-img {
 
 /* настройки / выход */
 .profile .actions { display: flex; flex-direction: column; gap: 10px; }
+/* блоки .actions/danger-confirm под тогглом «Настройки» идут встык — разводим
+   их вертикально, чтобы «Удалить мои данные» не наплывало на «Выйти». */
+.settings-toggle + .danger-confirm,
+.settings-toggle + .actions,
+.settings-sec .actions + .actions,
+.settings-sec .danger-confirm + .actions { margin-top: 10px; }
 .act {
   display: flex; align-items: center; gap: 11px; width: 100%; text-align: left;
   background: var(--surface); border: 1px solid var(--border); border-radius: 13px;
@@ -1056,8 +1069,13 @@ img.avatar-lg.has-img {
 .admin-ex-name > :last-child { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .admin-star { flex: 0 0 auto; }
 .admin-ex-meta { font-size: 12px; color: var(--muted); }
-/* Глифы ♀/♂ имеют свою базовую линию и без выравнивания «проседают» под строку. */
-.admin-sex { display: inline-block; vertical-align: middle; line-height: 1; font-size: 13px; }
+/* Глифы ♀/♂ рендерятся как эмодзи со своей базовой линией и «проседают» под строку.
+   Форсируем текстовое представление (VS15 в разметке + font-variant-emoji) и
+   центрируем по строке. */
+.admin-sex {
+  display: inline-block; vertical-align: middle; line-height: 1; font-size: 13px;
+  font-variant-emoji: text;
+}
 .admin-you {
   font-size: 10px; font-weight: 700; text-transform: uppercase; letter-spacing: .04em;
   color: var(--green); border: 1px solid var(--green); border-radius: 999px; padding: 1px 6px; margin-left: 7px;

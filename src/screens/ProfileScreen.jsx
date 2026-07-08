@@ -644,11 +644,11 @@ export default function ProfileScreen({ user, onLogout, onOpenProgress, onOpenFe
       {/* настройки и выход — свёрнуто по умолчанию, чтобы длинный экран не пух */}
       <section className="sec settings-sec">
         <button
-          className="sec-title settings-toggle"
+          className="settings-toggle"
           onClick={() => setSettingsOpen((o) => !o)}
           aria-expanded={settingsOpen}
         >
-          <span>Настройки</span>
+          <span className="settings-title"><span aria-hidden="true">⚙️</span> Настройки</span>
           <span className="settings-chev" aria-hidden="true">{settingsOpen ? '▾' : '▸'}</span>
         </button>
 
