@@ -105,7 +105,7 @@ export default function FeedScreen({ user }) {
   }
 
   return (
-    <div className="screen">
+    <div className="screen feed-screen">
       <div className="feed-head">
         <h2 className="screen-title">Лента</h2>
         <button className="link-btn feed-refresh" onClick={refresh} disabled={refreshing} title="Обновить">
@@ -118,17 +118,20 @@ export default function FeedScreen({ user }) {
       </div>
       <p className="muted sub">Последние тренировки друзей</p>
 
-      <Leaderboard user={user} />
+      {/* Десктоп (≥900px) раскладывает это в две колонки: посты слева, рейтинг
+          в правом сайдбаре. На мобиле — один столбец, рейтинг сверху (.feed-rail
+          order:-1), как было раньше. */}
+      <div className="feed-layout">
+        <div className="feed-main">
+          {error && <div className="banner error">{error}</div>}
 
-      {error && <div className="banner error">{error}</div>}
+          {loading && <p className="muted">Загрузка…</p>}
 
-      {loading && <p className="muted">Загрузка…</p>}
+          {!loading && list.length === 0 && !error && (
+            <p className="muted empty">Пока никто ничего не записал. Будь первым 💪</p>
+          )}
 
-      {!loading && list.length === 0 && !error && (
-        <p className="muted empty">Пока никто ничего не записал. Будь первым 💪</p>
-      )}
-
-      {list.map((w) => {
+          {list.map((w) => {
         const isMe = w.user_id === user.id
         return (
           <div key={w.id} className="card feed-card">
@@ -212,7 +215,13 @@ export default function FeedScreen({ user }) {
             })()}
           </div>
         )
-      })}
+          })}
+        </div>
+
+        <aside className="feed-rail">
+          <Leaderboard user={user} />
+        </aside>
+      </div>
     </div>
   )
 }

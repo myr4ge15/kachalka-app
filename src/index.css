@@ -620,6 +620,10 @@ input { font-family: inherit; }
 .prog-row.pr .prog-orm { color: var(--muted); }
 
 /* ---------- feed (общая лента) ---------- */
+/* Мобайл: один столбец. Рейтинг (.feed-rail) стоит НАД постами (order:-1) —
+   как было до десктоп-раскладки. На десктопе (≥900px) — две колонки, см. ниже. */
+.feed-layout { display: flex; flex-direction: column; }
+.feed-rail { order: -1; }
 .feed-head { display: flex; align-items: baseline; justify-content: space-between; }
 /* Метка свежести ленты (кликабельна = обновить): приглушённая и мельче, т.к.
    несёт в первую очередь информацию «обновлено N назад». */
@@ -1126,6 +1130,21 @@ img.avatar-lg.has-img {
   .wk-save-bar, .export-bar--fixed, .toast, .update-pill {
     left: calc(232px + (100vw - 232px) / 2);
     bottom: 24px;
+  }
+
+  /* Лента (слайс 2): посты слева, рейтинг — липким сайдбаром справа. Экран Ленты
+     шире прочих, чтобы влезли обе колонки. */
+  .screen.feed-screen { max-width: 1120px; }
+  .feed-layout {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) 340px;
+    grid-template-areas: "main rail";
+    gap: 24px; align-items: start;
+  }
+  .feed-main { grid-area: main; }
+  .feed-rail {
+    grid-area: rail; order: 0;
+    position: sticky; top: 12px;
   }
 }
 
