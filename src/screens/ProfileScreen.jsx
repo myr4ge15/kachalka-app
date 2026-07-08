@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from 'react'
+import { useEffect, useMemo, useRef, useState } from 'react'
 import { useLiveQuery } from 'dexie-react-hooks'
 import {
   getWorkouts, getCachedUser, setCachedAvatar, setCachedName, softDeleteMyWorkouts,
@@ -68,6 +68,14 @@ export default function ProfileScreen({ user, onLogout, onOpenProgress, onOpenFe
   // цели. 0/'' → требования по повторам нет (старое поведение).
   const [edReps, setEdReps] = useState(0)
   const [edIsNew, setEdIsNew] = useState(false) // добавляем новую (можно выбрать упражнение) или правим цель существующей
+
+  // Редактор рендерится инлайн в секции «Мои цели» (вверху экрана). Если открыть
+  // его, проскроллив вниз (кнопка «+ Добавить цель»), форма встаёт на месте секции
+  // — выше видимой области. Доводим форму до экрана после её появления.
+  const editorRef = useRef(null)
+  useEffect(() => {
+    if (editing) editorRef.current?.scrollIntoView({ behavior: 'smooth', block: 'center' })
+  }, [editing])
 
   // Блок «Настройки» свёрнут по умолчанию: экран профиля длинный (статы + цели +
   // рекорды + настройки + danger-zone), редко используемые действия прячем.
@@ -414,7 +422,7 @@ export default function ProfileScreen({ user, onLogout, onOpenProgress, onOpenFe
             <p className="sec-title">Мои цели</p>
             {editing ? (
               <div className="goal">
-                <div className="goal-editor">
+                <div className="goal-editor" ref={editorRef}>
                   {edIsNew ? (
                     <label className="field">
                       <span className="field-lab">Упражнение</span>
