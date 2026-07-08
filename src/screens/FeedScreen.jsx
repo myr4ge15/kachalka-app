@@ -147,7 +147,7 @@ export default function FeedScreen({ user }) {
             </div>
 
             {w.prs?.length > 0 && (
-              <div className="pr-row">
+              <div className="feed-prs">
                 {w.prs.map((pr) => (
                   <span key={`${pr.name}-${pr.value}`} className="pr-badge" title="Новый личный рекорд">
                     🏆 {pr.name} · {fmtMetricValue(pr.metric, pr.value)}

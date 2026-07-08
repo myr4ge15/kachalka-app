@@ -662,7 +662,10 @@ img.avatar-lg.has-img {
 }
 .feed-when { font-size: 13px; margin-top: 1px; }
 
-.pr-row { display: flex; flex-wrap: wrap; gap: 6px; margin-bottom: 4px; }
+/* Строка рекордов в карточке ленты. Класс НЕ переиспользуем из Профиля
+   (.pr-row в .pr-list ниже — space-between/во всю ширину), иначе бейджи
+   разъезжаются: отдельное имя .feed-prs. */
+.feed-prs { display: flex; flex-wrap: wrap; gap: 6px; margin-bottom: 4px; }
 .pr-badge {
   font-size: 13px; font-weight: 600; color: #fde68a;
   background: rgba(202,138,4,.16); border: 1px solid var(--yellow);
@@ -1113,9 +1116,17 @@ img.avatar-lg.has-img {
     display: block; margin-top: auto;
     padding-top: 10px; border-top: 1px solid var(--border);
   }
-  /* Ряд «статус синка + колокольчик» в подвале сайдбара. */
-  .side-tools { display: flex; align-items: center; gap: 8px; margin-bottom: 10px; }
-  .side-tools .sync-badge, .side-tools .bell { margin-right: 0; }
+  /* Ряд «статус синка + колокольчик» в подвале сайдбара. Разносим по краям
+     колонки (space-between): статус слева, колокольчик справа — ряд заполняет
+     ширину и обрамляет профиль ниже, а не висит слепленной кучкой у левого
+     края. Высоту статуса подтягиваем ближе к колокольчику, чтобы не было
+     контраста «мелкая таблетка рядом с крупной кнопкой». */
+  .side-tools {
+    display: flex; align-items: center; justify-content: space-between;
+    gap: 8px; margin-bottom: 10px;
+  }
+  .side-tools .sync-badge { margin-right: 0; padding: 7px 10px; }
+  .side-tools .bell { margin-right: 0; width: 34px; height: 34px; border-radius: 10px; }
   .side-profile {
     display: flex; align-items: center; gap: 10px; width: 100%;
     min-height: 46px; padding: 10px 12px;
