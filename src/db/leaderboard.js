@@ -15,9 +15,10 @@
 // ============================================================================
 import { supabase, isConfigured, hasSession } from './supabase.js'
 import { withTimeout } from '../lib/withTimeout.js'
-import { db, loginDb } from './local.js'
+import { db, loginDb, getMeta, setMeta } from './local.js'
 import { setOneRepMax } from '../lib/oneRepMax.js'
 import { cmpIsoAsc } from '../lib/cmp.js'
+import { shouldRefetchLeaderboard } from '../lib/leaderboardCache.js'
 
 // Порядок рейтинга — по ФАКТИЧЕСКОМУ весу: тяжелее выше; при равном весе —
 // больше повторов; при равных и весе, и повторах — кто достиг раньше.
@@ -34,14 +35,21 @@ export function cmpBoard(a, b) {
 // Агрегация целиком на сервере (RPC leaderboard_bench, см. supabase/rpc.sql):
 // Postgres возвращает по одной строке на участника — самый тяжёлый ФАКТИЧЕСКИЙ
 // подход (weight/reps/performed_at) и лучший расчётный 1ПМ (orm) по всей истории.
-export async function fetchLeaderboard() {
+export async function fetchLeaderboard({ force = false } = {}) {
   if (!isConfigured || !navigator.onLine) return
   // Та же гонка, что и в fetchFeed: до готовности сессии RPC уходит ролью `anon`
   // и ловит «permission denied». Ждём сессию (см. hasSession), иначе тихо выходим.
   if (!(await hasSession())) return
+  // TTL-троттлинг (lib/leaderboardCache): RPC пересчитывает рейтинг по всей истории,
+  // а экран дёргает fetchLeaderboard на каждый вход/resume/online — не ходим на
+  // сервер чаще раза в минуту, экран и так читает из локального кэша мгновенно.
+  if (!force && !shouldRefetchLeaderboard(await getMeta('leaderboardFetchedAt'), Date.now())) return
 
   const res = await withTimeout(supabase.rpc('leaderboard_bench'))
   if (res.error) throw res.error
+  // Успешно опросили сервер — запоминаем момент для TTL (даже если ответ пуст,
+  // чтобы пустой борд не молотил RPC на каждый resume).
+  await setMeta('leaderboardFetchedAt', new Date().toISOString())
 
   // board: 'm' (жим) | 'f' (ягодичный мостик). Старый сервер без поля board →
   // 'm' (обратная совместимость: один рейтинг = мужской борд, как было раньше).
