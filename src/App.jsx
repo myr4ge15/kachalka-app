@@ -310,6 +310,20 @@ export default function App() {
           <TabIcon name="progress" />
           <span>Прогресс</span>
         </button>
+
+        {/* Профиль в сайдбаре: виден только на десктопе (≥900px), уезжает вниз
+            колонки (.side-foot margin-top:auto). На мобиле скрыт — там в профиль
+            ведёт кнопка-имя в шапке. */}
+        <div className="side-foot">
+          <button
+            className={'side-profile' + (tab === 'profile' ? ' active' : '')}
+            onClick={() => goTab('profile')}
+            aria-label="Открыть профиль"
+          >
+            <Avatar name={user.name} url={myCached?.avatar_url} className="avatar-sm" />
+            <span className="side-profile-name">{user.name}</span>
+          </button>
+        </div>
       </nav>
 
       <Toast />

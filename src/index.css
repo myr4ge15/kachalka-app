@@ -120,8 +120,9 @@ input { font-family: inherit; }
   .tab.active .tab-ico { transform: none; }
 }
 /* Бренд-шапка сайдбара живёт в .tabbar, но нужна только на десктопе, где таббар
-   становится левой колонкой (см. медиазапрос ≥900px внизу). На мобиле — скрыта. */
-.side-brand { display: none; }
+   становится левой колонкой (см. медиазапрос ≥900px внизу). На мобиле — скрыта.
+   Профиль в подвале сайдбара (.side-foot) — тоже только для десктопа. */
+.side-brand, .side-foot { display: none; }
 
 .screen {
   padding: 16px; max-width: 560px; margin: 0 auto;
@@ -1097,6 +1098,29 @@ img.avatar-lg.has-img {
     background: rgba(22,163,74,.16); border: 1px solid var(--green);
   }
   .side-brand-txt { font-weight: 800; font-size: 16px; }
+
+  /* ЛК переехал в сайдбар: имя-кнопку в шапке прячем, статус/колокольчик
+     прижимаем вправо. */
+  .topbar { justify-content: flex-end; }
+  .topbar-user { display: none; }
+
+  /* Профиль в подвале сайдбара — прижат к низу (margin-top:auto), отделён
+     линией сверху; оформлен как пункт навигации. */
+  .side-foot {
+    display: block; margin-top: auto;
+    padding-top: 10px; border-top: 1px solid var(--border);
+  }
+  .side-profile {
+    display: flex; align-items: center; gap: 10px; width: 100%;
+    min-height: 46px; padding: 10px 12px;
+    border: 1px solid transparent; border-radius: 11px;
+    background: none; color: var(--text); font-size: 14px; font-weight: 600; text-align: left;
+  }
+  .side-profile:hover { background: var(--surface); }
+  .side-profile.active {
+    color: #86efac; background: rgba(22,163,74,.12); border-color: var(--green-d);
+  }
+  .side-profile-name { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 
   /* Пункт навигации: иконка + подпись в строку, выравнивание по левому краю,
      активный — зелёная «таблетка» вместо простой смены цвета. */
