@@ -30,6 +30,7 @@ import { mergeDecision } from '../lib/mergeClock.js'
 import { selectStaleWorkoutIds } from '../lib/pullReconcile.js'
 import { maxUpdatedAt, changedSince, rosterSignature } from '../lib/pullWatermark.js'
 import { pollIntervalFor, isRealtimeAlive, makeDebouncer } from '../lib/realtimeSync.js'
+import { backoffDelay, nextFailureCount } from '../lib/backoff.js'
 
 // Свернуть всплеск Realtime-событий в один syncNow (несколько правок подряд на
 // сервере не должны дёргать pull лавиной). Инкрементальный pull дёшев, поэтому
@@ -711,6 +712,8 @@ async function pullGoal(userId) {
 let running = false
 
 // Полный цикл: сначала отдаём локальные изменения, затем забираем серверные.
+// Возвращает: true — прогон прошёл (для сброса backoff поллинга), false — сбой
+// (для роста интервала), undefined — прогон пропущен (офлайн/нет сессии/уже идёт).
 export async function syncNow(userId) {
   if (!isConfigured || !navigator.onLine || running || !userId) return
   // Персональная база ещё не открыта (или уже закрыта после выхода) — синкать
@@ -752,8 +755,13 @@ export async function syncNow(userId) {
     // пуша цели показываем как lastError, но синк считается прошедшим — lastSyncAt обновлён.
     const allWarn = [...(warnings ?? []), ...(goalWarn ? [goalWarn] : [])]
     setState({ lastError: allWarn.length ? allWarn.join('; ') : null, lastSyncAt: at })
+    // Прогон дошёл до конца (частичные warning'и — не сбой, lastSyncAt обновлён):
+    // возвращаем true, чтобы backoff поллинга сбросился в базовый интервал.
+    return true
   } catch (err) {
     setState({ lastError: String(err?.message ?? err) })
+    // Сбой прогона → false: поллинг растянет интервал (см. lib/backoff.js).
+    return false
   } finally {
     running = false
     setState({ syncing: false, online: navigator.onLine })
@@ -764,24 +772,40 @@ export async function syncNow(userId) {
 export function startSync(getUserId) {
   // Подписки через общий хаб событий (см. lib/appEvents.js): DOM-слушатели там
   // регистрируются один раз на всё приложение.
+  // Адаптивный поллинг + экспоненциальный backoff при сбоях (lib/backoff.js).
+  // Базовый интервал задаёт Realtime-статус (частый опрос, пока канал не
+  // подтверждён; страховочный редкий — при живом канале, он сам толкает изменения),
+  // а подряд идущие ошибки синка растягивают его до потолка; первый успех сбрасывает
+  // к базовому. Поэтому таймер — самоперепланируемый setTimeout, а не фиксированный
+  // setInterval: интервал следующего прогона зависит и от статуса, и от числа сбоев.
+  let timer = null
+  let baseMs = pollIntervalFor(false)
+  let failures = 0
+  const scheduleNext = () => {
+    if (timer) clearTimeout(timer)
+    timer = setTimeout(tick, backoffDelay(baseMs, failures))
+  }
+  async function tick() {
+    const ok = await syncNow(getUserId())
+    failures = nextFailureCount(failures, ok)
+    scheduleNext()
+  }
+  // Сбросить backoff и опросить немедленно — на сильных сигналах «связь вернулась»
+  // (снова онлайн / приложение из фона), чтобы не досиживать длинный отступ.
+  const retryNow = () => {
+    failures = 0
+    scheduleNext()
+    syncNow(getUserId())
+  }
+
   const offOnline = onOnline(() => {
     setState({ online: true })
-    syncNow(getUserId())
+    retryNow()
   })
   const offOffline = onOffline(() => setState({ online: false }))
-  const offResume = onResume(() => syncNow(getUserId()))
+  const offResume = onResume(retryNow)
 
-  // Адаптивный поллинг: пока Realtime не подтверждён — частый опрос (как раньше),
-  // при живом канале растягиваем интервал до страховочного (Realtime сам толкает
-  // изменения). Пересоздаём таймер только при смене интервала (см. applyRealtimeStatus).
-  let timer = null
-  let pollMs = pollIntervalFor(false)
-  const restartTimer = (ms) => {
-    if (timer) clearInterval(timer)
-    pollMs = ms
-    timer = setInterval(() => syncNow(getUserId()), ms)
-  }
-  restartTimer(pollMs)
+  scheduleNext()
 
   // Realtime-триггер (виш BACKLOG): postgres_changes по workouts/goals даёт
   // мгновенное «друг побил рекорд» вместо потолка латентности в POLL_FAST_MS.
@@ -793,7 +817,7 @@ export function startSync(getUserId) {
   let channel = null
   const applyRealtimeStatus = (status) => {
     const ms = pollIntervalFor(isRealtimeAlive(status))
-    if (ms !== pollMs) restartTimer(ms)
+    if (ms !== baseMs) { baseMs = ms; scheduleNext() }
   }
   const openChannel = () => {
     if (channel) return // канал уже поднят — supabase-js сам обновляет его токен на refresh
@@ -830,7 +854,7 @@ export function startSync(getUserId) {
     offOnline()
     offOffline()
     offResume()
-    if (timer) clearInterval(timer)
+    if (timer) clearTimeout(timer)
     debounced.cancel()
     if (channel) { supabase.removeChannel(channel); channel = null }
     authSub?.subscription?.unsubscribe?.()
