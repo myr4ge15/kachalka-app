@@ -1099,10 +1099,9 @@ img.avatar-lg.has-img {
   }
   .side-brand-txt { font-weight: 800; font-size: 16px; }
 
-  /* ЛК переехал в сайдбар: имя-кнопку в шапке прячем, статус/колокольчик
-     прижимаем вправо. */
-  .topbar { justify-content: flex-end; }
-  .topbar-user { display: none; }
+  /* ЛК, статус синка и колокольчик уехали в сайдбар — шапка на десктопе не
+     нужна, скрываем её целиком (место освобождается под контент). */
+  .topbar { display: none; }
 
   /* Профиль в подвале сайдбара — прижат к низу (margin-top:auto), отделён
      линией сверху; оформлен как пункт навигации. */
@@ -1110,6 +1109,9 @@ img.avatar-lg.has-img {
     display: block; margin-top: auto;
     padding-top: 10px; border-top: 1px solid var(--border);
   }
+  /* Ряд «статус синка + колокольчик» в подвале сайдбара. */
+  .side-tools { display: flex; align-items: center; gap: 8px; margin-bottom: 10px; }
+  .side-tools .sync-badge, .side-tools .bell { margin-right: 0; }
   .side-profile {
     display: flex; align-items: center; gap: 10px; width: 100%;
     min-height: 46px; padding: 10px 12px;
@@ -1287,6 +1289,26 @@ img.avatar-lg.has-img {
 .admin-input:focus { outline: none; border-color: var(--green); }
 .admin-check { display: flex; align-items: center; gap: 9px; font-size: 14px; color: var(--text); }
 .admin-check input { width: 20px; height: 20px; accent-color: var(--green); }
+
+/* Единые поля админ-форм (правка/создание участника и упражнения): подпись над
+   контролом с ровным отступом; селекты (Роль/Пол) той же высоты, паддинга и фона,
+   что и текстовые инпуты — иначе зазоры «текст ↔ ячейка» и высоты полей разъезжаются
+   (у .admin-input и .prog-select были разные paddings/font-size/фон). */
+.admin-user-edit .field,
+.admin-ex-edit .field,
+.admin-add .field { display: block; }
+.admin-user-edit .field-lab,
+.admin-ex-edit .field-lab,
+.admin-add .field-lab {
+  display: block; margin-bottom: 6px;
+  font-size: 13px; color: var(--muted);
+}
+.admin-user-edit .prog-select,
+.admin-ex-edit .prog-select,
+.admin-add .prog-select {
+  padding: 11px 13px; font-size: 15px; min-height: 44px;
+  background: var(--bg);
+}
 .admin-ex-actions { display: flex; gap: 10px; }
 .admin-ex-actions .btn { flex: 1; margin-top: 0; }
 

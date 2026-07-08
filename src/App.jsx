@@ -315,6 +315,21 @@ export default function App() {
             колонки (.side-foot margin-top:auto). На мобиле скрыт — там в профиль
             ведёт кнопка-имя в шапке. */}
         <div className="side-foot">
+          {/* Статус синка + колокольчик уведомлений на десктопе живут здесь
+              (шапка на десктопе скрыта). На мобиле этот блок скрыт — они в шапке. */}
+          <div className="side-tools">
+            <SyncBadge />
+            <button
+              className={'bell' + (unread > 0 ? ' has' : '')}
+              onClick={() => goTab('notif')}
+              aria-label={unread > 0 ? `Уведомления: ${unread} новых` : 'Уведомления'}
+            >
+              🔔
+              {unread > 0 && (
+                <span className="bell-count">{unread > 9 ? '9+' : unread}</span>
+              )}
+            </button>
+          </div>
           <button
             className={'side-profile' + (tab === 'profile' ? ' active' : '')}
             onClick={() => goTab('profile')}
