@@ -1,6 +1,7 @@
 import { describe, it, expect } from 'vitest'
 import {
   REACTION_KINDS, isReactionKind, summarizeReactions, reactorLine, applyReactionQueue,
+  computeReactionNotifs,
 } from './reactions.js'
 
 const r = (user_id, kind, name) => ({ user_id, kind, name })
@@ -97,5 +98,63 @@ describe('applyReactionQueue', () => {
     expect(same).toBe(src)
     applyReactionQueue(src, [{ workoutId: 'w2', kind: 'wow', op: 'add' }], { id: 'me', name: 'Я' })
     expect(src[1].reactions).toEqual([]) // исходный не тронут
+  })
+})
+
+describe('computeReactionNotifs', () => {
+  const rr = (user_id, kind, name, created_at) => ({ user_id, kind, name, created_at })
+
+  it('уведомляет о чужих реакциях под МОИМИ тренировками', () => {
+    const feed = [
+      { id: 'w1', user_id: 'me', reactions: [rr('u2', 'fire', 'Вася', '2026-07-08T10:00:00Z')] },
+      // чужая тренировка — реакции под ней меня не касаются
+      { id: 'w2', user_id: 'u3', reactions: [rr('u2', 'clap', 'Вася', '2026-07-08T11:00:00Z')] },
+    ]
+    const out = computeReactionNotifs(feed, 'me')
+    expect(out).toHaveLength(1)
+    expect(out[0]).toMatchObject({
+      type: 'reaction', workoutId: 'w1', who: 'Вася', emojis: ['🔥'], at: '2026-07-08T10:00:00Z',
+    })
+  })
+
+  it('группирует несколько видов одного человека в один пункт, эмодзи в порядке кнопок', () => {
+    const feed = [{
+      id: 'w1', user_id: 'me', reactions: [
+        rr('u2', 'fire', 'Вася', '2026-07-08T10:00:00Z'),
+        rr('u2', 'muscle', 'Вася', '2026-07-08T10:05:00Z'),
+      ],
+    }]
+    const out = computeReactionNotifs(feed, 'me')
+    expect(out).toHaveLength(1)
+    expect(out[0].emojis).toEqual(['💪', '🔥']) // muscle раньше fire
+    expect(out[0].at).toBe('2026-07-08T10:05:00Z') // время — самой свежей
+  })
+
+  it('разные реагировавшие — разные пункты', () => {
+    const feed = [{
+      id: 'w1', user_id: 'me', reactions: [
+        rr('u2', 'fire', 'Вася', '2026-07-08T10:00:00Z'),
+        rr('u3', 'clap', 'Оля', '2026-07-08T10:01:00Z'),
+      ],
+    }]
+    const out = computeReactionNotifs(feed, 'me')
+    expect(out).toHaveLength(2)
+    expect(out.map((n) => n.who).sort()).toEqual(['Вася', 'Оля'])
+  })
+
+  it('игнорирует мои собственные реакции, мусорные виды и реакции без даты', () => {
+    const feed = [{
+      id: 'w1', user_id: 'me', reactions: [
+        rr('me', 'fire', 'Я', '2026-07-08T10:00:00Z'),      // моя — пропуск
+        rr('u2', 'like', 'Вася', '2026-07-08T10:00:00Z'),   // мусор — пропуск
+        rr('u3', 'wow', 'Оля', null),                       // без даты — пропуск
+      ],
+    }]
+    expect(computeReactionNotifs(feed, 'me')).toEqual([])
+  })
+
+  it('устойчив к мусору на входе', () => {
+    expect(computeReactionNotifs(null, 'me')).toEqual([])
+    expect(computeReactionNotifs([{ id: 'w1', user_id: 'me' }], null)).toEqual([])
   })
 })

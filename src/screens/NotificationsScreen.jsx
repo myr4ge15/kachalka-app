@@ -39,7 +39,7 @@ export default function NotificationsScreen({ user }) {
   return (
     <div className="screen">
       <h2 className="screen-title">Уведомления</h2>
-      <p className="muted sub">Твои рекорды и кто обходит тебя в кругу</p>
+      <p className="muted sub">Твои рекорды, реакции друзей и кто обходит тебя в кругу</p>
 
       {loading && <p className="muted">Загрузка…</p>}
 
@@ -55,7 +55,11 @@ export default function NotificationsScreen({ user }) {
 
       {items.map((n) => {
         const unread = cmpIsoAsc(seenRef.current, n.at) < 0
-        const icon = n.type === 'mine' ? '🏆' : n.type === 'goal' ? '🎯' : '🔥'
+        const icon =
+          n.type === 'mine' ? '🏆'
+          : n.type === 'goal' ? '🎯'
+          : n.type === 'reaction' ? (n.emojis?.[0] ?? '👏')
+          : '🔥'
         const cls = 'notif ' + n.type + (unread ? ' unread' : ' read')
         return (
           <div key={n.id} className={cls}>
@@ -79,6 +83,16 @@ export default function NotificationsScreen({ user }) {
                   </div>
                   <div className="n-text">
                     Ты дотянул до цели: <b>{fmtMetricValue(n.metric, n.value)}</b>
+                  </div>
+                </>
+              )}
+              {n.type === 'reaction' && (
+                <>
+                  <div className="n-title">
+                    Реакция на тренировку · <span className="hl">{n.who}</span>
+                  </div>
+                  <div className="n-text">
+                    Оценил твою тренировку: <b>{(n.emojis ?? []).join(' ')}</b>
                   </div>
                 </>
               )}

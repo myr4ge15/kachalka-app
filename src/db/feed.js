@@ -84,7 +84,7 @@ async function attachReactions(items) {
     const res = await withTimeout(
       supabase
         .from('reactions')
-        .select('workout_id, user_id, kind, user:users!reactions_user_id_fkey(name)')
+        .select('workout_id, user_id, kind, created_at, user:users!reactions_user_id_fkey(name)')
         .in('workout_id', ids)
     )
     if (res.error || !res.data) return
@@ -95,6 +95,7 @@ async function attachReactions(items) {
         user_id: r.user_id,
         name: r.user?.name ?? '—',
         kind: r.kind,
+        created_at: r.created_at ?? null, // для уведомлений о реакциях (водяной знак времени)
       })
     }
     for (const item of items) item.reactions = byWorkout.get(item.id) ?? []

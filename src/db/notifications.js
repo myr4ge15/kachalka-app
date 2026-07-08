@@ -13,6 +13,7 @@
 import { db, getMeta, setMeta, nowIso } from './local.js'
 import { cmpIsoAsc, cmpIsoDesc } from '../lib/cmp.js'
 import { myBestByExercise, minePrs, computeBeaten, computeNewPrs, crossedGoal, goalMetByExercise } from '../lib/records.js'
+import { computeReactionNotifs } from '../lib/reactions.js'
 import { normMetric } from '../lib/metric.js'
 
 // Метка «прочитано» неймспейснута по userId — иначе на общем устройстве второй
@@ -84,7 +85,9 @@ export async function getNotifications(userId) {
   const mine = minePrs(workouts)
   const beaten = computeBeaten(feedItems, userId, myBest)
   const goal = await goalNotif(userId)
-  return [...mine, ...beaten, ...goal]
+  // Реакции на мои тренировки — из того же окна ленты (в нём есть и мои записи).
+  const reactions = computeReactionNotifs(feedItems, userId)
+  return [...mine, ...beaten, ...goal, ...reactions]
     .sort((a, b) => cmpIsoDesc(a.at, b.at))
     .slice(0, LIMIT)
 }

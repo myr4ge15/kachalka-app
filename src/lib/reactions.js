@@ -3,6 +3,7 @@
 // Виды реакций НЕЗАВИСИМЫ (можно поставить несколько разных под одной
 // тренировкой). Эмодзи держим только на клиенте, на сервере/в очереди — слаги
 // (muscle/fire/clap/wow), см. supabase/reactions.sql.
+import { cmpIsoAsc } from './cmp.js'
 
 // Порядок = порядок кнопок в карточке ленты.
 export const REACTION_KINDS = [
@@ -14,6 +15,12 @@ export const REACTION_KINDS = [
 
 const KIND_SET = new Set(REACTION_KINDS.map((k) => k.kind))
 export const isReactionKind = (k) => KIND_SET.has(k)
+
+// Слаг вида → эмодзи (для уведомлений о реакциях). Неизвестный вид → ''.
+const KIND_EMOJI = new Map(REACTION_KINDS.map((k) => [k.kind, k.emoji]))
+export const emojiForKind = (k) => KIND_EMOJI.get(k) ?? ''
+// Индекс вида в фиксированном порядке кнопок (для стабильной сортировки эмодзи).
+const KIND_ORDER = new Map(REACTION_KINDS.map((k, i) => [k.kind, i]))
 
 // Сводка реакций тренировки для UI.
 //   list — плоский массив [{ user_id, name, kind }] (сервер + оптимистичная
@@ -55,6 +62,47 @@ export function reactorLine(names, cap = 3) {
   if (list.length === 0) return ''
   if (list.length <= cap) return list.join(', ')
   return list.slice(0, cap).join(', ') + ' +' + (list.length - cap)
+}
+
+// Уведомления «кто-то отреагировал на твою тренировку» (только клиент, без TG).
+// Источник — окно кэша ленты `feed` (в нём есть и МОИ тренировки с их реакциями).
+// Берём реакции ЧУЖИХ пользователей под МОИМИ тренировками и группируем по
+// (тренировка, реагировавший): один пункт на человека, все его виды — списком
+// эмодзи в фиксированном порядке. Время пункта (`at`) — самая свежая реакция
+// этого человека под тренировкой (двигает водяной знак «прочитано», как рекорды).
+//   items — элементы ленты [{ id, user_id, reactions:[{user_id,name,kind,created_at}] }];
+//   myUserId — id текущего пользователя (владельца тренировок).
+// Возвращает [{ id, type:'reaction', workoutId, who, emojis:[…], at }].
+// Реакции без created_at пропускаем (старый кэш до раскатки — нечем датировать).
+export function computeReactionNotifs(items, myUserId) {
+  if (!Array.isArray(items) || myUserId == null) return []
+  const groups = new Map() // `${workoutId}:${reactorId}` → { workoutId, who, kinds:Set, at }
+  for (const it of items) {
+    if (!it || it.user_id !== myUserId) continue // только мои тренировки
+    for (const r of it.reactions ?? []) {
+      if (!r || !isReactionKind(r.kind)) continue
+      if (r.user_id == null || r.user_id === myUserId) continue // не про свои реакции
+      if (!r.created_at) continue
+      const key = `${it.id}:${r.user_id}`
+      let g = groups.get(key)
+      if (!g) {
+        g = { workoutId: it.id, reactorId: r.user_id, who: r.name ?? '—', kinds: new Set(), at: r.created_at }
+        groups.set(key, g)
+      }
+      g.kinds.add(r.kind)
+      if (cmpIsoAsc(g.at, r.created_at) < 0) g.at = r.created_at
+    }
+  }
+  return [...groups.values()].map((g) => ({
+    id: `reaction:${g.workoutId}:${g.reactorId}`,
+    type: 'reaction',
+    workoutId: g.workoutId,
+    who: g.who,
+    emojis: [...g.kinds]
+      .sort((a, b) => (KIND_ORDER.get(a) ?? 0) - (KIND_ORDER.get(b) ?? 0))
+      .map((k) => emojiForKind(k)),
+    at: g.at,
+  }))
 }
 
 // Наложить локальную очередь реакций (reaction_outbox) на элементы ленты, чтобы
