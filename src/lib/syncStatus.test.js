@@ -66,4 +66,43 @@ describe('syncBadgeState', () => {
       title: '1 не синхронизировано',
     })
   })
+
+  // Регресс-кейс авиарежима: navigator.onLine остаётся true, запрос падает по таймауту,
+  // очередь пуста → раньше показывалась зелёная галочка «Синхронизировано». Ждём
+  // предупреждение, а не «ок».
+  it('сетевой сбой последнего прогона — предупреждение, а не «синхронизировано»', () => {
+    expect(syncBadgeState({ online: true, syncing: false, pending: 0, dead: 0, netError: true })).toEqual({
+      cls: 'warn',
+      icon: 'warn',
+      text: '',
+      title: 'Не удалось синхронизировать — проверь связь',
+    })
+  })
+
+  it('идёт синхронизация приоритетнее сетевого сбоя', () => {
+    expect(syncBadgeState({ online: true, syncing: true, netError: true })).toEqual({
+      cls: 'busy',
+      icon: 'syncing',
+      text: '',
+      title: 'Синхронизация…',
+    })
+  })
+
+  it('офлайн приоритетнее сетевого сбоя', () => {
+    expect(syncBadgeState({ online: false, syncing: false, netError: true })).toEqual({
+      cls: 'offline',
+      icon: 'offline',
+      text: '',
+      title: 'Офлайн',
+    })
+  })
+
+  it('живая очередь приоритетнее сетевого сбоя', () => {
+    expect(syncBadgeState({ online: true, syncing: false, pending: 2, netError: true })).toEqual({
+      cls: 'busy',
+      icon: 'pending',
+      text: '2',
+      title: '2 не синхронизировано',
+    })
+  })
 })

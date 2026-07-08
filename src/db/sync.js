@@ -63,7 +63,12 @@ const SELECT_TEMPLATE =
   'exercise:exercises(id, name, muscle_group, is_bench_lift, metric))'
 
 // ----------------------- наблюдаемое состояние синка -----------------------
-let state = { online: navigator.onLine, syncing: false, lastError: null, lastSyncAt: null }
+// netError — последний ПОЛНЫЙ прогон синка упал по сети/серверу (throw в push/pull,
+// напр. таймаут запроса). Отличаем от частичных warning'ов (lastError при обновлённом
+// lastSyncAt = синк прошёл): netError=true только когда прогон реально не завершился.
+// Нужен шапке, чтобы не рисовать «синхронизировано» поверх молчаливого сбоя (частый
+// кейс — авиарежим на десктопе, где navigator.onLine остаётся true). См. lib/syncStatus.js.
+let state = { online: navigator.onLine, syncing: false, lastError: null, lastSyncAt: null, netError: false }
 const listeners = new Set()
 function setState(patch) {
   state = { ...state, ...patch }
@@ -754,12 +759,15 @@ export async function syncNow(userId) {
     // Частичные сбои pull (справочник/пользователи/шаблоны не обновились) и сбой
     // пуша цели показываем как lastError, но синк считается прошедшим — lastSyncAt обновлён.
     const allWarn = [...(warnings ?? []), ...(goalWarn ? [goalWarn] : [])]
-    setState({ lastError: allWarn.length ? allWarn.join('; ') : null, lastSyncAt: at })
+    // Прогон дошёл до конца (частичные warning'и — не сбой) → netError сброшен.
+    setState({ lastError: allWarn.length ? allWarn.join('; ') : null, lastSyncAt: at, netError: false })
     // Прогон дошёл до конца (частичные warning'и — не сбой, lastSyncAt обновлён):
     // возвращаем true, чтобы backoff поллинга сбросился в базовый интервал.
     return true
   } catch (err) {
-    setState({ lastError: String(err?.message ?? err) })
+    // Прогон упал целиком (push/pull бросили) → netError=true: шапка покажет
+    // предупреждение вместо ложной галочки «синхронизировано».
+    setState({ lastError: String(err?.message ?? err), netError: true })
     // Сбой прогона → false: поллинг растянет интервал (см. lib/backoff.js).
     return false
   } finally {

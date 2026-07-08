@@ -46,12 +46,13 @@ function SyncIcon({ name }) {
 
 // Индикатор состояния синхронизации в шапке.
 function SyncBadge() {
-  const { online, syncing, pending, dead } = useSyncStatus()
+  const { online, syncing, pending, dead, netError } = useSyncStatus()
   // Класс/иконка/текст — чистой логикой (см. lib/syncStatus.js). Иконка есть всегда,
   // текст — только когда есть что чинить (очередь/офлайн/застряло). Застрявшие
   // изменения (dead) делают бейдж предупреждающим, а не «синхронизировано», пока
-  // карточки висят с жёлтым кружком.
-  const { cls, icon, text, title } = syncBadgeState({ online, syncing, pending, dead })
+  // карточки висят с жёлтым кружком. netError — последний прогон синка упал по сети
+  // (напр. таймаут в авиарежиме при online=true): тоже предупреждение, а не галочка.
+  const { cls, icon, text, title } = syncBadgeState({ online, syncing, pending, dead, netError })
   return (
     <span className={`sync-badge ${cls}`} role="status" aria-label={title} title={title}>
       <SyncIcon name={icon} />
