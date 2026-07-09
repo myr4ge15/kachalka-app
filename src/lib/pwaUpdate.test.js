@@ -1,5 +1,5 @@
-import { describe, it, expect } from 'vitest'
-import { shouldReshowUpdate } from './pwaUpdate.js'
+import { describe, it, expect, vi } from 'vitest'
+import { shouldReshowUpdate, makeReloadOnce } from './pwaUpdate.js'
 
 const TTL = 4 * 60 * 60 * 1000 // 4 часа
 
@@ -18,5 +18,19 @@ describe('shouldReshowUpdate', () => {
   })
   it('сильно после TTL → показываем', () => {
     expect(shouldReshowUpdate({ hasWaiting: true, snoozedAt: 1000, now: 1000 + TTL * 5, ttl: TTL })).toBe(true)
+  })
+})
+
+describe('makeReloadOnce', () => {
+  it('первый вызов перезагружает', () => {
+    const reload = vi.fn()
+    makeReloadOnce(reload)()
+    expect(reload).toHaveBeenCalledTimes(1)
+  })
+  it('повторные вызовы не дублируют reload', () => {
+    const reload = vi.fn()
+    const once = makeReloadOnce(reload)
+    once(); once(); once()
+    expect(reload).toHaveBeenCalledTimes(1)
   })
 })

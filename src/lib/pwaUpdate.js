@@ -15,3 +15,21 @@ export function shouldReshowUpdate({ hasWaiting, snoozedAt, now, ttl }) {
   if (!snoozedAt) return false         // не откладывали — повторно не навязываем
   return now - snoozedAt >= ttl        // прошло достаточно с момента «Позже»
 }
+
+// Одноразовая перезагрузка при смене контроллера SW (v3.10.2). Нужна, потому что
+// vite-plugin-pwa в prompt-режиме перезагружает страницу сам ТОЛЬКО в обработчике
+// `controlling` под условием `event.isUpdate` (= была ли страница под контролем SW
+// на момент старта). На десктопе первая сессия часто идёт БЕЗ контроллера
+// (clientsClaim выкл.) → isUpdate=false → reload не срабатывает, новая версия
+// «висит» до ручного Ctrl+Shift+R. Свой controllerchange→reload перекрывает этот
+// случай; флаг гасит повторный вызов (workbox мог перезагрузить в том же событии).
+//
+// Чистая фабрика (reload инъекцией) — тестируется юнит-тестом.
+export function makeReloadOnce(reload) {
+  let done = false
+  return () => {
+    if (done) return
+    done = true
+    reload()
+  }
+}

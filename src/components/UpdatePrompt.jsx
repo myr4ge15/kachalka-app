@@ -1,7 +1,7 @@
 import { useEffect, useRef } from 'react'
 import { useRegisterSW } from 'virtual:pwa-register/react'
 import { onOnline, onResume } from '../lib/appEvents.js'
-import { shouldReshowUpdate } from '../lib/pwaUpdate.js'
+import { shouldReshowUpdate, makeReloadOnce } from '../lib/pwaUpdate.js'
 
 // Как часто, пока приложение открыто, форсим проверку нового деплоя. Браузер сам
 // опрашивает service worker редко (навигация / ~раз в сутки), поэтому в долго
@@ -66,13 +66,25 @@ export default function UpdatePrompt() {
     setNeedRefresh(false)
   }
 
+  // Применить обновление. updateServiceWorker(true) лишь шлёт SKIP_WAITING —
+  // саму перезагрузку vite-plugin-pwa делает в обработчике `controlling` под
+  // `event.isUpdate`, который на неконтролируемой странице (частый случай на
+  // десктопе) = false → reload не срабатывал, приходилось жать Ctrl+Shift+R.
+  // Вешаем СВОЙ одноразовый controllerchange→reload: новый SW активируется,
+  // захватывает страницу (clientsClaim) и меняет контроллер → перезагружаемся.
+  const applyUpdate = () => {
+    const reloadOnce = makeReloadOnce(() => window.location.reload())
+    navigator.serviceWorker?.addEventListener('controllerchange', reloadOnce)
+    updateServiceWorker(true)
+  }
+
   if (!needRefresh) return null
 
   return (
     <div className="update-pill" role="alert">
       <span className="update-pill-dot" aria-hidden="true" />
       <span className="update-pill-text">Новая версия</span>
-      <button className="update-pill-go" onClick={() => updateServiceWorker(true)}>
+      <button className="update-pill-go" onClick={applyUpdate}>
         Обновить
       </button>
       <button className="update-pill-close" onClick={snooze} aria-label="Позже">
