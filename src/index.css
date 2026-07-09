@@ -77,9 +77,13 @@ input { font-family: inherit; }
 /* Метка несинхронизированной тренировки в Истории */
 .dot-unsynced { color: #fcd34d; font-size: 10px; margin-left: 6px; vertical-align: middle; }
 
-/* Колокольчик уведомлений в шапке + счётчик непрочитанных (ТЗ §4.5) */
+/* Колокольчик уведомлений в шапке + счётчик непрочитанных (ТЗ §4.5).
+   Центрируем эмодзи flex'ом и гасим дефолтный padding кнопки: iOS Safari (UA-стили
+   -webkit-appearance) рендерит текст кнопки по baseline-метрикам эмодзи — 🔔 визуально
+   съезжал вниз/вбок внутри квадрата. */
 .bell {
   position: relative; width: 40px; height: 40px; flex-shrink: 0;
+  display: inline-flex; align-items: center; justify-content: center; padding: 0;
   margin-right: 8px; border-radius: 12px; border: 1px solid var(--border);
   background: var(--surface-2); color: var(--text); font-size: 19px; line-height: 1;
 }
