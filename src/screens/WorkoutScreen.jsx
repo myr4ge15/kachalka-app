@@ -10,6 +10,7 @@ import { exerciseMetric, isCountMetric, fmtMetricValue, fmtSet, fmtTime, parseTi
 import { recommendProgression, resolveProgSettings } from '../lib/progression.js'
 import { WEIGHT_MAX, repsMax } from '../lib/setLimits.js'
 import { exportWorkouts } from '../lib/exportWorkout.js'
+import { vibrate, HAPTIC } from '../lib/haptics.js'
 import HoldButton from '../components/HoldButton.jsx'
 import ExercisePicker from '../components/ExercisePicker.jsx'
 import TemplatePicker from '../components/TemplatePicker.jsx'
@@ -473,6 +474,9 @@ export default function WorkoutScreen({ user, workoutId = null, onBack }) {
         entries,
       })
       if (isNew) clearCache(DRAFT_KEY)
+      // Тактильный отклик по итогу сохранения: рекорд/цель — «праздничный»
+      // паттерн, обычное сохранение — короткий success (см. lib/haptics.js).
+      let celebrated = false
       // Поздравление с новым личным рекордом (ТЗ §4.5). Только для новой
       // тренировки — чтобы повторная правка старой записи не поднимала ложный
       // рекорд. Рекорды считаются из локальных данных, сеть не нужна.
@@ -514,8 +518,10 @@ export default function WorkoutScreen({ user, workoutId = null, onBack }) {
               showToast({ emoji: ins[0].emoji, title: 'Вывод после тренировки', sub: ins[0].text })
             }
           }
+          celebrated = congratulated
         } catch { /* тост необязателен */ }
       }
+      vibrate(celebrated ? HAPTIC.celebrate : HAPTIC.success)
       if (navigator.onLine) syncNow(user.id)
       onBack?.()
     } catch (err) {

@@ -8,6 +8,7 @@ import { onOnline, onResume } from '../lib/appEvents.js'
 import { fmtWhen, fmtAgo } from '../lib/dates.js'
 import { fmtMetricValue, fmtSet } from '../lib/metric.js'
 import { summarizeReactions, reactorLine } from '../lib/reactions.js'
+import { vibrate, HAPTIC } from '../lib/haptics.js'
 import Leaderboard from './Leaderboard.jsx'
 import Avatar from '../components/Avatar.jsx'
 
@@ -50,6 +51,8 @@ export default function FeedScreen({ user }) {
 
   // Тап по реакции: оптимистично (очередь + правка кэша ленты), затем отправка.
   const onReact = useCallback((workoutId, kind, mine) => {
+    // Тактильный отклик на постановку реакции (не на снятие) — лёгкое касание.
+    if (!mine) vibrate(HAPTIC.tap)
     toggleReaction({ userId: user.id, userName: myName, workoutId, kind, mine })
       .then(() => { if (navigator.onLine) syncNow(user.id) })
       .catch(() => { /* оптимистичная правка уже в кэше; синк догонит позже */ })
