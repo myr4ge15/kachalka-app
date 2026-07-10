@@ -240,6 +240,19 @@ input { font-family: inherit; }
 @media (prefers-reduced-motion: reduce) {
   .skel::after { animation: none; }
 }
+/* Отложенный показ каркаса: не мигать скелетоном на холодном старте.
+   useLiveQuery на первом рендере всегда undefined (чтение IndexedDB асинхронно),
+   поэтому экран рисует заглушку даже когда данные уже в кэше. Держим контейнер
+   загрузки (aria-busy) прозрачным первые ~220мс — быстрое локальное чтение
+   успевает размонтировать скелетон ДО появления, и контент возникает без мигания.
+   По-настоящему медленная загрузка (первый вход / тяжёлый чанк) заглушку покажет. */
+[aria-busy="true"] { animation: skel-appear .18s var(--ease-in-out) .22s both; }
+@keyframes skel-appear { from { opacity: 0; } to { opacity: 1; } }
+@media (prefers-reduced-motion: reduce) {
+  /* Задержку сохраняем (это анти-мигание, а не декоративное движение),
+     но убираем сам fade — снап после порога. */
+  [aria-busy="true"] { animation-duration: .01s; }
+}
 /* Раскладка каркаса экрана (<ScreenSkeleton>): заголовок + колонка карточек. */
 .skel-title { margin: 6px 0 16px; }
 .skel-cards { display: flex; flex-direction: column; gap: 12px; }
