@@ -4,9 +4,7 @@ import {
   getWorkouts, getCachedUser, setCachedAvatar, setCachedName, softDeleteMyWorkouts,
   deadLetterCount, retryDeadLetter, discardDeadLetter,
   getProgSettings, setProgEnabled,
-  getConnections, getUsers, requestConnection, acceptConnection, removeConnection,
 } from '../db/repo.js'
-import { deriveConnections } from '../lib/connections.js'
 import { readGoals, writeGoals } from '../db/notifications.js'
 import { syncNow } from '../db/sync.js'
 import { getCachedLeaderboard } from '../db/leaderboard.js'
@@ -644,9 +642,6 @@ export default function ProfileScreen({ user, onLogout, onOpenProgress, onOpenFe
         </>
       )}
 
-      {/* доступ к тренировкам (связи «избранного круга», v3.14.0) */}
-      <ConnectionsSection user={user} />
-
       {/* настройки и выход — свёрнуто по умолчанию, чтобы длинный экран не пух */}
       <section className="sec settings-sec">
         <button
@@ -771,136 +766,6 @@ export default function ProfileScreen({ user, onLogout, onOpenProgress, onOpenFe
       {/* версия приложения — подставляется на сборке из package.json (vite define) */}
       <p className="app-version">kachalka-app · v{APP_VERSION}</p>
     </div>
-  )
-}
-
-// ── Доступ к тренировкам (связи «избранного круга», v3.14.0) ─────────────────
-// Взаимная связь с подтверждением: открываешь свои тренировки конкретному человеку
-// и одновременно видишь его. Особенно нужно приватным (они закрыты от всех, но
-// могут собрать личный круг). Публичным — способ увидеть тренировки приватного
-// друга. Данные — из локального кэша connections (снимок my_connections на pull),
-// правки офлайн-first через repo (request/accept/removeConnection).
-function ConnectionsSection({ user }) {
-  const rows = useLiveQuery(() => getConnections(), [], [])
-  const roster = useLiveQuery(() => getUsers(), [], [])
-  const [pick, setPick] = useState('')
-  const [busy, setBusy] = useState(false)
-
-  const { accepted, incoming, outgoing } = useMemo(
-    () => deriveConnections(rows ?? [], user.id),
-    [rows, user.id]
-  )
-
-  // Имя участника: свежее из ростера, фолбэк — сохранённое в связи.
-  const nameById = useMemo(() => {
-    const m = new Map()
-    for (const u of roster ?? []) m.set(u.id, u.name)
-    return m
-  }, [roster])
-  const dispName = (row) => nameById.get(row.other_id) ?? row.other_name ?? '—'
-
-  // Кандидаты «добавить»: ростер минус я минус уже-в-связях (любой статус).
-  const candidates = useMemo(() => {
-    const taken = new Set((rows ?? []).map((r) => r.other_id))
-    return (roster ?? []).filter((u) => u.id !== user.id && !taken.has(u.id))
-  }, [roster, rows, user.id])
-
-  async function run(fn, ok) {
-    setBusy(true)
-    try {
-      await fn()
-      if (navigator.onLine) syncNow(user.id)
-      if (ok) showToast(ok)
-    } catch (e) {
-      showToast({ emoji: '⚠️', title: 'Не удалось', sub: String(e?.message ?? e) })
-    } finally {
-      setBusy(false)
-    }
-  }
-
-  function onAdd() {
-    if (!pick) return
-    const id = pick
-    const name = nameById.get(id) ?? '—'
-    setPick('')
-    run(() => requestConnection(user.id, id, name), { emoji: '🤝', title: 'Запрос отправлен', sub: name })
-  }
-
-  return (
-    <section className="sec">
-      <p className="sec-title">Доступ к тренировкам</p>
-      <p className="hint">
-        Взаимный доступ по подтверждению: вы с другом видите тренировки друг друга.
-        Так приватный может открыться избранным, не открываясь всем.
-      </p>
-
-      {/* входящие запросы */}
-      {incoming.map((r) => (
-        <div className="goal" key={`in-${r.other_id}`}>
-          <div className="goal-top">
-            <span className="lbl">{dispName(r)}</span>
-          </div>
-          <div className="goal-sub">хочет открыть тебе доступ к своим тренировкам</div>
-          <div className="goal-editor-actions">
-            <button className="btn danger-ghost" disabled={busy}
-              onClick={() => run(() => removeConnection(r.other_id))}>Отклонить</button>
-            <button className="btn primary" disabled={busy}
-              onClick={() => run(() => acceptConnection(r.other_id), { emoji: '🤝', title: 'Доступ открыт', sub: dispName(r) })}>Принять</button>
-          </div>
-        </div>
-      ))}
-
-      {/* принятые связи (мой круг) */}
-      {accepted.map((r) => (
-        <div className="goal" key={`ok-${r.other_id}`}>
-          <div className="goal-top">
-            <span className="lbl">{dispName(r)}</span>
-            <span className="pct">🤝</span>
-          </div>
-          <div className="goal-sub achieved">взаимный доступ открыт</div>
-          <div className="goal-editor-actions">
-            <button className="btn danger-ghost" disabled={busy}
-              onClick={() => run(() => removeConnection(r.other_id))}>Убрать доступ</button>
-          </div>
-        </div>
-      ))}
-
-      {/* исходящие (ждут подтверждения) */}
-      {outgoing.map((r) => (
-        <div className="goal" key={`out-${r.other_id}`}>
-          <div className="goal-top">
-            <span className="lbl">{dispName(r)}</span>
-          </div>
-          <div className="goal-sub">запрос отправлен, ждём подтверждения</div>
-          <div className="goal-editor-actions">
-            <button className="btn ghost" disabled={busy}
-              onClick={() => run(() => removeConnection(r.other_id))}>Отменить</button>
-          </div>
-        </div>
-      ))}
-
-      {/* добавить нового */}
-      {candidates.length > 0 ? (
-        <div className="goal">
-          <label className="field">
-            <span className="field-lab">Открыть доступ участнику</span>
-            <select className="prog-select" value={pick} onChange={(e) => setPick(e.target.value)}>
-              <option value="">— выбери участника —</option>
-              {candidates.map((u) => (
-                <option key={u.id} value={u.id}>{u.name}</option>
-              ))}
-            </select>
-          </label>
-          <div className="goal-editor-actions">
-            <button className="btn primary" onClick={onAdd} disabled={busy || !pick}>Отправить запрос</button>
-          </div>
-        </div>
-      ) : (
-        accepted.length === 0 && incoming.length === 0 && outgoing.length === 0 && (
-          <p className="muted empty">Пока не с кем обмениваться доступом.</p>
-        )
-      )}
-    </section>
   )
 }
 

@@ -597,52 +597,6 @@ async function pushReactions(userId) {
   }
 }
 
-// ----------------------------- связи ---------------------------------------
-// Связи «избранного круга» (v3.14.0). Очередь connection_outbox → RPC
-// request/accept/remove_connection. Идёт ДО pull/fetchFeed: только что принятая
-// связь должна открыть видимость тренировок в этом же цикле. Best-effort, как
-// реакции: ошибка/отсутствие RPC (поэтапная раскатка) не роняет синк, операция
-// после MAX_ATTEMPTS выбрасывается. Всегда СВОИ операции (гейт — в DEFINER-RPC).
-async function pushConnections() {
-  const ops = await db.connection_outbox.orderBy('seq').toArray()
-  for (const op of ops) {
-    try {
-      const fn =
-        op.op === 'request' ? 'request_connection'
-        : op.op === 'accept' ? 'accept_connection'
-        : 'remove_connection'
-      const { error } = await withTimeout(supabase.rpc(fn, { p_other: op.otherId }))
-      if (error) throw error
-      await db.connection_outbox.delete(op.seq)
-    } catch (err) {
-      const attempts = (op.attempts ?? 0) + 1
-      if (attempts >= MAX_ATTEMPTS) { await db.connection_outbox.delete(op.seq); continue }
-      await db.connection_outbox.update(op.seq, { attempts, lastError: String(err?.message ?? err) })
-      // не блокируем остальную очередь связей — пробуем следующие
-    }
-  }
-}
-
-// Подтянуть связи текущего пользователя в кэш. Пропускаем, если в очереди есть
-// неотправленные операции (не затираем оптимистичный кэш). Источник — DEFINER-RPC
-// my_connections; отсутствие RPC/ошибка → тихий выход (кэш остаётся прежним).
-async function pullConnections() {
-  if (await db.connection_outbox.count()) return
-  let res
-  try { res = await withTimeout(supabase.rpc('my_connections')) } catch { return }
-  if (!res || res.error) return
-  const rows = (res.data ?? []).map((r) => ({
-    other_id: r.other_id,
-    other_name: r.other_name ?? '—',
-    status: r.status,
-    requested_by: r.requested_by,
-  }))
-  await db.transaction('rw', db.connections, async () => {
-    await db.connections.clear()
-    if (rows.length) await db.connections.bulkPut(rows)
-  })
-}
-
 // ------------------------------- цели --------------------------------------
 // Личные цели (ЛК) живут в meta (goal_${userId}) МАССИВОМ. Их надо отдать на
 // сервер (таблица goals, составной ключ user_id+exercise_id), чтобы достижение
@@ -783,10 +737,6 @@ export async function syncNow(userId) {
     // Реакции (виш BACKLOG) — необязательная соц-часть: ошибка/отсутствие таблицы
     // не должна ронять синк тренировок, поэтому отдельный try/catch.
     try { await pushReactions(userId) } catch { /* реакции не критичны для синка */ }
-    // Связи «избранного круга» (v3.14.0) — до pull/fetchFeed, чтобы принятая
-    // связь открыла видимость в этом же цикле. Best-effort: ошибка/отсутствие RPC
-    // не роняет синк тренировок.
-    try { await pushConnections() } catch { /* связи не критичны для синка */ }
     // Цель (ЛК 2b) — необязательная часть: ошибка/отсутствие RPC не должны
     // ронять синхронизацию тренировок, поэтому отдельный try/catch. Ошибку пуша
     // больше не глотаем молча — показываем как lastError (раньше из-за тихого
@@ -794,8 +744,6 @@ export async function syncNow(userId) {
     let goalWarn = null
     try { await pushGoal(userId) } catch (e) { goalWarn = 'цель не отправлена: ' + String(e?.message ?? e) }
     const warnings = await pull(userId, justPushed)
-    // Связи: подтягиваем снимок my_connections в кэш (best-effort).
-    try { await pullConnections() } catch { /* связи не критичны для синка */ }
     // pullGoal может пометить локальную цель на отправку (бэкофилл старой цели
     // без _dirty) — сразу доливаем её вторым pushGoal в этом же цикле.
     try {
@@ -885,7 +833,6 @@ export function startSync(getUserId) {
       .channel('live-sync')
       .on('postgres_changes', { event: '*', schema: 'public', table: 'workouts' }, () => debounced.trigger())
       .on('postgres_changes', { event: '*', schema: 'public', table: 'goals' }, () => debounced.trigger())
-      .on('postgres_changes', { event: '*', schema: 'public', table: 'connections' }, () => debounced.trigger())
       .subscribe((status) => applyRealtimeStatus(status))
   }
   const closeChannel = () => {

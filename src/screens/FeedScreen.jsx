@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState, useCallback, useMemo } from 'react'
 import { useLiveQuery } from 'dexie-react-hooks'
 import { getCachedFeed, fetchFeed } from '../db/feed.js'
-import { getUsers, toggleReaction, getAcceptedConnectionIds } from '../db/repo.js'
+import { getUsers, toggleReaction } from '../db/repo.js'
 import { getMeta } from '../db/local.js'
 import { syncNow } from '../db/sync.js'
 import { onOnline, onResume } from '../lib/appEvents.js'
@@ -44,9 +44,6 @@ export default function FeedScreen({ user }) {
   // ему свои + связанных, поэтому обычный fetchFeed уже возвращает нужное. Скрываем
   // только лидерборд (в общий рейтинг приватный по-прежнему не входит).
   const myPrivate = useLiveQuery(() => getMeta(`priv_${user.id}`), [user.id], false)
-  // Сколько людей в «круге» (принятые связи) — для подсказки приватному в пустой ленте.
-  const circleIds = useLiveQuery(() => getAcceptedConnectionIds(), [], [])
-  const circleCount = (circleIds ?? []).length
 
   const loading = feed === undefined
   const list = feed ?? []
@@ -106,11 +103,10 @@ export default function FeedScreen({ user }) {
         {myPrivate ? 'Приватный режим — только твой круг' : 'Последние тренировки друзей'}
       </p>
 
-      {/* Приватному напоминаем, что лента ограничена кругом, а управление — в Профиле. */}
+      {/* Приватному напоминаем, что лента ограничена кругом (его настраивает админ). */}
       {myPrivate && (
         <p className="muted sub">
-          Ты видишь только тех, с кем обменялся доступом
-          {circleCount > 0 ? ` (${circleCount})` : ''}. Управлять доступом — в «Профиле».
+          Тебе видны только те, кому админ открыл взаимный доступ.
         </p>
       )}
 
@@ -124,10 +120,10 @@ export default function FeedScreen({ user }) {
           {loading && <p className="muted">Загрузка…</p>}
 
           {!loading && list.length === 0 && !error && (
-            myPrivate && circleCount === 0 ? (
+            myPrivate ? (
               <p className="muted empty">
-                Твой круг пуст. Открой доступ друзьям в «Профиле» → «Доступ к тренировкам»,
-                и вы будете видеть тренировки друг друга.
+                Пока пусто. Тебе видны только те, кому админ открыл взаимный доступ —
+                попроси админа добавить друзей в твой круг.
               </p>
             ) : (
               <p className="muted empty">Пока никто ничего не записал. Будь первым 💪</p>

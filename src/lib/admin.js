@@ -168,6 +168,30 @@ export async function adminCreateUser(name, role, pin) {
   return payload.user
 }
 
+// ----------------------------- Связи (доступ) ------------------------------
+
+// Все связи «избранного круга» (пары low_id/high_id). RPC с гейтом is_admin().
+export async function adminListConnections() {
+  const res = await withTimeout(supabase.rpc('admin_list_connections'))
+  if (res.error) throw new AdminError(humanRpc(res.error.message))
+  return (res.data ?? []).map((c) => ({
+    low_id: c.low_id,
+    high_id: c.high_id,
+    status: c.status ?? 'accepted',
+  }))
+}
+
+// Открыть (connected=true) или снять (false) взаимный доступ между двумя
+// участниками. Связь симметрична: оба начинают видеть тренировки друг друга.
+export async function adminSetConnection(a, b, connected) {
+  if (!a || !b || a === b) throw new AdminError('Нужны два разных участника.')
+  const res = await withTimeout(
+    supabase.rpc('admin_set_connection', { p_a: a, p_b: b, p_connected: Boolean(connected) })
+  )
+  if (res.error) throw new AdminError(humanRpc(res.error.message))
+  return { a, b, connected: Boolean(connected) }
+}
+
 // ----------------------------- Упражнения ----------------------------------
 
 // Правка карточки упражнения + soft-hide. После успеха зеркалим в локальный

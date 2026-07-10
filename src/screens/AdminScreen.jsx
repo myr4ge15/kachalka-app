@@ -6,7 +6,9 @@ import { findExactDuplicate } from '../lib/similar.js'
 import {
   adminListUsers, adminSetUser, adminSetPrivate, adminSetSex, adminResetPin, adminCreateUser,
   adminSetUserOrder, adminUpdateExercise, adminMergeExercise, AdminError,
+  adminListConnections, adminSetConnection,
 } from '../lib/admin.js'
+import { connectedIdsFor } from '../lib/connections.js'
 import { showToast } from '../components/Toast.jsx'
 
 // Экран «Админка» (PLAN-admin). Виден только при role='admin' (вход из Профиля);
@@ -19,7 +21,7 @@ export default function AdminScreen({ user, onBack }) {
   const exercises = useLiveQuery(() => getAllExercisesForAdmin(), [], [])
 
   // Разделы свёрнуты по умолчанию; раскрывается тот, что админ сам открыл (аккордеон).
-  const [open, setOpen] = useState(null) // null | 'exercises' | 'users'
+  const [open, setOpen] = useState(null) // null | 'exercises' | 'users' | 'access'
   const toggle = (key) => setOpen((cur) => (cur === key ? null : key))
 
   const errMsg = (e) => (e instanceof AdminError ? e.message : String(e?.message ?? e))
@@ -73,8 +75,127 @@ export default function AdminScreen({ user, onBack }) {
             />
           </div>
         )}
+
+        <button
+          className={'admin-nav-btn' + (open === 'access' ? ' open' : '')}
+          onClick={() => toggle('access')}
+          aria-expanded={open === 'access'}
+        >
+          <span className="admin-nav-name">Доступ к тренировкам</span>
+          <span className="admin-nav-chev" aria-hidden="true">{open === 'access' ? '⌄' : '›'}</span>
+        </button>
+        {open === 'access' && (
+          <div className="admin-panel">
+            <AccessSection meId={user.id} online={online} errMsg={errMsg} />
+          </div>
+        )}
       </div>
     </div>
+  )
+}
+
+// ─────────────────────── Доступ к тренировкам (связи) ──────────────────────
+// Админ-управляемые связи «избранного круга» (v3.14.0). Приватный виден только
+// себе и админу; здесь админ открывает ВЗАИМНЫЙ доступ между приватным участником
+// и выбранными людьми (оба начинают видеть тренировки друг друга). В общий рейтинг
+// приватный всё равно не попадает (см. supabase/connections.sql). Всё — online-RPC
+// с гейтом is_admin(), локального кэша нет.
+function AccessSection({ meId, online, errMsg }) {
+  const [users, setUsers] = useState(null)
+  const [pairs, setPairs] = useState([])
+  const [sel, setSel] = useState('')
+  const [loadErr, setLoadErr] = useState('')
+  const [busyId, setBusyId] = useState(null)
+
+  const alive = useRef(true)
+  useEffect(() => { alive.current = true; return () => { alive.current = false } }, [])
+
+  async function reload() {
+    setLoadErr('')
+    try {
+      const [list, cons] = await Promise.all([adminListUsers(), adminListConnections()])
+      if (!alive.current) return
+      setUsers(list)
+      setPairs(cons)
+      setSel((cur) => cur || (list.find((u) => u.is_private)?.id ?? ''))
+    } catch (e) {
+      if (!alive.current) return
+      setLoadErr(errMsg(e)); setUsers([])
+    }
+  }
+  useEffect(() => { if (online) reload(); else setUsers([]) }, [online])
+
+  const privateUsers = (users ?? []).filter((u) => u.is_private)
+  const connected = useMemo(() => connectedIdsFor(pairs, sel), [pairs, sel])
+
+  async function toggle(otherId, on) {
+    if (!sel) return
+    setBusyId(otherId)
+    // оптимистично правим локальный набор пар (галочка реагирует сразу)
+    const lo = sel < otherId ? sel : otherId
+    const hi = sel < otherId ? otherId : sel
+    setPairs((prev) => {
+      const rest = prev.filter((p) => !(p.low_id === lo && p.high_id === hi))
+      return on ? [...rest, { low_id: lo, high_id: hi, status: 'accepted' }] : rest
+    })
+    try {
+      await adminSetConnection(sel, otherId, on)
+    } catch (e) {
+      showToast({ emoji: '⚠️', title: 'Не удалось', sub: errMsg(e) })
+      reload() // откат к серверной правде
+    } finally {
+      setBusyId(null)
+    }
+  }
+
+  return (
+    <section className="sec">
+      {loadErr && <p className="admin-offline" role="alert">{loadErr}</p>}
+      {users === null && <p className="muted">Загрузка…</p>}
+
+      {users !== null && privateUsers.length === 0 && (
+        <p className="admin-hint">
+          Нет приватных участников. Сделай кого-то приватным в разделе «Пользователи»,
+          затем открой ему доступ к нужным людям здесь.
+        </p>
+      )}
+
+      {privateUsers.length > 0 && (
+        <>
+          <label className="field">
+            <span className="field-lab">Приватный участник</span>
+            <select className="prog-select" value={sel} onChange={(e) => setSel(e.target.value)}>
+              {privateUsers.map((u) => (
+                <option key={u.id} value={u.id}>{u.name}</option>
+              ))}
+            </select>
+          </label>
+          <p className="admin-hint">
+            Отметь, кто видит тренировки этого участника — и он видит их. Доступ взаимный.
+            В общий рейтинг приватный при этом не попадает.
+          </p>
+          <ul className="admin-list">
+            {(users ?? []).filter((u) => u.id !== sel).map((u) => (
+              <li key={u.id} className="admin-user">
+                <label className="admin-check">
+                  <input
+                    type="checkbox"
+                    checked={connected.has(u.id)}
+                    disabled={!online || busyId === u.id}
+                    onChange={(e) => toggle(u.id, e.target.checked)}
+                  />
+                  <span>
+                    {u.name}
+                    {u.id === meId && <span className="admin-you">вы</span>}
+                    {u.is_private ? ' · 🔒' : ''}
+                  </span>
+                </label>
+              </li>
+            ))}
+          </ul>
+        </>
+      )}
+    </section>
   )
 }
 
