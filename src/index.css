@@ -1457,7 +1457,8 @@ img.avatar-lg.has-img {
 .home-hero-main { flex: 1; min-width: 0; }
 .home-hero-k { font-size: 12px; color: var(--muted); }
 .home-hero-v { font-size: 22px; font-weight: 800; line-height: 1.1; margin-top: 3px; }
-.home-tags { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 10px; }
+.home-tags { display: flex; flex-wrap: wrap; align-items: center; gap: 6px; margin-top: 10px; }
+.home-tags-lab { font-size: 12px; color: var(--muted); margin-right: 2px; }
 .home-streak {
   flex: 0 0 auto; text-align: center; padding: 8px 12px; border-radius: 12px;
   background: rgba(250,204,21,.10); border: 1px solid rgba(250,204,21,.30);

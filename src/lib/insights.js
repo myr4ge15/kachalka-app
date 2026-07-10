@@ -16,7 +16,7 @@
 //             чтобы уведомления сортировались и метка «прочитано» не сбрасывалась
 //             при каждом пересчёте (now меняется — а якорь стабилен).
 // ============================================================================
-import { GROUP_ORDER } from './dayTags.js'
+import { GROUP_ORDER, groupAccusative } from './dayTags.js'
 import { normMetric, leadingValue, fmtMetricValue } from './metric.js'
 import { myBestByExercise } from './records.js'
 import { detectPlateau } from './progression.js'
@@ -222,6 +222,11 @@ function rPlateau(sorted, anchor) {
   }
   if (recent.length < 4) return null
   if (!detectPlateau(recent, bench.metric, { window: 4 })) return null
+  // Застрявший результат — лучшее ведущее значение в окне плато (его и показываем).
+  const stuck = recent
+    .slice(0, 4)
+    .reduce((mx, s) => Math.max(mx, leadingValue(bench.metric, s.sets)), 0)
+  const stuckStr = stuck > 0 ? ` ${fmtMetricValue(bench.metric, stuck)}` : ''
   return {
     id: `ins:plateau:${bench.exId}`,
     kind: 'plateau',
@@ -229,7 +234,7 @@ function rPlateau(sorted, anchor) {
     tone: 'warn',
     priority: 65,
     at: anchor,
-    text: `${bench.name}: результат стоит 4 тренировки — попробуй сменить схему`,
+    text: `${bench.name}${stuckStr}: результат стоит 4 тренировки — попробуй сменить схему`,
   }
 }
 
@@ -258,7 +263,7 @@ function rGroupNeglected(sorted, now, anchor, { threshold = 8 } = {}) {
     tone: 'info',
     priority: 70,
     at: anchor,
-    text: `${cap(worst.g)} не тренировал ${plDays(worst.days)} — пора`,
+    text: `${cap(groupAccusative(worst.g))} не тренировал ${plDays(worst.days)} — пора`,
   }
 }
 

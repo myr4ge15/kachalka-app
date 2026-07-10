@@ -150,7 +150,9 @@ describe('R4 плато в жиме', () => {
       wk({ id: 'w' + i, at: daysAgo(i * 3), entries: [{ exId: 'bench', name: 'Жим', bench: true, sets: [S(80, 5)] }] })
     )
     const res = buildInsights({ workouts: list, now: NOW, max: 5 })
-    expect(res.find((i) => i.kind === 'plateau')).toBeTruthy()
+    const p = res.find((i) => i.kind === 'plateau')
+    expect(p).toBeTruthy()
+    expect(p.text).toContain('80') // показываем застрявший вес
   })
 
   it('растущий вес → нет плато', () => {
@@ -174,6 +176,17 @@ describe('R5 забытая группа', () => {
     expect(n).toBeTruthy()
     expect(n.text).toContain('Ноги')
     expect(n.text).toContain('20 дней')
+  })
+
+  it('«спина» склоняется в винительный: «Спину не тренировал»', () => {
+    const list = [
+      wk({ id: 'back', at: daysAgo(18), entries: [{ exId: 'row', group: 'спина', sets: [S(100, 5)] }] }),
+      wk({ id: 'chest', at: daysAgo(0), entries: [{ exId: 'bp', group: 'грудь', sets: [S(80, 5)] }] }),
+    ]
+    const res = buildInsights({ workouts: list, now: NOW, max: 5 })
+    const n = res.find((i) => i.kind === 'neglect')
+    expect(n.text).toContain('Спину не тренировал')
+    expect(n.text).not.toContain('Спина не')
   })
 
   it('всё свежее → правило молчит', () => {

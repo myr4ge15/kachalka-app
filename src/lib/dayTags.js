@@ -57,6 +57,17 @@ export function tagSlug(group) {
   return GROUP_SLUG[group] ?? 'other'
 }
 
+// Винительный падеж названия группы — для фраз «тренировать <что?>» / «проработать
+// <что?>» (иначе выходит «спина не тренировал»). У большинства групп винительный
+// совпадает с именительным (грудь/ноги/плечи/бицепс/трицепс/пресс), отличается
+// только «спина» → «спину». Неизвестные группы возвращаем как есть.
+const GROUP_ACCUSATIVE = {
+  'спина': 'спину',
+}
+export function groupAccusative(group) {
+  return group ? (GROUP_ACCUSATIVE[group] ?? group) : group
+}
+
 // Тренировка попадает под фильтр группы (true для пустого/нулевого фильтра — «Все»).
 export function matchesGroup(entries, group) {
   if (!group) return true

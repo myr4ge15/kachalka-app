@@ -127,17 +127,27 @@ export function buildHomeSummary({ workouts, goals, now = new Date() } = {}) {
   }
 }
 
+// Склонение «день/дня/дней» под число.
+function dayWord(n) {
+  const a = n % 100
+  const b = a % 10
+  if (!(a > 10 && a < 20)) {
+    if (b === 1) return 'день'
+    if (b > 1 && b < 5) return 'дня'
+  }
+  return 'дней'
+}
+
 // «сегодня / вчера / N дней назад» — для строки последней тренировки.
 export function fmtDaysAgo(days) {
   const n = Math.max(0, Math.round(Number(days) || 0))
   if (n === 0) return 'сегодня'
   if (n === 1) return 'вчера'
-  const a = n % 100
-  const b = a % 10
-  let word = 'дней'
-  if (!(a > 10 && a < 20)) {
-    if (b === 1) word = 'день'
-    else if (b > 1 && b < 5) word = 'дня'
-  }
-  return `${n} ${word} назад`
+  return `${n} ${dayWord(n)} назад`
+}
+
+// «N дней» без «назад» — для длительности («не тренировал 18 дней»).
+export function fmtDays(days) {
+  const n = Math.max(0, Math.round(Number(days) || 0))
+  return `${n} ${dayWord(n)}`
 }

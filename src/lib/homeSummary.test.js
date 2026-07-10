@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest'
-import { buildHomeSummary, fmtDaysAgo } from './homeSummary.js'
+import { buildHomeSummary, fmtDaysAgo, fmtDays } from './homeSummary.js'
 
 function wk({ id, at, entries }) {
   return {
@@ -107,5 +107,14 @@ describe('fmtDaysAgo', () => {
     expect(fmtDaysAgo(2)).toBe('2 дня назад')
     expect(fmtDaysAgo(5)).toBe('5 дней назад')
     expect(fmtDaysAgo(21)).toBe('21 день назад')
+  })
+})
+
+describe('fmtDays', () => {
+  it('длительность без «назад», склонение по числу', () => {
+    expect(fmtDays(1)).toBe('1 день')
+    expect(fmtDays(2)).toBe('2 дня')
+    expect(fmtDays(18)).toBe('18 дней')
+    expect(fmtDays(21)).toBe('21 день')
   })
 })

@@ -1,9 +1,9 @@
 import { useLiveQuery } from 'dexie-react-hooks'
 import { getHomeSummary, getInsights } from '../db/insights.js'
-import { fmtDaysAgo } from '../lib/homeSummary.js'
+import { fmtDaysAgo, fmtDays } from '../lib/homeSummary.js'
 import { fmtTonnage, goalProgress } from '../lib/profileStats.js'
 import { fmtMetricValue } from '../lib/metric.js'
-import { tagSlug } from '../lib/dayTags.js'
+import { tagSlug, groupAccusative } from '../lib/dayTags.js'
 
 // Главный экран — «5 секунд после открытия» (виш BACKLOG «Домашняя сводка»).
 // Персональная сводка + авто-инсайты. Всё из локальной базы (офлайн-доступно),
@@ -54,6 +54,7 @@ export default function HomeScreen({ user, onNavigate, onOpenProgress }) {
           <div className="home-hero-v">{lw ? fmtDaysAgo(lw.daysAgo) : '—'}</div>
           {lw?.tags?.length > 0 && (
             <div className="home-tags">
+              <span className="home-tags-lab">Мышцы:</span>
               {lw.tags.map((g) => (
                 <span key={g} className={`day-tag tag-${tagSlug(g)}`}>{g}</span>
               ))}
@@ -109,8 +110,8 @@ export default function HomeScreen({ user, onNavigate, onOpenProgress }) {
           <button className="home-row" onClick={() => onNavigate?.('history')}>
             <span className="em" aria-hidden="true">🎯</span>
             <div className="home-row-body">
-              <div className="v">Пора: {summary.nextFocus.group}</div>
-              <div className="k">не тренировал {fmtDaysAgo(summary.nextFocus.daysAgo)}</div>
+              <div className="v">Пора проработать {groupAccusative(summary.nextFocus.group)}</div>
+              <div className="k">не тренировал уже {fmtDays(summary.nextFocus.daysAgo)}</div>
             </div>
             <span className="go">Записать ›</span>
           </button>
