@@ -392,22 +392,12 @@ export default function ProfileScreen({ user, onLogout, onOpenProgress, onOpenFe
 
       {!loading && summary.totalWorkouts > 0 && (
         <>
-          {/* быстрые цифры */}
+          {/* быстрые цифры — «за всё время». Скользящие метрики (за месяц,
+              серия) живут на Главной, здесь не дублируем (акценты разведены). */}
           <div className="stat-grid">
             <div className="stat-cell">
               <div className="stat-num">{summary.totalWorkouts}</div>
               <div className="stat-lab">тренировок<br />всего</div>
-            </div>
-            <div className="stat-cell">
-              <div className="stat-num">{summary.workoutsThisMonth}</div>
-              <div className="stat-lab">за этот<br />месяц</div>
-            </div>
-            <div className="stat-cell">
-              <div className="stat-num">
-                {summary.streak}
-                {summary.streak > 0 && <span className="u"> 🔥</span>}
-              </div>
-              <div className="stat-lab">{summary.streak === 1 ? 'неделя' : 'недель'}<br />подряд</div>
             </div>
             <div className="stat-cell">
               {(() => {
