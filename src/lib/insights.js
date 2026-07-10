@@ -17,6 +17,7 @@
 //             при каждом пересчёте (now меняется — а якорь стабилен).
 // ============================================================================
 import { GROUP_ORDER, groupAccusative } from './dayTags.js'
+import { lastTrainedByGroup } from './freshness.js'
 import { normMetric, leadingValue, fmtMetricValue } from './metric.js'
 import { myBestByExercise } from './records.js'
 import { detectPlateau } from './progression.js'
@@ -246,18 +247,11 @@ function rPlateau(sorted, anchor) {
 // R5. Забытая группа: какая-то тренированная ранее группа не прорабатывалась
 // ≥ threshold дней (по самой «просроченной»).
 function rGroupNeglected(sorted, now, anchor, { threshold = 8 } = {}) {
-  const lastDay = new Map()
-  for (const w of sorted) {
-    if (!w.performed_at) continue
-    const d = dayIndex(new Date(w.performed_at))
-    for (const g of new Set((w.entries ?? []).map(groupOf).filter(Boolean))) {
-      if (!lastDay.has(g) || d > lastDay.get(g)) lastDay.set(g, d)
-    }
-  }
+  const lastDay = lastTrainedByGroup(sorted) // общий движок свежести (group → {day,at})
   const today = dayIndex(now)
   let worst = null
-  for (const [g, d] of lastDay) {
-    const days = today - d
+  for (const [g, { day }] of lastDay) {
+    const days = today - day
     if (days >= threshold && (!worst || days > worst.days)) worst = { g, days }
   }
   if (!worst) return null

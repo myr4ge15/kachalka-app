@@ -9,13 +9,13 @@
 // ============================================================================
 import { currentStreak, workoutsThisMonth, currentBestValue, goalProgress } from './profileStats.js'
 import { dayIndex, tonnageInWindow } from './insights.js'
+import { mostNeglectedGroup } from './freshness.js'
 import { dayTags } from './dayTags.js'
 import { normMetric } from './metric.js'
 import { cmpIsoDesc } from './cmp.js'
 
 const entryExId = (e) => e.exercise_id ?? e.exercise?.id ?? null
 const entryMetric = (e) => normMetric(e.metric ?? e.exercise?.metric)
-const groupOf = (e) => e?.muscle_group ?? e?.exercise?.muscle_group ?? null
 
 function sortDesc(workouts) {
   return [...(workouts ?? [])]
@@ -50,25 +50,8 @@ function latestPr(sorted) {
   return last
 }
 
-// Самая «просроченная» группа — ту, что дольше всего не тренировали. Возвращаем
-// { group, daysAgo } | null (если групп нет).
-function mostNeglectedGroup(sorted, now) {
-  const lastDay = new Map()
-  for (const w of sorted) {
-    if (!w.performed_at) continue
-    const d = dayIndex(new Date(w.performed_at))
-    for (const g of new Set((w.entries ?? []).map(groupOf).filter(Boolean))) {
-      if (!lastDay.has(g) || d > lastDay.get(g)) lastDay.set(g, d)
-    }
-  }
-  const today = dayIndex(now)
-  let worst = null
-  for (const [g, d] of lastDay) {
-    const days = today - d
-    if (!worst || days > worst.daysAgo) worst = { group: g, daysAgo: days }
-  }
-  return worst
-}
+// «Забытая группа» (самая просроченная) переехала в общий движок свежести —
+// mostNeglectedGroup из lib/freshness.js (там же recovery/дисбаланс/heatmap).
 
 // Ближайшая к достижению активная цель. goals — массив (readGoals), workouts —
 // свои тренировки (для текущего рекорда). Считаем прогресс, берём с наибольшим %.
