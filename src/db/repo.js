@@ -24,6 +24,7 @@ import { normMetric } from '../lib/metric.js'
 import { clampSet } from '../lib/setLimits.js'
 import { pickLastSets } from '../lib/lastSets.js'
 import { isReactionKind } from '../lib/reactions.js'
+import { mergeConnectionOp, acceptedOtherIds } from '../lib/connections.js'
 
 // ----------------------------- Чтение --------------------------------------
 
@@ -434,6 +435,70 @@ export async function toggleReaction({ userId, userName, workoutId, kind, mine }
   await db.transaction('rw', db.reaction_outbox, db.feed, async () => {
     await enqueueReaction(workoutId, kind, op)
     await patchFeedReaction(workoutId, kind, op, { id: userId, name: userName })
+  })
+}
+
+// ------------------------- Связи «избранного круга» ------------------------
+// v3.14.0: приватный может открыть тренировки конкретным людям (и видеть их) —
+// ВЗАИМНАЯ связь с подтверждением (см. supabase/connections.sql). Офлайн-first по
+// образцу реакций: правка кэша `connections` + операция в `connection_outbox`;
+// отправку RPC ведёт src/db/sync.js (push/pullConnections). Кэш — снимок
+// my_connections: { other_id, other_name, status, requested_by }.
+
+// Связи текущего пользователя из локального кэша (для секции «Доступ» в Профиле).
+export async function getConnections() {
+  return db.connections.toArray()
+}
+
+// id участников, с кем связь ПРИНЯТА (для фильтра ленты приватного и т.п.).
+export async function getAcceptedConnectionIds() {
+  return acceptedOtherIds(await db.connections.toArray())
+}
+
+// Схлопывание очереди по одному участнику (mergeConnectionOp) → 0–1 операция.
+// Если набор не изменился (дедуп request/accept) — очередь не трогаем.
+async function enqueueConnection(otherId, op) {
+  const existing = await db.connection_outbox.where('otherId').equals(otherId).toArray()
+  const next = mergeConnectionOp(existing.map((o) => ({ op: o.op })), op)
+  const same =
+    next.length === existing.length && next.every((n, i) => n.op === existing[i]?.op)
+  if (same) return
+  for (const o of existing) await db.connection_outbox.delete(o.seq)
+  for (const n of next) {
+    await db.connection_outbox.add({ otherId, op: n.op, createdAt: nowIso(), attempts: 0 })
+  }
+}
+
+// Отправить запрос на связь (я — инициатор). Оптимистично кладём pending-строку.
+export async function requestConnection(userId, otherId, otherName) {
+  if (!userId || !otherId || otherId === userId) return
+  await db.transaction('rw', db.connections, db.connection_outbox, async () => {
+    await db.connections.put({
+      other_id: otherId,
+      other_name: otherName ?? '—',
+      status: 'pending',
+      requested_by: userId,
+    })
+    await enqueueConnection(otherId, 'request')
+  })
+}
+
+// Принять входящий запрос: оптимистично → accepted.
+export async function acceptConnection(otherId) {
+  if (!otherId) return
+  await db.transaction('rw', db.connections, db.connection_outbox, async () => {
+    const row = await db.connections.get(otherId)
+    if (row) await db.connections.put({ ...row, status: 'accepted' })
+    await enqueueConnection(otherId, 'accept')
+  })
+}
+
+// Отклонить входящий / отменить исходящий / разорвать связь: убрать строку.
+export async function removeConnection(otherId) {
+  if (!otherId) return
+  await db.transaction('rw', db.connections, db.connection_outbox, async () => {
+    await db.connections.delete(otherId)
+    await enqueueConnection(otherId, 'remove')
   })
 }
 

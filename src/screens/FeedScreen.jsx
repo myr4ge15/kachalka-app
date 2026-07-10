@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState, useCallback, useMemo } from 'react'
 import { useLiveQuery } from 'dexie-react-hooks'
 import { getCachedFeed, fetchFeed } from '../db/feed.js'
-import { getUsers, toggleReaction } from '../db/repo.js'
+import { getUsers, toggleReaction, getAcceptedConnectionIds } from '../db/repo.js'
 import { getMeta } from '../db/local.js'
 import { syncNow } from '../db/sync.js'
 import { onOnline, onResume } from '../lib/appEvents.js'
@@ -38,13 +38,15 @@ export default function FeedScreen({ user }) {
     return () => clearInterval(id)
   }, [])
 
-  // Приватный пользователь не участвует в социалке: ленту друзей и лидерборд ему
-  // не показываем (свои тренировки — во вкладке «Мои тренировки»). Флаг кэшируется
-  // на pull в meta `priv_${id}` (sync.js / my_is_private). Держим в ref, чтобы
-  // refresh не тянул чужие данные.
+  // Приватный пользователь (флаг кэшируется на pull в meta `priv_${id}`). Раньше
+  // ему прятали ленту и лидерборд целиком. С v3.14.0 приватный видит УРЕЗАННУЮ
+  // ленту — только «избранный круг» (принятые связи, connections.sql); RLS отдаёт
+  // ему свои + связанных, поэтому обычный fetchFeed уже возвращает нужное. Скрываем
+  // только лидерборд (в общий рейтинг приватный по-прежнему не входит).
   const myPrivate = useLiveQuery(() => getMeta(`priv_${user.id}`), [user.id], false)
-  const privRef = useRef(false)
-  privRef.current = myPrivate
+  // Сколько людей в «круге» (принятые связи) — для подсказки приватному в пустой ленте.
+  const circleIds = useLiveQuery(() => getAcceptedConnectionIds(), [], [])
+  const circleCount = (circleIds ?? []).length
 
   const loading = feed === undefined
   const list = feed ?? []
@@ -62,7 +64,6 @@ export default function FeedScreen({ user }) {
   listRef.current = list
 
   const refresh = useCallback(async () => {
-    if (privRef.current) return // приватному ленту не подтягиваем вовсе
     if (!navigator.onLine) {
       setError(listRef.current.length ? null : 'Лента недоступна офлайн. Подключись к сети.')
       return
@@ -89,21 +90,6 @@ export default function FeedScreen({ user }) {
     return () => { off1(); off2() }
   }, [refresh])
 
-  // Приватный режим: лента друзей и лидерборд скрыты целиком.
-  if (myPrivate) {
-    return (
-      <div className="screen">
-        <div className="feed-head">
-          <h2 className="screen-title">Лента</h2>
-        </div>
-        <p className="muted empty">
-          Приватный режим включён — лента и рейтинг скрыты. Свои тренировки смотри
-          во вкладке «Мои тренировки».
-        </p>
-      </div>
-    )
-  }
-
   return (
     <div className="screen feed-screen">
       <div className="feed-head">
@@ -116,7 +102,17 @@ export default function FeedScreen({ user }) {
               : '↻ обновить'}
         </button>
       </div>
-      <p className="muted sub">Последние тренировки друзей</p>
+      <p className="muted sub">
+        {myPrivate ? 'Приватный режим — только твой круг' : 'Последние тренировки друзей'}
+      </p>
+
+      {/* Приватному напоминаем, что лента ограничена кругом, а управление — в Профиле. */}
+      {myPrivate && (
+        <p className="muted sub">
+          Ты видишь только тех, с кем обменялся доступом
+          {circleCount > 0 ? ` (${circleCount})` : ''}. Управлять доступом — в «Профиле».
+        </p>
+      )}
 
       {/* Десктоп (≥900px) раскладывает это в две колонки: посты слева, рейтинг
           в правом сайдбаре. На мобиле — один столбец, рейтинг сверху (.feed-rail
@@ -128,7 +124,14 @@ export default function FeedScreen({ user }) {
           {loading && <p className="muted">Загрузка…</p>}
 
           {!loading && list.length === 0 && !error && (
-            <p className="muted empty">Пока никто ничего не записал. Будь первым 💪</p>
+            myPrivate && circleCount === 0 ? (
+              <p className="muted empty">
+                Твой круг пуст. Открой доступ друзьям в «Профиле» → «Доступ к тренировкам»,
+                и вы будете видеть тренировки друг друга.
+              </p>
+            ) : (
+              <p className="muted empty">Пока никто ничего не записал. Будь первым 💪</p>
+            )
           )}
 
           {list.map((w) => {
@@ -218,9 +221,12 @@ export default function FeedScreen({ user }) {
           })}
         </div>
 
-        <aside className="feed-rail">
-          <Leaderboard user={user} />
-        </aside>
+        {/* Лидерборд приватному не показываем: в общий рейтинг он не входит. */}
+        {!myPrivate && (
+          <aside className="feed-rail">
+            <Leaderboard user={user} />
+          </aside>
+        )}
       </div>
     </div>
   )
