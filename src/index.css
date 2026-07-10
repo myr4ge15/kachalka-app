@@ -240,6 +240,24 @@ input { font-family: inherit; }
 @media (prefers-reduced-motion: reduce) {
   .skel::after { animation: none; }
 }
+/* Раскладка каркаса экрана (<ScreenSkeleton>): заголовок + колонка карточек. */
+.skel-title { margin: 6px 0 16px; }
+.skel-cards { display: flex; flex-direction: column; gap: 12px; }
+
+/* ---------- смена экрана ----------
+   Микро-continuity при переключении вкладок: контент не «мигает» подменой, а
+   мягко въезжает (лёгкий fade + подъём на 10px, ~180мс). Ключ key={tab} на
+   обёртке перезапускает анимацию на каждую смену. Анимация transient (без
+   forwards) — по завершении трансформа снимается, не создаёт containing block
+   для возможных fixed-оверлеев. Под reduced-motion — мгновенно. */
+.screen-anim { animation: screen-enter var(--dur-base) var(--ease-out); }
+@keyframes screen-enter {
+  from { opacity: 0; transform: translateY(10px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+@media (prefers-reduced-motion: reduce) {
+  .screen-anim { animation: none; }
+}
 
 /* ---------- buttons ---------- */
 .btn { padding: 14px; border-radius: 12px; font-size: 16px; font-weight: 600; border: 1px solid transparent; }

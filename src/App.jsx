@@ -11,6 +11,7 @@ import { readStoredUserId, hydrateProfile } from './lib/sessionProfile.js'
 import LoginScreen from './screens/LoginScreen.jsx'
 import Toast from './components/Toast.jsx'
 import Avatar from './components/Avatar.jsx'
+import ScreenSkeleton from './components/ScreenSkeleton.jsx'
 
 // Экраны-вкладки грузим лениво: код активной вкладки подтягивается по требованию.
 // Главный выигрыш — «Прогресс» тянет тяжёлый recharts, который теперь не попадает
@@ -271,30 +272,34 @@ export default function App() {
       </header>
 
       <main className="content" ref={contentRef}>
-        <Suspense fallback={<div className="screen"><p className="muted">Загрузка…</p></div>}>
-          {tab === 'home' && (
-            <HomeScreen user={user} onNavigate={goTab} onOpenProgress={openProgressFor} />
-          )}
-          {tab === 'history' && <HistoryScreen user={user} />}
-          {tab === 'feed' && <FeedScreen user={user} />}
-          {tab === 'progress' && <ProgressScreen user={user} initialExerciseId={progressExId} />}
-          {tab === 'notif' && <NotificationsScreen user={user} />}
-          {tab === 'profile' && (
-            <ProfileScreen
-              user={user}
-              onLogout={handleLogout}
-              onOpenProgress={openProgressFor}
-              onOpenFeed={() => goTab('feed')}
-              onRenamed={handleRenamed}
-              onOpenAdmin={() => goTab('admin')}
-            />
-          )}
-          {tab === 'admin' && user.role === 'admin' && (
-            <AdminScreen user={user} onBack={() => goTab('profile')} />
-          )}
-          {tab === 'freshness' && (
-            <FreshnessScreen user={user} onBack={() => goTab('home')} />
-          )}
+        <Suspense fallback={<ScreenSkeleton />}>
+          {/* key={tab} перезапускает микро-переход (fade+slide-up, .screen-anim)
+              на каждую смену вкладки — контент въезжает, а не мигает подменой. */}
+          <div className="screen-anim" key={tab}>
+            {tab === 'home' && (
+              <HomeScreen user={user} onNavigate={goTab} onOpenProgress={openProgressFor} />
+            )}
+            {tab === 'history' && <HistoryScreen user={user} />}
+            {tab === 'feed' && <FeedScreen user={user} />}
+            {tab === 'progress' && <ProgressScreen user={user} initialExerciseId={progressExId} />}
+            {tab === 'notif' && <NotificationsScreen user={user} />}
+            {tab === 'profile' && (
+              <ProfileScreen
+                user={user}
+                onLogout={handleLogout}
+                onOpenProgress={openProgressFor}
+                onOpenFeed={() => goTab('feed')}
+                onRenamed={handleRenamed}
+                onOpenAdmin={() => goTab('admin')}
+              />
+            )}
+            {tab === 'admin' && user.role === 'admin' && (
+              <AdminScreen user={user} onBack={() => goTab('profile')} />
+            )}
+            {tab === 'freshness' && (
+              <FreshnessScreen user={user} onBack={() => goTab('home')} />
+            )}
+          </div>
         </Suspense>
       </main>
 
