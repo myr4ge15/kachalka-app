@@ -59,6 +59,7 @@ export default function NotificationsScreen({ user }) {
           n.type === 'mine' ? '🏆'
           : n.type === 'goal' ? '🎯'
           : n.type === 'reaction' ? (n.emojis?.[0] ?? '👏')
+          : n.type === 'insight' ? (n.emoji ?? '💡')
           : '🔥'
         const cls = 'notif ' + n.type + (unread ? ' unread' : ' read')
         return (
@@ -94,6 +95,12 @@ export default function NotificationsScreen({ user }) {
                   <div className="n-text">
                     Оценил твою тренировку: <b>{(n.emojis ?? []).join(' ')}</b>
                   </div>
+                </>
+              )}
+              {n.type === 'insight' && (
+                <>
+                  <div className="n-title">Вывод</div>
+                  <div className="n-text">{n.text}</div>
                 </>
               )}
               {n.type === 'beaten' && (

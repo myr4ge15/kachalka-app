@@ -1433,3 +1433,86 @@ img.avatar-lg.has-img {
   touch-action: none; /* не скроллить экран при перетаскивании пальцем */
 }
 .user-drag-handle:active { cursor: grabbing; }
+
+/* ======================= Главная (Домашняя сводка + Инсайты) ======================= */
+/* Класс-имена sec/sec-title/stat-grid/goal/bar в index.css заскоуплены под .profile,
+   поэтому на Главной повторяем нужные (значения те же — единая тёмная тема). */
+.home .sec { margin-bottom: 16px; }
+.home .sec-title {
+  font-size: 12px; font-weight: 700; color: var(--muted); text-transform: uppercase;
+  letter-spacing: .05em; margin: 0 0 9px 2px;
+}
+
+/* Герой: когда была последняя тренировка + серия справа. */
+.home-hero {
+  display: flex; align-items: center; gap: 12px;
+  background: var(--surface); border: 1px solid var(--border); border-radius: 16px;
+  padding: 16px; margin-bottom: 16px;
+}
+.home-hero-main { flex: 1; min-width: 0; }
+.home-hero-k { font-size: 12px; color: var(--muted); }
+.home-hero-v { font-size: 22px; font-weight: 800; line-height: 1.1; margin-top: 3px; }
+.home-tags { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 10px; }
+.home-streak {
+  flex: 0 0 auto; text-align: center; padding: 8px 12px; border-radius: 12px;
+  background: rgba(250,204,21,.10); border: 1px solid rgba(250,204,21,.30);
+}
+.home-streak-n { font-size: 24px; font-weight: 800; line-height: 1; }
+.home-streak-n .u { font-size: 14px; }
+.home-streak-l { font-size: 10px; color: var(--muted); margin-top: 4px; line-height: 1.25; }
+
+/* Инсайты — карточки-выводы. */
+.ins-list { display: flex; flex-direction: column; gap: 8px; }
+.ins-card {
+  display: flex; align-items: center; gap: 12px;
+  background: var(--surface); border: 1px solid var(--border); border-left-width: 3px;
+  border-radius: 12px; padding: 12px 14px;
+}
+.ins-card.ins-good { border-left-color: var(--green); }
+.ins-card.ins-warn { border-left-color: var(--yellow); }
+.ins-card.ins-info { border-left-color: #185fa5; }
+.ins-emoji { font-size: 20px; flex-shrink: 0; }
+.ins-text { font-size: 14px; line-height: 1.35; font-weight: 600; }
+
+/* Быстрые цифры месяца. */
+.home .stat-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-bottom: 16px; }
+.home .stat-cell {
+  background: var(--surface); border: 1px solid var(--border); border-radius: 14px;
+  padding: 14px 8px; text-align: center;
+}
+.home .stat-num { font-size: 25px; font-weight: 800; line-height: 1; }
+.home .stat-num .u { font-size: 13px; font-weight: 600; color: var(--muted); }
+.home .stat-lab { font-size: 11px; color: var(--muted); margin-top: 7px; line-height: 1.3; }
+.home .delta { font-weight: 700; }
+.home .delta.up { color: #86efac; }
+.home .delta.down { color: #fca5a5; }
+
+/* Строки «что дальше / последний рекорд». */
+.home-row {
+  display: flex; align-items: center; gap: 12px; width: 100%; text-align: left;
+  background: var(--surface); border: 1px solid var(--border); border-radius: 16px;
+  padding: 14px; color: var(--text);
+}
+.home-row .em { font-size: 22px; flex-shrink: 0; }
+.home-row-body { flex: 1; min-width: 0; }
+.home-row .v { font-weight: 700; font-size: 15px; }
+.home-row .k { color: var(--muted); font-size: 12px; margin-top: 2px; }
+.home-row .go { color: var(--green); font-weight: 700; font-size: 13px; flex-shrink: 0; }
+.home-row.static { cursor: default; }
+
+/* Карточка цели/бар на Главной (значения — как в профиле). */
+.home .goal {
+  background: var(--surface); border: 1px solid var(--border); border-radius: 16px; padding: 14px;
+}
+.home .goal-top { display: flex; align-items: center; justify-content: space-between; gap: 8px; margin-bottom: 9px; }
+.home .goal-top .lbl { font-size: 14px; }
+.home .goal-top .lbl b { font-weight: 800; }
+.home .goal-top .pct { color: var(--green); font-weight: 800; font-size: 16px; }
+.home .bar { height: 10px; border-radius: 999px; background: var(--surface-2); overflow: hidden; }
+.home .bar > i { display: block; height: 100%; border-radius: 999px; background: linear-gradient(90deg, var(--green-d), var(--green)); }
+.home .goal-sub { font-size: 12px; color: var(--muted); margin-top: 9px; }
+
+/* Быстрые переходы внизу Главной. */
+.home-actions { display: flex; flex-wrap: wrap; gap: 10px; margin-top: 8px; }
+.home-actions .btn { flex: 1 1 auto; }
+.home-cta { margin-top: 14px; width: 100%; }

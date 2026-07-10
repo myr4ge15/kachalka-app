@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react'
 import { useLiveQuery } from 'dexie-react-hooks'
 import { getExercises, getWorkout, saveWorkout, createExercise, deleteWorkout as repoDelete, getRecentSessionsForExercise, getProgSettings, setProgForExercise } from '../db/repo.js'
 import { detectNewPrsOnSave, detectGoalReachedOnSave } from '../db/notifications.js'
+import { detectInsightsOnSave } from '../db/insights.js'
 import { syncNow } from '../db/sync.js'
 import { getCache, setCache, clearCache } from '../lib/cache.js'
 import { showToast } from '../components/Toast.jsx'
@@ -436,6 +437,7 @@ export default function WorkoutScreen({ user, workoutId = null, onBack }) {
       // рекорд. Рекорды считаются из локальных данных, сеть не нужна.
       if (isNew) {
         try {
+          let congratulated = false
           const prs = await detectNewPrsOnSave(user.id, wId)
           if (prs.length) {
             const top = prs.reduce((a, b) => (b.value > a.value ? b : a), prs[0])
@@ -444,6 +446,7 @@ export default function WorkoutScreen({ user, workoutId = null, onBack }) {
               title: 'Новый рекорд!',
               sub: `${top.name} — ${fmtMetricValue(top.metric, top.value)} (было ${fmtMetricValue(top.metric, top.prev)})${extra}`,
             })
+            congratulated = true
           }
           // Достижение личной цели (ЛК). Поздравляем один раз; если совпало с
           // рекордом — поздравление о цели перекрывает тост рекорда (важнее).
@@ -458,6 +461,17 @@ export default function WorkoutScreen({ user, workoutId = null, onBack }) {
               title: reached.length > 1 ? 'Цели достигнуты!' : 'Цель достигнута!',
               sub: `${top.name} — ${fmtMetricValue(top.metric, top.value)}${repsStr}${extra}`,
             })
+            congratulated = true
+          }
+          // Инсайт после тренировки (виш BACKLOG «Инсайты»): если рекорд/цель не
+          // сработали, тихая сессия всё равно получает вывод (объём/серия/забытая
+          // группа/тренд/обгон). Полный набор из 2–3 выводов — на Главной и в
+          // Уведомлениях; тост показывает самый важный.
+          if (!congratulated) {
+            const ins = await detectInsightsOnSave(user.id, wId, { max: 1 })
+            if (ins.length) {
+              showToast({ emoji: ins[0].emoji, title: 'Вывод после тренировки', sub: ins[0].text })
+            }
           }
         } catch { /* тост необязателен */ }
       }

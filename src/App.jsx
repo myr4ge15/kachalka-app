@@ -15,6 +15,7 @@ import Avatar from './components/Avatar.jsx'
 // Экраны-вкладки грузим лениво: код активной вкладки подтягивается по требованию.
 // Главный выигрыш — «Прогресс» тянет тяжёлый recharts, который теперь не попадает
 // в стартовый бандл, а грузится отдельным чанком при открытии вкладки.
+const HomeScreen = lazy(() => import('./screens/HomeScreen.jsx'))
 const HistoryScreen = lazy(() => import('./screens/HistoryScreen.jsx'))
 const ProgressScreen = lazy(() => import('./screens/ProgressScreen.jsx'))
 const FeedScreen = lazy(() => import('./screens/FeedScreen.jsx'))
@@ -69,6 +70,13 @@ function TabIcon({ name }) {
     fill: 'none', stroke: 'currentColor', strokeWidth: 2,
     strokeLinecap: 'round', strokeLinejoin: 'round', 'aria-hidden': true,
   }
+  if (name === 'home') return (
+    <svg {...p}>
+      <path d="M3 11l9-8 9 8" />
+      <path d="M5 10v10h14V10" />
+      <path d="M9 20v-6h6v6" />
+    </svg>
+  )
   if (name === 'history') return (
     <svg {...p}>
       <rect x="2" y="8" width="4" height="8" rx="1.5" />
@@ -100,12 +108,13 @@ const TAB_KEY = 'gym_app_tab'
 
 export default function App() {
   const [user, setUser] = useState(null)
-  // Активная вкладка переживает F5 (sessionStorage). Старое значение 'workout'
-  // (вкладки больше нет) мигрируем в 'history' (хаб «Мои тренировки»).
+  // Активная вкладка переживает F5 (sessionStorage). Дефолт — 'home' (Главная,
+  // «5 секунд после открытия»). Старое значение 'workout' (вкладки больше нет)
+  // проваливается в дефолт.
   const [tab, setTab] = useState(() => {
     const saved = sessionStorage.getItem(TAB_KEY)
-    return saved && saved !== 'workout' ? saved : 'history'
-  }) // 'history' | 'feed' | 'progress' | 'notif' | 'profile' | 'admin'
+    return saved && saved !== 'workout' ? saved : 'home'
+  }) // 'home' | 'history' | 'feed' | 'progress' | 'notif' | 'profile' | 'admin'
 
   // Упражнение, с которым открыть «Прогресс» (проброс из ЛК по тапу на рекорд).
   const [progressExId, setProgressExId] = useState(null)
@@ -200,7 +209,7 @@ export default function App() {
     await openUserDb(u.id)
     localStorage.setItem(SESSION_KEY, JSON.stringify({ id: u.id }))
     setUser(u)
-    setTab('history')
+    setTab('home')
   }
 
   // Имя сменили в ЛК — обновляем профиль в стейте, чтобы шапка и инициал-аватар
@@ -262,6 +271,9 @@ export default function App() {
 
       <main className="content" ref={contentRef}>
         <Suspense fallback={<div className="screen"><p className="muted">Загрузка…</p></div>}>
+          {tab === 'home' && (
+            <HomeScreen user={user} onNavigate={goTab} onOpenProgress={openProgressFor} />
+          )}
           {tab === 'history' && <HistoryScreen user={user} />}
           {tab === 'feed' && <FeedScreen user={user} />}
           {tab === 'progress' && <ProgressScreen user={user} initialExerciseId={progressExId} />}
@@ -289,6 +301,13 @@ export default function App() {
           <span className="side-logo">🏋️</span>
           <span className="side-brand-txt">kachalka-app</span>
         </div>
+        <button
+          className={tab === 'home' ? 'tab active' : 'tab'}
+          onClick={() => goTab('home')}
+        >
+          <TabIcon name="home" />
+          <span>Главная</span>
+        </button>
         <button
           className={tab === 'history' ? 'tab active' : 'tab'}
           onClick={() => goTab('history')}

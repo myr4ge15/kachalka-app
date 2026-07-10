@@ -14,6 +14,8 @@ import { db, getMeta, setMeta, nowIso } from './local.js'
 import { cmpIsoAsc, cmpIsoDesc } from '../lib/cmp.js'
 import { myBestByExercise, minePrs, computeBeaten, computeNewPrs, crossedGoal, goalMetByExercise } from '../lib/records.js'
 import { computeReactionNotifs } from '../lib/reactions.js'
+import { buildInsights } from '../lib/insights.js'
+import { getCachedLeaderboard } from './leaderboard.js'
 import { normMetric } from '../lib/metric.js'
 
 // Метка «прочитано» неймспейснута по userId — иначе на общем устройстве второй
@@ -77,6 +79,18 @@ async function goalNotif(userId) {
     }))
 }
 
+// Инсайты как уведомления (виш BACKLOG «Инсайты»): авто-выводы движка правил
+// (объём/серия/забытая группа/тренд/обгон/плато). Личный рекорд (kind 'pr') из
+// набора исключаем — его уже показывает уведомление типа 'mine', не дублируем.
+// Лидерборд подтягиваем для «обгона друга»; ошибка/пусто → без него.
+async function insightNotifs(userId, workouts) {
+  let leaderboard = null
+  try { leaderboard = await getCachedLeaderboard() } catch { /* необязательно */ }
+  return buildInsights({ workouts, leaderboard, userId, max: 3 })
+    .filter((i) => i.kind !== 'pr')
+    .map((i) => ({ id: `insight:${i.id}`, type: 'insight', emoji: i.emoji, tone: i.tone, text: i.text, at: i.at }))
+}
+
 // Полный список уведомлений (свежие сверху), ограниченный LIMIT.
 export async function getNotifications(userId) {
   const workouts = await myWorkouts(userId)
@@ -87,7 +101,8 @@ export async function getNotifications(userId) {
   const goal = await goalNotif(userId)
   // Реакции на мои тренировки — из того же окна ленты (в нём есть и мои записи).
   const reactions = computeReactionNotifs(feedItems, userId)
-  return [...mine, ...beaten, ...goal, ...reactions]
+  const insights = await insightNotifs(userId, workouts)
+  return [...mine, ...beaten, ...goal, ...reactions, ...insights]
     .sort((a, b) => cmpIsoDesc(a.at, b.at))
     .slice(0, LIMIT)
 }
