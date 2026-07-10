@@ -581,6 +581,17 @@ input { font-family: inherit; }
   text-transform: uppercase; letter-spacing: .04em;
   margin: 18px 0 8px;
 }
+/* Сворачиваемый заголовок группы (шаблоны): вся строка — зона тапа ≥44px. */
+.group-toggle {
+  display: flex; align-items: center; gap: 8px; width: 100%;
+  background: none; border: 0; padding: 12px 2px; cursor: pointer;
+  text-align: left; min-height: 44px;
+}
+.group-toggle .group-caret { font-size: 11px; color: var(--muted); width: 12px; }
+.group-toggle .group-toggle-title { flex: 0 1 auto; }
+.group-toggle .group-count {
+  font-size: 12px; font-weight: 500; letter-spacing: 0; text-transform: none;
+}
 /* Бейдж «общий» (🌐) у своих публичных шаблонов */
 .tpl-badge {
   font-size: 12px; font-weight: 500; color: var(--green);

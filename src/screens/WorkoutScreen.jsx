@@ -373,20 +373,38 @@ export default function WorkoutScreen({ user, workoutId = null, onBack }) {
   // Применение шаблона (только новая тренировка): добавляем упражнения шаблона,
   // которых ещё нет (анти-дубль по exercise.id), каждому — подходы по целевому
   // плану шаблона (подходы × повторы × вес), либо один дефолтный, если плана нет.
-  function applyTemplate(tpl) {
+  // Рекомендацию автопрогрессии показываем СПРАВОЧНО (applied:false): план шаблона
+  // в подходах остаётся, панель лишь подсказывает «прошлая → рекомендуем сегодня»
+  // с кнопкой «Применить рекомендацию» (перебивает план шаблона по желанию).
+  async function applyTemplate(tpl) {
     setTplPickerOpen(false)
     const have = new Set(entries.map((e) => e.exercise.id))
-    const toAdd = (tpl.exercises ?? [])
+    const items = (tpl.exercises ?? [])
       .filter((item) => (item.exercise?.id ?? item.exercise_id) && !have.has(item.exercise?.id ?? item.exercise_id))
-      .map((item) => {
-        const ex = item.exercise ?? { id: item.exercise_id, name: '—' }
-        return { exercise: ex, sets: setsFromTemplate(ex, item) }
-      })
-    if (toAdd.length === 0) {
+    if (items.length === 0) {
       setMessage({ type: 'error', text: 'Все упражнения шаблона уже добавлены.' })
       return
     }
-    setEntries([...entries, ...toAdd])
+    const toAdd = []
+    for (const item of items) {
+      const ex = item.exercise ?? { id: item.exercise_id, name: '—' }
+      const sets = setsFromTemplate(ex, item)
+      // Рекомендация справочно: план шаблона в sets не подменяем, панель — не
+      // применённая (applied:false). Нет истории/выключено → панели нет (meta:null).
+      let meta = null
+      try {
+        const sessions = await getRecentSessionsForExercise(user.id, ex.id, 5)
+        const built = buildRecommendation(ex, sessions, prog)
+        meta = built.meta ? { ...built.meta, applied: built.meta.muted ? undefined : false } : null
+      } catch { /* рекомендация необязательна */ }
+      toAdd.push({ exercise: ex, sets, prog: meta })
+    }
+    // Пока читали историю, состав мог измениться — анти-дубль на свежем состоянии.
+    setEntries((prev) => {
+      const cur = new Set(prev.map((e) => e.exercise.id))
+      const fresh = toAdd.filter((e) => !cur.has(e.exercise.id))
+      return fresh.length ? [...prev, ...fresh] : prev
+    })
   }
 
   function updateSet(ei, si, field, value) {
@@ -508,12 +526,13 @@ export default function WorkoutScreen({ user, workoutId = null, onBack }) {
 
   // Отказ от новой тренировки. Экран «Назад» намеренно СОХРАНЯЕТ черновик в кэше
   // (случайный уход не теряет набранный состав — в т.ч. упражнения из шаблона),
-  // поэтому явный отказ вынесен в отдельную кнопку: чистим кэш + состав и уходим.
+  // поэтому явный отказ вынесен в отдельную кнопку: чистим кэш + состав, но
+  // ОСТАЁМСЯ на экране новой тренировки (пустой composer), а не уходим в список —
+  // пользователь ждёт, что продолжит добавлять с чистого листа. Уйти — «← Назад».
   function clearDraft() {
     clearCache(DRAFT_KEY)
     setEntries([])
     setClearArm(false)
-    onBack?.()
   }
 
   // Экспорт этой тренировки в JSON-файл (из текущего состава формы).

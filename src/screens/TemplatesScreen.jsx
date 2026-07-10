@@ -107,6 +107,29 @@ function TemplateCard({ t, mine, onOpen, selectMode = false, picked = false, onP
   )
 }
 
+// Свёрнутость групп списка запоминаем между заходами (localStorage, синхронно).
+// Дефолт — свёрнуто; ключ на пользователя, чтобы не смешивать состояние учёток.
+function readGroupOpen(userId, key, dflt = false) {
+  try {
+    const v = localStorage.getItem(`tpl_group_${key}_${userId}`)
+    return v == null ? dflt : v === '1'
+  } catch { return dflt }
+}
+function writeGroupOpen(userId, key, open) {
+  try { localStorage.setItem(`tpl_group_${key}_${userId}`, open ? '1' : '0') } catch { /* приватный режим */ }
+}
+
+// Заголовок сворачиваемой группы: тап переключает раскрытие, стрелка ▸/▾ + счётчик.
+function GroupHeader({ title, count, open, onToggle }) {
+  return (
+    <button className="group-title group-toggle" onClick={onToggle} aria-expanded={open}>
+      <span className="group-caret" aria-hidden="true">{open ? '▾' : '▸'}</span>
+      <span className="group-toggle-title">{title}</span>
+      <span className="group-count muted">{count}</span>
+    </button>
+  )
+}
+
 // ----------------------------- список --------------------------------------
 function TemplateList({ user, onBack, onOpen }) {
   const templates = useLiveQuery(() => getTemplates(user.id), [user.id])
@@ -115,6 +138,16 @@ function TemplateList({ user, onBack, onOpen }) {
 
   const mine = list.filter((t) => t.user_id === user.id)
   const shared = list.filter((t) => t.user_id !== user.id) // чужие общие
+
+  // Раскрытость групп (по умолчанию свёрнуты, состояние помним в localStorage).
+  const [mineOpen, setMineOpen] = useState(() => readGroupOpen(user.id, 'mine'))
+  const [sharedOpen, setSharedOpen] = useState(() => readGroupOpen(user.id, 'shared'))
+  function toggleMine() {
+    setMineOpen((o) => { writeGroupOpen(user.id, 'mine', !o); return !o })
+  }
+  function toggleShared() {
+    setSharedOpen((o) => { writeGroupOpen(user.id, 'shared', !o); return !o })
+  }
 
   // Режим экспорта: мультивыбор шаблонов → выгрузка в JSON (как в «Истории»).
   const [selectMode, setSelectMode] = useState(false)
@@ -175,15 +208,15 @@ function TemplateList({ user, onBack, onOpen }) {
 
       {!loading && mine.length > 0 && (
         <>
-          <h3 className="group-title">Мои шаблоны</h3>
-          {mine.map((t) => renderCard(t, true))}
+          <GroupHeader title="Мои шаблоны" count={mine.length} open={mineOpen} onToggle={toggleMine} />
+          {mineOpen && mine.map((t) => renderCard(t, true))}
         </>
       )}
 
       {!loading && shared.length > 0 && (
         <>
-          <h3 className="group-title">Общие</h3>
-          {shared.map((t) => renderCard(t, false))}
+          <GroupHeader title="Общие" count={shared.length} open={sharedOpen} onToggle={toggleShared} />
+          {sharedOpen && shared.map((t) => renderCard(t, false))}
         </>
       )}
 
