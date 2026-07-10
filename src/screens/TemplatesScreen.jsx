@@ -12,6 +12,7 @@ import { syncNow } from '../db/sync.js'
 import {
   exerciseMetric, isCountMetric, fmtTemplateTarget, fmtTime, parseTime,
 } from '../lib/metric.js'
+import { exportTemplates } from '../lib/exportTemplate.js'
 import ExercisePicker from '../components/ExercisePicker.jsx'
 
 // Дефолтный целевой план по типу упражнения: 3 подхода × 10 повторов (время —
@@ -56,12 +57,15 @@ export default function TemplatesScreen({ user, onBack }) {
 }
 
 // Карточка шаблона в списке. mine → бейдж 🌐 у общих; чужой → пометка автора.
-function TemplateCard({ t, mine, onOpen }) {
+// В режиме экспорта (selectMode) тап переключает галочку вместо открытия.
+function TemplateCard({ t, mine, onOpen, selectMode = false, picked = false, onPick }) {
   const exs = t.exercises ?? []
   return (
     <button
-      className="card history-card history-tap"
-      onClick={() => onOpen(t.id)}
+      className={
+        'card history-card history-tap' + (selectMode && picked ? ' picked' : '')
+      }
+      onClick={() => (selectMode ? onPick?.(t.id) : onOpen(t.id))}
     >
       <div className="history-head">
         <div>
@@ -79,7 +83,13 @@ function TemplateCard({ t, mine, onOpen }) {
             {!mine && t.author_name && <span className="tpl-author"> · от {t.author_name}</span>}
           </div>
         </div>
-        <span className="history-chevron" aria-hidden="true">›</span>
+        {selectMode ? (
+          <span className={'history-check' + (picked ? ' on' : '')} aria-hidden="true">
+            {picked ? '✓' : ''}
+          </span>
+        ) : (
+          <span className="history-chevron" aria-hidden="true">›</span>
+        )}
       </div>
 
       <ul className="history-list">
@@ -106,6 +116,44 @@ function TemplateList({ user, onBack, onOpen }) {
   const mine = list.filter((t) => t.user_id === user.id)
   const shared = list.filter((t) => t.user_id !== user.id) // чужие общие
 
+  // Режим экспорта: мультивыбор шаблонов → выгрузка в JSON (как в «Истории»).
+  const [selectMode, setSelectMode] = useState(false)
+  const [picked, setPicked] = useState(() => new Set())
+  function toggleSelectMode() {
+    setSelectMode((on) => !on)
+    setPicked(new Set())
+  }
+  function togglePick(id) {
+    setPicked((prev) => {
+      const next = new Set(prev)
+      next.has(id) ? next.delete(id) : next.add(id)
+      return next
+    })
+  }
+  function pickAll() {
+    setPicked(new Set(list.map((t) => t.id)))
+  }
+  function exportPicked() {
+    const chosen = list.filter((t) => picked.has(t.id))
+    if (!chosen.length) return
+    const appVersion = typeof __APP_VERSION__ !== 'undefined' ? __APP_VERSION__ : 'dev'
+    exportTemplates(chosen, appVersion)
+    setSelectMode(false)
+    setPicked(new Set())
+  }
+
+  const renderCard = (t, isMine) => (
+    <TemplateCard
+      key={t.id}
+      t={t}
+      mine={isMine}
+      onOpen={onOpen}
+      selectMode={selectMode}
+      picked={picked.has(t.id)}
+      onPick={togglePick}
+    />
+  )
+
   return (
     <div className="screen">
       <div className="detail-head">
@@ -113,9 +161,11 @@ function TemplateList({ user, onBack, onOpen }) {
         <h2 className="screen-title detail-title">Шаблоны</h2>
       </div>
 
-      <button className="btn primary full add-workout" onClick={() => onOpen('new')}>
-        + Новый шаблон
-      </button>
+      {!selectMode && (
+        <button className="btn primary full add-workout" onClick={() => onOpen('new')}>
+          + Новый шаблон
+        </button>
+      )}
 
       {loading && <p className="muted">Загрузка…</p>}
 
@@ -126,18 +176,38 @@ function TemplateList({ user, onBack, onOpen }) {
       {!loading && mine.length > 0 && (
         <>
           <h3 className="group-title">Мои шаблоны</h3>
-          {mine.map((t) => (
-            <TemplateCard key={t.id} t={t} mine onOpen={onOpen} />
-          ))}
+          {mine.map((t) => renderCard(t, true))}
         </>
       )}
 
       {!loading && shared.length > 0 && (
         <>
           <h3 className="group-title">Общие</h3>
-          {shared.map((t) => (
-            <TemplateCard key={t.id} t={t} mine={false} onOpen={onOpen} />
-          ))}
+          {shared.map((t) => renderCard(t, false))}
+        </>
+      )}
+
+      {/* Экспорт — по образцу «Истории»: приглушённая ссылка внизу; в режиме
+          выбора — фиксированный бар над таббаром со счётчиком и «Скачать». */}
+      {!loading && list.length > 0 && !selectMode && (
+        <button className="link-btn export-toggle export-toggle--bottom" onClick={toggleSelectMode}>
+          ⬇ Экспорт шаблонов
+        </button>
+      )}
+
+      {selectMode && (
+        <>
+          <div className="wk-save-spacer" aria-hidden="true" />
+          <div className="export-bar export-bar--fixed">
+            <span className="muted">Выбрано: {picked.size}</span>
+            <div className="export-bar-actions">
+              <button className="link-btn" onClick={pickAll}>Все</button>
+              <button className="link-btn" onClick={toggleSelectMode}>Отмена</button>
+              <button className="btn primary" disabled={picked.size === 0} onClick={exportPicked}>
+                ⬇ Скачать{picked.size ? ` (${picked.size})` : ''}
+              </button>
+            </div>
+          </div>
         </>
       )}
     </div>
