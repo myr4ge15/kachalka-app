@@ -5,6 +5,8 @@ import { getUsers, getCachedUser } from '../db/repo.js'
 import { getMeta } from '../db/local.js'
 import { onOnline, onResume } from '../lib/appEvents.js'
 import Avatar from './../components/Avatar.jsx'
+import Skeleton from '../components/Skeleton.jsx'
+import CardsSkeleton from '../components/CardsSkeleton.jsx'
 
 // Медаль для тройки призёров, дальше — номер места.
 function place(i) {
@@ -57,8 +59,15 @@ export default function Leaderboard({ user }) {
 
   // Приватный — рейтинг не показываем вовсе.
   if (myPrivate) return null
-  // Пока читаем кэш (рейтинг или свой профиль) — ничего не мигаем.
-  if (board === undefined || meRow === false) return null
+  // Пока читаем кэш (рейтинг или свой профиль) — каркас вместо пустоты/мигания.
+  if (board === undefined || meRow === false) {
+    return (
+      <div className="card lb-card" aria-busy="true" aria-label="Загрузка">
+        <Skeleton w="55%" h={18} r={6} style={{ marginBottom: 12 }} />
+        <CardsSkeleton cards={4} height={34} />
+      </div>
+    )
+  }
 
   // Показываем ТОЛЬКО борд зрителя по его полу: женщине — женский (мостик),
   // мужчине и не заданному полу — мужской (жим). Чужой борд не показываем.

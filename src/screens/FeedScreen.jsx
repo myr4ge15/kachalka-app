@@ -199,7 +199,7 @@ export default function FeedScreen({ user }) {
         <div className="feed-main">
           {error && <div className="banner error">{error}</div>}
 
-          {loading && <p className="muted">Загрузка…</p>}
+          {loading && <CardsSkeleton cards={3} height={120} />}
 
           {!loading && list.length === 0 && !error && (
             myPrivate ? (

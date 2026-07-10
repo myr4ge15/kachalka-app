@@ -6,6 +6,7 @@ import { exerciseMetric, fmtSet } from '../lib/metric.js'
 import { exportWorkouts } from '../lib/exportWorkout.js'
 import WorkoutScreen from './WorkoutScreen.jsx'
 import TemplatesScreen from './TemplatesScreen.jsx'
+import CardsSkeleton from '../components/CardsSkeleton.jsx'
 
 function fmtDate(iso) {
   const d = new Date(iso)
@@ -108,7 +109,7 @@ export default function HistoryScreen({ user }) {
           📋 Шаблоны
         </button>
 
-        {loading && <p className="muted">Загрузка…</p>}
+        {loading && <CardsSkeleton cards={4} />}
 
         {!loading && list.length === 0 && (
           <p className="muted empty">Пока нет записанных тренировок.</p>

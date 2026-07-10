@@ -7,6 +7,7 @@ import { getWorkouts } from '../db/repo.js'
 import { bestOneRepMax } from '../lib/oneRepMax.js'
 import { cmpIsoAsc } from '../lib/cmp.js'
 import { fmtSet as fmtSetMetric, fmtTime } from '../lib/metric.js'
+import CardsSkeleton from '../components/CardsSkeleton.jsx'
 
 function fmtDate(iso) {
   const d = new Date(iso)
@@ -226,7 +227,7 @@ export default function ProgressScreen({ user, initialExerciseId = null }) {
             : 'Упражнение без веса — динамика по лучшему подходу (повт.)'}
       </p>
 
-      {loading && <p className="muted">Загрузка…</p>}
+      {loading && <CardsSkeleton cards={3} />}
 
       {!loading && list.length === 0 && (
         <p className="muted empty">Пока нет данных. Запиши тренировку.</p>
