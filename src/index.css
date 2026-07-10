@@ -1597,4 +1597,31 @@ img.avatar-lg.has-img {
 }
 .fr-imb .em { font-size: 18px; flex-shrink: 0; }
 .fr-imb-body { display: flex; flex-direction: column; gap: 4px; font-size: 13px; line-height: 1.4; }
-.fr-note { margin-top: 16px; font-size: 12px; text-align: center; }
+
+/* Карта тела (heatmap-силуэт, слайс 3). */
+.mm {
+  display: flex; gap: 8px; justify-content: center;
+  background: var(--surface); border: 1px solid var(--border); border-radius: 14px;
+  padding: 12px 8px;
+}
+.mm-col { flex: 1; min-width: 0; text-align: center; }
+.mm svg { width: 100%; height: auto; max-width: 150px; }
+.mm-cap { font-size: 11px; color: var(--muted); margin-top: 2px; }
+.mm-zone { cursor: pointer; }
+.mm-zone:focus { outline: none; }
+.mm-zone:focus-visible ellipse, .mm-zone:focus-visible rect,
+.mm-zone.sel ellipse, .mm-zone.sel rect { stroke: #e2e8f0; stroke-width: 2.5; }
+
+.fr-legend {
+  display: flex; flex-wrap: wrap; gap: 6px 12px; justify-content: center;
+  margin-top: 10px; font-size: 11px; color: var(--muted);
+}
+.fr-legend span { display: flex; align-items: center; gap: 5px; }
+.fr-sw { width: 10px; height: 10px; border-radius: 3px; display: inline-block; flex-shrink: 0; }
+.fr-sw.fr-fresh   { background: #ef4444; }
+.fr-sw.fr-recent  { background: #f59e0b; }
+.fr-sw.fr-due     { background: #14b8a6; }
+.fr-sw.fr-overdue { background: #3b82f6; }
+.fr-sw.fr-never   { background: #64748b; }
+
+.fr-row.hl { border-color: #e2e8f0; }

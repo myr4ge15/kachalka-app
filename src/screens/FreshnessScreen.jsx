@@ -1,13 +1,17 @@
+import { useState } from 'react'
 import { useLiveQuery } from 'dexie-react-hooks'
 import { getFreshness } from '../db/insights.js'
+import { groupBuckets } from '../lib/freshness.js'
 import { fmtDaysAgo, fmtDays } from '../lib/homeSummary.js'
 import { groupAccusative } from '../lib/dayTags.js'
+import MuscleMap from '../components/MuscleMap.jsx'
 
-// Детальный экран «Свежесть по группам» (виш BACKLOG, слайс 2). Два текстовых
-// представления над общим движком src/lib/freshness.js: recovery-список «когда
-// снова тренировать» (порог восстановления свой на группу) и анализ дисбаланса
-// (канонические группы вне окна). Всё из локальных тренировок — офлайн-доступно,
-// живо обновляется через useLiveQuery. Heatmap-силуэт — отдельный слайс 3.
+// Детальный экран «Свежесть по группам» (виш BACKLOG, слайсы 2–3). Три
+// представления над общим движком src/lib/freshness.js: heatmap-силуэт (MuscleMap,
+// слайс 3), recovery-список «когда снова тренировать» (порог восстановления свой
+// на группу) и анализ дисбаланса (канонические группы вне окна). Всё из локальных
+// тренировок — офлайн-доступно, живо обновляется через useLiveQuery. Клик по зоне
+// силуэта подсвечивает строку группы в recovery-списке (состояние sel).
 //
 // Пропсы: user, onBack().
 
@@ -19,6 +23,10 @@ export default function FreshnessScreen({ user, onBack }) {
   const loading = data === undefined
   const rec = data?.recovery ?? []
   const imb = data?.imbalance ?? []
+  const byGroup = groupBuckets(rec, imb)
+  // Выбранная на силуэте группа — подсвечивает её строку в recovery-списке.
+  const [sel, setSel] = useState(null)
+  const toggle = (g) => setSel((cur) => (cur === g ? null : g))
 
   return (
     <div className="screen fresh-screen">
@@ -36,10 +44,25 @@ export default function FreshnessScreen({ user, onBack }) {
       ) : (
         <>
           <section className="sec">
+            <p className="sec-title">Карта тела</p>
+            <MuscleMap byGroup={byGroup} selected={sel} onSelect={toggle} />
+            <div className="fr-legend">
+              <span><i className="fr-sw fr-fresh" />отдыхает</span>
+              <span><i className="fr-sw fr-recent" />3–6 дн</span>
+              <span><i className="fr-sw fr-due" />1–2 нед</span>
+              <span><i className="fr-sw fr-overdue" />давно</span>
+              <span><i className="fr-sw fr-never" />ни разу</span>
+            </div>
+          </section>
+
+          <section className="sec">
             <p className="sec-title">Когда снова тренировать</p>
             <div className="fr-list">
               {rec.map((f) => (
-                <div key={f.group} className={`fr-row fr-${f.bucket}`}>
+                <div
+                  key={f.group}
+                  className={`fr-row fr-${f.bucket}` + (sel === f.group ? ' hl' : '')}
+                >
                   <div className="fr-row-body">
                     <div className="fr-row-name">{cap(f.group)}</div>
                     <div className="fr-row-sub">{fmtDaysAgo(f.daysSince)}</div>
@@ -67,10 +90,6 @@ export default function FreshnessScreen({ user, onBack }) {
               </div>
             </section>
           )}
-
-          <p className="fr-note muted">
-            Скоро здесь появится карта тела с раскраской по свежести.
-          </p>
         </>
       )}
     </div>

@@ -8,6 +8,7 @@ import {
   groupFreshness,
   mostNeglectedGroup,
   imbalance,
+  groupBuckets,
 } from './freshness.js'
 
 function wk({ id, at, entries, deleted }) {
@@ -142,5 +143,26 @@ describe('imbalance', () => {
     const all = ['грудь', 'спина', 'ноги', 'плечи', 'бицепс', 'трицепс', 'пресс']
     const list = all.map((g, i) => wk({ id: `w${i}`, at: daysAgo(1), entries: [{ exId: g, group: g }] }))
     expect(imbalance(list, { now: NOW, windowDays: 14 })).toEqual([])
+  })
+})
+
+describe('groupBuckets', () => {
+  it('тренированные — бакет из recovery, never из дисбаланса', () => {
+    const recovery = [
+      { group: 'ноги', bucket: 'overdue' },
+      { group: 'грудь', bucket: 'fresh' },
+    ]
+    const imb = [
+      { group: 'спина', kind: 'never', daysSince: null },
+      { group: 'плечи', kind: 'stale', daysSince: 20 },
+    ]
+    const m = groupBuckets(recovery, imb)
+    expect(m).toEqual({ ноги: 'overdue', грудь: 'fresh', спина: 'never' })
+    // stale в карту не идёт (спина уже покрыта recovery/never; stale — только текст дисбаланса)
+    expect(m['плечи']).toBeUndefined()
+  })
+  it('пустые входы → пустая карта', () => {
+    expect(groupBuckets([], [])).toEqual({})
+    expect(groupBuckets(undefined, undefined)).toEqual({})
   })
 })

@@ -161,4 +161,14 @@ export function imbalance(workouts, { now = new Date(), windowDays = 14, groups 
   return out
 }
 
+// Карта group → bucket для heatmap-силуэта: тренированные группы берут бакет
+// цвета из recovery-списка, канонические «ни разу» из дисбаланса → 'never'.
+// Группы без данных в карту не попадают (силуэт красит их нейтрально).
+export function groupBuckets(recovery, imbalance) {
+  const map = {}
+  for (const f of recovery ?? []) if (f?.group) map[f.group] = f.bucket
+  for (const x of imbalance ?? []) if (x?.kind === 'never' && x.group) map[x.group] = 'never'
+  return map
+}
+
 export { GROUP_ORDER }
