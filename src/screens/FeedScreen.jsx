@@ -9,6 +9,7 @@ import { fmtWhen, fmtAgo } from '../lib/dates.js'
 import { fmtMetricValue, fmtSet } from '../lib/metric.js'
 import { summarizeReactions, reactorLine } from '../lib/reactions.js'
 import { vibrate, HAPTIC } from '../lib/haptics.js'
+import { pullDistance, shouldTriggerRefresh, PULL_THRESHOLD } from '../lib/pullRefresh.js'
 import Leaderboard from './Leaderboard.jsx'
 import Avatar from '../components/Avatar.jsx'
 
@@ -90,8 +91,86 @@ export default function FeedScreen({ user }) {
     return () => { off1(); off2() }
   }, [refresh])
 
+  // Pull-to-refresh: жест «потянуть вниз» у самого верха Ленты → тот же refresh.
+  // Скроллится не сам экран, а родительский .content (см. App.jsx/index.css),
+  // поэтому touch-слушатели вешаем на него. Чистая математика жеста (резина/порог)
+  // — в lib/pullRefresh.js. Индикатор .ptr следует за пальцем, на отпускании
+  // пружинит назад; при переходе порога — лёгкий haptic + обновление.
+  const rootRef = useRef(null)
+  const [pull, setPull] = useState(0)
+  const [dragging, setDragging] = useState(false)
+  const pullRef = useRef(0)
+  const refreshingRef = useRef(refreshing)
+  refreshingRef.current = refreshing
+
+  useEffect(() => {
+    const root = rootRef.current
+    const sc = root?.closest('.content')
+    if (!sc) return
+    let startY = null
+    let active = false
+    const setPx = (v) => { pullRef.current = v; setPull(v) }
+
+    const onStart = (e) => {
+      // Начинаем следить за жестом только у самого верха и не во время обновления.
+      startY = (!refreshingRef.current && sc.scrollTop <= 0) ? e.touches[0].clientY : null
+      active = false
+    }
+    const onMove = (e) => {
+      if (startY == null) return
+      if (sc.scrollTop > 0) { startY = null; active = false; setDragging(false); setPx(0); return }
+      const raw = e.touches[0].clientY - startY
+      if (raw <= 0) { if (active) { active = false; setDragging(false); setPx(0) } return }
+      if (!active) { active = true; setDragging(true) }
+      // Забираем жест у нативного оверскролла, чтобы тянулся наш индикатор.
+      e.preventDefault()
+      setPx(pullDistance(raw))
+    }
+    const onEnd = () => {
+      if (startY == null) return
+      startY = null
+      const triggered = active && shouldTriggerRefresh(pullRef.current) && !refreshingRef.current
+      active = false
+      setDragging(false)
+      setPx(0)
+      if (triggered) { vibrate(HAPTIC.tap); refresh() }
+    }
+
+    sc.addEventListener('touchstart', onStart, { passive: true })
+    sc.addEventListener('touchmove', onMove, { passive: false })
+    sc.addEventListener('touchend', onEnd)
+    sc.addEventListener('touchcancel', onEnd)
+    return () => {
+      sc.removeEventListener('touchstart', onStart)
+      sc.removeEventListener('touchmove', onMove)
+      sc.removeEventListener('touchend', onEnd)
+      sc.removeEventListener('touchcancel', onEnd)
+    }
+  }, [refresh])
+
   return (
-    <div className="screen feed-screen">
+    <div
+      className="screen feed-screen"
+      ref={rootRef}
+      style={{
+        transform: pull ? `translateY(${pull}px)` : undefined,
+        transition: dragging ? 'none' : 'transform var(--dur-base) var(--ease-out)',
+      }}
+    >
+      {/* Индикатор жеста «потянуть вниз»: живёт над контентом (top:-34), проявляется
+          и доворачивается по мере протягивания; при достижении порога — «готов». */}
+      <div
+        className={'ptr' + (pull >= PULL_THRESHOLD ? ' ready' : '')}
+        aria-hidden="true"
+        style={{ opacity: Math.min(pull / PULL_THRESHOLD, 1) }}
+      >
+        <span
+          className="ptr-ico"
+          style={pull ? { transform: `rotate(${Math.min(pull / PULL_THRESHOLD, 1) * 180}deg)` } : undefined}
+        >
+          ↓
+        </span>
+      </div>
       <div className="feed-head">
         <h2 className="screen-title">Лента</h2>
         <button className="link-btn feed-refresh" onClick={refresh} disabled={refreshing} title="Обновить">

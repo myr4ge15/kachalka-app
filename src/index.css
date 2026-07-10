@@ -785,6 +785,19 @@ input { font-family: inherit; }
 /* ---------- feed (общая лента) ---------- */
 /* Мобайл: один столбец. Рейтинг (.feed-rail) стоит НАД постами (order:-1) —
    как было до десктоп-раскладки. На десктопе (≥900px) — две колонки, см. ниже. */
+/* Якорь для индикатора pull-to-refresh (.ptr живёт над контентом, top:-34). */
+.feed-screen { position: relative; }
+/* Индикатор жеста «потянуть вниз»: над лентой, проявляется по мере протягивания;
+   при готовности (порог) — зелёный. Follows the finger — сама лента сдвигается
+   transform'ом из FeedScreen, индикатор едет вместе с ней в зону видимости. */
+.ptr {
+  position: absolute; top: -34px; left: 0; right: 0; height: 34px;
+  display: flex; align-items: center; justify-content: center;
+  color: var(--muted); font-size: 20px; line-height: 1; pointer-events: none;
+}
+.ptr.ready { color: var(--green); }
+.ptr-ico { display: inline-block; }
+
 .feed-layout { display: flex; flex-direction: column; }
 .feed-rail { order: -1; }
 .feed-head { display: flex; align-items: baseline; justify-content: space-between; }
