@@ -138,7 +138,7 @@ input { font-family: inherit; }
   flex: 1; display: flex; flex-direction: column; align-items: center; gap: 3px;
   padding: 8px 4px; min-height: 44px; background: none; border: none;
   color: var(--muted); font-size: 11px; font-weight: 600;
-  transition: color .25s ease;
+  transition: color .25s ease, transform var(--dur-fast) var(--ease-out);
 }
 .tab .tab-ico { transition: transform .25s ease; }
 .tab.active { color: var(--green); }
@@ -267,6 +267,16 @@ input { font-family: inherit; }
 .btn.outline { background: none; border-color: var(--green); color: var(--green); margin-bottom: 12px; }
 .btn.ghost { background: var(--surface-2); color: var(--text); border-color: var(--border); margin-top: 6px; }
 .save-btn { margin-top: 4px; }
+
+/* Микро-нажатие: крупные кнопки «продавливаются» на :active (scale через
+   --press-scale). Палец ощущает нажатие физически, а не только сменой фона.
+   Один паттерн на «Сохранить»/степперы/вкладки. Под prefers-reduced-motion
+   --press-scale = 1 → эффект выключается ЦЕНТРАЛИЗОВАННО, без отдельного
+   медиазапроса (scale(1) = no-op, короткий transform-transition безвреден).
+   Disabled-кнопку не «продавливаем». */
+.btn, .stepper button { transition: transform var(--dur-fast) var(--ease-out); }
+.btn:active, .stepper button:active, .tab:active { transform: scale(var(--press-scale)); }
+.btn:disabled, .btn:disabled:active { transform: none; }
 
 /* Липкая кнопка «Сохранить» в композере тренировки: плавает над таббаром, чтобы
    при длинной тренировке не приходилось скроллить до самого низа. Паттерн — как у
