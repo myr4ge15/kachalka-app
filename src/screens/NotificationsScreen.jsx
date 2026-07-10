@@ -4,6 +4,7 @@ import { getNotifications, getSeenAt, markAllSeen } from '../db/notifications.js
 import { cmpIsoAsc } from '../lib/cmp.js'
 import { fmtWhen } from '../lib/dates.js'
 import { fmtMetricValue } from '../lib/metric.js'
+import { filterNotifs, activeCategories } from '../lib/notifFilter.js'
 
 // Экран «Уведомления»: личные рекорды и кто обходит тебя в кругу (ТЗ §4.5, MVP).
 export default function NotificationsScreen({ user }) {
@@ -34,7 +35,16 @@ export default function NotificationsScreen({ user }) {
     markAllSeen(user.id, items)
   }, [ready, loading, items])
 
+  // Непрочитанные и «прочитано» считаем по ПОЛНОМУ списку — фильтр-чипы влияют
+  // только на рендер, но не гасят бейдж выборочно.
   const unreadCount = items.filter((n) => cmpIsoAsc(seenRef.current, n.at) < 0).length
+
+  // Фильтр-чипы: показываем только реально присутствующие категории. Если
+  // выбранная категория опустела (данные изменились) — откатываемся на «Все».
+  const [filter, setFilter] = useState('all')
+  const cats = activeCategories(items)
+  const activeFilter = cats.some((c) => c.key === filter) ? filter : 'all'
+  const shown = filterNotifs(items, activeFilter)
 
   return (
     <div className="screen">
@@ -53,7 +63,24 @@ export default function NotificationsScreen({ user }) {
         </div>
       )}
 
-      {items.map((n) => {
+      {!loading && cats.length > 2 && (
+        <div className="chips" role="tablist" aria-label="Фильтр уведомлений">
+          {cats.map((c) => (
+            <button
+              key={c.key}
+              type="button"
+              role="tab"
+              aria-selected={activeFilter === c.key}
+              className={'chip' + (activeFilter === c.key ? ' active' : '')}
+              onClick={() => setFilter(c.key)}
+            >
+              {c.label}
+            </button>
+          ))}
+        </div>
+      )}
+
+      {shown.map((n) => {
         const unread = cmpIsoAsc(seenRef.current, n.at) < 0
         const icon =
           n.type === 'mine' ? '🏆'
