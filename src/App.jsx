@@ -22,6 +22,7 @@ const FeedScreen = lazy(() => import('./screens/FeedScreen.jsx'))
 const NotificationsScreen = lazy(() => import('./screens/NotificationsScreen.jsx'))
 const ProfileScreen = lazy(() => import('./screens/ProfileScreen.jsx'))
 const AdminScreen = lazy(() => import('./screens/AdminScreen.jsx'))
+const FreshnessScreen = lazy(() => import('./screens/FreshnessScreen.jsx'))
 
 // Иконка состояния синхронизации — инлайн-SVG (без зависимостей), как TabIcon.
 // Красится через currentColor (цвет задаёт класс .sync-badge.<cls>), спиннер
@@ -114,7 +115,7 @@ export default function App() {
   const [tab, setTab] = useState(() => {
     const saved = sessionStorage.getItem(TAB_KEY)
     return saved && saved !== 'workout' ? saved : 'home'
-  }) // 'home' | 'history' | 'feed' | 'progress' | 'notif' | 'profile' | 'admin'
+  }) // 'home' | 'history' | 'feed' | 'progress' | 'notif' | 'profile' | 'admin' | 'freshness'
 
   // Упражнение, с которым открыть «Прогресс» (проброс из ЛК по тапу на рекорд).
   const [progressExId, setProgressExId] = useState(null)
@@ -291,16 +292,24 @@ export default function App() {
           {tab === 'admin' && user.role === 'admin' && (
             <AdminScreen user={user} onBack={() => goTab('profile')} />
           )}
+          {tab === 'freshness' && (
+            <FreshnessScreen user={user} onBack={() => goTab('home')} />
+          )}
         </Suspense>
       </main>
 
       <nav className="tabbar">
         {/* Бренд-шапка сайдбара: видна только на десктопе (≥900px), где .tabbar
-            превращается в левую колонку. На мобиле скрыта (display:none). */}
-        <div className="side-brand" aria-hidden="true">
+            превращается в левую колонку. На мобиле скрыта (display:none). Кликабельна
+            — ведёт на Главную. */}
+        <button
+          className="side-brand"
+          onClick={() => goTab('home')}
+          aria-label="На главную"
+        >
           <span className="side-logo">🏋️</span>
           <span className="side-brand-txt">kachalka-app</span>
-        </div>
+        </button>
         <button
           className={tab === 'home' ? 'tab active' : 'tab'}
           onClick={() => goTab('home')}

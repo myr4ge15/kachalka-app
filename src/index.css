@@ -1180,11 +1180,14 @@ img.avatar-lg.has-img {
     background: #0c1424;
   }
 
-  /* Бренд-шапка сайдбара */
+  /* Бренд-шапка сайдбара — кнопка «на главную» (сброс стилей button). */
   .side-brand {
     display: flex; align-items: center; gap: 10px;
     padding: 6px 8px 14px;
+    background: none; border: none; width: 100%;
+    cursor: pointer; text-align: left; color: inherit;
   }
+  .side-brand:hover .side-brand-txt { color: var(--green); }
   .side-logo {
     width: 34px; height: 34px; flex-shrink: 0; border-radius: 10px;
     display: flex; align-items: center; justify-content: center; font-size: 19px;
@@ -1533,3 +1536,65 @@ img.avatar-lg.has-img {
 .home-actions { display: flex; flex-wrap: wrap; gap: 10px; margin-top: 8px; }
 .home-actions .btn { flex: 1 1 auto; }
 .home-cta { margin-top: 14px; width: 100%; }
+
+/* ======================= Свежесть по группам (recovery / дисбаланс) =======================
+   Единый движок src/lib/freshness.js. Бакеты цвета давности: fresh(отдыхает)=красный,
+   recent=оранжевый, due(пора)=бирюзовый, overdue(давно)=синий, never=серый. */
+
+/* Тизер на Главной. */
+.fr-teaser {
+  display: flex; flex-direction: column; gap: 11px; width: 100%; text-align: left;
+  background: var(--surface); border: 1px solid var(--border); border-radius: 16px;
+  padding: 14px; color: var(--text);
+}
+.fr-teaser-head { display: flex; align-items: center; justify-content: space-between; gap: 8px; }
+.fr-teaser-lab { font-size: 13px; font-weight: 700; }
+.fr-teaser .go { color: var(--green); font-weight: 700; font-size: 13px; flex-shrink: 0; }
+.fr-strip { display: flex; gap: 6px; }
+.fr-strip-cell { flex: 1; min-width: 0; text-align: center; }
+.fr-bar { display: block; height: 6px; border-radius: 3px; background: var(--muted); }
+.fr-strip-lab {
+  display: block; font-size: 10px; color: var(--muted); margin-top: 4px;
+  overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+}
+.fr-lead { display: flex; align-items: center; gap: 9px; background: var(--surface-2); border-radius: 10px; padding: 9px 10px; }
+.fr-lead .em { font-size: 18px; flex-shrink: 0; }
+.fr-lead-body { min-width: 0; }
+.fr-lead .v { font-weight: 700; font-size: 14px; }
+.fr-lead .k { color: var(--muted); font-size: 12px; margin-top: 1px; }
+
+/* Бакеты цвета — полоса тизера. */
+.fr-bar.fr-fresh   { background: #ef4444; }
+.fr-bar.fr-recent  { background: #f59e0b; }
+.fr-bar.fr-due     { background: #14b8a6; }
+.fr-bar.fr-overdue { background: #3b82f6; }
+.fr-bar.fr-never   { background: #64748b; }
+
+/* Детальный экран: recovery-список. */
+.fr-list { display: flex; flex-direction: column; gap: 8px; }
+.fr-row {
+  display: flex; align-items: center; gap: 12px;
+  background: var(--surface); border: 1px solid var(--border); border-left-width: 3px;
+  border-radius: 12px; padding: 11px 13px;
+}
+.fr-row.fr-fresh   { border-left-color: #ef4444; }
+.fr-row.fr-recent  { border-left-color: #f59e0b; }
+.fr-row.fr-due     { border-left-color: #14b8a6; }
+.fr-row.fr-overdue { border-left-color: #3b82f6; }
+.fr-row.fr-never   { border-left-color: #64748b; }
+.fr-row-body { flex: 1; min-width: 0; }
+.fr-row-name { font-weight: 700; font-size: 15px; }
+.fr-row-sub { color: var(--muted); font-size: 12px; margin-top: 2px; }
+.fr-badge { flex: 0 0 auto; font-size: 12px; font-weight: 700; border-radius: 8px; padding: 4px 10px; }
+.fr-badge.st-ready   { color: #5eead4; background: rgba(20,184,166,.14); }
+.fr-badge.st-almost  { color: #fcd34d; background: rgba(245,158,11,.14); }
+.fr-badge.st-resting { color: #fca5a5; background: rgba(239,68,68,.14); }
+
+/* Детальный экран: дисбаланс. */
+.fr-imb {
+  display: flex; gap: 10px; background: var(--surface); border: 1px solid var(--border);
+  border-radius: 12px; padding: 12px 13px;
+}
+.fr-imb .em { font-size: 18px; flex-shrink: 0; }
+.fr-imb-body { display: flex; flex-direction: column; gap: 4px; font-size: 13px; line-height: 1.4; }
+.fr-note { margin-top: 16px; font-size: 12px; text-align: center; }

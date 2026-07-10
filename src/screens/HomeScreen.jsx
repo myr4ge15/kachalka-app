@@ -1,9 +1,16 @@
 import { useLiveQuery } from 'dexie-react-hooks'
-import { getHomeSummary, getInsights } from '../db/insights.js'
-import { fmtDaysAgo, fmtDays } from '../lib/homeSummary.js'
+import { getHomeSummary, getInsights, getFreshness } from '../db/insights.js'
+import { fmtDaysAgo } from '../lib/homeSummary.js'
 import { fmtTonnage, goalProgress } from '../lib/profileStats.js'
 import { fmtMetricValue } from '../lib/metric.js'
-import { tagSlug, groupAccusative } from '../lib/dayTags.js'
+import { tagSlug, groupAccusative, GROUP_ORDER } from '../lib/dayTags.js'
+
+// Полоска свежести в тизере — в каноническом порядке групп (стабильно), не по
+// приоритету «пора». Группы вне канона уезжают в конец.
+const canonIdx = (g) => {
+  const i = GROUP_ORDER.indexOf(g)
+  return i === -1 ? 99 : i
+}
 
 // Главный экран — «5 секунд после открытия» (виш BACKLOG «Домашняя сводка»).
 // Персональная сводка + авто-инсайты. Всё из локальной базы (офлайн-доступно),
@@ -13,6 +20,7 @@ import { tagSlug, groupAccusative } from '../lib/dayTags.js'
 export default function HomeScreen({ user, onNavigate, onOpenProgress }) {
   const summary = useLiveQuery(() => getHomeSummary(user.id), [user.id])
   const insights = useLiveQuery(() => getInsights(user.id, { max: 3 }), [user.id], [])
+  const freshness = useLiveQuery(() => getFreshness(user.id), [user.id])
   const loading = summary === undefined
 
   if (loading) {
@@ -42,6 +50,12 @@ export default function HomeScreen({ user, onNavigate, onOpenProgress }) {
   const t = fmtTonnage(summary.tonnage.month)
   const pct = summary.tonnage.pct
   const lw = summary.lastWorkout
+
+  // Тизер свежести: полоска групп (канонический порядок) + «пора» — самая
+  // просроченная (recovery отсортирован приоритетом, [0] = самая пора).
+  const rec = freshness?.recovery ?? []
+  const strip = [...rec].sort((a, b) => canonIdx(a.group) - canonIdx(b.group))
+  const lead = rec[0] && (rec[0].bucket === 'due' || rec[0].bucket === 'overdue') ? rec[0] : null
 
   return (
     <div className="screen home">
@@ -103,17 +117,40 @@ export default function HomeScreen({ user, onNavigate, onOpenProgress }) {
         </div>
       </div>
 
-      {/* пора потренировать (забытая группа) */}
-      {summary.nextFocus && summary.nextFocus.daysAgo >= 5 && (
+      {/* свежесть групп — тизер, разворачивается в детальный экран */}
+      {strip.length > 0 && (
         <section className="sec">
-          <p className="sec-title">Что дальше</p>
-          <button className="home-row" onClick={() => onNavigate?.('history')}>
-            <span className="em" aria-hidden="true">🎯</span>
-            <div className="home-row-body">
-              <div className="v">Пора проработать {groupAccusative(summary.nextFocus.group)}</div>
-              <div className="k">не тренировал уже {fmtDays(summary.nextFocus.daysAgo)}</div>
+          <p className="sec-title">Свежесть групп</p>
+          <button className="fr-teaser" onClick={() => onNavigate?.('freshness')}>
+            <div className="fr-teaser-head">
+              <span className="fr-teaser-lab">Восстановление по группам</span>
+              <span className="go">Подробнее ›</span>
             </div>
-            <span className="go">Записать ›</span>
+            <div className="fr-strip">
+              {strip.map((f) => (
+                <div className="fr-strip-cell" key={f.group}>
+                  <span className={`fr-bar fr-${f.bucket}`} aria-hidden="true" />
+                  <span className="fr-strip-lab">{f.group}</span>
+                </div>
+              ))}
+            </div>
+            {lead ? (
+              <div className="fr-lead">
+                <span className="em" aria-hidden="true">🎯</span>
+                <div className="fr-lead-body">
+                  <div className="v">Пора проработать {groupAccusative(lead.group)}</div>
+                  <div className="k">не тренировал {fmtDaysAgo(lead.daysSince)}</div>
+                </div>
+              </div>
+            ) : (
+              <div className="fr-lead calm">
+                <span className="em" aria-hidden="true">💪</span>
+                <div className="fr-lead-body">
+                  <div className="v">Мышцы свежие</div>
+                  <div className="k">все тренированные группы восстановились</div>
+                </div>
+              </div>
+            )}
           </button>
         </section>
       )}

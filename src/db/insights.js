@@ -12,6 +12,7 @@ import { getCachedLeaderboard } from './leaderboard.js'
 import { readGoals } from './notifications.js'
 import { buildInsights } from '../lib/insights.js'
 import { buildHomeSummary } from '../lib/homeSummary.js'
+import { groupFreshness, imbalance as computeImbalance } from '../lib/freshness.js'
 
 // Снимок лидерборда без падений (для «обгона друга»). Пусто/ошибка → null.
 async function safeLeaderboard() {
@@ -40,4 +41,14 @@ export async function detectInsightsOnSave(userId, workoutId, { max = 3 } = {}) 
 export async function getHomeSummary(userId) {
   const [workouts, goals] = await Promise.all([getWorkouts(userId), readGoals(userId)])
   return buildHomeSummary({ workouts, goals })
+}
+
+// Свежесть по группам (детальный экран + тизер Главной): recovery-список
+// (когда снова тренировать) + дисбаланс. Всё из локальных тренировок, офлайн.
+export async function getFreshness(userId) {
+  const workouts = await getWorkouts(userId)
+  return {
+    recovery: groupFreshness(workouts),
+    imbalance: computeImbalance(workouts),
+  }
 }
