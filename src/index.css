@@ -268,6 +268,72 @@ input { font-family: inherit; }
 .stepper input::-webkit-inner-spin-button { -webkit-appearance: none; margin: 0; }
 .stepper input[type=number] { -moz-appearance: textfield; appearance: textfield; }
 
+/* ---------- автопрогрессия: панель «прошлая → рекомендуем» ---------- */
+.ap {
+  background: var(--surface-2); border: 1px solid var(--border);
+  border-radius: 10px; padding: 10px; margin-bottom: 12px;
+}
+.ap-row { display: flex; justify-content: space-between; align-items: baseline; margin-bottom: 6px; }
+.ap-lbl { color: var(--muted); font-size: 12px; }
+.ap-when { color: var(--muted); font-size: 11px; }
+.ap-prev { color: var(--muted); font-size: 13px; margin-bottom: 9px; }
+.ap-rec-lbl { font-size: 12px; font-weight: 600; display: flex; align-items: center; gap: 4px; margin-bottom: 6px; }
+.ap-rec-lbl.up { color: #86efac; }
+.ap-rec-lbl.same { color: var(--yellow); }
+.ap-rec-lbl.down { color: #fca5a5; }
+.ap-rec { font-size: 15px; font-weight: 600; margin-bottom: 10px; }
+.reason { font-size: 11px; padding: 5px 8px; border-radius: 6px; line-height: 1.35; display: inline-block; }
+.reason.up { background: rgba(22,163,74,.16); color: #86efac; }
+.reason.same { background: rgba(250,204,21,.14); color: #fde047; }
+.reason.down { background: rgba(239,68,68,.14); color: #fca5a5; }
+.ap-actions { display: flex; align-items: center; gap: 8px; margin-top: 10px; }
+.ap-actions .ap-revert { flex: 1; text-align: left; padding: 4px 0; }
+.btn-apply {
+  flex: 1; min-height: 40px; background: var(--green); color: #f0fdf4;
+  border: none; border-radius: 8px; font-size: 13px; font-weight: 600;
+}
+.btn-apply:active { background: var(--green-d); }
+.btn-gear {
+  width: 40px; min-height: 40px; flex-shrink: 0; background: transparent;
+  color: var(--muted); border: 1px solid var(--border); border-radius: 8px; font-size: 16px;
+}
+.btn-gear.on { color: var(--text); border-color: var(--green); }
+/* Настройки прогрессии в карточке (шестерёнка) */
+.ap-settings { margin-top: 10px; padding-top: 10px; border-top: 1px solid var(--border); }
+.seg {
+  display: flex; gap: 4px; background: var(--bg); border: 1px solid var(--border);
+  border-radius: 8px; padding: 3px; margin-bottom: 10px;
+}
+.seg-item {
+  flex: 1; min-height: 36px; text-align: center; font-size: 12px;
+  border: none; border-radius: 6px; background: transparent; color: var(--muted);
+}
+.seg-item.on { background: var(--green); color: #f0fdf4; font-weight: 600; }
+.ap-step-line { display: flex; justify-content: space-between; align-items: center; }
+.ap-step-line .lbl { color: var(--muted); font-size: 13px; }
+.ap-stepper { flex: 0 0 auto; }
+.ap-stepper .ap-step-val {
+  min-width: 68px; height: 40px; display: inline-flex; align-items: center; justify-content: center;
+  font-size: 14px; border: 1px solid var(--border); border-radius: 10px;
+  background: var(--bg); color: var(--text);
+}
+.ap-stepper button { height: 40px; }
+
+/* Тумблер-строка в настройках Профиля (напр. «Рекомендации прогрессии») */
+.toggle-act { display: flex; align-items: center; justify-content: space-between; gap: 12px; text-align: left; }
+.toggle-act-txt { display: flex; flex-direction: column; gap: 2px; }
+.toggle-act-sub { color: var(--muted); font-size: 12px; font-weight: 400; }
+.toggle-pill {
+  flex-shrink: 0; width: 46px; height: 28px; border-radius: 999px;
+  background: var(--surface-2); border: 1px solid var(--border); position: relative; transition: background .15s;
+}
+.toggle-pill.on { background: var(--green); border-color: var(--green); }
+.toggle-knob {
+  position: absolute; top: 2px; left: 2px; width: 22px; height: 22px; border-radius: 50%;
+  background: #fff; transition: transform .15s;
+}
+.toggle-pill.on .toggle-knob { transform: translateX(18px); }
+
 /* ---------- exercise picker ---------- */
 /* Оверлей рендерится порталом в <body> (см. ExercisePicker/TemplatePicker),
    поэтому position:fixed точно относительно вьюпорта. z-index выше шапки (5),

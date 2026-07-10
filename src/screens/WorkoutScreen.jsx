@@ -1,11 +1,12 @@
 import { useState, useEffect } from 'react'
 import { useLiveQuery } from 'dexie-react-hooks'
-import { getExercises, getWorkout, saveWorkout, createExercise, deleteWorkout as repoDelete, getLastSetsForExercise } from '../db/repo.js'
+import { getExercises, getWorkout, saveWorkout, createExercise, deleteWorkout as repoDelete, getRecentSessionsForExercise, getProgSettings, setProgForExercise } from '../db/repo.js'
 import { detectNewPrsOnSave, detectGoalReachedOnSave } from '../db/notifications.js'
 import { syncNow } from '../db/sync.js'
 import { getCache, setCache, clearCache } from '../lib/cache.js'
 import { showToast } from '../components/Toast.jsx'
-import { exerciseMetric, isCountMetric, fmtMetricValue, fmtTime, parseTime } from '../lib/metric.js'
+import { exerciseMetric, isCountMetric, fmtMetricValue, fmtSet, fmtTime, parseTime } from '../lib/metric.js'
+import { recommendProgression, resolveProgSettings } from '../lib/progression.js'
 import { WEIGHT_MAX, repsMax } from '../lib/setLimits.js'
 import { exportWorkouts } from '../lib/exportWorkout.js'
 import HoldButton from '../components/HoldButton.jsx'
@@ -42,6 +43,89 @@ function fmtDate(iso) {
   })
 }
 
+// ── Автопрогрессия (PLAN-autoprogression) — хелперы карточки упражнения ──────
+
+// Русское склонение по числу (день/дня/дней).
+function plural(n, one, few, many) {
+  const m10 = n % 10, m100 = n % 100
+  if (m10 === 1 && m100 !== 11) return one
+  if (m10 >= 2 && m10 <= 4 && (m100 < 10 || m100 >= 20)) return few
+  return many
+}
+// «сегодня / вчера / N дней назад» по дате прошлой сессии.
+function daysAgoLabel(iso) {
+  if (!iso) return ''
+  const then = new Date(iso), now = new Date()
+  const a = Date.UTC(then.getFullYear(), then.getMonth(), then.getDate())
+  const b = Date.UTC(now.getFullYear(), now.getMonth(), now.getDate())
+  const days = Math.round((b - a) / 86400000)
+  if (days <= 0) return 'сегодня'
+  if (days === 1) return 'вчера'
+  return `${days} ${plural(days, 'день', 'дня', 'дней')} назад`
+}
+// Стрелка ветки рекомендации.
+function progArrow(kind) {
+  if (kind === 'up' || kind === 'nudge') return '↗'
+  if (kind === 'down') return '↘'
+  return '='
+}
+// Тон чипа причины (цвет): вверх/нудж — зелёный, тот же — жёлтый, вниз — красный.
+function progTone(kind) {
+  if (kind === 'up' || kind === 'nudge') return 'up'
+  if (kind === 'down') return 'down'
+  return 'same'
+}
+// Единица шага прогрессии по метрике (у весовых — кг, даже в стратегии +повт.).
+function progStepUnit(metric) {
+  if (metric === 'time') return 'с'
+  if (metric === 'reps') return 'повт.'
+  return 'кг'
+}
+// Минимальный/дискретный шаг настройки «Шаг» по метрике.
+function progStepMin(metric) {
+  if (metric === 'time') return 5
+  if (metric === 'reps') return 1
+  return 1.25
+}
+function nextProgStep(cur, metric, dir) {
+  const d = progStepMin(metric)
+  const v = (Number(cur) || d) + dir * d
+  return Math.max(d, Math.round(v * 100) / 100)
+}
+function fmtProgStep(step, metric) {
+  return `${Math.round((Number(step) || 0) * 100) / 100} ${progStepUnit(metric)}`
+}
+
+// Собрать предзаполнение подходов + метаданные панели по недавним сессиям и
+// настройкам. Нет истории/выключено/ручной/выкл → sets = копия прошлого или
+// дефолт, meta = null (панель не показываем). Иначе — рекомендация + панель.
+function buildRecommendation(ex, sessions, progState) {
+  const metric = exerciseMetric(ex)
+  const last = sessions[0]?.sets ?? null
+  const copyOrDefault = () =>
+    last?.length ? last.map((s) => ({ weight: Number(s.weight), reps: Number(s.reps), _k: sk() })) : [defaultSet(ex)]
+  if (!progState?.enabled || !last?.length) return { sets: copyOrDefault(), meta: null }
+
+  const settings = resolveProgSettings(progState, ex.id, metric)
+  const rec = recommendProgression({ metric, lastSets: last, recentSessions: sessions, settings })
+  const real = rec.kind === 'up' || rec.kind === 'same' || rec.kind === 'down' || rec.kind === 'nudge'
+  if (!real || !rec.sets) return { sets: copyOrDefault(), meta: null }
+
+  return {
+    sets: rec.sets.map((s) => ({ weight: s.weight, reps: s.reps, _k: sk() })),
+    meta: {
+      prev: last.map((s) => ({ weight: Number(s.weight), reps: Number(s.reps) })),
+      whenIso: sessions[0].performed_at,
+      kind: rec.kind,
+      reason: rec.reasonText,
+      recSets: rec.sets.map((s) => ({ weight: s.weight, reps: s.reps })),
+      changed: rec.changed,
+      applied: true,
+      settingsOpen: false,
+    },
+  }
+}
+
 // ISO-дату (performed_at) → YYYY-MM-DD для <input type=date> и обратно.
 function toDateInput(iso) {
   const d = iso ? new Date(iso) : new Date()
@@ -63,6 +147,9 @@ export default function WorkoutScreen({ user, workoutId = null, onBack }) {
   const isNew = workoutId == null
   // Справочник — из локальной базы (офлайн-доступен).
   const exercises = useLiveQuery(() => getExercises(), [], [])
+  // Настройки автопрогрессии (глобальный тумблер + пер-упражнение). Дефолт до
+  // загрузки — включено (как и первый резолв в repo.getProgSettings).
+  const prog = useLiveQuery(() => getProgSettings(user.id), [user.id], { enabled: true, byExercise: {} })
 
   // Черновик в памяти — только для новой тренировки (ключ привязан к пользователю).
   const DRAFT_KEY = `workout_draft_new_${user.id}`
@@ -129,21 +216,85 @@ export default function WorkoutScreen({ user, workoutId = null, onBack }) {
       setMessage({ type: 'error', text: 'Это упражнение уже добавлено.' })
       return
     }
-    // Автоподстановка (виш BACKLOG): предзаполняем подходы весом/повторами из
-    // последней тренировки по этому упражнению. Нет истории (или сбой чтения) →
-    // один дефолтный подход. Данные локальные — сеть не нужна.
-    let sets
+    // Автопрогрессия (PLAN-autoprogression): вместо немой копии прошлого подхода
+    // предзаполняем РЕКОМЕНДАЦИЕЙ («+вес/тот же/−вес») и показываем панель с
+    // причиной и откатом. Нет истории/выключено/ручной → копия или дефолт. Данные
+    // локальные — сеть не нужна.
+    let built
     try {
-      const last = await getLastSetsForExercise(user.id, ex.id)
-      sets = last?.length ? last.map((s) => ({ ...s, _k: sk() })) : [defaultSet(ex)]
+      const sessions = await getRecentSessionsForExercise(user.id, ex.id, 5)
+      built = buildRecommendation(ex, sessions, prog)
     } catch {
-      sets = [defaultSet(ex)]
+      built = { sets: [defaultSet(ex)], meta: null }
     }
     // Пока читали историю, состав мог измениться (двойной тап/undo) — анти-дубль
     // на свежем состоянии внутри апдейтера.
     setEntries((prev) =>
-      prev.some((e) => e.exercise.id === ex.id) ? prev : [...prev, { exercise: ex, sets }]
+      prev.some((e) => e.exercise.id === ex.id) ? prev : [...prev, { exercise: ex, sets: built.sets, prog: built.meta }]
     )
+  }
+
+  // Откат к чистой копии прошлой сессии (ссылка «вернуть как в прошлый раз»).
+  function revertProg(ei) {
+    setEntries((prev) => prev.map((e, i) => {
+      if (i !== ei || !e.prog) return e
+      return {
+        ...e,
+        sets: e.prog.prev.map((s) => ({ ...s, _k: sk() })),
+        prog: { ...e.prog, applied: false },
+      }
+    }))
+  }
+
+  // Повторно накатить рекомендацию после отката/ручной правки («Применить»).
+  function applyProg(ei) {
+    setEntries((prev) => prev.map((e, i) => {
+      if (i !== ei || !e.prog) return e
+      return {
+        ...e,
+        sets: e.prog.recSets.map((s) => ({ ...s, _k: sk() })),
+        prog: { ...e.prog, applied: true },
+      }
+    }))
+  }
+
+  // Показать/спрятать настройки прогрессии (шестерёнка) в карточке.
+  function toggleProgSettings(ei) {
+    setEntries((prev) => prev.map((e, i) =>
+      i === ei && e.prog ? { ...e, prog: { ...e.prog, settingsOpen: !e.prog.settingsOpen } } : e
+    ))
+  }
+
+  // Сохранить пер-упражненческую настройку (стратегия/шаг) и пересобрать
+  // рекомендацию карточки, не дожидаясь обновления live-query prog.
+  async function changeProgSettings(ei, patch) {
+    const entry = entries[ei]
+    if (!entry) return
+    await setProgForExercise(user.id, entry.exercise.id, patch)
+    const nextProg = {
+      enabled: prog.enabled,
+      byExercise: {
+        ...prog.byExercise,
+        [entry.exercise.id]: { ...(prog.byExercise[entry.exercise.id] ?? {}), ...patch },
+      },
+    }
+    let sessions = []
+    try { sessions = await getRecentSessionsForExercise(user.id, entry.exercise.id, 5) } catch { /* локальное чтение */ }
+    const built = buildRecommendation(entry.exercise, sessions, nextProg)
+    setEntries((prev) => prev.map((e, i) => {
+      if (i !== ei) return e
+      const wasApplied = e.prog?.applied !== false
+      if (!built.meta) {
+        // стратегия стала ручной/выкл → панель убираем; применявшим рекомендацию
+        // возвращаем копию прошлого (built.sets), ручную правку не трогаем.
+        return { ...e, prog: null, sets: wasApplied ? built.sets : e.sets }
+      }
+      return {
+        ...e,
+        prog: { ...built.meta, settingsOpen: true, applied: wasApplied },
+        sets: wasApplied ? built.sets : e.sets,
+      }
+    }))
   }
 
   // Замена упражнения в записи: подходы сохраняем (не вводить заново). Для
@@ -404,6 +555,69 @@ export default function WorkoutScreen({ user, workoutId = null, onBack }) {
                   <button className="link-btn danger" onClick={() => removeExercise(ei)}>убрать</button>
                 </span>
               </div>
+
+              {entry.prog && (
+                <div className="ap">
+                  <div className="ap-row">
+                    <span className="ap-lbl">Прошлая</span>
+                    <span className="ap-when">{daysAgoLabel(entry.prog.whenIso)}</span>
+                  </div>
+                  <div className="ap-prev">
+                    {entry.prog.prev.map((s) => fmtSet(metric, s)).join(' · ')}
+                  </div>
+                  <div className={`ap-rec-lbl ${progTone(entry.prog.kind)}`}>
+                    {progArrow(entry.prog.kind)} Рекомендуем сегодня
+                  </div>
+                  <div className="ap-rec">
+                    {entry.prog.recSets.map((s) => fmtSet(metric, s)).join(' · ')}
+                  </div>
+                  <span className={`reason ${progTone(entry.prog.kind)}`}>{entry.prog.reason}</span>
+                  <div className="ap-actions">
+                    {entry.prog.applied ? (
+                      <button className="link-btn ap-revert" onClick={() => revertProg(ei)}>
+                        вернуть как в прошлый раз
+                      </button>
+                    ) : (
+                      <button className="btn-apply" onClick={() => applyProg(ei)}>Применить рекомендацию</button>
+                    )}
+                    <button
+                      className={`btn-gear${entry.prog.settingsOpen ? ' on' : ''}`}
+                      aria-label="Настройки прогрессии"
+                      aria-expanded={entry.prog.settingsOpen}
+                      onClick={() => toggleProgSettings(ei)}
+                    >⚙</button>
+                  </div>
+                  {entry.prog.settingsOpen && (() => {
+                    const eff = resolveProgSettings(prog, entry.exercise.id, metric)
+                    return (
+                      <div className="ap-settings">
+                        <div className="seg" role="group" aria-label="Стратегия прогрессии">
+                          {!count && (
+                            <button className={`seg-item${eff.strategy === 'weight' ? ' on' : ''}`}
+                              onClick={() => changeProgSettings(ei, { strategy: 'weight' })}>+вес</button>
+                          )}
+                          <button className={`seg-item${eff.strategy === 'reps' ? ' on' : ''}`}
+                            onClick={() => changeProgSettings(ei, { strategy: 'reps' })}>{isTime ? '+сек' : '+повт.'}</button>
+                          <button className={`seg-item${eff.strategy === 'manual' ? ' on' : ''}`}
+                            onClick={() => changeProgSettings(ei, { strategy: 'manual' })}>ручной</button>
+                          <button className={`seg-item${eff.strategy === 'off' ? ' on' : ''}`}
+                            onClick={() => changeProgSettings(ei, { strategy: 'off' })}>выкл</button>
+                        </div>
+                        {(eff.strategy === 'weight' || eff.strategy === 'reps') && (
+                          <div className="ap-step-line">
+                            <span className="lbl">Шаг</span>
+                            <div className="stepper ap-stepper">
+                              <HoldButton onTrigger={() => changeProgSettings(ei, { step: nextProgStep(eff.step, metric, -1) })}>−</HoldButton>
+                              <span className="ap-step-val">{fmtProgStep(eff.step, metric)}</span>
+                              <HoldButton onTrigger={() => changeProgSettings(ei, { step: nextProgStep(eff.step, metric, +1) })}>+</HoldButton>
+                            </div>
+                          </div>
+                        )}
+                      </div>
+                    )
+                  })()}
+                </div>
+              )}
 
               <div className="sets-head">
                 {count

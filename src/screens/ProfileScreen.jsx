@@ -3,6 +3,7 @@ import { useLiveQuery } from 'dexie-react-hooks'
 import {
   getWorkouts, getCachedUser, setCachedAvatar, setCachedName, softDeleteMyWorkouts,
   deadLetterCount, retryDeadLetter, discardDeadLetter,
+  getProgSettings, setProgEnabled,
 } from '../db/repo.js'
 import { readGoals, writeGoals } from '../db/notifications.js'
 import { syncNow } from '../db/sync.js'
@@ -26,6 +27,8 @@ export default function ProfileScreen({ user, onLogout, onOpenProgress, onOpenFe
   const workouts = useLiveQuery(() => getWorkouts(user.id), [user.id])
   const goals = useLiveQuery(() => readGoals(user.id), [user.id])
   const myCached = useLiveQuery(() => getCachedUser(user.id), [user.id])
+  // Тумблер автопрогрессии (рекомендации весов/повторов в тренировке).
+  const progEnabled = useLiveQuery(() => getProgSettings(user.id).then((p) => p.enabled), [user.id], true)
   const loading = workouts === undefined
 
   const summary = useMemo(() => summarize(workouts ?? []), [workouts])
@@ -687,6 +690,20 @@ export default function ProfileScreen({ user, onLogout, onOpenProgress, onOpenFe
 
         {settingsOpen && (
         <div className="actions">
+          <button
+            className="act toggle-act"
+            role="switch"
+            aria-checked={progEnabled}
+            onClick={() => setProgEnabled(user.id, !progEnabled)}
+          >
+            <span className="toggle-act-txt">
+              📈 Рекомендации прогрессии
+              <span className="toggle-act-sub">подсказка веса/повторов при добавлении упражнения</span>
+            </span>
+            <span className={'toggle-pill' + (progEnabled ? ' on' : '')} aria-hidden="true">
+              <span className="toggle-knob" />
+            </span>
+          </button>
           {pinOpen ? (
             <div className="pin-form">
               <p className="pin-form-title">Смена PIN</p>

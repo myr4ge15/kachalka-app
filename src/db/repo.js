@@ -16,7 +16,7 @@
 //     ]
 //   }
 // ============================================================================
-import { db, loginDb, newId, nowIso } from './local.js'
+import { db, loginDb, newId, nowIso, getMeta, setMeta } from './local.js'
 import { normalizeName } from '../lib/similar.js'
 import { cmpIsoDesc } from '../lib/cmp.js'
 import { sortUsersByOrder } from '../lib/userOrder.js'
@@ -175,6 +175,69 @@ export async function getLastSetsForExercise(userId, exerciseId) {
   if (!userId || !exerciseId) return null
   const list = await db.workouts.where('user_id').equals(userId).toArray()
   return pickLastSets(list, exerciseId)
+}
+
+// Недавние сессии по упражнению (для автопрогрессии, PLAN-autoprogression).
+// Свои НЕудалённые тренировки, где встречается упражнение, свежие сверху; из
+// каждой — только подходы этого упражнения. Максимум n сессий (для нуджа
+// «3 подряд легко» и детектора плато). Сеть не нужна — читаем локальные entries.
+export async function getRecentSessionsForExercise(userId, exerciseId, n = 5) {
+  if (!userId || !exerciseId) return []
+  const list = await db.workouts.where('user_id').equals(userId).toArray()
+  const sorted = list
+    .filter((w) => !w._deleted)
+    .sort(
+      (a, b) =>
+        cmpIsoDesc(a.performed_at, b.performed_at) ||
+        cmpIsoDesc(a.created_at, b.created_at)
+    )
+  const out = []
+  for (const w of sorted) {
+    const entry = (w.entries ?? []).find(
+      (e) => (e.exercise_id ?? e.exercise?.id) === exerciseId
+    )
+    if (!entry) continue
+    const sets = (entry.sets ?? [])
+      .map((s) => ({ weight: Number(s.weight), reps: Number(s.reps) }))
+      .filter((s) => Number.isFinite(s.weight) && Number.isFinite(s.reps))
+    if (!sets.length) continue
+    out.push({ performed_at: w.performed_at, created_at: w.created_at, sets })
+    if (out.length >= n) break
+  }
+  return out
+}
+
+// ------------------- Настройки автопрогрессии (meta) -----------------------
+// Персональные настройки рекомендаций прогрессии (PLAN-autoprogression). Живут
+// в meta по ключу prog_${userId} (как цели goal_${id}) — поле не индексируется,
+// схему Dexie не трогаем. Форма:
+//   { enabled: bool, byExercise: { [exId]: { strategy, step, targetReps, repCeiling } } }
+// Дефолты по метрике резолвит чистый lib/progression.js (resolveProgSettings).
+export const progKey = (userId) => `prog_${userId}`
+
+export async function getProgSettings(userId) {
+  const v = await getMeta(progKey(userId))
+  if (v && typeof v === 'object') {
+    return { enabled: v.enabled !== false, byExercise: v.byExercise ?? {} }
+  }
+  return { enabled: true, byExercise: {} }
+}
+
+// Глобальный тумблер «Рекомендации прогрессии» (Профиль).
+export async function setProgEnabled(userId, enabled) {
+  const cur = await getProgSettings(userId)
+  await setMeta(progKey(userId), { ...cur, enabled: !!enabled })
+}
+
+// Пер-упражненческие настройки (шестерёнка в карточке): мержим patch поверх
+// текущих настроек упражнения, не трогая остальные.
+export async function setProgForExercise(userId, exerciseId, patch) {
+  const cur = await getProgSettings(userId)
+  const byExercise = {
+    ...cur.byExercise,
+    [exerciseId]: { ...(cur.byExercise[exerciseId] ?? {}), ...patch },
+  }
+  await setMeta(progKey(userId), { ...cur, byExercise })
 }
 
 // Одиночная тренировка по id (для экрана-детали). null, если нет/удалена.
