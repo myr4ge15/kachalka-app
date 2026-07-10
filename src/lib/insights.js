@@ -87,6 +87,7 @@ function plural(n, one, few, many) {
 }
 const plDays = (n) => `${n} ${plural(n, 'день', 'дня', 'дней')}`
 const plWeeks = (n) => `${n} ${plural(n, 'неделю', 'недели', 'недель')}`
+const plWorkouts = (n) => plural(n, 'тренировку', 'тренировки', 'тренировок')
 const cap = (s) => (s ? s[0].toUpperCase() + s.slice(1) : s)
 
 // Отсортировать по дате тренировки, свежие сверху (как getWorkouts).
@@ -213,6 +214,7 @@ function rBiggestSession(sorted, ctx) {
 // R4. Плато в жиме: ведущий вес не растёт 4 тренировки подряд (нет нового
 // максимума в окне). Переиспользует детектор плато из progression.js.
 function rPlateau(sorted, anchor) {
+  const W = 4 // окно плато (сессий)
   const bench = findBench(sorted)
   if (!bench?.exId) return null
   const recent = []
@@ -220,13 +222,16 @@ function rPlateau(sorted, anchor) {
     const e = (w.entries ?? []).find((x) => entryExId(x) === bench.exId)
     if (e) recent.push({ sets: e.sets ?? [] })
   }
-  if (recent.length < 4) return null
-  if (!detectPlateau(recent, bench.metric, { window: 4 })) return null
-  // Застрявший результат — лучшее ведущее значение в окне плато (его и показываем).
-  const stuck = recent
-    .slice(0, 4)
+  if (recent.length < W) return null
+  if (!detectPlateau(recent, bench.metric, { window: W })) return null
+  // Показываем ПОТОЛОК — лучший результат в окне, который не удаётся побить. Это
+  // осознанно максимум: плато = «нет нового рекорда N тренировок». Более поздние
+  // сессии с меньшим весом потолок не опускают (важно, что выше него не прыгнул).
+  // Поэтому глагол «не растёт» (а не «стоит»): корректен и когда результат просел.
+  const ceiling = recent
+    .slice(0, W)
     .reduce((mx, s) => Math.max(mx, leadingValue(bench.metric, s.sets)), 0)
-  const stuckStr = stuck > 0 ? ` ${fmtMetricValue(bench.metric, stuck)}` : ''
+  const ceilingStr = ceiling > 0 ? ` (${fmtMetricValue(bench.metric, ceiling)})` : ''
   return {
     id: `ins:plateau:${bench.exId}`,
     kind: 'plateau',
@@ -234,7 +239,7 @@ function rPlateau(sorted, anchor) {
     tone: 'warn',
     priority: 65,
     at: anchor,
-    text: `${bench.name}${stuckStr}: результат стоит 4 тренировки — попробуй сменить схему`,
+    text: `${bench.name}: результат${ceilingStr} не растёт ${W} ${plWorkouts(W)} — попробуй сменить схему`,
   }
 }
 
