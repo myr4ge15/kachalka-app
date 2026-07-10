@@ -9,7 +9,31 @@
   --green-d: #15803d;
   --red: #ef4444;
   --yellow: #facc15;
+  /* Микро-анимации — единый словарь длительностей/кривых (слой примитивов
+     UX-полировки «нативности»). Экраны и компоненты ссылаются на эти переменные,
+     а не хардкодят числа, чтобы «непрерывность» ощущалась одинаково везде.
+     Под prefers-reduced-motion длительности зануляются (переопределение ниже),
+     поэтому одиночная точка правки гасит движение по всему приложению. */
+  --dur-fast: 120ms;   /* нажатие кнопки, мелкий отклик */
+  --dur-base: 180ms;   /* смена экрана, fade/slide-up контента */
+  --dur-slow: 260ms;   /* крупные появления (панели, тосты) */
+  --ease-out: cubic-bezier(.22, .61, .36, 1);   /* «выезд» — быстро стартует, мягко тормозит */
+  --ease-in-out: cubic-bezier(.4, 0, .2, 1);     /* симметричный переход */
+  --press-scale: .97;  /* «продавливание» кнопки на :active */
   font-family: system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif;
+}
+
+/* Уважать системную настройку «уменьшить движение»: зануляем длительности и
+   отключаем масштаб нажатия ЦЕНТРАЛИЗОВАННО через переменные — потребителям не
+   нужно дублировать медиазапрос. Конкретные анимации (shimmer скелетона, spin)
+   гасятся отдельно там, где заданы. */
+@media (prefers-reduced-motion: reduce) {
+  :root {
+    --dur-fast: 0ms;
+    --dur-base: 0ms;
+    --dur-slow: 0ms;
+    --press-scale: 1;
+  }
 }
 
 * { box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
@@ -192,6 +216,30 @@ input { font-family: inherit; }
   animation: spin .7s linear infinite;
 }
 @keyframes spin { to { transform: rotate(360deg); } }
+
+/* ---------- skeleton (каркас загрузки) ----------
+   Примитив «мгновенности»: серая плашка формы будущего контента вместо строки
+   «Загрузка…» или пустого экрана. Рендерится компонентом <Skeleton> (в разметке —
+   уже финальная геометрия карточек), поверх идёт лёгкий shimmer. Под reduced-motion
+   блик выключается, сама плашка остаётся (каркас полезен и без движения). */
+.skel {
+  display: block;
+  background: var(--surface-2);
+  border-radius: 8px;
+  position: relative;
+  overflow: hidden;
+}
+.skel::after {
+  content: '';
+  position: absolute; inset: 0;
+  transform: translateX(-100%);
+  background: linear-gradient(90deg, transparent, rgba(255, 255, 255, .06), transparent);
+  animation: skel-shimmer 1.2s var(--ease-in-out) infinite;
+}
+@keyframes skel-shimmer { to { transform: translateX(100%); } }
+@media (prefers-reduced-motion: reduce) {
+  .skel::after { animation: none; }
+}
 
 /* ---------- buttons ---------- */
 .btn { padding: 14px; border-radius: 12px; font-size: 16px; font-weight: 600; border: 1px solid transparent; }
