@@ -12,6 +12,7 @@ import { vibrate, HAPTIC } from '../lib/haptics.js'
 import { pullDistance, shouldTriggerRefresh, PULL_THRESHOLD } from '../lib/pullRefresh.js'
 import Leaderboard from './Leaderboard.jsx'
 import Avatar from '../components/Avatar.jsx'
+import CardsSkeleton from '../components/CardsSkeleton.jsx'
 
 export default function FeedScreen({ user }) {
   // Кэш ленты (офлайн-доступен, обновляется мгновенно при фоновой подтяжке).
