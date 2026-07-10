@@ -16,6 +16,7 @@ import { uploadMyAvatar } from '../lib/avatar.js'
 import { showToast } from '../components/Toast.jsx'
 import HoldButton from '../components/HoldButton.jsx'
 import Avatar from '../components/Avatar.jsx'
+import CardsSkeleton from '../components/CardsSkeleton.jsx'
 
 // Экран «Профиль» (ЛК). Всё про самого пользователя; пер-упражненческую
 // аналитику не дублируем — рекорды уводят в «Прогресс». Считаем на клиенте из
@@ -382,7 +383,7 @@ export default function ProfileScreen({ user, onLogout, onOpenProgress, onOpenFe
         </div>
       </div>
 
-      {loading && <p className="muted">Загрузка…</p>}
+      {loading && <CardsSkeleton cards={3} />}
 
       {!loading && summary.totalWorkouts === 0 && (
         <p className="muted empty">

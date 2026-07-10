@@ -14,6 +14,7 @@ import {
 } from '../lib/metric.js'
 import { exportTemplates } from '../lib/exportTemplate.js'
 import ExercisePicker from '../components/ExercisePicker.jsx'
+import CardsSkeleton from '../components/CardsSkeleton.jsx'
 
 // Дефолтный целевой план по типу упражнения: 3 подхода × 10 повторов (время —
 // 1:00 = 60 с), без целевого веса. Используется для новых и легаси-упражнений.
@@ -200,7 +201,7 @@ function TemplateList({ user, onBack, onOpen }) {
         </button>
       )}
 
-      {loading && <p className="muted">Загрузка…</p>}
+      {loading && <CardsSkeleton cards={3} />}
 
       {!loading && list.length === 0 && (
         <p className="muted empty">Пока нет шаблонов. Создай первый.</p>
@@ -405,7 +406,7 @@ function TemplateEditor({ user, templateId, onBack }) {
       )}
 
       {loading ? (
-        <p className="muted">Загрузка…</p>
+        <CardsSkeleton cards={3} />
       ) : readOnly ? (
         // Просмотр чужого общего шаблона: без полей ввода и кнопок.
         <>

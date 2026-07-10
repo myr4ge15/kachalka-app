@@ -10,6 +10,7 @@ import {
 } from '../lib/admin.js'
 import { connectedIdsFor } from '../lib/connections.js'
 import { showToast } from '../components/Toast.jsx'
+import CardsSkeleton from '../components/CardsSkeleton.jsx'
 
 // Экран «Админка» (PLAN-admin). Виден только при role='admin' (вход из Профиля);
 // сервер всё равно перепроверяет роль в каждой операции. Все мутации требуют
@@ -151,7 +152,7 @@ function AccessSection({ meId, online, errMsg }) {
   return (
     <section className="sec">
       {loadErr && <p className="admin-offline" role="alert">{loadErr}</p>}
-      {users === null && <p className="muted">Загрузка…</p>}
+      {users === null && <CardsSkeleton cards={4} />}
 
       {users !== null && privateUsers.length === 0 && (
         <p className="admin-hint">
@@ -512,7 +513,7 @@ function UsersSection({ meId, online, errMsg }) {
   return (
     <section className="sec">
       {loadErr && <p className="admin-offline" role="alert">{loadErr}</p>}
-      {users === null && <p className="muted">Загрузка…</p>}
+      {users === null && <CardsSkeleton cards={4} />}
 
       {reorder ? (
         <UserReorderList

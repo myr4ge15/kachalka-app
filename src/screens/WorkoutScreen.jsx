@@ -11,6 +11,7 @@ import { recommendProgression, resolveProgSettings } from '../lib/progression.js
 import { WEIGHT_MAX, repsMax } from '../lib/setLimits.js'
 import { exportWorkouts } from '../lib/exportWorkout.js'
 import { vibrate, HAPTIC } from '../lib/haptics.js'
+import CardsSkeleton from '../components/CardsSkeleton.jsx'
 import HoldButton from '../components/HoldButton.jsx'
 import ExercisePicker from '../components/ExercisePicker.jsx'
 import TemplatePicker from '../components/TemplatePicker.jsx'
@@ -582,7 +583,7 @@ export default function WorkoutScreen({ user, workoutId = null, onBack }) {
       )}
 
       {loading ? (
-        <p className="muted">Загрузка…</p>
+        <CardsSkeleton cards={3} />
       ) : (
         <>
           <label className="date-field">

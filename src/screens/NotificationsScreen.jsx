@@ -4,6 +4,7 @@ import { getNotifications, getSeenAt, markAllSeen } from '../db/notifications.js
 import { cmpIsoAsc } from '../lib/cmp.js'
 import { fmtWhen } from '../lib/dates.js'
 import { fmtMetricValue } from '../lib/metric.js'
+import CardsSkeleton from '../components/CardsSkeleton.jsx'
 import { filterNotifs, activeCategories } from '../lib/notifFilter.js'
 
 // Экран «Уведомления»: личные рекорды и кто обходит тебя в кругу (ТЗ §4.5, MVP).
@@ -51,7 +52,7 @@ export default function NotificationsScreen({ user }) {
       <h2 className="screen-title">Уведомления</h2>
       <p className="muted sub">Твои рекорды, реакции друзей и кто обходит тебя в кругу</p>
 
-      {loading && <p className="muted">Загрузка…</p>}
+      {loading && <CardsSkeleton cards={4} />}
 
       {!loading && items.length === 0 && (
         <p className="muted empty">Пока тихо. Новые рекорды появятся здесь 💪</p>

@@ -4,6 +4,7 @@ import { fmtDaysAgo } from '../lib/homeSummary.js'
 import { fmtTonnage, goalProgress } from '../lib/profileStats.js'
 import { fmtMetricValue } from '../lib/metric.js'
 import { tagSlug, groupAccusative, GROUP_ORDER } from '../lib/dayTags.js'
+import CardsSkeleton from '../components/CardsSkeleton.jsx'
 
 // Полоска свежести в тизере — в каноническом порядке групп (стабильно), не по
 // приоритету «пора». Группы вне канона уезжают в конец.
@@ -27,7 +28,7 @@ export default function HomeScreen({ user, onNavigate, onOpenProgress }) {
     return (
       <div className="screen home">
         <h2 className="screen-title">Привет, {user.name}</h2>
-        <p className="muted">Загрузка…</p>
+        <CardsSkeleton cards={3} />
       </div>
     )
   }

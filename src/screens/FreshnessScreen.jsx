@@ -5,6 +5,7 @@ import { groupBuckets } from '../lib/freshness.js'
 import { fmtDaysAgo, fmtDays } from '../lib/homeSummary.js'
 import { groupAccusative } from '../lib/dayTags.js'
 import MuscleMap from '../components/MuscleMap.jsx'
+import CardsSkeleton from '../components/CardsSkeleton.jsx'
 
 // Детальный экран «Свежесть по группам» (виш BACKLOG, слайсы 2–3). Три
 // представления над общим движком src/lib/freshness.js: heatmap-силуэт (MuscleMap,
@@ -36,7 +37,7 @@ export default function FreshnessScreen({ user, onBack }) {
       </div>
 
       {loading ? (
-        <p className="muted">Загрузка…</p>
+        <CardsSkeleton cards={4} />
       ) : rec.length === 0 ? (
         <p className="muted empty">
           Запиши тренировку — покажу, какие группы отдохнули и пора ли их снова нагружать.
