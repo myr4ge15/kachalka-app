@@ -286,6 +286,11 @@ input { font-family: inherit; }
 .reason.up { background: rgba(22,163,74,.16); color: #86efac; }
 .reason.same { background: rgba(250,204,21,.14); color: #fde047; }
 .reason.down { background: rgba(239,68,68,.14); color: #fca5a5; }
+/* Компактная строка-заглушка, когда прогрессия на упражнении «ручной»/«выкл»:
+   рекомендации нет, но шестерёнка остаётся — стратегию можно вернуть. */
+.ap-muted { padding: 8px 10px; }
+.ap-muted-row { display: flex; align-items: center; justify-content: space-between; gap: 8px; }
+.ap-muted-lbl { color: var(--muted); font-size: 12px; }
 .ap-actions { display: flex; align-items: center; gap: 8px; margin-top: 10px; }
 .ap-actions .ap-revert { flex: 1; text-align: left; padding: 4px 0; }
 .btn-apply {

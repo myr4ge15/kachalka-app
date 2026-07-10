@@ -105,9 +105,28 @@ function buildRecommendation(ex, sessions, progState) {
   const last = sessions[0]?.sets ?? null
   const copyOrDefault = () =>
     last?.length ? last.map((s) => ({ weight: Number(s.weight), reps: Number(s.reps), _k: sk() })) : [defaultSet(ex)]
-  if (!progState?.enabled || !last?.length) return { sets: copyOrDefault(), meta: null }
+  // Глобально выключено → никаких панелей.
+  if (!progState?.enabled) return { sets: copyOrDefault(), meta: null }
 
   const settings = resolveProgSettings(progState, ex.id, metric)
+  // Ручной/выкл на упражнение: подсказку не даём, но показываем компактную
+  // строку-заглушку с шестерёнкой — чтобы стратегию можно было ВЕРНУТЬ (иначе
+  // после выбора «ручной» панель с настройками исчезала безвозвратно, UX-ловушка).
+  if (settings.strategy === 'manual' || settings.strategy === 'off') {
+    return {
+      sets: copyOrDefault(),
+      meta: {
+        muted: true,
+        strategy: settings.strategy,
+        prev: last?.length ? last.map((s) => ({ weight: Number(s.weight), reps: Number(s.reps) })) : null,
+        whenIso: sessions[0]?.performed_at ?? null,
+        settingsOpen: false,
+      },
+    }
+  }
+  // Активная стратегия, но нет истории → рекомендовать нечего (панель не нужна).
+  if (!last?.length) return { sets: copyOrDefault(), meta: null }
+
   const rec = recommendProgression({ metric, lastSets: last, recentSessions: sessions, settings })
   const real = rec.kind === 'up' || rec.kind === 'same' || rec.kind === 'down' || rec.kind === 'nudge'
   if (!real || !rec.sets) return { sets: copyOrDefault(), meta: null }
@@ -115,6 +134,7 @@ function buildRecommendation(ex, sessions, progState) {
   return {
     sets: rec.sets.map((s) => ({ weight: s.weight, reps: s.reps, _k: sk() })),
     meta: {
+      muted: false,
       prev: last.map((s) => ({ weight: Number(s.weight), reps: Number(s.reps) })),
       whenIso: sessions[0].performed_at,
       kind: rec.kind,
@@ -286,13 +306,16 @@ export default function WorkoutScreen({ user, workoutId = null, onBack }) {
       if (i !== ei) return e
       const wasApplied = e.prog?.applied !== false
       if (!built.meta) {
-        // стратегия стала ручной/выкл → панель убираем; применявшим рекомендацию
-        // возвращаем копию прошлого (built.sets), ручную правку не трогаем.
+        // нет панели (активная стратегия без истории / глобально выкл) — убираем;
+        // применявшим рекомендацию возвращаем копию прошлого, ручную правку не трогаем.
         return { ...e, prog: null, sets: wasApplied ? built.sets : e.sets }
       }
+      // Держим шестерёнку открытой после переключения (в т.ч. на ручной/выкл —
+      // строка-заглушка остаётся, стратегию можно вернуть). Для полной рекомендации
+      // сохраняем applied; sets меняем, только если рекомендация была применена.
       return {
         ...e,
-        prog: { ...built.meta, settingsOpen: true, applied: wasApplied },
+        prog: { ...built.meta, settingsOpen: true, applied: built.meta.muted ? undefined : wasApplied },
         sets: wasApplied ? built.sets : e.sets,
       }
     }))
@@ -571,36 +594,52 @@ export default function WorkoutScreen({ user, workoutId = null, onBack }) {
               </div>
 
               {entry.prog && (
-                <div className="ap">
-                  <div className="ap-row">
-                    <span className="ap-lbl">Прошлая</span>
-                    <span className="ap-when">{daysAgoLabel(entry.prog.whenIso)}</span>
-                  </div>
-                  <div className="ap-prev">
-                    {entry.prog.prev.map((s) => fmtSet(metric, s)).join(' · ')}
-                  </div>
-                  <div className={`ap-rec-lbl ${progTone(entry.prog.kind)}`}>
-                    {progArrow(entry.prog.kind)} Рекомендуем сегодня
-                  </div>
-                  <div className="ap-rec">
-                    {entry.prog.recSets.map((s) => fmtSet(metric, s)).join(' · ')}
-                  </div>
-                  <span className={`reason ${progTone(entry.prog.kind)}`}>{entry.prog.reason}</span>
-                  <div className="ap-actions">
-                    {entry.prog.applied ? (
-                      <button className="link-btn ap-revert" onClick={() => revertProg(ei)}>
-                        вернуть как в прошлый раз
-                      </button>
-                    ) : (
-                      <button className="btn-apply" onClick={() => applyProg(ei)}>Применить рекомендацию</button>
-                    )}
-                    <button
-                      className={`btn-gear${entry.prog.settingsOpen ? ' on' : ''}`}
-                      aria-label="Настройки прогрессии"
-                      aria-expanded={entry.prog.settingsOpen}
-                      onClick={() => toggleProgSettings(ei)}
-                    >⚙</button>
-                  </div>
+                <div className={`ap${entry.prog.muted ? ' ap-muted' : ''}`}>
+                  {entry.prog.muted ? (
+                    <div className="ap-muted-row">
+                      <span className="ap-muted-lbl">
+                        Прогрессия: {entry.prog.strategy === 'off' ? 'выключена' : 'ручной ввод'}
+                      </span>
+                      <button
+                        className={`btn-gear${entry.prog.settingsOpen ? ' on' : ''}`}
+                        aria-label="Настройки прогрессии"
+                        aria-expanded={entry.prog.settingsOpen}
+                        onClick={() => toggleProgSettings(ei)}
+                      >⚙</button>
+                    </div>
+                  ) : (
+                    <>
+                      <div className="ap-row">
+                        <span className="ap-lbl">Прошлая</span>
+                        <span className="ap-when">{daysAgoLabel(entry.prog.whenIso)}</span>
+                      </div>
+                      <div className="ap-prev">
+                        {entry.prog.prev.map((s) => fmtSet(metric, s)).join(' · ')}
+                      </div>
+                      <div className={`ap-rec-lbl ${progTone(entry.prog.kind)}`}>
+                        {progArrow(entry.prog.kind)} Рекомендуем сегодня
+                      </div>
+                      <div className="ap-rec">
+                        {entry.prog.recSets.map((s) => fmtSet(metric, s)).join(' · ')}
+                      </div>
+                      <span className={`reason ${progTone(entry.prog.kind)}`}>{entry.prog.reason}</span>
+                      <div className="ap-actions">
+                        {entry.prog.applied ? (
+                          <button className="link-btn ap-revert" onClick={() => revertProg(ei)}>
+                            вернуть как в прошлый раз
+                          </button>
+                        ) : (
+                          <button className="btn-apply" onClick={() => applyProg(ei)}>Применить рекомендацию</button>
+                        )}
+                        <button
+                          className={`btn-gear${entry.prog.settingsOpen ? ' on' : ''}`}
+                          aria-label="Настройки прогрессии"
+                          aria-expanded={entry.prog.settingsOpen}
+                          onClick={() => toggleProgSettings(ei)}
+                        >⚙</button>
+                      </div>
+                    </>
+                  )}
                   {entry.prog.settingsOpen && (() => {
                     const eff = resolveProgSettings(prog, entry.exercise.id, metric)
                     return (
