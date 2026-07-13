@@ -477,6 +477,11 @@ input { font-family: inherit; }
   border: 1px solid var(--border); background: var(--surface); color: var(--muted); font-size: 14px;
 }
 .chip.active { background: var(--green); color: white; border-color: var(--green); }
+/* Многострочный ряд чипов (для длинных списков — напр. вторичные мышцы) */
+.chips.wrap { flex-wrap: wrap; overflow: visible; }
+/* Приглушённая приписка группы у чипа вторичной мышцы (напр. «трицепс · трицепс») */
+.chip-major { opacity: .6; font-size: 12px; }
+.chip.active .chip-major { opacity: .85; }
 .picker-list {
   flex: 1; min-height: 0; overflow-y: auto; display: flex; flex-direction: column;
   border-top: 1px solid var(--border); margin-top: 4px;

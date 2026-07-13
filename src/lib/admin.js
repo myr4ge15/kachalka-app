@@ -14,6 +14,7 @@ import { supabase } from '../db/supabase.js'
 import { db } from '../db/local.js'
 import { applyExerciseEditLocal, applyExerciseMergeLocal } from '../db/repo.js'
 import { DB_TIMEOUT_MS, withTimeout } from './withTimeout.js'
+import { defaultSubmuscleFor, cleanSecondary } from './muscles.js'
 
 const RESET_PIN_URL = (import.meta.env.VITE_SUPABASE_URL ?? '') + '/functions/v1/admin-reset-pin'
 const CREATE_USER_URL = (import.meta.env.VITE_SUPABASE_URL ?? '') + '/functions/v1/admin-create-user'
@@ -197,19 +198,26 @@ export async function adminSetConnection(a, b, connected) {
 // Правка карточки упражнения + soft-hide. После успеха зеркалим в локальный
 // кэш (мгновенный UI). Жим и женское упражнение — каждое единственное: при
 // установке флага локально снимаем его с остальных (сервер делает то же).
-export async function adminUpdateExercise({ id, name, muscle_group, is_bench_lift, is_female_lift, is_hidden }) {
+export async function adminUpdateExercise({ id, name, muscle_group, submuscle, secondary, is_bench_lift, is_female_lift, is_hidden }) {
   const clean = String(name ?? '').trim()
   if (clean.length < 1 || clean.length > 60) throw new AdminError('Название — от 1 до 60 символов.')
   const bench = Boolean(is_bench_lift)
   const female = Boolean(is_female_lift)
+  const group = muscle_group ? String(muscle_group).trim() : null
+  // Двухуровневая модель мышц (PLAN-muscle-detail, слайс 2): подмышца (primary) +
+  // вторичные. Пустая подмышца → дефолт по группе; вторичные санитайзятся.
+  const sub = submuscle ? String(submuscle).trim() : defaultSubmuscleFor(group)
+  const sec = cleanSecondary(secondary, sub)
   const res = await withTimeout(
     supabase.rpc('admin_update_exercise', {
       p_id: id,
       p_name: clean,
-      p_muscle_group: muscle_group ? String(muscle_group).trim() : null,
+      p_muscle_group: group,
       p_is_bench_lift: bench,
       p_is_female_lift: female,
       p_hidden: Boolean(is_hidden),
+      p_submuscle: sub,
+      p_secondary: sec,
     })
   )
   if (res.error) throw new AdminError(humanRpc(res.error.message))
@@ -226,12 +234,14 @@ export async function adminUpdateExercise({ id, name, muscle_group, is_bench_lif
   }
   await applyExerciseEditLocal(id, {
     name: clean,
-    muscle_group: muscle_group ? String(muscle_group).trim() : null,
+    muscle_group: group,
+    submuscle: sub,
+    secondary: sec,
     is_bench_lift: bench,
     is_female_lift: female,
     is_hidden: Boolean(is_hidden),
   })
-  return { id, name: clean, muscle_group: muscle_group ?? null, is_bench_lift: bench, is_female_lift: female, is_hidden: Boolean(is_hidden) }
+  return { id, name: clean, muscle_group: group, submuscle: sub, secondary: sec, is_bench_lift: bench, is_female_lift: female, is_hidden: Boolean(is_hidden) }
 }
 
 // Слить дубль: from → into. После успеха локально прячем старое (снимки в

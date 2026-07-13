@@ -9,6 +9,7 @@ import {
   adminListConnections, adminSetConnection,
 } from '../lib/admin.js'
 import { connectedIdsFor } from '../lib/connections.js'
+import { submusclesOf, secondaryOptionsFor, labelOf, majorOf, defaultSubmuscleFor } from '../lib/muscles.js'
 import { showToast } from '../components/Toast.jsx'
 import CardsSkeleton from '../components/CardsSkeleton.jsx'
 
@@ -204,7 +205,7 @@ function AccessSection({ meId, online, errMsg }) {
 function ExercisesSection({ exercises, online, errMsg }) {
   const [query, setQuery] = useState('')
   const [edId, setEdId] = useState(null)
-  const [form, setForm] = useState({ name: '', muscle_group: '', is_bench_lift: false, is_female_lift: false, is_hidden: false })
+  const [form, setForm] = useState({ name: '', muscle_group: '', submuscle: '', secondary: [], is_bench_lift: false, is_female_lift: false, is_hidden: false })
   const [busy, setBusy] = useState(false)
 
   // Слияние дублей
@@ -224,6 +225,8 @@ function ExercisesSection({ exercises, online, errMsg }) {
     setForm({
       name: ex.name ?? '',
       muscle_group: ex.muscle_group ?? '',
+      submuscle: ex.submuscle ?? defaultSubmuscleFor(ex.muscle_group) ?? '',
+      secondary: Array.isArray(ex.secondary) ? ex.secondary : [],
       is_bench_lift: Boolean(ex.is_bench_lift),
       is_female_lift: Boolean(ex.is_female_lift),
       is_hidden: Boolean(ex.is_hidden),
@@ -252,6 +255,9 @@ function ExercisesSection({ exercises, online, errMsg }) {
         id: ex.id,
         name: ex.name,
         muscle_group: ex.muscle_group ?? '',
+        // Сохраняем текущую разметку мышц — иначе быстрый тумблер скрытия её бы стёр.
+        submuscle: ex.submuscle ?? '',
+        secondary: Array.isArray(ex.secondary) ? ex.secondary : [],
         is_bench_lift: Boolean(ex.is_bench_lift),
         is_female_lift: Boolean(ex.is_female_lift),
         is_hidden: !ex.is_hidden,
@@ -312,9 +318,62 @@ function ExercisesSection({ exercises, online, errMsg }) {
                   <span className="field-lab">Группа мышц</span>
                   <input
                     className="admin-input" type="text" maxLength={40} placeholder="напр. грудь"
-                    value={form.muscle_group} onChange={(e) => setForm((f) => ({ ...f, muscle_group: e.target.value }))}
+                    value={form.muscle_group}
+                    onChange={(e) => {
+                      const g = e.target.value
+                      // Смена группы → подмышку сбрасываем на дефолт новой группы,
+                      // вторичные чистим (варианты зависят от primary).
+                      setForm((f) => ({ ...f, muscle_group: g, submuscle: defaultSubmuscleFor(g.trim()) ?? '', secondary: [] }))
+                    }}
                   />
                 </label>
+
+                {submusclesOf(form.muscle_group.trim()).length > 0 && (
+                  <label className="field">
+                    <span className="field-lab">Основная мышца</span>
+                    <select
+                      className="admin-input"
+                      value={form.submuscle}
+                      onChange={(e) => setForm((f) => ({
+                        ...f,
+                        submuscle: e.target.value,
+                        // выбранная основная не может быть среди вторичных
+                        secondary: (f.secondary ?? []).filter((s) => s !== e.target.value),
+                      }))}
+                    >
+                      {submusclesOf(form.muscle_group.trim()).map((s) => (
+                        <option key={s} value={s}>{labelOf(s)}</option>
+                      ))}
+                    </select>
+                  </label>
+                )}
+
+                {form.submuscle && (
+                  <div className="field">
+                    <span className="field-lab">Вторичные мышцы</span>
+                    <div className="chips wrap admin-sec-chips">
+                      {secondaryOptionsFor(form.submuscle).map((s) => {
+                        const on = (form.secondary ?? []).includes(s)
+                        return (
+                          <button
+                            type="button"
+                            key={s}
+                            className={on ? 'chip active' : 'chip'}
+                            onClick={() => setForm((f) => ({
+                              ...f,
+                              secondary: on
+                                ? f.secondary.filter((x) => x !== s)
+                                : [...(f.secondary ?? []), s],
+                            }))}
+                          >
+                            {labelOf(s)}<span className="chip-major"> · {majorOf(s)}</span>
+                          </button>
+                        )
+                      })}
+                    </div>
+                  </div>
+                )}
+
                 <label className="admin-check">
                   <input type="checkbox" checked={form.is_bench_lift}
                     onChange={(e) => setForm((f) => ({ ...f, is_bench_lift: e.target.checked }))} />
@@ -347,6 +406,8 @@ function ExercisesSection({ exercises, online, errMsg }) {
                   </span>
                   <span className="admin-ex-meta">
                     {ex.muscle_group || '—'}
+                    {ex.submuscle ? ' · ' + labelOf(ex.submuscle) : ''}
+                    {Array.isArray(ex.secondary) && ex.secondary.length ? ` +${ex.secondary.length}` : ''}
                     {ex.is_custom ? ' · своё' : ''}
                     {ex.is_hidden ? ' · скрыто' : ''}
                   </span>

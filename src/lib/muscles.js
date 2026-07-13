@@ -74,6 +74,9 @@ export const MAJOR_DEFAULT_SUB = {
 
 export const DEFAULT_SUB_RECOVERY_HOURS = 48
 
+// Все слаги подмышц в порядке объявления (группы идут блоками — как в SUBMUSCLES).
+export const SUBMUSCLE_SLUGS = Object.keys(SUBMUSCLES)
+
 // Известен ли слаг подмышцы.
 export function isKnownSub(sub) {
   return typeof sub === 'string' && Object.prototype.hasOwnProperty.call(SUBMUSCLES, sub)
@@ -110,4 +113,20 @@ export function labelOf(sub) {
 // Подпись подмышцы в винительном (для фраз «тренировать <что>»).
 export function labelAccusativeOf(sub) {
   return isKnownSub(sub) ? SUBMUSCLES[sub].labelAccusative : sub
+}
+
+// Кандидаты во ВТОРИЧНЫЕ мышцы для пикера/админки: все подмышцы, кроме самой
+// основной (primary) и кардио (кардио — не вторичная нагрузка силовых). Порядок —
+// как в SUBMUSCLE_SLUGS (блоками по группам).
+export function secondaryOptionsFor(primarySlug) {
+  return SUBMUSCLE_SLUGS.filter((s) => s !== primarySlug && s !== 'cardio')
+}
+
+// Санитайз списка вторичных: только известные слаги, без дублей, без основной и
+// без кардио. Возвращает массив в каноническом порядке SUBMUSCLE_SLUGS.
+export function cleanSecondary(secondary, primarySlug) {
+  const set = new Set((secondary ?? []).filter(isKnownSub))
+  set.delete(primarySlug)
+  set.delete('cardio')
+  return SUBMUSCLE_SLUGS.filter((s) => set.has(s))
 }

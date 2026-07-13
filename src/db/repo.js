@@ -24,7 +24,7 @@ import { normMetric } from '../lib/metric.js'
 import { clampSet } from '../lib/setLimits.js'
 import { pickLastSets } from '../lib/lastSets.js'
 import { isReactionKind } from '../lib/reactions.js'
-import { defaultSubmuscleFor } from '../lib/muscles.js'
+import { defaultSubmuscleFor, cleanSecondary } from '../lib/muscles.js'
 
 // ----------------------------- Чтение --------------------------------------
 
@@ -84,7 +84,7 @@ export async function createExercise({ name, muscle_group, metric, submuscle, se
   // вторичные. UI слайса 1 их не задаёт → подмышку берём дефолтную по группе,
   // вторичные пусты. Явно переданные (слайс 2) уважаем.
   const sub = submuscle ? String(submuscle).trim() : defaultSubmuscleFor(group)
-  const sec = Array.isArray(secondary) ? secondary.filter(Boolean) : []
+  const sec = cleanSecondary(secondary, sub)
 
   const key = normalizeName(clean)
   const all = await db.exercises.toArray()

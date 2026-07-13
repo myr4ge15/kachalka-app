@@ -11,6 +11,9 @@ import {
   recoveryHoursFor,
   labelOf,
   labelAccusativeOf,
+  secondaryOptionsFor,
+  cleanSecondary,
+  SUBMUSCLE_SLUGS,
 } from './muscles.js'
 import { GROUP_ORDER } from './dayTags.js'
 
@@ -83,5 +86,22 @@ describe('muscles — хелперы', () => {
   it('SECONDARY_LOAD_FACTOR в диапазоне (0,1)', () => {
     expect(SECONDARY_LOAD_FACTOR).toBeGreaterThan(0)
     expect(SECONDARY_LOAD_FACTOR).toBeLessThan(1)
+  })
+
+  it('secondaryOptionsFor: все подмышцы кроме основной и кардио', () => {
+    const opts = secondaryOptionsFor('biceps')
+    expect(opts).not.toContain('biceps')
+    expect(opts).not.toContain('cardio')
+    expect(opts).toContain('triceps')
+    expect(opts).toContain('delt_front')
+    // порядок сохраняется как в SUBMUSCLE_SLUGS
+    expect(opts).toEqual(SUBMUSCLE_SLUGS.filter((s) => s !== 'biceps' && s !== 'cardio'))
+  })
+
+  it('cleanSecondary: чистит неизвестные/дубли/основную/кардио, сохраняет порядок', () => {
+    expect(cleanSecondary(['triceps', 'delt_front', 'triceps', 'xxx', 'cardio', 'quads'], 'quads'))
+      .toEqual(['delt_front', 'triceps']) // порядок SUBMUSCLE_SLUGS: delt_front раньше triceps
+    expect(cleanSecondary(null, 'biceps')).toEqual([])
+    expect(cleanSecondary(['biceps'], 'biceps')).toEqual([])
   })
 })

@@ -1,6 +1,7 @@
 import { useState, useMemo, useDeferredValue } from 'react'
 import { createPortal } from 'react-dom'
 import { findSimilar } from '../lib/similar.js'
+import { submusclesOf, secondaryOptionsFor, labelOf, majorOf, defaultSubmuscleFor } from '../lib/muscles.js'
 
 // Канонические группы мышц из ТЗ (Приложение A / п. 3.2). К ним добавляем
 // все группы, реально встретившиеся в справочнике, чтобы ничего не потерять.
@@ -18,6 +19,8 @@ export default function ExercisePicker({ exercises, onPick, onClose, onCreate, t
   const [creating, setCreating] = useState(false)
   const [newName, setNewName] = useState('')
   const [newGroup, setNewGroup] = useState('')
+  const [newSub, setNewSub] = useState('')          // основная подмышца (primary)
+  const [newSecondary, setNewSecondary] = useState([]) // вторичные мышцы (слаги)
   const [newMetric, setNewMetric] = useState('weight') // weight | reps | time
   const [busy, setBusy] = useState(false)
   const [error, setError] = useState(null)
@@ -66,9 +69,20 @@ export default function ExercisePicker({ exercises, onPick, onClose, onCreate, t
     [exercises, deferredNewName]
   )
 
+  // Смена группы в форме создания: подмышку сбрасываем на дефолт группы,
+  // вторичные чистим (их варианты зависят от primary).
+  function pickNewGroup(g) {
+    setNewGroup(g)
+    setNewSub(defaultSubmuscleFor(g) ?? '')
+    setNewSecondary([])
+  }
+
   function openCreate() {
     setNewName(query.trim())
-    setNewGroup(group !== 'все' ? group : '')
+    const g = group !== 'все' ? group : ''
+    setNewGroup(g)
+    setNewSub(defaultSubmuscleFor(g) ?? '')
+    setNewSecondary([])
     setNewMetric('weight')
     setError(null)
     setCreating(true)
@@ -87,7 +101,7 @@ export default function ExercisePicker({ exercises, onPick, onClose, onCreate, t
     setBusy(true)
     setError(null)
     try {
-      const ex = await onCreate({ name, muscle_group: newGroup, metric: newMetric })
+      const ex = await onCreate({ name, muscle_group: newGroup, metric: newMetric, submuscle: newSub, secondary: newSecondary })
       onPick(ex) // добавляем в тренировку; родитель закроет пикер
     } catch (err) {
       setError('Не удалось сохранить: ' + (err?.message ?? err))
@@ -159,12 +173,54 @@ export default function ExercisePicker({ exercises, onPick, onClose, onCreate, t
               <button
                 key={g}
                 className={g === newGroup ? 'chip active' : 'chip'}
-                onClick={() => setNewGroup(g)}
+                onClick={() => pickNewGroup(g)}
               >
                 {g}
               </button>
             ))}
           </div>
+
+          {submusclesOf(newGroup).length > 0 && (
+            <>
+              <div className="create-label">Основная мышца</div>
+              <div className="chips">
+                {submusclesOf(newGroup).map((s) => (
+                  <button
+                    key={s}
+                    className={s === newSub ? 'chip active' : 'chip'}
+                    onClick={() => {
+                      setNewSub(s)
+                      setNewSecondary((sec) => sec.filter((x) => x !== s))
+                    }}
+                  >
+                    {labelOf(s)}
+                  </button>
+                ))}
+              </div>
+            </>
+          )}
+
+          {newSub && (
+            <>
+              <div className="create-label">Вторичные мышцы <span className="muted">(необязательно)</span></div>
+              <div className="chips wrap">
+                {secondaryOptionsFor(newSub).map((s) => {
+                  const on = newSecondary.includes(s)
+                  return (
+                    <button
+                      key={s}
+                      className={on ? 'chip active' : 'chip'}
+                      onClick={() =>
+                        setNewSecondary((sec) => (on ? sec.filter((x) => x !== s) : [...sec, s]))
+                      }
+                    >
+                      {labelOf(s)}<span className="chip-major"> · {majorOf(s)}</span>
+                    </button>
+                  )
+                })}
+              </div>
+            </>
+          )}
 
           {error && <p className="error create-error">{error}</p>}
 
