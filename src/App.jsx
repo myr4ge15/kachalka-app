@@ -16,14 +16,28 @@ import ScreenSkeleton from './components/ScreenSkeleton.jsx'
 // Экраны-вкладки грузим лениво: код активной вкладки подтягивается по требованию.
 // Главный выигрыш — «Прогресс» тянет тяжёлый recharts, который теперь не попадает
 // в стартовый бандл, а грузится отдельным чанком при открытии вкладки.
-const HomeScreen = lazy(() => import('./screens/HomeScreen.jsx'))
-const HistoryScreen = lazy(() => import('./screens/HistoryScreen.jsx'))
-const ProgressScreen = lazy(() => import('./screens/ProgressScreen.jsx'))
-const FeedScreen = lazy(() => import('./screens/FeedScreen.jsx'))
-const NotificationsScreen = lazy(() => import('./screens/NotificationsScreen.jsx'))
-const ProfileScreen = lazy(() => import('./screens/ProfileScreen.jsx'))
-const AdminScreen = lazy(() => import('./screens/AdminScreen.jsx'))
-const FreshnessScreen = lazy(() => import('./screens/FreshnessScreen.jsx'))
+// Функции импорта держим отдельно, чтобы ПРЕФЕТЧИТЬ их в простое после входа
+// (см. эффект ниже): без префетча первое переключение на каждую вкладку упиралось
+// в загрузку чанка → мелькал Suspense-скелетон, хотя данные уже локальны. С
+// префетчем чанки уже в кэше → переход мгновенный, без заглушки.
+const load = {
+  home: () => import('./screens/HomeScreen.jsx'),
+  history: () => import('./screens/HistoryScreen.jsx'),
+  progress: () => import('./screens/ProgressScreen.jsx'),
+  feed: () => import('./screens/FeedScreen.jsx'),
+  notif: () => import('./screens/NotificationsScreen.jsx'),
+  profile: () => import('./screens/ProfileScreen.jsx'),
+  admin: () => import('./screens/AdminScreen.jsx'),
+  freshness: () => import('./screens/FreshnessScreen.jsx'),
+}
+const HomeScreen = lazy(load.home)
+const HistoryScreen = lazy(load.history)
+const ProgressScreen = lazy(load.progress)
+const FeedScreen = lazy(load.feed)
+const NotificationsScreen = lazy(load.notif)
+const ProfileScreen = lazy(load.profile)
+const AdminScreen = lazy(load.admin)
+const FreshnessScreen = lazy(load.freshness)
 
 // Иконка состояния синхронизации — инлайн-SVG (без зависимостей), как TabIcon.
 // Красится через currentColor (цвет задаёт класс .sync-badge.<cls>), спиннер
@@ -155,6 +169,24 @@ export default function App() {
 
   // Запоминаем активную вкладку
   useEffect(() => { sessionStorage.setItem(TAB_KEY, tab) }, [tab])
+
+  // Префетч чанков остальных вкладок в простое после входа: активная вкладка уже
+  // грузится, а прочие подтягиваем заранее, чтобы их открытие было мгновенным и не
+  // мелькал Suspense-скелетон. Повторный import уже загруженного модуля — no-op
+  // (браузер отдаёт из кэша). Ошибки глотаем: префетч — оптимизация, не критичен.
+  useEffect(() => {
+    if (!user?.id) return
+    const imports = [load.history, load.feed, load.progress, load.freshness, load.notif, load.profile]
+    if (user.role === 'admin') imports.push(load.admin)
+    const prefetch = () => { for (const imp of imports) imp().catch(() => {}) }
+    const ric = window.requestIdleCallback
+    if (ric) {
+      const id = ric(prefetch, { timeout: 3000 })
+      return () => window.cancelIdleCallback?.(id)
+    }
+    const id = setTimeout(prefetch, 800)
+    return () => clearTimeout(id)
+  }, [user?.id, user?.role])
 
   // Скроллится не окно, а внутренняя .content (overflow-y:auto, см. index.css).
   // Тап по кнопке вкладки всегда возвращает её контент в самый верх — в т.ч.

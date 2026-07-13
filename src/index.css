@@ -798,18 +798,30 @@ input { font-family: inherit; }
 /* ---------- feed (общая лента) ---------- */
 /* Мобайл: один столбец. Рейтинг (.feed-rail) стоит НАД постами (order:-1) —
    как было до десктоп-раскладки. На десктопе (≥900px) — две колонки, см. ниже. */
-/* Якорь для индикатора pull-to-refresh (.ptr живёт над контентом, top:-34). */
+/* Якорь для плавающего индикатора pull-to-refresh (.ptr выплывает из-за верхнего
+   края экрана; сам экран НЕ двигается). */
 .feed-screen { position: relative; }
-/* Индикатор жеста «потянуть вниз»: над лентой, проявляется по мере протягивания;
-   при готовности (порог) — зелёный. Follows the finger — сама лента сдвигается
-   transform'ом из FeedScreen, индикатор едет вместе с ней в зону видимости. */
+/* Индикатор жеста «потянуть вниз»: компактный круглый бейдж по центру сверху
+   (между заголовком слева и меткой «обновить» справа — там пусто). Позицию/поворот
+   стрелки/прозрачность ведёт FeedScreen по прогрессу жеста; при готовности (порог)
+   — зелёный, во время обновления (.loading) — крутится. Контент под ним стоит на
+   месте, поэтому лента не «отваливается». */
 .ptr {
-  position: absolute; top: -34px; left: 0; right: 0; height: 34px;
+  position: absolute; top: 0; left: 50%; z-index: 3;
+  width: 32px; height: 32px;
   display: flex; align-items: center; justify-content: center;
-  color: var(--muted); font-size: 20px; line-height: 1; pointer-events: none;
+  border-radius: 50%;
+  background: var(--surface-2); border: 1px solid var(--border);
+  box-shadow: 0 2px 10px rgba(0, 0, 0, .35);
+  color: var(--muted); font-size: 17px; line-height: 1; pointer-events: none;
+  will-change: transform, opacity;
 }
-.ptr.ready { color: var(--green); }
+.ptr.ready { color: var(--green); border-color: var(--green); }
 .ptr-ico { display: inline-block; }
+.ptr.loading .ptr-ico { animation: spin .8s linear infinite; }
+@media (prefers-reduced-motion: reduce) {
+  .ptr.loading .ptr-ico { animation-duration: 2.4s; }
+}
 
 .feed-layout { display: flex; flex-direction: column; }
 .feed-rail { order: -1; }

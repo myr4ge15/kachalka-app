@@ -100,9 +100,15 @@ export default function FeedScreen({ user }) {
   const rootRef = useRef(null)
   const [pull, setPull] = useState(0)
   const [dragging, setDragging] = useState(false)
+  // Индикатор крутится только для обновления, ЗАПУЩЕННОГО жестом (не для тихого
+  // авто-refresh при входе на вкладку/возврате/сети — тот лениту не «дёргает»).
+  const [ptrBusy, setPtrBusy] = useState(false)
   const pullRef = useRef(0)
   const refreshingRef = useRef(refreshing)
   refreshingRef.current = refreshing
+
+  // Обновление завершилось — гасим спиннер жеста.
+  useEffect(() => { if (!refreshing) setPtrBusy(false) }, [refreshing])
 
   useEffect(() => {
     const root = rootRef.current
@@ -134,7 +140,7 @@ export default function FeedScreen({ user }) {
       active = false
       setDragging(false)
       setPx(0)
-      if (triggered) { vibrate(HAPTIC.tap); refresh() }
+      if (triggered) { vibrate(HAPTIC.tap); setPtrBusy(true); refresh() }
     }
 
     sc.addEventListener('touchstart', onStart, { passive: true })
@@ -149,29 +155,39 @@ export default function FeedScreen({ user }) {
     }
   }, [refresh])
 
+  // Прогресс жеста 0..1 и позиция плавающего индикатора. Сам экран НЕ двигаем —
+  // контент (заголовок, карточки) стоит на месте; сверху из-за края «выплывает»
+  // компактный круглый бейдж (как нативный Material pull-to-refresh), а не весь
+  // экран уезжает вниз, оголяя пустоту.
+  const ptrProgress = Math.min(pull / PULL_THRESHOLD, 1)
+  const ptrShown = ptrBusy || pull > 0
+  const ptrY = ptrBusy ? 8 : -40 + ptrProgress * 48   // px: из-за края в зону видимости
+  const ptrReady = ptrBusy || pull >= PULL_THRESHOLD
+
   return (
-    <div
-      className="screen feed-screen"
-      ref={rootRef}
-      style={{
-        transform: pull ? `translateY(${pull}px)` : undefined,
-        transition: dragging ? 'none' : 'transform var(--dur-base) var(--ease-out)',
-      }}
-    >
-      {/* Индикатор жеста «потянуть вниз»: живёт над контентом (top:-34), проявляется
-          и доворачивается по мере протягивания; при достижении порога — «готов». */}
-      <div
-        className={'ptr' + (pull >= PULL_THRESHOLD ? ' ready' : '')}
-        aria-hidden="true"
-        style={{ opacity: Math.min(pull / PULL_THRESHOLD, 1) }}
-      >
-        <span
-          className="ptr-ico"
-          style={pull ? { transform: `rotate(${Math.min(pull / PULL_THRESHOLD, 1) * 180}deg)` } : undefined}
+    <div className="screen feed-screen" ref={rootRef}>
+      {/* Индикатор жеста «потянуть вниз»: компактный круглый бейдж, выплывает из-за
+          верхнего края и доворачивает стрелку по мере протягивания; при достижении
+          порога — «готов» (зелёный), во время обновления — крутится. Экран под ним
+          неподвижен. */}
+      {ptrShown && (
+        <div
+          className={'ptr' + (ptrReady ? ' ready' : '') + (ptrBusy ? ' loading' : '')}
+          aria-hidden="true"
+          style={{
+            transform: `translate(-50%, ${ptrY}px)`,
+            opacity: ptrBusy ? 1 : ptrProgress,
+            transition: dragging ? 'none' : 'transform var(--dur-base) var(--ease-out), opacity var(--dur-base) var(--ease-out)',
+          }}
         >
-          ↓
-        </span>
-      </div>
+          <span
+            className="ptr-ico"
+            style={!ptrBusy && pull ? { transform: `rotate(${ptrProgress * 180}deg)` } : undefined}
+          >
+            {ptrBusy ? '↻' : '↓'}
+          </span>
+        </div>
+      )}
       <div className="feed-head">
         <h2 className="screen-title">Лента</h2>
         <button className="link-btn feed-refresh" onClick={refresh} disabled={refreshing} title="Обновить">
