@@ -193,7 +193,7 @@ describe('pull: merge-часы', () => {
     expect(doc._dirty).toBe(1)
   })
 
-  it('реконсиляция удаления: чистую запись, которой нет на сервере, pull удаляет локально', async () => {
+  it('реконсиляция удаления: чистую запись, которой нет на сервере, pull удаляет со ВТОРОГО прогона', async () => {
     await db.workouts.put({
       id: 'gone', user_id: userId, performed_at: '2026-01-10',
       created_at: '2026-01-10', updated_at: '2026-01-10T00:00:00.000Z', _base_updated_at: null,
@@ -202,8 +202,31 @@ describe('pull: merge-часы', () => {
     })
     srv.state.workoutsMain = [] // сервер записи не отдаёт
     srv.state.workoutIds = []   // и её нет в полном списке id → удалена
+    // Слайс 1 (v4.0.2): удаляем только после ДВУХ подряд отсутствий id — защита
+    // чужой чистой записи от лага read-replica. Первый прогон лишь помечает
+    // кандидата (запись остаётся), второй подтверждает и удаляет.
     await syncNow(userId)
-    expect(await db.workouts.get('gone')).toBeUndefined()
+    expect(await db.workouts.get('gone')).toBeTruthy() // 1-й прогон: кандидат, ещё жива
+    await syncNow(userId)
+    expect(await db.workouts.get('gone')).toBeUndefined() // 2-й прогон: удалена
+  })
+
+  it('реконсиляция: запись, вернувшаяся на сервер после первого отсутствия, НЕ удаляется', async () => {
+    await db.workouts.put({
+      id: 'flap', user_id: userId, performed_at: '2026-01-10',
+      created_at: '2026-01-10', updated_at: '2026-01-10T00:00:00.000Z', _base_updated_at: null,
+      entries: [{ exercise_id: bench.id, exercise: bench, sets: [{ weight: 100, reps: 5 }] }],
+      _dirty: 0, _deleted: 0,
+    })
+    // 1-й прогон: реплика отстала — записи нет ни в контенте, ни в списке id → кандидат
+    srv.state.workoutsMain = []
+    srv.state.workoutIds = []
+    await syncNow(userId)
+    expect(await db.workouts.get('flap')).toBeTruthy()
+    // 2-й прогон: реплика догнала — id снова в списке → снимаем с кандидатов, не удаляем
+    srv.state.workoutIds = ['flap']
+    await syncNow(userId)
+    expect(await db.workouts.get('flap')).toBeTruthy()
   })
 
   it('реконсиляция НЕ трогает грязную локальную запись, отсутствующую на сервере', async () => {
