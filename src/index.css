@@ -1750,3 +1750,23 @@ img.avatar-lg.has-img {
 .fr-sw.fr-never   { background: #64748b; }
 
 .fr-row.hl { border-color: #e2e8f0; }
+
+/* Плавное появление скелетона, чтобы не было резкого "мигания" */
+.skeleton-wrapper, 
+.skeleton-root,
+div[role="progressbar"] { 
+  /* Добавляем универсальные селекторы, подстройте под ваш класс скелетона */
+  animation: smoothSkeletonAppear 0.4s ease-out forwards;
+  opacity: 0;
+}
+
+@keyframes smoothSkeletonAppear {
+  0% { 
+    opacity: 0; 
+    transform: translateY(4px); 
+  }
+  100% { 
+    opacity: 1; 
+    transform: translateY(0); 
+  }
+}
