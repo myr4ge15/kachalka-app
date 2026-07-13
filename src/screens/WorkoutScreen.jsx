@@ -351,6 +351,7 @@ export default function WorkoutScreen({ user, workoutId = null, onBack }) {
       sub: removed.exercise?.name,
       actionLabel: 'Отменить',
       duration: 6000,
+      raised: true, // выше липкой кнопки «Сохранить» — чтобы не перекрывала её
       onAction: () => setEntries((prev) => {
         // Анти-дубль: если упражнение успели вернуть/добавить — не плодим копию.
         if (prev.some((e) => e.exercise.id === removed.exercise.id)) return prev
@@ -452,6 +453,7 @@ export default function WorkoutScreen({ user, workoutId = null, onBack }) {
       sub: entry.exercise?.name,
       actionLabel: 'Отменить',
       duration: 6000,
+      raised: true, // выше липкой кнопки «Сохранить» — чтобы не перекрывала её
       onAction: () => setEntries((prev) => prev.map((e) => {
         if (e.exercise.id !== exId) return e
         const sets = e.sets.slice()

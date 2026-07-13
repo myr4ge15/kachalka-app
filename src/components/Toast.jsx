@@ -11,8 +11,10 @@ import { useEffect, useRef, useState } from 'react'
 
 const subs = new Set()
 
-// Показать тост. payload: { title, sub?, emoji?, actionLabel?, onAction?, duration? }.
+// Показать тост. payload: { title, sub?, emoji?, actionLabel?, onAction?, duration?, raised? }.
 // Если задан actionLabel+onAction — рисуется кнопка действия (напр. «Отменить»).
+// raised:true поднимает тост выше липкой кнопки «Сохранить» композера тренировки
+// (иначе undo-тост удаления перекрывает её, пока висит окно отмены).
 export function showToast(payload) {
   for (const fn of subs) {
     try { fn(payload) } catch { /* ignore */ }
@@ -42,7 +44,7 @@ export default function Toast() {
   const hasAction = toast.actionLabel && toast.onAction
 
   return (
-    <div className="toast show" role="status" onClick={dismiss}>
+    <div className={`toast show${toast.raised ? ' raised' : ''}`} role="status" onClick={dismiss}>
       <span className="toast-emoji" aria-hidden="true">{toast.emoji ?? '🏆'}</span>
       <div className="toast-body">
         <div className="toast-title">{toast.title}</div>

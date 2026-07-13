@@ -1004,6 +1004,9 @@ img.avatar-lg.has-img {
   box-shadow: 0 10px 30px rgba(0,0,0,.5);
   transition: transform .35s cubic-bezier(.2,.8,.2,1);
 }
+/* Undo-тост в композере тренировки поднимаем выше липкой «Сохранить»
+   (.wk-save-bar на bottom:72px), иначе он перекрывает кнопку на 6 c окна отмены. */
+.toast.raised { bottom: calc(140px + env(safe-area-inset-bottom)); }
 .toast.show { transform: translateX(-50%) translateY(0); }
 .toast-emoji { font-size: 24px; flex-shrink: 0; }
 .toast-title { font-weight: 700; font-size: 15px; }
@@ -1378,6 +1381,8 @@ img.avatar-lg.has-img {
     left: calc(232px + (100vw - 232px) / 2);
     bottom: 24px;
   }
+  /* На десктопе save-bar тоже на bottom:24px — поднятый тост ставим над ней. */
+  .toast.raised { bottom: 92px; }
 
   /* Лента (слайс 2): посты слева, рейтинг — липким сайдбаром справа. Экран Ленты
      шире прочих, чтобы влезли обе колонки. */
