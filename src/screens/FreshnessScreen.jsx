@@ -1,7 +1,7 @@
 import { useState } from 'react'
 import { useLiveQuery } from 'dexie-react-hooks'
 import { getFreshness } from '../db/insights.js'
-import { groupBuckets } from '../lib/freshness.js'
+import { submuscleBuckets } from '../lib/freshness.js'
 import { fmtDaysAgo, fmtDays } from '../lib/homeSummary.js'
 import { labelOf, labelAccusativeOf } from '../lib/muscles.js'
 import MuscleMap from '../components/MuscleMap.jsx'
@@ -22,15 +22,13 @@ const cap = (s) => (s ? s[0].toUpperCase() + s.slice(1) : s)
 export default function FreshnessScreen({ user, onBack }) {
   const data = useLiveQuery(() => getFreshness(user.id), [user.id])
   const loading = data === undefined
-  // Силуэт — по крупным группам (major); recovery-список и дисбаланс — по подмышцам.
-  const rec = data?.recovery ?? []
-  const imb = data?.imbalance ?? []
+  // Всё по подмышцам: силуэт, recovery-список и дисбаланс.
   const recSub = data?.recoverySub ?? []
   const imbSub = data?.imbalanceSub ?? []
-  const byGroup = groupBuckets(rec, imb)
-  // Выбранная на силуэте группа (major) — подсвечивает строки её подмышц в списке.
+  const bySub = submuscleBuckets(recSub, imbSub)
+  // Выбранная на силуэте подмышца — подсвечивает её строку в recovery-списке.
   const [sel, setSel] = useState(null)
-  const toggle = (g) => setSel((cur) => (cur === g ? null : g))
+  const toggle = (s) => setSel((cur) => (cur === s ? null : s))
 
   return (
     <div className="screen fresh-screen">
@@ -49,7 +47,7 @@ export default function FreshnessScreen({ user, onBack }) {
         <>
           <section className="sec">
             <p className="sec-title">Карта тела</p>
-            <MuscleMap byGroup={byGroup} selected={sel} onSelect={toggle} />
+            <MuscleMap bySub={bySub} selected={sel} onSelect={toggle} />
             <div className="fr-legend">
               <span><i className="fr-sw fr-fresh" />отдыхает</span>
               <span><i className="fr-sw fr-recent" />3–6 дн</span>
@@ -65,7 +63,7 @@ export default function FreshnessScreen({ user, onBack }) {
               {recSub.map((f) => (
                 <div
                   key={f.submuscle}
-                  className={`fr-row fr-${f.bucket}` + (sel === f.major ? ' hl' : '')}
+                  className={`fr-row fr-${f.bucket}` + (sel === f.submuscle ? ' hl' : '')}
                 >
                   <div className="fr-row-body">
                     <div className="fr-row-name">{cap(labelOf(f.submuscle))}</div>

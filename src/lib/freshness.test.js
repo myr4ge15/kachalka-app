@@ -14,6 +14,7 @@ import {
   submuscleFreshness,
   submuscleImbalance,
   mostNeglectedSubmuscle,
+  submuscleBuckets,
 } from './freshness.js'
 
 function wk({ id, at, entries, deleted }) {
@@ -257,5 +258,19 @@ describe('mostNeglectedSubmuscle', () => {
   })
   it('пусто → null', () => {
     expect(mostNeglectedSubmuscle([], NOW)).toBeNull()
+  })
+})
+
+describe('submuscleBuckets', () => {
+  it('тренированные берут бакет, never — из дисбаланса, пустые не идут', () => {
+    const rec = [{ submuscle: 'quads', bucket: 'recent' }, { submuscle: 'chest_lower', bucket: 'fresh' }]
+    const imb = [{ submuscle: 'delt_rear', kind: 'never' }, { submuscle: 'lats', kind: 'stale', daysSince: 20 }]
+    const m = submuscleBuckets(rec, imb)
+    expect(m).toEqual({ quads: 'recent', chest_lower: 'fresh', delt_rear: 'never' })
+    expect(m.lats).toBeUndefined() // stale в карту не идёт
+  })
+  it('пустые входы → пустая карта', () => {
+    expect(submuscleBuckets([], [])).toEqual({})
+    expect(submuscleBuckets(undefined, undefined)).toEqual({})
   })
 })
