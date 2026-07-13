@@ -528,15 +528,20 @@ function UsersSection({ meId, online, errMsg }) {
   async function saveUser() {
     setEdBusy(true)
     try {
+      // Три отдельных RPC (имя/роль → приватность → пол): единого серверного вызова
+      // нет. Если поздний упадёт, ранние уже закоммичены — форма показала бы
+      // устаревшее «всё как ввели». Поэтому в catch зовём reload(): UI отразит
+      // РЕАЛЬНОЕ частичное состояние сервера (см. РЕВЬЮ-КОДА-2026-07-13).
       await adminSetUser(edId, edName, edRole)
       await adminSetPrivate(edId, edPrivate)
       await adminSetSex(edId, edSex || null)
       showToast({ emoji: '✅', title: 'Участник обновлён' })
-      closeEdit()
+      if (alive.current) closeEdit()
       reload()
     } catch (e) {
-      setEdBusy(false)
+      if (alive.current) setEdBusy(false)
       showToast({ emoji: '⚠️', title: 'Не удалось', sub: errMsg(e) })
+      reload() // часть шагов могла примениться — подтягиваем реальное состояние
     }
   }
 
@@ -562,12 +567,15 @@ function UsersSection({ meId, online, errMsg }) {
       if (addPrivate) await adminSetPrivate(u.id, true)
       if (addSex) await adminSetSex(u.id, addSex)
       showToast({ emoji: '🎉', title: 'Участник добавлен', sub: `${u.name} может входить PIN ${addPin}.` })
-      setAddOpen(false); setAddName(''); setAddRole('member'); setAddPin(''); setAddPrivate(false); setAddSex('')
+      if (alive.current) { setAddOpen(false); setAddName(''); setAddRole('member'); setAddPin(''); setAddPrivate(false); setAddSex('') }
       reload()
     } catch (e) {
       showToast({ emoji: '⚠️', title: 'Не удалось', sub: errMsg(e) })
+      // Учётка могла создаться, а флаги (приватность/пол) — упасть: подтягиваем
+      // список, чтобы UI показал реально созданного участника (не пустую форму).
+      reload()
     } finally {
-      setAddBusy(false)
+      if (alive.current) setAddBusy(false)
     }
   }
 

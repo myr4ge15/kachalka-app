@@ -32,6 +32,15 @@ export default function ProfileScreen({ user, onLogout, onOpenProgress, onOpenFe
   const progEnabled = useLiveQuery(() => getProgSettings(user.id).then((p) => p.enabled), [user.id], true)
   const loading = workouts === undefined
 
+  // Гард от setState после размонтирования. Экран профиля уходит при смене нижней
+  // вкладки, а async-обработчики (загрузка аватара, RPC смены имени/PIN, удаление
+  // данных, повтор/отклонение dead-letter) делают setState в try/finally уже ПОСЛЕ
+  // await — уход с профиля в процессе иначе даёт React-варн «update on unmounted».
+  // Как в UsersSection/AccessSection (AdminScreen); ссылка «гард как в Profile»
+  // из AdminScreen теперь не вводит в заблуждение.
+  const aliveRef = useRef(true)
+  useEffect(() => { aliveRef.current = true; return () => { aliveRef.current = false } }, [])
+
   const summary = useMemo(() => summarize(workouts ?? []), [workouts])
   const records = summary.personalRecords
 
@@ -110,9 +119,10 @@ export default function ProfileScreen({ user, onLogout, onOpenProgress, onOpenFe
     setPinBusy(true)
     try {
       await setPin(user.id, curPin, newPin)
-      closePinForm()
+      if (aliveRef.current) closePinForm()
       showToast({ emoji: '🔑', title: 'PIN обновлён', sub: 'Вход — уже новым PIN.' })
     } catch (e) {
+      if (!aliveRef.current) return
       setPinBusy(false)
       setPinErr(e instanceof LoginError ? e.message : 'Не удалось сменить PIN.')
     }
@@ -136,7 +146,7 @@ export default function ProfileScreen({ user, onLogout, onOpenProgress, onOpenFe
     } catch (err) {
       showToast({ emoji: '⚠️', title: 'Не удалось загрузить', sub: String(err?.message ?? err) })
     } finally {
-      setAvBusy(false)
+      if (aliveRef.current) setAvBusy(false)
     }
   }
 
@@ -157,14 +167,14 @@ export default function ProfileScreen({ user, onLogout, onOpenProgress, onOpenFe
       const saved = await setName(user.id, clean)
       await setCachedName(user.id, saved) // пикер входа/кэш — сразу новое имя
       onRenamed?.(saved)                  // шапка + localStorage профиля
-      setNameEditing(false)
+      if (aliveRef.current) setNameEditing(false)
       showToast({ emoji: '✏️', title: 'Имя обновлено' })
       // Имя в Ленте/лидерборде приходит join'ом с сервера — освежим на pull.
       if (navigator.onLine) syncNow(user.id)
     } catch (e) {
-      setNameErr(e instanceof LoginError ? e.message : 'Не удалось сменить имя.')
+      if (aliveRef.current) setNameErr(e instanceof LoginError ? e.message : 'Не удалось сменить имя.')
     } finally {
-      setNameBusy(false)
+      if (aliveRef.current) setNameBusy(false)
     }
   }
 
@@ -175,7 +185,7 @@ export default function ProfileScreen({ user, onLogout, onOpenProgress, onOpenFe
     setDelBusy(true)
     try {
       const n = await softDeleteMyWorkouts(user.id)
-      setDelArm(false)
+      if (aliveRef.current) setDelArm(false)
       showToast({
         emoji: '🗑',
         title: 'Данные удалены',
@@ -185,7 +195,7 @@ export default function ProfileScreen({ user, onLogout, onOpenProgress, onOpenFe
     } catch (e) {
       showToast({ emoji: '⚠️', title: 'Не удалось удалить', sub: String(e?.message ?? e) })
     } finally {
-      setDelBusy(false)
+      if (aliveRef.current) setDelBusy(false)
     }
   }
 
@@ -204,20 +214,20 @@ export default function ProfileScreen({ user, onLogout, onOpenProgress, onOpenFe
     } catch (e) {
       showToast({ emoji: '⚠️', title: 'Не удалось', sub: String(e?.message ?? e) })
     } finally {
-      setDlBusy(false)
+      if (aliveRef.current) setDlBusy(false)
     }
   }
   async function discardDead() {
     setDlBusy(true)
     try {
       const n = await discardDeadLetter()
-      setDlArm(false)
+      if (aliveRef.current) setDlArm(false)
       showToast({ emoji: '🧹', title: 'Изменения отклонены', sub: `Удалено операций: ${n}` })
       if (navigator.onLine) syncNow(user.id)
     } catch (e) {
       showToast({ emoji: '⚠️', title: 'Не удалось', sub: String(e?.message ?? e) })
     } finally {
-      setDlBusy(false)
+      if (aliveRef.current) setDlBusy(false)
     }
   }
 
