@@ -12,7 +12,8 @@
 // computePrs в db/feed.js).
 // ============================================================================
 import { cmpIsoAsc } from './cmp.js'
-import { leadingValue, normMetric } from './metric.js'
+import { leadingValue } from './metric.js'
+import { entryExId, entryMetric } from './entries.js'
 
 // Максимальный фактический вес среди подходов [{weight, reps}]. Оставлен для
 // весо-специфичных мест (цели в кг — profileStats.currentBest).
@@ -20,11 +21,8 @@ export function bestWeight(sets) {
   return (sets ?? []).reduce((m, s) => Math.max(m, Number(s.weight) || 0), 0)
 }
 
-const entryExId = (e) => e.exercise_id ?? e.exercise?.id ?? null
+// Имя записи оставлено по месту: у records дефолт null (у ленты/insights — '—').
 const entryName = (e) => e.name ?? e.exercise?.name ?? null
-// Метрика записи: у элементов ленты лежит плоско (e.metric), у документов
-// тренировки — в денормализованном e.exercise.metric. Дефолт 'weight'.
-const entryMetric = (e) => normMetric(e.metric ?? e.exercise?.metric)
 
 // Лучший ведущий показатель по каждому упражнению за переданную историю.
 // Возвращает Map(exercise_id → { value, metric, name }).

@@ -31,6 +31,7 @@ import { reconcileStaleWorkouts } from '../lib/pullReconcile.js'
 import { maxUpdatedAt, changedSince, rosterSignature } from '../lib/pullWatermark.js'
 import { pollIntervalFor, isRealtimeAlive, makeDebouncer } from '../lib/realtimeSync.js'
 import { backoffDelay, nextFailureCount } from '../lib/backoff.js'
+import { pickExerciseShape } from '../lib/entries.js'
 
 // Свернуть всплеск Realtime-событий в один syncNow (несколько правок подряд на
 // сервере не должны дёргать pull лавиной). Инкрементальный pull дёшев, поэтому
@@ -92,18 +93,10 @@ function rowToDoc(w) {
     .sort((a, b) => (a.position ?? 0) - (b.position ?? 0))
     .map((we) => ({
       exercise_id: we.exercise_id,
+      // Единый снимок упражнения (двухуровневая модель мышц: submuscle + secondary).
+      // Фолбэк при отсутствии join'а — минимальный {id, name:'—'}.
       exercise: we.exercise
-        ? {
-            id: we.exercise.id,
-            name: we.exercise.name,
-            muscle_group: we.exercise.muscle_group ?? null,
-            // Двухуровневая модель мышц (PLAN-muscle-detail, слайс 1): подмышца
-            // (primary) + вторичные. Фолбэк — пусто (потребители откатываются на major).
-            submuscle: we.exercise.submuscle ?? null,
-            secondary: we.exercise.secondary ?? [],
-            is_bench_lift: Boolean(we.exercise.is_bench_lift),
-            metric: we.exercise.metric ?? 'weight',
-          }
+        ? pickExerciseShape(we.exercise)
         : { id: we.exercise_id, name: '—' },
       sets: [...(we.sets ?? [])]
         .sort((a, b) => (a.set_number ?? 0) - (b.set_number ?? 0))
@@ -134,15 +127,7 @@ function templateRowToDoc(t) {
     .map((te, i) => ({
       exercise_id: te.exercise_id,
       exercise: te.exercise
-        ? {
-            id: te.exercise.id,
-            name: te.exercise.name,
-            muscle_group: te.exercise.muscle_group ?? null,
-            submuscle: te.exercise.submuscle ?? null,
-            secondary: te.exercise.secondary ?? [],
-            is_bench_lift: Boolean(te.exercise.is_bench_lift),
-            metric: te.exercise.metric ?? 'weight',
-          }
+        ? pickExerciseShape(te.exercise)
         : { id: te.exercise_id, name: '—' },
       position: i,
       // Целевой план (подходы × повторы × вес). Легаси-строки без целей → null;

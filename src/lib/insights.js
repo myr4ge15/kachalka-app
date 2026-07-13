@@ -19,15 +19,14 @@
 import { GROUP_ORDER } from './dayTags.js'
 import { lastTrainedBySubmuscle } from './freshness.js'
 import { labelAccusativeOf } from './muscles.js'
-import { normMetric, leadingValue, fmtMetricValue } from './metric.js'
+import { leadingValue, fmtMetricValue } from './metric.js'
 import { myBestByExercise } from './records.js'
 import { detectPlateau } from './progression.js'
 import { currentStreak } from './profileStats.js'
 import { cmpIsoDesc } from './cmp.js'
+import { entryExId, entryMetric, sortDesc } from './entries.js'
 
-const entryExId = (e) => e.exercise_id ?? e.exercise?.id ?? null
 const entryName = (e) => e.name ?? e.exercise?.name ?? '—'
-const entryMetric = (e) => normMetric(e.metric ?? e.exercise?.metric)
 const groupOf = (e) => e?.muscle_group ?? e?.exercise?.muscle_group ?? null
 const isBenchEntry = (e) => Boolean(e.is_bench_lift ?? e.exercise?.is_bench_lift)
 
@@ -93,12 +92,6 @@ const plWorkouts = (n) => plural(n, 'тренировку', 'тренировк�
 const cap = (s) => (s ? s[0].toUpperCase() + s.slice(1) : s)
 
 // Отсортировать по дате тренировки, свежие сверху (как getWorkouts).
-function sortDesc(workouts) {
-  return [...(workouts ?? [])]
-    .filter((w) => w && !w._deleted)
-    .sort((a, b) => cmpIsoDesc(a.performed_at, b.performed_at) || cmpIsoDesc(a.created_at, b.created_at))
-}
-
 // Последнее ведущее упражнение жима (is_bench_lift) в истории: id, имя, метрика.
 function findBench(sorted) {
   for (const w of sorted) {

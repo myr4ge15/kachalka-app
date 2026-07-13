@@ -25,6 +25,7 @@ import { clampSet } from '../lib/setLimits.js'
 import { pickLastSets } from '../lib/lastSets.js'
 import { isReactionKind } from '../lib/reactions.js'
 import { defaultSubmuscleFor, cleanSecondary } from '../lib/muscles.js'
+import { pickExerciseShape } from '../lib/entries.js'
 
 // ----------------------------- Чтение --------------------------------------
 
@@ -298,17 +299,7 @@ function cleanEntries(entries) {
       const metric = normMetric(e.exercise?.metric)
       return {
         exercise_id: e.exercise?.id ?? e.exercise_id,
-        exercise: e.exercise
-          ? {
-              id: e.exercise.id,
-              name: e.exercise.name,
-              muscle_group: e.exercise.muscle_group ?? null,
-              submuscle: e.exercise.submuscle ?? null,
-              secondary: e.exercise.secondary ?? [],
-              is_bench_lift: Boolean(e.exercise.is_bench_lift),
-              metric,
-            }
-          : undefined,
+        exercise: e.exercise ? pickExerciseShape(e.exercise) : undefined,
         sets: (e.sets ?? [])
           .map((s) => clampSet(toNum(s.weight), toNum(s.reps), metric))
           .filter(Boolean),
@@ -477,17 +468,7 @@ function cleanTemplateExercises(exercises) {
       const metric = normMetric(e.exercise?.metric)
       return {
         exercise_id: e.exercise?.id ?? e.exercise_id,
-        exercise: e.exercise
-          ? {
-              id: e.exercise.id,
-              name: e.exercise.name,
-              muscle_group: e.exercise.muscle_group ?? null,
-              submuscle: e.exercise.submuscle ?? null,
-              secondary: e.exercise.secondary ?? [],
-              is_bench_lift: Boolean(e.exercise.is_bench_lift),
-              metric,
-            }
-          : undefined,
+        exercise: e.exercise ? pickExerciseShape(e.exercise) : undefined,
         position: i,
         ...cleanTargets(e, metric),
       }

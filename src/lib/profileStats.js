@@ -15,8 +15,7 @@
 // ============================================================================
 import { myBestByExercise, bestWeight } from './records.js'
 import { isCountMetric, leadingValue, normMetric } from './metric.js'
-
-const entryExId = (e) => e.exercise_id ?? e.exercise?.id ?? null
+import { entryExId } from './entries.js'
 
 // Число тренировок в текущем КАЛЕНДАРНОМ месяце (по дате тренировки).
 // TZ — намеренно ЛОКАЛЬНАЯ: дата выбирается пользователем как локальный день

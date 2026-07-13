@@ -12,16 +12,7 @@ import { dayIndex, tonnageInWindow } from './insights.js'
 import { mostNeglectedGroup } from './freshness.js'
 import { daySubTags } from './dayTags.js'
 import { normMetric } from './metric.js'
-import { cmpIsoDesc } from './cmp.js'
-
-const entryExId = (e) => e.exercise_id ?? e.exercise?.id ?? null
-const entryMetric = (e) => normMetric(e.metric ?? e.exercise?.metric)
-
-function sortDesc(workouts) {
-  return [...(workouts ?? [])]
-    .filter((w) => w && !w._deleted)
-    .sort((a, b) => cmpIsoDesc(a.performed_at, b.performed_at) || cmpIsoDesc(a.created_at, b.created_at))
-}
+import { entryExId, entryMetric, sortDesc } from './entries.js'
 
 // Последний зафиксированный личный рекорд (свежайший по дате): идём по истории от
 // старых к новым, держим лучший ведущий показатель по упражнению и ловим момент
