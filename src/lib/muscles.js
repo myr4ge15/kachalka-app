@@ -28,48 +28,58 @@ export const SECONDARY_LOAD_FACTOR = 0.5
 
 // Справочник подмышц: слаг → { major, label, labelAccusative, recoveryHours }.
 // Порядок ключей = порядок предложения внутри группы в пикере (слайс 2).
+// NB: набор крупных групп сверен с РЕАЛЬНОЙ базой (select из exercises, 13.07):
+// помимо 7 канонических там как отдельные major живут «ягодицы» (ядро женской
+// программы — много упражнений) и «трапеции». Поэтому они здесь — полноценные
+// группы со своими подмышцами (ягодичные делим на большую/среднюю — самый
+// ценный сплит для этой программы). Порядок ключей = порядок в пикере.
 export const SUBMUSCLES = {
   // грудь
-  chest_upper:  { major: 'грудь',   label: 'верх груди',        labelAccusative: 'верх груди',        recoveryHours: 48 },
-  chest_lower:  { major: 'грудь',   label: 'низ/середина груди', labelAccusative: 'низ/середину груди', recoveryHours: 48 },
+  chest_upper:  { major: 'грудь',    label: 'верх груди',         labelAccusative: 'верх груди',         recoveryHours: 48 },
+  chest_lower:  { major: 'грудь',    label: 'низ/середина груди', labelAccusative: 'низ/середину груди', recoveryHours: 48 },
   // спина
-  lats:         { major: 'спина',   label: 'широчайшие',        labelAccusative: 'широчайшие',        recoveryHours: 72 },
-  traps:        { major: 'спина',   label: 'трапеция',          labelAccusative: 'трапецию',          recoveryHours: 48 },
-  rhomboids:    { major: 'спина',   label: 'ромбовидные',       labelAccusative: 'ромбовидные',       recoveryHours: 48 },
-  lower_back:   { major: 'спина',   label: 'разгибатели спины', labelAccusative: 'разгибатели спины', recoveryHours: 72 },
+  lats:         { major: 'спина',    label: 'широчайшие',         labelAccusative: 'широчайшие',         recoveryHours: 72 },
+  rhomboids:    { major: 'спина',    label: 'ромбовидные',        labelAccusative: 'ромбовидные',        recoveryHours: 48 },
+  lower_back:   { major: 'спина',    label: 'разгибатели спины',  labelAccusative: 'разгибатели спины',  recoveryHours: 72 },
+  // трапеции (в реальной базе — отдельная группа)
+  traps:        { major: 'трапеции', label: 'трапеция',           labelAccusative: 'трапецию',           recoveryHours: 48 },
   // ноги
-  quads:        { major: 'ноги',    label: 'квадрицепс',        labelAccusative: 'квадрицепс',        recoveryHours: 72 },
-  hamstrings:   { major: 'ноги',    label: 'бицепс бедра',      labelAccusative: 'бицепс бедра',      recoveryHours: 72 },
-  glutes:       { major: 'ноги',    label: 'ягодичные',         labelAccusative: 'ягодичные',         recoveryHours: 72 },
-  calves:       { major: 'ноги',    label: 'икры',              labelAccusative: 'икры',              recoveryHours: 48 },
-  adductors:    { major: 'ноги',    label: 'приводящие',        labelAccusative: 'приводящие',        recoveryHours: 48 },
+  quads:        { major: 'ноги',     label: 'квадрицепс',         labelAccusative: 'квадрицепс',         recoveryHours: 72 },
+  hamstrings:   { major: 'ноги',     label: 'бицепс бедра',       labelAccusative: 'бицепс бедра',       recoveryHours: 72 },
+  calves:       { major: 'ноги',     label: 'икры',               labelAccusative: 'икры',               recoveryHours: 48 },
+  adductors:    { major: 'ноги',     label: 'приводящие',         labelAccusative: 'приводящие',         recoveryHours: 48 },
+  // ягодицы (в реальной базе — отдельная группа; делим на большую/среднюю)
+  glute_max:    { major: 'ягодицы',  label: 'большая ягодичная',  labelAccusative: 'большую ягодичную',  recoveryHours: 72 },
+  glute_med:    { major: 'ягодицы',  label: 'средняя ягодичная',  labelAccusative: 'среднюю ягодичную',  recoveryHours: 48 },
   // плечи
-  delt_front:   { major: 'плечи',   label: 'передняя дельта',   labelAccusative: 'переднюю дельту',   recoveryHours: 48 },
-  delt_side:    { major: 'плечи',   label: 'средняя дельта',    labelAccusative: 'среднюю дельту',    recoveryHours: 48 },
-  delt_rear:    { major: 'плечи',   label: 'задняя дельта',     labelAccusative: 'заднюю дельту',     recoveryHours: 48 },
+  delt_front:   { major: 'плечи',    label: 'передняя дельта',    labelAccusative: 'переднюю дельту',    recoveryHours: 48 },
+  delt_side:    { major: 'плечи',    label: 'средняя дельта',     labelAccusative: 'среднюю дельту',     recoveryHours: 48 },
+  delt_rear:    { major: 'плечи',    label: 'задняя дельта',      labelAccusative: 'заднюю дельту',      recoveryHours: 48 },
   // бицепс
-  biceps:       { major: 'бицепс',  label: 'бицепс',            labelAccusative: 'бицепс',            recoveryHours: 48 },
-  forearms:     { major: 'бицепс',  label: 'предплечья',        labelAccusative: 'предплечья',        recoveryHours: 48 },
+  biceps:       { major: 'бицепс',   label: 'бицепс',             labelAccusative: 'бицепс',             recoveryHours: 48 },
+  forearms:     { major: 'бицепс',   label: 'предплечья',         labelAccusative: 'предплечья',         recoveryHours: 48 },
   // трицепс
-  triceps:      { major: 'трицепс', label: 'трицепс',           labelAccusative: 'трицепс',           recoveryHours: 48 },
+  triceps:      { major: 'трицепс',  label: 'трицепс',            labelAccusative: 'трицепс',            recoveryHours: 48 },
   // пресс
-  abs_rectus:   { major: 'пресс',   label: 'пресс',             labelAccusative: 'пресс',             recoveryHours: 24 },
-  abs_obliques: { major: 'пресс',   label: 'косые',             labelAccusative: 'косые',             recoveryHours: 24 },
+  abs_rectus:   { major: 'пресс',    label: 'пресс',              labelAccusative: 'пресс',              recoveryHours: 24 },
+  abs_obliques: { major: 'пресс',    label: 'косые',              labelAccusative: 'косые',              recoveryHours: 24 },
   // кардио
-  cardio:       { major: 'кардио',  label: 'кардио',            labelAccusative: 'кардио',            recoveryHours: 24 },
+  cardio:       { major: 'кардио',   label: 'кардио',             labelAccusative: 'кардио',             recoveryHours: 24 },
 }
 
 // Дефолтная подмышца КРУПНОЙ группы — для бэкфилла истории и старта своих
 // упражнений (major → слаг). Все значения обязаны быть ключами SUBMUSCLES.
 export const MAJOR_DEFAULT_SUB = {
-  'грудь':   'chest_lower',
-  'спина':   'lats',
-  'ноги':    'quads',
-  'плечи':   'delt_side',
-  'бицепс':  'biceps',
-  'трицепс': 'triceps',
-  'пресс':   'abs_rectus',
-  'кардио':  'cardio',
+  'грудь':    'chest_lower',
+  'спина':    'lats',
+  'трапеции': 'traps',
+  'ноги':     'quads',
+  'ягодицы':  'glute_max',
+  'плечи':    'delt_side',
+  'бицепс':   'biceps',
+  'трицепс':  'triceps',
+  'пресс':    'abs_rectus',
+  'кардио':   'cardio',
 }
 
 export const DEFAULT_SUB_RECOVERY_HOURS = 48

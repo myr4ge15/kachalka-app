@@ -17,8 +17,9 @@ import {
 } from './muscles.js'
 import { GROUP_ORDER } from './dayTags.js'
 
-// Крупные группы таксономии (кардио — свободная, не в GROUP_ORDER, но валидна).
-const KNOWN_MAJORS = new Set([...GROUP_ORDER, 'кардио'])
+// Крупные группы таксономии. Помимо канонических GROUP_ORDER в реальной базе как
+// отдельные major живут «ягодицы» и «трапеции» (+ свободная «кардио»).
+const KNOWN_MAJORS = new Set([...GROUP_ORDER, 'кардио', 'ягодицы', 'трапеции'])
 
 describe('muscles — таксономия', () => {
   it('каждая подмышца привязана к известной крупной группе', () => {
@@ -44,7 +45,7 @@ describe('muscles — таксономия', () => {
   })
 
   it('у каждой крупной группы (кроме своих) есть дефолтная подмышца', () => {
-    for (const major of [...GROUP_ORDER, 'кардио']) {
+    for (const major of [...GROUP_ORDER, 'кардио', 'ягодицы', 'трапеции']) {
       expect(defaultSubmuscleFor(major), major).not.toBeNull()
     }
   })
@@ -59,7 +60,10 @@ describe('muscles — хелперы', () => {
   })
 
   it('submusclesOf: возвращает все подмышцы группы в порядке объявления', () => {
-    expect(submusclesOf('ноги')).toEqual(['quads', 'hamstrings', 'glutes', 'calves', 'adductors'])
+    expect(submusclesOf('ноги')).toEqual(['quads', 'hamstrings', 'calves', 'adductors'])
+    expect(submusclesOf('ягодицы')).toEqual(['glute_max', 'glute_med'])
+    expect(submusclesOf('трапеции')).toEqual(['traps'])
+    expect(submusclesOf('спина')).toEqual(['lats', 'rhomboids', 'lower_back'])
     expect(submusclesOf('трицепс')).toEqual(['triceps'])
     expect(submusclesOf('неизвестная')).toEqual([])
   })
@@ -77,7 +81,7 @@ describe('muscles — хелперы', () => {
   })
 
   it('подписи: известный → label, неизвестный → сам слаг', () => {
-    expect(labelOf('glutes')).toBe('ягодичные')
+    expect(labelOf('glute_max')).toBe('большая ягодичная')
     expect(labelAccusativeOf('traps')).toBe('трапецию')
     expect(labelOf('xxx')).toBe('xxx')
     expect(labelAccusativeOf('xxx')).toBe('xxx')
