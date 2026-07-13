@@ -1733,8 +1733,8 @@ img.avatar-lg.has-img {
 .mm-cap { font-size: 11px; color: var(--muted); margin-top: 2px; }
 .mm-zone { cursor: pointer; }
 .mm-zone:focus { outline: none; }
-.mm-zone:focus-visible ellipse, .mm-zone:focus-visible rect,
-.mm-zone.sel ellipse, .mm-zone.sel rect { stroke: #e2e8f0; stroke-width: 2.5; }
+.mm-zone:focus-visible ellipse, .mm-zone:focus-visible rect, .mm-zone:focus-visible path,
+.mm-zone.sel ellipse, .mm-zone.sel rect, .mm-zone.sel path { stroke: #e2e8f0; stroke-width: 2.5; }
 
 .fr-legend {
   display: flex; flex-wrap: wrap; gap: 6px 12px; justify-content: center;

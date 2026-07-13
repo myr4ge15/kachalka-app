@@ -4,7 +4,7 @@ import { getFreshness } from '../db/insights.js'
 import { submuscleBuckets } from '../lib/freshness.js'
 import { fmtDaysAgo, fmtDays } from '../lib/homeSummary.js'
 import { labelOf, labelAccusativeOf } from '../lib/muscles.js'
-import MuscleMap from '../components/MuscleMap.jsx'
+import MuscleMap, { regionOf } from '../components/MuscleMap.jsx'
 import CardsSkeleton from '../components/CardsSkeleton.jsx'
 
 // Детальный экран «Свежесть по группам» (виш BACKLOG, слайсы 2–3). Три
@@ -26,9 +26,9 @@ export default function FreshnessScreen({ user, onBack }) {
   const recSub = data?.recoverySub ?? []
   const imbSub = data?.imbalanceSub ?? []
   const bySub = submuscleBuckets(recSub, imbSub)
-  // Выбранная на силуэте подмышца — подсвечивает её строку в recovery-списке.
+  // Выбранная на силуэте анатомическая зона — подсвечивает строки её подмышц.
   const [sel, setSel] = useState(null)
-  const toggle = (s) => setSel((cur) => (cur === s ? null : s))
+  const toggle = (region) => setSel((cur) => (cur === region ? null : region))
 
   return (
     <div className="screen fresh-screen">
@@ -63,7 +63,7 @@ export default function FreshnessScreen({ user, onBack }) {
               {recSub.map((f) => (
                 <div
                   key={f.submuscle}
-                  className={`fr-row fr-${f.bucket}` + (sel === f.submuscle ? ' hl' : '')}
+                  className={`fr-row fr-${f.bucket}` + (regionOf(f.submuscle) === sel ? ' hl' : '')}
                 >
                   <div className="fr-row-body">
                     <div className="fr-row-name">{cap(labelOf(f.submuscle))}</div>

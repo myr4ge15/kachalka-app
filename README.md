@@ -48,4 +48,12 @@
 
 ---
 
-**Версия 3.23.0**
+## Сторонние материалы
+
+Анатомические SVG-пути карты тела («Свежесть мышц») адаптированы из проекта
+[react-native-body-highlighter](https://github.com/HichamELBSI/react-native-body-highlighter)
+(лицензия MIT, © 2022 ELABBASSI Hicham).
+
+---
+
+**Версия 4.0.0**

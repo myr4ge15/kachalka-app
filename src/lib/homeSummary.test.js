@@ -37,14 +37,15 @@ describe('buildHomeSummary', () => {
     expect(s.latestPr).toBeNull()
   })
 
-  it('последняя тренировка: дни назад и теги групп', () => {
+  it('последняя тренировка: дни назад и теги подмышц (слайс 3a)', () => {
     const list = [
       wk({ id: 'a', at: daysAgo(2), entries: [{ exId: 'bp', name: 'Жим', group: 'грудь', bench: true, sets: [S(80, 5)] }] }),
     ]
     const s = buildHomeSummary({ workouts: list, goals: [], now: NOW })
     expect(s.hasData).toBe(true)
     expect(s.lastWorkout.daysAgo).toBe(2)
-    expect(s.lastWorkout.tags).toContain('грудь')
+    // теги теперь по подмышцам; без submuscle у записи — фолбэк на дефолт группы (грудь → chest_lower)
+    expect(s.lastWorkout.tags).toContain('chest_lower')
   })
 
   it('тоннаж месяца и дельта против прошлого', () => {

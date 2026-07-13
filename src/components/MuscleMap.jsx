@@ -1,18 +1,17 @@
 // ============================================================================
-// MuscleMap — heatmap-силуэт свежести по ПОДМЫШЦАМ (PLAN-muscle-detail, слайс 3b).
-// Две схематичные фигуры (спереди/сзади) из скруглённых панелей, но теперь зона =
-// отдельная ПОДМЫШЦА (submuscle), а не крупная группа: грудь верх/низ, дельты
-// перед/сред/зад, спина широчайшие/ромбовидные/разгибатели, трапеция, бицепс/
-// предплечья/трицепс, пресс/косые, квадрицепс/бицепс бедра/приводящие/икры,
-// большая/средняя ягодичная. Каждая панель красится по бакету давности
-// (submuscleBuckets из lib/freshness.js): fresh(отдыхает)=красный, recent=
-// оранжевый, due(пора)=бирюзовый, overdue(давно)=синий, never(ни разу)=серый,
-// нет данных → нейтральный. Зоны кликабельны — выбор подмышцы подсвечивает её
-// строку в recovery-списке (родитель держит selected).
+// MuscleMap — анатомический heatmap-силуэт свежести (PLAN-muscle-detail, слайс 3c).
+// Реалистичная фигура (спереди/сзади): контур тела + зоны мышц раскрашиваются по
+// давности тренировки. Геометрия путей — из react-native-body-highlighter (MIT,
+// (c) 2022 ELABBASSI Hicham), см. src/components/muscleBodyPaths.js.
 //
-// Пропсы: bySub ({submuscle→bucket}), selected (слаг|null), onSelect(submuscle).
+// Гранулярность источника — анатомическая ЗОНА (грудь, дельты, ягодичные…), чуть
+// крупнее наших подмышц; поэтому зона красится по «самой пора» из своих подмышц
+// (REGION_SUBS), а клик по зоне подсвечивает ВСЕ её строки в recovery-списке
+// (regionOf). Полная детализация по подмышцам живёт в списке, карта — обзорная.
+//
+// Пропсы: bySub ({submuscle→bucket}), selected (region|null), onSelect(region).
 // ============================================================================
-import { labelOf } from '../lib/muscles.js'
+import { BODY_OUTLINE, FRONT_REGIONS, BACK_REGIONS } from './muscleBodyPaths.js'
 
 const BUCKET_COLOR = {
   fresh: '#ef4444',
@@ -21,149 +20,99 @@ const BUCKET_COLOR = {
   overdue: '#3b82f6',
   never: '#64748b',
 }
-const NEUTRAL = '#273449'
+const BODY = '#171f2c'      // заливка контура тела
+const MUSCLE = '#2b374d'    // мышца без данных
+const STROKE = '#3a4a63'    // контур
 
 export function bucketColor(bucket) {
-  return BUCKET_COLOR[bucket] ?? NEUTRAL
+  return BUCKET_COLOR[bucket] ?? MUSCLE
+}
+
+// Анатомическая зона → наши подмышцы. Цвет зоны = «самая пора» из них.
+const REGION_SUBS = {
+  chest: ['chest_upper', 'chest_lower'],
+  abs: ['abs_rectus'],
+  obliques: ['abs_obliques'],
+  deltoids: ['delt_front', 'delt_side', 'delt_rear'],
+  biceps: ['biceps'],
+  forearm: ['forearms'],
+  triceps: ['triceps'],
+  trapezius: ['traps'],
+  'upper-back': ['lats', 'rhomboids'],
+  'lower-back': ['lower_back'],
+  gluteal: ['glute_max', 'glute_med'],
+  quadriceps: ['quads'],
+  adductors: ['adductors'],
+  hamstring: ['hamstrings'],
+  calves: ['calves'],
+}
+const REGION_LABEL = {
+  chest: 'грудь', abs: 'пресс', obliques: 'косые', deltoids: 'дельты',
+  biceps: 'бицепс', forearm: 'предплечья', triceps: 'трицепс', trapezius: 'трапеция',
+  'upper-back': 'широчайшие', 'lower-back': 'поясница', gluteal: 'ягодичные',
+  quadriceps: 'квадрицепс', adductors: 'приводящие', hamstring: 'бицепс бедра', calves: 'икры',
+}
+const BUCKET_RANK = { overdue: 4, due: 3, recent: 2, fresh: 1, never: 0 }
+
+// Обратная карта подмышца → зона (для подсветки строки списка по клику на зоне).
+const SUB_REGION = {}
+for (const [region, subs] of Object.entries(REGION_SUBS)) for (const s of subs) SUB_REGION[s] = region
+export function regionOf(submuscle) {
+  return SUB_REGION[submuscle] ?? null
+}
+
+// Бакет зоны = максимальный по «пора» среди её подмышц, что есть в данных.
+function regionBucket(region, bySub) {
+  let best = null
+  for (const s of REGION_SUBS[region] ?? []) {
+    const b = bySub[s]
+    if (b && (best === null || BUCKET_RANK[b] > BUCKET_RANK[best])) best = b
+  }
+  return best
 }
 
 export default function MuscleMap({ bySub = {}, selected = null, onSelect }) {
-  const fill = (sub) => bucketColor(bySub[sub])
-  const zone = (sub) => ({
-    className: 'mm-zone' + (selected === sub ? ' sel' : ''),
-    role: 'button',
-    tabIndex: 0,
-    'aria-label': labelOf(sub),
-    'aria-pressed': selected === sub,
-    onClick: () => onSelect?.(sub),
-    onKeyDown: (e) => {
-      if (e.key === 'Enter' || e.key === ' ') {
-        e.preventDefault()
-        onSelect?.(sub)
-      }
-    },
-  })
+  const figure = (side, regions) => {
+    const viewBox = side === 'front' ? '0 0 724 1448' : '724 0 724 1448'
+    return (
+      <div className="mm-col">
+        <svg viewBox={viewBox} role="img" aria-label={`Силуэт ${side === 'front' ? 'спереди' : 'сзади'} — свежесть мышц`}>
+          <path d={BODY_OUTLINE[side]} fill={BODY} stroke={STROKE} strokeWidth="2.5" vectorEffect="non-scaling-stroke" />
+          {Object.entries(regions).map(([region, paths]) => {
+            const fill = bucketColor(regionBucket(region, bySub))
+            const sel = selected === region
+            return (
+              <g
+                key={region}
+                className={'mm-zone' + (sel ? ' sel' : '')}
+                role="button"
+                tabIndex={0}
+                aria-label={REGION_LABEL[region] ?? region}
+                aria-pressed={sel}
+                onClick={() => onSelect?.(region)}
+                onKeyDown={(e) => {
+                  if (e.key === 'Enter' || e.key === ' ') {
+                    e.preventDefault()
+                    onSelect?.(region)
+                  }
+                }}
+              >
+                {paths.map((d, i) => (
+                  <path key={i} d={d} fill={fill} stroke={STROKE} strokeWidth="1" vectorEffect="non-scaling-stroke" />
+                ))}
+              </g>
+            )
+          })}
+        </svg>
+        <div className="mm-cap">{side === 'front' ? 'спереди' : 'сзади'}</div>
+      </div>
+    )
+  }
 
   return (
     <div className="mm">
-      <div className="mm-col">
-        <svg viewBox="0 0 120 250" role="img" aria-label="Силуэт спереди — свежесть мышц">
-          {/* голова / шея (нейтрально) */}
-          <ellipse cx="60" cy="18" rx="11" ry="13" fill={NEUTRAL} />
-          <rect x="55" y="29" width="10" height="7" rx="3" fill={NEUTRAL} />
-
-          {/* дельты: средняя (латерально) под передней */}
-          <g {...zone('delt_side')}>
-            <ellipse cx="24" cy="49" rx="7" ry="8" fill={fill('delt_side')} />
-            <ellipse cx="96" cy="49" rx="7" ry="8" fill={fill('delt_side')} />
-          </g>
-          <g {...zone('delt_front')}>
-            <ellipse cx="35" cy="46" rx="11" ry="8" fill={fill('delt_front')} />
-            <ellipse cx="85" cy="46" rx="11" ry="8" fill={fill('delt_front')} />
-          </g>
-
-          {/* грудь: верх / низ */}
-          <g {...zone('chest_upper')}>
-            <rect x="43" y="40" width="34" height="11" rx="6" fill={fill('chest_upper')} />
-          </g>
-          <g {...zone('chest_lower')}>
-            <rect x="44" y="52" width="32" height="14" rx="6" fill={fill('chest_lower')} />
-          </g>
-
-          {/* пресс: прямая (центр) + косые (по бокам) */}
-          <g {...zone('abs_obliques')}>
-            <rect x="42" y="69" width="6" height="28" rx="3" fill={fill('abs_obliques')} />
-            <rect x="72" y="69" width="6" height="28" rx="3" fill={fill('abs_obliques')} />
-          </g>
-          <g {...zone('abs_rectus')}>
-            <rect x="50" y="68" width="20" height="30" rx="5" fill={fill('abs_rectus')} />
-          </g>
-
-          {/* руки: бицепс + предплечья */}
-          <g {...zone('biceps')}>
-            <rect x="21" y="53" width="13" height="23" rx="6" fill={fill('biceps')} />
-            <rect x="86" y="53" width="13" height="23" rx="6" fill={fill('biceps')} />
-          </g>
-          <g {...zone('forearms')}>
-            <rect x="18" y="78" width="13" height="24" rx="6" fill={fill('forearms')} />
-            <rect x="89" y="78" width="13" height="24" rx="6" fill={fill('forearms')} />
-          </g>
-          <circle cx="23" cy="107" r="4" fill={NEUTRAL} />
-          <circle cx="97" cy="107" r="4" fill={NEUTRAL} />
-
-          {/* ноги: квадрицепс + приводящие (внутр.) */}
-          <g {...zone('quads')}>
-            <rect x="43" y="100" width="15" height="50" rx="7" fill={fill('quads')} />
-            <rect x="62" y="100" width="15" height="50" rx="7" fill={fill('quads')} />
-          </g>
-          <g {...zone('adductors')}>
-            <rect x="57" y="104" width="6" height="38" rx="3" fill={fill('adductors')} />
-          </g>
-          {/* голени спереди — нейтрально (икры на виде сзади) */}
-          <rect x="45" y="152" width="12" height="46" rx="6" fill={NEUTRAL} />
-          <rect x="63" y="152" width="12" height="46" rx="6" fill={NEUTRAL} />
-        </svg>
-        <div className="mm-cap">спереди</div>
-      </div>
-
-      <div className="mm-col">
-        <svg viewBox="0 0 120 250" role="img" aria-label="Силуэт сзади — свежесть мышц">
-          <ellipse cx="60" cy="18" rx="11" ry="13" fill={NEUTRAL} />
-
-          {/* задняя дельта */}
-          <g {...zone('delt_rear')}>
-            <ellipse cx="35" cy="48" rx="11" ry="8" fill={fill('delt_rear')} />
-            <ellipse cx="85" cy="48" rx="11" ry="8" fill={fill('delt_rear')} />
-          </g>
-
-          {/* трапеция (верх спины/шея) */}
-          <g {...zone('traps')}>
-            <rect x="48" y="34" width="24" height="15" rx="6" fill={fill('traps')} />
-          </g>
-          {/* ромбовидные (центр под трапецией) */}
-          <g {...zone('rhomboids')}>
-            <rect x="50" y="47" width="20" height="12" rx="4" fill={fill('rhomboids')} />
-          </g>
-          {/* широчайшие (бока спины) */}
-          <g {...zone('lats')}>
-            <rect x="43" y="52" width="13" height="21" rx="6" fill={fill('lats')} />
-            <rect x="64" y="52" width="13" height="21" rx="6" fill={fill('lats')} />
-          </g>
-          {/* разгибатели (поясница) */}
-          <g {...zone('lower_back')}>
-            <rect x="48" y="73" width="24" height="13" rx="5" fill={fill('lower_back')} />
-          </g>
-
-          {/* трицепс */}
-          <g {...zone('triceps')}>
-            <rect x="21" y="53" width="13" height="23" rx="6" fill={fill('triceps')} />
-            <rect x="86" y="53" width="13" height="23" rx="6" fill={fill('triceps')} />
-          </g>
-          <rect x="18" y="78" width="13" height="24" rx="6" fill={NEUTRAL} />
-          <rect x="89" y="78" width="13" height="24" rx="6" fill={NEUTRAL} />
-
-          {/* ягодицы: большая (центр) + средняя (внешние верхние) */}
-          <g {...zone('glute_med')}>
-            <rect x="41" y="88" width="8" height="13" rx="4" fill={fill('glute_med')} />
-            <rect x="71" y="88" width="8" height="13" rx="4" fill={fill('glute_med')} />
-          </g>
-          <g {...zone('glute_max')}>
-            <rect x="45" y="90" width="30" height="18" rx="8" fill={fill('glute_max')} />
-          </g>
-
-          {/* бицепс бедра (задняя поверхность) */}
-          <g {...zone('hamstrings')}>
-            <rect x="44" y="110" width="15" height="44" rx="7" fill={fill('hamstrings')} />
-            <rect x="61" y="110" width="15" height="44" rx="7" fill={fill('hamstrings')} />
-          </g>
-          {/* икры */}
-          <g {...zone('calves')}>
-            <rect x="45" y="156" width="13" height="32" rx="6" fill={fill('calves')} />
-            <rect x="62" y="156" width="13" height="32" rx="6" fill={fill('calves')} />
-          </g>
-        </svg>
-        <div className="mm-cap">сзади</div>
-      </div>
+      {figure('front', FRONT_REGIONS)}
+      {figure('back', BACK_REGIONS)}
     </div>
   )
 }
