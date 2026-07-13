@@ -32,8 +32,10 @@ describe('selectDirtyForMigration', () => {
   })
 
   it('пустые/undefined входы → пустой результат', () => {
-    expect(selectDirtyForMigration(undefined, undefined, A)).toEqual({ workouts: [], outbox: [] })
-    expect(selectDirtyForMigration([], [], A)).toEqual({ workouts: [], outbox: [] })
+    expect(selectDirtyForMigration(undefined, undefined, A))
+      .toEqual({ workouts: [], outbox: [], exercises: [], exOutbox: [] })
+    expect(selectDirtyForMigration([], [], A))
+      .toEqual({ workouts: [], outbox: [], exercises: [], exOutbox: [] })
   })
 
   it('игнорирует битые строки (null) во входе', () => {
@@ -42,5 +44,46 @@ describe('selectDirtyForMigration', () => {
     const got = selectDirtyForMigration(workouts, outbox, A)
     expect(got.workouts.map((w) => w.id)).toEqual(['w1'])
     expect(got.outbox).toHaveLength(1)
+  })
+
+  // --- Перенос кастомных упражнений + ex_outbox (FK) ------------------------
+  it('переносит несинхрон. упражнение и его ex_outbox, если на него ссылается dirty-тренировка', () => {
+    const workouts = [
+      // dirty-тренировка юзера A ссылается на кастомное упражнение 'ex-custom'
+      { id: 'w1', user_id: A, _dirty: 1, entries: [{ exercise_id: 'ex-custom', sets: [] }] },
+    ]
+    const exercises = [
+      { id: 'ex-custom', name: 'Своё', _dirty: 1 }, // несинхрон. кастомное → переносим
+      { id: 'ex-seed', name: 'Сидовое', _dirty: 0 }, // чистое, не упомянуто → нет
+    ]
+    const exOutbox = [
+      { seq: 1, exerciseId: 'ex-custom' }, // ← переносим (FK-зависимость)
+      { seq: 2, exerciseId: 'ex-other' },  // не упомянуто → нет
+    ]
+    const got = selectDirtyForMigration(workouts, [], A, { exercises, exOutbox })
+    expect(got.exercises.map((e) => e.id)).toEqual(['ex-custom'])
+    expect(got.exOutbox.map((o) => o.exerciseId)).toEqual(['ex-custom'])
+  })
+
+  it('НЕ переносит упражнение, если оно уже синхронизировано (_dirty=0)', () => {
+    const workouts = [
+      { id: 'w1', user_id: A, _dirty: 1, entries: [{ exercise_id: 'ex-seed', sets: [] }] },
+    ]
+    const exercises = [{ id: 'ex-seed', name: 'Сидовое', _dirty: 0 }]
+    const got = selectDirtyForMigration(workouts, [], A, { exercises })
+    expect(got.exercises).toEqual([]) // чистое упражнение доедет pull'ом
+  })
+
+  it('НЕ переносит упражнение, на которое ссылается только ЧУЖАЯ/чистая тренировка', () => {
+    const workouts = [
+      { id: 'w-clean', user_id: A, entries: [{ exercise_id: 'ex-custom' }] }, // чистая → не мигрируем
+      { id: 'w-other', user_id: B, _dirty: 1, entries: [{ exercise_id: 'ex-custom' }] }, // чужая
+    ]
+    const exercises = [{ id: 'ex-custom', _dirty: 1 }]
+    const exOutbox = [{ seq: 1, exerciseId: 'ex-custom' }]
+    const got = selectDirtyForMigration(workouts, [], A, { exercises, exOutbox })
+    expect(got.workouts).toEqual([])
+    expect(got.exercises).toEqual([]) // упражнение не нужно — его тренировку не переносим
+    expect(got.exOutbox).toEqual([])
   })
 })

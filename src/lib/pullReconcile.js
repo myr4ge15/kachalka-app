@@ -33,3 +33,30 @@ export function selectStaleWorkoutIds(locals, serverIds, justPushed) {
   }
   return stale
 }
+
+// Подтверждение удаления в ДВА захода (защита от лага read-replica).
+//
+// `selectStaleWorkoutIds` даёт id чистых локальных записей, которых НЕТ в полном
+// наборе серверных id. Но этот `select id` мог попасть на ОТСТАЮЩУЮ реплику и не
+// вернуть реально существующую на праймари запись — тогда чистую запись (пришла с
+// другого устройства, `updated_at ≤ wm_workouts`) удалили бы локально БЕЗВОЗВРАТНО:
+// инкрементальный `.gt(updated_at, wm)` её больше не дотянет до следующей серверной
+// правки. `justPushed` защищает только СВОИ свежие записи, не чужие чистые.
+//
+// Поэтому удаляем лишь после того, как id отсутствовал на ДВУХ подряд сверках:
+// первое отсутствие — кандидат (могло быть лагом реплики, откладываем), второе —
+// подтверждённое удаление. Кандидаты между прогонами носим в meta. Появился снова
+// (реплика догнала) → выпадает из кандидатов, не удаляется.
+//   prevCandidates — id-кандидаты с прошлого прогона (Set или массив).
+//   Возвращает { toDelete, nextCandidates } — что удалить сейчас и что пронести дальше.
+export function reconcileStaleWorkouts(locals, serverIds, justPushed, prevCandidates) {
+  const absent = selectStaleWorkoutIds(locals, serverIds, justPushed)
+  const prev = prevCandidates instanceof Set ? prevCandidates : new Set(prevCandidates ?? [])
+  const toDelete = []
+  const nextCandidates = []
+  for (const id of absent) {
+    if (prev.has(id)) toDelete.push(id) // отсутствует второй раз подряд → удаляем
+    else nextCandidates.push(id) // первое отсутствие → откладываем (страховка от лага)
+  }
+  return { toDelete, nextCandidates }
+}

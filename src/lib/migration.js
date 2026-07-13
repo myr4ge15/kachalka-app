@@ -16,14 +16,35 @@
 // Отобрать строки, которые ОБЯЗАТЕЛЬНО надо перенести в персональную базу.
 //   workouts — все строки таблицы workouts старой базы;
 //   outbox   — все операции очереди тренировок старой базы;
-//   userId   — чей переезд выполняется.
-// Возвращает { workouts, outbox } — несинхронизированные тренировки этого юзера
-// и операции очереди, ссылающиеся на них (по workoutId).
-export function selectDirtyForMigration(workouts, outbox, userId) {
+//   userId   — чей переезд выполняется;
+//   extra    — { exercises, exOutbox } старой базы (необязательно, для FK-переноса).
+// Возвращает { workouts, outbox, exercises, exOutbox }:
+//   - несинхронизированные тренировки этого юзера и их операции очереди (по workoutId);
+//   - НЕСИНХРОНИЗИРОВАННЫЕ кастомные упражнения (_dirty), на которые ССЫЛАЮТСЯ entries
+//     этих тренировок, + их операции ex_outbox. Без этого перенесённая dirty-тренировка
+//     ссылалась бы на ещё не существующее на сервере упражнение → push падал на FK, а
+//     само кастомное упражнение терялось из активной базы (жило только в старой gym_app).
+export function selectDirtyForMigration(workouts, outbox, userId, extra = {}) {
   const mine = (workouts ?? []).filter(
     (w) => w && w.user_id === userId && (w._dirty || w._deleted)
   )
   const ids = new Set(mine.map((w) => w.id))
   const ops = (outbox ?? []).filter((o) => o && ids.has(o.workoutId))
-  return { workouts: mine, outbox: ops }
+
+  // exercise_id, на которые ссылаются подходы отобранных тренировок.
+  const refExIds = new Set()
+  for (const w of mine) {
+    for (const e of w.entries ?? []) {
+      if (e && e.exercise_id) refExIds.add(e.exercise_id)
+    }
+  }
+  // Переносим только НЕСИНХРОНИЗИРОВАННЫЕ (_dirty) упражнения из числа упомянутых:
+  // чистые (уже на сервере) доедут первым pull'ом, дублировать их не нужно.
+  const exercises = (extra.exercises ?? []).filter(
+    (e) => e && e._dirty && refExIds.has(e.id)
+  )
+  const exOutbox = (extra.exOutbox ?? []).filter(
+    (o) => o && refExIds.has(o.exerciseId)
+  )
+  return { workouts: mine, outbox: ops, exercises, exOutbox }
 }

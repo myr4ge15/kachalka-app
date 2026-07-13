@@ -36,8 +36,8 @@ export const goalKey = (userId) => `goal_${userId}`
 // Прочитать цели как МАССИВ. Совместимость: старое значение — одиночный объект
 // цели (до мульти-целей) — мигрируем в массив на лету. Не персистим здесь (чтение
 // зовётся и из useLiveQuery); первая же запись (save/sync) сохранит массив.
-export async function readGoals(userId) {
-  const v = await getMeta(goalKey(userId))
+export async function readGoals(userId, d) {
+  const v = await getMeta(goalKey(userId), d)
   if (Array.isArray(v)) return v
   if (v && v.exerciseId) {
     return [{
@@ -52,8 +52,8 @@ export async function readGoals(userId) {
   return []
 }
 
-export async function writeGoals(userId, goals) {
-  await setMeta(goalKey(userId), goals)
+export async function writeGoals(userId, goals, d) {
+  await setMeta(goalKey(userId), goals, d)
 }
 
 // Мои тренировки (без удалённых).

@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest'
-import { selectStaleWorkoutIds } from './pullReconcile.js'
+import { selectStaleWorkoutIds, reconcileStaleWorkouts } from './pullReconcile.js'
 import { cmpIsoAsc } from './cmp.js'
 
 // Точная копия СТАРОЙ, оконной логики реконсиляции удалений (для воспроизведения
@@ -84,5 +84,46 @@ describe('selectStaleWorkoutIds', () => {
     ]
     // полный набор id включает 'old' (она жива, лишь вне окна контента) → не трогаем
     expect(selectStaleWorkoutIds(locals, ['new1', 'old'], [])).toEqual([])
+  })
+})
+
+describe('reconcileStaleWorkouts (подтверждение удаления в два захода)', () => {
+  it('первое отсутствие id → кандидат, НЕ удаляем (страховка от лага реплики)', () => {
+    const locals = [{ id: 'a' }]
+    const r = reconcileStaleWorkouts(locals, [], [], []) // сервер не вернул 'a', кандидатов нет
+    expect(r.toDelete).toEqual([])
+    expect(r.nextCandidates).toEqual(['a'])
+  })
+
+  it('второе подряд отсутствие id → удаляем', () => {
+    const locals = [{ id: 'a' }]
+    const r = reconcileStaleWorkouts(locals, [], [], ['a']) // 'a' был кандидатом с прошлого прогона
+    expect(r.toDelete).toEqual(['a'])
+    expect(r.nextCandidates).toEqual([])
+  })
+
+  it('запись вернулась на сервер (лаг догнал) → снимаем с кандидатов, не удаляем', () => {
+    const locals = [{ id: 'a' }]
+    // 'a' была кандидатом, но теперь снова в наборе серверных id
+    const r = reconcileStaleWorkouts(locals, ['a'], [], ['a'])
+    expect(r.toDelete).toEqual([])
+    expect(r.nextCandidates).toEqual([])
+  })
+
+  it('_dirty/_deleted/justPushed никогда не попадают в кандидаты', () => {
+    const locals = [
+      { id: 'a', _dirty: 1 },
+      { id: 'b', _deleted: 1 },
+      { id: 'c' }, // чистая, только что отправлена
+    ]
+    const r = reconcileStaleWorkouts(locals, [], ['c'], ['a', 'b', 'c'])
+    expect(r.toDelete).toEqual([])
+    expect(r.nextCandidates).toEqual([])
+  })
+
+  it('принимает Set и массив для prevCandidates', () => {
+    const locals = [{ id: 'a' }]
+    expect(reconcileStaleWorkouts(locals, [], [], new Set(['a'])).toDelete).toEqual(['a'])
+    expect(reconcileStaleWorkouts(locals, [], [], undefined).nextCandidates).toEqual(['a'])
   })
 })

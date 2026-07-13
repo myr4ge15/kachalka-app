@@ -137,7 +137,11 @@ function computePrs(items) {
 // Обновить снимок ленты с сервера. Тихо выходит офлайн / без конфигурации.
 // userId — текущий пользователь: нужен, чтобы наложить его локальную очередь
 // реакций (reaction_outbox) на свежий снимок (оптимистичные тапы не пропадают).
-export async function fetchFeed(userId) {
+// d — явный инстанс базы (движок синка захватывает его на входе, см. syncNow):
+// иначе при смене учётки посреди сетевого запроса снимок ленты A мог бы записаться
+// в базу B (кросс-протечка ленты). При свопе d уже закрыт → transaction бросит,
+// вызов обёрнут в try/catch в syncNow.
+export async function fetchFeed(userId, d = db) {
   if (!isConfigured || !navigator.onLine) return
   // Не читаем `workouts`, пока не поднята настоящая сессия: иначе запрос уходит
   // ролью `anon` (после auth-harden у неё нет грантов) → «permission denied for
@@ -162,7 +166,7 @@ export async function fetchFeed(userId) {
   // кэша. me — из общего ростра (loginDb) по userId.
   let finalItems = items
   try {
-    const ops = await db.reaction_outbox.toArray()
+    const ops = await d.reaction_outbox.toArray()
     if (ops.length && userId) {
       const me = await getCachedUser(userId)
       finalItems = applyReactionQueue(items, ops, { id: userId, name: me?.name })
@@ -174,9 +178,9 @@ export async function fetchFeed(userId) {
   // это легитимно «нечего показывать» (например, у приватного пользователя,
   // которому RLS отдаёт только свои тренировки). Раньше пустой ответ не
   // затирал кэш, и приватный видел устаревший снимок общей ленты.
-  await db.transaction('rw', db.feed, async () => {
-    await db.feed.clear()
-    await db.feed.bulkPut(finalItems)
+  await d.transaction('rw', d.feed, async () => {
+    await d.feed.clear()
+    await d.feed.bulkPut(finalItems)
   })
 }
 

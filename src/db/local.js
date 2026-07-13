@@ -189,15 +189,17 @@ export const newId = () =>
 // ------------------------------- meta --------------------------------------
 // Персональная meta (цели, notif_seen, флаг приватности, lastSyncAt, журнал
 // конфликтов). Зовётся только когда юзер вошёл (db открыта). Гард на null —
-// страховка от запоздалого syncNow уже после выхода.
-export async function getMeta(key) {
-  if (!db) return undefined
-  const row = await db.meta.get(key)
+// страховка от запоздалого syncNow уже после выхода. Необязательный `d` — явный
+// инстанс базы (см. syncNow: движок синка захватывает базу на входе и пробрасывает
+// её сюда, чтобы правки не «перетекли» в базу другой учётки при смене юзера).
+export async function getMeta(key, d = db) {
+  if (!d) return undefined
+  const row = await d.meta.get(key)
   return row?.value
 }
-export async function setMeta(key, value) {
-  if (!db) return
-  await db.meta.put({ key, value })
+export async function setMeta(key, value, d = db) {
+  if (!d) return
+  await d.meta.put({ key, value })
 }
 
 // Login-meta (общая база). Нужна ДО входа: офлайн-кэш PIN-хэшей читается на
@@ -227,15 +229,33 @@ async function migrateUserFromOldDb(userId, target) {
     const old = defineSchema(new Dexie(OLD_DB))
     await old.open()
     try {
-      const [workouts, outbox, goal, seen, priv] = await Promise.all([
+      const [workouts, outbox, exercises, exOutbox, goal, seen, priv] = await Promise.all([
         old.workouts.where('user_id').equals(userId).toArray().catch(() => []),
         old.outbox.toArray().catch(() => []),
+        old.exercises.toArray().catch(() => []),
+        old.ex_outbox.toArray().catch(() => []),
         old.meta.get('goal_' + userId).catch(() => null),
         old.meta.get('notif_seen_at_' + userId).catch(() => null),
         old.meta.get('priv_' + userId).catch(() => null),
       ])
-      const picked = selectDirtyForMigration(workouts, outbox, userId)
-      await target.transaction('rw', target.workouts, target.outbox, target.meta, async () => {
+      const picked = selectDirtyForMigration(workouts, outbox, userId, { exercises, exOutbox })
+      await target.transaction(
+        'rw',
+        target.workouts, target.outbox, target.exercises, target.ex_outbox, target.meta,
+        async () => {
+        // Кастомные упражнения ПЕРВЫМИ (на них ссылаются переносимые тренировки):
+        // несинхронизированное упражнение, упомянутое перенесённой dirty-тренировкой,
+        // иначе не доехало бы в активную базу → push тренировки падал на FK.
+        for (const e of picked.exercises) {
+          if (!(await target.exercises.get(e.id))) await target.exercises.put(e)
+        }
+        // Операции ex_outbox: дедуп по exerciseId (одна операция создания на упражнение).
+        for (const o of picked.exOutbox) {
+          const dup = await target.ex_outbox.where('exerciseId').equals(o.exerciseId).toArray()
+          if (dup.length) continue
+          const { seq, ...rest } = o
+          await target.ex_outbox.add(rest)
+        }
         // Тренировки: не затираем уже подтянутые pull'ом (свежее) — кладём только
         // отсутствующие. Идемпотентность: повторный запуск ничего не дублирует.
         for (const w of picked.workouts) {
