@@ -15,6 +15,12 @@
 // и `groupOf` здесь — свои маленькие копии (паритет с insights.js), а не импорт.
 // ============================================================================
 import { GROUP_ORDER } from './dayTags.js'
+import {
+  recoveryHoursFor as subRecoveryHoursFor,
+  majorOf,
+  defaultSubmuscleFor,
+  SUBMUSCLE_SLUGS,
+} from './muscles.js'
 
 // Пороги восстановления (часы) по группам: крупные группы восстанавливаются
 // дольше, мелкие — быстрее. Значения — разумные дефолты «для зала любителей»,
@@ -169,6 +175,147 @@ export function groupBuckets(recovery, imbalance) {
   for (const f of recovery ?? []) if (f?.group) map[f.group] = f.bucket
   for (const x of imbalance ?? []) if (x?.kind === 'never' && x.group) map[x.group] = 'never'
   return map
+}
+
+// ============================================================================
+// Уровень ПОДМЫШЦ (PLAN-muscle-detail, слайс 3a). Над major-движком выше — тот же
+// расчёт, но по листу-подмышце (submuscle). Модель вторичных (PLAN §2.5):
+//   • ОСНОВНАЯ работа (primary submuscle) обнуляет таймер восстановления и красит
+//     heatmap — это lastTrainedBySubmuscle;
+//   • ВТОРИЧНАЯ работа (secondary[]) — «лёгкое касание»: НЕ сбрасывает отдых, но
+//     удерживает мышцу от ярлыка «заброшена» (учитывается в дисбалансе как факт
+//     нагрузки) — это lastWorkedBySubmuscle. Дисконт `SECONDARY_LOAD_FACTOR`
+//     (muscles.js) зарезервирован под аналитику объёма.
+// Фолбэк: у записи без submuscle берём дефолт подмышцы её major (совместимость).
+// ============================================================================
+
+// Основная подмышца записи (primary) с фолбэком на дефолт major.
+const subOf = (e) => {
+  const s = e?.submuscle ?? e?.exercise?.submuscle ?? null
+  return s || defaultSubmuscleFor(groupOf(e))
+}
+// Вторичные подмышцы записи (массив слагов).
+const secOf = (e) => {
+  const s = e?.secondary ?? e?.exercise?.secondary ?? null
+  return Array.isArray(s) ? s : []
+}
+
+// Карта «последняя тренировка ПОДМЫШЦЫ как ОСНОВНОЙ» → submuscle → {day,at,t}.
+// Драйвер recovery/heatmap (вторичную нагрузку сюда не считаем — §2.5).
+export function lastTrainedBySubmuscle(workouts) {
+  const map = new Map()
+  for (const w of workouts ?? []) {
+    if (!w || w._deleted || !w.performed_at) continue
+    const t = new Date(w.performed_at).getTime()
+    if (Number.isNaN(t)) continue
+    const day = dayIndex(new Date(w.performed_at))
+    for (const s of new Set((w.entries ?? []).map(subOf).filter(Boolean))) {
+      const cur = map.get(s)
+      if (!cur || t > cur.t) map.set(s, { day, at: w.performed_at, t })
+    }
+  }
+  return map
+}
+
+// Карта «последняя нагрузка ПОДМЫШЦЫ» — ОСНОВНАЯ ИЛИ вторичная → submuscle →
+// {day,at,t}. Для дисбаланса: мышца, работавшая вторично, не считается «ни разу».
+export function lastWorkedBySubmuscle(workouts) {
+  const map = new Map()
+  for (const w of workouts ?? []) {
+    if (!w || w._deleted || !w.performed_at) continue
+    const t = new Date(w.performed_at).getTime()
+    if (Number.isNaN(t)) continue
+    const day = dayIndex(new Date(w.performed_at))
+    const subs = new Set()
+    for (const e of w.entries ?? []) {
+      const p = subOf(e)
+      if (p) subs.add(p)
+      for (const s of secOf(e)) subs.add(s)
+    }
+    for (const s of subs) {
+      const cur = map.get(s)
+      if (!cur || t > cur.t) map.set(s, { day, at: w.performed_at, t })
+    }
+  }
+  return map
+}
+
+// Свежесть по ПОДМЫШЦАМ (recovery-список детального экрана). По основной работе.
+// Кардио исключаем (не мышца). Строки: {submuscle, major, at, daysSince,
+// hoursSince, recoveryHours, state, bucket}, сортировка «пора тренировать» вниз.
+export function submuscleFreshness(workouts, { now = new Date() } = {}) {
+  const map = lastTrainedBySubmuscle(workouts)
+  const today = dayIndex(now)
+  const nowT = (now instanceof Date ? now : new Date(now)).getTime()
+  const out = []
+  for (const [s, { day, at, t }] of map) {
+    if (s === 'cardio') continue
+    const daysSince = today - day
+    const hoursSince = Math.max(0, (nowT - t) / 3600000)
+    const recoveryHours = subRecoveryHoursFor(s)
+    out.push({
+      submuscle: s,
+      major: majorOf(s),
+      at,
+      daysSince,
+      hoursSince,
+      recoveryHours,
+      state: freshnessState(hoursSince, recoveryHours),
+      bucket: freshnessBucket(daysSince),
+    })
+  }
+  out.sort(
+    (a, b) =>
+      BUCKET_RANK[b.bucket] - BUCKET_RANK[a.bucket] ||
+      b.daysSince - a.daysSince ||
+      a.submuscle.localeCompare(b.submuscle),
+  )
+  return out
+}
+
+// Внутригрупповой дисбаланс по ПОДМЫШЦАМ: только внутри АКТИВНЫХ групп (major,
+// где хоть одна подмышца тренировалась как основная) — чтобы не пилить за мышцы
+// групп, которые пользователь вообще не делает. never — подмышца ни разу (даже
+// вторично); stale — последняя нагрузка (осн./вторичн.) старше windowDays.
+export function submuscleImbalance(workouts, { now = new Date(), windowDays = 14 } = {}) {
+  const worked = lastWorkedBySubmuscle(workouts)
+  const trained = lastTrainedBySubmuscle(workouts)
+  const activeMajors = new Set()
+  for (const s of trained.keys()) if (s !== 'cardio') activeMajors.add(majorOf(s))
+  const today = dayIndex(now)
+  const out = []
+  for (const s of SUBMUSCLE_SLUGS) {
+    if (s === 'cardio') continue
+    const major = majorOf(s)
+    if (!activeMajors.has(major)) continue
+    const w = worked.get(s)
+    if (!w) {
+      out.push({ submuscle: s, major, kind: 'never', daysSince: null })
+      continue
+    }
+    const daysSince = today - w.day
+    if (daysSince >= windowDays) out.push({ submuscle: s, major, kind: 'stale', daysSince })
+  }
+  out.sort((a, b) => {
+    const ra = a.kind === 'stale' ? 0 : 1
+    const rb = b.kind === 'stale' ? 0 : 1
+    if (ra !== rb) return ra - rb
+    return (b.daysSince ?? 0) - (a.daysSince ?? 0)
+  })
+  return out
+}
+
+// Самая просроченная ПОДМЫШЦА (по основной работе) → {submuscle, major, daysAgo} | null.
+export function mostNeglectedSubmuscle(workouts, now = new Date()) {
+  const map = lastTrainedBySubmuscle(workouts)
+  const today = dayIndex(now)
+  let worst = null
+  for (const [s, { day }] of map) {
+    if (s === 'cardio') continue
+    const days = today - day
+    if (!worst || days > worst.daysAgo) worst = { submuscle: s, major: majorOf(s), daysAgo: days }
+  }
+  return worst
 }
 
 export { GROUP_ORDER }

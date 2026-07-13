@@ -4,6 +4,7 @@ import { fmtDaysAgo } from '../lib/homeSummary.js'
 import { fmtTonnage, goalProgress } from '../lib/profileStats.js'
 import { fmtMetricValue } from '../lib/metric.js'
 import { tagSlug, groupAccusative, GROUP_ORDER } from '../lib/dayTags.js'
+import { labelOf, majorOf } from '../lib/muscles.js'
 import CardsSkeleton from '../components/CardsSkeleton.jsx'
 
 // Полоска свежести в тизере — в каноническом порядке групп (стабильно), не по
@@ -70,8 +71,8 @@ export default function HomeScreen({ user, onNavigate, onOpenProgress }) {
           {lw?.tags?.length > 0 && (
             <div className="home-tags">
               <span className="home-tags-lab">Мышцы:</span>
-              {lw.tags.map((g) => (
-                <span key={g} className={`day-tag tag-${tagSlug(g)}`}>{g}</span>
+              {lw.tags.map((s) => (
+                <span key={s} className={`day-tag tag-${tagSlug(majorOf(s))}`}>{labelOf(s)}</span>
               ))}
             </div>
           )}

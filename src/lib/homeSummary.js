@@ -10,7 +10,7 @@
 import { currentStreak, workoutsThisMonth, currentBestValue, goalProgress } from './profileStats.js'
 import { dayIndex, tonnageInWindow } from './insights.js'
 import { mostNeglectedGroup } from './freshness.js'
-import { dayTags } from './dayTags.js'
+import { daySubTags } from './dayTags.js'
 import { normMetric } from './metric.js'
 import { cmpIsoDesc } from './cmp.js'
 
@@ -91,7 +91,7 @@ export function buildHomeSummary({ workouts, goals, now = new Date() } = {}) {
   const lastWorkout = {
     at: last.performed_at,
     daysAgo: today - dayIndex(new Date(last.performed_at)),
-    tags: dayTags(last.entries),
+    tags: daySubTags(last.entries),
   }
 
   const month = tonnageInWindow(sorted, now, 30, 0)

@@ -3,7 +3,7 @@ import { useLiveQuery } from 'dexie-react-hooks'
 import { getFreshness } from '../db/insights.js'
 import { groupBuckets } from '../lib/freshness.js'
 import { fmtDaysAgo, fmtDays } from '../lib/homeSummary.js'
-import { groupAccusative } from '../lib/dayTags.js'
+import { labelOf, labelAccusativeOf } from '../lib/muscles.js'
 import MuscleMap from '../components/MuscleMap.jsx'
 import CardsSkeleton from '../components/CardsSkeleton.jsx'
 
@@ -22,10 +22,13 @@ const cap = (s) => (s ? s[0].toUpperCase() + s.slice(1) : s)
 export default function FreshnessScreen({ user, onBack }) {
   const data = useLiveQuery(() => getFreshness(user.id), [user.id])
   const loading = data === undefined
+  // Силуэт — по крупным группам (major); recovery-список и дисбаланс — по подмышцам.
   const rec = data?.recovery ?? []
   const imb = data?.imbalance ?? []
+  const recSub = data?.recoverySub ?? []
+  const imbSub = data?.imbalanceSub ?? []
   const byGroup = groupBuckets(rec, imb)
-  // Выбранная на силуэте группа — подсвечивает её строку в recovery-списке.
+  // Выбранная на силуэте группа (major) — подсвечивает строки её подмышц в списке.
   const [sel, setSel] = useState(null)
   const toggle = (g) => setSel((cur) => (cur === g ? null : g))
 
@@ -38,9 +41,9 @@ export default function FreshnessScreen({ user, onBack }) {
 
       {loading ? (
         <CardsSkeleton cards={4} />
-      ) : rec.length === 0 ? (
+      ) : recSub.length === 0 ? (
         <p className="muted empty">
-          Запиши тренировку — покажу, какие группы отдохнули и пора ли их снова нагружать.
+          Запиши тренировку — покажу, какие мышцы отдохнули и пора ли их снова нагружать.
         </p>
       ) : (
         <>
@@ -59,14 +62,14 @@ export default function FreshnessScreen({ user, onBack }) {
           <section className="sec">
             <p className="sec-title">Когда снова тренировать</p>
             <div className="fr-list">
-              {rec.map((f) => (
+              {recSub.map((f) => (
                 <div
-                  key={f.group}
-                  className={`fr-row fr-${f.bucket}` + (sel === f.group ? ' hl' : '')}
+                  key={f.submuscle}
+                  className={`fr-row fr-${f.bucket}` + (sel === f.major ? ' hl' : '')}
                 >
                   <div className="fr-row-body">
-                    <div className="fr-row-name">{cap(f.group)}</div>
-                    <div className="fr-row-sub">{fmtDaysAgo(f.daysSince)}</div>
+                    <div className="fr-row-name">{cap(labelOf(f.submuscle))}</div>
+                    <div className="fr-row-sub">{f.major} · {fmtDaysAgo(f.daysSince)}</div>
                   </div>
                   <span className={`fr-badge st-${f.state}`}>{STATE_LABEL[f.state] ?? '—'}</span>
                 </div>
@@ -74,17 +77,17 @@ export default function FreshnessScreen({ user, onBack }) {
             </div>
           </section>
 
-          {imb.length > 0 && (
+          {imbSub.length > 0 && (
             <section className="sec">
               <p className="sec-title">Дисбаланс</p>
               <div className="fr-imb">
                 <span className="em" aria-hidden="true">⚠️</span>
                 <div className="fr-imb-body">
-                  {imb.map((x) => (
-                    <div key={x.group} className="fr-imb-line">
+                  {imbSub.map((x) => (
+                    <div key={x.submuscle} className="fr-imb-line">
                       {x.kind === 'never'
-                        ? `${cap(x.group)} — ни разу`
-                        : `${cap(groupAccusative(x.group))} не тренировал уже ${fmtDays(x.daysSince)}`}
+                        ? `${cap(labelOf(x.submuscle))} (${x.major}) — ни разу`
+                        : `${cap(labelAccusativeOf(x.submuscle))} не тренировал уже ${fmtDays(x.daysSince)}`}
                     </div>
                   ))}
                 </div>

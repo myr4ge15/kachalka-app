@@ -1,7 +1,8 @@
 import { useState, useMemo, useEffect } from 'react'
 import { useLiveQuery } from 'dexie-react-hooks'
 import { getWorkouts } from '../db/repo.js'
-import { dayTags, tagSlug, matchesGroup, availableGroups } from '../lib/dayTags.js'
+import { daySubTags, tagSlug, matchesGroup, availableGroups } from '../lib/dayTags.js'
+import { labelOf, majorOf } from '../lib/muscles.js'
 import { exerciseMetric, fmtSet } from '../lib/metric.js'
 import { exportWorkouts } from '../lib/exportWorkout.js'
 import WorkoutScreen from './WorkoutScreen.jsx'
@@ -141,7 +142,7 @@ export default function HistoryScreen({ user }) {
 
         {shown.map((w) => {
           const { exCount, setCount } = summarize(w)
-          const tags = dayTags(w.entries)
+          const tags = daySubTags(w.entries)
           const unsynced = Boolean(w._dirty)
           const isOpen = !selectMode && selected === w.id
           return (
@@ -175,8 +176,8 @@ export default function HistoryScreen({ user }) {
 
               {tags.length > 0 && (
                 <div className="day-tags">
-                  {tags.map((g) => (
-                    <span key={g} className={`day-tag tag-${tagSlug(g)}`}>{g}</span>
+                  {tags.map((s) => (
+                    <span key={s} className={`day-tag tag-${tagSlug(majorOf(s))}`}>{labelOf(s)}</span>
                   ))}
                 </div>
               )}

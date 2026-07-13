@@ -9,6 +9,11 @@ import {
   mostNeglectedGroup,
   imbalance,
   groupBuckets,
+  lastTrainedBySubmuscle,
+  lastWorkedBySubmuscle,
+  submuscleFreshness,
+  submuscleImbalance,
+  mostNeglectedSubmuscle,
 } from './freshness.js'
 
 function wk({ id, at, entries, deleted }) {
@@ -164,5 +169,93 @@ describe('groupBuckets', () => {
   it('пустые входы → пустая карта', () => {
     expect(groupBuckets([], [])).toEqual({})
     expect(groupBuckets(undefined, undefined)).toEqual({})
+  })
+})
+
+// ─────────────────────────── Уровень подмышц (слайс 3a) ─────────────────────
+function swk({ id, at, entries, deleted }) {
+  return {
+    id,
+    user_id: 'me',
+    performed_at: at,
+    created_at: at,
+    _deleted: deleted ? 1 : 0,
+    entries: (entries ?? []).map((e) => ({
+      exercise_id: e.sub,
+      exercise: {
+        id: e.sub,
+        name: e.sub,
+        muscle_group: e.major ?? null,
+        submuscle: e.sub ?? null,
+        secondary: e.sec ?? [],
+      },
+      sets: [{ weight: 50, reps: 8 }],
+    })),
+  }
+}
+
+describe('lastTrainedBySubmuscle / lastWorkedBySubmuscle', () => {
+  it('primary попадает в trained; secondary — только в worked', () => {
+    const w = [swk({ id: 'a', at: daysAgo(1), entries: [{ sub: 'chest_lower', major: 'грудь', sec: ['triceps', 'delt_front'] }] })]
+    const trained = lastTrainedBySubmuscle(w)
+    const worked = lastWorkedBySubmuscle(w)
+    expect([...trained.keys()]).toEqual(['chest_lower'])
+    expect(new Set(worked.keys())).toEqual(new Set(['chest_lower', 'triceps', 'delt_front']))
+  })
+})
+
+describe('submuscleFreshness', () => {
+  const w = [
+    swk({ id: 'q', at: daysAgo(5), entries: [{ sub: 'quads', major: 'ноги' }] }),
+    swk({ id: 'c', at: daysAgo(1), entries: [{ sub: 'chest_lower', major: 'грудь' }] }),
+    swk({ id: 'card', at: daysAgo(0), entries: [{ sub: 'cardio', major: 'кардио' }] }),
+  ]
+  const out = submuscleFreshness(w, { now: NOW })
+
+  it('кардио исключено; по строке на тренированную подмышцу', () => {
+    expect(out.map((f) => f.submuscle)).toEqual(['quads', 'chest_lower'])
+  })
+  it('сортировка «пора» вниз (recent прежде fresh) + major и пороги', () => {
+    expect(out[0].submuscle).toBe('quads')
+    expect(out[0].major).toBe('ноги')
+    expect(out[0].bucket).toBe('recent')
+    expect(out[0].recoveryHours).toBe(72)
+    expect(out[0].state).toBe('ready') // 120ч ≥ 72ч
+    expect(out[1].bucket).toBe('fresh')
+  })
+})
+
+describe('submuscleImbalance', () => {
+  const w = [
+    swk({ id: 'd', at: daysAgo(2), entries: [{ sub: 'delt_front', major: 'плечи' }] }),
+    swk({ id: 'b', at: daysAgo(1), entries: [{ sub: 'lats', major: 'спина', sec: ['rhomboids'] }] }),
+  ]
+  const imb = submuscleImbalance(w, { now: NOW })
+  const subs = new Set(imb.map((x) => x.submuscle))
+
+  it('never — только в активных группах, где подмышца не работала', () => {
+    expect(subs.has('delt_side')).toBe(true) // плечи активны, средняя дельта ни разу
+    expect(subs.has('delt_rear')).toBe(true)
+    expect(subs.has('lower_back')).toBe(true) // спина активна, разгибатели ни разу
+  })
+  it('вторичная работа спасает от «ни разу» (rhomboids)', () => {
+    expect(subs.has('rhomboids')).toBe(false)
+  })
+  it('подмышцы неактивных групп не упоминаются', () => {
+    expect(subs.has('biceps')).toBe(false)
+    expect(subs.has('quads')).toBe(false)
+  })
+})
+
+describe('mostNeglectedSubmuscle', () => {
+  it('самая давняя по основной работе', () => {
+    const w = [
+      swk({ id: 'q', at: daysAgo(9), entries: [{ sub: 'quads', major: 'ноги' }] }),
+      swk({ id: 'c', at: daysAgo(2), entries: [{ sub: 'chest_lower', major: 'грудь' }] }),
+    ]
+    expect(mostNeglectedSubmuscle(w, NOW)).toEqual({ submuscle: 'quads', major: 'ноги', daysAgo: 9 })
+  })
+  it('пусто → null', () => {
+    expect(mostNeglectedSubmuscle([], NOW)).toBeNull()
   })
 })

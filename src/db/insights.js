@@ -12,7 +12,12 @@ import { getCachedLeaderboard } from './leaderboard.js'
 import { readGoals } from './notifications.js'
 import { buildInsights } from '../lib/insights.js'
 import { buildHomeSummary } from '../lib/homeSummary.js'
-import { groupFreshness, imbalance as computeImbalance } from '../lib/freshness.js'
+import {
+  groupFreshness,
+  imbalance as computeImbalance,
+  submuscleFreshness,
+  submuscleImbalance,
+} from '../lib/freshness.js'
 
 // Снимок лидерборда без падений (для «обгона друга»). Пусто/ошибка → null.
 async function safeLeaderboard() {
@@ -48,7 +53,11 @@ export async function getHomeSummary(userId) {
 export async function getFreshness(userId) {
   const workouts = await getWorkouts(userId)
   return {
+    // major-уровень — тизер Главной + heatmap-силуэт (MuscleMap пока по группам)
     recovery: groupFreshness(workouts),
     imbalance: computeImbalance(workouts),
+    // submuscle-уровень (слайс 3a) — recovery-список и дисбаланс детального экрана
+    recoverySub: submuscleFreshness(workouts),
+    imbalanceSub: submuscleImbalance(workouts),
   }
 }

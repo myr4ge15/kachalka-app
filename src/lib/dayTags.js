@@ -9,6 +9,8 @@
 // Чистый модуль (без Dexie/React) — тестируется юнит-прогоном.
 // ============================================================================
 
+import { SUBMUSCLE_SLUGS, defaultSubmuscleFor } from './muscles.js'
+
 // Канонический порядок групп — как в пикере (ExercisePicker BASE_GROUPS).
 // Группы вне списка (нестандартные «свои») идут после канонических, по алфавиту.
 export const GROUP_ORDER = ['грудь', 'спина', 'ноги', 'плечи', 'бицепс', 'трицепс', 'пресс']
@@ -29,6 +31,25 @@ const GROUP_SLUG = {
 //   • «Лента» (feed):          entry.muscle_group
 function groupOf(entry) {
   return entry?.muscle_group ?? entry?.exercise?.muscle_group ?? null
+}
+
+// Основная подмышца записи (submuscle) с фолбэком на дефолт major (PLAN-muscle-
+// detail, слайс 3a). Для тегов на уровне подмышц.
+function subOf(entry) {
+  const s = entry?.submuscle ?? entry?.exercise?.submuscle ?? null
+  return s || defaultSubmuscleFor(groupOf(entry))
+}
+
+// Теги дня на уровне ПОДМЫШЦ: уникальные основные подмышцы всех упражнений в
+// каноническом порядке SUBMUSCLE_SLUGS (кардио пропускаем). Цвет чипа наследуется
+// от major (tagSlug(majorOf(sub))), подпись — labelOf(sub) (см. экраны).
+export function daySubTags(entries) {
+  const set = new Set()
+  for (const e of entries ?? []) {
+    const s = subOf(e)
+    if (s && s !== 'cardio') set.add(s)
+  }
+  return SUBMUSCLE_SLUGS.filter((s) => set.has(s))
 }
 
 // Сортировка групп: канонические — в порядке GROUP_ORDER, прочие — после, по алфавиту.
