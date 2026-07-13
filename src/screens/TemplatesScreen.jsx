@@ -231,6 +231,7 @@ function TemplateEditor({ user, templateId, onBack }) {
   const [pickerOpen, setPickerOpen] = useState(false)
   const [saving, setSaving] = useState(false)
   const [message, setMessage] = useState(null)
+  const [delArm, setDelArm] = useState(false) // in-app подтверждение удаления (единый паттерн)
 
   // Загрузка существующего шаблона на маунте.
   useEffect(() => {
@@ -343,8 +344,10 @@ function TemplateEditor({ user, templateId, onBack }) {
     }
   }
 
+  // Удаление шаблона. Подтверждение — in-app arm/confirm (как в WorkoutScreen /
+  // danger-zone профиля), а не нативный window.confirm: единый паттерн по всему
+  // приложению (нативные диалоги в PWA выглядят чужеродно).
   async function remove() {
-    if (!window.confirm('Удалить этот шаблон? Действие необратимо.')) return
     setSaving(true)
     setMessage(null)
     try {
@@ -500,9 +503,21 @@ function TemplateEditor({ user, templateId, onBack }) {
           </button>
 
           {!isNew && (
-            <button className="link-btn danger full-link" disabled={saving} onClick={remove}>
-              Удалить шаблон
-            </button>
+            delArm ? (
+              <div className="danger-confirm">
+                <p className="danger-text">Удалить этот шаблон? Действие необратимо.</p>
+                <div className="danger-actions">
+                  <button className="btn ghost" onClick={() => setDelArm(false)} disabled={saving}>Отмена</button>
+                  <button className="btn danger" onClick={remove} disabled={saving}>
+                    {saving ? 'Удаление…' : 'Да, удалить'}
+                  </button>
+                </div>
+              </div>
+            ) : (
+              <button className="link-btn danger full-link" disabled={saving} onClick={() => setDelArm(true)}>
+                Удалить шаблон
+              </button>
+            )
           )}
         </>
       )}

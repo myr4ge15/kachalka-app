@@ -25,6 +25,7 @@ import { detectPlateau } from './progression.js'
 import { currentStreak } from './profileStats.js'
 import { cmpIsoDesc } from './cmp.js'
 import { entryExId, entryMetric, sortDesc } from './entries.js'
+import { plural } from './plural.js'
 
 const entryName = (e) => e.name ?? e.exercise?.name ?? '—'
 const groupOf = (e) => e?.muscle_group ?? e?.exercise?.muscle_group ?? null
@@ -77,15 +78,7 @@ export function tonnageInWindow(sorted, now, fromDaysAgo, toDaysAgo) {
   return t
 }
 
-// Русская плюрализация (день/дня/дней, неделю/недели/недель).
-function plural(n, one, few, many) {
-  const a = Math.abs(n) % 100
-  const b = a % 10
-  if (a > 10 && a < 20) return many
-  if (b > 1 && b < 5) return few
-  if (b === 1) return one
-  return many
-}
+// Русская плюрализация (день/дня/дней, неделю/недели/недель) — общий lib/plural.js.
 const plDays = (n) => `${n} ${plural(n, 'день', 'дня', 'дней')}`
 const plWeeks = (n) => `${n} ${plural(n, 'неделю', 'недели', 'недель')}`
 const plWorkouts = (n) => plural(n, 'тренировку', 'тренировки', 'тренировок')

@@ -15,6 +15,7 @@ import { db } from '../db/local.js'
 import { applyExerciseEditLocal, applyExerciseMergeLocal } from '../db/repo.js'
 import { DB_TIMEOUT_MS, withTimeout } from './withTimeout.js'
 import { defaultSubmuscleFor, cleanSecondary } from './muscles.js'
+import { humanRpc } from './adminMessages.js'
 
 const RESET_PIN_URL = (import.meta.env.VITE_SUPABASE_URL ?? '') + '/functions/v1/admin-reset-pin'
 const CREATE_USER_URL = (import.meta.env.VITE_SUPABASE_URL ?? '') + '/functions/v1/admin-create-user'
@@ -257,14 +258,3 @@ export async function adminMergeExercise(fromId, intoId) {
   return true
 }
 
-// Сообщения серверных raise → человеку. Технические коды не показываем дословно.
-function humanRpc(message) {
-  const m = String(message ?? '')
-  if (m.includes('admin only') || m.includes('42501')) return 'Нужны права админа.'
-  if (m.includes('last admin')) return 'Нельзя снять роль с последнего админа.'
-  if (m.includes('not found')) return 'Запись не найдена.'
-  if (m.includes('1..60')) return 'Название — от 1 до 60 символов.'
-  if (m.includes('1..40')) return 'Имя — от 1 до 40 символов.'
-  if (m.includes('function') || m.includes('schema')) return 'Сервер не готов: обнови серверную часть.'
-  return m || 'Не удалось выполнить операцию.'
-}

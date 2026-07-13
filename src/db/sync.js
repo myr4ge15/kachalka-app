@@ -169,7 +169,12 @@ async function pull(userId, justPushed = new Set(), d = db) {
   // ПОЛНЫЙ: пропущенного нет. Проба упала (старый сервер без колонки / сеть) →
   // деградируем к прежнему полному refetch, чтобы синк справочника не встал.
   const exProbe = await withTimeout(
-    supabase.from('exercises').select('updated_at').order('updated_at', { ascending: false }).limit(1)
+    // nullsFirst:false — иначе при descending Postgres ставит NULL первым, и если
+    // хоть у одной строки updated_at пуст, проба вернёт null → changedSince(null,…)
+    // === false → полный refetch справочника пропускается, новые упражнения не
+    // подтянутся. Нужен именно МАКСИМАЛЬНЫЙ непустой updated_at.
+    supabase.from('exercises').select('updated_at')
+      .order('updated_at', { ascending: false, nullsFirst: false }).limit(1)
   )
   const exServerMax = exProbe.error ? null : (exProbe.data?.[0]?.updated_at ?? null)
   const exChanged = exProbe.error ? true : changedSince(exServerMax, await getMeta(WM_EXERCISES, d))
@@ -334,6 +339,13 @@ async function pull(userId, justPushed = new Set(), d = db) {
   // (не по пробе): если реплика отстала и отдала меньше, чем есть на праймари,
   // непришедшие строки останутся > wm и дотянутся следующим прогоном — без потери.
   // Пусто (дельты не было) → watermark не трогаем.
+  // NB: fetchedMax считается по ВСЕМ полученным строкам, включая те, что мы решили
+  // НЕ принимать (keep-local / конфликт в пользу локальной версии). Это корректно,
+  // ПОКА локальную правку довезёт push: тогда серверный updated_at обгонит watermark
+  // и строка при следующем pull приедет как take-server. Если же очередь этой правки
+  // умрёт в dead-letter — серверную версию watermark уже «перешагнул» (updated_at ≤
+  // wm) и инкрементальный .gt её не дотянет; узкий путь рассинхрона, лечится разбором
+  // dead-letter (retry/discard в Профиле).
   const fetchedMax = maxUpdatedAt(serverRows)
   if (fetchedMax && changedSince(fetchedMax, wmWorkouts)) {
     await setMeta(WM_WORKOUTS, fetchedMax, d)

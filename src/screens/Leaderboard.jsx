@@ -42,19 +42,23 @@ export default function Leaderboard({ user }) {
   // Ленты (см. getCachedLeaderboard), поэтому баннер показываем только когда
   // показать нечего (см. ниже). Подписки — через общий хаб (lib/appEvents.js).
   useEffect(() => {
+    // Гард размонтирования: вкладку закрывают при уходе с Ленты, а fetchLeaderboard
+    // может резолвиться уже после — setError на размонтированном компоненте иначе
+    // даёт React-варн (тот же класс, что в Profile/Admin, ниже по влиянию).
+    let alive = true
     const refresh = () => {
       if (!navigator.onLine) return
       fetchLeaderboard()
-        .then(() => setError(null))
+        .then(() => { if (alive) setError(null) })
         .catch((err) => {
           console.warn('Лидерборд: обновление с сервера не удалось', err)
-          setError(err?.message ?? String(err))
+          if (alive) setError(err?.message ?? String(err))
         })
     }
     refresh()
     const off1 = onResume(refresh)
     const off2 = onOnline(refresh)
-    return () => { off1(); off2() }
+    return () => { alive = false; off1(); off2() }
   }, [])
 
   // Приватный — рейтинг не показываем вовсе.

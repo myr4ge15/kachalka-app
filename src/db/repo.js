@@ -537,6 +537,9 @@ async function enqueueTpl(type, templateId) {
 
 // Сколько изменений ждут отправки (тренировки + упражнения + шаблоны).
 // Отравленные операции (_dead) в счётчик не входят — они уже не отправляются.
+// NB: очередь реакций (reaction_outbox) СОЗНАТЕЛЬНО не учитывается — реакции
+// низкоприоритетны, у них нет _dead, а после MAX_ATTEMPTS операция молча
+// выбрасывается (см. sync.pushReactions); их «pending» в бейдже не показываем.
 export async function pendingCount() {
   const [w, e, t] = await Promise.all([
     db.outbox.filter((o) => !o._dead).count(),
@@ -551,7 +554,9 @@ export async function pendingCount() {
 // отправляется (чтобы не блокировать очередь). Без разбора такие копятся вечно —
 // даём пользователю их пересобрать (retry) или отклонить (discard).
 
-// Сколько мёртвых операций ждут разбора (по всем трём очередям).
+// Сколько мёртвых операций ждут разбора (по всем трём очередям). reaction_outbox
+// сюда не входит намеренно — у реакций нет dead-letter (после MAX они молча
+// выбрасываются, см. sync.pushReactions), поэтому и в бейдже они не отражаются.
 export async function deadLetterCount() {
   const [w, e, t] = await Promise.all([
     db.outbox.filter((o) => o._dead).count(),

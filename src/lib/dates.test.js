@@ -27,6 +27,6 @@ describe('fmtAgo', () => {
     expect(fmtAgo(null, now)).toBe('')
     expect(fmtAgo(undefined, now)).toBe('')
     expect(fmtAgo(0, now)).toBe('')
-    expect(fmtAgo(now + 10_000, now)).toBe('только что')
+    expect(fmtAgo(now + 10_000, now)).toBe('') // будущая метка → '' (не «только что»)
   })
 })

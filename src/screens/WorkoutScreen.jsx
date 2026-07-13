@@ -10,6 +10,7 @@ import { exerciseMetric, isCountMetric, fmtMetricValue, fmtSet, fmtTime, parseTi
 import { recommendProgression, resolveProgSettings } from '../lib/progression.js'
 import { WEIGHT_MAX, repsMax } from '../lib/setLimits.js'
 import { exportWorkouts } from '../lib/exportWorkout.js'
+import { plural } from '../lib/plural.js'
 import { vibrate, HAPTIC } from '../lib/haptics.js'
 import CardsSkeleton from '../components/CardsSkeleton.jsx'
 import HoldButton from '../components/HoldButton.jsx'
@@ -48,13 +49,7 @@ function fmtDate(iso) {
 
 // ── Автопрогрессия (PLAN-autoprogression) — хелперы карточки упражнения ──────
 
-// Русское склонение по числу (день/дня/дней).
-function plural(n, one, few, many) {
-  const m10 = n % 10, m100 = n % 100
-  if (m10 === 1 && m100 !== 11) return one
-  if (m10 >= 2 && m10 <= 4 && (m100 < 10 || m100 >= 20)) return few
-  return many
-}
+// Русское склонение по числу — общий lib/plural.js.
 // «сегодня / вчера / N дней назад» по дате прошлой сессии.
 function daysAgoLabel(iso) {
   if (!iso) return ''

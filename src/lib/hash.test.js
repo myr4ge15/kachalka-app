@@ -37,3 +37,20 @@ describe('verifyPin (constant-time)', () => {
     expect(await verifyPin('1234', null)).toBe(false)
   })
 })
+
+// KAT (known-answer test): фиксированные pin+salt → заранее посчитанный hex.
+// Эталон получен node crypto (pbkdf2Sync/createHash) — тем же кодом, что seed.sql
+// и сервер (_shared/pin.ts). Ловит ТИХИЙ дрейф параметров (число итераций, длина,
+// кодировка): round-trip-тест выше его бы пропустил (обе стороны меняются вместе).
+describe('hash KAT — паритет параметров с сервером', () => {
+  it('pbkdf2Hex(1234, 0011223344556677) даёт эталонный hex (100000 итераций, 32 байта)', async () => {
+    expect(await pbkdf2Hex('1234', '0011223344556677')).toBe(
+      '9468fd4b6f1aa98e82511e7df181adf8b1579f1f20a065b32836cb8c728cb78e'
+    )
+  })
+  it('sha256Hex(1234) даёт эталонный hex (legacy-схема)', async () => {
+    expect(await sha256Hex('1234')).toBe(
+      '03ac674216f3e15c761ee1a5e255f067953623c8b388b4459e13f978d7c846f4'
+    )
+  })
+})

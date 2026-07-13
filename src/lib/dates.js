@@ -33,7 +33,8 @@ export function fmtWhen(iso) {
 export function fmtAgo(updatedMs, now = Date.now()) {
   const t = Number(updatedMs)
   if (!Number.isFinite(t) || t <= 0) return ''
-  const sec = Math.floor(Math.max(0, now - t) / 1000)
+  if (t > now) return '' // будущая метка (рассинхрон часов) → пусто, как обещает дока
+  const sec = Math.floor((now - t) / 1000)
   if (sec < 45) return 'только что'
   const min = Math.round(sec / 60)
   if (min < 60) return `${min} мин назад`

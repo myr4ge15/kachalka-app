@@ -13,6 +13,7 @@ import { summarize, currentBestValue, goalProgress, fmtTonnage } from '../lib/pr
 import { fmtMetricValue, normMetric, parseTime, fmtTime } from '../lib/metric.js'
 import { setPin, setName, LoginError } from '../lib/auth.js'
 import { uploadMyAvatar } from '../lib/avatar.js'
+import { onlyDigits } from '../lib/text.js'
 import { showToast } from '../components/Toast.jsx'
 import HoldButton from '../components/HoldButton.jsx'
 import Avatar from '../components/Avatar.jsx'
@@ -101,8 +102,6 @@ export default function ProfileScreen({ user, onLogout, onOpenProgress, onOpenFe
   const [rptPin, setRptPin] = useState('')
   const [pinErr, setPinErr] = useState('')
   const [pinBusy, setPinBusy] = useState(false)
-
-  const onlyDigits = (s) => s.replace(/\D/g, '').slice(0, 4)
 
   function resetPinForm() {
     setCurPin(''); setNewPin(''); setRptPin(''); setPinErr(''); setPinBusy(false)

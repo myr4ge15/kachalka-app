@@ -9,6 +9,7 @@ import {
   adminListConnections, adminSetConnection,
 } from '../lib/admin.js'
 import { connectedIdsFor } from '../lib/connections.js'
+import { onlyDigits } from '../lib/text.js'
 import { submusclesOf, secondaryOptionsFor, labelOf, majorOf, defaultSubmuscleFor } from '../lib/muscles.js'
 import { showToast } from '../components/Toast.jsx'
 import CardsSkeleton from '../components/CardsSkeleton.jsx'
@@ -497,8 +498,6 @@ function UsersSection({ meId, online, errMsg }) {
   const [addPrivate, setAddPrivate] = useState(false)
   const [addSex, setAddSex] = useState('') // '' | 'm' | 'f'
   const [addBusy, setAddBusy] = useState(false)
-
-  const onlyDigits = (s) => s.replace(/\D/g, '').slice(0, 4)
 
   // Guard от setState после размонтирования (секцию можно свернуть на лету, пока
   // RPC в полёте) — как в Login/Profile. Иначе React варнит «update on unmounted».

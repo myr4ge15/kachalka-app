@@ -11,8 +11,9 @@ import { currentStreak, workoutsThisMonth, currentBestValue, goalProgress } from
 import { dayIndex, tonnageInWindow } from './insights.js'
 import { mostNeglectedGroup } from './freshness.js'
 import { daySubTags } from './dayTags.js'
-import { normMetric } from './metric.js'
+import { normMetric, leadingValue } from './metric.js'
 import { entryExId, entryMetric, sortDesc } from './entries.js'
+import { plural } from './plural.js'
 
 // Последний зафиксированный личный рекорд (свежайший по дате): идём по истории от
 // старых к новым, держим лучший ведущий показатель по упражнению и ловим момент
@@ -26,10 +27,9 @@ function latestPr(sorted) {
       const exId = entryExId(e)
       if (!exId) continue
       const m = entryMetric(e)
-      const value = (e.sets ?? []).reduce((mx, s) => {
-        const v = m === 'weight' ? Number(s.weight) || 0 : Number(s.reps) || 0
-        return Math.max(mx, v)
-      }, 0)
+      // Ведущее значение подхода (макс. вес / повторов / секунд) — общий leadingValue
+      // из metric.js вместо инлайнового `weight?:reps` (иначе 4-я метрика тихо разъедется).
+      const value = leadingValue(m, e.sets ?? [])
       if (value <= 0) continue
       const prev = best.get(exId) ?? 0
       if (value > prev) {
@@ -101,16 +101,8 @@ export function buildHomeSummary({ workouts, goals, now = new Date() } = {}) {
   }
 }
 
-// Склонение «день/дня/дней» под число.
-function dayWord(n) {
-  const a = n % 100
-  const b = a % 10
-  if (!(a > 10 && a < 20)) {
-    if (b === 1) return 'день'
-    if (b > 1 && b < 5) return 'дня'
-  }
-  return 'дней'
-}
+// Склонение «день/дня/дней» под число — общий lib/plural.js.
+const dayWord = (n) => plural(n, 'день', 'дня', 'дней')
 
 // «сегодня / вчера / N дней назад» — для строки последней тренировки.
 export function fmtDaysAgo(days) {
