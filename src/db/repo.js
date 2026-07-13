@@ -24,6 +24,7 @@ import { normMetric } from '../lib/metric.js'
 import { clampSet } from '../lib/setLimits.js'
 import { pickLastSets } from '../lib/lastSets.js'
 import { isReactionKind } from '../lib/reactions.js'
+import { defaultSubmuscleFor } from '../lib/muscles.js'
 
 // ----------------------------- Чтение --------------------------------------
 
@@ -74,11 +75,16 @@ export async function applyExerciseMergeLocal(fromId) {
 // Анти-дубль: если упражнение с тем же названием уже есть — НЕ плодим копию,
 // возвращаем существующее. Сравнение по нормализованному ключу (ё/е, регистр,
 // пунктуация, двойные пробелы), чтобы «Жим лёжа» и «жим  лежа» считались одним.
-export async function createExercise({ name, muscle_group, metric }) {
+export async function createExercise({ name, muscle_group, metric, submuscle, secondary }) {
   const clean = String(name ?? '').trim()
   if (!clean) throw new Error('Введите название упражнения.')
   const group = muscle_group ? String(muscle_group).trim() : null
   const mtr = normMetric(metric)
+  // Двухуровневая модель мышц (PLAN-muscle-detail, слайс 1): подмышца (primary) +
+  // вторичные. UI слайса 1 их не задаёт → подмышку берём дефолтную по группе,
+  // вторичные пусты. Явно переданные (слайс 2) уважаем.
+  const sub = submuscle ? String(submuscle).trim() : defaultSubmuscleFor(group)
+  const sec = Array.isArray(secondary) ? secondary.filter(Boolean) : []
 
   const key = normalizeName(clean)
   const all = await db.exercises.toArray()
@@ -88,6 +94,8 @@ export async function createExercise({ name, muscle_group, metric }) {
       id: dup.id,
       name: dup.name,
       muscle_group: dup.muscle_group ?? null,
+      submuscle: dup.submuscle ?? null,
+      secondary: dup.secondary ?? [],
       is_bench_lift: Boolean(dup.is_bench_lift),
       metric: normMetric(dup.metric),
       is_custom: Boolean(dup.is_custom),
@@ -100,6 +108,8 @@ export async function createExercise({ name, muscle_group, metric }) {
       id,
       name: clean,
       muscle_group: group,
+      submuscle: sub,
+      secondary: sec,
       is_custom: true,
       is_bench_lift: false,
       metric: mtr,
@@ -109,7 +119,7 @@ export async function createExercise({ name, muscle_group, metric }) {
     await db.ex_outbox.add({ exerciseId: id, createdAt: nowIso(), attempts: 0 })
   })
 
-  return { id, name: clean, muscle_group: group, is_bench_lift: false, metric: mtr, is_custom: true }
+  return { id, name: clean, muscle_group: group, submuscle: sub, secondary: sec, is_bench_lift: false, metric: mtr, is_custom: true }
 }
 
 // Пользователи (имена для пикера входа). Только {id,name,...} из login_users —
@@ -293,6 +303,8 @@ function cleanEntries(entries) {
               id: e.exercise.id,
               name: e.exercise.name,
               muscle_group: e.exercise.muscle_group ?? null,
+              submuscle: e.exercise.submuscle ?? null,
+              secondary: e.exercise.secondary ?? [],
               is_bench_lift: Boolean(e.exercise.is_bench_lift),
               metric,
             }
@@ -470,6 +482,8 @@ function cleanTemplateExercises(exercises) {
               id: e.exercise.id,
               name: e.exercise.name,
               muscle_group: e.exercise.muscle_group ?? null,
+              submuscle: e.exercise.submuscle ?? null,
+              secondary: e.exercise.secondary ?? [],
               is_bench_lift: Boolean(e.exercise.is_bench_lift),
               metric,
             }
