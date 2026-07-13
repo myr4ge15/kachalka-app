@@ -5,7 +5,7 @@ import { detectNewPrsOnSave, detectGoalReachedOnSave } from '../db/notifications
 import { detectInsightsOnSave } from '../db/insights.js'
 import { syncNow } from '../db/sync.js'
 import { getCache, setCache, clearCache } from '../lib/cache.js'
-import { showToast } from '../components/Toast.jsx'
+import { showToast, hideToast } from '../components/Toast.jsx'
 import { exerciseMetric, isCountMetric, fmtMetricValue, fmtSet, fmtTime, parseTime } from '../lib/metric.js'
 import { recommendProgression, resolveProgSettings } from '../lib/progression.js'
 import { WEIGHT_MAX, repsMax } from '../lib/setLimits.js'
@@ -194,6 +194,12 @@ export default function WorkoutScreen({ user, workoutId = null, onBack }) {
     if (isNew) setCache(DRAFT_KEY, entries)
   }, [isNew, DRAFT_KEY, entries])
 
+  // Undo-тост удаления привязан к ЭТОМУ экрану: его «Отменить» зовёт setEntries,
+  // которого после ухода со страницы уже нет. Поэтому при размонтировании гасим
+  // только его (kind:'undo') — смена вкладки/возврат к списку убирают зависший
+  // тост. Поздравление о рекорде/цели (без kind) переживает onBack, как раньше.
+  useEffect(() => () => hideToast('undo'), [])
+
   // Загрузка существующей тренировки на маунте (документ — источник правды).
   useEffect(() => {
     if (isNew) return
@@ -347,6 +353,7 @@ export default function WorkoutScreen({ user, workoutId = null, onBack }) {
     // соседствует с зоной сохранения/добавления, легко нажать случайно.
     showToast({
       emoji: '🗑',
+      kind: 'undo', // привязан к экрану — гасится при размонтировании WorkoutScreen
       title: 'Упражнение убрано',
       sub: removed.exercise?.name,
       actionLabel: 'Отменить',
@@ -449,6 +456,7 @@ export default function WorkoutScreen({ user, workoutId = null, onBack }) {
     // возвращаем подход на прежнее место.
     showToast({
       emoji: '🗑',
+      kind: 'undo', // привязан к экрану — гасится при размонтировании WorkoutScreen
       title: 'Подход удалён',
       sub: entry.exercise?.name,
       actionLabel: 'Отменить',

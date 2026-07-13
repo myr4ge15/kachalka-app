@@ -1007,7 +1007,8 @@ img.avatar-lg.has-img {
   display: flex; align-items: center; gap: 12px; padding: 13px 14px; border-radius: 14px;
   background: var(--surface-2); border: 1px solid var(--green); color: var(--text);
   box-shadow: 0 10px 30px rgba(0,0,0,.5);
-  transition: transform .35s cubic-bezier(.2,.8,.2,1);
+  transition: transform .35s cubic-bezier(.2,.8,.2,1), opacity .35s ease;
+  touch-action: pan-y; /* горизонтальный свайп закрывает тост, верт. скролл не мешаем */
 }
 /* Undo-тост в композере тренировки поднимаем выше липкой «Сохранить»
    (.wk-save-bar на bottom:72px), иначе он перекрывает кнопку на 6 c окна отмены. */
