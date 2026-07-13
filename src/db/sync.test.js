@@ -86,7 +86,7 @@ vi.mock('./supabase.js', () => {
 
 import { openUserDb, closeUserDb, db } from './local.js'
 import { saveWorkout } from './repo.js'
-import { syncNow } from './sync.js'
+import { syncNow, runOutbox } from './sync.js'
 import { uniqueUserId } from '../test/idbHarness.js'
 
 const bench = { id: 'ex_bench', name: 'Жим лёжа', muscle_group: 'грудь', is_bench_lift: true, metric: 'weight' }
@@ -294,5 +294,66 @@ describe('pull: инкрементальный watermark', () => {
     srv.state.exercises = [{ ...bench, updated_at: T2 }]
     await syncNow(userId)
     expect(srv.state.exFullFetches).toBe(after1 + 1)
+  })
+})
+
+// Единый прогон очереди с политикой повторов/dead-letter (дедуп push-циклов).
+// Тестируем на фейковой таблице — без Dexie/сети, только ветвление attempts/_dead.
+function fakeTable(rows) {
+  const store = new Map(rows.map((r) => [r.seq, { ...r }]))
+  return {
+    orderBy() { return { async toArray() { return [...store.values()].sort((a, b) => a.seq - b.seq) } } },
+    async update(seq, patch) { const r = store.get(seq); if (r) Object.assign(r, patch) },
+    async delete(seq) { store.delete(seq) },
+    get(seq) { return store.get(seq) },
+    get size() { return store.size },
+  }
+}
+
+describe('runOutbox (дедуп push-циклов)', () => {
+  it('успех: handler сам удаляет операции, идут по порядку seq', async () => {
+    const t = fakeTable([{ seq: 2 }, { seq: 1 }, { seq: 3 }])
+    const seen = []
+    await runOutbox(t, async (op) => { seen.push(op.seq); await t.delete(op.seq) })
+    expect(seen).toEqual([1, 2, 3]) // по возрастанию seq
+    expect(t.size).toBe(0)         // всё слито
+  })
+
+  it('deadLetter: первая ошибка (не достигнут MAX) растит attempts и БРОСАЕТ (стоп очереди)', async () => {
+    const t = fakeTable([{ seq: 1 }])
+    await expect(runOutbox(t, async () => { throw new Error('boom') })).rejects.toThrow('boom')
+    expect(t.get(1).attempts).toBe(1)
+    expect(t.get(1)._dead).toBeUndefined()
+    expect(t.get(1).lastError).toBe('boom')
+  })
+
+  it('deadLetter: на MAX_ATTEMPTS помечает _dead и НЕ бросает (очередь не висит)', async () => {
+    const t = fakeTable([{ seq: 1, attempts: 4 }]) // следующая попытка = 5 = MAX
+    await expect(runOutbox(t, async () => { throw new Error('boom') })).resolves.toBeUndefined()
+    expect(t.get(1).attempts).toBe(5)
+    expect(t.get(1)._dead).toBe(1)
+  })
+
+  it('deadLetter: _dead-операции пропускаются', async () => {
+    const t = fakeTable([{ seq: 1, _dead: 1 }])
+    const seen = []
+    await runOutbox(t, async (op) => { seen.push(op.seq) })
+    expect(seen).toEqual([]) // отравленную не трогаем
+  })
+
+  it('deadLetter:false (реакции): ошибка НЕ бросает, копит attempts', async () => {
+    const t = fakeTable([{ seq: 1 }, { seq: 2 }])
+    const seen = []
+    await runOutbox(t, async (op) => { seen.push(op.seq); throw new Error('x') }, { deadLetter: false })
+    expect(seen).toEqual([1, 2])      // прошли всю очередь, не остановились
+    expect(t.get(1).attempts).toBe(1) // остались с инкрементом, без _dead
+    expect(t.get(1)._dead).toBeUndefined()
+  })
+
+  it('deadLetter:false: после MAX_ATTEMPTS операция ВЫБРАСЫВАЕТСЯ', async () => {
+    const t = fakeTable([{ seq: 1, attempts: 4 }])
+    await runOutbox(t, async () => { throw new Error('x') }, { deadLetter: false })
+    expect(t.get(1)).toBeUndefined() // удалена, без dead-letter
+    expect(t.size).toBe(0)
   })
 })

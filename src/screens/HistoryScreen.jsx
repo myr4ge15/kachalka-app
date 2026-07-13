@@ -5,9 +5,11 @@ import { daySubTags, tagSlug, matchesGroup, availableGroups } from '../lib/dayTa
 import { labelOf, majorOf } from '../lib/muscles.js'
 import { exerciseMetric, fmtSet } from '../lib/metric.js'
 import { exportWorkouts } from '../lib/exportWorkout.js'
+import { useExportSelection } from '../hooks/useExportSelection.js'
 import WorkoutScreen from './WorkoutScreen.jsx'
 import TemplatesScreen from './TemplatesScreen.jsx'
 import CardsSkeleton from '../components/CardsSkeleton.jsx'
+import ExportBar from '../components/ExportBar.jsx'
 
 function fmtDate(iso) {
   const d = new Date(iso)
@@ -61,32 +63,11 @@ export default function HistoryScreen({ user }) {
     [list, filter]
   )
 
-  // Режим экспорта: мультивыбор тренировок из списка → выгрузка в JSON.
-  const [selectMode, setSelectMode] = useState(false)
-  const [picked, setPicked] = useState(() => new Set())
-  function toggleSelectMode() {
-    setSelectMode((on) => !on)
-    setPicked(new Set())
-  }
-  function togglePick(id) {
-    setPicked((prev) => {
-      const next = new Set(prev)
-      if (next.has(id)) next.delete(id)
-      else next.add(id)
-      return next
-    })
-  }
-  function pickAll() {
-    setPicked(new Set(shown.map((w) => w.id)))
-  }
-  function exportPicked() {
-    const chosen = list.filter((w) => picked.has(w.id))
-    if (!chosen.length) return
-    const appVersion = typeof __APP_VERSION__ !== 'undefined' ? __APP_VERSION__ : 'dev'
-    exportWorkouts(chosen, appVersion)
-    setSelectMode(false)
-    setPicked(new Set())
-  }
+  // Режим экспорта: мультивыбор тренировок из списка → выгрузка в JSON. Общий хук
+  // с «Шаблонами» (useExportSelection). «Все» берёт отфильтрованный shown, выгрузка
+  // — из полного list.
+  const { selectMode, picked, toggleSelectMode, togglePick, pickAll, exportPicked } =
+    useExportSelection(exportWorkouts)
 
   // Вход в редактор/деталь и возврат к списку должны начинаться с верха страницы.
   // Скроллится не окно, а внешняя .content (overflow-y:auto, см. App.jsx/index.css);
@@ -198,28 +179,16 @@ export default function HistoryScreen({ user }) {
 
         {/* Экспорт уведён из верхнего слота под список, чтобы верх занимали фильтры.
             Вне режима выбора — приглушённая ссылка внизу; в режиме выбора — фиксир.
-            бар над таббаром, чтобы счётчик/«Скачать» были видны при прокрутке. */}
-        {!loading && list.length > 0 && !selectMode && (
-          <button className="link-btn export-toggle export-toggle--bottom" onClick={toggleSelectMode}>
-            ⬇ Экспорт тренировок
-          </button>
-        )}
-
-        {selectMode && (
-          <>
-            <div className="wk-save-spacer" aria-hidden="true" />
-            <div className="export-bar export-bar--fixed">
-              <span className="muted">Выбрано: {picked.size}</span>
-              <div className="export-bar-actions">
-                <button className="link-btn" onClick={pickAll}>Все</button>
-                <button className="link-btn" onClick={toggleSelectMode}>Отмена</button>
-                <button className="btn primary" disabled={picked.size === 0} onClick={exportPicked}>
-                  ⬇ Скачать{picked.size ? ` (${picked.size})` : ''}
-                </button>
-              </div>
-            </div>
-          </>
-        )}
+            бар над таббаром (общий ExportBar). «Все» — по отфильтрованному shown. */}
+        <ExportBar
+          selectMode={selectMode}
+          count={picked.size}
+          label="Экспорт тренировок"
+          canShow={!loading && list.length > 0}
+          onToggleMode={toggleSelectMode}
+          onPickAll={() => pickAll(shown)}
+          onExport={() => exportPicked(list)}
+        />
       </>
     )
   }

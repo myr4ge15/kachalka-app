@@ -13,8 +13,10 @@ import {
   exerciseMetric, isCountMetric, fmtTemplateTarget, fmtTime, parseTime,
 } from '../lib/metric.js'
 import { exportTemplates } from '../lib/exportTemplate.js'
+import { useExportSelection } from '../hooks/useExportSelection.js'
 import ExercisePicker from '../components/ExercisePicker.jsx'
 import CardsSkeleton from '../components/CardsSkeleton.jsx'
+import ExportBar from '../components/ExportBar.jsx'
 
 // Дефолтный целевой план по типу упражнения: 3 подхода × 10 повторов (время —
 // 1:00 = 60 с), без целевого веса. Используется для новых и легаси-упражнений.
@@ -150,31 +152,9 @@ function TemplateList({ user, onBack, onOpen }) {
     setSharedOpen((o) => { writeGroupOpen(user.id, 'shared', !o); return !o })
   }
 
-  // Режим экспорта: мультивыбор шаблонов → выгрузка в JSON (как в «Истории»).
-  const [selectMode, setSelectMode] = useState(false)
-  const [picked, setPicked] = useState(() => new Set())
-  function toggleSelectMode() {
-    setSelectMode((on) => !on)
-    setPicked(new Set())
-  }
-  function togglePick(id) {
-    setPicked((prev) => {
-      const next = new Set(prev)
-      next.has(id) ? next.delete(id) : next.add(id)
-      return next
-    })
-  }
-  function pickAll() {
-    setPicked(new Set(list.map((t) => t.id)))
-  }
-  function exportPicked() {
-    const chosen = list.filter((t) => picked.has(t.id))
-    if (!chosen.length) return
-    const appVersion = typeof __APP_VERSION__ !== 'undefined' ? __APP_VERSION__ : 'dev'
-    exportTemplates(chosen, appVersion)
-    setSelectMode(false)
-    setPicked(new Set())
-  }
+  // Режим экспорта: мультивыбор шаблонов → выгрузка в JSON. Общий хук с «Историей».
+  const { selectMode, picked, toggleSelectMode, togglePick, pickAll, exportPicked } =
+    useExportSelection(exportTemplates)
 
   const renderCard = (t, isMine) => (
     <TemplateCard
@@ -221,29 +201,16 @@ function TemplateList({ user, onBack, onOpen }) {
         </>
       )}
 
-      {/* Экспорт — по образцу «Истории»: приглушённая ссылка внизу; в режиме
-          выбора — фиксированный бар над таббаром со счётчиком и «Скачать». */}
-      {!loading && list.length > 0 && !selectMode && (
-        <button className="link-btn export-toggle export-toggle--bottom" onClick={toggleSelectMode}>
-          ⬇ Экспорт шаблонов
-        </button>
-      )}
-
-      {selectMode && (
-        <>
-          <div className="wk-save-spacer" aria-hidden="true" />
-          <div className="export-bar export-bar--fixed">
-            <span className="muted">Выбрано: {picked.size}</span>
-            <div className="export-bar-actions">
-              <button className="link-btn" onClick={pickAll}>Все</button>
-              <button className="link-btn" onClick={toggleSelectMode}>Отмена</button>
-              <button className="btn primary" disabled={picked.size === 0} onClick={exportPicked}>
-                ⬇ Скачать{picked.size ? ` (${picked.size})` : ''}
-              </button>
-            </div>
-          </div>
-        </>
-      )}
+      {/* Экспорт — общий ExportBar (как в «Истории»). */}
+      <ExportBar
+        selectMode={selectMode}
+        count={picked.size}
+        label="Экспорт шаблонов"
+        canShow={!loading && list.length > 0}
+        onToggleMode={toggleSelectMode}
+        onPickAll={() => pickAll(list)}
+        onExport={() => exportPicked(list)}
+      />
     </div>
   )
 }

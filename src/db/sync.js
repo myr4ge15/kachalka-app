@@ -406,50 +406,69 @@ async function pull(userId, justPushed = new Set(), d = db) {
 
 // ------------------------------- push --------------------------------------
 
+// Единый прогон очереди outbox с общей политикой повторов/dead-letter (раньше
+// этот блок был скопирован в 4 push-циклах, РЕВЬЮ-КОДА-2026-07-13). Идём по seq;
+// `handler(op)` делает работу и САМ удаляет операцию на успехе (успех = не бросил).
+//   - table — Dexie-таблица очереди (ex_outbox/tpl_outbox/outbox/reaction_outbox);
+//   - deadLetter=true (тренировки/упражнения/шаблоны): _dead-операции пропускаем;
+//     на ошибке растим attempts, после MAX помечаем `_dead` и идём дальше (не
+//     вешаем очередь), иначе БРОСАЕМ — прекращаем проход, сохраняя порядок;
+//   - deadLetter=false (реакции, низкий приоритет): без _dead-флага и без throw —
+//     после MAX попыток операцию просто выбрасываем, очередь не блокируем.
+// Экспортируется для unit-теста (runOutbox.test через фейковую таблицу).
+export async function runOutbox(table, handler, { deadLetter = true } = {}) {
+  const ops = await table.orderBy('seq').toArray()
+  for (const op of ops) {
+    if (deadLetter && op._dead) continue // отравленная — пропускаем, очередь не блокируем
+    try {
+      await handler(op)
+    } catch (err) {
+      const attempts = (op.attempts ?? 0) + 1
+      const lastError = String(err?.message ?? err)
+      if (deadLetter) {
+        const dead = attempts >= MAX_ATTEMPTS
+        await table.update(op.seq, { attempts, lastError, ...(dead ? { _dead: 1 } : {}) })
+        if (dead) continue // в dead-letter — не вешаем очередь, идём дальше
+        throw err // прекращаем проход, попробуем позже
+      }
+      // без dead-letter (реакции): после MAX просто выбрасываем, иначе копим attempts
+      if (attempts >= MAX_ATTEMPTS) { await table.delete(op.seq); continue }
+      await table.update(op.seq, { attempts, lastError })
+      // не блокируем остальную очередь — пробуем следующие
+    }
+  }
+}
+
 // Отправляем пользовательские упражнения (ex_outbox) в Supabase. Идёт ПЕРЕД
 // push() тренировок: запись может ссылаться на свежесозданное упражнение (FK),
 // поэтому упражнение должно появиться на сервере первым. Upsert по id
 // идемпотентен — повторная отправка после обрыва безопасна.
 async function pushExercises(d = db) {
-  const ops = await d.ex_outbox.orderBy('seq').toArray()
-  for (const op of ops) {
-    if (op._dead) continue // отравленная операция — пропускаем, очередь не блокируем
-    try {
-      const ex = await d.exercises.get(op.exerciseId)
-      if (!ex) {
-        await d.ex_outbox.delete(op.seq)
-        continue
-      }
-      const { error } = await withTimeout(
-        supabase.from('exercises').upsert(
-          {
-            id: ex.id,
-            name: ex.name,
-            muscle_group: ex.muscle_group ?? null,
-            submuscle: ex.submuscle ?? null,
-            secondary: ex.secondary ?? [],
-            is_custom: true,
-            is_bench_lift: Boolean(ex.is_bench_lift),
-            metric: ex.metric ?? 'weight',
-          },
-          { onConflict: 'id' }
-        )
-      )
-      if (error) throw error
-      await d.exercises.update(ex.id, { _dirty: 0 })
+  await runOutbox(d.ex_outbox, async (op) => {
+    const ex = await d.exercises.get(op.exerciseId)
+    if (!ex) {
       await d.ex_outbox.delete(op.seq)
-    } catch (err) {
-      const attempts = (op.attempts ?? 0) + 1
-      const dead = attempts >= MAX_ATTEMPTS
-      await d.ex_outbox.update(op.seq, {
-        attempts,
-        lastError: String(err?.message ?? err),
-        ...(dead ? { _dead: 1 } : {}),
-      })
-      if (dead) continue // в dead-letter — не вешаем очередь, идём дальше
-      throw err // прекращаем проход, попробуем позже
+      return
     }
-  }
+    const { error } = await withTimeout(
+      supabase.from('exercises').upsert(
+        {
+          id: ex.id,
+          name: ex.name,
+          muscle_group: ex.muscle_group ?? null,
+          submuscle: ex.submuscle ?? null,
+          secondary: ex.secondary ?? [],
+          is_custom: true,
+          is_bench_lift: Boolean(ex.is_bench_lift),
+          metric: ex.metric ?? 'weight',
+        },
+        { onConflict: 'id' }
+      )
+    )
+    if (error) throw error
+    await d.exercises.update(ex.id, { _dirty: 0 })
+    await d.ex_outbox.delete(op.seq)
+  })
 }
 
 // Отправляем шаблоны (tpl_outbox) в Supabase. Идёт ПОСЛЕ pushExercises и ДО
@@ -457,59 +476,45 @@ async function pushExercises(d = db) {
 // поэтому упражнение должно появиться на сервере раньше шаблона. Upsert по
 // клиентскому id идемпотентен — повтор после обрыва безопасен.
 async function pushTemplates(d = db) {
-  const ops = await d.tpl_outbox.orderBy('seq').toArray()
-  for (const op of ops) {
-    if (op._dead) continue // отравленная операция — пропускаем, очередь не блокируем
-    try {
-      if (op.type === 'upsert') {
-        const doc = await d.templates.get(op.templateId)
-        if (!doc || doc._deleted) {
-          await d.tpl_outbox.delete(op.seq)
-          continue
-        }
-        // Передаём упорядоченный массив объектов {id, sets, reps, weight}.
-        // Серверный upsert_template принимает и легаси-форму (массив строк-uuid),
-        // поэтому совместим при поэтапной раскатке (сервер обновляется раньше).
-        const exerciseIds = [...(doc.exercises ?? [])]
-          .sort((a, b) => (a.position ?? 0) - (b.position ?? 0))
-          .map((e) => ({
-            id: e.exercise_id,
-            sets: e.sets ?? null,
-            reps: e.reps ?? null,
-            weight: e.weight ?? null,
-          }))
-        const { error } = await withTimeout(
-          supabase.rpc('upsert_template', {
-            p_template_id: doc.id,
-            p_user_id: doc.user_id,
-            p_name: doc.name,
-            p_exercise_ids: exerciseIds,
-            p_is_public: !!doc.is_public,
-          })
-        )
-        if (error) throw error
-        await d.templates.update(doc.id, { _dirty: 0 })
+  await runOutbox(d.tpl_outbox, async (op) => {
+    if (op.type === 'upsert') {
+      const doc = await d.templates.get(op.templateId)
+      if (!doc || doc._deleted) {
         await d.tpl_outbox.delete(op.seq)
-      } else if (op.type === 'delete') {
-        const { error } = await withTimeout(
-          supabase.from('workout_templates').delete().eq('id', op.templateId)
-        )
-        if (error) throw error
-        await d.templates.delete(op.templateId)
-        await d.tpl_outbox.delete(op.seq)
+        return
       }
-    } catch (err) {
-      const attempts = (op.attempts ?? 0) + 1
-      const dead = attempts >= MAX_ATTEMPTS
-      await d.tpl_outbox.update(op.seq, {
-        attempts,
-        lastError: String(err?.message ?? err),
-        ...(dead ? { _dead: 1 } : {}),
-      })
-      if (dead) continue // в dead-letter — не вешаем очередь, идём дальше
-      throw err // прекращаем проход, попробуем позже
+      // Передаём упорядоченный массив объектов {id, sets, reps, weight}.
+      // Серверный upsert_template принимает и легаси-форму (массив строк-uuid),
+      // поэтому совместим при поэтапной раскатке (сервер обновляется раньше).
+      const exerciseIds = [...(doc.exercises ?? [])]
+        .sort((a, b) => (a.position ?? 0) - (b.position ?? 0))
+        .map((e) => ({
+          id: e.exercise_id,
+          sets: e.sets ?? null,
+          reps: e.reps ?? null,
+          weight: e.weight ?? null,
+        }))
+      const { error } = await withTimeout(
+        supabase.rpc('upsert_template', {
+          p_template_id: doc.id,
+          p_user_id: doc.user_id,
+          p_name: doc.name,
+          p_exercise_ids: exerciseIds,
+          p_is_public: !!doc.is_public,
+        })
+      )
+      if (error) throw error
+      await d.templates.update(doc.id, { _dirty: 0 })
+      await d.tpl_outbox.delete(op.seq)
+    } else if (op.type === 'delete') {
+      const { error } = await withTimeout(
+        supabase.from('workout_templates').delete().eq('id', op.templateId)
+      )
+      if (error) throw error
+      await d.templates.delete(op.templateId)
+      await d.tpl_outbox.delete(op.seq)
     }
-  }
+  })
 }
 
 // Отправляем очередь по порядку. На первой же ошибке прекращаем — сохранится
@@ -519,55 +524,41 @@ async function push(d = db) {
   // последующий pull в этом же цикле не «удалил» их, если read-replica сервера
   // ещё не показывает свежую запись в SELECT (push идёт ДО pull).
   const justPushed = new Set()
-  const ops = await d.outbox.orderBy('seq').toArray()
-  for (const op of ops) {
-    if (op._dead) continue // отравленная операция — пропускаем, очередь не блокируем
-    try {
-      if (op.type === 'upsert') {
-        const doc = await d.workouts.get(op.workoutId)
-        if (!doc || doc._deleted) {
-          await d.outbox.delete(op.seq)
-          continue
-        }
-        const payload = doc.entries.map((e) => ({
-          exercise_id: e.exercise_id,
-          sets: e.sets.map((s) => ({ weight: Number(s.weight), reps: Number(s.reps) })),
-        }))
-        const { error } = await withTimeout(
-          supabase.rpc('upsert_workout', {
-            p_workout_id: doc.id,
-            p_user_id: doc.user_id,
-            p_performed_at: doc.performed_at,
-            p_entries: payload,
-          })
-        )
-        if (error) throw error
-        // Снимаем _dirty и базис merge-часов: запись уехала, серверный updated_at
-        // (истинное время правки) подтянет следующий pull в этом же цикле как
-        // чистую (take-server). Базис заново захватит первая локальная правка.
-        await d.workouts.update(doc.id, { _dirty: 0, _base_updated_at: null })
+  await runOutbox(d.outbox, async (op) => {
+    if (op.type === 'upsert') {
+      const doc = await d.workouts.get(op.workoutId)
+      if (!doc || doc._deleted) {
         await d.outbox.delete(op.seq)
-        justPushed.add(doc.id)
-      } else if (op.type === 'delete') {
-        const { error } = await withTimeout(
-          supabase.from('workouts').delete().eq('id', op.workoutId)
-        )
-        if (error) throw error
-        await d.workouts.delete(op.workoutId)
-        await d.outbox.delete(op.seq)
+        return
       }
-    } catch (err) {
-      const attempts = (op.attempts ?? 0) + 1
-      const dead = attempts >= MAX_ATTEMPTS
-      await d.outbox.update(op.seq, {
-        attempts,
-        lastError: String(err?.message ?? err),
-        ...(dead ? { _dead: 1 } : {}),
-      })
-      if (dead) continue // в dead-letter — не вешаем очередь, идём дальше
-      throw err // прекращаем проход, попробуем позже
+      const payload = doc.entries.map((e) => ({
+        exercise_id: e.exercise_id,
+        sets: e.sets.map((s) => ({ weight: Number(s.weight), reps: Number(s.reps) })),
+      }))
+      const { error } = await withTimeout(
+        supabase.rpc('upsert_workout', {
+          p_workout_id: doc.id,
+          p_user_id: doc.user_id,
+          p_performed_at: doc.performed_at,
+          p_entries: payload,
+        })
+      )
+      if (error) throw error
+      // Снимаем _dirty и базис merge-часов: запись уехала, серверный updated_at
+      // (истинное время правки) подтянет следующий pull в этом же цикле как
+      // чистую (take-server). Базис заново захватит первая локальная правка.
+      await d.workouts.update(doc.id, { _dirty: 0, _base_updated_at: null })
+      await d.outbox.delete(op.seq)
+      justPushed.add(doc.id)
+    } else if (op.type === 'delete') {
+      const { error } = await withTimeout(
+        supabase.from('workouts').delete().eq('id', op.workoutId)
+      )
+      if (error) throw error
+      await d.workouts.delete(op.workoutId)
+      await d.outbox.delete(op.seq)
     }
-  }
+  })
   return justPushed
 }
 
@@ -580,33 +571,27 @@ async function push(d = db) {
 // на ошибке НЕ роняем весь синк (вызов обёрнут в try/catch выше), а операцию
 // после MAX_ATTEMPTS попыток просто выбрасываем (без dead-letter UI).
 async function pushReactions(userId, d = db) {
-  const ops = await d.reaction_outbox.orderBy('seq').toArray()
-  for (const op of ops) {
-    try {
-      if (op.op === 'add') {
-        const { error } = await withTimeout(
-          supabase.from('reactions').upsert(
-            { user_id: userId, workout_id: op.workoutId, kind: op.kind },
-            { onConflict: 'user_id,workout_id,kind', ignoreDuplicates: true }
-          )
+  // deadLetter:false — реакции низкоприоритетны: не роняем очередь на ошибке и
+  // после MAX_ATTEMPTS просто выбрасываем операцию (без _dead / dead-letter UI).
+  await runOutbox(d.reaction_outbox, async (op) => {
+    if (op.op === 'add') {
+      const { error } = await withTimeout(
+        supabase.from('reactions').upsert(
+          { user_id: userId, workout_id: op.workoutId, kind: op.kind },
+          { onConflict: 'user_id,workout_id,kind', ignoreDuplicates: true }
         )
-        if (error) throw error
-      } else {
-        const { error } = await withTimeout(
-          supabase.from('reactions').delete().match({
-            user_id: userId, workout_id: op.workoutId, kind: op.kind,
-          })
-        )
-        if (error) throw error
-      }
-      await d.reaction_outbox.delete(op.seq)
-    } catch (err) {
-      const attempts = (op.attempts ?? 0) + 1
-      if (attempts >= MAX_ATTEMPTS) { await d.reaction_outbox.delete(op.seq); continue }
-      await d.reaction_outbox.update(op.seq, { attempts, lastError: String(err?.message ?? err) })
-      // не блокируем остальную очередь реакций — пробуем следующие
+      )
+      if (error) throw error
+    } else {
+      const { error } = await withTimeout(
+        supabase.from('reactions').delete().match({
+          user_id: userId, workout_id: op.workoutId, kind: op.kind,
+        })
+      )
+      if (error) throw error
     }
-  }
+    await d.reaction_outbox.delete(op.seq)
+  }, { deadLetter: false })
 }
 
 // ------------------------------- цели --------------------------------------
