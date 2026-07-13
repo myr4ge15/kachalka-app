@@ -165,8 +165,8 @@ describe('R4 плато в жиме', () => {
   })
 })
 
-describe('R5 забытая группа', () => {
-  it('группа не тренирована ≥8 дней → инсайт', () => {
+describe('R5 забытая мышца (подмышца)', () => {
+  it('мышца не тренирована ≥8 дней → инсайт (по подмышце; ноги → квадрицепс по дефолту)', () => {
     const list = [
       wk({ id: 'legs', at: daysAgo(20), entries: [{ exId: 'sq', group: 'ноги', sets: [S(100, 5)] }] }),
       wk({ id: 'chest', at: daysAgo(0), entries: [{ exId: 'bp', group: 'грудь', sets: [S(80, 5)] }] }),
@@ -174,19 +174,19 @@ describe('R5 забытая группа', () => {
     const res = buildInsights({ workouts: list, now: NOW, max: 5 })
     const n = res.find((i) => i.kind === 'neglect')
     expect(n).toBeTruthy()
-    expect(n.text).toContain('Ноги')
+    expect(n.text).toContain('Квадрицепс')
     expect(n.text).toContain('20 дней')
   })
 
-  it('«спина» склоняется в винительный: «Спину не тренировал»', () => {
+  it('подмышца склоняется в винительный: «Большую ягодичную не тренировал»', () => {
     const list = [
-      wk({ id: 'back', at: daysAgo(18), entries: [{ exId: 'row', group: 'спина', sets: [S(100, 5)] }] }),
+      wk({ id: 'glute', at: daysAgo(18), entries: [{ exId: 'br', group: 'ягодицы', sets: [S(100, 5)] }] }),
       wk({ id: 'chest', at: daysAgo(0), entries: [{ exId: 'bp', group: 'грудь', sets: [S(80, 5)] }] }),
     ]
     const res = buildInsights({ workouts: list, now: NOW, max: 5 })
     const n = res.find((i) => i.kind === 'neglect')
-    expect(n.text).toContain('Спину не тренировал')
-    expect(n.text).not.toContain('Спина не')
+    expect(n.text).toContain('Большую ягодичную не тренировал')
+    expect(n.text).not.toContain('Большая ягодичная не')
   })
 
   it('всё свежее → правило молчит', () => {

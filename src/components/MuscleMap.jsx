@@ -11,7 +11,7 @@
 //
 // Пропсы: bySub ({submuscle→bucket}), selected (region|null), onSelect(region).
 // ============================================================================
-import { BODY_OUTLINE, FRONT_REGIONS, BACK_REGIONS } from './muscleBodyPaths.js'
+import { BODY_OUTLINE, NEUTRAL_PARTS, FRONT_REGIONS, BACK_REGIONS } from './muscleBodyPaths.js'
 
 const BUCKET_COLOR = {
   fresh: '#ef4444',
@@ -78,6 +78,9 @@ export default function MuscleMap({ bySub = {}, selected = null, onSelect }) {
       <div className="mm-col">
         <svg viewBox={viewBox} role="img" aria-label={`Силуэт ${side === 'front' ? 'спереди' : 'сзади'} — свежесть мышц`}>
           <path d={BODY_OUTLINE[side]} fill={BODY} stroke={STROKE} strokeWidth="2.5" vectorEffect="non-scaling-stroke" />
+          {(NEUTRAL_PARTS[side] ?? []).map((d, i) => (
+            <path key={`n${i}`} d={d} fill={MUSCLE} stroke={STROKE} strokeWidth="1" vectorEffect="non-scaling-stroke" aria-hidden="true" />
+          ))}
           {Object.entries(regions).map(([region, paths]) => {
             const fill = bucketColor(regionBucket(region, bySub))
             const sel = selected === region

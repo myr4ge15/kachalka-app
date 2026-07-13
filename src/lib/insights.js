@@ -16,8 +16,9 @@
 //             чтобы уведомления сортировались и метка «прочитано» не сбрасывалась
 //             при каждом пересчёте (now меняется — а якорь стабилен).
 // ============================================================================
-import { GROUP_ORDER, groupAccusative } from './dayTags.js'
-import { lastTrainedByGroup } from './freshness.js'
+import { GROUP_ORDER } from './dayTags.js'
+import { lastTrainedBySubmuscle } from './freshness.js'
+import { labelAccusativeOf } from './muscles.js'
 import { normMetric, leadingValue, fmtMetricValue } from './metric.js'
 import { myBestByExercise } from './records.js'
 import { detectPlateau } from './progression.js'
@@ -244,25 +245,27 @@ function rPlateau(sorted, anchor) {
   }
 }
 
-// R5. Забытая группа: какая-то тренированная ранее группа не прорабатывалась
-// ≥ threshold дней (по самой «просроченной»).
+// R5. Забытая мышца: какая-то тренированная ранее ПОДМЫШЦА (по основной работе)
+// не прорабатывалась ≥ threshold дней (по самой «просроченной»). Слайс 3c: уровень
+// подмышцы вместо крупной группы (кардио пропускаем).
 function rGroupNeglected(sorted, now, anchor, { threshold = 8 } = {}) {
-  const lastDay = lastTrainedByGroup(sorted) // общий движок свежести (group → {day,at})
+  const lastDay = lastTrainedBySubmuscle(sorted) // submuscle → {day,at}
   const today = dayIndex(now)
   let worst = null
-  for (const [g, { day }] of lastDay) {
+  for (const [s, { day }] of lastDay) {
+    if (s === 'cardio') continue
     const days = today - day
-    if (days >= threshold && (!worst || days > worst.days)) worst = { g, days }
+    if (days >= threshold && (!worst || days > worst.days)) worst = { s, days }
   }
   if (!worst) return null
   return {
-    id: `ins:neglect:${worst.g}`,
+    id: `ins:neglect:${worst.s}`,
     kind: 'neglect',
     emoji: '⏰',
     tone: 'info',
     priority: 70,
     at: anchor,
-    text: `${cap(groupAccusative(worst.g))} не тренировал ${plDays(worst.days)} — пора`,
+    text: `${cap(labelAccusativeOf(worst.s))} не тренировал ${plDays(worst.days)} — пора`,
   }
 }
 
