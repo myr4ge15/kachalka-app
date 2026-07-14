@@ -88,6 +88,7 @@ export default function NotificationsScreen({ user }) {
           : n.type === 'goal' ? '🎯'
           : n.type === 'reaction' ? (n.emojis?.[0] ?? '👏')
           : n.type === 'insight' ? (n.emoji ?? '💡')
+          : n.type === 'badge' ? (n.emoji ?? '🏅')
           : '🔥'
         const cls = 'notif ' + n.type + (unread ? ' unread' : ' read')
         return (
@@ -129,6 +130,14 @@ export default function NotificationsScreen({ user }) {
                 <>
                   <div className="n-title">Вывод</div>
                   <div className="n-text">{n.text}</div>
+                </>
+              )}
+              {n.type === 'badge' && (
+                <>
+                  <div className="n-title">
+                    Новое достижение · <span className="hl">{n.name}</span>
+                  </div>
+                  <div className="n-text">Бейдж получен 🎉</div>
                 </>
               )}
               {n.type === 'beaten' && (

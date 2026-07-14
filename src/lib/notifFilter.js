@@ -2,7 +2,7 @@
 // Категории для фильтра-чипов на экране «Уведомления».
 //
 // Пять типов уведомлений (getNotifications) сводим к четырём смысловым группам:
-//   mine  + goal    → 'records'   (свои достижения: рекорды и цели)
+//   mine + goal + badge → 'records' (свои достижения: рекорды, цели, бейджи)
 //   beaten          → 'beaten'    (кто побил мой рекорд)
 //   reaction        → 'reactions' (реакции друзей на мою тренировку)
 //   insight         → 'insights'  (авто-выводы движка правил)
@@ -28,6 +28,7 @@ export function notifCategory(type) {
   switch (type) {
     case 'mine':
     case 'goal':
+    case 'badge':
       return 'records'
     case 'beaten':
       return 'beaten'

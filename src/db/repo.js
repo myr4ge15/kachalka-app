@@ -313,6 +313,24 @@ export async function setProgForExercise(userId, exerciseId, patch) {
   await setMeta(progKey(userId), { ...cur, byExercise })
 }
 
+// ------------------- Достижения / бейджи (meta) ---------------------------
+// Даты получения бейджей (PLAN-badges) в персональной meta по ключу
+// badges_${userId} — как цели/настройки прогрессии. Значение:
+//   { [badgeId]: { at: ISO, backfilled: bool } }
+// Определения вех и вся логика — чистый lib/badges.js; здесь только хранилище.
+// backfilled:true — историческая веха, размеченная задним числом (без тоста/бэйджа
+// на колокольчике). Поле не индексируется → схему Dexie (v7) не трогаем.
+export const badgesKey = (userId) => `badges_${userId}`
+
+export async function getBadges(userId) {
+  const v = await getMeta(badgesKey(userId))
+  return v && typeof v === 'object' ? v : {}
+}
+
+export async function writeBadges(userId, map) {
+  await setMeta(badgesKey(userId), map ?? {})
+}
+
 // Одиночная тренировка по id (для экрана-детали). null, если нет/удалена.
 export async function getWorkout(id) {
   const w = await db.workouts.get(id)

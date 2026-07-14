@@ -3,6 +3,7 @@ import { useLiveQuery } from 'dexie-react-hooks'
 import { getExercises, getWorkout, saveWorkout, createExercise, deleteWorkout as repoDelete, getRecentSessionsForExercise, getProgSettings, setProgForExercise, saveTemplate } from '../db/repo.js'
 import { detectNewPrsOnSave, detectGoalReachedOnSave } from '../db/notifications.js'
 import { detectInsightsOnSave } from '../db/insights.js'
+import { detectBadgesOnSave } from '../db/badges.js'
 import { syncNow } from '../db/sync.js'
 import { getCache, setCache, clearCache } from '../lib/cache.js'
 import { showToast, hideToast } from '../components/Toast.jsx'
@@ -516,6 +517,19 @@ export default function WorkoutScreen({ user, workoutId = null, onBack }) {
               emoji: '🎯',
               title: reached.length > 1 ? 'Цели достигнуты!' : 'Цель достигнута!',
               sub: `${top.name} — ${fmtMetricValue(top.metric, top.value)}${repsStr}${extra}`,
+            })
+            congratulated = true
+          }
+          // Достижения/бейджи (PLAN-badges): detectBadgesOnSave ВСЕГДА штампует
+          // новые вехи в meta (для экрана и колокольчика), но тост показываем
+          // только если рекорд/цель не перекрыли — и не спамим (один тост «+N»).
+          const newBadges = await detectBadgesOnSave(user.id)
+          if (!congratulated && newBadges.length) {
+            const extra = newBadges.length > 1 ? ` +${newBadges.length - 1}` : ''
+            showToast({
+              emoji: '🏆',
+              title: newBadges.length > 1 ? 'Новые достижения!' : 'Новое достижение!',
+              sub: `${newBadges[0].icon} ${newBadges[0].name}${extra}`,
             })
             congratulated = true
           }

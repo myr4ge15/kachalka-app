@@ -7,6 +7,7 @@ describe('notifCategory', () => {
   it('сводит пять типов к четырём группам', () => {
     expect(notifCategory('mine')).toBe('records')
     expect(notifCategory('goal')).toBe('records')
+    expect(notifCategory('badge')).toBe('records')
     expect(notifCategory('beaten')).toBe('beaten')
     expect(notifCategory('reaction')).toBe('reactions')
     expect(notifCategory('insight')).toBe('insights')

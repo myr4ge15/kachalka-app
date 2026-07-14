@@ -15,6 +15,8 @@ import { cmpIsoAsc, cmpIsoDesc } from '../lib/cmp.js'
 import { myBestByExercise, minePrs, computeBeaten, computeNewPrs, crossedGoal, goalMetByExercise } from '../lib/records.js'
 import { computeReactionNotifs } from '../lib/reactions.js'
 import { buildInsights } from '../lib/insights.js'
+import { BADGES } from '../lib/badges.js'
+import { getBadges } from './repo.js'
 import { getCachedLeaderboard } from './leaderboard.js'
 import { normMetric } from '../lib/metric.js'
 import { unreadCount } from '../lib/notifFilter.js'
@@ -92,6 +94,23 @@ async function insightNotifs(userId, workouts) {
     .map((i) => ({ id: `insight:${i.id}`, type: 'insight', emoji: i.emoji, tone: i.tone, text: i.text, at: i.at }))
 }
 
+// Достижения/бейджи как уведомления (PLAN-badges): полученные вехи из meta.
+// Исторические (backfilled) НЕ показываем на колокольчике — они размечены задним
+// числом и не должны спамить непрочитанным; в ленту идут только живые получения.
+const BADGE_BY_ID = Object.fromEntries(BADGES.map((b) => [b.id, b]))
+async function badgeNotifs(userId) {
+  const map = await getBadges(userId)
+  return Object.entries(map)
+    .filter(([id, rec]) => rec && !rec.backfilled && BADGE_BY_ID[id])
+    .map(([id, rec]) => ({
+      id: `badge:${id}`,
+      type: 'badge',
+      emoji: BADGE_BY_ID[id].icon,
+      name: BADGE_BY_ID[id].name,
+      at: rec.at,
+    }))
+}
+
 // Полный список уведомлений (свежие сверху), ограниченный LIMIT.
 export async function getNotifications(userId) {
   const workouts = await myWorkouts(userId)
@@ -103,7 +122,8 @@ export async function getNotifications(userId) {
   // Реакции на мои тренировки — из того же окна ленты (в нём есть и мои записи).
   const reactions = computeReactionNotifs(feedItems, userId)
   const insights = await insightNotifs(userId, workouts)
-  return [...mine, ...beaten, ...goal, ...reactions, ...insights]
+  const badges = await badgeNotifs(userId)
+  return [...mine, ...beaten, ...goal, ...reactions, ...insights, ...badges]
     .sort((a, b) => cmpIsoDesc(a.at, b.at))
     .slice(0, LIMIT)
 }

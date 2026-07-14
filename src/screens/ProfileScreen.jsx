@@ -10,6 +10,7 @@ import { syncNow } from '../db/sync.js'
 import { getCachedLeaderboard } from '../db/leaderboard.js'
 import { getMeta } from '../db/local.js'
 import { summarize, currentBestValue, goalProgress, fmtTonnage } from '../lib/profileStats.js'
+import { currentValues, evaluateBadges, BADGES } from '../lib/badges.js'
 import { fmtMetricValue, normMetric, parseTime, fmtTime } from '../lib/metric.js'
 import { setPin, setName, LoginError } from '../lib/auth.js'
 import { uploadMyAvatar } from '../lib/avatar.js'
@@ -25,7 +26,7 @@ import CardsSkeleton from '../components/CardsSkeleton.jsx'
 // уходит на сервер при сохранении, чтобы достижение увидел Telegram-бот.
 //
 // Пропсы: user, onLogout, onOpenProgress(exerciseId), onOpenFeed().
-export default function ProfileScreen({ user, onLogout, onOpenProgress, onOpenFeed, onRenamed, onOpenAdmin, onOpenMyExercises }) {
+export default function ProfileScreen({ user, onLogout, onOpenProgress, onOpenFeed, onRenamed, onOpenAdmin, onOpenMyExercises, onOpenAchievements }) {
   const workouts = useLiveQuery(() => getWorkouts(user.id), [user.id])
   const goals = useLiveQuery(() => readGoals(user.id), [user.id])
   const myCached = useLiveQuery(() => getCachedUser(user.id), [user.id])
@@ -44,6 +45,12 @@ export default function ProfileScreen({ user, onLogout, onOpenProgress, onOpenFe
 
   const summary = useMemo(() => summarize(workouts ?? []), [workouts])
   const records = summary.personalRecords
+  // Тизер достижений: сколько вех закрыто сейчас (из тех же тренировок; точные
+  // даты/необратимость — уже на экране «Достижения»).
+  const badgesEarned = useMemo(
+    () => evaluateBadges(currentValues(workouts ?? []), {}).earned.length,
+    [workouts]
+  )
 
   // Место в лидерборде в СВОЁМ борде (мужской — жим, женский — ягодичный мостик).
   // Кэш Ленты/снимок, только чтение. { n, board } | null.
@@ -419,6 +426,17 @@ export default function ProfileScreen({ user, onLogout, onOpenProgress, onOpenFe
               <div className="stat-lab">поднято<br />всего</div>
             </div>
           </div>
+
+          {/* вход на экран достижений/бейджей */}
+          <section className="sec">
+            <button className="leader-link" onClick={() => onOpenAchievements?.()}>
+              <div>
+                <div className="v">🏆 Достижения</div>
+                <div className="k">получено {badgesEarned} из {BADGES.length} бейджей</div>
+              </div>
+              <span className="go">Открыть ›</span>
+            </button>
+          </section>
 
           {/* личные цели (мульти-цели) */}
           <section className="sec">

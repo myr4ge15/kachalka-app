@@ -31,6 +31,7 @@ const load = {
   admin: () => import('./screens/AdminScreen.jsx'),
   freshness: () => import('./screens/FreshnessScreen.jsx'),
   myex: () => import('./screens/MyExercisesScreen.jsx'),
+  achievements: () => import('./screens/AchievementsScreen.jsx'),
 }
 const HomeScreen = lazy(load.home)
 const HistoryScreen = lazy(load.history)
@@ -41,6 +42,7 @@ const ProfileScreen = lazy(load.profile)
 const AdminScreen = lazy(load.admin)
 const FreshnessScreen = lazy(load.freshness)
 const MyExercisesScreen = lazy(load.myex)
+const AchievementsScreen = lazy(load.achievements)
 
 // Иконка состояния синхронизации — инлайн-SVG (без зависимостей), как TabIcon.
 // Красится через currentColor (цвет задаёт класс .sync-badge.<cls>), спиннер
@@ -133,7 +135,7 @@ export default function App() {
   const [tab, setTab] = useState(() => {
     const saved = sessionStorage.getItem(TAB_KEY)
     return saved && saved !== 'workout' ? saved : 'home'
-  }) // 'home' | 'history' | 'feed' | 'progress' | 'notif' | 'profile' | 'admin' | 'freshness' | 'myex'
+  }) // 'home' | 'history' | 'feed' | 'progress' | 'notif' | 'profile' | 'admin' | 'freshness' | 'myex' | 'achievements'
 
   // Упражнение, с которым открыть «Прогресс» (проброс из ЛК по тапу на рекорд).
   const [progressExId, setProgressExId] = useState(null)
@@ -330,6 +332,7 @@ export default function App() {
                 onRenamed={handleRenamed}
                 onOpenAdmin={() => goTab('admin')}
                 onOpenMyExercises={() => goTab('myex')}
+                onOpenAchievements={() => goTab('achievements')}
               />
             )}
             {tab === 'admin' && user.role === 'admin' && (
@@ -340,6 +343,9 @@ export default function App() {
             )}
             {tab === 'myex' && (
               <MyExercisesScreen user={user} onBack={() => goTab('profile')} />
+            )}
+            {tab === 'achievements' && (
+              <AchievementsScreen user={user} onBack={() => goTab('profile')} />
             )}
           </div>
         </Suspense>
