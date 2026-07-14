@@ -7,7 +7,7 @@ import { openUserDb, closeUserDb, db } from './local.js'
 import { uniqueUserId } from '../test/idbHarness.js'
 import {
   saveWorkout, deleteWorkout, softDeleteMyWorkouts, getWorkout, getWorkouts,
-  createExercise, getExercises, pendingCount, deadLetterCount,
+  createExercise, updateExercise, getCustomExercises, getExercises, pendingCount, deadLetterCount,
   retryDeadLetter, discardDeadLetter, getLastSetsForExercise, toggleReaction,
 } from './repo.js'
 
@@ -165,6 +165,64 @@ describe('createExercise', () => {
     await db.exercises.update(ex.id, { is_hidden: true })
     const ids = (await getExercises()).map((e) => e.id)
     expect(ids).not.toContain(ex.id)
+  })
+})
+
+describe('updateExercise', () => {
+  it('меняет поля своего упражнения и ставит ре-upsert в ex_outbox', async () => {
+    const ex = await createExercise({ name: 'Тяга блока', muscle_group: 'спина', metric: 'weight' })
+    // очистим отметку create-op, чтобы проверить именно операцию правки
+    await db.ex_outbox.clear()
+    const res = await updateExercise({ id: ex.id, name: 'Тяга верхнего блока', muscle_group: 'спина', metric: 'weight' })
+    expect(res.name).toBe('Тяга верхнего блока')
+    const stored = await db.exercises.get(ex.id)
+    expect(stored.name).toBe('Тяга верхнего блока')
+    expect(stored._dirty).toBe(1)
+    expect(await db.ex_outbox.where('exerciseId').equals(ex.id).count()).toBe(1)
+  })
+
+  it('смена типа метрики (weight → reps) сохраняется', async () => {
+    const ex = await createExercise({ name: 'Планка', muscle_group: 'пресс', metric: 'weight' })
+    await updateExercise({ id: ex.id, name: 'Планка', muscle_group: 'пресс', metric: 'time' })
+    expect((await db.exercises.get(ex.id)).metric).toBe('time')
+  })
+
+  it('не плодит второй ре-upsert при повторной правке (одна операция на упражнение)', async () => {
+    const ex = await createExercise({ name: 'Сгибания', muscle_group: 'бицепс' })
+    await db.ex_outbox.clear()
+    await updateExercise({ id: ex.id, name: 'Сгибания рук', muscle_group: 'бицепс' })
+    await updateExercise({ id: ex.id, name: 'Сгибания рук стоя', muscle_group: 'бицепс' })
+    expect(await db.ex_outbox.where('exerciseId').equals(ex.id).count()).toBe(1)
+  })
+
+  it('отклоняет правку не-своего (не is_custom) упражнения', async () => {
+    await db.exercises.put({ id: 'ex_seed', name: 'Приседания', muscle_group: 'ноги', metric: 'weight', is_custom: false })
+    await expect(
+      updateExercise({ id: 'ex_seed', name: 'Присед', muscle_group: 'ноги', metric: 'weight' })
+    ).rejects.toThrow()
+  })
+
+  it('отклоняет переименование в уже существующее (дубль) имя', async () => {
+    const a = await createExercise({ name: 'Жим гантелей', muscle_group: 'грудь' })
+    const b = await createExercise({ name: 'Разводка', muscle_group: 'грудь' })
+    await expect(
+      updateExercise({ id: b.id, name: '  жим  гантелей ', muscle_group: 'грудь' })
+    ).rejects.toThrow()
+    // само упражнение можно сохранить с тем же именем (себя не считаем дублем)
+    await expect(
+      updateExercise({ id: a.id, name: 'Жим гантелей', muscle_group: 'спина' })
+    ).resolves.toBeTruthy()
+  })
+
+  it('getCustomExercises отдаёт только свои и без скрытых', async () => {
+    const mine = await createExercise({ name: 'Своё-1', muscle_group: 'плечи' })
+    await db.exercises.put({ id: 'ex_seed2', name: 'Сидовое', muscle_group: 'ноги', is_custom: false })
+    const hidden = await createExercise({ name: 'Своё-скрытое', muscle_group: 'плечи' })
+    await db.exercises.update(hidden.id, { is_hidden: true })
+    const ids = (await getCustomExercises()).map((e) => e.id)
+    expect(ids).toContain(mine.id)
+    expect(ids).not.toContain('ex_seed2')
+    expect(ids).not.toContain(hidden.id)
   })
 })
 

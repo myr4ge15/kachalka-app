@@ -30,6 +30,7 @@ const load = {
   profile: () => import('./screens/ProfileScreen.jsx'),
   admin: () => import('./screens/AdminScreen.jsx'),
   freshness: () => import('./screens/FreshnessScreen.jsx'),
+  myex: () => import('./screens/MyExercisesScreen.jsx'),
 }
 const HomeScreen = lazy(load.home)
 const HistoryScreen = lazy(load.history)
@@ -39,6 +40,7 @@ const NotificationsScreen = lazy(load.notif)
 const ProfileScreen = lazy(load.profile)
 const AdminScreen = lazy(load.admin)
 const FreshnessScreen = lazy(load.freshness)
+const MyExercisesScreen = lazy(load.myex)
 
 // Иконка состояния синхронизации — инлайн-SVG (без зависимостей), как TabIcon.
 // Красится через currentColor (цвет задаёт класс .sync-badge.<cls>), спиннер
@@ -131,7 +133,7 @@ export default function App() {
   const [tab, setTab] = useState(() => {
     const saved = sessionStorage.getItem(TAB_KEY)
     return saved && saved !== 'workout' ? saved : 'home'
-  }) // 'home' | 'history' | 'feed' | 'progress' | 'notif' | 'profile' | 'admin' | 'freshness'
+  }) // 'home' | 'history' | 'feed' | 'progress' | 'notif' | 'profile' | 'admin' | 'freshness' | 'myex'
 
   // Упражнение, с которым открыть «Прогресс» (проброс из ЛК по тапу на рекорд).
   const [progressExId, setProgressExId] = useState(null)
@@ -177,7 +179,7 @@ export default function App() {
   // (браузер отдаёт из кэша). Ошибки глотаем: префетч — оптимизация, не критичен.
   useEffect(() => {
     if (!user?.id) return
-    const imports = [load.history, load.feed, load.progress, load.freshness, load.notif, load.profile]
+    const imports = [load.history, load.feed, load.progress, load.freshness, load.notif, load.profile, load.myex]
     if (user.role === 'admin') imports.push(load.admin)
     const prefetch = () => { for (const imp of imports) imp().catch(() => {}) }
     const ric = window.requestIdleCallback
@@ -327,6 +329,7 @@ export default function App() {
                 onOpenFeed={() => goTab('feed')}
                 onRenamed={handleRenamed}
                 onOpenAdmin={() => goTab('admin')}
+                onOpenMyExercises={() => goTab('myex')}
               />
             )}
             {tab === 'admin' && user.role === 'admin' && (
@@ -334,6 +337,9 @@ export default function App() {
             )}
             {tab === 'freshness' && (
               <FreshnessScreen user={user} onBack={() => goTab('home')} />
+            )}
+            {tab === 'myex' && (
+              <MyExercisesScreen user={user} onBack={() => goTab('profile')} />
             )}
           </div>
         </Suspense>

@@ -25,7 +25,7 @@ import CardsSkeleton from '../components/CardsSkeleton.jsx'
 // уходит на сервер при сохранении, чтобы достижение увидел Telegram-бот.
 //
 // Пропсы: user, onLogout, onOpenProgress(exerciseId), onOpenFeed().
-export default function ProfileScreen({ user, onLogout, onOpenProgress, onOpenFeed, onRenamed, onOpenAdmin }) {
+export default function ProfileScreen({ user, onLogout, onOpenProgress, onOpenFeed, onRenamed, onOpenAdmin, onOpenMyExercises }) {
   const workouts = useLiveQuery(() => getWorkouts(user.id), [user.id])
   const goals = useLiveQuery(() => readGoals(user.id), [user.id])
   const myCached = useLiveQuery(() => getCachedUser(user.id), [user.id])
@@ -745,6 +745,7 @@ export default function ProfileScreen({ user, onLogout, onOpenProgress, onOpenFe
           ) : (
             <button className="act" onClick={() => setPinOpen(true)}>🔑 Сменить PIN</button>
           )}
+          <button className="act" onClick={() => onOpenMyExercises?.()}>🏋 Мои упражнения</button>
           {user.role === 'admin' && (
             <button className="act" onClick={() => onOpenAdmin?.()}>🛠 Админка</button>
           )}

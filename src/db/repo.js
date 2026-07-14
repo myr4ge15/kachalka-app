@@ -123,6 +123,68 @@ export async function createExercise({ name, muscle_group, metric, submuscle, se
   return { id, name: clean, muscle_group: group, submuscle: sub, secondary: sec, is_bench_lift: false, metric: mtr, is_custom: true }
 }
 
+// Свои (is_custom) упражнения — для экрана «Мои упражнения». Только те, что
+// добавили пользователи (не сидовый справочник), без скрытых админкой. Сортировка
+// как в пикере (группа, затем имя), чтобы список был предсказуем.
+export async function getCustomExercises() {
+  const list = await db.exercises.toArray()
+  return list
+    .filter((e) => e.is_custom && !e.is_hidden)
+    .sort(
+      (a, b) =>
+        String(a.muscle_group ?? '').localeCompare(String(b.muscle_group ?? '')) ||
+        String(a.name ?? '').localeCompare(String(b.name ?? ''))
+    )
+}
+
+// Отредактировать СВОЁ (is_custom) упражнение: название/группа/подмышцы/тип
+// метрики. Офлайн-first, тем же путём, что и создание — правим локальный кэш
+// (мгновенный UI) и ставим ре-upsert в `ex_outbox`. Серверный upsert идемпотентен
+// по id, а RLS на `exercises` разрешает update любому участнику (закрытый круг),
+// поэтому отдельной серверной части не нужно. Денормализованные снимки упражнения
+// в истории тренировок починятся на следующем pull (как при правке из админки).
+//
+// Только для is_custom: сидовый справочник правит админ (lib/admin.js). Анти-дубль
+// по имени — как в createExercise, но СЕБЯ из проверки исключаем.
+export async function updateExercise({ id, name, muscle_group, metric, submuscle, secondary }) {
+  const ex = await db.exercises.get(id)
+  if (!ex) throw new Error('Упражнение не найдено.')
+  if (!ex.is_custom) throw new Error('Редактировать можно только свои упражнения.')
+
+  const clean = String(name ?? '').trim()
+  if (!clean) throw new Error('Введите название упражнения.')
+
+  const key = normalizeName(clean)
+  const all = await db.exercises.toArray()
+  if (all.some((e) => e.id !== id && normalizeName(e.name) === key)) {
+    throw new Error('Упражнение с таким названием уже есть.')
+  }
+
+  const group = muscle_group ? String(muscle_group).trim() : null
+  const mtr = normMetric(metric)
+  const sub = submuscle ? String(submuscle).trim() : defaultSubmuscleFor(group)
+  const sec = cleanSecondary(secondary, sub)
+
+  await db.transaction('rw', db.exercises, db.ex_outbox, async () => {
+    await db.exercises.put({
+      ...ex,
+      name: clean,
+      muscle_group: group,
+      submuscle: sub,
+      secondary: sec,
+      metric: mtr,
+      is_custom: true,
+      _dirty: 1,
+    })
+    // Одной ожидающей операции на упражнение достаточно — push перечитывает строку
+    // и отправляет актуальные поля (не плодим второй ре-upsert при частых правках).
+    const pending = await db.ex_outbox.where('exerciseId').equals(id).count()
+    if (pending === 0) await db.ex_outbox.add({ exerciseId: id, createdAt: nowIso(), attempts: 0 })
+  })
+
+  return { id, name: clean, muscle_group: group, submuscle: sub, secondary: sec, is_bench_lift: Boolean(ex.is_bench_lift), metric: mtr, is_custom: true }
+}
+
 // Пользователи (имена для пикера входа). Только {id,name,...} из login_users —
 // pin_hash/pin_salt тут больше не хранятся (офлайн-сверка PIN идёт по
 // отдельному кэшу своего хэша в meta, см. src/lib/auth.js). Ростер — ОБЩИЙ для
