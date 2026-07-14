@@ -17,6 +17,7 @@ import { computeReactionNotifs } from '../lib/reactions.js'
 import { buildInsights } from '../lib/insights.js'
 import { getCachedLeaderboard } from './leaderboard.js'
 import { normMetric } from '../lib/metric.js'
+import { unreadCount } from '../lib/notifFilter.js'
 
 // Метка «прочитано» неймспейснута по userId — иначе на общем устройстве второй
 // вошедший наследует «прочитано» первого (notif_seen_at был глобальным). Старый
@@ -112,10 +113,11 @@ export async function getSeenAt(userId) {
   return (await getMeta(seenKey(userId))) ?? ''
 }
 
-// Число непрочитанных (событие новее метки просмотра).
+// Число непрочитанных (событие новее метки просмотра). Счётчик — чистый
+// unreadCount (lib/notifFilter), db-слой лишь строит список и метку.
 export async function countUnread(userId) {
   const [seen, list] = await Promise.all([getSeenAt(userId), getNotifications(userId)])
-  return list.filter((n) => cmpIsoAsc(seen, n.at) < 0).length
+  return unreadCount(list, seen)
 }
 
 // Двигаем метку на время самого свежего уведомления (всё прочитано).

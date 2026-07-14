@@ -11,6 +11,7 @@
 // «прочитано» (единый водяной знак) не трогаем: чипы прячут лишнее из рендера,
 // но unread/markAllSeen считаются по ПОЛНОМУ списку.
 // ============================================================================
+import { cmpIsoAsc } from './cmp.js'
 
 // Порядок = порядок чипов слева направо. 'all' всегда первым.
 export const NOTIF_CATEGORIES = [
@@ -51,4 +52,13 @@ export function filterNotifs(list, category) {
 export function activeCategories(list) {
   const present = new Set((list ?? []).map((n) => notifCategory(n.type)))
   return NOTIF_CATEGORIES.filter((c) => c.key === 'all' || present.has(c.key))
+}
+
+// Число непрочитанных = событий строго новее водяного знака «прочитано» (seen).
+// Чистый счётчик над готовым списком: db-слой (notifications.countUnread) строит
+// список и делегирует сюда — так логика счётчика тестируема без Dexie. Пустой
+// seen (ещё не открывали) < любой даты → все события непрочитаны.
+export function unreadCount(list, seen) {
+  const s = seen ?? ''
+  return (list ?? []).filter((n) => cmpIsoAsc(s, n.at) < 0).length
 }

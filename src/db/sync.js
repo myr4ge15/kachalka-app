@@ -371,46 +371,46 @@ async function pull(userId, justPushed = new Set(), d = db) {
   const tplSig = tplProbe.error ? null : rosterSignature(tplProbe.data ?? [])
   const tplChanged = tplProbe.error ? true : tplSig !== (await getMeta(SIG_TEMPLATES, d))
   if (tplChanged) {
-  // Не затираем локальные несинхронизированные изменения.
-  const tpl = await withTimeout(
-    supabase
-      .from('workout_templates')
-      .select(SELECT_TEMPLATE)
-      .or(`user_id.eq.${userId},is_public.eq.true`)
-  )
-  if (tpl.error) warnings.push('шаблоны: ' + (tpl.error.message ?? tpl.error))
-  else if (tpl.data) {
-    const tplIds = new Set(tpl.data.map((r) => r.id))
-    await d.transaction('rw', d.templates, d.tpl_outbox, async () => {
-      // Окно реконсиляции = «мои ∪ общие» (совпадает с выборкой выше). Перебираем
-      // ВСЕ локальные шаблоны: чистую запись, входившую в окно, но пропавшую из
-      // свежей выборки, удаляем — так уходит чужой общий, который автор сделал
-      // приватным. Тумбстоны и _dirty с ЖИВОЙ операцией в очереди защищаем; _dirty
-      // без живой операции (очередь умерла в dead-letter/пуста) НЕ защищаем — её
-      // флаг иначе не снять, отдаём приоритет серверу и гасим «вечный» кружок.
-      const locals = await d.templates.toArray()
-      const ops = await d.tpl_outbox.toArray()
-      const protectedIds = protectedFromPull(locals, ops)
-      const dirtyIds = new Set(locals.filter((t) => t._dirty).map((t) => t.id))
-      for (const row of tpl.data) {
-        if (protectedIds.has(row.id)) continue
-        await d.templates.put(templateRowToDoc(row))
-        // Приняли серверную версию ранее «грязной» записи → выкидываем её
-        // осиротевшие/мёртвые операции, чтобы очередь не копила мусор.
-        if (dirtyIds.has(row.id)) {
-          for (const o of ops) if (o.templateId === row.id) await d.tpl_outbox.delete(o.seq)
+    // Не затираем локальные несинхронизированные изменения.
+    const tpl = await withTimeout(
+      supabase
+        .from('workout_templates')
+        .select(SELECT_TEMPLATE)
+        .or(`user_id.eq.${userId},is_public.eq.true`)
+    )
+    if (tpl.error) warnings.push('шаблоны: ' + (tpl.error.message ?? tpl.error))
+    else if (tpl.data) {
+      const tplIds = new Set(tpl.data.map((r) => r.id))
+      await d.transaction('rw', d.templates, d.tpl_outbox, async () => {
+        // Окно реконсиляции = «мои ∪ общие» (совпадает с выборкой выше). Перебираем
+        // ВСЕ локальные шаблоны: чистую запись, входившую в окно, но пропавшую из
+        // свежей выборки, удаляем — так уходит чужой общий, который автор сделал
+        // приватным. Тумбстоны и _dirty с ЖИВОЙ операцией в очереди защищаем; _dirty
+        // без живой операции (очередь умерла в dead-letter/пуста) НЕ защищаем — её
+        // флаг иначе не снять, отдаём приоритет серверу и гасим «вечный» кружок.
+        const locals = await d.templates.toArray()
+        const ops = await d.tpl_outbox.toArray()
+        const protectedIds = protectedFromPull(locals, ops)
+        const dirtyIds = new Set(locals.filter((t) => t._dirty).map((t) => t.id))
+        for (const row of tpl.data) {
+          if (protectedIds.has(row.id)) continue
+          await d.templates.put(templateRowToDoc(row))
+          // Приняли серверную версию ранее «грязной» записи → выкидываем её
+          // осиротевшие/мёртвые операции, чтобы очередь не копила мусор.
+          if (dirtyIds.has(row.id)) {
+            for (const o of ops) if (o.templateId === row.id) await d.tpl_outbox.delete(o.seq)
+          }
         }
-      }
-      for (const t of locals) {
-        if (tplIds.has(t.id) || t._dirty || t._deleted) continue
-        // входила ли запись в окно выборки (моя или публичная)?
-        const inWindow = t.user_id === userId || t.is_public
-        if (!inWindow) continue
-        await d.templates.delete(t.id)
-      }
-    })
+        for (const t of locals) {
+          if (tplIds.has(t.id) || t._dirty || t._deleted) continue
+          // входила ли запись в окно выборки (моя или публичная)?
+          const inWindow = t.user_id === userId || t.is_public
+          if (!inWindow) continue
+          await d.templates.delete(t.id)
+        }
+      })
       if (tplSig !== null) await setMeta(SIG_TEMPLATES, tplSig, d)
-  }
+    }
   }
 
   return warnings

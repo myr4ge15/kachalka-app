@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest'
-import { NOTIF_CATEGORIES, notifCategory, filterNotifs, activeCategories } from './notifFilter.js'
+import { NOTIF_CATEGORIES, notifCategory, filterNotifs, activeCategories, unreadCount } from './notifFilter.js'
 
 const n = (type, at = '2026-07-10') => ({ type, at, id: `${type}:${at}` })
 
@@ -50,5 +50,27 @@ describe('activeCategories', () => {
   it('полный набор → все чипы в каноничном порядке', () => {
     const cats = activeCategories([n('mine'), n('beaten'), n('reaction'), n('insight')])
     expect(cats.map((c) => c.key)).toEqual(NOTIF_CATEGORIES.map((c) => c.key))
+  })
+})
+
+describe('unreadCount', () => {
+  const list = [n('mine', '2026-07-08'), n('beaten', '2026-07-10'), n('goal', '2026-07-12')]
+  it('считает события строго новее метки seen', () => {
+    expect(unreadCount(list, '2026-07-09')).toBe(2) // 10 и 12
+    expect(unreadCount(list, '2026-07-10')).toBe(1) // строго новее → только 12
+    expect(unreadCount(list, '2026-07-12')).toBe(0)
+  })
+  it('пустой seen (ещё не открывали) → все непрочитаны', () => {
+    expect(unreadCount(list, '')).toBe(3)
+    expect(unreadCount(list, null)).toBe(3)
+    expect(unreadCount(list, undefined)).toBe(3)
+  })
+  it('пустой/undefined список → 0', () => {
+    expect(unreadCount([], '2026-07-01')).toBe(0)
+    expect(unreadCount(null, '2026-07-01')).toBe(0)
+    expect(unreadCount(undefined, '')).toBe(0)
+  })
+  it('метка свежее всех событий → 0', () => {
+    expect(unreadCount(list, '2026-07-31')).toBe(0)
   })
 })

@@ -745,7 +745,9 @@ export default function ProfileScreen({ user, onLogout, onOpenProgress, onOpenFe
           ) : (
             <button className="act" onClick={() => setPinOpen(true)}>🔑 Сменить PIN</button>
           )}
-          <button className="act" onClick={() => onOpenMyExercises?.()}>🏋 Мои упражнения</button>
+          {user.role !== 'admin' && (
+            <button className="act" onClick={() => onOpenMyExercises?.()}>🏋 Мои упражнения</button>
+          )}
           {user.role === 'admin' && (
             <button className="act" onClick={() => onOpenAdmin?.()}>🛠 Админка</button>
           )}
