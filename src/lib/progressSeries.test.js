@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest'
-import { collectExercises, buildSeries } from './progressSeries.js'
+import { collectExercises, buildSeries, seriesValueSpread } from './progressSeries.js'
 
 const wk = (day, entries) => ({ performed_at: day, entries })
 const ex = (id, name, extra = {}) => ({ id, name, ...extra })
@@ -111,5 +111,19 @@ describe('buildSeries', () => {
   it('пустой/undefined вход → пустой ряд', () => {
     expect(buildSeries(undefined, 'a', true)).toEqual([])
     expect(buildSeries([], 'a', true)).toEqual([])
+  })
+})
+
+describe('seriesValueSpread', () => {
+  it('размах = max − min по value', () => {
+    expect(seriesValueSpread([{ value: 80 }, { value: 100 }, { value: 90 }])).toBe(20)
+  })
+  it('все значения равны (горизонтальная линия) → 0', () => {
+    expect(seriesValueSpread([{ value: 50 }, { value: 50 }])).toBe(0)
+  })
+  it('меньше двух точек → 0', () => {
+    expect(seriesValueSpread([{ value: 50 }])).toBe(0)
+    expect(seriesValueSpread([])).toBe(0)
+    expect(seriesValueSpread(undefined)).toBe(0)
   })
 })

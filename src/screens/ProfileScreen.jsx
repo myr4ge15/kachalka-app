@@ -773,8 +773,19 @@ export default function ProfileScreen({ user, onLogout, onOpenProgress, onOpenFe
         </div>
       </section>
 
-      {/* версия приложения — подставляется на сборке из package.json (vite define) */}
-      <p className="app-version">kachalka-app · v{APP_VERSION}</p>
+      {/* версия приложения — подставляется на сборке из package.json (vite define).
+          Название — ссылка на репозиторий проекта (открывается в новой вкладке). */}
+      <p className="app-version">
+        <a
+          className="repo-link"
+          href="https://github.com/myr4ge15/kachalka-app"
+          target="_blank"
+          rel="noopener noreferrer"
+        >
+          kachalka-app
+        </a>
+        {' · '}v{APP_VERSION}
+      </p>
     </div>
   )
 }

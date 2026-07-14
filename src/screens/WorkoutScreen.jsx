@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react'
 import { useLiveQuery } from 'dexie-react-hooks'
-import { getExercises, getWorkout, saveWorkout, createExercise, deleteWorkout as repoDelete, getRecentSessionsForExercise, getProgSettings, setProgForExercise } from '../db/repo.js'
+import { getExercises, getWorkout, saveWorkout, createExercise, deleteWorkout as repoDelete, getRecentSessionsForExercise, getProgSettings, setProgForExercise, saveTemplate } from '../db/repo.js'
 import { detectNewPrsOnSave, detectGoalReachedOnSave } from '../db/notifications.js'
 import { detectInsightsOnSave } from '../db/insights.js'
 import { syncNow } from '../db/sync.js'
@@ -10,6 +10,7 @@ import { exerciseMetric, isCountMetric, fmtMetricValue, fmtSet, fmtTime, parseTi
 import { recommendProgression, resolveProgSettings } from '../lib/progression.js'
 import { WEIGHT_MAX, repsMax } from '../lib/setLimits.js'
 import { exportWorkouts } from '../lib/exportWorkout.js'
+import { templateExercisesFromWorkout, defaultTemplateName } from '../lib/templateFromWorkout.js'
 import { plural } from '../lib/plural.js'
 import { vibrate, HAPTIC } from '../lib/haptics.js'
 import CardsSkeleton from '../components/CardsSkeleton.jsx'
@@ -183,6 +184,10 @@ export default function WorkoutScreen({ user, workoutId = null, onBack }) {
   const [message, setMessage] = useState(null) // {type, text}
   const [delArm, setDelArm] = useState(false)   // in-app подтверждение удаления (как везде)
   const [clearArm, setClearArm] = useState(false) // подтверждение отказа от черновика новой
+  // «Сделать шаблон из тренировки»: раскрытая форма с именем + занятость.
+  const [tplArm, setTplArm] = useState(false)
+  const [tplName, setTplName] = useState('')
+  const [tplBusy, setTplBusy] = useState(false)
 
   // Сохраняем черновик новой тренировки при каждом изменении состава.
   useEffect(() => {
@@ -556,6 +561,34 @@ export default function WorkoutScreen({ user, workoutId = null, onBack }) {
     )
   }
 
+  // Раскрыть форму «Сделать шаблон из тренировки» с предзаполненным именем.
+  function openTplArm() {
+    setTplName(defaultTemplateName(performedAt))
+    setMessage(null)
+    setTplArm(true)
+  }
+
+  // Создать шаблон из текущего состава тренировки: план (подходы × повторы × вес)
+  // берём по лучшему подходу каждого упражнения (см. lib/templateFromWorkout.js).
+  // Приватный шаблон (is_public:false) — как «Новый шаблон» в разделе «Шаблоны».
+  async function makeTemplate() {
+    setTplBusy(true)
+    setMessage(null)
+    try {
+      const exercises = templateExercisesFromWorkout(entries)
+      if (exercises.length === 0) throw new Error('В тренировке нет упражнений с подходами.')
+      await saveTemplate({ user_id: user.id, name: tplName, exercises, is_public: false })
+      setTplArm(false)
+      if (navigator.onLine) syncNow(user.id)
+      vibrate(HAPTIC.success)
+      showToast({ emoji: '📋', title: 'Шаблон создан', sub: tplName.trim() })
+    } catch (err) {
+      setMessage({ type: 'error', text: 'Не удалось создать шаблон: ' + (err?.message ?? err) })
+    } finally {
+      setTplBusy(false)
+    }
+  }
+
   // Удаление тренировки. Подтверждение — in-app arm/confirm (как «удалить мои
   // данные»/dead-letter), а не нативный window.confirm — единый паттерн по всему
   // приложению.
@@ -785,6 +818,33 @@ export default function WorkoutScreen({ user, workoutId = null, onBack }) {
             <button className="link-btn full-link" disabled={saving} onClick={exportOne}>
               ⬇ Экспорт в JSON
             </button>
+          )}
+
+          {!isNew && (
+            tplArm ? (
+              <div className="tpl-from-wk">
+                <label className="tpl-name-field">
+                  <span className="muted">Название шаблона</span>
+                  <input
+                    className="search"
+                    value={tplName}
+                    onChange={(e) => setTplName(e.target.value)}
+                    placeholder="Название шаблона"
+                    autoFocus
+                  />
+                </label>
+                <div className="danger-actions">
+                  <button className="btn ghost" onClick={() => setTplArm(false)} disabled={tplBusy}>Отмена</button>
+                  <button className="btn primary" onClick={makeTemplate} disabled={tplBusy || !tplName.trim()}>
+                    {tplBusy ? 'Создаю…' : 'Создать шаблон'}
+                  </button>
+                </div>
+              </div>
+            ) : (
+              <button className="link-btn full-link" disabled={saving} onClick={openTplArm}>
+                📋 Сделать шаблон из тренировки
+              </button>
+            )
           )}
 
           {!isNew && (

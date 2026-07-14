@@ -1,6 +1,6 @@
 import { useLiveQuery } from 'dexie-react-hooks'
 import { getHomeSummary, getInsights, getFreshness } from '../db/insights.js'
-import { fmtDaysAgo } from '../lib/homeSummary.js'
+import { fmtDaysAgo, fmtDays } from '../lib/homeSummary.js'
 import { fmtTonnage, goalProgress } from '../lib/profileStats.js'
 import { fmtMetricValue } from '../lib/metric.js'
 import { tagSlug, groupAccusative, GROUP_ORDER } from '../lib/dayTags.js'
@@ -141,7 +141,7 @@ export default function HomeScreen({ user, onNavigate, onOpenProgress }) {
                 <span className="em" aria-hidden="true">🎯</span>
                 <div className="fr-lead-body">
                   <div className="v">Пора проработать {groupAccusative(lead.group)}</div>
-                  <div className="k">не тренировал {fmtDaysAgo(lead.daysSince)}</div>
+                  <div className="k">не тренировал уже {fmtDays(lead.daysSince)}</div>
                 </div>
               </div>
             ) : (

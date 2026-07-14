@@ -87,3 +87,21 @@ export function buildSeries(workouts, exerciseId, weighted) {
   }
   return series
 }
+
+// Размах значений ряда (max − min). Нужен графику: линию красим SVG-градиентом в
+// координатах objectBoundingBox, а у полностью ГОРИЗОНТАЛЬНОЙ линии (все значения
+// равны — напр. два раза один вес) высота bbox = 0 → браузер не рисует такой
+// градиентный штрих, и линия «пропадает» (остаются только точки). При нулевом
+// размахе экран берёт сплошной цвет вместо градиента. Пустой/одноточечный ряд → 0.
+export function seriesValueSpread(series) {
+  const arr = series ?? []
+  if (arr.length < 2) return 0
+  let mn = Infinity
+  let mx = -Infinity
+  for (const p of arr) {
+    const v = Number(p?.value) || 0
+    if (v < mn) mn = v
+    if (v > mx) mx = v
+  }
+  return mx - mn
+}

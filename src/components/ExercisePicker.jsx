@@ -125,6 +125,10 @@ export default function ExercisePicker({ exercises, onPick, onClose, onCreate, t
             <button className="link-btn" onClick={() => setCreating(false)}>назад</button>
           </div>
 
+          {/* Форма длиннее экрана (тип + группа + под/вторичные мышцы) — держим её
+              в прокручиваемом контейнере, иначе на телефоне низ формы (и кнопка
+              «Сохранить») недостижим: сам .sheet зафиксирован по высоте экрана. */}
+          <div className="sheet-scroll">
           <input
             className="search"
             placeholder="Название упражнения"
@@ -231,6 +235,7 @@ export default function ExercisePicker({ exercises, onPick, onClose, onCreate, t
           >
             {busy ? 'Сохранение…' : 'Сохранить и добавить'}
           </button>
+          </div>
         </div>
       </div>,
       document.body

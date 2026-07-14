@@ -4,7 +4,7 @@ import { getCachedFeed, fetchFeed } from '../db/feed.js'
 import { getUsers, toggleReaction } from '../db/repo.js'
 import { getMeta } from '../db/local.js'
 import { syncNow } from '../db/sync.js'
-import { onOnline, onResume } from '../lib/appEvents.js'
+import { onOnline, onResume, onReselect } from '../lib/appEvents.js'
 import { fmtWhen, fmtAgo } from '../lib/dates.js'
 import { fmtMetricValue, fmtSet } from '../lib/metric.js'
 import { summarizeReactions, reactorLine } from '../lib/reactions.js'
@@ -89,7 +89,9 @@ export default function FeedScreen({ user }) {
     refresh()
     const off1 = onResume(refresh)
     const off2 = onOnline(refresh)
-    return () => { off1(); off2() }
+    // Повторный тап по вкладке «Лента» → обновляем (как pull-to-refresh, но тапом).
+    const off3 = onReselect((t) => { if (t === 'feed') refresh() })
+    return () => { off1(); off2(); off3() }
   }, [refresh])
 
   // Pull-to-refresh: жест «потянуть вниз» у самого верха Ленты → тот же refresh.

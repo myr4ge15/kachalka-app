@@ -5,7 +5,7 @@ import {
 import { useLiveQuery } from 'dexie-react-hooks'
 import { getWorkouts } from '../db/repo.js'
 import { fmtSet as fmtSetMetric, fmtTime } from '../lib/metric.js'
-import { collectExercises, buildSeries } from '../lib/progressSeries.js'
+import { collectExercises, buildSeries, seriesValueSpread } from '../lib/progressSeries.js'
 import CardsSkeleton from '../components/CardsSkeleton.jsx'
 
 function fmtDate(iso) {
@@ -143,7 +143,10 @@ export default function ProgressScreen({ user, initialExerciseId = null }) {
     }
     return out
   }, [data, c])
-  const lineStroke = data.length >= 2 ? `url(#${gradId})` : c.line
+  // Градиент рисуем только когда линия НЕ строго горизонтальна: при нулевом
+  // размахе значений (все точки на одной высоте) bbox градиента вырождается и
+  // штрих не отрисовывается — берём сплошной цвет, чтобы линия была видна.
+  const lineStroke = data.length >= 2 && seriesValueSpread(data) > 0 ? `url(#${gradId})` : c.line
 
   return (
     <div className="screen prog-screen">

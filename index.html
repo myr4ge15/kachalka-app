@@ -14,10 +14,14 @@
     <meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline'; img-src 'self' data: blob: https://*.supabase.co; font-src 'self' data:; connect-src 'self' https://*.supabase.co wss://*.supabase.co; worker-src 'self'; manifest-src 'self'; object-src 'none'; base-uri 'self'" />
     <link rel="icon" type="image/svg+xml" href="./favicon.svg" />
     <link rel="apple-touch-icon" href="./apple-touch-icon.png" />
-    <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
+    <!-- user-scalable=no + maximum-scale=1: PWA-приложение, а не страница — двойной
+         тап/пинч-зум только ломают вёрстку и мешают быстрым тапам в зале. -->
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover" />
     <meta name="theme-color" content="#16a34a" />
-    <!-- iOS: подпись иконки на домашнем экране (иначе берётся short_name манифеста) -->
-    <meta name="mobile-web-app-capable" content="yes">
+    <!-- standalone-режим PWA: mobile-web-app-capable (стандарт) + apple-* (iOS Safari
+         его до сих пор требует, иначе приложение открывается в обычной вкладке). -->
+    <meta name="mobile-web-app-capable" content="yes" />
+    <meta name="apple-mobile-web-app-capable" content="yes" />
     <meta name="apple-mobile-web-app-title" content="kachalka-app" />
     <title>Журнал тренировок</title>
   </head>

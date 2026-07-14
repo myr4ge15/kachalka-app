@@ -486,6 +486,12 @@ input { font-family: inherit; }
   flex: 1; min-height: 0; overflow-y: auto; display: flex; flex-direction: column;
   border-top: 1px solid var(--border); margin-top: 4px;
 }
+/* Прокручиваемое тело формы «Своё упражнение»: шапка листа зафиксирована,
+   а длинный набор полей (тип/группа/мышцы + кнопка) скроллится внутри. */
+.sheet-scroll {
+  flex: 1; min-height: 0; overflow-y: auto;
+  -webkit-overflow-scrolling: touch;
+}
 .picker-item {
   display: flex; justify-content: space-between; align-items: center;
   padding: 14px 8px; background: none; border: none; border-bottom: 1px solid var(--border);
@@ -1232,6 +1238,13 @@ img.avatar-lg.has-img {
 .danger-actions { display: flex; gap: 10px; }
 .danger-actions .btn { flex: 1; margin-top: 0; }
 .btn.danger { background: var(--red); color: #fff; }
+
+/* Форма «Сделать шаблон из тренировки» — нейтральная (не «опасная») коробка. */
+.tpl-from-wk {
+  background: var(--surface); border: 1px solid var(--border); border-radius: 13px;
+  padding: 14px; display: flex; flex-direction: column; gap: 12px; margin-top: 10px;
+}
+.tpl-name-field { display: flex; flex-direction: column; gap: 6px; font-size: 13px; }
 .btn.danger:disabled { background: var(--surface-2); color: var(--muted); }
 
 /* редактор аватара в шапке профиля (ЛК 2c) */
@@ -1247,6 +1260,9 @@ img.avatar-lg.has-img {
 .app-version {
   margin: 18px 0 4px; text-align: center;
   color: var(--muted); font-size: 12px; opacity: .7;
+}
+.repo-link {
+  color: inherit; text-decoration: underline; text-underline-offset: 2px;
 }
 
 /* ---------- адаптив узких экранов (≤380px) ---------- */
@@ -1750,23 +1766,3 @@ img.avatar-lg.has-img {
 .fr-sw.fr-never   { background: #64748b; }
 
 .fr-row.hl { border-color: #e2e8f0; }
-
-/* Плавное появление скелетона, чтобы не было резкого "мигания" */
-.skeleton-wrapper, 
-.skeleton-root,
-div[role="progressbar"] { 
-  /* Добавляем универсальные селекторы, подстройте под ваш класс скелетона */
-  animation: smoothSkeletonAppear 0.4s ease-out forwards;
-  opacity: 0;
-}
-
-@keyframes smoothSkeletonAppear {
-  0% { 
-    opacity: 0; 
-    transform: translateY(4px); 
-  }
-  100% { 
-    opacity: 1; 
-    transform: translateY(0); 
-  }
-}

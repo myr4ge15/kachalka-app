@@ -8,6 +8,7 @@ import { getCachedUser } from './db/repo.js'
 import { openUserDb, closeUserDb } from './db/local.js'
 import { syncBadgeState } from './lib/syncStatus.js'
 import { readStoredUserId, hydrateProfile } from './lib/sessionProfile.js'
+import { emitReselect } from './lib/appEvents.js'
 import LoginScreen from './screens/LoginScreen.jsx'
 import Toast from './components/Toast.jsx'
 import Avatar from './components/Avatar.jsx'
@@ -194,6 +195,9 @@ export default function App() {
   const contentRef = useRef(null)
   function goTab(next) {
     contentRef.current?.scrollTo({ top: 0, behavior: 'smooth' })
+    // Повторный тап по уже открытой вкладке — сигнал «обнови меня» (напр. Лента
+    // перезапрашивает посты). Кроме прокрутки наверх (выше) экран может освежиться.
+    if (next === tab) emitReselect(next)
     setTab(next)
   }
 
