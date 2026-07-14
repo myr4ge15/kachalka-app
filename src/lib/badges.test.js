@@ -7,6 +7,7 @@ import {
   evaluateBadges,
   nextBadge,
   fmtBadgeValue,
+  badgeEarnedDates,
 } from './badges.js'
 
 const wk = (id, performed_at, entries = []) => ({ id, performed_at, entries })
@@ -104,6 +105,50 @@ describe('nextBadge', () => {
   it('всё получено → null', () => {
     const nb = nextBadge({ count: 999, maxStreakWeeks: 999, tonnage: 9_000_000, prCount: 999 })
     expect(nb).toBeNull()
+  })
+})
+
+describe('badgeEarnedDates', () => {
+  it('регулярность — дата N-й тренировки (в хронологии, не по порядку массива)', () => {
+    const workouts = [
+      wk('c', '2026-01-19'),
+      wk('a', '2026-01-05'),
+      wk('b', '2026-01-12'),
+    ]
+    const d = badgeEarnedDates(workouts)
+    expect(d.reg_1).toBe('2026-01-05') // 1-я по хронологии
+    expect(d.reg_10).toBeUndefined() // порог не достигнут
+  })
+  it('объём — момент пересечения порога накопленным тоннажем', () => {
+    // vol_10 = 10 000 кг. 100×50=5000, +100×60=11000 (пересекли на 2-й)
+    const workouts = [
+      wk('a', '2026-01-01', [exW('sq', [setW(100, 50)])]), // 5000
+      wk('b', '2026-01-08', [exW('sq', [setW(100, 60)])]), // +6000 = 11000 ≥ 10000
+    ]
+    const d = badgeEarnedDates(workouts)
+    expect(d.vol_10).toBe('2026-01-08')
+  })
+  it('рекорды — дата N-го личного рекорда', () => {
+    const workouts = [
+      wk('w1', '2026-01-01', [exW('b', [setW(50, 5)])]),
+      wk('w2', '2026-01-08', [exW('b', [setW(60, 5)])]), // 1-й PR
+      wk('w3', '2026-01-15', [exW('b', [setW(70, 5)])]), // 2-й PR
+    ]
+    const d = badgeEarnedDates(workouts)
+    expect(d.pr_1).toBe('2026-01-08')
+  })
+  it('серии — дата тренировки, завершившей серию нужной длины', () => {
+    const workouts = [
+      wk('a', '2026-01-05'), // неделя N
+      wk('b', '2026-01-12'), // N+1
+      wk('c', '2026-01-19'), // N+2 → серия достигла 3
+    ]
+    const d = badgeEarnedDates(workouts)
+    expect(d.streak_3).toBe('2026-01-19')
+    expect(d.streak_7).toBeUndefined()
+  })
+  it('пустая история → пусто', () => {
+    expect(badgeEarnedDates([])).toEqual({})
   })
 })
 

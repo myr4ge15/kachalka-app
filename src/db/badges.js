@@ -19,6 +19,7 @@ import {
   badgeProgress,
   evaluateBadges,
   nextBadge,
+  badgeEarnedDates,
 } from '../lib/badges.js'
 
 const BADGE_BY_ID = Object.fromEntries(BADGES.map((b) => [b.id, b]))
@@ -44,6 +45,11 @@ export async function getBadgesView(userId) {
       badges,
       earnedCount: badges.filter((b) => b.done).length,
       total: defs.length,
+      // Подпись «макс. серия за историю» у секции серий (Slice 2) — та самая
+      // величина, что засчитывает вехи серий.
+      note: c.cat === 'streak' && values.maxStreakWeeks > 0
+        ? `макс. серия: ${values.maxStreakWeeks} нед`
+        : null,
     }
   })
   const { earned } = evaluateBadges(values, earnedMap)
@@ -62,12 +68,13 @@ export async function getBadgesView(userId) {
 export async function backfillBadges(userId) {
   const [workouts, earnedMap] = await Promise.all([getWorkouts(userId), getBadges(userId)])
   const values = currentValues(workouts)
+  const dates = badgeEarnedDates(workouts) // точные исторические даты (Slice 2)
   const next = { ...earnedMap }
   let changed = false
   const now = nowIso()
   for (const def of BADGES) {
     if (!next[def.id] && badgeProgress(def, values).done) {
-      next[def.id] = { at: now, backfilled: true }
+      next[def.id] = { at: dates[def.id] ?? now, backfilled: true }
       changed = true
     }
   }
@@ -86,8 +93,12 @@ export async function detectBadgesOnSave(userId) {
   const { newlyEarned } = evaluateBadges(values, earnedMap)
   if (!newlyEarned.length) return []
   const now = nowIso()
+  // Первый проход (бэкфилл истории) — исторические даты; живое получение — сейчас.
+  const dates = firstPass ? badgeEarnedDates(workouts) : null
   const next = { ...earnedMap }
-  for (const id of newlyEarned) next[id] = { at: now, backfilled: firstPass }
+  for (const id of newlyEarned) {
+    next[id] = { at: firstPass ? (dates[id] ?? now) : now, backfilled: firstPass }
+  }
   await writeBadges(userId, next)
   if (firstPass) return []
   return newlyEarned.map((id) => BADGE_BY_ID[id]).filter(Boolean)

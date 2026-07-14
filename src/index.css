@@ -1786,6 +1786,7 @@ img.avatar-lg.has-img {
 .ach-sec-head { display: flex; align-items: center; justify-content: space-between; padding: 0 2px 8px; }
 .ach-sec-title { font-size: 13px; font-weight: 600; }
 .ach-sec-title .em { margin-right: 6px; }
+.ach-sec-note { color: #64748b; font-weight: 400; font-size: 11px; margin-left: 6px; }
 .ach-sec-count { color: #64748b; font-size: 12px; }
 
 .ach-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 9px; }
@@ -1810,8 +1811,11 @@ img.avatar-lg.has-img {
 .ach-badge.on .ach-ico {
   background: radial-gradient(circle at 50% 35%, rgba(250, 204, 21, .28), rgba(250, 204, 21, .08));
   box-shadow: 0 0 0 1px rgba(250, 204, 21, .35), 0 3px 10px rgba(250, 204, 21, .12);
+  animation: ach-pop var(--dur-base, 180ms) ease-out;
 }
 .ach-badge.on .ach-dt { color: var(--yellow); }
+@keyframes ach-pop { from { transform: scale(.82); opacity: .4; } to { transform: scale(1); opacity: 1; } }
+@media (prefers-reduced-motion: reduce) { .ach-badge.on .ach-ico { animation: none; } }
 
 .ach-badge.off { opacity: .85; }
 .ach-badge.off .ach-ico { background: var(--bg); filter: grayscale(1) brightness(.7); }

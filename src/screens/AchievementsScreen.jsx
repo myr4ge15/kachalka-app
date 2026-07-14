@@ -50,6 +50,7 @@ export default function AchievementsScreen({ user, onBack }) {
               <div className="ach-sec-head">
                 <span className="ach-sec-title">
                   <span className="em" aria-hidden="true">{c.icon}</span>{c.label}
+                  {c.note && <span className="ach-sec-note">· {c.note}</span>}
                 </span>
                 <span className="ach-sec-count">{c.earnedCount} / {c.total}</span>
               </div>
@@ -65,7 +66,7 @@ export default function AchievementsScreen({ user, onBack }) {
                     <div className="ach-nm">{b.def.name}</div>
                     {b.done ? (
                       <div className="ach-dt">
-                        {b.at && !b.backfilled ? fmtWhen(b.at) : 'получено'}
+                        {b.at ? fmtWhen(b.at) : 'получено'}
                       </div>
                     ) : (
                       <div className="ach-prog">

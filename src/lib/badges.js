@@ -13,6 +13,7 @@
 // ============================================================================
 import { currentStreak, totalTonnage, fmtTonnage } from './profileStats.js'
 import { minePrs } from './records.js'
+import { cmpIsoAsc } from './cmp.js'
 
 // Индекс НЕДЕЛИ (Monday-based, ЛОКАЛЬНО) — паритетная копия из profileStats
 // (как freshness.js держит свои копии, чтобы не плодить связность/цикл). День
@@ -137,4 +138,75 @@ export function fmtBadgeValue(def, value) {
     return `${t.value} ${t.unit}`
   }
   return String(Math.round(Number(value) || 0))
+}
+
+// ИСТОРИЧЕСКАЯ дата получения каждого сейчас-закрытого бейджа (Slice 2): проход
+// по хронологии вместо «сегодня» у бэкфилла. Возвращает { [badgeId]: ISO }.
+// Регулярность — дата N-й тренировки; объём — момент, когда накопленный тоннаж
+// пересёк порог; рекорды — дата N-го личного рекорда (minePrs хронологичен);
+// серии — дата тренировки, завершившей серию нужной длины (первая тренировка
+// завершающей недели). Для незакрытых вех записи нет.
+export function badgeEarnedDates(workouts) {
+  const out = {}
+  const chron = [...(workouts ?? [])]
+    .filter((w) => w.performed_at)
+    .sort((a, b) => cmpIsoAsc(a.performed_at, b.performed_at) || cmpIsoAsc(a.created_at, b.created_at))
+
+  // Регулярность: дата N-й по счёту тренировки.
+  for (const def of BADGES) {
+    if (def.cat === 'regularity' && chron.length >= def.threshold) {
+      out[def.id] = chron[def.threshold - 1].performed_at
+    }
+  }
+
+  // Объём: накапливаем тоннаж, ловим момент пересечения каждого порога.
+  const volDefs = BADGES.filter((b) => b.cat === 'volume').sort((a, b) => a.threshold - b.threshold)
+  const volPending = new Set(volDefs.map((d) => d.id))
+  let cum = 0
+  for (const w of chron) {
+    for (const e of w.entries ?? []) {
+      for (const s of e.sets ?? []) {
+        const wt = Number(s.weight) || 0
+        const reps = Number(s.reps) || 0
+        if (wt > 0 && reps > 0) cum += wt * reps
+      }
+    }
+    for (const def of volDefs) {
+      if (volPending.has(def.id) && cum >= def.threshold) {
+        out[def.id] = w.performed_at
+        volPending.delete(def.id)
+      }
+    }
+  }
+
+  // Рекорды: дата N-го личного рекорда (minePrs уже в хронологии, поле .at).
+  const prs = minePrs(workouts)
+  for (const def of BADGES) {
+    if (def.cat === 'records' && prs.length >= def.threshold) {
+      out[def.id] = prs[def.threshold - 1].at
+    }
+  }
+
+  // Серии: неделя → самая ранняя тренировка в ней; идём по неделям, растим серию,
+  // при достижении нужной длины ставим дату завершившей неделю тренировки.
+  const weekFirst = new Map()
+  for (const w of chron) {
+    const wi = weekIndexOf(new Date(w.performed_at))
+    if (!weekFirst.has(wi)) weekFirst.set(wi, w.performed_at) // chron asc → первая = ранняя
+  }
+  const weeksSorted = [...weekFirst.keys()].sort((a, b) => a - b)
+  const streakDefs = BADGES.filter((b) => b.cat === 'streak').sort((a, b) => a.threshold - b.threshold)
+  const streakPending = new Set(streakDefs.map((d) => d.id))
+  let run = 0
+  for (let i = 0; i < weeksSorted.length; i++) {
+    run = i > 0 && weeksSorted[i] === weeksSorted[i - 1] + 1 ? run + 1 : 1
+    for (const def of streakDefs) {
+      if (streakPending.has(def.id) && run >= def.threshold) {
+        out[def.id] = weekFirst.get(weeksSorted[i])
+        streakPending.delete(def.id)
+      }
+    }
+  }
+
+  return out
 }
