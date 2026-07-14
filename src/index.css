@@ -1783,7 +1783,7 @@ img.avatar-lg.has-img {
 .ach-bar > i { display: block; height: 100%; background: linear-gradient(90deg, var(--green), #86efac); border-radius: 6px; }
 .ach-hero-sub { margin-top: 9px; color: var(--muted); font-size: 12px; }
 
-.ach-sec-head { display: flex; align-items: center; justify-content: space-between; padding: 0 2px 8px; }
+.ach-sec-head { display: flex; align-items: center; justify-content: space-between; padding: 0 2px 8px; margin-top: 20px; }
 .ach-sec-title { font-size: 13px; font-weight: 600; }
 .ach-sec-title .em { margin-right: 6px; }
 .ach-sec-note { color: #64748b; font-weight: 400; font-size: 11px; margin-left: 6px; }
