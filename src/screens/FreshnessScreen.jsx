@@ -49,7 +49,8 @@ export default function FreshnessScreen({ user, onBack }) {
             <p className="sec-title">Карта тела</p>
             <MuscleMap bySub={bySub} selected={sel} onSelect={toggle} />
             <div className="fr-legend">
-              <span><i className="fr-sw fr-fresh" />отдыхает</span>
+              <span className="fr-legend-lab">давность:</span>
+              <span><i className="fr-sw fr-fresh" />0–2 дн</span>
               <span><i className="fr-sw fr-recent" />3–6 дн</span>
               <span><i className="fr-sw fr-due" />1–2 нед</span>
               <span><i className="fr-sw fr-overdue" />давно</span>

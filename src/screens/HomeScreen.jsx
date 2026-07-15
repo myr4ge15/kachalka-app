@@ -4,6 +4,7 @@ import { fmtDaysAgo, fmtDays } from '../lib/homeSummary.js'
 import { fmtTonnage, goalProgress } from '../lib/profileStats.js'
 import { fmtMetricValue } from '../lib/metric.js'
 import { tagSlug, groupAccusative, GROUP_ORDER } from '../lib/dayTags.js'
+import { recoveryLead } from '../lib/freshness.js'
 import { labelOf, majorOf } from '../lib/muscles.js'
 import CardsSkeleton from '../components/CardsSkeleton.jsx'
 
@@ -13,6 +14,9 @@ const canonIdx = (g) => {
   const i = GROUP_ORDER.indexOf(g)
   return i === -1 ? 99 : i
 }
+
+// Подсказка к цвету полоски (ось восстановления, та же, что у подписи).
+const STATE_HINT = { ready: 'можно тренировать', almost: 'почти восстановилась', resting: 'дай отдых' }
 
 // Главный экран — «5 секунд после открытия» (виш BACKLOG «Домашняя сводка»).
 // Персональная сводка + авто-инсайты. Всё из локальной базы (офлайн-доступно),
@@ -53,11 +57,13 @@ export default function HomeScreen({ user, onNavigate, onOpenProgress }) {
   const pct = summary.tonnage.pct
   const lw = summary.lastWorkout
 
-  // Тизер свежести: полоска групп (канонический порядок) + «пора» — самая
-  // просроченная (recovery отсортирован приоритетом, [0] = самая пора).
+  // Тизер свежести: полоска групп (канонический порядок) + подпись. Карточка
+  // называется «Восстановление по группам» → и цвет полоски, и подпись читают ОДНУ
+  // ось — `state` (порог восстановления), а не давность `bucket` (иначе «всё красное,
+  // но все восстановились»). Про давность говорит только ветка «пора проработать».
   const rec = freshness?.recovery ?? []
   const strip = [...rec].sort((a, b) => canonIdx(a.group) - canonIdx(b.group))
-  const lead = rec[0] && (rec[0].bucket === 'due' || rec[0].bucket === 'overdue') ? rec[0] : null
+  const lead = recoveryLead(rec)
 
   return (
     <div className="screen home">
@@ -131,17 +137,31 @@ export default function HomeScreen({ user, onNavigate, onOpenProgress }) {
             <div className="fr-strip">
               {strip.map((f) => (
                 <div className="fr-strip-cell" key={f.group}>
-                  <span className={`fr-bar fr-${f.bucket}`} aria-hidden="true" />
+                  <span
+                    className={`fr-bar st-${f.state}`}
+                    aria-hidden="true"
+                    title={STATE_HINT[f.state]}
+                  />
                   <span className="fr-strip-lab">{f.group}</span>
                 </div>
               ))}
             </div>
-            {lead ? (
+            {lead?.kind === 'target' ? (
               <div className="fr-lead">
                 <span className="em" aria-hidden="true">🎯</span>
                 <div className="fr-lead-body">
-                  <div className="v">Пора проработать {groupAccusative(lead.group)}</div>
-                  <div className="k">не тренировал уже {fmtDays(lead.daysSince)}</div>
+                  <div className="v">Пора проработать {groupAccusative(lead.item.group)}</div>
+                  <div className="k">не тренировал уже {fmtDays(lead.item.daysSince)}</div>
+                </div>
+              </div>
+            ) : lead?.kind === 'resting' ? (
+              <div className="fr-lead">
+                <span className="em" aria-hidden="true">😴</span>
+                <div className="fr-lead-body">
+                  <div className="v">Мышцы восстанавливаются</div>
+                  <div className="k">
+                    ещё отдыхают: {lead.items.map((f) => f.group).join(', ')}
+                  </div>
                 </div>
               </div>
             ) : (

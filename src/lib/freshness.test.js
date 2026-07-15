@@ -1,5 +1,6 @@
 import { describe, it, expect } from 'vitest'
 import {
+  recoveryLead,
   recoveryHoursFor,
   DEFAULT_RECOVERY_HOURS,
   lastTrainedByGroup,
@@ -272,5 +273,34 @@ describe('submuscleBuckets', () => {
   it('пустые входы → пустая карта', () => {
     expect(submuscleBuckets([], [])).toEqual({})
     expect(submuscleBuckets(undefined, undefined)).toEqual({})
+  })
+})
+
+describe('recoveryLead (тизер Главной — одна ось с подписью)', () => {
+  const f = (group, state, bucket, daysSince) => ({ group, state, bucket, daysSince })
+
+  it('есть выпавшая из окна группа → target с ней', () => {
+    const lead = recoveryLead([f('ноги', 'ready', 'overdue', 20), f('грудь', 'resting', 'fresh', 0)])
+    expect(lead.kind).toBe('target')
+    expect(lead.item.group).toBe('ноги')
+  })
+  it('due тоже считается целью', () => {
+    expect(recoveryLead([f('спина', 'ready', 'due', 9)]).kind).toBe('target')
+  })
+  it('РЕГРЕСС: все тренированы недавно (bucket fresh), но часть не восстановилась → resting, а не «свежие»', () => {
+    const lead = recoveryLead([f('ноги', 'resting', 'fresh', 2), f('грудь', 'ready', 'fresh', 2)])
+    expect(lead.kind).toBe('resting')
+    expect(lead.items.map((x) => x.group)).toEqual(['ноги'])
+  })
+  it('almost тоже ещё не «восстановились»', () => {
+    expect(recoveryLead([f('плечи', 'almost', 'fresh', 1)]).kind).toBe('resting')
+  })
+  it('все ready и никто не выпал из окна → ready', () => {
+    expect(recoveryLead([f('грудь', 'ready', 'fresh', 2), f('пресс', 'ready', 'recent', 4)]))
+      .toEqual({ kind: 'ready' })
+  })
+  it('пусто → null', () => {
+    expect(recoveryLead([])).toBeNull()
+    expect(recoveryLead(undefined)).toBeNull()
   })
 })

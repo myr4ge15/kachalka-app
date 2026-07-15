@@ -128,6 +128,26 @@ export function groupFreshness(workouts, { now = new Date() } = {}) {
   return out
 }
 
+// Свод recovery-списка для тизера Главной. Две ОСИ движка легко перепутать:
+// `bucket` — давность (fresh = тренировал ≤2 дн назад), `state` — восстановление
+// (порог часов). Раньше тизер красил полоску по bucket, а подпись брал тоже по
+// bucket — отсюда «всё горит красным (= тренировал недавно), а написано, что все
+// восстановились». Теперь одна ось на карточку: подпись честна про ВОССТАНОВЛЕНИЕ
+// (`state`), и только «пора проработать» остаётся про давность (due/overdue).
+//   { kind:'target',  item }  — есть группа, выпавшая из окна (её и зовём тренировать);
+//   { kind:'resting', items } — все в окне, но часть ещё не восстановилась;
+//   { kind:'ready' }          — все тренированные группы восстановились;
+//   null                      — нет данных.
+export function recoveryLead(recovery) {
+  const rec = recovery ?? []
+  if (rec.length === 0) return null
+  const target = rec.find((f) => f?.bucket === 'due' || f?.bucket === 'overdue')
+  if (target) return { kind: 'target', item: target }
+  const resting = rec.filter((f) => f?.state !== 'ready')
+  if (resting.length === 0) return { kind: 'ready' }
+  return { kind: 'resting', items: resting }
+}
+
 // Самая «просроченная» группа (дольше всего не тренировали) — { group, daysAgo }
 // | null. Переиспользуется в homeSummary/insights («забытая группа»).
 export function mostNeglectedGroup(workouts, now = new Date()) {
