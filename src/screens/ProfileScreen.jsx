@@ -343,7 +343,7 @@ export default function ProfileScreen({ user, onLogout, onOpenProgress, onOpenFe
       ]
     }
     await writeGoals(user.id, next)
-    setEditing(false)
+    if (aliveRef.current) setEditing(false)
     // Сразу пушим (если онлайн), чтобы бот увидел цель до ближайшей тренировки.
     if (navigator.onLine) syncNow(user.id)
   }
@@ -356,7 +356,7 @@ export default function ProfileScreen({ user, onLogout, onOpenProgress, onOpenFe
       g.exerciseId === exerciseId ? { ...g, _deleted: 1, _dirty: 1 } : g
     )
     await writeGoals(user.id, next)
-    setEditing(false)
+    if (aliveRef.current) setEditing(false)
     if (navigator.onLine) syncNow(user.id)
   }
 

@@ -215,6 +215,11 @@ function ExercisesSection({ exercises, online, errMsg }) {
   const [mInto, setMInto] = useState('')
   const [mBusy, setMBusy] = useState(false)
 
+  // Guard от setState после размонтирования (аккордеон-секцию можно свернуть, пока
+  // RPC в полёте) — как в UsersSection/AccessSection.
+  const alive = useRef(true)
+  useEffect(() => { alive.current = true; return () => { alive.current = false } }, [])
+
   const filtered = useMemo(() => {
     const q = query.trim().toLowerCase().replace(/ё/g, 'е')
     if (!q) return exercises
@@ -241,9 +246,9 @@ function ExercisesSection({ exercises, online, errMsg }) {
     try {
       await adminUpdateExercise({ id: edId, ...form })
       showToast({ emoji: '✅', title: 'Упражнение обновлено' })
-      closeEdit()
+      if (alive.current) closeEdit()
     } catch (e) {
-      setBusy(false)
+      if (alive.current) setBusy(false)
       showToast({ emoji: '⚠️', title: 'Не удалось', sub: errMsg(e) })
     }
   }

@@ -65,6 +65,11 @@ export default function FeedScreen({ user }) {
   const listRef = useRef(list)
   listRef.current = list
 
+  // Guard от setState после размонтирования: экран рвётся на смене вкладки
+  // (key={tab} в App), а fetchFeed может дорезолвиться позже (как в Profile/Admin).
+  const aliveRef = useRef(true)
+  useEffect(() => { aliveRef.current = true; return () => { aliveRef.current = false } }, [])
+
   const refresh = useCallback(async () => {
     if (!navigator.onLine) {
       setError(listRef.current.length ? null : 'Лента недоступна офлайн. Подключись к сети.')
@@ -74,12 +79,13 @@ export default function FeedScreen({ user }) {
     setError(null)
     try {
       await fetchFeed(user.id)
+      if (!aliveRef.current) return
       setUpdatedAt(Date.now())
       setNowTick(Date.now())
     } catch (err) {
-      setError('Не удалось обновить ленту: ' + (err?.message ?? err))
+      if (aliveRef.current) setError('Не удалось обновить ленту: ' + (err?.message ?? err))
     } finally {
-      setRefreshing(false)
+      if (aliveRef.current) setRefreshing(false)
     }
   }, [user.id])
 
