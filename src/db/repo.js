@@ -176,9 +176,12 @@ export async function updateExercise({ id, name, muscle_group, metric, submuscle
       is_custom: true,
       _dirty: 1,
     })
-    // Одной ожидающей операции на упражнение достаточно — push перечитывает строку
-    // и отправляет актуальные поля (не плодим второй ре-upsert при частых правках).
-    const pending = await db.ex_outbox.where('exerciseId').equals(id).count()
+    // Одной ЖИВОЙ ожидающей операции на упражнение достаточно — push перечитывает
+    // строку и отправляет актуальные поля (не плодим второй ре-upsert при частых
+    // правках). Мёртвые (_dead) операции НЕ считаем: иначе если единственная
+    // операция упражнения уже dead-letter'нута, новая правка ставила бы _dirty, но
+    // ничего не ставила в очередь → правка не отправлялась и терялась на pull.
+    const pending = await db.ex_outbox.where('exerciseId').equals(id).filter((o) => !o._dead).count()
     if (pending === 0) await db.ex_outbox.add({ exerciseId: id, createdAt: nowIso(), attempts: 0 })
   })
 
