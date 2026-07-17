@@ -706,7 +706,13 @@ async function pullGoal(userId, d = db) {
       metric: normMetric(row.metric ?? ex?.metric ?? byEx.get(row.exercise_id)?.metric),
       targetWeight: Number(row.target_weight),
       targetReps: reps > 0 ? Math.round(reps) : null,
-      achievedAt: row.achieved_at ?? null,
+      // Достижение МОНОТОННО: раз взятую цель не «разберём» обратно из-за пустого
+      // серверного achieved_at. Для не-весовых целей (reps/time) сервер achieved_at
+      // НИКОГДА не считает — они достигаются только в приложении (detectGoalReached
+      // штампует achievedAt локально). Без сохранения локального значения ближайший
+      // pull затирал бы его null → 🎯 и уведомление молча исчезали. Серверное
+      // achieved_at (весовые цели, бот) имеет приоритет; иначе держим локальное.
+      achievedAt: row.achieved_at ?? byEx.get(row.exercise_id)?.achievedAt ?? null,
       _dirty: 0,
     })
   }
