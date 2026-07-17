@@ -115,8 +115,12 @@ function rNewPr(sorted, ctx) {
     if (value <= 0) continue
     const prev = others.get(exId)?.value ?? 0
     if (prev > 0 && value > prev) {
-      const cand = { exId, name: entryName(e), metric: m, value, prev }
-      if (!top || value > top.value) top = cand
+      // «Лучший из» рекордов выбираем по ОТНОСИТЕЛЬНОМУ приросту, а не по сырому
+      // value: единицы метрик несравнимы (кг / повторы / секунды), иначе планка
+      // на 120 с перебивала бы любой весовой рекорд. Тай-брейк по exId — стабильно.
+      const gain = (value - prev) / prev
+      const cand = { exId, name: entryName(e), metric: m, value, prev, gain }
+      if (!top || gain > top.gain || (gain === top.gain && String(exId) < String(top.exId))) top = cand
     }
   }
   if (!top) return null
@@ -151,7 +155,8 @@ function rOvertook(sorted, ctx, leaderboard, userId) {
   const rows = (leaderboard.male ?? []).filter((r) => r.user_id !== userId)
   const passed = rows.filter((r) => {
     const w = Number(r.weight) || 0
-    return w > prevV && w <= newV
+    // Строго ПРЕВЗОШёл: равный вес — это ничья, а не обгон (было `w <= newV`).
+    return w > prevV && w < newV
   })
   if (!passed.length) return null
   const top = passed.reduce((a, b) => ((Number(b.weight) || 0) > (Number(a.weight) || 0) ? b : a))
@@ -241,7 +246,10 @@ function rGroupNeglected(sorted, now, anchor, { threshold = 8 } = {}) {
   for (const [s, { day }] of lastDay) {
     if (s === 'cardio') continue
     const days = today - day
-    if (days >= threshold && (!worst || days > worst.days)) worst = { s, days }
+    // Тай-брейк по слагу подмышцы: при равной «просроченности» выбор не должен
+    // зависеть от порядка обхода Map (иначе «забытая мышца» флипает между прогонами).
+    if (days >= threshold && (!worst || days > worst.days || (days === worst.days && s < worst.s)))
+      worst = { s, days }
   }
   if (!worst) return null
   return {

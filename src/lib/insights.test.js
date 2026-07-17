@@ -95,6 +95,27 @@ describe('R1 новый рекорд', () => {
     const res = buildInsights({ workouts: list, now: NOW })
     expect(res.find((i) => i.kind === 'pr')).toBeFalsy()
   })
+
+  it('лучший из рекордов — по относительному приросту, а не по сырому value разных метрик', () => {
+    // Жим: 60→90 кг (прирост 50%). Планка (time, секунды в reps): 110→120 с (прирост ~9%).
+    // Сырое value планки (120) больше сырого value жима (90) — старый код объявил бы
+    // планку. Правильный выбор — жим (больший относительный прирост).
+    const list = [
+      wk({ id: 'new', at: daysAgo(0), entries: [
+        { exId: 'bench', name: 'Жим', bench: true, sets: [S(90, 5)] },
+        { exId: 'plank', name: 'Планка', metric: 'time', sets: [S(0, 120)] },
+      ] }),
+      wk({ id: 'old', at: daysAgo(7), entries: [
+        { exId: 'bench', name: 'Жим', bench: true, sets: [S(60, 5)] },
+        { exId: 'plank', name: 'Планка', metric: 'time', sets: [S(0, 110)] },
+      ] }),
+    ]
+    const pr = buildInsights({ workouts: list, now: NOW }).find((i) => i.kind === 'pr')
+    expect(pr).toBeTruthy()
+    expect(pr.text).toContain('Жим')
+    expect(pr.text).toContain('90 кг')
+    expect(pr.text).not.toContain('Планка')
+  })
 })
 
 describe('R2 обгон друга', () => {
@@ -120,6 +141,13 @@ describe('R2 обгон друга', () => {
 
   it('соперник ниже прежнего максимума — не обгон', () => {
     const leaderboard = { male: [{ user_id: 'ivan', user_name: 'Иван', weight: 80 }], female: [] }
+    const res = buildInsights({ workouts: list, leaderboard, userId: 'me', now: NOW })
+    expect(res.find((i) => i.kind === 'overtook')).toBeFalsy()
+  })
+
+  it('равный вес соперника — ничья, а не обгон', () => {
+    // Мой новый жим 100 == вес Ивана 100: сравнялся, но не превзошёл.
+    const leaderboard = { male: [{ user_id: 'ivan', user_name: 'Иван', weight: 100 }], female: [] }
     const res = buildInsights({ workouts: list, leaderboard, userId: 'me', now: NOW })
     expect(res.find((i) => i.kind === 'overtook')).toBeFalsy()
   })
@@ -193,6 +221,15 @@ describe('R5 забытая мышца (подмышца)', () => {
     const list = [wk({ id: 'a', at: daysAgo(1), entries: [{ exId: 'bp', group: 'грудь', sets: [S(80, 5)] }] })]
     const res = buildInsights({ workouts: list, now: NOW, max: 5 })
     expect(res.find((i) => i.kind === 'neglect')).toBeFalsy()
+  })
+
+  it('при равной «просроченности» выбор детерминирован (не зависит от порядка входа)', () => {
+    const legs = wk({ id: 'legs', at: daysAgo(20), entries: [{ exId: 'sq', group: 'ноги', sets: [S(100, 5)] }] })
+    const back = wk({ id: 'back', at: daysAgo(20), entries: [{ exId: 'row', group: 'спина', sets: [S(80, 5)] }] })
+    const fresh = wk({ id: 'chest', at: daysAgo(0), entries: [{ exId: 'bp', group: 'грудь', sets: [S(80, 5)] }] })
+    const nA = buildInsights({ workouts: [legs, back, fresh], now: NOW, max: 5 }).find((i) => i.kind === 'neglect')
+    const nB = buildInsights({ workouts: [back, legs, fresh], now: NOW, max: 5 }).find((i) => i.kind === 'neglect')
+    expect(nA?.id).toBe(nB?.id)
   })
 })
 
