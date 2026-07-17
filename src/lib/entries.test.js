@@ -46,6 +46,14 @@ describe('sortDesc', () => {
     expect(sortDesc(undefined)).toEqual([])
     expect(sortDesc([])).toEqual([])
   })
+
+  it('детерминизм при равных performed_at И created_at: тай-брейк по id, не зависит от порядка входа', () => {
+    const same = { performed_at: '2026-01-01T10:00:00Z', created_at: '2026-01-01T10:00:00Z' }
+    const a = { id: 'a', ...same }
+    const b = { id: 'b', ...same }
+    // Любой порядок входа даёт один и тот же результат (иначе якорь инсайтов флипал бы).
+    expect(sortDesc([a, b]).map((w) => w.id)).toEqual(sortDesc([b, a]).map((w) => w.id))
+  })
 })
 
 describe('pickExerciseShape', () => {

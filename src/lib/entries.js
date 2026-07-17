@@ -21,11 +21,20 @@ export const entryExId = (e) => e.exercise_id ?? e.exercise?.id ?? null
 // денормализованном e.exercise.metric. Дефолт 'weight'.
 export const entryMetric = (e) => normMetric(e.metric ?? e.exercise?.metric)
 
-// История без удалённых, новейшее сверху (по performed_at, тай-брейк created_at).
+// История без удалённых, новейшее сверху (по performed_at, тай-брейк created_at,
+// затем id). Тай-брейк по id обязателен: при равных performed_at И created_at
+// (две записи в одну секунду) порядок массива недетерминирован → якорь инсайтов
+// (buildInsights) и «последняя тренировка»/latestPr в homeSummary флипали между
+// прогонами. Паритет с хронологией records.js (там тот же id-добор).
 export function sortDesc(workouts) {
   return [...(workouts ?? [])]
     .filter((w) => w && !w._deleted)
-    .sort((a, b) => cmpIsoDesc(a.performed_at, b.performed_at) || cmpIsoDesc(a.created_at, b.created_at))
+    .sort(
+      (a, b) =>
+        cmpIsoDesc(a.performed_at, b.performed_at) ||
+        cmpIsoDesc(a.created_at, b.created_at) ||
+        cmpIsoDesc(String(a.id), String(b.id))
+    )
 }
 
 // Канонический денормализованный снимок упражнения внутри `entries` тренировки/

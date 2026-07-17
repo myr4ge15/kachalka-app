@@ -130,6 +130,11 @@ describe('mostNeglectedGroup', () => {
   it('нет групп → null', () => {
     expect(mostNeglectedGroup([], NOW)).toBeNull()
   })
+  it('при равной давности выбор детерминирован (тай-брейк по слагу, не по порядку входа)', () => {
+    const legs = wk({ id: 'legs', at: daysAgo(18), entries: [{ exId: 'sq', group: 'ноги' }] })
+    const back = wk({ id: 'back', at: daysAgo(18), entries: [{ exId: 'row', group: 'спина' }] })
+    expect(mostNeglectedGroup([legs, back], NOW).group).toBe(mostNeglectedGroup([back, legs], NOW).group)
+  })
 })
 
 describe('imbalance', () => {
@@ -259,6 +264,11 @@ describe('mostNeglectedSubmuscle', () => {
   })
   it('пусто → null', () => {
     expect(mostNeglectedSubmuscle([], NOW)).toBeNull()
+  })
+  it('при равной давности выбор детерминирован (тай-брейк по слагу)', () => {
+    const a = swk({ id: 'q', at: daysAgo(9), entries: [{ sub: 'quads', major: 'ноги' }] })
+    const b = swk({ id: 'l', at: daysAgo(9), entries: [{ sub: 'lats', major: 'спина' }] })
+    expect(mostNeglectedSubmuscle([a, b], NOW).submuscle).toBe(mostNeglectedSubmuscle([b, a], NOW).submuscle)
   })
 })
 

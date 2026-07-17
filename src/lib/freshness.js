@@ -156,7 +156,10 @@ export function mostNeglectedGroup(workouts, now = new Date()) {
   let worst = null
   for (const [g, { day }] of map) {
     const days = today - day
-    if (!worst || days > worst.daysAgo) worst = { group: g, daysAgo: days }
+    // Тай-брейк по слагу группы — при равной давности выбор не должен зависеть
+    // от порядка обхода Map (иначе «забытая группа» флипает между прогонами).
+    if (!worst || days > worst.daysAgo || (days === worst.daysAgo && g < worst.group))
+      worst = { group: g, daysAgo: days }
   }
   return worst
 }
@@ -343,7 +346,9 @@ export function mostNeglectedSubmuscle(workouts, now = new Date()) {
   for (const [s, { day }] of map) {
     if (s === 'cardio') continue
     const days = today - day
-    if (!worst || days > worst.daysAgo) worst = { submuscle: s, major: majorOf(s), daysAgo: days }
+    // Тай-брейк по слагу подмышцы — детерминизм при равной давности (см. выше).
+    if (!worst || days > worst.daysAgo || (days === worst.daysAgo && s < worst.submuscle))
+      worst = { submuscle: s, major: majorOf(s), daysAgo: days }
   }
   return worst
 }
