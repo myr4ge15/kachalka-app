@@ -37,19 +37,25 @@ export function cmpBoard(a, b) {
 // подход (weight/reps/performed_at) и лучший расчётный 1ПМ (orm) по всей истории.
 export async function fetchLeaderboard({ force = false } = {}) {
   if (!isConfigured || !navigator.onLine) return
+  // ЗАХВАТ инстанса персональной базы на входе (как в fetchFeed/syncNow): модульная
+  // привязка `db` живая — при смене учётки посреди сетевого await TTL-метка
+  // leaderboardFetchedAt и кэш борда иначе записались бы в базу ДРУГОГО юзера
+  // (не утечка — борд публичный, но чужая метка подавляла бы легитимный рефетч).
+  const d = db
+  if (!d) return
   // Та же гонка, что и в fetchFeed: до готовности сессии RPC уходит ролью `anon`
   // и ловит «permission denied». Ждём сессию (см. hasSession), иначе тихо выходим.
   if (!(await hasSession())) return
   // TTL-троттлинг (lib/leaderboardCache): RPC пересчитывает рейтинг по всей истории,
   // а экран дёргает fetchLeaderboard на каждый вход/resume/online — не ходим на
   // сервер чаще раза в минуту, экран и так читает из локального кэша мгновенно.
-  if (!force && !shouldRefetchLeaderboard(await getMeta('leaderboardFetchedAt'), Date.now())) return
+  if (!force && !shouldRefetchLeaderboard(await getMeta('leaderboardFetchedAt', d), Date.now())) return
 
   const res = await withTimeout(supabase.rpc('leaderboard_bench'))
   if (res.error) throw res.error
   // Успешно опросили сервер — запоминаем момент для TTL (даже если ответ пуст,
   // чтобы пустой борд не молотил RPC на каждый resume).
-  await setMeta('leaderboardFetchedAt', new Date().toISOString())
+  await setMeta('leaderboardFetchedAt', new Date().toISOString(), d)
 
   // board: 'm' (жим) | 'f' (ягодичный мостик). Старый сервер без поля board →
   // 'm' (обратная совместимость: один рейтинг = мужской борд, как было раньше).
@@ -67,9 +73,9 @@ export async function fetchLeaderboard({ force = false } = {}) {
   // временном сбое RPC рейтинг «схлопнется» в пустой. Заменяем только при данных.
   if (rows.length === 0) return
 
-  await db.transaction('rw', db.leaderboard, async () => {
-    await db.leaderboard.clear()
-    await db.leaderboard.bulkPut(rows)
+  await d.transaction('rw', d.leaderboard, async () => {
+    await d.leaderboard.clear()
+    await d.leaderboard.bulkPut(rows)
   })
 }
 
