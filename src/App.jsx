@@ -321,7 +321,13 @@ export default function App() {
             )}
             {tab === 'history' && <HistoryScreen user={user} />}
             {tab === 'feed' && <FeedScreen user={user} />}
-            {tab === 'progress' && <ProgressScreen user={user} initialExerciseId={progressExId} />}
+            {tab === 'progress' && (
+              <ProgressScreen
+                user={user}
+                initialExerciseId={progressExId}
+                onConsumed={() => setProgressExId(null)}
+              />
+            )}
             {tab === 'notif' && <NotificationsScreen user={user} />}
             {tab === 'profile' && (
               <ProfileScreen

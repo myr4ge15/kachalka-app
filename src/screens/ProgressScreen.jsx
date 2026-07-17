@@ -49,16 +49,23 @@ function inRange(day, range) {
   return true
 }
 
-export default function ProgressScreen({ user, initialExerciseId = null }) {
+export default function ProgressScreen({ user, initialExerciseId = null, onConsumed }) {
   const workouts = useLiveQuery(() => getWorkouts(user.id), [user.id])
   const loading = workouts === undefined
 
   const list = useMemo(() => collectExercises(workouts ?? []), [workouts])
   const [selId, setSelId] = useState(initialExerciseId)
 
-  // Открытие из ЛК по тапу на рекорд: подхватываем переданное упражнение.
+  // Открытие из ЛК по тапу на рекорд: подхватываем переданное упражнение и сразу
+  // «гасим» проброс в родителе (one-shot) — иначе progressExId залипал бы, и
+  // следующий прямой вход на вкладку «Прогресс» переоткрывал бы то же упражнение
+  // вместо дефолта (жим). Сброс делает initialExerciseId=null; гард != null
+  // не даёт повторно дёрнуть setSelId — текущий выбор сохраняется.
   useEffect(() => {
-    if (initialExerciseId != null) setSelId(initialExerciseId)
+    if (initialExerciseId != null) {
+      setSelId(initialExerciseId)
+      onConsumed?.()
+    }
   }, [initialExerciseId])
 
   const selected = useMemo(() => {
