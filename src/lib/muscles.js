@@ -38,7 +38,7 @@ export const SUBMUSCLES = {
   chest_upper:  { major: 'грудь',    label: 'верх груди',         labelAccusative: 'верх груди',         recoveryHours: 48 },
   chest_middle: { major: 'грудь',    label: 'середина груди',     labelAccusative: 'середину груди',     recoveryHours: 48 },
   chest_lower:  { major: 'грудь',    label: 'низ груди',          labelAccusative: 'низ груди',          recoveryHours: 48 },
-  serratus:     { major: 'грудь',    label: 'зубчатая',           labelAccusative: 'зубчатую',           recoveryHours: 48 },
+  serratus:     { major: 'грудь',    label: 'зубчатая',           labelAccusative: 'зубчатую',           recoveryHours: 48, minor: true },
   // спина
   lats:         { major: 'спина',    label: 'широчайшие',         labelAccusative: 'широчайшие',         recoveryHours: 72 },
   rhomboids:    { major: 'спина',    label: 'ромбовидные',        labelAccusative: 'ромбовидные',        recoveryHours: 48 },
@@ -93,6 +93,14 @@ export const SUBMUSCLE_SLUGS = Object.keys(SUBMUSCLES)
 // Известен ли слаг подмышцы.
 export function isKnownSub(sub) {
   return typeof sub === 'string' && Object.prototype.hasOwnProperty.call(SUBMUSCLES, sub)
+}
+
+// «Минорная» подмышца (`minor: true`) — стабилизатор/мелкая мышца, которую НИ ОДНО
+// упражнение не грузит как ОСНОВНУЮ (только вторично, напр. зубчатая на пуловере).
+// Такие исключаются из дисбаланса свежести: иначе движок вечно нагибал бы «давно не
+// тренировал <минорную>» внутри активной группы, хотя её и невозможно сделать целевой.
+export function isMinorSub(sub) {
+  return isKnownSub(sub) && SUBMUSCLES[sub].minor === true
 }
 
 // Крупная группа подмышцы (major) | null для неизвестного слага.

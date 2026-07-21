@@ -19,6 +19,7 @@ import {
   recoveryHoursFor as subRecoveryHoursFor,
   majorOf,
   defaultSubmuscleFor,
+  isMinorSub,
   SUBMUSCLE_SLUGS,
 } from './muscles.js'
 
@@ -308,7 +309,7 @@ export function submuscleImbalance(workouts, { now = new Date(), windowDays = 14
   const today = dayIndex(now)
   const out = []
   for (const s of SUBMUSCLE_SLUGS) {
-    if (s === 'cardio') continue
+    if (s === 'cardio' || isMinorSub(s)) continue
     const major = majorOf(s)
     if (!activeMajors.has(major)) continue
     const w = worked.get(s)

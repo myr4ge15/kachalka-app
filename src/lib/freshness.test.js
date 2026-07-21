@@ -252,6 +252,14 @@ describe('submuscleImbalance', () => {
     expect(subs.has('biceps')).toBe(false)
     expect(subs.has('quads')).toBe(false)
   })
+  it('минорная подмышца (serratus) не выносится в дисбаланс даже в активной группе', () => {
+    // грудь активна (тренировали chest_lower), но зубчатую нельзя сделать целевой →
+    // не нагибаем «давно не тренировал зубчатую».
+    const wc = [swk({ id: 'c', at: daysAgo(1), entries: [{ sub: 'chest_lower', major: 'грудь' }] })]
+    const s = new Set(submuscleImbalance(wc, { now: NOW }).map((x) => x.submuscle))
+    expect(s.has('chest_middle')).toBe(true) // обычная подмышца груди — выносится
+    expect(s.has('serratus')).toBe(false) // минорная — нет
+  })
 })
 
 describe('mostNeglectedSubmuscle', () => {

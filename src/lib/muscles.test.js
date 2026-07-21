@@ -5,6 +5,7 @@ import {
   SECONDARY_LOAD_FACTOR,
   DEFAULT_SUB_RECOVERY_HOURS,
   isKnownSub,
+  isMinorSub,
   majorOf,
   submusclesOf,
   defaultSubmuscleFor,
@@ -100,6 +101,15 @@ describe('muscles — хелперы', () => {
     expect(opts).toContain('chest_middle')
     expect(opts).toContain('serratus')
     expect(opts).toContain('hip_flexors')
+  })
+
+  it('isMinorSub: serratus минорная (нет основного упражнения), прочие — нет', () => {
+    expect(isMinorSub('serratus')).toBe(true)
+    expect(isMinorSub('chest_middle')).toBe(false)
+    expect(isMinorSub('hip_flexors')).toBe(false)
+    expect(isMinorSub('biceps')).toBe(false)
+    expect(isMinorSub('нет-такого')).toBe(false)
+    expect(isMinorSub(null)).toBe(false)
   })
 
   it('подписи: известный → label, неизвестный → сам слаг', () => {
