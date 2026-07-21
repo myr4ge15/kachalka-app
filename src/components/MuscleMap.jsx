@@ -35,7 +35,7 @@ export function bucketColor(bucket) {
 
 // Анатомическая зона → наши подмышцы. Цвет зоны = «самая пора» из них.
 const REGION_SUBS = {
-  chest: ['chest_upper', 'chest_lower'],
+  chest: ['chest_upper', 'chest_middle', 'chest_lower', 'serratus'],
   abs: ['abs_rectus'],
   obliques: ['abs_obliques'],
   deltoids: ['delt_front', 'delt_side', 'delt_rear'],
@@ -46,7 +46,7 @@ const REGION_SUBS = {
   'upper-back': ['lats', 'rhomboids'],
   'lower-back': ['lower_back'],
   gluteal: ['glute_max', 'glute_med'],
-  quadriceps: ['quads'],
+  quadriceps: ['quads', 'hip_flexors'],
   adductors: ['adductors'],
   hamstring: ['hamstrings'],
   calves: ['calves'],

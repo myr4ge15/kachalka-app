@@ -80,6 +80,28 @@ describe('muscles — хелперы', () => {
     expect(defaultSubmuscleFor('нет')).toBeNull()
   })
 
+  it('новые слаги груди/пресса (PLAN-exercises-base)', () => {
+    // грудь: chest_middle — новый стандарт плоских жимов, стала дефолтом группы
+    expect(isKnownSub('chest_middle')).toBe(true)
+    expect(majorOf('chest_middle')).toBe('грудь')
+    expect(defaultSubmuscleFor('грудь')).toBe('chest_middle')
+    expect(recoveryHoursFor('chest_middle')).toBe(48)
+    // serratus — тоже грудь
+    expect(majorOf('serratus')).toBe('грудь')
+    expect(submusclesOf('грудь')).toEqual(['chest_upper', 'chest_middle', 'chest_lower', 'serratus'])
+    // chest_lower сохранён (совместимость исторических снимков), но не дефолт
+    expect(isKnownSub('chest_lower')).toBe(true)
+    // hip_flexors — primary подъёмов ног, major пресс, быстрое восстановление
+    expect(majorOf('hip_flexors')).toBe('пресс')
+    expect(recoveryHoursFor('hip_flexors')).toBe(24)
+    expect(submusclesOf('пресс')).toEqual(['abs_rectus', 'abs_obliques', 'hip_flexors'])
+    // новые слаги предлагаются во вторичные
+    const opts = secondaryOptionsFor('biceps')
+    expect(opts).toContain('chest_middle')
+    expect(opts).toContain('serratus')
+    expect(opts).toContain('hip_flexors')
+  })
+
   it('подписи: известный → label, неизвестный → сам слаг', () => {
     expect(labelOf('glute_max')).toBe('большая ягодичная')
     expect(labelAccusativeOf('traps')).toBe('трапецию')

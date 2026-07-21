@@ -44,8 +44,8 @@ describe('buildHomeSummary', () => {
     const s = buildHomeSummary({ workouts: list, goals: [], now: NOW })
     expect(s.hasData).toBe(true)
     expect(s.lastWorkout.daysAgo).toBe(2)
-    // теги теперь по подмышцам; без submuscle у записи — фолбэк на дефолт группы (грудь → chest_lower)
-    expect(s.lastWorkout.tags).toContain('chest_lower')
+    // теги теперь по подмышцам; без submuscle у записи — фолбэк на дефолт группы (грудь → chest_middle)
+    expect(s.lastWorkout.tags).toContain('chest_middle')
   })
 
   it('тоннаж месяца и дельта против прошлого', () => {

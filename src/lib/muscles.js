@@ -36,7 +36,9 @@ export const SECONDARY_LOAD_FACTOR = 0.5
 export const SUBMUSCLES = {
   // грудь
   chest_upper:  { major: 'грудь',    label: 'верх груди',         labelAccusative: 'верх груди',         recoveryHours: 48 },
-  chest_lower:  { major: 'грудь',    label: 'низ/середина груди', labelAccusative: 'низ/середину груди', recoveryHours: 48 },
+  chest_middle: { major: 'грудь',    label: 'середина груди',     labelAccusative: 'середину груди',     recoveryHours: 48 },
+  chest_lower:  { major: 'грудь',    label: 'низ груди',          labelAccusative: 'низ груди',          recoveryHours: 48 },
+  serratus:     { major: 'грудь',    label: 'зубчатая',           labelAccusative: 'зубчатую',           recoveryHours: 48 },
   // спина
   lats:         { major: 'спина',    label: 'широчайшие',         labelAccusative: 'широчайшие',         recoveryHours: 72 },
   rhomboids:    { major: 'спина',    label: 'ромбовидные',        labelAccusative: 'ромбовидные',        recoveryHours: 48 },
@@ -63,6 +65,7 @@ export const SUBMUSCLES = {
   // пресс
   abs_rectus:   { major: 'пресс',    label: 'пресс',              labelAccusative: 'пресс',              recoveryHours: 24 },
   abs_obliques: { major: 'пресс',    label: 'косые',              labelAccusative: 'косые',              recoveryHours: 24 },
+  hip_flexors:  { major: 'пресс',    label: 'сгибатели бедра',    labelAccusative: 'сгибатели бедра',    recoveryHours: 24 },
   // кардио
   cardio:       { major: 'кардио',   label: 'кардио',             labelAccusative: 'кардио',             recoveryHours: 24 },
 }
@@ -70,7 +73,7 @@ export const SUBMUSCLES = {
 // Дефолтная подмышца КРУПНОЙ группы — для бэкфилла истории и старта своих
 // упражнений (major → слаг). Все значения обязаны быть ключами SUBMUSCLES.
 export const MAJOR_DEFAULT_SUB = {
-  'грудь':    'chest_lower',
+  'грудь':    'chest_middle',
   'спина':    'lats',
   'трапеции': 'traps',
   'ноги':     'quads',
