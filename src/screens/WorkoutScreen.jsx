@@ -7,25 +7,20 @@ import { detectBadgesOnSave } from '../db/badges.js'
 import { syncNow } from '../db/sync.js'
 import { getCache, setCache, clearCache } from '../lib/cache.js'
 import { showToast, hideToast } from '../components/Toast.jsx'
-import { exerciseMetric, isCountMetric, fmtMetricValue, fmtSet, fmtTime, parseTime } from '../lib/metric.js'
-import { recommendProgression, resolveProgSettings } from '../lib/progression.js'
+import { exerciseMetric, isCountMetric, fmtMetricValue } from '../lib/metric.js'
+import { buildRecommendation, defaultSet, sk } from '../lib/progressionCard.js'
 import { WEIGHT_MAX, repsMax } from '../lib/setLimits.js'
 import { exportWorkouts } from '../lib/exportWorkout.js'
 import { templateExercisesFromWorkout, defaultTemplateName } from '../lib/templateFromWorkout.js'
-import { plural } from '../lib/plural.js'
 import { vibrate, HAPTIC } from '../lib/haptics.js'
 import CardsSkeleton from '../components/CardsSkeleton.jsx'
-import HoldButton from '../components/HoldButton.jsx'
 import ExercisePicker from '../components/ExercisePicker.jsx'
 import TemplatePicker from '../components/TemplatePicker.jsx'
+import ExerciseCard from '../components/ExerciseCard.jsx'
 
-// локальный документ → редактируемая форма [{ exercise, sets:[{weight,reps}] }]
-// Стабильный ключ строки подхода — ТОЛЬКО для React key. В БД/на сервер не идёт
-// (cleanEntries сериализует подход как {weight,reps}). Нужен, чтобы при undo-вставке
-// подхода в середину React не переиспользовал DOM/значение инпута соседней строки.
-let _setKeySeq = 0
-const sk = () => `s${++_setKeySeq}`
-
+// локальный документ → редактируемая форма [{ exercise, sets:[{weight,reps}] }].
+// sk() — стабильный ключ строки подхода для React (единый модульный счётчик в
+// lib/progressionCard.js). defaultSet/buildRecommendation оттуда же.
 function toEntries(workout) {
   return (workout?.entries ?? []).map((e) => ({
     exercise: e.exercise ?? { id: e.exercise_id, name: '—' },
@@ -33,117 +28,10 @@ function toEntries(workout) {
   }))
 }
 
-// Дефолтный подход по типу упражнения (weight=0 у не-весовых, чтобы тоннаж/
-// лидерборд не засорять): весовое — 20×10; reps — 10 повторов; time — 60 с (1:00,
-// время хранится секундами в reps).
-function defaultSet(ex) {
-  const m = exerciseMetric(ex)
-  if (m === 'time') return { weight: 0, reps: 60, _k: sk() }
-  if (m === 'reps') return { weight: 0, reps: 10, _k: sk() }
-  return { weight: 20, reps: 10, _k: sk() }
-}
-
 function fmtDate(iso) {
   return new Date(iso).toLocaleDateString('ru-RU', {
     day: '2-digit', month: '2-digit', year: 'numeric',
   })
-}
-
-// ── Автопрогрессия (PLAN-autoprogression) — хелперы карточки упражнения ──────
-
-// Русское склонение по числу — общий lib/plural.js.
-// «сегодня / вчера / N дней назад» по дате прошлой сессии.
-function daysAgoLabel(iso) {
-  if (!iso) return ''
-  const then = new Date(iso), now = new Date()
-  const a = Date.UTC(then.getFullYear(), then.getMonth(), then.getDate())
-  const b = Date.UTC(now.getFullYear(), now.getMonth(), now.getDate())
-  const days = Math.round((b - a) / 86400000)
-  if (days <= 0) return 'сегодня'
-  if (days === 1) return 'вчера'
-  return `${days} ${plural(days, 'день', 'дня', 'дней')} назад`
-}
-// Стрелка ветки рекомендации.
-function progArrow(kind) {
-  if (kind === 'up' || kind === 'nudge') return '↗'
-  if (kind === 'down') return '↘'
-  return '='
-}
-// Тон чипа причины (цвет): вверх/нудж — зелёный, тот же — жёлтый, вниз — красный.
-function progTone(kind) {
-  if (kind === 'up' || kind === 'nudge') return 'up'
-  if (kind === 'down') return 'down'
-  return 'same'
-}
-// Единица шага прогрессии по метрике (у весовых — кг, даже в стратегии +повт.).
-function progStepUnit(metric) {
-  if (metric === 'time') return 'с'
-  if (metric === 'reps') return 'повт.'
-  return 'кг'
-}
-// Минимальный/дискретный шаг настройки «Шаг» по метрике.
-function progStepMin(metric) {
-  if (metric === 'time') return 5
-  if (metric === 'reps') return 1
-  return 1.25
-}
-function nextProgStep(cur, metric, dir) {
-  const d = progStepMin(metric)
-  const v = (Number(cur) || d) + dir * d
-  return Math.max(d, Math.round(v * 100) / 100)
-}
-function fmtProgStep(step, metric) {
-  return `${Math.round((Number(step) || 0) * 100) / 100} ${progStepUnit(metric)}`
-}
-
-// Собрать предзаполнение подходов + метаданные панели по недавним сессиям и
-// настройкам. Нет истории/выключено/ручной/выкл → sets = копия прошлого или
-// дефолт, meta = null (панель не показываем). Иначе — рекомендация + панель.
-function buildRecommendation(ex, sessions, progState) {
-  const metric = exerciseMetric(ex)
-  const last = sessions[0]?.sets ?? null
-  const copyOrDefault = () =>
-    last?.length ? last.map((s) => ({ weight: Number(s.weight), reps: Number(s.reps), _k: sk() })) : [defaultSet(ex)]
-  // Глобально выключено → никаких панелей.
-  if (!progState?.enabled) return { sets: copyOrDefault(), meta: null }
-
-  const settings = resolveProgSettings(progState, ex.id, metric)
-  // Ручной/выкл на упражнение: подсказку не даём, но показываем компактную
-  // строку-заглушку с шестерёнкой — чтобы стратегию можно было ВЕРНУТЬ (иначе
-  // после выбора «ручной» панель с настройками исчезала безвозвратно, UX-ловушка).
-  if (settings.strategy === 'manual' || settings.strategy === 'off') {
-    return {
-      sets: copyOrDefault(),
-      meta: {
-        muted: true,
-        strategy: settings.strategy,
-        prev: last?.length ? last.map((s) => ({ weight: Number(s.weight), reps: Number(s.reps) })) : null,
-        whenIso: sessions[0]?.performed_at ?? null,
-        settingsOpen: false,
-      },
-    }
-  }
-  // Активная стратегия, но нет истории → рекомендовать нечего (панель не нужна).
-  if (!last?.length) return { sets: copyOrDefault(), meta: null }
-
-  const rec = recommendProgression({ metric, lastSets: last, recentSessions: sessions, settings })
-  const real = rec.kind === 'up' || rec.kind === 'same' || rec.kind === 'down' || rec.kind === 'nudge'
-  if (!real || !rec.sets) return { sets: copyOrDefault(), meta: null }
-
-  return {
-    sets: rec.sets.map((s) => ({ weight: s.weight, reps: s.reps, _k: sk() })),
-    meta: {
-      muted: false,
-      prev: last.map((s) => ({ weight: Number(s.weight), reps: Number(s.reps) })),
-      whenIso: sessions[0].performed_at,
-      kind: rec.kind,
-      reason: rec.reasonText,
-      recSets: rec.sets.map((s) => ({ weight: s.weight, reps: s.reps })),
-      changed: rec.changed,
-      applied: true,
-      settingsOpen: false,
-    },
-  }
 }
 
 // ISO-дату (performed_at) → YYYY-MM-DD для <input type=date> и обратно.
@@ -665,151 +553,24 @@ export default function WorkoutScreen({ user, workoutId = null, onBack }) {
             <p className="muted empty">Добавь упражнение, чтобы начать.</p>
           )}
 
-          {entries.map((entry, ei) => {
-            const metric = exerciseMetric(entry.exercise)
-            const count = isCountMetric(metric) // своего веса / на время — без столбца «кг»
-            const isTime = metric === 'time'
-            const valLabel = isTime ? 'мин:сек' : 'повт.'
-            return (
-            <div key={entry.exercise.id} className={`card exercise-card${count ? ' count' : ''}`}>
-              <div className="exercise-head">
-                <span className="exercise-name">{entry.exercise.name}</span>
-                <span className="exercise-actions">
-                  <button className="link-btn" onClick={() => openReplacePicker(ei)}>заменить</button>
-                  <button className="link-btn danger" onClick={() => removeExercise(ei)}>убрать</button>
-                </span>
-              </div>
-
-              {entry.prog && (
-                <div className={`ap${entry.prog.muted ? ' ap-muted' : ''}`}>
-                  {entry.prog.muted ? (
-                    <div className="ap-muted-row">
-                      <span className="ap-muted-lbl">
-                        Прогрессия: {entry.prog.strategy === 'off' ? 'выключена' : 'ручной ввод'}
-                      </span>
-                      <button
-                        className={`btn-gear${entry.prog.settingsOpen ? ' on' : ''}`}
-                        aria-label="Настройки прогрессии"
-                        aria-expanded={entry.prog.settingsOpen}
-                        onClick={() => toggleProgSettings(ei)}
-                      >⚙</button>
-                    </div>
-                  ) : (
-                    <>
-                      <div className="ap-row">
-                        <span className="ap-lbl">Прошлая</span>
-                        <span className="ap-when">{daysAgoLabel(entry.prog.whenIso)}</span>
-                      </div>
-                      <div className="ap-prev">
-                        {entry.prog.prev.map((s) => fmtSet(metric, s)).join(' · ')}
-                      </div>
-                      <div className={`ap-rec-lbl ${progTone(entry.prog.kind)}`}>
-                        {progArrow(entry.prog.kind)} Рекомендуем сегодня
-                      </div>
-                      <div className="ap-rec">
-                        {entry.prog.recSets.map((s) => fmtSet(metric, s)).join(' · ')}
-                      </div>
-                      <span className={`reason ${progTone(entry.prog.kind)}`}>{entry.prog.reason}</span>
-                      <div className="ap-actions">
-                        {entry.prog.applied ? (
-                          <button className="link-btn ap-revert" onClick={() => revertProg(ei)}>
-                            вернуть как в прошлый раз
-                          </button>
-                        ) : (
-                          <button className="btn-apply" onClick={() => applyProg(ei)}>Применить рекомендацию</button>
-                        )}
-                        <button
-                          className={`btn-gear${entry.prog.settingsOpen ? ' on' : ''}`}
-                          aria-label="Настройки прогрессии"
-                          aria-expanded={entry.prog.settingsOpen}
-                          onClick={() => toggleProgSettings(ei)}
-                        >⚙</button>
-                      </div>
-                    </>
-                  )}
-                  {entry.prog.settingsOpen && (() => {
-                    const eff = resolveProgSettings(prog, entry.exercise.id, metric)
-                    return (
-                      <div className="ap-settings">
-                        <div className="seg" role="group" aria-label="Стратегия прогрессии">
-                          {!count && (
-                            <button className={`seg-item${eff.strategy === 'weight' ? ' on' : ''}`}
-                              onClick={() => changeProgSettings(ei, { strategy: 'weight' })}>+вес</button>
-                          )}
-                          <button className={`seg-item${eff.strategy === 'reps' ? ' on' : ''}`}
-                            onClick={() => changeProgSettings(ei, { strategy: 'reps' })}>{isTime ? '+сек' : '+повт.'}</button>
-                          <button className={`seg-item${eff.strategy === 'manual' ? ' on' : ''}`}
-                            onClick={() => changeProgSettings(ei, { strategy: 'manual' })}>ручной</button>
-                          <button className={`seg-item${eff.strategy === 'off' ? ' on' : ''}`}
-                            onClick={() => changeProgSettings(ei, { strategy: 'off' })}>выкл</button>
-                        </div>
-                        {(eff.strategy === 'weight' || eff.strategy === 'reps') && (
-                          <div className="ap-step-line">
-                            <span className="lbl">Шаг</span>
-                            <div className="stepper ap-stepper">
-                              <HoldButton onTrigger={() => changeProgSettings(ei, { step: nextProgStep(eff.step, metric, -1) })}>−</HoldButton>
-                              <span className="ap-step-val">{fmtProgStep(eff.step, metric)}</span>
-                              <HoldButton onTrigger={() => changeProgSettings(ei, { step: nextProgStep(eff.step, metric, +1) })}>+</HoldButton>
-                            </div>
-                          </div>
-                        )}
-                      </div>
-                    )
-                  })()}
-                </div>
-              )}
-
-              <div className="sets-head">
-                {count
-                  ? <><span>#</span><span>{valLabel}</span><span></span></>
-                  : <><span>#</span><span>кг</span><span>повт.</span><span></span></>}
-              </div>
-
-              {entry.sets.map((s, si) => (
-                <div key={s._k ?? si} className="set-row">
-                  <span className="set-num">{si + 1}</span>
-
-                  {!count && (
-                    <div className="stepper">
-                      <HoldButton onTrigger={() => step(ei, si, 'weight', -1.25)}>−</HoldButton>
-                      <input
-                        type="text" inputMode="decimal" value={s.weight}
-                        onChange={(e) => updateSet(ei, si, 'weight', e.target.value.replace(',', '.'))}
-                      />
-                      <HoldButton onTrigger={() => step(ei, si, 'weight', 1.25)}>+</HoldButton>
-                    </div>
-                  )}
-
-                  {isTime ? (
-                    <div className="stepper">
-                      <HoldButton onTrigger={() => step(ei, si, 'reps', -15)}>−</HoldButton>
-                      <input
-                        type="text" inputMode="numeric" value={fmtTime(s.reps)}
-                        onChange={(e) => updateSet(ei, si, 'reps', parseTime(e.target.value))}
-                      />
-                      <HoldButton onTrigger={() => step(ei, si, 'reps', 15)}>+</HoldButton>
-                    </div>
-                  ) : (
-                    <div className="stepper">
-                      <HoldButton onTrigger={() => step(ei, si, 'reps', -1)}>−</HoldButton>
-                      <input
-                        type="number" inputMode="numeric" value={s.reps}
-                        onChange={(e) => updateSet(ei, si, 'reps', e.target.value)}
-                      />
-                      <HoldButton onTrigger={() => step(ei, si, 'reps', 1)}>+</HoldButton>
-                    </div>
-                  )}
-
-                  <button className="link-btn danger small" onClick={() => removeSet(ei, si)}>✕</button>
-                </div>
-              ))}
-
-              <button className="btn ghost full" onClick={() => addSet(ei)}>
-                + подход (повтор предыдущего)
-              </button>
-            </div>
-            )
-          })}
+          {entries.map((entry, ei) => (
+            <ExerciseCard
+              key={entry.exercise.id}
+              entry={entry}
+              ei={ei}
+              prog={prog}
+              onReplace={openReplacePicker}
+              onRemove={removeExercise}
+              onRevertProg={revertProg}
+              onApplyProg={applyProg}
+              onToggleProgSettings={toggleProgSettings}
+              onChangeProgSettings={changeProgSettings}
+              onUpdateSet={updateSet}
+              onStep={step}
+              onAddSet={addSet}
+              onRemoveSet={removeSet}
+            />
+          ))}
 
           {isNew && (
             <button className="btn outline full" onClick={() => setTplPickerOpen(true)}>
