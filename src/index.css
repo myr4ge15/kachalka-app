@@ -600,10 +600,15 @@ input { font-family: inherit; }
   align-items: baseline;
 }
 .history-ex:first-child { border-top: none; }
-.history-ex-name { font-size: 15px; line-height: 1.35; flex-shrink: 0; }
-/* Подходы переносятся по словам (между сетами), чтобы длинные серии — напр. 8×«1:00»
-   скакалки — не убегали за край карточки одной nowrap-строкой. */
-.history-ex-sets { color: var(--muted); font-size: 14px; line-height: 1.35; text-align: right; min-width: 0; overflow-wrap: anywhere; }
+.history-ex-name { font-size: 15px; line-height: 1.35; min-width: 0; }
+/* Подходы переносятся МЕЖДУ сетами (по пробелу после запятой), но сам токен —
+   «14×12» / «1:00» — не рвём посимвольно (word-break:keep-all). Имя может ужиматься
+   и переноситься по словам, оставляя колонке подходов ширину. Так длинные серии
+   (напр. 8×«1:00» скакалки) не убегают за край карточки. */
+.history-ex-sets {
+  color: var(--muted); font-size: 14px; line-height: 1.35; text-align: right;
+  min-width: 0; white-space: normal; overflow-wrap: normal; word-break: keep-all;
+}
 
 /* Теги дня — автосводка групп мышц на карточке тренировки (BACKLOG «Теги дня»). */
 .day-tags { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 10px; }
