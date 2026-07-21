@@ -25,6 +25,18 @@ import CardsSkeleton from '../components/CardsSkeleton.jsx'
 // уже имеющихся денормализованных тренировок. Цель (фаза 2b) дополнительно
 // уходит на сервер при сохранении, чтобы достижение увидел Telegram-бот.
 //
+// Степпер значения цели: −/+ с удержанием и слот под инпут+единицу (children).
+// Раньше вёрстка .goal-stepper дублировалась для веса/повторов/времени.
+function GoalStepper({ onDec, onInc, children }) {
+  return (
+    <div className="goal-stepper">
+      <HoldButton onTrigger={onDec}>−</HoldButton>
+      <span className="val">{children}</span>
+      <HoldButton onTrigger={onInc}>+</HoldButton>
+    </div>
+  )
+}
+
 // Пропсы: user, onLogout, onOpenProgress(exerciseId), onOpenFeed().
 export default function ProfileScreen({ user, onLogout, onOpenProgress, onOpenFeed, onRenamed, onOpenAdmin, onOpenMyExercises, onOpenAchievements }) {
   const workouts = useLiveQuery(() => getWorkouts(user.id), [user.id])
@@ -53,28 +65,21 @@ export default function ProfileScreen({ user, onLogout, onOpenProgress, onOpenFe
   )
 
   // Место в лидерборде в СВОЁМ борде (мужской — жим, женский — ягодичный мостик).
-  // Кэш Ленты/снимок, только чтение. { n, board } | null.
-  const [place, setPlace] = useState(null)
-  useEffect(() => {
-    let alive = true
-    ;(async () => {
-      // Приватный в рейтинге не участвует — место не показываем.
-      if (await getMeta(`priv_${user.id}`)) { if (alive) setPlace(null); return }
-      try {
-        const board = await getCachedLeaderboard()
-        if (!alive) return
-        const inF = (board.female ?? []).findIndex((r) => r.user_id === user.id)
-        const inM = (board.male ?? []).findIndex((r) => r.user_id === user.id)
-        if (inF >= 0) setPlace({ n: inF + 1, board: 'f' })
-        else if (inM >= 0) setPlace({ n: inM + 1, board: 'm' })
-        else setPlace(null)
-      } catch { if (alive) setPlace(null) }
-    })()
-    return () => { alive = false }
-    // Место в борде зависит от кэша лидерборда/ленты, а не от своих тренировок,
-    // поэтому workouts в зависимостях не нужен (он лишь плодил лишние чтения).
-    // Экран перемонтируется при входе в профиль — место и так пересчитывается.
-  }, [user.id])
+  // Кэш Ленты/снимок, только чтение. { n, board } | null (до загрузки — null).
+  // useLiveQuery над Dexie-кэшем: место само пересчитывается, когда pull освежает
+  // снимок лидерборда, а не только на маунте экрана (прежний one-shot effect).
+  // Приватный в рейтинге не участвует — место не показываем.
+  const place = useLiveQuery(async () => {
+    try {
+      if (await getMeta(`priv_${user.id}`)) return null
+      const board = await getCachedLeaderboard()
+      const inF = (board.female ?? []).findIndex((r) => r.user_id === user.id)
+      if (inF >= 0) return { n: inF + 1, board: 'f' }
+      const inM = (board.male ?? []).findIndex((r) => r.user_id === user.id)
+      if (inM >= 0) return { n: inM + 1, board: 'm' }
+      return null
+    } catch { return null }
+  }, [user.id], null)
 
   // ── Редактор целей (мульти-цели, фаза 2c) ──────────────────────────────────
   const [editing, setEditing] = useState(false)
@@ -470,101 +475,81 @@ export default function ProfileScreen({ user, onLogout, onOpenProgress, onOpenFe
                       {edMetric === 'time' ? 'Цель (время)' : edMetric === 'reps' ? 'Цель (повторы)' : 'Целевой вес'}
                     </span>
                     {edMetric === 'weight' ? (
-                      <div className="goal-stepper">
-                        <HoldButton
-                          onTrigger={() => setEdVal((w) => Math.max(1.5, Math.round((Number(w) - 1.5) * 10) / 10))}
-                        >−</HoldButton>
-                        <span className="val">
-                          <input
-                            className="val-field"
-                            type="text"
-                            inputMode="decimal"
-                            value={edVal}
-                            onChange={(e) =>
-                              setEdVal(e.target.value.replace(',', '.').replace(/[^\d.]/g, ''))
-                            }
-                            onBlur={() =>
-                              setEdVal((w) => {
-                                const n = Number(w)
-                                return n > 0 ? Math.round(n * 10) / 10 : 2.5
-                              })
-                            }
-                            aria-label="Целевой вес в килограммах"
-                          />
-                          <span className="u">кг</span>
-                        </span>
-                        <HoldButton
-                          onTrigger={() => setEdVal((w) => Math.round((Number(w) + 1.5) * 10) / 10)}
-                        >+</HoldButton>
-                      </div>
+                      <GoalStepper
+                        onDec={() => setEdVal((w) => Math.max(1.5, Math.round((Number(w) - 1.5) * 10) / 10))}
+                        onInc={() => setEdVal((w) => Math.round((Number(w) + 1.5) * 10) / 10)}
+                      >
+                        <input
+                          className="val-field"
+                          type="text"
+                          inputMode="decimal"
+                          value={edVal}
+                          onChange={(e) =>
+                            setEdVal(e.target.value.replace(',', '.').replace(/[^\d.]/g, ''))
+                          }
+                          onBlur={() =>
+                            setEdVal((w) => {
+                              const n = Number(w)
+                              return n > 0 ? Math.round(n * 10) / 10 : 2.5
+                            })
+                          }
+                          aria-label="Целевой вес в килограммах"
+                        />
+                        <span className="u">кг</span>
+                      </GoalStepper>
                     ) : edMetric === 'reps' ? (
-                      <div className="goal-stepper">
-                        <HoldButton
-                          onTrigger={() => setEdVal((v) => Math.max(1, Math.round(Number(v) || 0) - 1))}
-                        >−</HoldButton>
-                        <span className="val">
-                          <input
-                            className="val-field"
-                            type="text"
-                            inputMode="numeric"
-                            value={edVal}
-                            onChange={(e) => setEdVal(e.target.value.replace(/[^\d]/g, ''))}
-                            onBlur={() => setEdVal((v) => Math.max(1, Math.round(Number(v) || 0)))}
-                            aria-label="Целевое число повторов"
-                          />
-                          <span className="u">повт.</span>
-                        </span>
-                        <HoldButton
-                          onTrigger={() => setEdVal((v) => Math.round(Number(v) || 0) + 1)}
-                        >+</HoldButton>
-                      </div>
+                      <GoalStepper
+                        onDec={() => setEdVal((v) => Math.max(1, Math.round(Number(v) || 0) - 1))}
+                        onInc={() => setEdVal((v) => Math.round(Number(v) || 0) + 1)}
+                      >
+                        <input
+                          className="val-field"
+                          type="text"
+                          inputMode="numeric"
+                          value={edVal}
+                          onChange={(e) => setEdVal(e.target.value.replace(/[^\d]/g, ''))}
+                          onBlur={() => setEdVal((v) => Math.max(1, Math.round(Number(v) || 0)))}
+                          aria-label="Целевое число повторов"
+                        />
+                        <span className="u">повт.</span>
+                      </GoalStepper>
                     ) : (
-                      <div className="goal-stepper">
-                        <HoldButton
-                          onTrigger={() => setEdVal((v) => { const n = Math.max(5, Math.round(Number(v) || 0) - 5); setEdTimeStr(fmtTime(n)); return n })}
-                        >−</HoldButton>
-                        <span className="val">
-                          <input
-                            className="val-field"
-                            type="text"
-                            inputMode="numeric"
-                            value={edTimeStr}
-                            onChange={(e) => { setEdTimeStr(e.target.value); setEdVal(parseTime(e.target.value)) }}
-                            onBlur={() => { const n = parseTime(edTimeStr); setEdVal(n); setEdTimeStr(fmtTime(n)) }}
-                            aria-label="Целевое время в формате минуты:секунды"
-                          />
-                          <span className="u">мин:сек</span>
-                        </span>
-                        <HoldButton
-                          onTrigger={() => setEdVal((v) => { const n = Math.round(Number(v) || 0) + 5; setEdTimeStr(fmtTime(n)); return n })}
-                        >+</HoldButton>
-                      </div>
+                      <GoalStepper
+                        onDec={() => setEdVal((v) => { const n = Math.max(5, Math.round(Number(v) || 0) - 5); setEdTimeStr(fmtTime(n)); return n })}
+                        onInc={() => setEdVal((v) => { const n = Math.round(Number(v) || 0) + 5; setEdTimeStr(fmtTime(n)); return n })}
+                      >
+                        <input
+                          className="val-field"
+                          type="text"
+                          inputMode="numeric"
+                          value={edTimeStr}
+                          onChange={(e) => { setEdTimeStr(e.target.value); setEdVal(parseTime(e.target.value)) }}
+                          onBlur={() => { const n = parseTime(edTimeStr); setEdVal(n); setEdTimeStr(fmtTime(n)) }}
+                          aria-label="Целевое время в формате минуты:секунды"
+                        />
+                        <span className="u">мин:сек</span>
+                      </GoalStepper>
                     )}
                   </label>
                   {edMetric === 'weight' && (
                     <label className="field">
                       <span className="field-lab">Повторы при этом весе <span className="muted">(необязательно)</span></span>
-                      <div className="goal-stepper">
-                        <HoldButton
-                          onTrigger={() => setEdReps((v) => Math.max(0, Math.round(Number(v) || 0) - 1))}
-                        >−</HoldButton>
-                        <span className="val">
-                          <input
-                            className="val-field"
-                            type="text"
-                            inputMode="numeric"
-                            value={edReps ? String(edReps) : ''}
-                            placeholder="—"
-                            onChange={(e) => setEdReps(e.target.value.replace(/[^\d]/g, ''))}
-                            onBlur={() => setEdReps((v) => Math.max(0, Math.round(Number(v) || 0)))}
-                            aria-label="Повторы при целевом весе (необязательно)"
-                          />
-                          <span className="u">повт.</span>
-                        </span>
-                        <HoldButton
-                          onTrigger={() => setEdReps((v) => Math.round(Number(v) || 0) + 1)}
-                        >+</HoldButton>
-                      </div>
+                      <GoalStepper
+                        onDec={() => setEdReps((v) => Math.max(0, Math.round(Number(v) || 0) - 1))}
+                        onInc={() => setEdReps((v) => Math.round(Number(v) || 0) + 1)}
+                      >
+                        <input
+                          className="val-field"
+                          type="text"
+                          inputMode="numeric"
+                          value={edReps ? String(edReps) : ''}
+                          placeholder="—"
+                          onChange={(e) => setEdReps(e.target.value.replace(/[^\d]/g, ''))}
+                          onBlur={() => setEdReps((v) => Math.max(0, Math.round(Number(v) || 0)))}
+                          aria-label="Повторы при целевом весе (необязательно)"
+                        />
+                        <span className="u">повт.</span>
+                      </GoalStepper>
                     </label>
                   )}
                   <div className="goal-editor-actions">

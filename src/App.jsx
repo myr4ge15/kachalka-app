@@ -83,6 +83,26 @@ function SyncBadge() {
   )
 }
 
+// Статус синхронизации + колокольчик уведомлений — единый блок. Живёт и в шапке
+// (мобайл), и в сайдбаре (десктоп); раньше разметка колокольчика дублировалась.
+function SyncTools({ unread, onOpenNotif }) {
+  return (
+    <>
+      <SyncBadge />
+      <button
+        className={'bell' + (unread > 0 ? ' has' : '')}
+        onClick={onOpenNotif}
+        aria-label={unread > 0 ? `Уведомления: ${unread} новых` : 'Уведомления'}
+      >
+        🔔
+        {unread > 0 && (
+          <span className="bell-count">{unread > 9 ? '9+' : unread}</span>
+        )}
+      </button>
+    </>
+  )
+}
+
 // Иконки нижней панели — инлайн-SVG (без зависимостей), красятся через currentColor,
 // плавную смену цвета и лёгкое увеличение активной задаёт CSS (.tab / .tab-ico).
 function TabIcon({ name }) {
@@ -298,17 +318,7 @@ export default function App() {
           <Avatar name={user.name} url={myCached?.avatar_url} className="avatar-sm" />
           {user.name} <span className="chev" aria-hidden="true">▾</span>
         </button>
-        <SyncBadge />
-        <button
-          className={'bell' + (unread > 0 ? ' has' : '')}
-          onClick={() => goTab('notif')}
-          aria-label={unread > 0 ? `Уведомления: ${unread} новых` : 'Уведомления'}
-        >
-          🔔
-          {unread > 0 && (
-            <span className="bell-count">{unread > 9 ? '9+' : unread}</span>
-          )}
-        </button>
+        <SyncTools unread={unread} onOpenNotif={() => goTab('notif')} />
       </header>
 
       <main className="content" ref={contentRef}>
@@ -405,17 +415,7 @@ export default function App() {
           {/* Статус синка + колокольчик уведомлений на десктопе живут здесь
               (шапка на десктопе скрыта). На мобиле этот блок скрыт — они в шапке. */}
           <div className="side-tools">
-            <SyncBadge />
-            <button
-              className={'bell' + (unread > 0 ? ' has' : '')}
-              onClick={() => goTab('notif')}
-              aria-label={unread > 0 ? `Уведомления: ${unread} новых` : 'Уведомления'}
-            >
-              🔔
-              {unread > 0 && (
-                <span className="bell-count">{unread > 9 ? '9+' : unread}</span>
-              )}
-            </button>
+            <SyncTools unread={unread} onOpenNotif={() => goTab('notif')} />
           </div>
           <button
             className={'side-profile' + (tab === 'profile' ? ' active' : '')}

@@ -342,13 +342,16 @@ export default function WorkoutScreen({ user, workoutId = null, onBack }) {
       return
     }
     const count = isCountMetric(exerciseMetric(ex))
-    const sets = count ? cur.sets.map((s) => ({ ...s, weight: 0 })) : cur.sets
-    setEntries(entries.map((e, i) => (i === idx ? { exercise: ex, sets } : e)))
+    setEntries((prev) => prev.map((e, i) => {
+      if (i !== idx) return e
+      const sets = count ? e.sets.map((s) => ({ ...s, weight: 0 })) : e.sets
+      return { exercise: ex, sets }
+    }))
   }
 
   function removeExercise(idx) {
     const removed = entries[idx]
-    setEntries(entries.filter((_, i) => i !== idx))
+    setEntries((prev) => prev.filter((_, i) => i !== idx))
     if (!removed) return
     // Удаление срабатывает сразу, но даём окно отмены — кнопка удаления
     // соседствует с зоной сохранения/добавления, легко нажать случайно.
@@ -419,7 +422,7 @@ export default function WorkoutScreen({ user, workoutId = null, onBack }) {
   }
 
   function updateSet(ei, si, field, value) {
-    setEntries(entries.map((e, i) => {
+    setEntries((prev) => prev.map((e, i) => {
       if (i !== ei) return e
       const sets = e.sets.map((s, j) => (j === si ? { ...s, [field]: value } : s))
       return { ...e, sets }
@@ -428,27 +431,33 @@ export default function WorkoutScreen({ user, workoutId = null, onBack }) {
 
   function step(ei, si, field, delta) {
     const min = field === 'reps' ? 1 : 0
-    // Верхняя граница степпера (та же, что клампит сохранение): вес → WEIGHT_MAX,
-    // повторы/секунды → по метрике упражнения (у time там секунды).
-    const max = field === 'weight' ? WEIGHT_MAX : repsMax(exerciseMetric(entries[ei].exercise))
-    // Значение в state — строка из инпута: '', '.', '1.2.3' дают NaN. В этом
-    // случае стартуем степпер от минимума, иначе в поле попадал бы «NaN».
-    const base = Number(entries[ei].sets[si][field])
-    const cur = Number.isFinite(base) ? base : min
-    const next = Math.min(max, Math.max(min, Math.round((cur + delta) * 100) / 100))
-    updateSet(ei, si, field, next)
+    setEntries((prev) => prev.map((e, i) => {
+      if (i !== ei) return e
+      // Верхняя граница степпера (та же, что клампит сохранение): вес → WEIGHT_MAX,
+      // повторы/секунды → по метрике упражнения (у time там секунды).
+      const max = field === 'weight' ? WEIGHT_MAX : repsMax(exerciseMetric(e.exercise))
+      // Значение в state — строка из инпута: '', '.', '1.2.3' дают NaN. В этом
+      // случае стартуем степпер от минимума, иначе в поле попадал бы «NaN».
+      const base = Number(e.sets[si]?.[field])
+      const cur = Number.isFinite(base) ? base : min
+      const next = Math.min(max, Math.max(min, Math.round((cur + delta) * 100) / 100))
+      const sets = e.sets.map((s, j) => (j === si ? { ...s, [field]: next } : s))
+      return { ...e, sets }
+    }))
   }
 
   function addSet(ei) {
-    const entry = entries[ei]
-    const last = entry.sets[entry.sets.length - 1] ?? defaultSet(entry.exercise)
-    setEntries(entries.map((e, i) => (i === ei ? { ...e, sets: [...e.sets, { ...last, _k: sk() }] } : e)))
+    setEntries((prev) => prev.map((e, i) => {
+      if (i !== ei) return e
+      const last = e.sets[e.sets.length - 1] ?? defaultSet(e.exercise)
+      return { ...e, sets: [...e.sets, { ...last, _k: sk() }] }
+    }))
   }
 
   function removeSet(ei, si) {
     const entry = entries[ei]
     const removed = entry?.sets[si]
-    setEntries(entries.map((e, i) =>
+    setEntries((prev) => prev.map((e, i) =>
       i === ei ? { ...e, sets: e.sets.filter((_, j) => j !== si) } : e
     ))
     if (!removed) return
