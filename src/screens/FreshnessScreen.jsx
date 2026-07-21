@@ -55,6 +55,7 @@ export default function FreshnessScreen({ user, onBack }) {
               <span><i className="fr-sw fr-due" />1–2 нед</span>
               <span><i className="fr-sw fr-overdue" />давно</span>
               <span><i className="fr-sw fr-never" />ни разу</span>
+              <span><i className="fr-sw fr-untracked" />нет данных</span>
             </div>
           </section>
 

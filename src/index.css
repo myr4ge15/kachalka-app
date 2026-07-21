@@ -1775,6 +1775,10 @@ img.avatar-lg.has-img {
 .fr-sw.fr-due     { background: #14b8a6; }
 .fr-sw.fr-overdue { background: #3b82f6; }
 .fr-sw.fr-never   { background: #64748b; }
+/* «нет данных» на карте — диагональная штриховка (paritет с pattern mm-untracked). */
+.fr-sw.fr-untracked {
+  background: repeating-linear-gradient(45deg, #222c3d, #222c3d 3px, #2e3a51 3px, #2e3a51 6px);
+}
 
 .fr-row.hl { border-color: #e2e8f0; }
 

@@ -9,6 +9,11 @@
 // (REGION_SUBS), а клик по зоне подсвечивает ВСЕ её строки в recovery-списке
 // (regionOf). Полная детализация по подмышцам живёт в списке, карта — обзорная.
 //
+// Зона БЕЗ данных (ни разу не логировал эту мышцу — напр. трапеция, если не делал
+// шраги) красится не мёртвым серым, а осмысленной ДИАГОНАЛЬНОЙ ШТРИХОВКОЙ
+// «не тренировал» (pattern mm-untracked-*): пустая зона читается намеренно, а не
+// как сломанная заливка. Легенду «нет данных» держит FreshnessScreen.
+//
 // Пропсы: bySub ({submuscle→bucket}), selected (region|null), onSelect(region).
 // ============================================================================
 import { BODY_OUTLINE, NEUTRAL_PARTS, FRONT_REGIONS, BACK_REGIONS } from './muscleBodyPaths.js'
@@ -74,15 +79,26 @@ function regionBucket(region, bySub) {
 export default function MuscleMap({ bySub = {}, selected = null, onSelect }) {
   const figure = (side, regions) => {
     const viewBox = side === 'front' ? '0 0 724 1448' : '724 0 724 1448'
+    const untrackedId = `mm-untracked-${side}`
     return (
       <div className="mm-col">
         <svg viewBox={viewBox} role="img" aria-label={`Силуэт ${side === 'front' ? 'спереди' : 'сзади'} — свежесть мышц`}>
+          <defs>
+            {/* Штриховка «нет данных»: две муарные полосы под 45° — зона без истории
+                выглядит намеренно «не отслеживается», а не как мёртвый серый. */}
+            <pattern id={untrackedId} patternUnits="userSpaceOnUse" width="24" height="24" patternTransform="rotate(45)">
+              <rect width="24" height="24" fill="#222c3d" />
+              <rect width="12" height="24" fill="#2e3a51" />
+            </pattern>
+          </defs>
           <path d={BODY_OUTLINE[side]} fill={BODY} stroke={STROKE} strokeWidth="2.5" vectorEffect="non-scaling-stroke" />
           {(NEUTRAL_PARTS[side] ?? []).map((d, i) => (
             <path key={`n${i}`} d={d} fill={MUSCLE} stroke={STROKE} strokeWidth="1" vectorEffect="non-scaling-stroke" aria-hidden="true" />
           ))}
           {Object.entries(regions).map(([region, paths]) => {
-            const fill = bucketColor(regionBucket(region, bySub))
+            const bucket = regionBucket(region, bySub)
+            // Есть данные → цвет давности; нет данных → штриховка «не тренировал».
+            const fill = bucket ? bucketColor(bucket) : `url(#${untrackedId})`
             const sel = selected === region
             return (
               <g
