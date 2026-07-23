@@ -15,12 +15,17 @@ export default defineConfig({
   define: {
     __APP_VERSION__: JSON.stringify(pkg.version),
   },
-  // Тест-сьют (Vitest) — только чистый слой src/lib (без Dexie/сети/UI), поэтому
-  // окружение node (jsdom не нужен). Vitest сам подхватывает этот конфиг, значит
-  // тесты видят тот же define __APP_VERSION__, что и сборка. См. docs/plans/PLAN-tests.md.
+  // Тест-сьют (Vitest). ДЕФОЛТ окружения — node: чистый слой src/lib и src/db
+  // (без UI) гоняется быстро и без DOM, как раньше. Компонентные тесты (RTL)
+  // опт-инят в jsdom пофайловым докблоком `// @vitest-environment jsdom` —
+  // так node-сьют (55 файлов) не платит за DOM. setupFiles грузит jest-dom
+  // матчеры ТОЛЬКО в jsdom (guard внутри). Vitest сам подхватывает этот конфиг,
+  // значит тесты видят тот же define __APP_VERSION__, что и сборка.
+  // См. docs/plans/PLAN-tests.md.
   test: {
     environment: 'node',
-    include: ['src/**/*.test.js'],
+    include: ['src/**/*.test.{js,jsx}'],
+    setupFiles: ['./src/test/setup.js'],
   },
   plugins: [
     react(),

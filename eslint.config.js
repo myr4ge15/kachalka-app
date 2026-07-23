@@ -52,10 +52,11 @@ export default [
     },
   },
 
-  // Тесты (Vitest) гоняются в node-окружении; сам API импортируется явно из
-  // 'vitest', поэтому нужны только node-глобалы поверх браузерных из блока выше.
+  // Тесты (Vitest). node-сьют (`.test.js`) и компонентные RTL-тесты в jsdom
+  // (`.test.jsx`) — API импортируется явно из 'vitest'; браузерные глобалы (для
+  // jsdom: document/window) идут из блока src выше, добавляем только node-глобалы.
   {
-    files: ['src/**/*.test.js'],
+    files: ['src/**/*.test.{js,jsx}'],
     languageOptions: { globals: { ...globals.node } },
   },
 
