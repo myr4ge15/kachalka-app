@@ -1,5 +1,27 @@
 import { describe, it, expect } from 'vitest'
-import { fmtAgo } from './dates.js'
+import { fmtAgo, fmtDate, toDateInput, fromDateInput } from './dates.js'
+
+describe('fmtDate', () => {
+  it('формат дд.мм.гггг', () => {
+    expect(fmtDate('2026-07-23T12:00:00.000Z')).toMatch(/^\d{2}\.\d{2}\.\d{4}$/)
+  })
+})
+
+describe('toDateInput / fromDateInput', () => {
+  it('round-trip сохраняет календарный день (TZ-независимо)', () => {
+    const iso = fromDateInput('2026-07-23', '2026-01-01T08:30:00.000Z')
+    expect(toDateInput(iso)).toBe('2026-07-23')
+  })
+  it('fromDateInput сохраняет время суток исходной даты', () => {
+    const prev = '2026-01-01T08:30:00.000Z'
+    const d = new Date(fromDateInput('2026-07-23', prev))
+    expect(d.getHours()).toBe(new Date(prev).getHours())
+    expect(d.getMinutes()).toBe(new Date(prev).getMinutes())
+  })
+  it('пустой prevIso → день берётся из value', () => {
+    expect(toDateInput(fromDateInput('2020-02-29', ''))).toBe('2020-02-29')
+  })
+})
 
 describe('fmtAgo', () => {
   const now = 1_700_000_000_000

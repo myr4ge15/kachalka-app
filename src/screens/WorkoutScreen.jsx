@@ -17,10 +17,14 @@ import {
 import { exportWorkouts } from '../lib/exportWorkout.js'
 import { templateExercisesFromWorkout, defaultTemplateName } from '../lib/templateFromWorkout.js'
 import { vibrate, HAPTIC } from '../lib/haptics.js'
+import { fmtDate } from '../lib/dates.js'
 import CardsSkeleton from '../components/CardsSkeleton.jsx'
 import ExercisePicker from '../components/ExercisePicker.jsx'
 import TemplatePicker from '../components/TemplatePicker.jsx'
 import ExerciseCard from '../components/ExerciseCard.jsx'
+import DateField from '../components/DateField.jsx'
+import WorkoutActions from '../components/WorkoutActions.jsx'
+import SaveBar from '../components/SaveBar.jsx'
 
 // локальный документ → редактируемая форма [{ exercise, sets:[{weight,reps}] }].
 // sk() — стабильный ключ строки подхода для React (единый модульный счётчик в
@@ -30,26 +34,6 @@ function toEntries(workout) {
     exercise: e.exercise ?? { id: e.exercise_id, name: '—' },
     sets: (e.sets ?? []).map((s) => ({ weight: s.weight, reps: s.reps, _k: sk() })),
   }))
-}
-
-function fmtDate(iso) {
-  return new Date(iso).toLocaleDateString('ru-RU', {
-    day: '2-digit', month: '2-digit', year: 'numeric',
-  })
-}
-
-// ISO-дату (performed_at) → YYYY-MM-DD для <input type=date> и обратно.
-function toDateInput(iso) {
-  const d = iso ? new Date(iso) : new Date()
-  const off = d.getTimezoneOffset() * 60000
-  return new Date(d - off).toISOString().slice(0, 10)
-}
-function fromDateInput(value, prevIso) {
-  // сохраняем время суток из исходной даты (или текущее), меняем только день
-  const base = prevIso ? new Date(prevIso) : new Date()
-  const [y, m, d] = value.split('-').map(Number)
-  base.setFullYear(y, m - 1, d)
-  return base.toISOString()
 }
 
 // Экран-композер (новая тренировка) и экран-деталь (правка существующей).
@@ -436,19 +420,7 @@ export default function WorkoutScreen({ user, workoutId = null, onBack }) {
         <CardsSkeleton cards={3} />
       ) : (
         <>
-          <label className="date-field">
-            <span className="muted">Дата</span>
-            <span className="date-picker">
-              <span className="date-picker__icon" aria-hidden="true">📅</span>
-              <span className="date-picker__value">{fmtDate(performedAt)}</span>
-              <span className="date-picker__chevron" aria-hidden="true">▾</span>
-              <input
-                type="date"
-                value={toDateInput(performedAt)}
-                onChange={(e) => setPerformedAt(fromDateInput(e.target.value, performedAt))}
-              />
-            </span>
-          </label>
+          <DateField performedAt={performedAt} onChange={setPerformedAt} />
 
           {entries.length === 0 && (
             <p className="muted empty">Добавь упражнение, чтобы начать.</p>
@@ -483,84 +455,29 @@ export default function WorkoutScreen({ user, workoutId = null, onBack }) {
             + Добавить упражнение
           </button>
 
-          {isNew && entries.length > 0 && (
-            clearArm ? (
-              <div className="danger-confirm">
-                <p className="danger-text">Очистить черновик? Добавленные упражнения будут удалены.</p>
-                <div className="danger-actions">
-                  <button className="btn ghost" onClick={() => setClearArm(false)} disabled={saving}>Отмена</button>
-                  <button className="btn danger" onClick={clearDraft} disabled={saving}>Да, очистить</button>
-                </div>
-              </div>
-            ) : (
-              <button className="link-btn danger full-link" disabled={saving} onClick={() => setClearArm(true)}>
-                Очистить черновик
-              </button>
-            )
-          )}
+          <WorkoutActions
+            isNew={isNew}
+            hasEntries={entries.length > 0}
+            saving={saving}
+            tplBusy={tplBusy}
+            clearArm={clearArm}
+            onArmClear={() => setClearArm(true)}
+            onCancelClear={() => setClearArm(false)}
+            onClearDraft={clearDraft}
+            onExport={exportOne}
+            tplArm={tplArm}
+            onOpenTpl={openTplArm}
+            onCancelTpl={() => setTplArm(false)}
+            tplName={tplName}
+            onTplName={setTplName}
+            onMakeTemplate={makeTemplate}
+            delArm={delArm}
+            onArmDel={() => setDelArm(true)}
+            onCancelDel={() => setDelArm(false)}
+            onDelete={remove}
+          />
 
-          {!isNew && (
-            <button className="link-btn full-link" disabled={saving} onClick={exportOne}>
-              ⬇ Экспорт в JSON
-            </button>
-          )}
-
-          {!isNew && (
-            tplArm ? (
-              <div className="tpl-from-wk">
-                <label className="tpl-name-field">
-                  <span className="muted">Название шаблона</span>
-                  <input
-                    className="search"
-                    value={tplName}
-                    onChange={(e) => setTplName(e.target.value)}
-                    placeholder="Название шаблона"
-                    autoFocus
-                  />
-                </label>
-                <div className="danger-actions">
-                  <button className="btn ghost" onClick={() => setTplArm(false)} disabled={tplBusy}>Отмена</button>
-                  <button className="btn primary" onClick={makeTemplate} disabled={tplBusy || !tplName.trim()}>
-                    {tplBusy ? 'Создаю…' : 'Создать шаблон'}
-                  </button>
-                </div>
-              </div>
-            ) : (
-              <button className="link-btn full-link" disabled={saving} onClick={openTplArm}>
-                📋 Сделать шаблон из тренировки
-              </button>
-            )
-          )}
-
-          {!isNew && (
-            delArm ? (
-              <div className="danger-confirm">
-                <p className="danger-text">Удалить эту тренировку? Действие необратимо.</p>
-                <div className="danger-actions">
-                  <button className="btn ghost" onClick={() => setDelArm(false)} disabled={saving}>Отмена</button>
-                  <button className="btn danger" onClick={remove} disabled={saving}>
-                    {saving ? 'Удаляю…' : 'Да, удалить'}
-                  </button>
-                </div>
-              </div>
-            ) : (
-              <button className="link-btn danger full-link" disabled={saving} onClick={() => setDelArm(true)}>
-                Удалить тренировку
-              </button>
-            )
-          )}
-
-          {/* Место под липкий бар, чтобы последний элемент можно было проскроллить
-              выше плавающей кнопки «Сохранить». */}
-          <div className="wk-save-spacer" aria-hidden="true" />
-
-          {/* Липкая кнопка «Сохранить»: при длинной тренировке не уезжает вниз,
-              всегда над таббаром (fixed, как тост/бар шаблона). */}
-          <div className="wk-save-bar">
-            <button className="btn primary full save-btn" disabled={!canSave} onClick={save}>
-              {saving ? 'Сохранение…' : `Сохранить${totalSets ? ` (${totalSets})` : ''}`}
-            </button>
-          </div>
+          <SaveBar canSave={canSave} saving={saving} totalSets={totalSets} onSave={save} />
         </>
       )}
 

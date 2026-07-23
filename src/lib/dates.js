@@ -26,6 +26,31 @@ export function fmtWhen(iso) {
   return d.toLocaleDateString('ru-RU', { day: '2-digit', month: '2-digit', year: 'numeric' })
 }
 
+// «дд.мм.гггг» — короткая дата тренировки (заголовок деталей + метка в композере).
+// Вынесено из WorkoutScreen. Всегда числовой формат, без «сегодня/вчера».
+export function fmtDate(iso) {
+  return new Date(iso).toLocaleDateString('ru-RU', {
+    day: '2-digit', month: '2-digit', year: 'numeric',
+  })
+}
+
+// ISO-дата (performed_at) → YYYY-MM-DD для <input type=date> в ЛОКАЛЬНОМ поясе
+// (сдвигаем на offset, иначе около полуночи UTC день «уезжает»).
+export function toDateInput(iso) {
+  const d = iso ? new Date(iso) : new Date()
+  const off = d.getTimezoneOffset() * 60000
+  return new Date(d - off).toISOString().slice(0, 10)
+}
+
+// YYYY-MM-DD из <input type=date> → ISO, СОХРАНЯЯ время суток исходной даты
+// (или текущее, если её нет): меняем только календарный день.
+export function fromDateInput(value, prevIso) {
+  const base = prevIso ? new Date(prevIso) : new Date()
+  const [y, m, d] = value.split('-').map(Number)
+  base.setFullYear(y, m - 1, d)
+  return base.toISOString()
+}
+
 // «N назад» — относительная свежесть (для метки обновления Ленты). На вход — метка
 // времени в мс (Date.now()) и текущее время (инъектируется в тестах). Единицы —
 // сокращённые (мин/ч/дн), чтобы обойти русскую плюрализацию. Пустой/невалидный/
