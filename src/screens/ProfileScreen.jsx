@@ -9,9 +9,9 @@ import { readGoals, writeGoals } from '../db/notifications.js'
 import { syncNow } from '../db/sync.js'
 import { getCachedLeaderboard } from '../db/leaderboard.js'
 import { getMeta } from '../db/local.js'
-import { summarize, currentBestValue, goalProgress, fmtTonnage } from '../lib/profileStats.js'
+import { summarize } from '../lib/profileStats.js'
 import { currentValues, evaluateBadges, BADGES } from '../lib/badges.js'
-import { fmtMetricValue, normMetric, parseTime, fmtTime } from '../lib/metric.js'
+import { normMetric, parseTime, fmtTime } from '../lib/metric.js'
 import { setPin, setName, LoginError } from '../lib/auth.js'
 import { uploadMyAvatar } from '../lib/avatar.js'
 import { onlyDigits } from '../lib/text.js'
@@ -19,6 +19,9 @@ import { showToast } from '../components/Toast.jsx'
 import HoldButton from '../components/HoldButton.jsx'
 import Avatar from '../components/Avatar.jsx'
 import CardsSkeleton from '../components/CardsSkeleton.jsx'
+import StatGrid from '../components/StatGrid.jsx'
+import PersonalRecords from '../components/PersonalRecords.jsx'
+import GoalsList from '../components/GoalsList.jsx'
 
 // Экран «Профиль» (ЛК). Всё про самого пользователя; пер-упражненческую
 // аналитику не дублируем — рекорды уводят в «Прогресс». Считаем на клиенте из
@@ -416,21 +419,7 @@ export default function ProfileScreen({ user, onLogout, onOpenProgress, onOpenFe
         <>
           {/* быстрые цифры — «за всё время». Скользящие метрики (за месяц,
               серия) живут на Главной, здесь не дублируем (акценты разведены). */}
-          <div className="stat-grid">
-            <div className="stat-cell">
-              <div className="stat-num">{summary.totalWorkouts}</div>
-              <div className="stat-lab">тренировок<br />всего</div>
-            </div>
-            <div className="stat-cell">
-              {(() => {
-                const t = fmtTonnage(summary.tonnage)
-                return (
-                  <div className="stat-num">{t.value}<span className="u"> {t.unit}</span></div>
-                )
-              })()}
-              <div className="stat-lab">поднято<br />всего</div>
-            </div>
-          </div>
+          <StatGrid totalWorkouts={summary.totalWorkouts} tonnage={summary.tonnage} />
 
           {/* вход на экран достижений/бейджей */}
           <section className="sec">
@@ -566,64 +555,12 @@ export default function ProfileScreen({ user, onLogout, onOpenProgress, onOpenFe
                 <button className="goal-edit set" onClick={openAddGoal}>+ Поставить цель</button>
               </div>
             ) : (
-              <div className="goals-list">
-                {goalList.map((g) => {
-                  const m = normMetric(g.metric)
-                  const cur = currentBestValue(workouts ?? [], g.exerciseId, m)
-                  const pct = goalProgress(cur, g.targetWeight)
-                  const left = Math.max(0, g.targetWeight - cur)
-                  // Повторы при целевом весе (PLAN-goal-reps) — только у весовой цели.
-                  const reps = m === 'weight' && Number(g.targetReps) > 0 ? Math.round(Number(g.targetReps)) : 0
-                  return (
-                    <div className="goal" key={g.exerciseId}>
-                      <div className="goal-top">
-                        <span className="lbl">
-                          {g.exerciseName} <b>{fmtMetricValue(m, g.targetWeight)}{reps ? ` × ${reps}` : ''}</b>
-                        </span>
-                        <span className="pct">{pct}%</span>
-                      </div>
-                      <div className="bar"><i style={{ width: `${pct}%` }} /></div>
-                      {g.achievedAt ? (
-                        <div className="goal-sub achieved">🎯 Цель достигнута!</div>
-                      ) : (
-                        <div className="goal-sub">
-                          текущий рекорд {fmtMetricValue(m, cur)} · осталось {fmtMetricValue(m, left)}
-                          {reps ? <> · нужно ≥{reps} повт. в подходе</> : null}
-                        </div>
-                      )}
-                      <button className="goal-edit" onClick={() => openEditGoal(g)}>✎ Изменить цель</button>
-                    </div>
-                  )
-                })}
-                <button className="goal-add" onClick={openAddGoal}>+ Добавить цель</button>
-              </div>
+              <GoalsList goalList={goalList} workouts={workouts} onEdit={openEditGoal} onAdd={openAddGoal} />
             )}
           </section>
 
           {/* личные рекорды → Прогресс */}
-          {records.length > 0 && (
-            <section className="sec">
-              <p className="sec-title">Личные рекорды · тап → Прогресс</p>
-              <ul className="pr-list">
-                {records.map((r) => (
-                  <li key={r.exId}>
-                    <button className="pr-row" onClick={() => onOpenProgress?.(r.exId)}>
-                      <span className="pr-name">
-                        <span className={'star' + (r.isBench ? '' : ' dim')}>★</span>
-                        <span className="txt">{r.name}</span>
-                      </span>
-                      <span className="pr-val">
-                        {fmtMetricValue(r.metric, r.value)} <span className="arr">›</span>
-                      </span>
-                    </button>
-                  </li>
-                ))}
-              </ul>
-              <p className="hint">
-                Графики по дням и «форма сейчас» — на экране «Прогресс».
-              </p>
-            </section>
-          )}
+          <PersonalRecords records={records} onOpenProgress={onOpenProgress} />
 
           {/* любимое упражнение */}
           {summary.favExercise && (
