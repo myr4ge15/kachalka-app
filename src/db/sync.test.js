@@ -193,6 +193,46 @@ describe('pull: merge-часы', () => {
     expect(doc._dirty).toBe(1)
   })
 
+  it('conflict (сервер позже): серверная правка с другого устройства побеждает, проигравшая логируется', async () => {
+    // Грязная локальная правка: базис T1, наша версия T2, сервер уехал до T3 (> базиса
+    // И > нашей) → конфликт, серверная позже → принимаем серверную, конфликт в журнал.
+    await db.workouts.put({
+      id: 'cf1', user_id: userId, performed_at: '2026-01-10',
+      created_at: '2026-01-10', updated_at: '2026-02-01T00:00:00.000Z',
+      _base_updated_at: '2026-01-10T00:00:00.000Z',
+      entries: [{ exercise_id: bench.id, exercise: bench, sets: [{ weight: 150, reps: 3 }] }],
+      _dirty: 1, _deleted: 0,
+    })
+    srv.state.workoutsMain = [serverRow({ id: 'cf1', user_id: userId, updated_at: '2026-03-01T00:00:00.000Z', weight: 120 })]
+    srv.state.workoutIds = ['cf1']
+    await syncNow(userId)
+    const doc = await db.workouts.get('cf1')
+    expect(doc.entries[0].sets[0].weight).toBe(120) // серверная версия принята
+    const log = await db.meta.get('merge_conflicts')
+    expect(log.value).toHaveLength(1)
+    expect(log.value[0]).toMatchObject({ id: 'cf1', winner: 'server' })
+  })
+
+  it('conflict (локальная позже): наша более поздняя правка выживает, но конфликт всё равно виден в журнале', async () => {
+    // Базис T1, сервер уехал до T2 (> базиса → конфликт), но наша версия T3 ещё позже
+    // → выживает локальная, push довезёт; факт расхождения логируется.
+    await db.workouts.put({
+      id: 'cf2', user_id: userId, performed_at: '2026-01-10',
+      created_at: '2026-01-10', updated_at: '2026-03-01T00:00:00.000Z',
+      _base_updated_at: '2026-01-10T00:00:00.000Z',
+      entries: [{ exercise_id: bench.id, exercise: bench, sets: [{ weight: 200, reps: 2 }] }],
+      _dirty: 1, _deleted: 0,
+    })
+    srv.state.workoutsMain = [serverRow({ id: 'cf2', user_id: userId, updated_at: '2026-02-01T00:00:00.000Z', weight: 100 })]
+    srv.state.workoutIds = ['cf2']
+    await syncNow(userId)
+    const doc = await db.workouts.get('cf2')
+    expect(doc.entries[0].sets[0].weight).toBe(200) // локальная правка сохранена
+    expect(doc._dirty).toBe(1)                      // ждёт push
+    const log = await db.meta.get('merge_conflicts')
+    expect(log.value[0]).toMatchObject({ id: 'cf2', winner: 'local' })
+  })
+
   it('реконсиляция удаления: чистую запись, которой нет на сервере, pull удаляет со ВТОРОГО прогона', async () => {
     await db.workouts.put({
       id: 'gone', user_id: userId, performed_at: '2026-01-10',
