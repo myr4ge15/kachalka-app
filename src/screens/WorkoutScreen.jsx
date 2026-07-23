@@ -7,10 +7,13 @@ import { detectBadgesOnSave } from '../db/badges.js'
 import { syncNow } from '../db/sync.js'
 import { getCache, setCache, clearCache } from '../lib/cache.js'
 import { showToast, hideToast } from '../components/Toast.jsx'
-import { exerciseMetric, isCountMetric } from '../lib/metric.js'
 import { buildRecommendation, defaultSet, sk } from '../lib/progressionCard.js'
 import { pickSaveCelebration } from '../lib/saveCelebration.js'
-import { WEIGHT_MAX, repsMax } from '../lib/setLimits.js'
+import {
+  appendExerciseIn, removeExerciseIn, insertExerciseIn, replaceExerciseIn,
+  updateSetIn, stepSetIn, addSetIn, removeSetIn, insertSetIn,
+  revertProgIn, applyProgIn, toggleProgSettingsIn, setsFromTemplate,
+} from '../lib/workoutEntries.js'
 import { exportWorkouts } from '../lib/exportWorkout.js'
 import { templateExercisesFromWorkout, defaultTemplateName } from '../lib/templateFromWorkout.js'
 import { vibrate, HAPTIC } from '../lib/haptics.js'
@@ -148,40 +151,22 @@ export default function WorkoutScreen({ user, workoutId = null, onBack }) {
     }
     // Пока читали историю, состав мог измениться (двойной тап/undo) — анти-дубль
     // на свежем состоянии внутри апдейтера.
-    setEntries((prev) =>
-      prev.some((e) => e.exercise.id === ex.id) ? prev : [...prev, { exercise: ex, sets: built.sets, prog: built.meta }]
-    )
+    setEntries((prev) => appendExerciseIn(prev, ex, built.sets, built.meta))
   }
 
   // Откат к чистой копии прошлой сессии (ссылка «вернуть как в прошлый раз»).
   function revertProg(ei) {
-    setEntries((prev) => prev.map((e, i) => {
-      if (i !== ei || !e.prog) return e
-      return {
-        ...e,
-        sets: e.prog.prev.map((s) => ({ ...s, _k: sk() })),
-        prog: { ...e.prog, applied: false },
-      }
-    }))
+    setEntries((prev) => revertProgIn(prev, ei))
   }
 
   // Повторно накатить рекомендацию после отката/ручной правки («Применить»).
   function applyProg(ei) {
-    setEntries((prev) => prev.map((e, i) => {
-      if (i !== ei || !e.prog) return e
-      return {
-        ...e,
-        sets: e.prog.recSets.map((s) => ({ ...s, _k: sk() })),
-        prog: { ...e.prog, applied: true },
-      }
-    }))
+    setEntries((prev) => applyProgIn(prev, ei))
   }
 
   // Показать/спрятать настройки прогрессии (шестерёнка) в карточке.
   function toggleProgSettings(ei) {
-    setEntries((prev) => prev.map((e, i) =>
-      i === ei && e.prog ? { ...e, prog: { ...e.prog, settingsOpen: !e.prog.settingsOpen } } : e
-    ))
+    setEntries((prev) => toggleProgSettingsIn(prev, ei))
   }
 
   // Сохранить пер-упражненческую настройку (стратегия/шаг) и пересобрать
@@ -230,17 +215,12 @@ export default function WorkoutScreen({ user, workoutId = null, onBack }) {
       setMessage({ type: 'error', text: 'Это упражнение уже добавлено.' })
       return
     }
-    const count = isCountMetric(exerciseMetric(ex))
-    setEntries((prev) => prev.map((e, i) => {
-      if (i !== idx) return e
-      const sets = count ? e.sets.map((s) => ({ ...s, weight: 0 })) : e.sets
-      return { exercise: ex, sets }
-    }))
+    setEntries((prev) => replaceExerciseIn(prev, idx, ex))
   }
 
   function removeExercise(idx) {
     const removed = entries[idx]
-    setEntries((prev) => prev.filter((_, i) => i !== idx))
+    setEntries((prev) => removeExerciseIn(prev, idx))
     if (!removed) return
     // Удаление срабатывает сразу, но даём окно отмены — кнопка удаления
     // соседствует с зоной сохранения/добавления, легко нажать случайно.
@@ -252,25 +232,8 @@ export default function WorkoutScreen({ user, workoutId = null, onBack }) {
       actionLabel: 'Отменить',
       duration: 6000,
       raised: true, // выше липкой кнопки «Сохранить» — чтобы не перекрывала её
-      onAction: () => setEntries((prev) => {
-        // Анти-дубль: если упражнение успели вернуть/добавить — не плодим копию.
-        if (prev.some((e) => e.exercise.id === removed.exercise.id)) return prev
-        const next = prev.slice()
-        next.splice(Math.min(idx, next.length), 0, removed)
-        return next
-      }),
+      onAction: () => setEntries((prev) => insertExerciseIn(prev, idx, removed)),
     })
-  }
-
-  // Подходы из целевого плана упражнения шаблона: sets подходов по reps повторов
-  // (× weight у весовых). Нет плана (легаси-шаблон) → один дефолтный подход.
-  function setsFromTemplate(ex, item) {
-    const n = Math.max(1, Math.round(Number(item?.sets)) || 0)
-    if (!item?.sets) return [defaultSet(ex)]
-    const count = isCountMetric(exerciseMetric(ex))
-    const reps = Math.max(1, Math.round(Number(item.reps)) || defaultSet(ex).reps)
-    const weight = count ? 0 : (Number(item.weight) || 0)
-    return Array.from({ length: n }, () => ({ weight, reps, _k: sk() }))
   }
 
   // Применение шаблона (только новая тренировка): добавляем упражнения шаблона,
@@ -311,44 +274,21 @@ export default function WorkoutScreen({ user, workoutId = null, onBack }) {
   }
 
   function updateSet(ei, si, field, value) {
-    setEntries((prev) => prev.map((e, i) => {
-      if (i !== ei) return e
-      const sets = e.sets.map((s, j) => (j === si ? { ...s, [field]: value } : s))
-      return { ...e, sets }
-    }))
+    setEntries((prev) => updateSetIn(prev, ei, si, field, value))
   }
 
   function step(ei, si, field, delta) {
-    const min = field === 'reps' ? 1 : 0
-    setEntries((prev) => prev.map((e, i) => {
-      if (i !== ei) return e
-      // Верхняя граница степпера (та же, что клампит сохранение): вес → WEIGHT_MAX,
-      // повторы/секунды → по метрике упражнения (у time там секунды).
-      const max = field === 'weight' ? WEIGHT_MAX : repsMax(exerciseMetric(e.exercise))
-      // Значение в state — строка из инпута: '', '.', '1.2.3' дают NaN. В этом
-      // случае стартуем степпер от минимума, иначе в поле попадал бы «NaN».
-      const base = Number(e.sets[si]?.[field])
-      const cur = Number.isFinite(base) ? base : min
-      const next = Math.min(max, Math.max(min, Math.round((cur + delta) * 100) / 100))
-      const sets = e.sets.map((s, j) => (j === si ? { ...s, [field]: next } : s))
-      return { ...e, sets }
-    }))
+    setEntries((prev) => stepSetIn(prev, ei, si, field, delta))
   }
 
   function addSet(ei) {
-    setEntries((prev) => prev.map((e, i) => {
-      if (i !== ei) return e
-      const last = e.sets[e.sets.length - 1] ?? defaultSet(e.exercise)
-      return { ...e, sets: [...e.sets, { ...last, _k: sk() }] }
-    }))
+    setEntries((prev) => addSetIn(prev, ei))
   }
 
   function removeSet(ei, si) {
     const entry = entries[ei]
     const removed = entry?.sets[si]
-    setEntries((prev) => prev.map((e, i) =>
-      i === ei ? { ...e, sets: e.sets.filter((_, j) => j !== si) } : e
-    ))
+    setEntries((prev) => removeSetIn(prev, ei, si))
     if (!removed) return
     const exId = entry.exercise.id
     // Точечная отмена: ищем упражнение по id (индекс мог сдвинуться) и
@@ -361,12 +301,7 @@ export default function WorkoutScreen({ user, workoutId = null, onBack }) {
       actionLabel: 'Отменить',
       duration: 6000,
       raised: true, // выше липкой кнопки «Сохранить» — чтобы не перекрывала её
-      onAction: () => setEntries((prev) => prev.map((e) => {
-        if (e.exercise.id !== exId) return e
-        const sets = e.sets.slice()
-        sets.splice(Math.min(si, sets.length), 0, removed)
-        return { ...e, sets }
-      })),
+      onAction: () => setEntries((prev) => insertSetIn(prev, exId, si, removed)),
     })
   }
 
