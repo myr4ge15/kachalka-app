@@ -91,9 +91,16 @@ describe('stepSetIn — клампинг границ', () => {
     const out = stepSetIn([entry(wEx(), [s(60, 1)])], 0, 0, 'reps', -1)
     expect(out[0].sets[0].reps).toBe(1)
   })
-  it('нечисловое значение стартует от минимума (reps → 1, затем +1 = 2)', () => {
-    const out = stepSetIn([entry(wEx(), [s(60, '')])], 0, 0, 'reps', 1)
+  it('нечисловой reps (NaN, напр. ".") стартует от минимума 1, затем +1 = 2', () => {
+    // NB: Number('') === 0 (конечное) → это НЕ ветка «от минимума»; нужен реально
+    // нечисловой ввод — Number('.') === NaN → cur=min=1 → +1 = 2.
+    const out = stepSetIn([entry(wEx(), [s(60, '.')])], 0, 0, 'reps', 1)
     expect(out[0].sets[0].reps).toBe(2)
+  })
+
+  it('пустая строка reps трактуется как 0 → +1 = 1 (клампится к min)', () => {
+    const out = stepSetIn([entry(wEx(), [s(60, '')])], 0, 0, 'reps', 1)
+    expect(out[0].sets[0].reps).toBe(1)
   })
   it('нечисловой вес стартует от 0 (+1.25 = 1.25)', () => {
     const out = stepSetIn([entry(wEx(), [s('.', 10)])], 0, 0, 'weight', 1.25)
