@@ -16,13 +16,24 @@ if (!url || !key) {
 // автоматически обновляем токен. persistSession кладёт сессию в localStorage —
 // вход переживает перезапуск приложения (окно ~7 дней задаётся в Auth→Sessions).
 // detectSessionInUrl выключаем: это PWA, не OAuth-редирект.
-export const supabase = createClient(url ?? '', key ?? '', {
-  auth: {
-    persistSession: true,
-    autoRefreshToken: true,
-    detectSessionInUrl: false,
-  },
-})
+//
+// Плейсхолдеры при отсутствии .env: createClient требует СИНТАКСИЧЕСКИ валидный
+// URL и бросает на пустой строке ('supabaseUrl is required'). Раньше этот бросок
+// на импорте модуля гасил рендер ДО экрана «Нужна настройка» (белый экран при
+// забытом .env — гард isConfigured в App.jsx не успевал сработать) и ронял
+// юнит-тесты в CI (там env не задан). При isConfigured=false приложение
+// показывает экран настройки и сетевых вызовов не делает — этот клиент не трогается.
+export const supabase = createClient(
+  url || 'https://placeholder.supabase.co',
+  key || 'placeholder-anon-key',
+  {
+    auth: {
+      persistSession: true,
+      autoRefreshToken: true,
+      detectSessionInUrl: false,
+    },
+  }
+)
 export const isConfigured = Boolean(url && key)
 
 // true, если у клиента УЖЕ поднята настоящая Auth-сессия. Нужно, чтобы не
