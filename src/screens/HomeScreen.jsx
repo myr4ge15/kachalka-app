@@ -1,5 +1,5 @@
 import { useLiveQuery } from 'dexie-react-hooks'
-import { getHomeSummary, getInsights, getFreshness } from '../db/insights.js'
+import { getHomeData } from '../db/insights.js'
 import { fmtDaysAgo, fmtDays } from '../lib/homeSummary.js'
 import { fmtTonnage, goalProgress } from '../lib/profileStats.js'
 import { fmtMetricValue } from '../lib/metric.js'
@@ -24,10 +24,13 @@ const STATE_HINT = { ready: 'можно тренировать', almost: 'поч
 //
 // Пропсы: user, onNavigate(tab).
 export default function HomeScreen({ user, onNavigate }) {
-  const summary = useLiveQuery(() => getHomeSummary(user.id), [user.id])
-  const insights = useLiveQuery(() => getInsights(user.id, { max: 3 }), [user.id], [])
-  const freshness = useLiveQuery(() => getFreshness(user.id), [user.id])
-  const loading = summary === undefined
+  // Одно чтение истории на все три блока Главной (сводка/инсайты/свежесть): раньше
+  // было три отдельных useLiveQuery, каждый сканировал всю историю заново.
+  const home = useLiveQuery(() => getHomeData(user.id, { max: 3 }), [user.id])
+  const loading = home === undefined
+  const summary = home?.summary
+  const insights = home?.insights ?? []
+  const freshness = home?.freshness
 
   if (loading) {
     return (

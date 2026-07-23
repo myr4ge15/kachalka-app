@@ -166,12 +166,32 @@ function templateRowToDoc(t) {
 // тренировок БРОСАЕТ (это сетевой сбой всего прогона, ловится в syncNow).
 // Хелперы объявлены ниже (function-declaration'ы хойстятся).
 async function pull(userId, justPushed = new Set(), d = db) {
-  const warnings = []
-  warnings.push(...(await pullExercises(d)))
-  warnings.push(...(await pullRoster(d)))
-  await pullPrivacyFlag(userId, d)
-  warnings.push(...(await pullWorkouts(userId, justPushed, d)))
-  warnings.push(...(await pullTemplates(userId, d)))
+  // Независимые подтяжки (FK-зависимостей между ними нет — исторически шли цепочкой
+  // await лишь по привычке) гоняем ПАРАЛЛЕЛЬНО: wall-clock цикла синка схлопывается
+  // с СУММЫ round-trip'ов в МАКСИМУМ одного. Каждую заворачиваем так, чтобы она НЕ
+  // реджектила Promise.all — иначе оставшиеся in-flight подтяжки после первого
+  // реджекта дали бы unhandled rejection. Разбираем результат сами ниже.
+  const wrap = (p) => p.then((w) => ({ ok: true, w })).catch((e) => ({ ok: false, e }))
+  const [ex, ros, , wk, tpl] = await Promise.all([
+    wrap(pullExercises(d)),
+    wrap(pullRoster(d)),
+    wrap(pullPrivacyFlag(userId, d)), // best-effort, warnings не копит
+    wrap(pullWorkouts(userId, justPushed, d)),
+    wrap(pullTemplates(userId, d)),
+  ])
+  // Тренировки — КРИТИЧНАЯ подтяжка: её сбой = сетевой сбой всего прогона (как и
+  // раньше, когда throw из pullWorkouts пробрасывался в syncNow → netError). Бросаем
+  // ПОСЛЕ того, как Promise.all дождался остальных, поэтому unhandled rejection нет.
+  if (!wk.ok) throw wk.e
+  // Остальные подтяжки некритичны: сетевой сбой любой из них теперь деградирует
+  // мягко — предупреждение вместо падения всего прогона (тренировки важнее
+  // справочника/ростера/шаблонов), синк при этом считается прошедшим. Раньше сбой
+  // ЛЮБОЙ из них (шли до pullWorkouts) ронял и синхронизацию тренировок.
+  const warnings = [...(wk.w ?? [])]
+  for (const r of [ex, ros, tpl]) {
+    if (r.ok) warnings.push(...(r.w ?? []))
+    else warnings.push(String(r.e?.message ?? r.e))
+  }
   return warnings
 }
 
@@ -276,19 +296,21 @@ async function pullWorkouts(userId, justPushed = new Set(), d = db) {
   let wkQuery = supabase.from('workouts').select(SELECT_WORKOUT).eq('user_id', userId)
   if (wmWorkouts) wkQuery = wkQuery.gt('updated_at', wmWorkouts)
   wkQuery = wkQuery.order('updated_at', { ascending: true })
-  const wk = await withTimeout(wkQuery)
+  // Оконный запрос дельты (тяжёлый join) и ПОЛНЫЙ набор серверных id (без join'ов —
+  // дёшево, лишь UUID'ы для НАДЁЖНОЙ реконсиляции удалений: контент тянем по
+  // watermark, но удаления так не увидеть — строка исчезает, updated_at не растёт)
+  // независимы → гоняем одним Promise.all (–1 round-trip). Список id заворачиваем в
+  // .catch: его сетевой сбой НЕ должен ронять прогон — реконсиляцию удалений в этом
+  // цикле просто пропускаем (не удаляем вслепую), поэтому приводим к форме { error }
+  // как у PostgREST, а не даём Promise.all зареджектиться.
+  const [wk, idsRes] = await Promise.all([
+    withTimeout(wkQuery),
+    withTimeout(supabase.from('workouts').select('id').eq('user_id', userId))
+      .catch((e) => ({ error: e })),
+  ])
   if (wk.error) throw wk.error
   const serverRows = wk.data ?? []
 
-  // ПОЛНЫЙ набор серверных id тренировок пользователя (без join'ов — дёшево, лишь
-  // UUID'ы) для НАДЁЖНОЙ реконсиляции удалений. Контент тянем инкрементально (по
-  // watermark), но удаления так не увидеть (строка исчезает, updated_at не растёт)
-  // → сверяем с полным списком id. Если этот запрос упал — реконсиляцию удалений
-  // в этом прогоне ПРОПУСКАЕМ (не удаляем ничего вслепую), контент/конфликты
-  // обрабатываем как обычно.
-  const idsRes = await withTimeout(
-    supabase.from('workouts').select('id').eq('user_id', userId)
-  )
   let allServerIds = null
   if (idsRes.error) warnings.push('удаления не сверены: ' + (idsRes.error.message ?? idsRes.error))
   else allServerIds = new Set((idsRes.data ?? []).map((r) => r.id))

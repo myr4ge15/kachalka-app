@@ -28,11 +28,28 @@ async function safeLeaderboard() {
   }
 }
 
-// Инсайты для показа (уведомления/Главная): контекст — самая свежая тренировка.
-// leaderboard подгружаем для правила «обгон друга».
-export async function getInsights(userId, { max = 3 } = {}) {
-  const [workouts, leaderboard] = await Promise.all([getWorkouts(userId), safeLeaderboard()])
-  return buildInsights({ workouts, leaderboard, userId, max })
+// Все данные Главной ОДНИМ чтением истории: сводка + инсайты + свежесть. Раньше
+// экран держал три отдельных useLiveQuery (getHomeSummary/getInsights/getFreshness),
+// и каждый заново читал и сортировал ВСЮ историю тренировок (+ кэш лидерборда
+// дважды). Теперь один проход: workouts/лидерборд/цели читаются по одному разу, а
+// три чистых движка считают из общего окна. contextWorkoutId движку инсайтов на
+// Главной не нужен (контекст — самая свежая тренировка по умолчанию).
+export async function getHomeData(userId, { max = 3 } = {}) {
+  const [workouts, leaderboard, goals] = await Promise.all([
+    getWorkouts(userId),
+    safeLeaderboard(),
+    readGoals(userId),
+  ])
+  return {
+    summary: buildHomeSummary({ workouts, goals }),
+    insights: buildInsights({ workouts, leaderboard, userId, max }),
+    freshness: {
+      recovery: groupFreshness(workouts),
+      imbalance: computeImbalance(workouts),
+      recoverySub: submuscleFreshness(workouts),
+      imbalanceSub: submuscleImbalance(workouts),
+    },
+  }
 }
 
 // Инсайты именно этой (только что сохранённой) тренировки — для тоста после
@@ -40,12 +57,6 @@ export async function getInsights(userId, { max = 3 } = {}) {
 export async function detectInsightsOnSave(userId, workoutId, { max = 3 } = {}) {
   const [workouts, leaderboard] = await Promise.all([getWorkouts(userId), safeLeaderboard()])
   return buildInsights({ workouts, leaderboard, userId, contextWorkoutId: workoutId, max })
-}
-
-// Данные домашней сводки (главный экран).
-export async function getHomeSummary(userId) {
-  const [workouts, goals] = await Promise.all([getWorkouts(userId), readGoals(userId)])
-  return buildHomeSummary({ workouts, goals })
 }
 
 // Свежесть по группам (детальный экран + тизер Главной): recovery-список

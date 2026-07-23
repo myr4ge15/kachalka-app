@@ -11,14 +11,19 @@
 // ============================================================================
 import { supabase, isConfigured, hasSession } from './supabase.js'
 import { withTimeout } from '../lib/withTimeout.js'
-import { db } from './local.js'
+import { db, getMeta, setMeta } from './local.js'
 import { getCachedUser } from './repo.js'
 import { cmpIsoAsc, cmpIsoDesc } from '../lib/cmp.js'
 import { leadingValue, normMetric } from '../lib/metric.js'
 import { applyReactionQueue } from '../lib/reactions.js'
+import { rosterSignature } from '../lib/pullWatermark.js'
 
 // Сколько последних тренировок показываем в ленте.
 const FEED_LIMIT = 50
+// Сигнатура окна ленты (id + max updated_at по видимым 50 строкам) в meta. Пока
+// она не изменилась — тяжёлый вложенный join (workout_exercises→exercise→sets)
+// НЕ тянем: реакции обновляем поверх кэша дешёвым отдельным запросом.
+const FEED_SIG = 'sig_feed'
 
 // Тянем тренировку целиком, плюс имя автора (join users). Связь users указываем
 // ЯВНО по FK-констрейнту workouts_user_id_fkey: после появления таблицы reactions
@@ -148,17 +153,43 @@ export async function fetchFeed(userId, d = db) {
   // table workouts». Тихо выходим, как при офлайне; повторно дёрнет либо poll
   // синка, либо ре-триггер по onAuthStateChange (SIGNED_IN), см. sync.startSync.
   if (!(await hasSession())) return
-  const res = await withTimeout(
+
+  // Дешёвая проба окна ленты (id + updated_at по тем же 50 строкам). Тяжёлый
+  // вложенный join тянем ТОЛЬКО когда окно изменилось (новая/правленая/удалённая
+  // тренировка → меняется набор id или max updated_at). В устоявшемся состоянии
+  // (обычный случай при поллинге раз в 20–60 c) этого не происходит — и мы вместо
+  // тяжёлого join'а берём кэш ленты. Реакции обновляем ВСЕГДА (лёгкий отдельный
+  // запрос ниже): чужой лайк должен появляться без правки самой тренировки.
+  const probe = await withTimeout(
     supabase
       .from('workouts')
-      .select(SELECT_FEED)
+      .select('id, updated_at')
       .order('performed_at', { ascending: false })
       .limit(FEED_LIMIT)
   )
-  if (res.error) throw res.error
+  if (probe.error) throw probe.error
+  const sig = rosterSignature(probe.data ?? [])
+  const changed = sig !== (await getMeta(FEED_SIG, d))
 
-  const items = (res.data ?? []).map(rowToItem)
-  computePrs(items)
+  let items
+  if (changed) {
+    const res = await withTimeout(
+      supabase
+        .from('workouts')
+        .select(SELECT_FEED)
+        .order('performed_at', { ascending: false })
+        .limit(FEED_LIMIT)
+    )
+    if (res.error) throw res.error
+    items = (res.data ?? []).map(rowToItem)
+    computePrs(items)
+  } else {
+    // Окно ленты не изменилось — берём готовый кэш (тот же порядок «свежее сверху»,
+    // с уже посчитанными prs) и лишь переналожим свежие реакции. Кэш пуст (первый
+    // прогон/сброс) → sig не совпал бы, сюда мы бы не попали.
+    items = await d.feed.toArray()
+    items.sort((a, b) => cmpIsoDesc(a.performed_at, b.performed_at))
+  }
   await attachReactions(items)
 
   // Оптимистичная очередь реакций поверх серверного снимка: ещё не отправленные
@@ -182,6 +213,10 @@ export async function fetchFeed(userId, d = db) {
     await d.feed.clear()
     await d.feed.bulkPut(finalItems)
   })
+  // Запоминаем сигнатуру окна ПОСЛЕ успешной записи: следующий прогон пропустит
+  // тяжёлый join, пока окно не изменится. Сетевые/серверные сбои уходят в throw
+  // выше и сюда не доходят, поэтому метку не двигают.
+  await setMeta(FEED_SIG, sig, d)
 }
 
 // Лента из локального кэша (офлайн-доступна), свежее сверху.
