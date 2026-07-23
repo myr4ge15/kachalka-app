@@ -157,10 +157,26 @@ function templateRowToDoc(t) {
 // сменит учётку посреди сетевого await, `db` укажет на чужую базу, а `d` останется
 // прежним (и уже закрытым при свопе → запись бросит DatabaseClosedError, прогон
 // аборнётся в catch — без кросс-протечки данных A в базу B).
+// Оркестратор pull: последовательно гоняет частные подтяжки и собирает их
+// предупреждения в один список. Порядок сохранён историческим (FK-зависимостей
+// между подтяжками нет). Частичные сбои НЕ роняют синк (тренировки важнее
+// справочника) и не маскируются под успех — каждая подтяжка возвращает свои
+// warnings наверх, статус покажет «синхронизировано, но справочник/шаблоны не
+// обновились». Исключение — pullWorkouts: ошибка ОСНОВНОГО оконного запроса
+// тренировок БРОСАЕТ (это сетевой сбой всего прогона, ловится в syncNow).
+// Хелперы объявлены ниже (function-declaration'ы хойстятся).
 async function pull(userId, justPushed = new Set(), d = db) {
-  // Частичные сбои pull НЕ роняют весь синк (тренировки важнее справочника), но
-  // и не маскируются под успех: копим сообщения и возвращаем их наверх, чтобы
-  // статус показал «синхронизировано, но справочник/шаблоны не обновились».
+  const warnings = []
+  warnings.push(...(await pullExercises(d)))
+  warnings.push(...(await pullRoster(d)))
+  await pullPrivacyFlag(userId, d)
+  warnings.push(...(await pullWorkouts(userId, justPushed, d)))
+  warnings.push(...(await pullTemplates(userId, d)))
+  return warnings
+}
+
+// --------------------------- pull: справочник ------------------------------
+async function pullExercises(d = db) {
   const warnings = []
   // справочник упражнений. Инкрементально: сперва дешёвая проба самого свежего
   // updated_at (1 строка). Не вырос с прошлого раза → пропускаем целиком (ни
@@ -206,7 +222,12 @@ async function pull(userId, justPushed = new Set(), d = db) {
       await setMeta(WM_EXERCISES, maxUpdatedAt(ex.data) ?? exServerMax, d)
     }
   }
+  return warnings
+}
 
+// ----------------------------- pull: ростер --------------------------------
+async function pullRoster(d = db) {
+  const warnings = []
   // пользователи (имена для пикера входа). Тянем из view login_users — только
   // id и name, без pin_hash/pin_salt/role: хэши больше не отдаются клиентам
   // (сверка PIN — в auth-login онлайн или по своему кэшу офлайн, см. lib/auth.js).
@@ -229,15 +250,24 @@ async function pull(userId, justPushed = new Set(), d = db) {
       if (usSig !== null) await setMeta(SIG_USERS, usSig, d)
     }
   }
+  return warnings
+}
 
-  // свой флаг приватности (для UI: у приватного прячем блок лидерборда и место в
-  // профиле). Колонка is_private клиентам не грантится → берём через RPC
-  // my_is_private (DEFINER). Не критично для синка — ошибку только проглатываем.
+// --------------------------- pull: приватность -----------------------------
+// Свой флаг приватности (для UI: у приватного прячем блок лидерборда и место в
+// профиле). Колонка is_private клиентам не грантится → берём через RPC
+// my_is_private (DEFINER). Не критично для синка — ошибку только проглатываем,
+// warnings не копим (флаг косметический).
+async function pullPrivacyFlag(userId, d = db) {
   try {
     const pv = await withTimeout(supabase.rpc('my_is_private'))
     if (!pv.error) await setMeta(`priv_${userId}`, Boolean(pv.data), d)
   } catch { /* офлайн/старый сервер — оставляем прежнее значение флага */ }
+}
 
+// -------------------------- pull: тренировки -------------------------------
+async function pullWorkouts(userId, justPushed = new Set(), d = db) {
+  const warnings = []
   // тренировки пользователя — ТОЛЬКО дельта по watermark. Первый прогон (wm пуст)
   // тянет всю историю один раз, дальше — лишь `updated_at > wm` (обычно 0 строк).
   // Порядок по updated_at asc, чтобы watermark двигался монотонно. Лимита нет:
@@ -359,7 +389,12 @@ async function pull(userId, justPushed = new Set(), d = db) {
     } catch { /* журнал диагностики не критичен для синка */ }
     warnings.push(`правок перезаписано новее с другого устройства: ${conflicts.length}`)
   }
+  return warnings
+}
 
+// --------------------------- pull: шаблоны ---------------------------------
+async function pullTemplates(userId, d = db) {
+  const warnings = []
   // шаблоны: «мои ∪ общие в круге» (их мало). Инкрементально: дешёвая проба
   // (id, updated_at) по окну → сигнатура. Не изменилась → пропуск тяжёлого fetch'а
   // (join с template_exercises). Сигнатура ловит и правку (updated_at растёт), и
