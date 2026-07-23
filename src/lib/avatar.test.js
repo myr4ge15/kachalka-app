@@ -4,7 +4,6 @@ import { describe, it, expect, vi } from 'vitest'
 // мокаем его, чтобы тестировать только чистые fitDimensions/isHeic (без DOM/сети).
 vi.mock('../db/supabase.js', () => ({ supabase: {} }))
 
-// eslint-disable-next-line import/first
 import { fitDimensions, isHeic } from './avatar.js'
 
 // Мок File: isHeic читает только type/name и первые 16 байт (slice→arrayBuffer).
