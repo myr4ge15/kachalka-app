@@ -327,7 +327,7 @@ export default function App() {
               на каждую смену вкладки — контент въезжает, а не мигает подменой. */}
           <div className="screen-anim" key={tab}>
             {tab === 'home' && (
-              <HomeScreen user={user} onNavigate={goTab} onOpenProgress={openProgressFor} />
+              <HomeScreen user={user} onNavigate={goTab} />
             )}
             {tab === 'history' && <HistoryScreen user={user} />}
             {tab === 'feed' && <FeedScreen user={user} />}
@@ -358,7 +358,7 @@ export default function App() {
               <FreshnessScreen user={user} onBack={() => goTab('home')} />
             )}
             {tab === 'myex' && (
-              <MyExercisesScreen user={user} onBack={() => goTab('profile')} />
+              <MyExercisesScreen onBack={() => goTab('profile')} />
             )}
             {tab === 'achievements' && (
               <AchievementsScreen user={user} onBack={() => goTab('profile')} />

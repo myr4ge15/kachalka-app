@@ -11,12 +11,13 @@ import CardsSkeleton from '../components/CardsSkeleton.jsx'
 // сюда не попадает (его правит админ). Форма редактирования повторяет форму
 // создания своего упражнения из ExercisePicker.
 //
-// Пропсы: user, onBack().
+// Пропсы: onBack(). (Пользователь не нужен: справочник своих упражнений читается
+// из уже персональной базы, см. repo.getCustomExercises.)
 
 const BASE_GROUPS = ['грудь', 'спина', 'ноги', 'плечи', 'бицепс', 'трицепс', 'пресс', 'кардио']
 const METRIC_LABEL = { weight: 'вес и повторы', reps: 'только повторы', time: 'на время' }
 
-export default function MyExercisesScreen({ user, onBack }) {
+export default function MyExercisesScreen({ onBack }) {
   const list = useLiveQuery(() => getCustomExercises(), [])
   const loading = list === undefined
 

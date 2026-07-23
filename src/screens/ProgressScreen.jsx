@@ -66,6 +66,10 @@ export default function ProgressScreen({ user, initialExerciseId = null, onConsu
       setSelId(initialExerciseId)
       onConsumed?.()
     }
+    // onConsumed намеренно вне deps: это инлайн-колбэк родителя (новый на каждый
+    // рендер) — добавление в deps гоняло бы эффект вхолостую каждый рендер. Эффект
+    // — один раз на смену initialExerciseId (см. коммент выше).
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [initialExerciseId])
 
   const selected = useMemo(() => {

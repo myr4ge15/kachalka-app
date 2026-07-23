@@ -49,7 +49,11 @@ function useMediaQuery(query) {
 export default function HistoryScreen({ user }) {
   const workouts = useLiveQuery(() => getWorkouts(user.id), [user.id])
   const loading = workouts === undefined
-  const list = workouts ?? []
+  // useMemo, а не голое `workouts ?? []`: при загрузке (workouts===undefined) `?? []`
+  // давал бы НОВЫЙ [] на каждый рендер → deps производных useMemo (groups/shown)
+  // менялись бы каждый раз и мемоизация не работала. Мемо-обёртка держит ссылку
+  // стабильной (пустой массив един, пока workouts не приедет).
+  const list = useMemo(() => workouts ?? [], [workouts])
 
   const isDesktop = useMediaQuery('(min-width: 900px)')
 

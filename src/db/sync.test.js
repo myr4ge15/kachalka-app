@@ -55,7 +55,7 @@ vi.mock('./supabase.js', () => {
     return {
       _table: table, _select: null, _delete: false, _upsert: null, _eqUser: false, _gtUpdated: null,
       select(s) { this._select = s; return this },
-      eq(k, v) { if (k === 'user_id') this._eqUser = true; return this },
+      eq(k, _v) { if (k === 'user_id') this._eqUser = true; return this },
       gt(k, v) { if (k === 'updated_at') this._gtUpdated = v; return this },
       order() { return this },
       limit() { return this },

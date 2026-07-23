@@ -44,7 +44,9 @@ export default [
       'react-hooks/exhaustive-deps': 'warn',
       'no-unused-vars': [
         'warn',
-        { varsIgnorePattern: '^[A-Z_]', argsIgnorePattern: '^_', caughtErrors: 'none' },
+        // ignoreRestSiblings — идиома «выкинуть ключ через rest»
+        // (`const { seq, ...rest } = o`): `seq` намеренно не используется.
+        { varsIgnorePattern: '^[A-Z_]', argsIgnorePattern: '^_', caughtErrors: 'none', ignoreRestSiblings: true },
       ],
       'no-empty': ['error', { allowEmptyCatch: true }],
     },

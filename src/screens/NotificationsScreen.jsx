@@ -34,7 +34,7 @@ export default function NotificationsScreen({ user }) {
     if (!ready || loading || marked.current) return
     marked.current = true
     markAllSeen(user.id, items)
-  }, [ready, loading, items])
+  }, [ready, loading, items, user.id])
 
   // Непрочитанные и «прочитано» считаем по ПОЛНОМУ списку — фильтр-чипы влияют
   // только на рендер, но не гасят бейдж выборочно.

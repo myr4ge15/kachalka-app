@@ -22,8 +22,8 @@ const STATE_HINT = { ready: 'можно тренировать', almost: 'поч
 // Персональная сводка + авто-инсайты. Всё из локальной базы (офлайн-доступно),
 // живо обновляется через useLiveQuery. Дефолт-вкладка при входе (см. App.jsx).
 //
-// Пропсы: user, onNavigate(tab), onOpenProgress(exerciseId).
-export default function HomeScreen({ user, onNavigate, onOpenProgress }) {
+// Пропсы: user, onNavigate(tab).
+export default function HomeScreen({ user, onNavigate }) {
   const summary = useLiveQuery(() => getHomeSummary(user.id), [user.id])
   const insights = useLiveQuery(() => getInsights(user.id, { max: 3 }), [user.id], [])
   const freshness = useLiveQuery(() => getFreshness(user.id), [user.id])

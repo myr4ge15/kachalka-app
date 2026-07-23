@@ -126,6 +126,10 @@ function AccessSection({ meId, online, errMsg }) {
       setLoadErr(errMsg(e)); setUsers([])
     }
   }
+  // Перезагрузка ТОЛЬКО на смену online. `reload` намеренно вне deps: он
+  // пересоздаётся каждый рендер, но всегда делает один и тот же fetch, а
+  // stale-сеттеры после размонтирования отсекает alive-ref.
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   useEffect(() => { if (online) reload(); else setUsers([]) }, [online])
 
   const privateUsers = (users ?? []).filter((u) => u.is_private)
@@ -520,6 +524,9 @@ function UsersSection({ meId, online, errMsg }) {
       setUsers([])
     }
   }
+  // Перезагрузка ТОЛЬКО на смену online — `reload` вне deps намеренно (см. выше:
+  // пересоздаётся каждый рендер, тот же fetch, stale-сеты гасит alive-ref).
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   useEffect(() => { if (online) reload(); else setUsers([]) /* офлайн — без RPC */ }, [online])
 
   function openEdit(u) {
