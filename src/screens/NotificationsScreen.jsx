@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from 'react'
+import { useEffect, useMemo, useRef, useState } from 'react'
 import { useLiveQuery } from 'dexie-react-hooks'
 import { getNotifications, getSeenAt, markAllSeen } from '../db/notifications.js'
 import { cmpIsoAsc } from '../lib/cmp.js'
@@ -11,7 +11,10 @@ import { filterNotifs, activeCategories } from '../lib/notifFilter.js'
 export default function NotificationsScreen({ user }) {
   const list = useLiveQuery(() => getNotifications(user.id), [user.id], undefined)
   const loading = list === undefined
-  const items = list ?? []
+  // useMemo, а не голое `list ?? []`: при загрузке (list===undefined) `?? []` давал
+  // бы НОВЫЙ [] на каждый рендер → deps эффекта «пометить прочитанным» менялись бы
+  // вхолостую. Мемо-обёртка держит ссылку стабильной, пока list не приедет.
+  const items = useMemo(() => list ?? [], [list])
 
   // Метка «было прочитано до открытия» фиксируется один раз на маунте — по ней
   // подсвечиваем непрочитанные. Затем двигаем метку вперёд (бейдж гаснет).
