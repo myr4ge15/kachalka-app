@@ -13,6 +13,7 @@ import LoginScreen from './screens/LoginScreen.jsx'
 import Toast from './components/Toast.jsx'
 import Avatar from './components/Avatar.jsx'
 import ScreenSkeleton from './components/ScreenSkeleton.jsx'
+import ErrorBoundary from './components/ErrorBoundary.jsx'
 
 // Экраны-вкладки грузим лениво: код активной вкладки подтягивается по требованию.
 // Главный выигрыш — «Прогресс» тянет тяжёлый recharts, который теперь не попадает
@@ -136,6 +137,26 @@ function TabIcon({ name }) {
       <path d="M3 17l6-6 4 4 8-8" />
       <path d="M14 7h7v7" />
     </svg>
+  )
+}
+
+// Компактный фолбэк пер-экранного ErrorBoundary: рухнул рендер одной вкладки.
+// Живёт внутри <main>, поэтому шапка и таббар остаются — можно уйти на другую
+// вкладку (это сбросит ошибку через remount по key={tab}) или повторить рендер.
+function ScreenCrash({ onRetry }) {
+  return (
+    <div className="screen center">
+      <div className="card warn">
+        <h2>Экран не открылся</h2>
+        <p>
+          Что-то пошло не так на этой вкладке. Данные тренировок сохранены
+          локально — открой другую вкладку или попробуй снова.
+        </p>
+        <button className="btn primary" onClick={onRetry}>
+          Попробовать снова
+        </button>
+      </div>
+    </div>
   )
 }
 
@@ -324,45 +345,50 @@ export default function App() {
       <main className="content" ref={contentRef}>
         <Suspense fallback={<ScreenSkeleton />}>
           {/* key={tab} перезапускает микро-переход (fade+slide-up, .screen-anim)
-              на каждую смену вкладки — контент въезжает, а не мигает подменой. */}
+              на каждую смену вкладки — контент въезжает, а не мигает подменой.
+              ErrorBoundary внутри этой обёртки изолирует падение одной вкладки:
+              шапка/таббар (вне <main>) живут, а смена вкладки размонтирует
+              боундари (новый key) и тем самым сбрасывает ошибку. */}
           <div className="screen-anim" key={tab}>
-            {tab === 'home' && (
-              <HomeScreen user={user} onNavigate={goTab} />
-            )}
-            {tab === 'history' && <HistoryScreen user={user} />}
-            {tab === 'feed' && <FeedScreen user={user} />}
-            {tab === 'progress' && (
-              <ProgressScreen
-                user={user}
-                initialExerciseId={progressExId}
-                onConsumed={() => setProgressExId(null)}
-              />
-            )}
-            {tab === 'notif' && <NotificationsScreen user={user} />}
-            {tab === 'profile' && (
-              <ProfileScreen
-                user={user}
-                onLogout={handleLogout}
-                onOpenProgress={openProgressFor}
-                onOpenFeed={() => goTab('feed')}
-                onRenamed={handleRenamed}
-                onOpenAdmin={() => goTab('admin')}
-                onOpenMyExercises={() => goTab('myex')}
-                onOpenAchievements={() => goTab('achievements')}
-              />
-            )}
-            {tab === 'admin' && user.role === 'admin' && (
-              <AdminScreen user={user} onBack={() => goTab('profile')} />
-            )}
-            {tab === 'freshness' && (
-              <FreshnessScreen user={user} onBack={() => goTab('home')} />
-            )}
-            {tab === 'myex' && (
-              <MyExercisesScreen onBack={() => goTab('profile')} />
-            )}
-            {tab === 'achievements' && (
-              <AchievementsScreen user={user} onBack={() => goTab('profile')} />
-            )}
+            <ErrorBoundary fallback={(_err, reset) => <ScreenCrash onRetry={reset} />}>
+              {tab === 'home' && (
+                <HomeScreen user={user} onNavigate={goTab} />
+              )}
+              {tab === 'history' && <HistoryScreen user={user} />}
+              {tab === 'feed' && <FeedScreen user={user} />}
+              {tab === 'progress' && (
+                <ProgressScreen
+                  user={user}
+                  initialExerciseId={progressExId}
+                  onConsumed={() => setProgressExId(null)}
+                />
+              )}
+              {tab === 'notif' && <NotificationsScreen user={user} />}
+              {tab === 'profile' && (
+                <ProfileScreen
+                  user={user}
+                  onLogout={handleLogout}
+                  onOpenProgress={openProgressFor}
+                  onOpenFeed={() => goTab('feed')}
+                  onRenamed={handleRenamed}
+                  onOpenAdmin={() => goTab('admin')}
+                  onOpenMyExercises={() => goTab('myex')}
+                  onOpenAchievements={() => goTab('achievements')}
+                />
+              )}
+              {tab === 'admin' && user.role === 'admin' && (
+                <AdminScreen user={user} onBack={() => goTab('profile')} />
+              )}
+              {tab === 'freshness' && (
+                <FreshnessScreen user={user} onBack={() => goTab('home')} />
+              )}
+              {tab === 'myex' && (
+                <MyExercisesScreen onBack={() => goTab('profile')} />
+              )}
+              {tab === 'achievements' && (
+                <AchievementsScreen user={user} onBack={() => goTab('profile')} />
+              )}
+            </ErrorBoundary>
           </div>
         </Suspense>
       </main>
