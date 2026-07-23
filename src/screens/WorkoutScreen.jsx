@@ -7,8 +7,9 @@ import { detectBadgesOnSave } from '../db/badges.js'
 import { syncNow } from '../db/sync.js'
 import { getCache, setCache, clearCache } from '../lib/cache.js'
 import { showToast, hideToast } from '../components/Toast.jsx'
-import { exerciseMetric, isCountMetric, fmtMetricValue } from '../lib/metric.js'
+import { exerciseMetric, isCountMetric } from '../lib/metric.js'
 import { buildRecommendation, defaultSet, sk } from '../lib/progressionCard.js'
+import { pickSaveCelebration } from '../lib/saveCelebration.js'
 import { WEIGHT_MAX, repsMax } from '../lib/setLimits.js'
 import { exportWorkouts } from '../lib/exportWorkout.js'
 import { templateExercisesFromWorkout, defaultTemplateName } from '../lib/templateFromWorkout.js'
@@ -391,56 +392,21 @@ export default function WorkoutScreen({ user, workoutId = null, onBack }) {
       // рекорд. Рекорды считаются из локальных данных, сеть не нужна.
       if (isNew) {
         try {
-          let congratulated = false
+          // Детект — с побочными эффектами (цель штампует achievedAt, бейджи —
+          // meta), поэтому зовём ВСЕГДА и по порядку. detectBadgesOnSave всегда
+          // размечает новые вехи (для экрана и колокольчика), даже если тост
+          // перекрыт рекордом/целью.
           const prs = await detectNewPrsOnSave(user.id, wId)
-          if (prs.length) {
-            const top = prs.reduce((a, b) => (b.value > a.value ? b : a), prs[0])
-            const extra = prs.length > 1 ? ` +${prs.length - 1}` : ''
-            showToast({
-              title: 'Новый рекорд!',
-              sub: `${top.name} — ${fmtMetricValue(top.metric, top.value)} (было ${fmtMetricValue(top.metric, top.prev)})${extra}`,
-            })
-            congratulated = true
-          }
-          // Достижение личной цели (ЛК). Поздравляем один раз; если совпало с
-          // рекордом — поздравление о цели перекрывает тост рекорда (важнее).
           const reached = await detectGoalReachedOnSave(user.id, wId)
-          if (reached.length) {
-            const top = reached.reduce((a, b) => (Number(b.value) > Number(a.value) ? b : a), reached[0])
-            const extra = reached.length > 1 ? ` +${reached.length - 1}` : ''
-            // Повторы при целевом весе (PLAN-goal-reps) — показываем «× N», как в карточке цели.
-            const repsStr = top.metric === 'weight' && Number(top.reps) > 0 ? ` × ${Math.round(Number(top.reps))}` : ''
-            showToast({
-              emoji: '🎯',
-              title: reached.length > 1 ? 'Цели достигнуты!' : 'Цель достигнута!',
-              sub: `${top.name} — ${fmtMetricValue(top.metric, top.value)}${repsStr}${extra}`,
-            })
-            congratulated = true
-          }
-          // Достижения/бейджи (PLAN-badges): detectBadgesOnSave ВСЕГДА штампует
-          // новые вехи в meta (для экрана и колокольчика), но тост показываем
-          // только если рекорд/цель не перекрыли — и не спамим (один тост «+N»).
           const newBadges = await detectBadgesOnSave(user.id)
-          if (!congratulated && newBadges.length) {
-            const extra = newBadges.length > 1 ? ` +${newBadges.length - 1}` : ''
-            showToast({
-              emoji: '🏆',
-              title: newBadges.length > 1 ? 'Новые достижения!' : 'Новое достижение!',
-              sub: `${newBadges[0].icon} ${newBadges[0].name}${extra}`,
-            })
-            congratulated = true
-          }
-          // Инсайт после тренировки (виш BACKLOG «Инсайты»): если рекорд/цель не
-          // сработали, тихая сессия всё равно получает вывод (объём/серия/забытая
-          // группа/тренд/обгон). Полный набор из 2–3 выводов — на Главной и в
-          // Уведомлениях; тост показывает самый важный.
-          if (!congratulated) {
-            const ins = await detectInsightsOnSave(user.id, wId, { max: 1 })
-            if (ins.length) {
-              showToast({ emoji: ins[0].emoji, title: 'Вывод после тренировки', sub: ins[0].text })
-            }
-          }
-          celebrated = congratulated
+          // Инсайт тянем только для «тихой» тренировки (ничего праздничного не
+          // сработало) — detectInsightsOnSave читает лидерборд/историю, лишний раз
+          // не гоняем. Выбор ЕДИНОГО тоста и приоритет — чистый pickSaveCelebration.
+          const quiet = !prs.length && !reached.length && !newBadges.length
+          const insights = quiet ? await detectInsightsOnSave(user.id, wId, { max: 1 }) : []
+          const picked = pickSaveCelebration({ prs, reached, newBadges, insights })
+          if (picked.toast) showToast(picked.toast)
+          celebrated = picked.celebrated
         } catch { /* тост необязателен */ }
       }
       vibrate(celebrated ? HAPTIC.celebrate : HAPTIC.success)

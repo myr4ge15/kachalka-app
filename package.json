@@ -1,7 +1,7 @@
 {
   "name": "gym-app",
   "private": true,
-  "version": "4.5.8",
+  "version": "4.5.9",
   "type": "module",
   "description": "PWA для учёта силовых тренировок (MVP, первый проход)",
   "scripts": {
