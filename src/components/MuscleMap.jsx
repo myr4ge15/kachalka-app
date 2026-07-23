@@ -36,7 +36,7 @@ export function bucketColor(bucket) {
 // Анатомическая зона → наши подмышцы. Цвет зоны = «самая пора» из них.
 const REGION_SUBS = {
   chest: ['chest_upper', 'chest_middle', 'chest_lower', 'serratus'],
-  abs: ['abs_rectus'],
+  abs: ['abs_rectus', 'core'],
   obliques: ['abs_obliques'],
   deltoids: ['delt_front', 'delt_side', 'delt_rear'],
   biceps: ['biceps'],

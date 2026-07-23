@@ -1727,7 +1727,12 @@ img.avatar-lg.has-img {
   display: flex; align-items: center; gap: 12px;
   background: var(--surface); border: 1px solid var(--border); border-left-width: 3px;
   border-radius: 12px; padding: 11px 13px;
+  width: 100%; text-align: left; font: inherit; color: inherit;
 }
+/* Строка-кнопка recovery: клик проматывает к карте и выделяет мышцу. */
+.fr-row.fr-clickable { cursor: pointer; transition: border-color .15s, transform .05s; }
+.fr-row.fr-clickable:active { transform: scale(.99); }
+.fr-row.fr-clickable:focus-visible { outline: 2px solid #e2e8f0; outline-offset: 2px; }
 .fr-row.fr-fresh   { border-left-color: #ef4444; }
 .fr-row.fr-recent  { border-left-color: #f59e0b; }
 .fr-row.fr-due     { border-left-color: #14b8a6; }

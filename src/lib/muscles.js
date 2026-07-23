@@ -66,6 +66,10 @@ export const SUBMUSCLES = {
   abs_rectus:   { major: 'пресс',    label: 'пресс',              labelAccusative: 'пресс',              recoveryHours: 24 },
   abs_obliques: { major: 'пресс',    label: 'косые',              labelAccusative: 'косые',              recoveryHours: 24 },
   hip_flexors:  { major: 'пресс',    label: 'сгибатели бедра',    labelAccusative: 'сгибатели бедра',    recoveryHours: 24 },
+  // кор — глубокие стабилизаторы (планка/анти-ротация/статика): отдельная подмышца
+  // от динамики прямой мышцы (пресс). Порог чуть выше «пресса» — изометрия под
+  // нагрузкой утомляет глубокие стабилизаторы дольше кранчей (эвристика, не медицина).
+  core:         { major: 'пресс',    label: 'кор',                labelAccusative: 'кор',                recoveryHours: 48 },
   // кардио
   cardio:       { major: 'кардио',   label: 'кардио',             labelAccusative: 'кардио',             recoveryHours: 24 },
 }

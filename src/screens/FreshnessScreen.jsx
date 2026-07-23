@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useRef, useState } from 'react'
 import { useLiveQuery } from 'dexie-react-hooks'
 import { getFreshness } from '../db/insights.js'
 import { submuscleBuckets } from '../lib/freshness.js'
@@ -29,6 +29,15 @@ export default function FreshnessScreen({ user, onBack }) {
   // Выбранная на силуэте анатомическая зона — подсвечивает строки её подмышц.
   const [sel, setSel] = useState(null)
   const toggle = (region) => setSel((cur) => (cur === region ? null : region))
+  // Клик по строке recovery-списка: проматываем к карте тела и выделяем на ней
+  // мышцу этой подмышцы (обратная связка к клику по зоне силуэта).
+  const mapRef = useRef(null)
+  const focusOnMap = (submuscle) => {
+    const region = regionOf(submuscle)
+    if (!region) return
+    setSel(region)
+    mapRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' })
+  }
 
   return (
     <div className="screen fresh-screen">
@@ -45,7 +54,7 @@ export default function FreshnessScreen({ user, onBack }) {
         </p>
       ) : (
         <>
-          <section className="sec">
+          <section className="sec" ref={mapRef}>
             <p className="sec-title">Карта тела</p>
             <MuscleMap bySub={bySub} selected={sel} onSelect={toggle} />
             <div className="fr-legend">
@@ -63,16 +72,19 @@ export default function FreshnessScreen({ user, onBack }) {
             <p className="sec-title">Когда снова тренировать</p>
             <div className="fr-list">
               {recSub.map((f) => (
-                <div
+                <button
                   key={f.submuscle}
-                  className={`fr-row fr-${f.bucket}` + (regionOf(f.submuscle) === sel ? ' hl' : '')}
+                  type="button"
+                  className={`fr-row${regionOf(f.submuscle) ? ' fr-clickable' : ''} fr-${f.bucket}` + (regionOf(f.submuscle) === sel ? ' hl' : '')}
+                  onClick={() => focusOnMap(f.submuscle)}
+                  aria-label={`${cap(labelOf(f.submuscle))} — показать на карте тела`}
                 >
                   <div className="fr-row-body">
                     <div className="fr-row-name">{cap(labelOf(f.submuscle))}</div>
                     <div className="fr-row-sub">{f.major} · {fmtDaysAgo(f.daysSince)}</div>
                   </div>
                   <span className={`fr-badge st-${f.state}`}>{STATE_LABEL[f.state] ?? '—'}</span>
-                </div>
+                </button>
               ))}
             </div>
           </section>

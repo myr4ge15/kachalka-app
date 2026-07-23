@@ -95,7 +95,11 @@ describe('muscles — хелперы', () => {
     // hip_flexors — primary подъёмов ног, major пресс, быстрое восстановление
     expect(majorOf('hip_flexors')).toBe('пресс')
     expect(recoveryHoursFor('hip_flexors')).toBe(24)
-    expect(submusclesOf('пресс')).toEqual(['abs_rectus', 'abs_obliques', 'hip_flexors'])
+    // кор — отдельная подмышца пресса (глубокие стабилизаторы, планка)
+    expect(majorOf('core')).toBe('пресс')
+    expect(recoveryHoursFor('core')).toBe(48)
+    expect(labelOf('core')).toBe('кор')
+    expect(submusclesOf('пресс')).toEqual(['abs_rectus', 'abs_obliques', 'hip_flexors', 'core'])
     // новые слаги предлагаются во вторичные
     const opts = secondaryOptionsFor('biceps')
     expect(opts).toContain('chest_middle')
