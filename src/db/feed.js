@@ -38,7 +38,8 @@ const SELECT_FEED =
   'sets(id, set_number, weight, reps))'
 
 // server row → элемент ленты (денормализованный, с готовой сводкой).
-function rowToItem(w) {
+// Экспортируется для тестов (чистая функция, поведение не зависит от сети/БД).
+export function rowToItem(w) {
   const entries = [...(w.workout_exercises ?? [])]
     .sort((a, b) => (a.position ?? 0) - (b.position ?? 0))
     .map((we) => {
@@ -114,7 +115,8 @@ async function attachReactions(items) {
 // прежний максимум этого автора (в пределах окна) — это рекорд. Рекорд = лучший
 // единичный подход (а не расчётный 1ПМ). NB: окно ограничено FEED_LIMIT, поэтому
 // рекорды считаются «по недавним тренировкам», а не по всей истории.
-function computePrs(items) {
+// Экспортируется для тестов (чистая функция; мутирует item.prs на месте).
+export function computePrs(items) {
   const byUser = new Map() // user_id → Map(exercise_id → лучшее ведущее значение)
   const chronological = [...items].sort((a, b) =>
     cmpIsoAsc(a.performed_at, b.performed_at)

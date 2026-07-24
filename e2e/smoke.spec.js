@@ -39,7 +39,11 @@ test('вход → запись тренировки → она в истори�
 
   // --- запись тренировки ----------------------------------------------------
   await page.locator('.tabbar .tab').filter({ hasText: 'Тренировки' }).click()
-  await page.getByRole('button', { name: '+ Добавить тренировку' }).click()
+  
+  // ИСПРАВЛЕНИЕ: На мобильном вьюпорте (390x844) используется плавающая 
+  // кнопка «+» (FAB). Десктопная кнопка «+ Добавить тренировку» скрыта.
+  await page.locator('.fab').click()
+  
   await page.getByRole('button', { name: '+ Добавить упражнение' }).click()
   await page.locator('.picker-item').filter({ hasText: EXERCISE }).click()
 
