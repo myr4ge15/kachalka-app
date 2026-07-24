@@ -35,7 +35,7 @@ export default function HomeScreen({ user, onNavigate }) {
   if (loading) {
     return (
       <div className="screen home">
-        <h2 className="screen-title">Привет, {user.name}</h2>
+        <h2 className="screen-title">Привет, {user.name}!</h2>
         <CardsSkeleton cards={3} />
       </div>
     )
@@ -44,7 +44,7 @@ export default function HomeScreen({ user, onNavigate }) {
   if (!summary.hasData) {
     return (
       <div className="screen home">
-        <h2 className="screen-title">Привет, {user.name}</h2>
+        <h2 className="screen-title">Привет, {user.name}!</h2>
         <p className="muted empty">
           Здесь будет твоя сводка: последняя тренировка, серия, рекорды и авто-выводы.
           Запиши первую тренировку 💪
@@ -70,7 +70,7 @@ export default function HomeScreen({ user, onNavigate }) {
 
   return (
     <div className="screen home">
-      <h2 className="screen-title">Привет, {user.name}</h2>
+      <h2 className="screen-title">Привет, {user.name}!</h2>
 
       {/* герой: когда была последняя тренировка + серия */}
       <div className="home-hero">

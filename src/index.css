@@ -102,9 +102,9 @@ input { font-family: inherit; }
   /* Aurora-градиент: три мягких цветных пятна поверх базового --bg. Фон
      прикреплён к вьюпорту (не скроллится вместе с контентом). */
   background:
-    radial-gradient(600px 340px at 12% -4%, rgba(124, 92, 255, .40), transparent 60%),
-    radial-gradient(560px 360px at 104% 12%, rgba(46, 230, 200, .26), transparent 55%),
-    radial-gradient(760px 520px at 50% 112%, rgba(255, 107, 166, .26), transparent 55%),
+    radial-gradient(75vw 60vh at 10% -8%, rgba(124, 92, 255, .30), transparent 62%),
+    radial-gradient(70vw 60vh at 108% 6%, rgba(46, 230, 200, .18), transparent 60%),
+    radial-gradient(95vw 65vh at 50% 116%, rgba(255, 107, 166, .20), transparent 62%),
     var(--bg);
   background-attachment: fixed;
 }
@@ -227,9 +227,9 @@ input { font-family: inherit; }
   /* Вход/загрузка/ошибки рендерятся ВНЕ .app — свой aurora-фон, чтобы шелл не был
      плоско-тёмным, а совпадал с приложением. */
   background:
-    radial-gradient(600px 340px at 12% -4%, rgba(124, 92, 255, .40), transparent 60%),
-    radial-gradient(560px 360px at 104% 12%, rgba(46, 230, 200, .26), transparent 55%),
-    radial-gradient(760px 520px at 50% 112%, rgba(255, 107, 166, .26), transparent 55%),
+    radial-gradient(75vw 60vh at 10% -8%, rgba(124, 92, 255, .30), transparent 62%),
+    radial-gradient(70vw 60vh at 108% 6%, rgba(46, 230, 200, .18), transparent 60%),
+    radial-gradient(95vw 65vh at 50% 116%, rgba(255, 107, 166, .20), transparent 62%),
     var(--bg);
   background-attachment: fixed;
 }
@@ -259,7 +259,7 @@ input { font-family: inherit; }
 
 .pin-dots { display: flex; gap: 14px; justify-content: center; margin: 20px 0; }
 .dot { width: 16px; height: 16px; border-radius: 50%; border: 2px solid var(--muted); }
-.dot.filled { background: linear-gradient(135deg, var(--g1), var(--g2)); border-color: transparent; }
+.dot.filled { background: linear-gradient(135deg, var(--g1), var(--g2)); border: none; }
 
 .keypad {
   display: grid; grid-template-columns: repeat(3, 1fr); gap: 12px; margin-top: 8px;
