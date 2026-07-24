@@ -839,12 +839,21 @@ input { font-family: inherit; }
   max-width: calc(100% - 24px);
   display: inline-flex; align-items: center; gap: 8px;
   padding: 6px 8px 6px 14px; border-radius: 999px;
-  background: var(--surface-2); border: 1px solid var(--green); color: var(--text);
-  box-shadow: 0 8px 24px rgba(0,0,0,.45);
+  /* Плашка ПЛАВАЕТ поверх контента, поэтому подложка у неё ПЛОТНАЯ, а не стеклянная.
+     После редизайна `--surface-2` стал полупрозрачным (rgba(255,255,255,.10)) — над
+     карточкой (`--glass`, 7% белого) это давало почти тот же тон, и плашка сливалась
+     с тем, что под ней. Берём тот же плотный тёмный слой, что у липких шапки/таббара,
+     + размытие: плашка читается над любой подложкой. Свечение по контуру отделяет её
+     от карточки даже там, где тень теряется на тёмном фоне. */
+  background: rgba(20, 16, 40, .94); border: 1px solid var(--green); color: var(--text);
+  backdrop-filter: blur(20px); -webkit-backdrop-filter: blur(20px);
+  box-shadow: 0 10px 30px rgba(0, 0, 0, .55), 0 0 0 4px rgba(46, 230, 160, .12);
 }
 .update-pill-dot {
   width: 8px; height: 8px; flex-shrink: 0; border-radius: 50%;
-  background: var(--green); box-shadow: 0 0 0 3px rgba(22,163,74,.2);
+  /* Ореол — в тон мятному --green (#2ee6a0). Раньше тут был старый брендовый
+     зелёный (22,163,74) — на новой палитре он читался грязным пятном. */
+  background: var(--green); box-shadow: 0 0 0 3px rgba(46, 230, 160, .22);
 }
 .update-pill-text { font-size: 14px; font-weight: 600; white-space: nowrap; }
 .update-pill-go {
