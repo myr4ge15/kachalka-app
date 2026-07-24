@@ -6,6 +6,8 @@ import {
   getProgSettings, setProgEnabled,
 } from '../db/repo.js'
 import { readGoals, writeGoals } from '../db/notifications.js'
+import { exportAllMyData, importAllMyData } from '../db/backup.js'
+import { describeImport, BackupError } from '../lib/backup.js'
 import { syncNow } from '../db/sync.js'
 import { getCachedLeaderboard } from '../db/leaderboard.js'
 import { getMeta } from '../db/local.js'
@@ -242,6 +244,46 @@ export default function ProfileScreen({ user, onLogout, onOpenProgress, onOpenFe
       showToast({ emoji: '⚠️', title: 'Не удалось', sub: String(e?.message ?? e) })
     } finally {
       if (aliveRef.current) setDlBusy(false)
+    }
+  }
+
+  // ── Все мои данные: выгрузка и восстановление ──────────────────────────
+  // Часть личных сущностей (бейджи, настройки прогрессии) живёт ТОЛЬКО локально
+  // и умирает вместе с чисткой браузера — файл-снимок закрывает этот риск.
+  // Восстановление намеренно ТОЛЬКО ДОБАВЛЯЕТ недостающее: затереть свежие
+  // данные старым файлом невозможно (см. lib/backup.js planImport).
+  const [bkBusy, setBkBusy] = useState(false)
+  async function doExportAll() {
+    setBkBusy(true)
+    try {
+      const n = await exportAllMyData(user.id, APP_VERSION)
+      showToast({ emoji: '💾', title: 'Файл сохранён', sub: `Тренировок в выгрузке: ${n}` })
+    } catch (e) {
+      showToast({ emoji: '⚠️', title: 'Не удалось выгрузить', sub: String(e?.message ?? e) })
+    } finally {
+      if (aliveRef.current) setBkBusy(false)
+    }
+  }
+  async function onPickBackup(e) {
+    const file = e.target.files?.[0]
+    e.target.value = '' // позволить выбрать тот же файл повторно
+    if (!file) return
+    setBkBusy(true)
+    try {
+      const c = await importAllMyData(user.id, await file.text())
+      showToast({ emoji: '📥', title: 'Восстановлено', sub: describeImport(c) })
+      if (c.failed) {
+        showToast({ emoji: '⚠️', title: 'Часть записей пропущена', sub: `Не удалось добавить: ${c.failed}` })
+      }
+      if (navigator.onLine) syncNow(user.id) // отправить восстановленное на сервер
+    } catch (err) {
+      showToast({
+        emoji: '⚠️',
+        title: err instanceof BackupError ? 'Не тот файл' : 'Не удалось восстановить',
+        sub: String(err?.message ?? err),
+      })
+    } finally {
+      if (aliveRef.current) setBkBusy(false)
     }
   }
 
@@ -688,14 +730,35 @@ export default function ProfileScreen({ user, onLogout, onOpenProgress, onOpenFe
           {user.role !== 'admin' && (
             <button className="act" onClick={() => onOpenMyExercises?.()}>🏋 Мои упражнения</button>
           )}
+          <button className="act" onClick={doExportAll} disabled={bkBusy}>
+            <span className="act-txt">
+              💾 Скачать все мои данные
+              <span className="act-sub">один JSON: тренировки, цели, достижения, настройки</span>
+            </span>
+          </button>
+          {/* Восстановление — <label> вместо <button>: нативный выбор файла, как
+              у смены аватара выше. Стиль .act работает и на label. */}
+          <label className={'act' + (bkBusy ? ' busy' : '')}>
+            <span className="act-txt">
+              📥 Восстановить из файла
+              <span className="act-sub">добавит только то, чего сейчас нет</span>
+            </span>
+            <input
+              type="file"
+              accept="application/json,.json"
+              onChange={onPickBackup}
+              disabled={bkBusy}
+              hidden
+            />
+          </label>
           {user.role === 'admin' && (
             <button className="act" onClick={() => onOpenAdmin?.()}>🛠 Админка</button>
           )}
           {delArm ? (
             <div className="danger-confirm">
               <p className="danger-text">
-                Удалить все свои тренировки? Восстановить можно только из бэкапа сервера.
-                Учётная запись, цель и шаблоны останутся.
+                Удалить все свои тренировки? Отменить это нельзя — если не уверен,
+                сначала нажми «Скачать все мои данные». Учётная запись, цель и шаблоны останутся.
               </p>
               <div className="danger-actions">
                 <button className="btn ghost" onClick={() => setDelArm(false)} disabled={delBusy}>Отмена</button>

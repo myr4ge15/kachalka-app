@@ -216,6 +216,28 @@ input { font-family: inherit; }
    Профиль в подвале сайдбара (.side-foot) — тоже только для десктопа. */
 .side-brand, .side-foot { display: none; }
 
+/* Плавающая кнопка «+» (FAB, components/AddFab.jsx): запись тренировки в один тап
+   с любой основной вкладки. Висит над таббаром справа, вне скроллера .content.
+   z-index 6 — как у прочих плавающих панелей (save-bar/бар экспорта); пересечься
+   с ними она не может: в этих состояниях App её не рендерит (см. lib/quickAdd.js).
+   Оверлеи пикеров (z-index 100) перекрывают её штатно. */
+.fab {
+  position: fixed; z-index: 6;
+  right: calc(16px + env(safe-area-inset-right));
+  bottom: calc(84px + env(safe-area-inset-bottom));
+  width: 56px; height: 56px; border-radius: 50%;
+  display: flex; align-items: center; justify-content: center;
+  border: none; padding: 0; color: #fff; cursor: pointer;
+  background: linear-gradient(135deg, var(--g1), var(--g3));
+  box-shadow: 0 10px 28px rgba(124, 92, 255, .5);
+  transition: transform var(--dur-fast) var(--ease-out), box-shadow var(--dur-fast) var(--ease-out);
+}
+.fab:active { transform: scale(.92); box-shadow: 0 6px 16px rgba(124, 92, 255, .45); }
+@media (prefers-reduced-motion: reduce) {
+  .fab { transition: none; }
+  .fab:active { transform: none; }
+}
+
 .screen {
   padding: 16px; max-width: 560px; margin: 0 auto;
   padding-left: calc(16px + env(safe-area-inset-left));
@@ -1286,6 +1308,13 @@ img.avatar-lg.has-img {
   padding: 14px; color: var(--text); font-size: 15px; font-weight: 600; min-height: 48px;
 }
 .act.soon { opacity: .55; }
+/* Двухстрочная строка настройки (заголовок + пояснение), напр. бэкап данных.
+   Тот же приём, что у .toggle-act-txt, но без тумблера справа. */
+.act-txt { display: flex; flex-direction: column; gap: 2px; }
+.act-sub { color: var(--muted); font-size: 12px; font-weight: 400; }
+/* Восстановление из файла — <label>, ему нужны курсор и блокировка вручную. */
+label.act { cursor: pointer; }
+label.act.busy { opacity: .55; pointer-events: none; }
 .act .tag { margin-left: auto; font-size: 10.5px; color: var(--muted); font-weight: 700; text-transform: uppercase; letter-spacing: .04em; }
 .act.logout {
   color: #fca5a5; border-color: rgba(239,68,68,.4); background: rgba(239,68,68,.08);
@@ -1495,6 +1524,11 @@ img.avatar-lg.has-img {
     border: 1px solid var(--green-d);
   }
   .tab.active .tab-ico { transform: none; }
+
+  /* Плавающая «+» — мобильный паттерн: она висела над таббаром, которого на
+     десктопе нет, и дублировала бы явную кнопку «+ Добавить тренировку» в хабе
+     (там master-detail и список всегда на виду). Скрываем. */
+  .fab { display: none; }
 
   /* Контент шире и по центру своей колонки (внутренние раскладки экранов —
      в следующих слайсах). */
