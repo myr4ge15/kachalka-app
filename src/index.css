@@ -434,8 +434,8 @@ input { font-family: inherit; }
 
 /* ---------- автопрогрессия: панель «прошлая → рекомендуем» ---------- */
 .ap {
-  background: var(--surface-2); border: 1px solid var(--border);
-  border-radius: 10px; padding: 10px; margin-bottom: 12px;
+  background: rgba(46,230,200,.10); border: 1px solid rgba(46,230,200,.30);
+  border-radius: 14px; padding: 11px 13px; margin-bottom: 12px;
 }
 .ap-row { display: flex; justify-content: space-between; align-items: baseline; margin-bottom: 6px; }
 .ap-lbl { color: var(--muted); font-size: 12px; }
@@ -839,7 +839,10 @@ input { font-family: inherit; }
 .stat-cell-right { border-left: 1px solid var(--border); padding-left: 12px; }
 .stat-cell-label { font-size: 12px; color: var(--muted); }
 .stat-duo .stat-num { font-size: 26px; }
-.stat-num.gold { color: var(--yellow); }
+.stat-num.gold {
+  background: linear-gradient(135deg, var(--g4), var(--g3));
+  -webkit-background-clip: text; background-clip: text; -webkit-text-fill-color: transparent; color: transparent;
+}
 .stat-orm-note {
   margin-top: 10px; padding-top: 8px; border-top: 1px solid var(--border);
   font-size: 11px; line-height: 1.4;
@@ -961,8 +964,8 @@ img.avatar-lg.has-img {
    разъезжаются: отдельное имя .feed-prs. */
 .feed-prs { display: flex; flex-wrap: wrap; gap: 6px; margin-bottom: 4px; }
 .pr-badge {
-  font-size: 13px; font-weight: 600; color: #fde68a;
-  background: rgba(202,138,4,.16); border: 1px solid var(--yellow);
+  font-size: 13px; font-weight: 600; color: var(--g4);
+  background: rgba(255,207,92,.16); border: 1px solid rgba(255,207,92,.45);
   border-radius: 999px; padding: 4px 10px;
 }
 
@@ -986,10 +989,10 @@ img.avatar-lg.has-img {
 .reaction-btn:active { background: var(--border); }
 .reaction-btn.static { cursor: default; }
 .reaction-btn.static:active { background: var(--surface-2); }
-.reaction-btn.mine { border-color: var(--green); background: rgba(22,163,74,.16); }
+.reaction-btn.mine { border-color: var(--g1); background: rgba(124,92,255,.22); }
 .reaction-emoji { font-size: 16px; }
 .reaction-count { font-size: 13px; font-weight: 600; color: var(--muted); }
-.reaction-btn.mine .reaction-count { color: #86efac; }
+.reaction-btn.mine .reaction-count { color: #cbb8ff; }
 .reaction-who { font-size: 12px; margin-top: 6px; }
 
 /* ---------- лидерборд (жим лёжа, ТЗ §4.3) ---------- */
@@ -1006,7 +1009,7 @@ img.avatar-lg.has-img {
   padding: 8px 6px; border-radius: 8px;
 }
 .lb-row + .lb-row { border-top: 1px solid var(--border); }
-.lb-row.me { background: var(--surface-2); }
+.lb-row.me { background: rgba(124,92,255,.18); border: 1px solid var(--g1); }
 .lb-place {
   width: 24px; flex-shrink: 0; text-align: center;
   font-size: 16px; font-weight: 700; color: var(--muted);
@@ -1173,7 +1176,7 @@ img.avatar-lg.has-img {
 .goal-top .lbl b .u { font-size: 13px; color: var(--muted); font-weight: 600; }
 .goal-top .pct { color: var(--green); font-weight: 800; font-size: 16px; }
 .bar { height: 10px; border-radius: 999px; background: var(--surface-2); overflow: hidden; }
-.bar > i { display: block; height: 100%; border-radius: 999px; background: linear-gradient(90deg, var(--green-d), var(--green)); }
+.bar > i { display: block; height: 100%; border-radius: 999px; background: linear-gradient(90deg, var(--g1), var(--g2)); }
 .goal-sub { font-size: 12px; color: var(--muted); margin-top: 9px; }
 .goal-sub.achieved { color: #86efac; font-weight: 600; }
 .goal-edit { margin-top: 10px; background: none; border: none; color: var(--green); font-weight: 700; font-size: 13px; padding: 6px 0; min-height: 32px; }
@@ -1705,11 +1708,16 @@ img.avatar-lg.has-img {
 .home-tags { display: flex; flex-wrap: wrap; align-items: center; gap: 6px; margin-top: 10px; }
 .home-tags-lab { font-size: 12px; color: var(--muted); margin-right: 2px; }
 .home-streak {
-  flex: 0 0 auto; text-align: center; padding: 8px 12px; border-radius: 12px;
-  background: rgba(250,204,21,.10); border: 1px solid rgba(250,204,21,.30);
+  flex: 0 0 auto; text-align: center; padding: 8px 12px; border-radius: 14px;
+  background: linear-gradient(135deg, rgba(255,207,92,.22), rgba(255,107,166,.18));
+  border: 1px solid var(--stroke);
 }
-.home-streak-n { font-size: 24px; font-weight: 800; line-height: 1; }
-.home-streak-n .u { font-size: 14px; }
+.home-streak-n {
+  font-size: 24px; font-weight: 800; line-height: 1;
+  background: linear-gradient(135deg, var(--g4), var(--g3));
+  -webkit-background-clip: text; background-clip: text; -webkit-text-fill-color: transparent; color: transparent;
+}
+.home-streak-n .u { font-size: 14px; -webkit-text-fill-color: var(--g4); color: var(--g4); }
 .home-streak-l { font-size: 10px; color: var(--muted); margin-top: 4px; line-height: 1.25; }
 
 /* Инсайты — карточки-выводы. */
@@ -1760,7 +1768,7 @@ img.avatar-lg.has-img {
 .home .goal-top .lbl b { font-weight: 800; }
 .home .goal-top .pct { color: var(--green); font-weight: 800; font-size: 16px; }
 .home .bar { height: 10px; border-radius: 999px; background: var(--surface-2); overflow: hidden; }
-.home .bar > i { display: block; height: 100%; border-radius: 999px; background: linear-gradient(90deg, var(--green-d), var(--green)); }
+.home .bar > i { display: block; height: 100%; border-radius: 999px; background: linear-gradient(90deg, var(--g1), var(--g2)); }
 .home .goal-sub { font-size: 12px; color: var(--muted); margin-top: 9px; }
 
 /* Быстрые переходы внизу Главной. */
