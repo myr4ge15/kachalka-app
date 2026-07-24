@@ -1051,6 +1051,9 @@ img.avatar-lg.has-img {
 .formula-note code {
   color: var(--text); font-size: 12px;
   background: var(--surface-2); padding: 1px 5px; border-radius: 5px;
+  /* При переносе формулы на узком экране фон/padding/скругление применяем к
+     КАЖДОМУ фрагменту строки (иначе подсветка обрезается на месте переноса). */
+  -webkit-box-decoration-break: clone; box-decoration-break: clone;
 }
 
 /* ---------- уведомления о рекордах (ТЗ §4.5) ---------- */
