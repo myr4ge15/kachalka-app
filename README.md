@@ -55,6 +55,9 @@
 [react-native-body-highlighter](https://github.com/HichamELBSI/react-native-body-highlighter)
 (лицензия MIT, © 2022 ELABBASSI Hicham).
 
+Шрифт интерфейса — [Onest](https://github.com/RTDeluxe/onest)
+(SIL Open Font License 1.1), самохостится со своего origin.
+
 ---
 
-**Версия 4.5.16**
+**Версия 5.0.0**

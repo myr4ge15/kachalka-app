@@ -1,14 +1,57 @@
+/* ============================================================================
+   Onest — самохостинг (редизайн Aurora Glass, слайс 0). CSP разрешает font-src
+   'self', поэтому шрифт грузим со своего origin, без Google Fonts. Sora из плана
+   отвергнут: у него нет кириллических глифов (только latin/latin-ext) → весь
+   русский текст падал бы на системный фолбэк. Onest — современный геометрический
+   гротеск с ПОЛНОЙ кириллицей (OFL). Файлы кладём в src/assets/fonts/; src
+   перечисляет и .woff2 (предпочтительно, легче), и .ttf — грузится первый
+   доступный формат. font-display: swap — текст виден сразу системным фолбэком,
+   подменяется без «мигания невидимым». */
+@font-face {
+  font-family: 'Onest'; font-style: normal; font-weight: 400; font-display: swap;
+  src: url('./assets/fonts/Onest-Regular.woff2') format('woff2'),
+       url('./assets/fonts/Onest-Regular.ttf') format('truetype');
+}
+@font-face {
+  font-family: 'Onest'; font-style: normal; font-weight: 600; font-display: swap;
+  src: url('./assets/fonts/Onest-SemiBold.woff2') format('woff2'),
+       url('./assets/fonts/Onest-SemiBold.ttf') format('truetype');
+}
+@font-face {
+  font-family: 'Onest'; font-style: normal; font-weight: 700; font-display: swap;
+  src: url('./assets/fonts/Onest-Bold.woff2') format('woff2'),
+       url('./assets/fonts/Onest-Bold.ttf') format('truetype');
+}
+@font-face {
+  font-family: 'Onest'; font-style: normal; font-weight: 800; font-display: swap;
+  src: url('./assets/fonts/Onest-ExtraBold.woff2') format('woff2'),
+       url('./assets/fonts/Onest-ExtraBold.ttf') format('truetype');
+}
+
 :root {
-  --bg: #0f172a;
-  --surface: #1e293b;
-  --surface-2: #273449;
-  --border: #334155;
-  --text: #e2e8f0;
-  --muted: #94a3b8;
-  --green: #16a34a;
-  --green-d: #15803d;
-  --red: #ef4444;
-  --yellow: #facc15;
+  /* ── Палитра Aurora Glass (слайс 0) ──────────────────────────────────────
+     Существующие имена токенов СОХРАНЕНЫ (весь downstream-CSS ссылается на них),
+     значения перенаправлены на палитру Aurora. Поэтому «переезд» карточек/кнопок/
+     фона на новый вид происходит почти без правок JSX и остального CSS. */
+  --bg: #0a0a1a;                       /* базовый тёмный фон под aurora-градиентом */
+  --surface: rgba(255, 255, 255, .06); /* стекло-поверхность (карточки/инпуты) */
+  --surface-2: rgba(255, 255, 255, .10);/* стекло поплотнее (вложенные плашки) */
+  --border: rgba(255, 255, 255, .14);  /* = --stroke, тонкая светлая обводка */
+  --text: #f3f5ff;
+  --muted: #a6accd;
+  --green: #2ee6a0;                    /* мятный «успех/готово» (был брендовый green) */
+  --green-d: #1fbf83;                  /* тёмный мятный для градиентов прогресса */
+  --red: #ff6b8a;
+  --yellow: #ffcf5c;
+  /* ── Новые токены Aurora ── */
+  --g1: #7c5cff;   /* фиолетовый — основной акцент (primary-кнопки, active) */
+  --g2: #2ee6c8;   /* бирюзовый — ссылки/«вперёд» */
+  --g3: #ff6ba6;   /* розовый — второй конец градиентов */
+  --g4: #ffcf5c;   /* золотой — рекорды/медали */
+  --amber: #ffcf5c;
+  --glass: rgba(255, 255, 255, .07);
+  --glass-2: rgba(255, 255, 255, .12);
+  --stroke: rgba(255, 255, 255, .14);
   /* Микро-анимации — единый словарь длительностей/кривых (слой примитивов
      UX-полировки «нативности»). Экраны и компоненты ссылаются на эти переменные,
      а не хардкодят числа, чтобы «непрерывность» ощущалась одинаково везде.
@@ -20,7 +63,7 @@
   --ease-out: cubic-bezier(.22, .61, .36, 1);   /* «выезд» — быстро стартует, мягко тормозит */
   --ease-in-out: cubic-bezier(.4, 0, .2, 1);     /* симметричный переход */
   --press-scale: .97;  /* «продавливание» кнопки на :active */
-  font-family: system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif;
+  font-family: 'Onest', system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif;
 }
 
 /* Уважать системную настройку «уменьшить движение»: зануляем длительности и
@@ -56,6 +99,14 @@ input { font-family: inherit; }
   height: 100vh; height: 100dvh;
   display: flex; flex-direction: column;
   overflow: hidden;
+  /* Aurora-градиент: три мягких цветных пятна поверх базового --bg. Фон
+     прикреплён к вьюпорту (не скроллится вместе с контентом). */
+  background:
+    radial-gradient(600px 340px at 12% -4%, rgba(124, 92, 255, .40), transparent 60%),
+    radial-gradient(560px 360px at 104% 12%, rgba(46, 230, 200, .26), transparent 55%),
+    radial-gradient(760px 520px at 50% 112%, rgba(255, 107, 166, .26), transparent 55%),
+    var(--bg);
+  background-attachment: fixed;
 }
 
 .topbar {
@@ -166,6 +217,14 @@ input { font-family: inherit; }
   height: 100vh; height: 100dvh;
   display: flex; align-items: center; justify-content: center;
   overflow-y: auto; overscroll-behavior: contain;
+  /* Вход/загрузка/ошибки рендерятся ВНЕ .app — свой aurora-фон, чтобы шелл не был
+     плоско-тёмным, а совпадал с приложением. */
+  background:
+    radial-gradient(600px 340px at 12% -4%, rgba(124, 92, 255, .40), transparent 60%),
+    radial-gradient(560px 360px at 104% 12%, rgba(46, 230, 200, .26), transparent 55%),
+    radial-gradient(760px 520px at 50% 112%, rgba(255, 107, 166, .26), transparent 55%),
+    var(--bg);
+  background-attachment: fixed;
 }
 .screen-title { margin: 4px 0 12px; font-size: 20px; }
 .sub { margin-top: -6px; }
@@ -173,8 +232,11 @@ input { font-family: inherit; }
 
 /* ---------- cards ---------- */
 .card {
-  background: var(--surface); border: 1px solid var(--border);
-  border-radius: 14px; padding: 16px; margin-bottom: 14px; width: 100%;
+  background: var(--glass); border: 1px solid var(--stroke);
+  border-radius: 20px; padding: 16px; margin-bottom: 14px; width: 100%;
+  /* «Стекло»: размытие подложки + светлый inset-хайлайт по верхней кромке. */
+  backdrop-filter: blur(20px); -webkit-backdrop-filter: blur(20px);
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, .14);
 }
 .card.warn { max-width: 420px; }
 .title { margin: 0 0 4px; text-align: center; }
@@ -272,13 +334,19 @@ input { font-family: inherit; }
   .screen-anim { animation: none; }
 }
 
-/* ---------- buttons ---------- */
-.btn { padding: 14px; border-radius: 12px; font-size: 16px; font-weight: 600; border: 1px solid transparent; }
+/* ---------- buttons (Aurora) ---------- */
+.btn { padding: 14px; border-radius: 16px; font-size: 16px; font-weight: 700; border: 1px solid transparent; color: var(--text); }
 .btn.full { width: 100%; }
-.btn.primary { background: var(--green); color: white; }
-.btn.primary:disabled { background: var(--surface-2); color: var(--muted); }
-.btn.outline { background: none; border-color: var(--green); color: var(--green); margin-bottom: 12px; }
-.btn.ghost { background: var(--surface-2); color: var(--text); border-color: var(--border); margin-top: 6px; }
+/* primary — фиолетово-розовый градиент с мягким свечением */
+.btn.primary { background: linear-gradient(135deg, var(--g1), var(--g3)); color: #fff; box-shadow: 0 10px 30px rgba(124, 92, 255, .45); }
+.btn.primary:disabled { background: var(--surface-2); color: var(--muted); box-shadow: none; }
+/* outline — пунктирная стеклянная рамка */
+.btn.outline { background: none; border: 1px dashed var(--stroke); color: var(--muted); margin-bottom: 12px; }
+/* ghost — стекло с размытием */
+.btn.ghost {
+  background: var(--glass); color: var(--text); border: 1px solid var(--stroke); margin-top: 6px;
+  backdrop-filter: blur(20px); -webkit-backdrop-filter: blur(20px);
+}
 .save-btn { margin-top: 4px; }
 
 /* Микро-нажатие: крупные кнопки «продавливаются» на :active (scale через
@@ -1247,7 +1315,7 @@ img.avatar-lg.has-img {
 .danger-text { margin: 0; font-size: 13px; color: #fca5a5; line-height: 1.5; }
 .danger-actions { display: flex; gap: 10px; }
 .danger-actions .btn { flex: 1; margin-top: 0; }
-.btn.danger { background: var(--red); color: #fff; }
+.btn.danger { background: rgba(255, 107, 138, .16); border: 1px solid rgba(255, 107, 138, .5); color: var(--red); }
 
 /* Форма «Сделать шаблон из тренировки» — нейтральная (не «опасная») коробка. */
 .tpl-from-wk {
