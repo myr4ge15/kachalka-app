@@ -116,8 +116,11 @@ input { font-family: inherit; }
   padding-top: calc(12px + env(safe-area-inset-top));
   padding-left: calc(16px + env(safe-area-inset-left));
   padding-right: calc(16px + env(safe-area-inset-right));
-  border-bottom: 1px solid var(--border);
-  position: sticky; top: 0; background: var(--bg); z-index: 5;
+  border-bottom: 1px solid var(--stroke);
+  position: sticky; top: 0; z-index: 5;
+  /* Стеклянная шапка — aurora просвечивает, залипает при скролле контента. */
+  background: rgba(12, 10, 26, .55);
+  backdrop-filter: blur(24px); -webkit-backdrop-filter: blur(24px);
 }
 /* Имя в шапке — кнопка-вход в Профиль (зона тапа ≥44px) */
 .topbar-user {
@@ -182,8 +185,12 @@ input { font-family: inherit; }
 
 .tabbar {
   position: fixed; bottom: 0; left: 0; right: 0;
-  display: flex; border-top: 1px solid var(--border);
-  background: var(--bg); padding-bottom: env(safe-area-inset-bottom);
+  display: flex; border-top: 1px solid var(--stroke);
+  /* Стеклянный таббар: полупрозрачный тёмный слой с размытием — aurora-фон
+     мягко просвечивает сквозь него. */
+  background: rgba(20, 16, 40, .55);
+  backdrop-filter: blur(24px); -webkit-backdrop-filter: blur(24px);
+  padding-bottom: env(safe-area-inset-bottom);
 }
 .tab {
   flex: 1; display: flex; flex-direction: column; align-items: center; gap: 3px;
@@ -192,8 +199,8 @@ input { font-family: inherit; }
   transition: color .25s ease, transform var(--dur-fast) var(--ease-out);
 }
 .tab .tab-ico { transition: transform .25s ease; }
-.tab.active { color: var(--green); }
-.tab.active .tab-ico { transform: scale(1.12); }
+.tab.active { color: var(--text); }
+.tab.active .tab-ico { transform: scale(1.12); filter: drop-shadow(0 0 10px rgba(124, 92, 255, .8)); }
 @media (prefers-reduced-motion: reduce) {
   .tab, .tab .tab-ico { transition: none; }
   .tab.active .tab-ico { transform: none; }
@@ -226,7 +233,7 @@ input { font-family: inherit; }
     var(--bg);
   background-attachment: fixed;
 }
-.screen-title { margin: 4px 0 12px; font-size: 20px; }
+.screen-title { margin: 4px 0 12px; font-size: 24px; font-weight: 800; letter-spacing: -.01em; }
 .sub { margin-top: -6px; }
 .empty { text-align: center; padding: 32px 0; }
 
@@ -544,7 +551,7 @@ input { font-family: inherit; }
   padding: 7px 14px; border-radius: 999px;
   border: 1px solid var(--border); background: var(--surface); color: var(--muted); font-size: 14px;
 }
-.chip.active { background: var(--green); color: white; border-color: var(--green); }
+.chip.active { background: linear-gradient(135deg, var(--g1), var(--g2)); color: #fff; border-color: transparent; }
 /* Многострочный ряд чипов (для длинных списков — напр. вторичные мышцы) */
 .chips.wrap { flex-wrap: wrap; overflow: visible; }
 /* Приглушённая приписка группы у чипа вторичной мышцы (напр. «трицепс · трицепс») */
@@ -920,16 +927,17 @@ input { font-family: inherit; }
 .avatar {
   width: 40px; height: 40px; flex-shrink: 0; border-radius: 50%;
   display: flex; align-items: center; justify-content: center;
-  background: var(--surface-2); border: 1px solid var(--border);
-  font-weight: 700; font-size: 17px; color: var(--green);
+  background: linear-gradient(135deg, var(--g1), var(--g3)); border: none;
+  font-weight: 700; font-size: 17px; color: #fff;
+  box-shadow: 0 6px 18px rgba(124, 92, 255, .4);
 }
 
 /* Маленький аватар для шапки и строк лидерборда (ЛК 2c). */
 .avatar-sm {
   width: 26px; height: 26px; flex-shrink: 0; border-radius: 50%;
   display: flex; align-items: center; justify-content: center;
-  background: var(--surface-2); border: 1px solid var(--border);
-  font-weight: 700; font-size: 12px; color: var(--green);
+  background: linear-gradient(135deg, var(--g1), var(--g3)); border: none;
+  font-weight: 700; font-size: 12px; color: #fff;
 }
 
 /* Картиночный вариант аватара (есть avatar_url): img с тем же размером, обрезка по кругу. */
@@ -1137,8 +1145,9 @@ img.avatar-lg.has-img {
 .avatar-lg {
   width: 62px; height: 62px; border-radius: 50%; flex-shrink: 0;
   display: flex; align-items: center; justify-content: center;
-  font-weight: 800; font-size: 26px; color: var(--green);
-  background: var(--surface-2); border: 1px solid var(--green);
+  font-weight: 800; font-size: 26px; color: #fff;
+  background: linear-gradient(135deg, var(--g1), var(--g3)); border: none;
+  box-shadow: 0 10px 30px rgba(124, 92, 255, .45);
 }
 .role-badge {
   display: inline-block; margin-top: 7px; font-size: 11px; font-weight: 700;
@@ -1393,8 +1402,10 @@ img.avatar-lg.has-img {
     gap: 4px;
     padding: 16px 12px;
     border-top: none;
-    border-right: 1px solid var(--border);
-    background: #0c1424;
+    border-right: 1px solid var(--stroke);
+    /* Стеклянный сайдбар в тон мобильному таббару. */
+    background: rgba(20, 16, 40, .55);
+    backdrop-filter: blur(24px); -webkit-backdrop-filter: blur(24px);
   }
 
   /* Бренд-шапка сайдбара — кнопка «на главную» (сброс стилей button). */
@@ -1408,7 +1419,8 @@ img.avatar-lg.has-img {
   .side-logo {
     width: 34px; height: 34px; flex-shrink: 0; border-radius: 10px;
     display: flex; align-items: center; justify-content: center; font-size: 19px;
-    background: rgba(22,163,74,.16); border: 1px solid var(--green);
+    background: linear-gradient(135deg, var(--g1), var(--g3)); border: none;
+    box-shadow: 0 6px 18px rgba(124, 92, 255, .45);
   }
   .side-brand-txt { font-weight: 800; font-size: 16px; }
 
@@ -1441,7 +1453,7 @@ img.avatar-lg.has-img {
   }
   .side-profile:hover { background: var(--surface); }
   .side-profile.active {
-    color: #86efac; background: rgba(22,163,74,.12); border-color: var(--green-d);
+    color: #fff; background: rgba(124, 92, 255, .18); border-color: var(--g1);
   }
   .side-profile-name { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 
