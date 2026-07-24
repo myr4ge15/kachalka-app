@@ -1112,7 +1112,11 @@ img.avatar-lg.has-img {
   background: var(--surface-2); border: 1px solid var(--green); color: var(--text);
   box-shadow: 0 10px 30px rgba(0,0,0,.5);
   transition: transform .35s cubic-bezier(.2,.8,.2,1), opacity .35s ease;
-  touch-action: pan-y; /* горизонтальный свайп закрывает тост, верт. скролл не мешаем */
+  /* Тост — фиксированная полоса поверх .content (единственного скроллера), но вне
+     него. Делаем её pointer-transparent, иначе палец, попавший на тост, не мог
+     прокрутить страницу тренировки (тост съедал вертикальный скролл). Касания
+     проваливаются на .content под тостом; интерактивна только кнопка действия. */
+  pointer-events: none;
 }
 /* Undo-тост в композере тренировки поднимаем выше липкой «Сохранить»
    (.wk-save-bar на bottom:72px), иначе он перекрывает кнопку на 6 c окна отмены. */
@@ -1124,6 +1128,7 @@ img.avatar-lg.has-img {
 .toast-body { flex: 1; min-width: 0; }
 /* Кнопка действия в тосте (напр. «Отменить» при удалении). */
 .toast-action {
+  pointer-events: auto; /* тост pointer-transparent для скролла — кнопка кликабельна */
   flex-shrink: 0; margin-left: auto;
   min-height: 44px; padding: 8px 14px; border-radius: 10px;
   background: var(--green); color: white; border: none;
