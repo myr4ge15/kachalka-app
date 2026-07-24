@@ -884,9 +884,11 @@ input { font-family: inherit; }
 .prog-table-title { margin: 0 0 10px; font-size: 16px; }
 .prog-table { display: flex; flex-direction: column; }
 .prog-row {
-  display: grid; grid-template-columns: 56px 1fr auto; gap: 8px; align-items: baseline;
+  display: grid; grid-template-columns: 56px 1fr auto; gap: 8px; align-items: center;
   padding: 8px 0; border-bottom: 1px solid var(--border);
 }
+/* Шапку таблицы («Дата · Подходы · вес») центрировать не нужно — она однострочная;
+   но при желании остаётся выровненной по центру вместе со всеми. */
 .prog-row:last-child { border-bottom: none; }
 .prog-row-head { color: var(--muted); font-size: 12px; padding-top: 0; }
 .prog-sets { font-size: 14px; line-height: 1.4; word-break: break-word; }
