@@ -22,8 +22,9 @@ const STATE_HINT = { ready: 'можно тренировать', almost: 'поч
 // Персональная сводка + авто-инсайты. Всё из локальной базы (офлайн-доступно),
 // живо обновляется через useLiveQuery. Дефолт-вкладка при входе (см. App.jsx).
 //
-// Пропсы: user, onNavigate(tab).
-export default function HomeScreen({ user, onNavigate }) {
+// Пропсы: user, onNavigate(tab), onNewWorkout() — прямой вход в композер новой
+// тренировки (минуя список хаба), общий с плавающей кнопкой «+».
+export default function HomeScreen({ user, onNavigate, onNewWorkout }) {
   // Одно чтение истории на все три блока Главной (сводка/инсайты/свежесть): раньше
   // было три отдельных useLiveQuery, каждый сканировал всю историю заново.
   const home = useLiveQuery(() => getHomeData(user.id, { max: 3 }), [user.id])
@@ -49,7 +50,7 @@ export default function HomeScreen({ user, onNavigate }) {
           Здесь будет твоя сводка: последняя тренировка, серия, рекорды и авто-выводы.
           Запиши первую тренировку 💪
         </p>
-        <button className="btn primary home-cta" onClick={() => onNavigate?.('history')}>
+        <button className="btn primary home-cta" onClick={() => onNewWorkout?.()}>
           + Записать тренировку
         </button>
       </div>
@@ -219,7 +220,7 @@ export default function HomeScreen({ user, onNavigate }) {
 
       {/* быстрые переходы */}
       <div className="home-actions">
-        <button className="btn primary" onClick={() => onNavigate?.('history')}>+ Записать тренировку</button>
+        <button className="btn primary" onClick={() => onNewWorkout?.()}>+ Записать тренировку</button>
         <button className="btn ghost" onClick={() => onNavigate?.('progress')}>Прогресс</button>
         <button className="btn ghost" onClick={() => onNavigate?.('feed')}>Лента</button>
       </div>

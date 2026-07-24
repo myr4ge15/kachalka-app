@@ -46,7 +46,14 @@ function useMediaQuery(query) {
 //   selected === null → список
 //   selected === 'new' → новая тренировка
 //   selected === <id>  → деталь существующей
-export default function HistoryScreen({ user }) {
+//
+// Пропсы связи с App:
+//   openNew            — одноразовый интент «открой сразу новую тренировку»
+//                        (плавающая «+» и кнопки Главной); гасится через
+//                        onOpenNewConsumed, чтобы не переоткрывать композер.
+//   onBusyChange(bool) — хаб ушёл в под-вид (композер/деталь/шаблоны) или включил
+//                        режим выбора для экспорта: App прячет плавающую «+».
+export default function HistoryScreen({ user, openNew = false, onOpenNewConsumed, onBusyChange }) {
   const workouts = useLiveQuery(() => getWorkouts(user.id), [user.id])
   const loading = workouts === undefined
   // useMemo, а не голое `workouts ?? []`: при загрузке (workouts===undefined) `?? []`
@@ -72,6 +79,23 @@ export default function HistoryScreen({ user }) {
   // — из полного list.
   const { selectMode, picked, toggleSelectMode, togglePick, pickAll, exportPicked } =
     useExportSelection(exportWorkouts)
+
+  // Интент «сразу новая тренировка» из App (плавающая «+» / кнопки Главной).
+  // Считываем и тут же гасим у родителя: иначе повторный рендер снова уводил бы
+  // в композер после возврата к списку.
+  useEffect(() => {
+    if (!openNew) return
+    setSelected('new')
+    onOpenNewConsumed?.()
+  }, [openNew, onOpenNewConsumed])
+
+  // Сообщаем App, занят ли хаб собственным под-видом (тогда плавающая «+» прячется:
+  // в композере она не нужна, а над баром экспорта/«Сохранить» — просто мешает).
+  // На размонтировании гасим флаг, чтобы кнопка вернулась на других вкладках.
+  useEffect(() => {
+    onBusyChange?.(selected !== null || selectMode)
+    return () => onBusyChange?.(false)
+  }, [selected, selectMode, onBusyChange])
 
   // Вход в редактор/деталь и возврат к списку должны начинаться с верха страницы.
   // Скроллится не окно, а внешняя .content (overflow-y:auto, см. App.jsx/index.css);

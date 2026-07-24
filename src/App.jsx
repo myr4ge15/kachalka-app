@@ -9,8 +9,10 @@ import { openUserDb, closeUserDb } from './db/local.js'
 import { syncBadgeState } from './lib/syncStatus.js'
 import { readStoredUserId, hydrateProfile } from './lib/sessionProfile.js'
 import { emitReselect } from './lib/appEvents.js'
+import { canShowFab } from './lib/quickAdd.js'
 import LoginScreen from './screens/LoginScreen.jsx'
 import Toast from './components/Toast.jsx'
+import AddFab from './components/AddFab.jsx'
 import Avatar from './components/Avatar.jsx'
 import ScreenSkeleton from './components/ScreenSkeleton.jsx'
 import ErrorBoundary from './components/ErrorBoundary.jsx'
@@ -187,6 +189,17 @@ export default function App() {
   // Упражнение, с которым открыть «Прогресс» (проброс из ЛК по тапу на рекорд).
   const [progressExId, setProgressExId] = useState(null)
 
+  // Интент «открой сразу новую тренировку» для хаба «Тренировки» (тот же приём,
+  // что и progressExId: одноразовый флаг, хаб его считывает и гасит через
+  // onOpenNewConsumed). Взводится плавающей кнопкой «+» и кнопками Главной —
+  // так запись начинается в ОДИН тап, минуя список.
+  const [openNewWorkout, setOpenNewWorkout] = useState(false)
+
+  // Хаб «Тренировки» ушёл в свой под-вид (композер/деталь/шаблоны или режим
+  // выбора для экспорта) — тогда FAB прячем: он там либо не нужен, либо налезает
+  // на нижнюю панель («Сохранить» / бар экспорта). Хаб сообщает об этом сам.
+  const [historyBusy, setHistoryBusy] = useState(false)
+
   // Счётчик непрочитанных рекордов-уведомлений (для бейджа на колокольчике).
   // Живо пересчитывается при изменении своих тренировок, ленты и метки просмотра.
   const unread = useLiveQuery(
@@ -265,6 +278,15 @@ export default function App() {
   function openProgressFor(exerciseId) {
     setProgressExId(exerciseId)
     goTab('progress')
+  }
+
+  // «Записать тренировку» откуда угодно: взводим интент и уходим на вкладку
+  // «Тренировки» — хаб при монтировании/обновлении сразу откроет композер.
+  // Порядок важен: интент ставим ДО смены вкладки, иначе хаб успеет отрисовать
+  // список и мелькнёт лишний кадр.
+  function startNewWorkout() {
+    setOpenNewWorkout(true)
+    goTab('history')
   }
 
   // Восстановление профиля после перезапуска. В localStorage лежит только id;
@@ -367,9 +389,16 @@ export default function App() {
           <div className="screen-anim" key={tab}>
             <ErrorBoundary fallback={(_err, reset) => <ScreenCrash onRetry={reset} />}>
               {tab === 'home' && (
-                <HomeScreen user={user} onNavigate={goTab} />
+                <HomeScreen user={user} onNavigate={goTab} onNewWorkout={startNewWorkout} />
               )}
-              {tab === 'history' && <HistoryScreen user={user} />}
+              {tab === 'history' && (
+                <HistoryScreen
+                  user={user}
+                  openNew={openNewWorkout}
+                  onOpenNewConsumed={() => setOpenNewWorkout(false)}
+                  onBusyChange={setHistoryBusy}
+                />
+              )}
               {tab === 'feed' && <FeedScreen user={user} />}
               {tab === 'progress' && (
                 <ProgressScreen
@@ -407,6 +436,12 @@ export default function App() {
           </div>
         </Suspense>
       </main>
+
+      {/* Плавающая «+»: запись тренировки в один тап с любой основной вкладки.
+          Вне <main>, чтобы не уезжала со скроллом контента. Где показывать —
+          решает чистая canShowFab (lib/quickAdd.js); на десктопе скрыта в CSS
+          (там таббара снизу нет, а в хабе есть явная кнопка «+ Добавить»). */}
+      {canShowFab({ tab, busy: historyBusy }) && <AddFab onClick={startNewWorkout} />}
 
       <nav className="tabbar">
         {/* Бренд-шапка сайдбара: видна только на десктопе (≥900px), где .tabbar
