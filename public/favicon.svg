@@ -1,7 +1,13 @@
 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512">
-  <rect width="512" height="512" rx="112" fill="#0f172a"/>
-  <rect x="96" y="240" width="320" height="32" rx="16" fill="#94a3b8"/>
-  <g fill="#22c55e">
+  <defs>
+    <linearGradient id="plate" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#7c5cff"/>
+      <stop offset="1" stop-color="#ff6ba6"/>
+    </linearGradient>
+  </defs>
+  <rect width="512" height="512" rx="112" fill="#0a0a1a"/>
+  <rect x="96" y="240" width="320" height="32" rx="16" fill="#e6e8f5"/>
+  <g fill="url(#plate)">
     <rect x="112" y="196" width="34" height="120" rx="12"/>
     <rect x="152" y="176" width="34" height="160" rx="12"/>
     <rect x="326" y="176" width="34" height="160" rx="12"/>
