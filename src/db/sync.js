@@ -26,8 +26,8 @@ import { fetchFeed } from './feed.js'
 import { onOnline, onOffline, onResume } from '../lib/appEvents.js'
 import { pollIntervalFor, isRealtimeAlive, makeDebouncer } from '../lib/realtimeSync.js'
 import { backoffDelay, nextFailureCount } from '../lib/backoff.js'
-import { pull, pullGoal } from './sync/pull.js'
-import { push, pushExercises, pushTemplates, pushReactions, pushGoal } from './sync/push.js'
+import { pull, pullGoal, pullUserMeta } from './sync/pull.js'
+import { push, pushExercises, pushTemplates, pushReactions, pushGoal, pushUserMeta } from './sync/push.js'
 
 // runOutbox живёт в стадии push, но исторически экспортировался из sync.js (его
 // дёргает sync.test через фейковую таблицу) — сохраняем публичную точку.
@@ -101,15 +101,30 @@ export async function syncNow(userId) {
       await pullGoal(userId, d)
       await pushGoal(userId, d)
     } catch (e) { if (!goalWarn) goalWarn = 'цель не отправлена: ' + String(e?.message ?? e) }
+    // Личный meta (бейджи / настройки прогрессии / метка «прочитано»): сперва
+    // pull со слиянием, потом push результата — слияние идемпотентно, поэтому
+    // порядок «принять чужое → отдать своё» сходится за один прогон. Как и цель,
+    // это необязательная часть: не задеплоенный user-meta.sql даёт предупреждение,
+    // а не падение синка тренировок.
+    let metaWarn = null
+    try {
+      await pullUserMeta(userId, d)
+      await pushUserMeta(userId, d)
+    } catch (e) { metaWarn = 'настройки не отправлены: ' + String(e?.message ?? e) }
     // Обновляем кэш общей ленты в фоне: его читают и «Лента», и бейджи-
     // уведомления о рекордах («друг побил твой рекорд» — из ленты). Ошибка ленты
     // не должна валить синк своих тренировок, поэтому отдельный try/catch.
     try { await fetchFeed(userId, d) } catch { /* лента не критична для синка */ }
     const at = nowIso()
     await setMeta('lastSyncAt', at, d)
-    // Частичные сбои pull (справочник/пользователи/шаблоны не обновились) и сбой
-    // пуша цели показываем как lastError, но синк считается прошедшим — lastSyncAt обновлён.
-    const allWarn = [...(warnings ?? []), ...(goalWarn ? [goalWarn] : [])]
+    // Частичные сбои pull (справочник/пользователи/шаблоны не обновились) и сбои
+    // пуша цели/личных настроек показываем как lastError, но синк считается
+    // прошедшим — lastSyncAt обновлён.
+    const allWarn = [
+      ...(warnings ?? []),
+      ...(goalWarn ? [goalWarn] : []),
+      ...(metaWarn ? [metaWarn] : []),
+    ]
     // Прогон дошёл до конца (частичные warning'и — не сбой) → netError сброшен.
     setState({ lastError: allWarn.length ? allWarn.join('; ') : null, lastSyncAt: at, netError: false })
     // Прогон дошёл до конца (частичные warning'и — не сбой, lastSyncAt обновлён):

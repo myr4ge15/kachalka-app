@@ -14,8 +14,10 @@
 // ============================================================================
 import { supabase } from '../supabase.js'
 import { withTimeout } from '../../lib/withTimeout.js'
-import { db } from '../local.js'
+import { db, nowIso } from '../local.js'
 import { readGoals, writeGoals } from '../notifications.js'
+import { getUserMetaState, setUserMetaState, readSyncedMeta } from '../userMeta.js'
+import { SYNCED_KINDS } from '../../lib/userMeta.js'
 import { normMetric } from '../../lib/metric.js'
 
 // После стольких неудачных попыток операция считается «отравленной» и
@@ -267,5 +269,34 @@ export async function pushGoal(userId, d = db) {
       await commit()
       continue
     }
+  }
+}
+
+// --------------------------- личный meta: push -----------------------------
+// Бейджи / настройки прогрессии / метка «прочитано» живут в персональной
+// Dexie-meta и раньше не покидали устройство (BACKLOG «Синк локального meta»).
+// Отправляем те роды ключей, что помечены dirty в состоянии синка
+// (db/userMeta.js): по одному RPC upsert_user_meta на ключ, серверный
+// updated_at кладём отметкой — по нему pull отличает «своё, уже учтённое» от
+// чужой правки. Владелец на сервере берётся из app_uid(), не из параметра.
+//
+// Состояние коммитим СРАЗУ после каждого ключа (как в pushGoal): падение на
+// втором ключе не должно откатывать успешно отправленный первый.
+export async function pushUserMeta(userId, d = db) {
+  const state = await getUserMetaState(d)
+  for (const kind of SYNCED_KINDS) {
+    if (!state[kind]?.dirty) continue
+    const value = await readSyncedMeta(userId, kind, d)
+    // null-значение (ключа локально нет) отправлять незачем — на сервере
+    // пусто и так; просто снимаем флаг.
+    if (value == null) {
+      await setUserMetaState(kind, { dirty: 0 }, d)
+      continue
+    }
+    const res = await withTimeout(
+      supabase.rpc('upsert_user_meta', { p_key: kind, p_value: value })
+    )
+    if (res.error) throw res.error
+    await setUserMetaState(kind, { at: res.data ?? nowIso(), dirty: 0 }, d)
   }
 }

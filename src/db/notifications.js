@@ -11,6 +11,7 @@
 // событие новее метки. Открытие экрана двигает метку на самое свежее событие.
 // ============================================================================
 import { db, getMeta, setMeta, nowIso } from './local.js'
+import { writeSyncedMeta } from './userMeta.js'
 import { cmpIsoAsc, cmpIsoDesc } from '../lib/cmp.js'
 import { myBestByExercise, minePrs, computeBeaten, computeNewPrs, crossedGoal, goalMetByExercise } from '../lib/records.js'
 import { computeReactionNotifs } from '../lib/reactions.js'
@@ -147,7 +148,9 @@ export async function markAllSeen(userId, list) {
     (m, n) => (cmpIsoAsc(m, n.at) < 0 ? n.at : m),
     seen
   )
-  await setMeta(seenKey(userId), newest || nowIso())
+  // Через writeSyncedMeta: метка уезжает в серверный user_meta, поэтому
+  // «прочитано» теперь общее для всех устройств (раньше у каждого было своё).
+  await writeSyncedMeta(userId, 'notif_seen_at', newest || nowIso())
 }
 
 // Новые личные рекорды, установленные ИМЕННО этой тренировкой (для тоста после

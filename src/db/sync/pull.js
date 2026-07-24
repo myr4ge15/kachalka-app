@@ -14,6 +14,8 @@ import { supabase } from '../supabase.js'
 import { withTimeout } from '../../lib/withTimeout.js'
 import { db, loginDb, nowIso, setMeta, getMeta } from '../local.js'
 import { readGoals, writeGoals } from '../notifications.js'
+import { getUserMetaState, readSyncedMeta, acceptSyncedMeta } from '../userMeta.js'
+import { SYNCED_KINDS, planMetaSync } from '../../lib/userMeta.js'
 import { normMetric } from '../../lib/metric.js'
 import { cmpIsoAsc } from '../../lib/cmp.js'
 import { protectedFromPull } from '../../lib/outboxProtect.js'
@@ -496,4 +498,43 @@ export async function pullGoal(userId, d = db) {
         .sort((a, b) => String(a[0]).localeCompare(String(b[0])))
     )
   if (norm(local) !== norm(next)) await writeGoals(userId, next, d)
+}
+
+// --------------------------- личный meta: pull -----------------------------
+// Тянем СВОИ строки user_meta (RLS отдаёт только их) и сливаем с локальными по
+// правилам рода ключа — чистый planMetaSync (lib/userMeta.js): «прочитано» —
+// максимум, бейджи — объединение, настройки прогрессии — last-write-wins.
+// Никакого «сервер всегда прав»: значение, полученное офлайн на этом устройстве,
+// переживает pull и уезжает наверх ближайшим pushUserMeta.
+//
+// Мягкая деградация: если user-meta.sql ещё не задеплоен, select упадёт — просто
+// выходим, синк тренировок этим не задет (push в тот же прогон отдаст ошибку в
+// предупреждение, чтобы «не синкается» не было невидимым).
+export async function pullUserMeta(userId, d = db) {
+  const res = await withTimeout(
+    supabase.from('user_meta').select('key, value, updated_at').eq('user_id', userId)
+  )
+  if (res.error) return
+  const rows = new Map((res.data ?? []).map((r) => [r.key, r]))
+  const now = nowIso()
+  for (const kind of SYNCED_KINDS) {
+    const row = rows.get(kind)
+    // Локальное состояние читаем ПОСЛЕ сетевого ответа и перепроверяем перед
+    // записью: если пользователь правил этот ключ прямо во время запроса, его
+    // правка новее нашего плана — оставляем её (уедет ближайшим pushUserMeta),
+    // иначе слияние тихо затёрло бы свежий ввод.
+    const before = await getUserMetaState(d)
+    const plan = planMetaSync({
+      kind,
+      local: await readSyncedMeta(userId, kind, d),
+      remote: row ? row.value : null,
+      localAt: before[kind]?.at ?? '',
+      remoteAt: row?.updated_at ?? '',
+      hasRemote: Boolean(row),
+      now,
+    })
+    const after = await getUserMetaState(d)
+    if ((after[kind]?.at ?? '') !== (before[kind]?.at ?? '')) continue
+    await acceptSyncedMeta(userId, kind, plan, d)
+  }
 }

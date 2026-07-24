@@ -16,7 +16,8 @@
 //     ]
 //   }
 // ============================================================================
-import { db, loginDb, newId, nowIso, getMeta, setMeta } from './local.js'
+import { db, loginDb, newId, nowIso, getMeta } from './local.js'
+import { writeSyncedMeta } from './userMeta.js'
 import { normalizeName } from '../lib/similar.js'
 import { cmpIsoDesc } from '../lib/cmp.js'
 import { sortUsersByOrder } from '../lib/userOrder.js'
@@ -300,9 +301,11 @@ export async function getProgSettings(userId) {
 }
 
 // Глобальный тумблер «Рекомендации прогрессии» (Профиль).
+// Пишем через writeSyncedMeta: настройки уезжают в серверный user_meta, иначе
+// теряются при смене устройства (см. src/db/userMeta.js).
 export async function setProgEnabled(userId, enabled) {
   const cur = await getProgSettings(userId)
-  await setMeta(progKey(userId), { ...cur, enabled: !!enabled })
+  await writeSyncedMeta(userId, 'prog', { ...cur, enabled: !!enabled })
 }
 
 // Пер-упражненческие настройки (шестерёнка в карточке): мержим patch поверх
@@ -313,7 +316,7 @@ export async function setProgForExercise(userId, exerciseId, patch) {
     ...cur.byExercise,
     [exerciseId]: { ...(cur.byExercise[exerciseId] ?? {}), ...patch },
   }
-  await setMeta(progKey(userId), { ...cur, byExercise })
+  await writeSyncedMeta(userId, 'prog', { ...cur, byExercise })
 }
 
 // ------------------- Достижения / бейджи (meta) ---------------------------
@@ -331,7 +334,7 @@ export async function getBadges(userId) {
 }
 
 export async function writeBadges(userId, map) {
-  await setMeta(badgesKey(userId), map ?? {})
+  await writeSyncedMeta(userId, 'badges', map ?? {})
 }
 
 // Одиночная тренировка по id (для экрана-детали). null, если нет/удалена.
