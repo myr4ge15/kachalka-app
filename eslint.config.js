@@ -23,7 +23,7 @@ import globals from 'globals'
 import reactHooks from 'eslint-plugin-react-hooks'
 
 export default [
-  { ignores: ['dist/**', 'dev-dist/**', 'node_modules/**', 'coverage/**'] },
+  { ignores: ['dist/**', 'dev-dist/**', 'node_modules/**', 'coverage/**', 'test-results/**', 'playwright-report/**'] },
 
   js.configs.recommended,
 
@@ -58,6 +58,17 @@ export default [
   {
     files: ['src/**/*.test.{js,jsx}'],
     languageOptions: { globals: { ...globals.node } },
+  },
+
+  // Smoke-e2e (Playwright): тело теста исполняется в node, но колбэки
+  // addInitScript/evaluate — уже в странице, поэтому нужны и браузерные глобалы.
+  {
+    files: ['e2e/**/*.js'],
+    languageOptions: {
+      ecmaVersion: 'latest',
+      sourceType: 'module',
+      globals: { ...globals.node, ...globals.browser },
+    },
   },
 
   // Конфиги/скрипты в корне (vite.config.js, этот файл) — node-окружение.
