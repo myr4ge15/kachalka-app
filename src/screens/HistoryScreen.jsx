@@ -111,9 +111,14 @@ export default function HistoryScreen({ user, openNew = false, onOpenNewConsumed
   function renderList() {
     return (
       <>
-        <button className="btn primary full add-workout" onClick={() => setSelected('new')}>
-          + Добавить тренировку
-        </button>
+        {/* На мобиле кнопку заменила плавающая «+» (v5.4.1): она висела бы на одном
+            экране с FAB и при этом уезжала со скроллом. На десктопе FAB скрыт
+            (медиазапрос ≥900px) — там это ЕДИНСТВЕННЫЙ вход в композер, оставляем. */}
+        {isDesktop && (
+          <button className="btn primary full add-workout" onClick={() => setSelected('new')}>
+            + Добавить тренировку
+          </button>
+        )}
 
         <button className="btn outline full tpl-link" onClick={() => setSelected('templates')}>
           📋 Шаблоны

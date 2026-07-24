@@ -218,9 +218,11 @@ export default function HomeScreen({ user, onNavigate, onNewWorkout }) {
         </section>
       )}
 
-      {/* быстрые переходы */}
+      {/* Быстрые переходы. «+ Записать тренировку» отсюда убрана (v5.4.1): её роль
+          взяла плавающая «+» — она видна всегда, а эта кнопка лежала ниже сгиба
+          длинной сводки. В ПУСТОМ состоянии (ветка выше) явный CTA остаётся: у
+          новичка ещё нет привычки к FAB, и его надо чему-то научить. */}
       <div className="home-actions">
-        <button className="btn primary" onClick={() => onNewWorkout?.()}>+ Записать тренировку</button>
         <button className="btn ghost" onClick={() => onNavigate?.('progress')}>Прогресс</button>
         <button className="btn ghost" onClick={() => onNavigate?.('feed')}>Лента</button>
       </div>
