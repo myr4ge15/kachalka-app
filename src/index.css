@@ -677,7 +677,12 @@ input { font-family: inherit; }
   width: calc(100% - 24px); max-width: 536px; margin: 0;
   bottom: calc(72px + env(safe-area-inset-bottom));
   padding: 10px 14px; border-radius: 12px;
-  background: var(--surface-2); border: 1px solid var(--border);
+  /* Тот же случай: бар висит НАД списком карточек, поэтому подложка плотная.
+     Обводка по контуру здесь нейтральная (не мятная, как у тоста/плашки) — это
+     рабочая панель, а не событие, подсвечивать её незачем. */
+  background: rgba(20, 16, 40, .94); border: 1px solid var(--border);
+  backdrop-filter: blur(20px); -webkit-backdrop-filter: blur(20px);
+  box-shadow: 0 10px 30px rgba(0, 0, 0, .5);
 }
 /* Чекбокс-индикатор карточки в режиме выбора */
 .history-check {
@@ -1144,8 +1149,11 @@ img.avatar-lg.has-img {
   width: calc(100% - 24px); max-width: 536px;
   bottom: calc(84px + env(safe-area-inset-bottom));
   display: flex; align-items: center; gap: 12px; padding: 13px 14px; border-radius: 14px;
-  background: var(--surface-2); border: 1px solid var(--green); color: var(--text);
-  box-shadow: 0 10px 30px rgba(0,0,0,.5);
+  /* Плавающий оверлей → ПЛОТНАЯ подложка, а не стеклянный `--surface-2` (он полупрозрачен
+     и над карточкой сливался с ней — тот же дефект, что чинили у `.update-pill` в v5.6.1). */
+  background: rgba(20, 16, 40, .94); border: 1px solid var(--green); color: var(--text);
+  backdrop-filter: blur(20px); -webkit-backdrop-filter: blur(20px);
+  box-shadow: 0 10px 30px rgba(0, 0, 0, .55), 0 0 0 4px rgba(46, 230, 160, .12);
   transition: transform .35s cubic-bezier(.2,.8,.2,1), opacity .35s ease;
   /* Тост — фиксированная полоса поверх .content (единственного скроллера), но вне
      него. Делаем её pointer-transparent, иначе палец, попавший на тост, не мог

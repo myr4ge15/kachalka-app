@@ -1,7 +1,7 @@
 {
   "name": "kachalka-app",
   "private": true,
-  "version": "5.6.1",
+  "version": "5.6.2",
   "type": "module",
   "description": "PWA для учёта силовых тренировок (MVP, первый проход)",
   "scripts": {
