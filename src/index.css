@@ -1443,22 +1443,41 @@ img.avatar-lg.has-img {
 .btn.danger-ghost:active { background: rgba(239,68,68,.12); }
 
 /* список рекордов → Прогресс */
+.pr-head { display: flex; align-items: center; justify-content: space-between; gap: 12px; }
+.pr-head .sec-title { margin-bottom: 9px; }
+.pr-count {
+  min-width: 25px; margin-bottom: 9px; padding: 2px 8px;
+  border: 1px solid var(--border); border-radius: 999px;
+  color: var(--muted); background: var(--surface); font-size: 11px; font-weight: 700;
+  text-align: center; font-variant-numeric: tabular-nums;
+}
 .pr-list { list-style: none; margin: 0; padding: 0; background: var(--surface); border: 1px solid var(--border); border-radius: 16px; overflow: hidden; }
 .pr-list li { border-top: 1px solid var(--border); }
 .pr-list li:first-child { border-top: none; }
 .pr-row {
   display: flex; align-items: center; justify-content: space-between; gap: 12px;
-  width: 100%; padding: 13px 14px; min-height: 48px;
+  width: 100%; padding: 10px 14px; min-height: 44px;
   background: none; border: none; color: var(--text); font-size: 15px; text-align: left;
 }
 .pr-row:active { background: var(--surface-2); }
 .pr-name { display: flex; align-items: center; gap: 9px; min-width: 0; }
-.pr-name .star { color: var(--yellow); flex-shrink: 0; font-size: 13px; }
-.pr-name .star.dim { color: var(--muted); }
+.pr-name .star-slot {
+  width: 13px; flex: 0 0 13px; display: inline-flex; align-items: center; justify-content: center;
+}
+.pr-name .star { color: var(--yellow); font-size: 13px; }
 .pr-name .txt { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .pr-val { font-weight: 800; flex-shrink: 0; display: flex; align-items: center; gap: 6px; }
 .pr-val .u { font-size: 13px; color: var(--muted); font-weight: 600; }
 .pr-val .arr { color: var(--green); font-weight: 800; }
+.pr-more { background: rgba(124,92,255,.06); }
+.pr-toggle {
+  width: 100%; min-height: 44px; padding: 10px 14px;
+  display: flex; align-items: center; justify-content: center; gap: 7px;
+  border: 0; background: transparent; color: var(--g2);
+  font-size: 13px; font-weight: 700; cursor: pointer;
+}
+.pr-toggle:active { background: var(--surface-2); }
+.pr-toggle-arr { font-size: 15px; line-height: 1; }
 .profile .hint { font-size: 11.5px; color: var(--muted); line-height: 1.5; margin: 9px 2px 0; }
 
 /* любимое упражнение */
