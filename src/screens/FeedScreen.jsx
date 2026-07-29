@@ -6,13 +6,14 @@ import { getMeta } from '../db/local.js'
 import { syncNow } from '../db/sync.js'
 import { onOnline, onResume, onReselect } from '../lib/appEvents.js'
 import { fmtWhen, fmtAgo } from '../lib/dates.js'
-import { fmtMetricValue, fmtSet } from '../lib/metric.js'
+import { fmtSet } from '../lib/metric.js'
 import { summarizeReactions, reactorLine } from '../lib/reactions.js'
 import { vibrate, HAPTIC } from '../lib/haptics.js'
 import { pullDistance, shouldTriggerRefresh, PULL_THRESHOLD } from '../lib/pullRefresh.js'
 import Leaderboard from './Leaderboard.jsx'
 import Avatar from '../components/Avatar.jsx'
 import CardsSkeleton from '../components/CardsSkeleton.jsx'
+import FeedPrBadge from '../components/FeedPrBadge.jsx'
 
 export default function FeedScreen({ user }) {
   // Кэш ленты (офлайн-доступен, обновляется мгновенно при фоновой подтяжке).
@@ -255,9 +256,7 @@ export default function FeedScreen({ user }) {
             {w.prs?.length > 0 && (
               <div className="feed-prs">
                 {w.prs.map((pr) => (
-                  <span key={`${pr.name}-${pr.value}`} className="pr-badge" title="Новый личный рекорд">
-                    🏆 {pr.name} · {fmtMetricValue(pr.metric, pr.value)}
-                  </span>
+                  <FeedPrBadge key={`${pr.name}-${pr.value}`} pr={pr} />
                 ))}
               </div>
             )}
