@@ -421,6 +421,17 @@ input { font-family: inherit; }
 .full-link.danger:active { color: var(--red); }
 
 /* ---------- workout ---------- */
+/* Долгое касание по подписям рядом со степперами открывало нативное выделение /
+   callout и визуально «замораживало» вложенный скроллер. Поля ввода остаются
+   выделяемыми для ручной правки значений. */
+.workout-screen {
+  user-select: none; -webkit-user-select: none; -webkit-touch-callout: none;
+}
+.workout-screen input {
+  user-select: text; -webkit-user-select: text; -webkit-touch-callout: default;
+}
+.workout-screen > .danger-confirm { margin-bottom: 12px; }
+
 .exercise-card { padding: 14px; }
 .exercise-head { display: flex; justify-content: space-between; align-items: center; gap: 8px; margin-bottom: 10px; }
 .exercise-name { font-weight: 600; }

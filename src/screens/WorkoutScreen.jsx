@@ -401,8 +401,32 @@ export default function WorkoutScreen({ user, workoutId = null, onBack }) {
     }
   }
 
+  const workoutActions = (
+    <WorkoutActions
+      isNew={isNew}
+      hasEntries={entries.length > 0}
+      saving={saving}
+      tplBusy={tplBusy}
+      clearArm={clearArm}
+      onArmClear={() => setClearArm(true)}
+      onCancelClear={() => setClearArm(false)}
+      onClearDraft={clearDraft}
+      onExport={exportOne}
+      tplArm={tplArm}
+      onOpenTpl={openTplArm}
+      onCancelTpl={() => setTplArm(false)}
+      tplName={tplName}
+      onTplName={setTplName}
+      onMakeTemplate={makeTemplate}
+      delArm={delArm}
+      onArmDel={() => setDelArm(true)}
+      onCancelDel={() => setDelArm(false)}
+      onDelete={remove}
+    />
+  )
+
   return (
-    <div className="screen">
+    <div className="screen workout-screen">
       <div className="detail-head">
         <button className="link-btn back-link" onClick={() => onBack?.()}>← Назад</button>
         <h2 className="screen-title detail-title">
@@ -421,6 +445,11 @@ export default function WorkoutScreen({ user, workoutId = null, onBack }) {
       ) : (
         <>
           <DateField performedAt={performedAt} onChange={setPerformedAt} />
+
+          {/* Очистка новой тренировки нужна в начале композера: случайно
+              применённый шаблон можно сбросить без прокрутки длинного состава,
+              а подтверждение не оказывается под фиксированной save-панелью. */}
+          {isNew && workoutActions}
 
           {entries.length === 0 && (
             <p className="muted empty">Добавь упражнение, чтобы начать.</p>
@@ -455,27 +484,7 @@ export default function WorkoutScreen({ user, workoutId = null, onBack }) {
             + Добавить упражнение
           </button>
 
-          <WorkoutActions
-            isNew={isNew}
-            hasEntries={entries.length > 0}
-            saving={saving}
-            tplBusy={tplBusy}
-            clearArm={clearArm}
-            onArmClear={() => setClearArm(true)}
-            onCancelClear={() => setClearArm(false)}
-            onClearDraft={clearDraft}
-            onExport={exportOne}
-            tplArm={tplArm}
-            onOpenTpl={openTplArm}
-            onCancelTpl={() => setTplArm(false)}
-            tplName={tplName}
-            onTplName={setTplName}
-            onMakeTemplate={makeTemplate}
-            delArm={delArm}
-            onArmDel={() => setDelArm(true)}
-            onCancelDel={() => setDelArm(false)}
-            onDelete={remove}
-          />
+          {!isNew && workoutActions}
 
           <SaveBar canSave={canSave} saving={saving} totalSets={totalSets} onSave={save} />
         </>

@@ -8,6 +8,8 @@ import { HOLD_START, nextHoldDelay } from '../lib/hold.js'
 export default function HoldButton({ onTrigger, children, className, disabled, ...rest }) {
   const timer = useRef(null)
   const delay = useRef(HOLD_START)
+  const pointer = useRef(null)
+  const target = useRef(null)
   const cb = useRef(onTrigger)
   cb.current = onTrigger
 
@@ -16,6 +18,11 @@ export default function HoldButton({ onTrigger, children, className, disabled, .
       clearTimeout(timer.current)
       timer.current = null
     }
+    if (pointer.current != null && target.current?.hasPointerCapture?.(pointer.current)) {
+      try { target.current.releasePointerCapture(pointer.current) } catch { /* уже отпущен */ }
+    }
+    pointer.current = null
+    target.current = null
   }, [])
 
   // На размонтировании гасим таймер (защита от утечки при удалении подхода/строки).
@@ -31,6 +38,12 @@ export default function HoldButton({ onTrigger, children, className, disabled, .
     if (disabled) return
     if (e.button != null && e.button !== 0) return // только основная кнопка/тач
     e.preventDefault()
+    // Захват гарантирует pointerup/pointercancel даже если палец ушёл за кнопку.
+    // Без него потерянный pointerup оставлял auto-repeat навсегда активным:
+    // частые React-обновления выглядели как полностью «зависший» скролл.
+    pointer.current = e.pointerId
+    target.current = e.currentTarget
+    try { e.currentTarget.setPointerCapture?.(e.pointerId) } catch { /* fallback: pointerleave */ }
     cb.current?.()              // мгновенный отклик на первый тап
     delay.current = HOLD_START  // пауза перед стартом авто-повтора
     timer.current = setTimeout(tick, delay.current)
@@ -45,6 +58,7 @@ export default function HoldButton({ onTrigger, children, className, disabled, .
       onPointerUp={stop}
       onPointerLeave={stop}
       onPointerCancel={stop}
+      onLostPointerCapture={stop}
       {...rest}
     >
       {children}
