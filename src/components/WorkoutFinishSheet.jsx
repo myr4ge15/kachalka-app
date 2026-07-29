@@ -2,7 +2,7 @@ import SheetDialog from './SheetDialog.jsx'
 import { fmtTonnage } from '../lib/profileStats.js'
 import { formatWorkoutDuration, workoutFinishSummary } from '../lib/workoutFinish.js'
 
-export default function WorkoutFinishSheet({ workout, onDone }) {
+export default function WorkoutFinishSheet({ workout, event = null, onDone, onOpenProgress }) {
   const summary = workoutFinishSummary(workout)
   const tonnage = fmtTonnage(summary.tonnage)
   const duration = formatWorkoutDuration(summary.durationSeconds)
@@ -34,7 +34,31 @@ export default function WorkoutFinishSheet({ workout, onDone }) {
           )}
         </dl>
 
-        <button className="btn primary full workout-finish-done" data-autofocus onClick={onDone}>
+        {event && (
+          <div className={`workout-finish-event event-${event.kind}`}>
+            <span className="workout-finish-event-emoji" aria-hidden="true">{event.emoji}</span>
+            <div>
+              <strong>{event.title}</strong>
+              <p>{event.text}</p>
+            </div>
+          </div>
+        )}
+
+        {event?.exerciseId && onOpenProgress && (
+          <button
+            className="btn primary full workout-finish-progress"
+            data-autofocus
+            onClick={() => onOpenProgress(event.exerciseId)}
+          >
+            Посмотреть прогресс
+          </button>
+        )}
+
+        <button
+          className={`btn full workout-finish-done${event?.exerciseId ? ' outline' : ' primary'}`}
+          data-autofocus={!event?.exerciseId || !onOpenProgress || undefined}
+          onClick={onDone}
+        >
           Готово
         </button>
       </div>

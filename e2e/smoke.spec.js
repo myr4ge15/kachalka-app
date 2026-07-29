@@ -38,6 +38,23 @@ test('вход → запись тренировки → она в истори�
   }
   await expect(page.locator('.tabbar')).toBeVisible()
 
+  // Исторический подход нужен, чтобы новая запись действительно побила PR и
+  // сквозной тест проверил главное событие finish-sheet + переход в Прогресс.
+  await page.evaluate(async (userId) => {
+    const [{ saveWorkout }, { E2E_EXERCISES }] = await Promise.all([
+      import('/kachalka-app/src/db/repo.js'),
+      import('/kachalka-app/src/test/e2eSeed.js'),
+    ])
+    await saveWorkout({
+      user_id: userId,
+      performed_at: '2026-06-01T12:00:00.000Z',
+      entries: [{
+        exercise: E2E_EXERCISES[0],
+        sets: [{ weight: 50, reps: 8 }],
+      }],
+    })
+  }, user.id)
+
   // --- запись тренировки ----------------------------------------------------
   await page.locator('.tabbar .tab').filter({ hasText: 'Тренировки' }).click()
   
@@ -77,9 +94,12 @@ test('вход → запись тренировки → она в истори�
   await expect(page.getByText('Упражнения').locator('..')).toContainText('2')
   await expect(page.getByText('Подходы').locator('..')).toContainText('2')
   await expect(page.getByText('Тоннаж').locator('..')).toContainText('480 кг')
-  await page.getByRole('button', { name: 'Готово' }).click()
+  await expect(page.getByText('Новый рекорд!')).toBeVisible()
+  await page.getByRole('button', { name: 'Посмотреть прогресс' }).click()
+  await expect(page.locator('.prog-select')).toHaveValue('e2e-ex-bench')
+  await page.locator('.tabbar .tab').filter({ hasText: 'Тренировки' }).click()
 
-  // После одного тапа итог закрыт, тренировка в списке на месте.
+  // Переход из итога закрыл sheet; тренировка в списке на месте.
   const card = page.locator('.history-card').first()
   await expect(card).toContainText(EXERCISE)
   await expect(card).toContainText('60×8')

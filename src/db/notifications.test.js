@@ -59,7 +59,7 @@ describe('detectNewPrsOnSave', () => {
     const wId = await wk(userId, '2026-02-01', [{ weight: 90, reps: 5 }])
     const prs = await detectNewPrsOnSave(userId, wId)
     expect(prs).toHaveLength(1)
-    expect(prs[0]).toMatchObject({ metric: 'weight', value: 90, prev: 80 })
+    expect(prs[0]).toMatchObject({ exerciseId: 'ex_bench', metric: 'weight', value: 90, prev: 80 })
   })
 
   it('первый замер по упражнению рекордом не считается (prev=0)', async () => {
@@ -90,7 +90,12 @@ describe('detectGoalReachedOnSave', () => {
     const wId = await wk(userId, '2026-02-01', [{ weight: 100, reps: 5 }])
     const reached = await detectGoalReachedOnSave(userId, wId)
     expect(reached).toHaveLength(1)
-    expect(reached[0]).toMatchObject({ name: 'Жим', metric: 'weight', value: 100 })
+    expect(reached[0]).toMatchObject({
+      exerciseId: 'ex_bench',
+      name: 'Жим',
+      metric: 'weight',
+      value: 100,
+    })
     // achievedAt проставлен в самой цели (дедуп)
     const after = await readGoals(userId)
     expect(after[0].achievedAt).toBeTruthy()

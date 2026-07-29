@@ -54,7 +54,13 @@ function useMediaQuery(query) {
 //                        onOpenNewConsumed, чтобы не переоткрывать композер.
 //   onBusyChange(bool) — хаб ушёл в под-вид (композер/деталь/шаблоны) или включил
 //                        режим выбора для экспорта: App прячет плавающую «+».
-export default function HistoryScreen({ user, openNew = false, onOpenNewConsumed, onBusyChange }) {
+export default function HistoryScreen({
+  user,
+  openNew = false,
+  onOpenNewConsumed,
+  onBusyChange,
+  onOpenProgress,
+}) {
   const workouts = useLiveQuery(() => getWorkouts(user.id), [user.id])
   const loading = workouts === undefined
   // useMemo, а не голое `workouts ?? []`: при загрузке (workouts===undefined) `?? []`
@@ -66,7 +72,7 @@ export default function HistoryScreen({ user, openNew = false, onOpenNewConsumed
   const isDesktop = useMediaQuery('(min-width: 900px)')
 
   const [selected, setSelected] = useState(null)
-  const [finishedWorkout, setFinishedWorkout] = useState(null)
+  const [finishResult, setFinishResult] = useState(null)
   // Фильтр по группе мышц (null = «Все»). Чипы строим только из реально
   // встречающихся групп, чтобы не показывать пустые.
   const [filter, setFilter] = useState(null)
@@ -95,13 +101,18 @@ export default function HistoryScreen({ user, openNew = false, onOpenNewConsumed
   // в композере она не нужна, а над баром экспорта/«Сохранить» — просто мешает).
   // На размонтировании гасим флаг, чтобы кнопка вернулась на других вкладках.
   useEffect(() => {
-    onBusyChange?.(selected !== null || selectMode || finishedWorkout !== null)
+    onBusyChange?.(selected !== null || selectMode || finishResult !== null)
     return () => onBusyChange?.(false)
-  }, [selected, selectMode, finishedWorkout, onBusyChange])
+  }, [selected, selectMode, finishResult, onBusyChange])
 
-  function handleSaved(workout) {
+  function handleSaved(result) {
     setSelected(null)
-    setFinishedWorkout(workout)
+    setFinishResult(result)
+  }
+
+  function openFinishProgress(exerciseId) {
+    setFinishResult(null)
+    onOpenProgress?.(exerciseId)
   }
 
   // Вход в редактор/деталь и возврат к списку должны начинаться с верха страницы.
@@ -256,8 +267,13 @@ export default function HistoryScreen({ user, openNew = false, onOpenNewConsumed
           <h2 className="screen-title">Мои тренировки</h2>
           {renderList()}
         </div>
-        {finishedWorkout && (
-          <WorkoutFinishSheet workout={finishedWorkout} onDone={() => setFinishedWorkout(null)} />
+        {finishResult && (
+          <WorkoutFinishSheet
+            workout={finishResult.workout}
+            event={finishResult.event}
+            onDone={() => setFinishResult(null)}
+            onOpenProgress={openFinishProgress}
+          />
         )}
       </>
     )
@@ -289,8 +305,13 @@ export default function HistoryScreen({ user, openNew = false, onOpenNewConsumed
           )}
         </div>
       </div>
-      {finishedWorkout && (
-        <WorkoutFinishSheet workout={finishedWorkout} onDone={() => setFinishedWorkout(null)} />
+      {finishResult && (
+        <WorkoutFinishSheet
+          workout={finishResult.workout}
+          event={finishResult.event}
+          onDone={() => setFinishResult(null)}
+          onOpenProgress={openFinishProgress}
+        />
       )}
     </div>
   )

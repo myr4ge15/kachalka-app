@@ -29,4 +29,27 @@ describe('WorkoutFinishSheet', () => {
     fireEvent.click(screen.getByRole('button', { name: 'Готово' }))
     expect(onDone).toHaveBeenCalledOnce()
   })
+
+  it('показывает одно главное событие и открывает его упражнение в Прогрессе', () => {
+    const onOpenProgress = vi.fn()
+    render(
+      <WorkoutFinishSheet
+        workout={workout}
+        event={{
+          kind: 'pr',
+          emoji: '🏆',
+          title: 'Новый рекорд!',
+          text: 'Жим лёжа — 100 кг (было 95 кг)',
+          exerciseId: 'bench',
+        }}
+        onDone={() => {}}
+        onOpenProgress={onOpenProgress}
+      />
+    )
+
+    expect(screen.getByText('Новый рекорд!')).toBeInTheDocument()
+    expect(screen.getByText('Жим лёжа — 100 кг (было 95 кг)')).toBeInTheDocument()
+    fireEvent.click(screen.getByRole('button', { name: 'Посмотреть прогресс' }))
+    expect(onOpenProgress).toHaveBeenCalledWith('bench')
+  })
 })

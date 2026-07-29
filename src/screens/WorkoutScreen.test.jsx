@@ -3,6 +3,9 @@ import { beforeEach, describe, expect, it, vi } from 'vitest'
 import { act, fireEvent, render, screen, waitFor } from '@testing-library/react'
 import { useLiveQuery } from 'dexie-react-hooks'
 import { getRecentSessionsForExercise, getWorkout, saveWorkout } from '../db/repo.js'
+import { detectGoalReachedOnSave, detectNewPrsOnSave } from '../db/notifications.js'
+import { detectInsightsOnSave } from '../db/insights.js'
+import { detectBadgesOnSave } from '../db/badges.js'
 import { clearCache, setCache } from '../lib/cache.js'
 import WorkoutScreen from './WorkoutScreen.jsx'
 
@@ -59,6 +62,14 @@ describe('WorkoutScreen', () => {
     vi.mocked(getRecentSessionsForExercise).mockReset()
     vi.mocked(saveWorkout).mockReset()
     vi.mocked(saveWorkout).mockResolvedValue('saved-workout')
+    vi.mocked(detectNewPrsOnSave).mockReset()
+    vi.mocked(detectNewPrsOnSave).mockResolvedValue([])
+    vi.mocked(detectGoalReachedOnSave).mockReset()
+    vi.mocked(detectGoalReachedOnSave).mockResolvedValue([])
+    vi.mocked(detectBadgesOnSave).mockReset()
+    vi.mocked(detectBadgesOnSave).mockResolvedValue([])
+    vi.mocked(detectInsightsOnSave).mockReset()
+    vi.mocked(detectInsightsOnSave).mockResolvedValue([])
     vi.mocked(useLiveQuery).mockImplementation((_query, _deps, fallback) => fallback)
     scrollIntoView.mockReset()
     Object.defineProperty(HTMLElement.prototype, 'scrollIntoView', {
@@ -201,9 +212,33 @@ describe('WorkoutScreen', () => {
 
     fireEvent.click(screen.getByRole('button', { name: 'Сохранить (1)' }))
 
-    await waitFor(() => expect(onSaved).toHaveBeenCalledWith(expect.objectContaining({
-      id: 'saved-workout',
-    })))
+    await waitFor(() => expect(onSaved).toHaveBeenCalledWith({
+      workout: expect.objectContaining({ id: 'saved-workout' }),
+      event: null,
+    }))
     expect(onBack).not.toHaveBeenCalled()
+  })
+
+  it('передаёт рекорд итоговому экрану вместо отдельного поздравительного тоста', async () => {
+    setCache(`workout_draft_new_${user.id}`, draft)
+    vi.mocked(detectNewPrsOnSave).mockResolvedValue([{
+      exerciseId: 'bench',
+      name: 'Жим лёжа',
+      metric: 'weight',
+      value: 100,
+      prev: 95,
+    }])
+    const onSaved = vi.fn()
+    render(<WorkoutScreen user={user} onSaved={onSaved} />)
+
+    fireEvent.click(screen.getByRole('button', { name: 'Сохранить (1)' }))
+
+    await waitFor(() => expect(onSaved).toHaveBeenCalledWith(expect.objectContaining({
+      event: expect.objectContaining({
+        kind: 'pr',
+        exerciseId: 'bench',
+        title: 'Новый рекорд!',
+      }),
+    })))
   })
 })

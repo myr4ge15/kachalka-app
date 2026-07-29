@@ -163,7 +163,7 @@ describe('computeNewPrs', () => {
     const saved = [{ exercise_id: 'ex1', exercise: { id: 'ex1' }, sets: [{ weight: 80, reps: 3 }] }]
     const out = computeNewPrs(saved, othersBest)
     expect(out).toHaveLength(1)
-    expect(out[0]).toMatchObject({ value: 80, prev: 70 })
+    expect(out[0]).toMatchObject({ exerciseId: 'ex1', value: 80, prev: 70 })
   })
   it('первый замер по упражнению (prev отсутствует) — не рекорд', () => {
     const saved = [{ exercise_id: 'exNew', exercise: { id: 'exNew' }, sets: [{ weight: 50, reps: 3 }] }]

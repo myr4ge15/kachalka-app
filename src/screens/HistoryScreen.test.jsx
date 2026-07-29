@@ -10,7 +10,19 @@ vi.mock('./WorkoutScreen.jsx', () => ({
   default: ({ workoutId, onSaved }) => (
     <div data-testid="workout-screen">
       {workoutId ?? 'new'}
-      <button onClick={() => onSaved?.(workout)}>Сохранить тестовую</button>
+      <button onClick={() => onSaved?.({ workout, event: null })}>Сохранить тестовую</button>
+      <button onClick={() => onSaved?.({
+        workout,
+        event: {
+          kind: 'pr',
+          emoji: '🏆',
+          title: 'Новый рекорд!',
+          text: 'Жим лёжа — 80 кг (было 75 кг)',
+          exerciseId: 'bench',
+        },
+      })}>
+        Сохранить с рекордом
+      </button>
     </div>
   ),
 }))
@@ -81,5 +93,17 @@ describe('HistoryScreen', () => {
     expect(screen.queryByRole('dialog', { name: 'Тренировка готова' })).not.toBeInTheDocument()
     expect(screen.getByText('Мои тренировки')).toBeInTheDocument()
     await waitFor(() => expect(onBusy).toHaveBeenLastCalledWith(false))
+  })
+
+  it('из главного события открывает Прогресс нужного упражнения', () => {
+    const onOpenProgress = vi.fn()
+    render(<HistoryScreen user={user} openNew onOpenProgress={onOpenProgress} />)
+
+    fireEvent.click(screen.getByRole('button', { name: 'Сохранить с рекордом' }))
+    expect(screen.getByText('Новый рекорд!')).toBeInTheDocument()
+
+    fireEvent.click(screen.getByRole('button', { name: 'Посмотреть прогресс' }))
+    expect(onOpenProgress).toHaveBeenCalledWith('bench')
+    expect(screen.queryByRole('dialog', { name: 'Тренировка готова' })).not.toBeInTheDocument()
   })
 })

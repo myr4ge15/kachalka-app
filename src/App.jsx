@@ -402,6 +402,7 @@ export default function App() {
                   openNew={openNewWorkout}
                   onOpenNewConsumed={() => setOpenNewWorkout(false)}
                   onBusyChange={setHistoryBusy}
+                  onOpenProgress={openProgressFor}
                 />
               )}
               {tab === 'feed' && <FeedScreen user={user} />}

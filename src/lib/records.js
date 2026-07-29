@@ -174,7 +174,7 @@ export function goalMetByExercise(workouts, exerciseId, targetWeight, targetReps
 // savedEntries — entries сохранённой тренировки; othersBest — лучшее по ВСЕМ
 // ОСТАЛЬНЫМ моим тренировкам (Map exId → { value, metric }). Считаем рекордом
 // только превышение прежнего максимума (prev > 0), как и в minePrs. Возвращает
-// [{ name, metric, value, prev }].
+// [{ exerciseId, name, metric, value, prev }].
 export function computeNewPrs(savedEntries, othersBest) {
   const out = []
   for (const e of savedEntries ?? []) {
@@ -185,7 +185,7 @@ export function computeNewPrs(savedEntries, othersBest) {
     if (value <= 0) continue
     const prev = othersBest.get(exId)?.value ?? 0
     if (prev > 0 && value > prev) {
-      out.push({ name: entryName(e) ?? '—', metric, value, prev })
+      out.push({ exerciseId: exId, name: entryName(e) ?? '—', metric, value, prev })
     }
   }
   return out

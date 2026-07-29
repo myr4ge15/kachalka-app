@@ -169,7 +169,7 @@ export async function detectNewPrsOnSave(userId, workoutId) {
 // учётом стал ≥ target (как рекорд). myBestByExercise возвращает ведущее значение
 // в единицах метрики упражнения, поэтому сравнение работает для всех метрик.
 // Достигнутым проставляем achievedAt (дедуп) и возвращаем массив
-// { name, metric, value } для тоста (пусто — ничего не достигнуто).
+// { exerciseId, name, metric, value } для экрана-финиша (пусто — ничего не достигнуто).
 export async function detectGoalReachedOnSave(userId, workoutId) {
   const goals = await readGoals(userId)
   const hasActive = goals.some((g) => !g._deleted && g.exerciseId && g.targetWeight && !g.achievedAt)
@@ -199,7 +199,13 @@ export async function detectGoalReachedOnSave(userId, workoutId) {
     }
     if (!crossed) return g
     changed = true
-    reached.push({ name: g.exerciseName ?? '—', metric: m, value: g.targetWeight, reps: g.targetReps ?? null })
+    reached.push({
+      exerciseId: g.exerciseId,
+      name: g.exerciseName ?? '—',
+      metric: m,
+      value: g.targetWeight,
+      reps: g.targetReps ?? null,
+    })
     return { ...g, achievedAt: nowIso() }
   })
   if (changed) await writeGoals(userId, next)

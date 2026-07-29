@@ -8,7 +8,7 @@ import { syncNow } from '../db/sync.js'
 import { getCache, setCache, clearCache } from '../lib/cache.js'
 import { showToast, hideToast } from '../components/Toast.jsx'
 import { buildRecommendation, defaultSet, sk } from '../lib/progressionCard.js'
-import { pickSaveCelebration } from '../lib/saveCelebration.js'
+import { pickWorkoutFinishEvent } from '../lib/workoutFinish.js'
 import {
   appendExerciseIn, removeExerciseIn, insertExerciseIn, replaceExerciseIn,
   updateSetIn, stepSetIn, addSetIn, removeSetIn, insertSetIn,
@@ -83,8 +83,7 @@ export default function WorkoutScreen({ user, workoutId = null, onBack, onSaved 
 
   // Undo-тост удаления привязан к ЭТОМУ экрану: его «Отменить» зовёт setEntries,
   // которого после ухода со страницы уже нет. Поэтому при размонтировании гасим
-  // только его (kind:'undo') — смена вкладки/возврат к списку убирают зависший
-  // тост. Поздравление о рекорде/цели (без kind) переживает onBack, как раньше.
+  // его (kind:'undo') — смена вкладки/возврат к списку убирают зависший тост.
   useEffect(() => () => hideToast('undo'), [])
 
   // Загрузка существующей тренировки на маунте (документ — источник правды).
@@ -333,8 +332,8 @@ export default function WorkoutScreen({ user, workoutId = null, onBack, onSaved 
       if (isNew) clearCache(DRAFT_KEY)
       // Тактильный отклик по итогу сохранения: рекорд/цель — «праздничный»
       // паттерн, обычное сохранение — короткий success (см. lib/haptics.js).
-      let celebrated = false
-      // Поздравление с новым личным рекордом (ТЗ §4.5). Только для новой
+      let finishEvent = null
+      // Главное событие итогового экрана (ТЗ §4.5). Только для новой
       // тренировки — чтобы повторная правка старой записи не поднимала ложный
       // рекорд. Рекорды считаются из локальных данных, сеть не нужна.
       if (isNew) {
@@ -348,17 +347,16 @@ export default function WorkoutScreen({ user, workoutId = null, onBack, onSaved 
           const newBadges = await detectBadgesOnSave(user.id)
           // Инсайт тянем только для «тихой» тренировки (ничего праздничного не
           // сработало) — detectInsightsOnSave читает лидерборд/историю, лишний раз
-          // не гоняем. Выбор ЕДИНОГО тоста и приоритет — чистый pickSaveCelebration.
+          // не гоняем. Выбор ЕДИНОГО события и приоритет — чистый
+          // pickWorkoutFinishEvent; визуально оно живёт в finish-sheet, не в тосте.
           const quiet = !prs.length && !reached.length && !newBadges.length
           const insights = quiet ? await detectInsightsOnSave(user.id, wId, { max: 1 }) : []
-          const picked = pickSaveCelebration({ prs, reached, newBadges, insights })
-          if (picked.toast) showToast(picked.toast)
-          celebrated = picked.celebrated
-        } catch { /* тост необязателен */ }
+          finishEvent = pickWorkoutFinishEvent({ prs, reached, newBadges, insights })
+        } catch { /* главное событие необязательно, сохранение уже успешно */ }
       }
-      vibrate(celebrated ? HAPTIC.celebrate : HAPTIC.success)
+      vibrate(finishEvent?.celebrated ? HAPTIC.celebrate : HAPTIC.success)
       if (navigator.onLine) syncNow(user.id)
-      if (onSaved) onSaved(savedWorkout)
+      if (onSaved) onSaved({ workout: savedWorkout, event: finishEvent })
       else onBack?.()
     } catch (err) {
       setMessage({ type: 'error', text: 'Не сохранилось: ' + (err.message ?? err) })
