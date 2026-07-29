@@ -4,9 +4,11 @@ import { getCachedLeaderboard, fetchLeaderboard, getLeadExerciseNames, viewerBoa
 import { getUsers, getCachedUser } from '../db/repo.js'
 import { getMeta } from '../db/local.js'
 import { onOnline, onResume } from '../lib/appEvents.js'
+import { findNearestRival } from '../lib/rivalry.js'
 import Avatar from './../components/Avatar.jsx'
 import Skeleton from '../components/Skeleton.jsx'
 import CardsSkeleton from '../components/CardsSkeleton.jsx'
+import RivalryCard from '../components/RivalryCard.jsx'
 
 // Медаль для тройки призёров, дальше — номер места.
 function place(i) {
@@ -80,6 +82,7 @@ export default function Leaderboard({ user }) {
   const title = isFemaleViewer
     ? `🍑 Лидерборд · ${names?.female ?? 'ягодичный мостик'}`
     : `🏋️ Лидерборд · ${names?.male ?? 'жим лёжа'}`
+  const rivalry = findNearestRival(rows, user.id)
 
   // Нет данных в своём борде — компактная карточка-заглушка (видимое состояние
   // вместо молчаливого null, иначе пустой рейтинг выглядит как «фичи нет»).
@@ -105,7 +108,12 @@ export default function Leaderboard({ user }) {
     )
   }
 
-  return <BoardCard title={title} rows={rows} user={user} avatarById={avatarById} />
+  return (
+    <>
+      <RivalryCard rivalry={rivalry} avatarById={avatarById} />
+      <BoardCard title={title} rows={rows} user={user} avatarById={avatarById} />
+    </>
+  )
 }
 
 // Одна карточка рейтинга (мужской или женский борд). Разметка/классы — как были,
