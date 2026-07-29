@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest'
-import { buildHomeSummary, fmtDaysAgo, fmtDays } from './homeSummary.js'
+import { buildHomeSummary, buildTrainingRhythm, fmtDaysAgo, fmtDays } from './homeSummary.js'
 
 function wk({ id, at, entries }) {
   return {
@@ -117,5 +117,27 @@ describe('fmtDays', () => {
     expect(fmtDays(2)).toBe('2 дня')
     expect(fmtDays(18)).toBe('18 дней')
     expect(fmtDays(21)).toBe('21 день')
+  })
+})
+
+describe('buildTrainingRhythm', () => {
+  it('строит непрерывное окно и объединяет тренировки одного дня', () => {
+    const sameDay = daysAgo(2)
+    const rhythm = buildTrainingRhythm([
+      wk({ id: 'a', at: sameDay, entries: [{ exId: 'bp', group: 'грудь', sets: [S(80, 5)] }] }),
+      wk({ id: 'b', at: sameDay, entries: [{ exId: 'tr', group: 'трицепс', sets: [S(30, 8)] }] }),
+    ], { now: NOW, days: 7 })
+
+    expect(rhythm).toHaveLength(7)
+    expect(rhythm.at(-1).today).toBe(true)
+    const trained = rhythm.find((d) => d.count > 0)
+    expect(trained.count).toBe(2)
+    expect(trained.tags.length).toBeGreaterThan(0)
+  })
+
+  it('пустая история всё равно даёт устойчивую сетку дней', () => {
+    const rhythm = buildTrainingRhythm([], { now: NOW, days: 14 })
+    expect(rhythm).toHaveLength(14)
+    expect(rhythm.every((d) => d.count === 0)).toBe(true)
   })
 })

@@ -60,6 +60,8 @@ export default function HomeScreen({ user, onNavigate, onNewWorkout, onOpenProgr
   const t = fmtTonnage(summary.tonnage.month)
   const pct = summary.tonnage.pct
   const lw = summary.lastWorkout
+  const rhythm = summary.rhythm ?? []
+  const rhythmCount = rhythm.reduce((n, d) => n + d.count, 0)
 
   // Тизер свежести: полоска групп (канонический порядок) + подпись. Карточка
   // называется «Восстановление по группам» → и цвет полоски, и подпись читают ОДНУ
@@ -94,6 +96,48 @@ export default function HomeScreen({ user, onNavigate, onNewWorkout, onOpenProgr
           </div>
         )}
       </div>
+
+      {/* 8-недельный ритм без отдельного календарного экрана. Вся карточка —
+          одна большая тап-зона в Историю; маленькие клетки остаются только
+          визуализацией и не превращаются в неудобные микрокнопки. */}
+      {rhythm.length > 0 && (
+        <section className="sec">
+          <p className="sec-title">Тренировочный ритм</p>
+          <button
+            className="rhythm-card"
+            onClick={() => onNavigate?.('history')}
+            aria-label="Открыть историю тренировок за 8 недель"
+          >
+            <span className="rhythm-head">
+              <span>
+                <b>{rhythmCount}</b> тренировок за 8 недель
+              </span>
+              <span className="go" aria-hidden="true">История ›</span>
+            </span>
+            <span className="rhythm-grid" aria-hidden="true">
+              {rhythm.map((d) => {
+                const slug = d.tags[0] ? tagSlug(majorOf(d.tags[0])) : 'other'
+                return (
+                  <span
+                    key={d.day}
+                    className={[
+                      'rhythm-cell',
+                      d.count > 0 ? `trained tag-${slug}` : '',
+                      d.count > 1 ? 'multi' : '',
+                      d.today ? 'today' : '',
+                    ].filter(Boolean).join(' ')}
+                    title={`${d.day}: ${d.count || 'нет'} тренировок`}
+                  />
+                )
+              })}
+            </span>
+            <span className="rhythm-foot">
+              <span>8 недель назад</span>
+              <span>сегодня</span>
+            </span>
+          </button>
+        </section>
+      )}
 
       {/* инсайты — 2–3 авто-вывода */}
       {insights.length > 0 && (

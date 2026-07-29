@@ -15,6 +15,49 @@ import { normMetric, leadingValue } from './metric.js'
 import { entryExId, entryMetric, sortDesc } from './entries.js'
 import { plural } from './plural.js'
 
+function localDayKey(value) {
+  const d = value instanceof Date ? value : new Date(value)
+  if (Number.isNaN(d.getTime())) return ''
+  const y = d.getFullYear()
+  const m = String(d.getMonth() + 1).padStart(2, '0')
+  const day = String(d.getDate()).padStart(2, '0')
+  return `${y}-${m}-${day}`
+}
+
+// Компактная мозаика последних N дней для Главной. Возвращаем все дни окна,
+// включая пустые: UI рисует устойчивый ритм, а не список случайных дат.
+// Несколько тренировок в один день объединяются; теги считаются по их общим
+// entries. Никакого отдельного хранилища/календаря не нужно.
+export function buildTrainingRhythm(workouts, { now = new Date(), days = 56 } = {}) {
+  const size = Math.max(7, Math.round(Number(days) || 56))
+  const byDay = new Map()
+  for (const w of sortDesc(workouts)) {
+    const day = localDayKey(w.performed_at)
+    if (!day) continue
+    const rec = byDay.get(day) ?? { workouts: [], entries: [] }
+    rec.workouts.push(w)
+    rec.entries.push(...(w.entries ?? []))
+    byDay.set(day, rec)
+  }
+
+  const today = new Date(now)
+  today.setHours(12, 0, 0, 0)
+  const out = []
+  for (let offset = size - 1; offset >= 0; offset--) {
+    const d = new Date(today)
+    d.setDate(today.getDate() - offset)
+    const day = localDayKey(d)
+    const rec = byDay.get(day)
+    out.push({
+      day,
+      count: rec?.workouts.length ?? 0,
+      tags: rec ? daySubTags(rec.entries) : [],
+      today: offset === 0,
+    })
+  }
+  return out
+}
+
 // Последний зафиксированный личный рекорд (свежайший по дате): идём по истории от
 // старых к новым, держим лучший ведущий показатель по упражнению и ловим момент
 // превышения. Возвращаем самый недавний. { name, metric, value, at } | null.
@@ -74,6 +117,7 @@ export function buildHomeSummary({ workouts, goals, now = new Date() } = {}) {
       tonnage: { month: 0, prevMonth: 0, pct: 0 },
       latestPr: null,
       nearestGoal: null,
+      rhythm: [],
     }
   }
 
@@ -98,6 +142,7 @@ export function buildHomeSummary({ workouts, goals, now = new Date() } = {}) {
     tonnage: { month, prevMonth, pct },
     latestPr: latestPr(sorted),
     nearestGoal: nearestGoal(goals, sorted),
+    rhythm: buildTrainingRhythm(sorted, { now }),
   }
 }
 

@@ -17,6 +17,12 @@ const readyHome = {
     workoutsThisMonth: 3,
     latestPr: null,
     nearestGoal: null,
+    rhythm: Array.from({ length: 56 }, (_, i) => ({
+      day: `2026-07-${String(i + 1).padStart(2, '0')}`,
+      count: i === 55 ? 1 : 0,
+      tags: [],
+      today: i === 55,
+    })),
   },
   insights: [{
     id: 'past',
@@ -42,6 +48,8 @@ describe('HomeScreen', () => {
     expect(onOpenProgress).toHaveBeenCalledWith('bench')
     fireEvent.click(screen.getByRole('button', { name: 'Прогресс' }))
     expect(onNavigate).toHaveBeenCalledWith('progress')
+    fireEvent.click(screen.getByRole('button', { name: 'Открыть историю тренировок за 8 недель' }))
+    expect(onNavigate).toHaveBeenCalledWith('history')
   })
 
   it('в пустом состоянии даёт прямой вход в новую тренировку', () => {

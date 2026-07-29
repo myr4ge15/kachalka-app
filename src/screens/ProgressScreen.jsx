@@ -1,11 +1,14 @@
 import { useEffect, useMemo, useState } from 'react'
 import {
   ResponsiveContainer, LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, Dot,
+  ReferenceArea, ReferenceLine,
 } from 'recharts'
 import { useLiveQuery } from 'dexie-react-hooks'
 import { getWorkouts } from '../db/repo.js'
-import { fmtSet as fmtSetMetric, fmtTime } from '../lib/metric.js'
+import { readGoals } from '../db/notifications.js'
+import { fmtMetricValue, fmtSet as fmtSetMetric, fmtTime } from '../lib/metric.js'
 import { collectExercises, buildSeries, seriesValueSpread } from '../lib/progressSeries.js'
+import { buildGoalGuide, selectProgressGoal } from '../lib/progressGoal.js'
 import CardsSkeleton from '../components/CardsSkeleton.jsx'
 
 function fmtDate(iso) {
@@ -49,8 +52,14 @@ function inRange(day, range) {
   return true
 }
 
-export default function ProgressScreen({ user, initialExerciseId = null, onConsumed }) {
+export default function ProgressScreen({
+  user,
+  initialExerciseId = null,
+  onConsumed,
+  onOpenGoals,
+}) {
   const workouts = useLiveQuery(() => getWorkouts(user.id), [user.id])
+  const goals = useLiveQuery(() => readGoals(user.id), [user.id])
   const loading = workouts === undefined
 
   const list = useMemo(() => collectExercises(workouts ?? []), [workouts])
@@ -120,6 +129,25 @@ export default function ProgressScreen({ user, initialExerciseId = null, onConsu
   const formData = weighted ? fullData.filter((p) => p.day >= formCutoff) : []
   const formBest = formData.reduce((m, p) => Math.max(m, p.value), 0)
   const formBestOrm = formData.reduce((m, p) => Math.max(m, p.orm || 0), 0)
+  const fullBest = fullData.reduce((m, p) => Math.max(m, p.value), 0)
+  const goal = useMemo(
+    () => (selected ? selectProgressGoal(goals, selected.id) : null),
+    [goals, selected]
+  )
+  const goalGuide = useMemo(
+    () => buildGoalGuide(goal, fullBest),
+    [goal, fullBest]
+  )
+  const chartDomain = useMemo(() => {
+    if (data.length === 0) return [0, 1]
+    const values = data.map((p) => p.value)
+    if (goalGuide?.target > 0) values.push(goalGuide.target)
+    const pad = weighted ? 5 : 2
+    return [
+      Math.max(0, Math.min(...values) - pad),
+      Math.max(...values) + pad,
+    ]
+  }, [data, goalGuide, weighted])
 
   const c = useMemo(() => ({
     grid: cssVar('--surface', '#1e293b'),
@@ -131,6 +159,7 @@ export default function ProgressScreen({ user, initialExerciseId = null, onConsu
     bg: cssVar('--bg', '#0f172a'),
     border: cssVar('--border', '#334155'),
     text: cssVar('--text', '#e2e8f0'),
+    goal: cssVar('--g2', '#49d6c8'),
   }), [])
 
   // Цвет точки по смыслу: рекорд > спад/рост. Жёлтый — новый максимум,
@@ -260,6 +289,29 @@ export default function ProgressScreen({ user, initialExerciseId = null, onConsu
               )}
 
               <div className="card chart-card">
+                {goalGuide && (
+                  <button
+                    className="prog-goal-guide"
+                    onClick={() => onOpenGoals?.()}
+                    aria-label={`Открыть цель ${selected.name}`}
+                  >
+                    <span className="prog-goal-mark" aria-hidden="true">🎯</span>
+                    <span className="prog-goal-copy">
+                      <span className="prog-goal-title">
+                        Цель · {fmtMetricValue(goalGuide.metric, goalGuide.target)}
+                        {goalGuide.reps ? ` × ${goalGuide.reps}` : ''}
+                      </span>
+                      <span className="prog-goal-sub">
+                        {goalGuide.left > 0
+                          ? `осталось ${fmtMetricValue(goalGuide.metric, goalGuide.left)}`
+                          : goalGuide.reps
+                            ? `вес уже есть · осталось выполнить ≥${goalGuide.reps} повт.`
+                            : 'целевой показатель уже достигнут'}
+                      </span>
+                    </span>
+                    <span className="prog-goal-go" aria-hidden="true">›</span>
+                  </button>
+                )}
                 <ResponsiveContainer width="100%" height={260}>
                   <LineChart data={data} margin={{ top: 8, right: 8, left: -16, bottom: 0 }}>
                     <defs>
@@ -274,8 +326,32 @@ export default function ProgressScreen({ user, initialExerciseId = null, onConsu
                     <YAxis
                       stroke={c.axis}
                       fontSize={12}
-                      domain={weighted ? ['dataMin - 5', 'dataMax + 5'] : [0, 'dataMax + 2']}
+                      domain={chartDomain}
                     />
+                    {goalGuide && goalGuide.target !== fullBest && (
+                      <ReferenceArea
+                        y1={Math.min(fullBest, goalGuide.target)}
+                        y2={Math.max(fullBest, goalGuide.target)}
+                        fill={c.goal}
+                        fillOpacity={0.07}
+                        ifOverflow="extendDomain"
+                      />
+                    )}
+                    {goalGuide && (
+                      <ReferenceLine
+                        y={goalGuide.target}
+                        stroke={c.goal}
+                        strokeWidth={2}
+                        strokeDasharray="6 5"
+                        ifOverflow="extendDomain"
+                        label={{
+                          value: `цель ${fmtMetricValue(goalGuide.metric, goalGuide.target)}`,
+                          position: 'insideTopRight',
+                          fill: c.goal,
+                          fontSize: 11,
+                        }}
+                      />
+                    )}
                     <Tooltip
                       labelFormatter={(v) => fmtDate(v)}
                       formatter={(v) => [metric === 'time' ? fmtTime(v) : `${v} ${unit}`, metricLabel]}

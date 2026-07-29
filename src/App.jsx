@@ -410,6 +410,7 @@ export default function App() {
                   user={user}
                   initialExerciseId={progressExId}
                   onConsumed={() => setProgressExId(null)}
+                  onOpenGoals={() => goTab('profile')}
                 />
               )}
               {tab === 'notif' && <NotificationsScreen user={user} />}

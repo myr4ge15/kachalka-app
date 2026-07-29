@@ -908,6 +908,18 @@ input { font-family: inherit; }
 }
 .chart-card { padding: 12px; }
 .legend { text-align: center; margin: 8px 0 0; }
+.prog-goal-guide {
+  width: 100%; min-height: 52px; margin-bottom: 6px; padding: 9px 10px;
+  display: flex; align-items: center; gap: 9px; text-align: left;
+  color: var(--text); background: rgba(73,214,200,.08);
+  border: 1px solid rgba(73,214,200,.28); border-radius: 12px;
+}
+.prog-goal-guide:active { background: rgba(73,214,200,.14); }
+.prog-goal-mark { flex: 0 0 auto; font-size: 19px; }
+.prog-goal-copy { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 2px; }
+.prog-goal-title { font-size: 13px; font-weight: 800; }
+.prog-goal-sub { color: var(--muted); font-size: 11px; line-height: 1.3; }
+.prog-goal-go { flex: 0 0 auto; color: var(--g2); font-size: 22px; font-weight: 800; }
 
 /* выбор упражнения над графиком прогресса */
 .prog-pick { display: flex; flex-direction: column; gap: 6px; margin-bottom: 14px; }
@@ -1811,6 +1823,40 @@ label.act.busy { opacity: .55; pointer-events: none; }
 }
 .home-streak-n .u { font-size: 14px; -webkit-text-fill-color: var(--g4); color: var(--g4); }
 .home-streak-l { font-size: 10px; color: var(--muted); margin-top: 4px; line-height: 1.25; }
+
+/* Компактный ритм последних 8 недель. Клетки — декоративная мозаика внутри
+   одной большой кнопки: тап-зона остаётся удобной, календарный экран не нужен. */
+.rhythm-card {
+  width: 100%; min-height: 44px; padding: 13px 14px; text-align: left;
+  color: var(--text); background: var(--surface);
+  border: 1px solid var(--border); border-radius: 16px;
+}
+.rhythm-card:active { background: var(--surface-2); }
+.rhythm-head, .rhythm-foot {
+  display: flex; align-items: center; justify-content: space-between; gap: 10px;
+}
+.rhythm-head { font-size: 13px; }
+.rhythm-head b { font-size: 18px; }
+.rhythm-head .go { color: var(--g2); font-weight: 700; font-size: 12px; }
+.rhythm-grid {
+  display: grid; grid-template-columns: repeat(14, minmax(0, 1fr));
+  gap: 4px; margin: 12px 0 7px;
+}
+.rhythm-cell {
+  aspect-ratio: 1; min-width: 0; border-radius: 4px;
+  background: var(--surface-2); border: 1px solid rgba(255,255,255,.04);
+}
+.rhythm-cell.trained { background: var(--g1); border-color: rgba(255,255,255,.18); }
+.rhythm-cell.trained.tag-chest { background: #d6b938; }
+.rhythm-cell.trained.tag-back { background: #7d77dd; }
+.rhythm-cell.trained.tag-legs { background: #388add; }
+.rhythm-cell.trained.tag-shoulders { background: #d85a30; }
+.rhythm-cell.trained.tag-biceps { background: #16a34a; }
+.rhythm-cell.trained.tag-triceps { background: #1d9e75; }
+.rhythm-cell.trained.tag-abs { background: #d4537e; }
+.rhythm-cell.multi { box-shadow: 0 0 0 2px rgba(255,255,255,.16); }
+.rhythm-cell.today { outline: 1px solid var(--g2); outline-offset: 1px; }
+.rhythm-foot { color: var(--muted); font-size: 10px; }
 
 /* Инсайты — карточки-выводы. */
 .ins-list { display: flex; flex-direction: column; gap: 8px; }
