@@ -43,13 +43,22 @@ const prog = (over = {}) => ({
 // проверок по классам (set-row/ap — у них нет ARIA-роли).
 function renderCard(entry, cbOver = {}) {
   const cbs = {
+    onActivate: vi.fn(),
     onReplace: vi.fn(), onRemove: vi.fn(),
     onRevertProg: vi.fn(), onApplyProg: vi.fn(),
     onToggleProgSettings: vi.fn(), onChangeProgSettings: vi.fn(),
     onUpdateSet: vi.fn(), onStep: vi.fn(), onAddSet: vi.fn(), onRemoveSet: vi.fn(),
     ...cbOver,
   }
-  const utils = render(<ExerciseCard entry={entry} ei={0} prog={{ enabled: true, byExercise: {} }} {...cbs} />)
+  const utils = render(
+    <ExerciseCard
+      entry={entry}
+      ei={0}
+      prog={{ enabled: true, byExercise: {} }}
+      active
+      {...cbs}
+    />
+  )
   return { ...utils, cbs }
 }
 
@@ -73,6 +82,18 @@ describe('ExerciseCard — рендер', () => {
 })
 
 describe('ExerciseCard — колбэки шапки/подходов передают индекс записи', () => {
+  it('сообщает стабильный exercise.id при касании и входе фокуса', () => {
+    const { container, cbs } = renderCard(weightEntry())
+    const card = container.querySelector('[data-exercise-id="e1"]')
+    expect(card).toHaveAttribute('data-active', 'true')
+
+    fireEvent.pointerDown(card)
+    fireEvent.focus(screen.getAllByDisplayValue('60')[0])
+
+    expect(cbs.onActivate).toHaveBeenCalledWith('e1')
+    expect(cbs.onActivate).toHaveBeenCalledTimes(2)
+  })
+
   it('«заменить» → onReplace(ei)', () => {
     const { cbs } = renderCard(weightEntry())
     fireEvent.click(screen.getByText('заменить'))

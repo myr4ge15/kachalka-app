@@ -2,7 +2,7 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 import { act, fireEvent, render, screen, waitFor } from '@testing-library/react'
 import { useLiveQuery } from 'dexie-react-hooks'
-import { getRecentSessionsForExercise } from '../db/repo.js'
+import { getRecentSessionsForExercise, getWorkout } from '../db/repo.js'
 import { clearCache, setCache } from '../lib/cache.js'
 import WorkoutScreen from './WorkoutScreen.jsx'
 
@@ -40,10 +40,22 @@ const draft = [{
   },
   sets: [{ weight: 60, reps: 8, _k: 'set-1' }],
 }]
+const secondEntry = {
+  exercise: {
+    id: 'pullup',
+    name: 'Подтягивания',
+    metric: 'reps',
+    muscle_group: 'спина',
+    secondary: [],
+  },
+  sets: [{ weight: 0, reps: 12, _k: 'set-2' }],
+}
 
 describe('WorkoutScreen', () => {
   beforeEach(() => {
     clearCache()
+    vi.mocked(getWorkout).mockReset()
+    vi.mocked(getRecentSessionsForExercise).mockReset()
     vi.mocked(useLiveQuery).mockImplementation((_query, _deps, fallback) => fallback)
   })
 
@@ -54,6 +66,41 @@ describe('WorkoutScreen', () => {
     expect(screen.getByText('Жим лёжа')).toBeInTheDocument()
     expect(screen.getByDisplayValue('60')).toBeInTheDocument()
     expect(screen.getByDisplayValue('8')).toBeInTheDocument()
+  })
+
+  it('держит активность по exercise.id и переключает её при фокусе внутри карточки', () => {
+    setCache(`workout_draft_new_${user.id}`, [...draft, secondEntry])
+    const { container } = render(<WorkoutScreen user={user} />)
+    const bench = container.querySelector('[data-exercise-id="bench"]')
+    const pullup = container.querySelector('[data-exercise-id="pullup"]')
+
+    expect(bench).toHaveAttribute('data-active', 'true')
+    expect(pullup).toHaveAttribute('data-active', 'false')
+
+    fireEvent.focus(screen.getByDisplayValue('12'))
+
+    expect(bench).toHaveAttribute('data-active', 'false')
+    expect(pullup).toHaveAttribute('data-active', 'true')
+  })
+
+  it('при редактировании начинает с первого незаполненного упражнения', async () => {
+    vi.mocked(getWorkout).mockResolvedValue({
+      id: 'w1',
+      performed_at: '2026-07-30T12:00:00.000Z',
+      entries: [
+        { exercise_id: 'bench', exercise: draft[0].exercise, sets: [{ weight: 60, reps: 8 }] },
+        {
+          exercise_id: 'squat',
+          exercise: { id: 'squat', name: 'Присед', metric: 'weight' },
+          sets: [{ weight: 0, reps: 0 }],
+        },
+      ],
+    })
+    const { container } = render(<WorkoutScreen user={user} workoutId="w1" />)
+
+    await screen.findByText('Присед')
+    expect(container.querySelector('[data-exercise-id="bench"]')).toHaveAttribute('data-active', 'false')
+    expect(container.querySelector('[data-exercise-id="squat"]')).toHaveAttribute('data-active', 'true')
   })
 
   it('открывает пикер как диалог и закрывает его по Escape', () => {
@@ -88,6 +135,7 @@ describe('WorkoutScreen', () => {
       expect(screen.queryByRole('dialog', { name: 'Упражнение' })).not.toBeInTheDocument()
     })
     expect(screen.getByText('Жим лёжа')).toBeInTheDocument()
+    expect(screen.getByText('Жим лёжа').closest('[data-exercise-id]')).toHaveAttribute('data-active', 'true')
     expect(screen.getByRole('button', { name: 'Сохранить (1)' })).toBeInTheDocument()
   })
 })

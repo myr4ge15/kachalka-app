@@ -7,11 +7,12 @@ import {
 
 // Карточка одного упражнения в композере тренировки (шапка, панель автопрогрессии
 // .ap, таблица подходов, «+ подход»). Чисто презентационная: весь стейт и его
-// апдейтеры живут в WorkoutScreen, сюда приходят колбэками (техдолг: разбить
-// WorkoutScreen на 800+ строк). `prog` — live-query настроек прогрессии (для
-// resolveProgSettings в панели настроек), `ei` — индекс записи (ключ апдейтеров).
+// апдейтеры приходят колбэками. `active`/`onActivate(exerciseId)` — контракт
+// будущего фокус-режима; Slice 0 только сообщает касание/фокус, не сворачивая UI.
+// `prog` — live-query настроек прогрессии (для resolveProgSettings в панели
+// настроек), `ei` — индекс записи (ключ существующих апдейтеров).
 export default function ExerciseCard({
-  entry, ei, prog,
+  entry, ei, prog, active = true, onActivate = () => {},
   onReplace, onRemove,
   onRevertProg, onApplyProg, onToggleProgSettings, onChangeProgSettings,
   onUpdateSet, onStep, onAddSet, onRemoveSet,
@@ -22,7 +23,13 @@ export default function ExerciseCard({
   const valLabel = isTime ? 'мин:сек' : 'повт.'
 
   return (
-    <div className={`card exercise-card${count ? ' count' : ''}`}>
+    <div
+      className={`card exercise-card${count ? ' count' : ''}`}
+      data-exercise-id={entry.exercise.id}
+      data-active={active ? 'true' : 'false'}
+      onPointerDown={() => onActivate(entry.exercise.id)}
+      onFocusCapture={() => onActivate(entry.exercise.id)}
+    >
       <div className="exercise-head">
         <span className="exercise-name">{entry.exercise.name}</span>
         <span className="exercise-actions">

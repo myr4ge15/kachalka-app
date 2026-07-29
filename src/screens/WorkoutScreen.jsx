@@ -19,6 +19,7 @@ import { templateExercisesFromWorkout, defaultTemplateName } from '../lib/templa
 import { vibrate, HAPTIC } from '../lib/haptics.js'
 import { fmtDate } from '../lib/dates.js'
 import { exerciseUsageSections } from '../lib/exerciseUsage.js'
+import { useWorkoutFocus } from '../hooks/useWorkoutFocus.js'
 import CardsSkeleton from '../components/CardsSkeleton.jsx'
 import ExercisePicker from '../components/ExercisePicker.jsx'
 import TemplatePicker from '../components/TemplatePicker.jsx'
@@ -57,6 +58,9 @@ export default function WorkoutScreen({ user, workoutId = null, onBack }) {
   const DRAFT_KEY = `workout_draft_new_${user.id}`
 
   const [entries, setEntries] = useState(() => (isNew ? getCache(DRAFT_KEY) ?? [] : []))
+  const { activeExerciseId, activateExercise } = useWorkoutFocus(entries, {
+    preferIncomplete: !isNew,
+  })
   const [performedAt, setPerformedAt] = useState(() => new Date().toISOString())
   const [loading, setLoading] = useState(!isNew)
   const [pickerOpen, setPickerOpen] = useState(false)
@@ -145,6 +149,7 @@ export default function WorkoutScreen({ user, workoutId = null, onBack }) {
     // Пока читали историю, состав мог измениться (двойной тап/undo) — анти-дубль
     // остаётся на свежем состоянии внутри апдейтера.
     setEntries((prev) => appendExerciseIn(prev, ex, built.sets, built.meta))
+    activateExercise(ex.id)
     setPickerOpen(false)
   }
 
@@ -210,6 +215,7 @@ export default function WorkoutScreen({ user, workoutId = null, onBack }) {
       return
     }
     setEntries((prev) => replaceExerciseIn(prev, idx, ex))
+    activateExercise(ex.id)
   }
 
   function removeExercise(idx) {
@@ -265,6 +271,7 @@ export default function WorkoutScreen({ user, workoutId = null, onBack }) {
       const fresh = toAdd.filter((e) => !cur.has(e.exercise.id))
       return fresh.length ? [...prev, ...fresh] : prev
     })
+    activateExercise(toAdd[0]?.exercise?.id)
   }
 
   function updateSet(ei, si, field, value) {
@@ -471,6 +478,8 @@ export default function WorkoutScreen({ user, workoutId = null, onBack }) {
               entry={entry}
               ei={ei}
               prog={prog}
+              active={entry.exercise.id === activeExerciseId}
+              onActivate={activateExercise}
               onReplace={openReplacePicker}
               onRemove={removeExercise}
               onRevertProg={revertProg}
