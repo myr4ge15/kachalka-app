@@ -1,4 +1,4 @@
-import { Fragment, useState } from 'react'
+import { useState } from 'react'
 import { useLiveQuery } from 'dexie-react-hooks'
 import { getHomeData } from '../db/insights.js'
 import { fmtDaysAgo, fmtDays } from '../lib/homeSummary.js'
@@ -8,6 +8,7 @@ import { plural } from '../lib/plural.js'
 import { tagSlug, groupAccusative, GROUP_ORDER } from '../lib/dayTags.js'
 import { recoveryLead } from '../lib/freshness.js'
 import { labelOf, majorOf } from '../lib/muscles.js'
+import { useRevealFocus } from '../hooks/useRevealFocus.js'
 import CardsSkeleton from '../components/CardsSkeleton.jsx'
 
 // Полоска свежести в тизере — в каноническом порядке групп (стабильно), не по
@@ -49,6 +50,7 @@ const dayLabel = (ymd) => localDate(ymd).toLocaleDateString('ru-RU', { day: 'num
 // тренировки (минуя список хаба), общий с плавающей кнопкой «+».
 export default function HomeScreen({ user, onNavigate, onNewWorkout, onOpenProgress }) {
   const [openWeek, setOpenWeek] = useState(null)
+  const openWeekRef = useRevealFocus(openWeek)
   // Одно чтение истории на все три блока Главной (сводка/инсайты/свежесть): раньше
   // было три отдельных useLiveQuery, каждый сканировал всю историю заново.
   const home = useLiveQuery(() => getHomeData(user.id, { max: 3 }), [user.id])
@@ -138,7 +140,11 @@ export default function HomeScreen({ user, onNavigate, onNewWorkout, onOpenProgr
                 const expanded = openWeek === week.key
                 const trainedDays = week.days.filter((d) => d.count > 0)
                 return (
-                  <Fragment key={week.key}>
+                  <div
+                    className="rhythm-week-wrap"
+                    key={week.key}
+                    ref={expanded ? openWeekRef : null}
+                  >
                     <button
                       className={`rhythm-week${week.current ? ' current' : ''}`}
                       onClick={() => setOpenWeek(expanded ? null : week.key)}
@@ -190,7 +196,7 @@ export default function HomeScreen({ user, onNavigate, onNewWorkout, onOpenProgr
                         )}
                       </div>
                     )}
-                  </Fragment>
+                  </div>
                 )
               })}
             </div>

@@ -8,6 +8,7 @@ vi.mock('dexie-react-hooks', () => ({ useLiveQuery: vi.fn() }))
 vi.mock('../db/insights.js', () => ({ getHomeData: vi.fn() }))
 
 const user = { id: 'u1', name: 'Саня' }
+const scrollIntoView = vi.fn()
 const readyHome = {
   summary: {
     hasData: true,
@@ -44,7 +45,18 @@ const readyHome = {
 }
 
 describe('HomeScreen', () => {
-  beforeEach(() => vi.mocked(useLiveQuery).mockReset())
+  beforeEach(() => {
+    vi.mocked(useLiveQuery).mockReset()
+    scrollIntoView.mockReset()
+    Object.defineProperty(HTMLElement.prototype, 'scrollIntoView', {
+      configurable: true,
+      value: scrollIntoView,
+    })
+    Object.defineProperty(window, 'matchMedia', {
+      configurable: true,
+      value: vi.fn(() => ({ matches: false })),
+    })
+  })
 
   it('показывает инсайт «себя прошлого» и ведёт в Прогресс', () => {
     vi.mocked(useLiveQuery).mockReturnValue(readyHome)
@@ -60,6 +72,11 @@ describe('HomeScreen', () => {
     fireEvent.click(currentWeek)
     expect(screen.getByText('29 июля')).toBeInTheDocument()
     expect(screen.getByText(/середина груди/)).toBeInTheDocument()
+    expect(scrollIntoView).toHaveBeenCalledWith({
+      behavior: 'smooth',
+      block: 'center',
+      inline: 'nearest',
+    })
     fireEvent.click(screen.getByRole('button', { name: 'Открыть всю историю' }))
     expect(onNavigate).toHaveBeenCalledWith('history')
   })
