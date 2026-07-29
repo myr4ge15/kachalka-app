@@ -1,8 +1,10 @@
+import { Fragment, useState } from 'react'
 import { useLiveQuery } from 'dexie-react-hooks'
 import { getHomeData } from '../db/insights.js'
 import { fmtDaysAgo, fmtDays } from '../lib/homeSummary.js'
 import { fmtTonnage, goalProgress } from '../lib/profileStats.js'
 import { fmtMetricValue } from '../lib/metric.js'
+import { plural } from '../lib/plural.js'
 import { tagSlug, groupAccusative, GROUP_ORDER } from '../lib/dayTags.js'
 import { recoveryLead } from '../lib/freshness.js'
 import { labelOf, majorOf } from '../lib/muscles.js'
@@ -17,6 +19,27 @@ const canonIdx = (g) => {
 
 // Подсказка к цвету полоски (ось восстановления, та же, что у подписи).
 const STATE_HINT = { ready: 'можно тренировать', almost: 'почти восстановилась', resting: 'дай отдых' }
+const DAY_INITIALS = ['П', 'В', 'С', 'Ч', 'П', 'С', 'В']
+
+const localDate = (ymd) => new Date(`${ymd}T12:00:00`)
+const shortMonth = (date) => new Intl.DateTimeFormat('ru-RU', {
+  day: 'numeric',
+  month: 'short',
+}).formatToParts(date).find((part) => part.type === 'month')?.value.replace('.', '') ?? ''
+
+function weekRange(week) {
+  const start = localDate(week.start)
+  const end = localDate(week.end)
+  const startDay = start.getDate()
+  const endDay = end.getDate()
+  const endMonth = shortMonth(end)
+  if (start.getMonth() === end.getMonth()) return `${startDay}–${endDay} ${endMonth}`
+  const startMonth = shortMonth(start)
+  return `${startDay} ${startMonth} – ${endDay} ${endMonth}`
+}
+
+const workoutCount = (n) => `${n} ${plural(n, 'тренировка', 'тренировки', 'тренировок')}`
+const dayLabel = (ymd) => localDate(ymd).toLocaleDateString('ru-RU', { day: 'numeric', month: 'long' })
 
 // Главный экран — «5 секунд после открытия» (виш BACKLOG «Домашняя сводка»).
 // Персональная сводка + авто-инсайты. Всё из локальной базы (офлайн-доступно),
@@ -25,6 +48,7 @@ const STATE_HINT = { ready: 'можно тренировать', almost: 'поч
 // Пропсы: user, onNavigate(tab), onNewWorkout() — прямой вход в композер новой
 // тренировки (минуя список хаба), общий с плавающей кнопкой «+».
 export default function HomeScreen({ user, onNavigate, onNewWorkout, onOpenProgress }) {
+  const [openWeek, setOpenWeek] = useState(null)
   // Одно чтение истории на все три блока Главной (сводка/инсайты/свежесть): раньше
   // было три отдельных useLiveQuery, каждый сканировал всю историю заново.
   const home = useLiveQuery(() => getHomeData(user.id, { max: 3 }), [user.id])
@@ -61,7 +85,7 @@ export default function HomeScreen({ user, onNavigate, onNewWorkout, onOpenProgr
   const pct = summary.tonnage.pct
   const lw = summary.lastWorkout
   const rhythm = summary.rhythm ?? []
-  const rhythmCount = rhythm.reduce((n, d) => n + d.count, 0)
+  const rhythmCount = rhythm.reduce((n, w) => n + w.count, 0)
 
   // Тизер свежести: полоска групп (канонический порядок) + подпись. Карточка
   // называется «Восстановление по группам» → и цвет полоски, и подпись читают ОДНУ
@@ -97,45 +121,83 @@ export default function HomeScreen({ user, onNavigate, onNewWorkout, onOpenProgr
         )}
       </div>
 
-      {/* 8-недельный ритм без отдельного календарного экрана. Вся карточка —
-          одна большая тап-зона в Историю; маленькие клетки остаются только
-          визуализацией и не превращаются в неудобные микрокнопки. */}
+      {/* Восемь календарных недель. Строка недели — удобная тап-зона, которая
+          раскрывает даты и группы; История остаётся отдельным явным действием. */}
       {rhythm.length > 0 && (
         <section className="sec">
           <p className="sec-title">Тренировочный ритм</p>
-          <button
-            className="rhythm-card"
-            onClick={() => onNavigate?.('history')}
-            aria-label="Открыть историю тренировок за 8 недель"
-          >
-            <span className="rhythm-head">
+          <div className="rhythm-card">
+            <div className="rhythm-head">
               <span>
-                <b>{rhythmCount}</b> тренировок за 8 недель
+                <b>{rhythmCount}</b> {plural(rhythmCount, 'тренировка', 'тренировки', 'тренировок')} за 8 недель
               </span>
-              <span className="go" aria-hidden="true">История ›</span>
-            </span>
-            <span className="rhythm-grid" aria-hidden="true">
-              {rhythm.map((d) => {
-                const slug = d.tags[0] ? tagSlug(majorOf(d.tags[0])) : 'other'
+              <span className="rhythm-hint">Нажми неделю — увидишь даты</span>
+            </div>
+            <div className="rhythm-weeks">
+              {rhythm.map((week) => {
+                const expanded = openWeek === week.key
+                const trainedDays = week.days.filter((d) => d.count > 0)
                 return (
-                  <span
-                    key={d.day}
-                    className={[
-                      'rhythm-cell',
-                      d.count > 0 ? `trained tag-${slug}` : '',
-                      d.count > 1 ? 'multi' : '',
-                      d.today ? 'today' : '',
-                    ].filter(Boolean).join(' ')}
-                    title={`${d.day}: ${d.count || 'нет'} тренировок`}
-                  />
+                  <Fragment key={week.key}>
+                    <button
+                      className={`rhythm-week${week.current ? ' current' : ''}`}
+                      onClick={() => setOpenWeek(expanded ? null : week.key)}
+                      aria-expanded={expanded}
+                      aria-controls={`rhythm-detail-${week.key}`}
+                      aria-label={`${weekRange(week)}: ${workoutCount(week.count)}`}
+                    >
+                      <span className="rhythm-week-copy">
+                        <b>{week.current ? 'Эта неделя' : weekRange(week)}</b>
+                        <span>
+                          {week.current
+                            ? `${weekRange(week)} · ${week.count} трен.`
+                            : workoutCount(week.count)}
+                        </span>
+                      </span>
+                      <span className="rhythm-days" aria-hidden="true">
+                        {week.days.map((d, index) => (
+                          <span
+                            key={d.day}
+                            className={[
+                              'rhythm-day',
+                              d.count > 0 ? 'trained' : '',
+                              d.count > 1 ? 'multi' : '',
+                              d.today ? 'today' : '',
+                              d.future ? 'future' : '',
+                            ].filter(Boolean).join(' ')}
+                          >
+                            {DAY_INITIALS[index]}
+                          </span>
+                        ))}
+                      </span>
+                      <span className="rhythm-chevron" aria-hidden="true">{expanded ? '−' : '+'}</span>
+                    </button>
+                    {expanded && (
+                      <div className="rhythm-detail" id={`rhythm-detail-${week.key}`}>
+                        {trainedDays.length > 0 ? trainedDays.map((d) => {
+                          const groups = [...new Set(d.tags.map(labelOf))]
+                          return (
+                            <div className="rhythm-session" key={d.day}>
+                              <span><b>{dayLabel(d.day)}</b>{d.today ? ' · сегодня' : ''}</span>
+                              <span>
+                                {workoutCount(d.count)}
+                                {groups.length > 0 ? ` · ${groups.join(', ')}` : ''}
+                              </span>
+                            </div>
+                          )
+                        }) : (
+                          <span className="rhythm-empty">На этой неделе тренировок не было</span>
+                        )}
+                      </div>
+                    )}
+                  </Fragment>
                 )
               })}
-            </span>
-            <span className="rhythm-foot">
-              <span>8 недель назад</span>
-              <span>сегодня</span>
-            </span>
-          </button>
+            </div>
+            <button className="rhythm-history" onClick={() => onNavigate?.('history')}>
+              Открыть всю историю <span aria-hidden="true">›</span>
+            </button>
+          </div>
         </section>
       )}
 

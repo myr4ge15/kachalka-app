@@ -17,11 +17,19 @@ const readyHome = {
     workoutsThisMonth: 3,
     latestPr: null,
     nearestGoal: null,
-    rhythm: Array.from({ length: 56 }, (_, i) => ({
-      day: `2026-07-${String(i + 1).padStart(2, '0')}`,
-      count: i === 55 ? 1 : 0,
-      tags: [],
-      today: i === 55,
+    rhythm: Array.from({ length: 8 }, (_, i) => ({
+      key: `2026-0${i + 1}-06`,
+      start: i === 7 ? '2026-07-27' : `2026-0${i + 1}-06`,
+      end: i === 7 ? '2026-08-02' : `2026-0${i + 1}-12`,
+      current: i === 7,
+      count: i === 7 ? 1 : 0,
+      days: Array.from({ length: 7 }, (_, d) => ({
+        day: i === 7 ? `2026-07-${String(27 + d).padStart(2, '0')}` : `2026-0${i + 1}-${String(6 + d).padStart(2, '0')}`,
+        count: i === 7 && d === 2 ? 1 : 0,
+        tags: i === 7 && d === 2 ? ['chest_middle'] : [],
+        today: i === 7 && d === 3,
+        future: i === 7 && d > 3,
+      })),
     })),
   },
   insights: [{
@@ -48,7 +56,11 @@ describe('HomeScreen', () => {
     expect(onOpenProgress).toHaveBeenCalledWith('bench')
     fireEvent.click(screen.getByRole('button', { name: 'Прогресс' }))
     expect(onNavigate).toHaveBeenCalledWith('progress')
-    fireEvent.click(screen.getByRole('button', { name: 'Открыть историю тренировок за 8 недель' }))
+    const currentWeek = screen.getByRole('button', { name: /27 июл – 2 авг: 1 тренировка/ })
+    fireEvent.click(currentWeek)
+    expect(screen.getByText('29 июля')).toBeInTheDocument()
+    expect(screen.getByText(/середина груди/)).toBeInTheDocument()
+    fireEvent.click(screen.getByRole('button', { name: 'Открыть всю историю' }))
     expect(onNavigate).toHaveBeenCalledWith('history')
   })
 

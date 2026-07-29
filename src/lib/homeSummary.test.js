@@ -121,23 +121,30 @@ describe('fmtDays', () => {
 })
 
 describe('buildTrainingRhythm', () => {
-  it('строит непрерывное окно и объединяет тренировки одного дня', () => {
+  it('строит календарные недели и объединяет тренировки одного дня', () => {
     const sameDay = daysAgo(2)
     const rhythm = buildTrainingRhythm([
       wk({ id: 'a', at: sameDay, entries: [{ exId: 'bp', group: 'грудь', sets: [S(80, 5)] }] }),
       wk({ id: 'b', at: sameDay, entries: [{ exId: 'tr', group: 'трицепс', sets: [S(30, 8)] }] }),
-    ], { now: NOW, days: 7 })
+    ], { now: NOW, weeks: 2 })
 
-    expect(rhythm).toHaveLength(7)
-    expect(rhythm.at(-1).today).toBe(true)
-    const trained = rhythm.find((d) => d.count > 0)
+    expect(rhythm).toHaveLength(2)
+    expect(rhythm.at(-1)).toMatchObject({
+      start: '2026-07-06',
+      end: '2026-07-12',
+      current: true,
+    })
+    expect(rhythm.at(-1).days).toHaveLength(7)
+    expect(rhythm.at(-1).days.find((d) => d.today)?.day).toBe('2026-07-10')
+    expect(rhythm.at(-1).days.filter((d) => d.future)).toHaveLength(2)
+    const trained = rhythm.flatMap((w) => w.days).find((d) => d.count > 0)
     expect(trained.count).toBe(2)
     expect(trained.tags.length).toBeGreaterThan(0)
   })
 
-  it('пустая история всё равно даёт устойчивую сетку дней', () => {
-    const rhythm = buildTrainingRhythm([], { now: NOW, days: 14 })
-    expect(rhythm).toHaveLength(14)
-    expect(rhythm.every((d) => d.count === 0)).toBe(true)
+  it('пустая история всё равно даёт восемь устойчивых недель', () => {
+    const rhythm = buildTrainingRhythm([], { now: NOW })
+    expect(rhythm).toHaveLength(8)
+    expect(rhythm.every((w) => w.count === 0)).toBe(true)
   })
 })

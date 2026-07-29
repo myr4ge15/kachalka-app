@@ -24,12 +24,20 @@ function localDayKey(value) {
   return `${y}-${m}-${day}`
 }
 
-// Компактная мозаика последних N дней для Главной. Возвращаем все дни окна,
-// включая пустые: UI рисует устойчивый ритм, а не список случайных дат.
-// Несколько тренировок в один день объединяются; теги считаются по их общим
-// entries. Никакого отдельного хранилища/календаря не нужно.
-export function buildTrainingRhythm(workouts, { now = new Date(), days = 56 } = {}) {
-  const size = Math.max(7, Math.round(Number(days) || 56))
+function mondayOf(value) {
+  const d = new Date(value)
+  d.setHours(12, 0, 0, 0)
+  const shift = (d.getDay() + 6) % 7
+  d.setDate(d.getDate() - shift)
+  return d
+}
+
+// Восемь понятных календарных недель для Главной (Пн–Вс), включая текущую.
+// Несколько тренировок одного дня объединяются; будущие дни текущей недели
+// явно помечены, чтобы не выглядеть как пропуски. Никакого отдельного
+// хранилища/календаря не нужно.
+export function buildTrainingRhythm(workouts, { now = new Date(), weeks = 8 } = {}) {
+  const size = Math.max(1, Math.round(Number(weeks) || 8))
   const byDay = new Map()
   for (const w of sortDesc(workouts)) {
     const day = localDayKey(w.performed_at)
@@ -42,17 +50,32 @@ export function buildTrainingRhythm(workouts, { now = new Date(), days = 56 } = 
 
   const today = new Date(now)
   today.setHours(12, 0, 0, 0)
+  const currentMonday = mondayOf(today)
   const out = []
-  for (let offset = size - 1; offset >= 0; offset--) {
-    const d = new Date(today)
-    d.setDate(today.getDate() - offset)
-    const day = localDayKey(d)
-    const rec = byDay.get(day)
+  for (let weekOffset = size - 1; weekOffset >= 0; weekOffset--) {
+    const start = new Date(currentMonday)
+    start.setDate(currentMonday.getDate() - weekOffset * 7)
+    const days = []
+    for (let dayOffset = 0; dayOffset < 7; dayOffset++) {
+      const d = new Date(start)
+      d.setDate(start.getDate() + dayOffset)
+      const day = localDayKey(d)
+      const rec = byDay.get(day)
+      days.push({
+        day,
+        count: rec?.workouts.length ?? 0,
+        tags: rec ? daySubTags(rec.entries) : [],
+        today: day === localDayKey(today),
+        future: d > today,
+      })
+    }
     out.push({
-      day,
-      count: rec?.workouts.length ?? 0,
-      tags: rec ? daySubTags(rec.entries) : [],
-      today: offset === 0,
+      key: localDayKey(start),
+      start: days[0].day,
+      end: days[6].day,
+      current: weekOffset === 0,
+      count: days.reduce((sum, d) => sum + d.count, 0),
+      days,
     })
   }
   return out
