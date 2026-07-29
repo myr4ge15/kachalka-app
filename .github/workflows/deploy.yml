@@ -1,13 +1,14 @@
 name: Deploy to GitHub Pages
 
-# Сборка Vite и публикация на Pages при пуше в main.
+# Сборка Vite и публикация на Pages только после успешного workflow Tests в main.
 # Ключи Supabase берутся из секретов репозитория (Settings → Secrets and variables → Actions):
 #   VITE_SUPABASE_URL, VITE_SUPABASE_KEY (publishable-ключ sb_publishable_...)
 # Pages: Settings → Pages → Source = GitHub Actions.
 
 on:
-  push:
-    branches: [main]
+  workflow_run:
+    workflows: [Tests]
+    types: [completed]
   workflow_dispatch:
 
 permissions:
@@ -21,9 +22,15 @@ concurrency:
 
 jobs:
   build:
+    if: >-
+      github.event_name == 'workflow_dispatch' ||
+      (github.event.workflow_run.conclusion == 'success' &&
+       github.event.workflow_run.head_branch == 'main')
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v5
+        with:
+          ref: ${{ github.event.workflow_run.head_sha || github.sha }}
 
       - uses: actions/setup-node@v5
         with:

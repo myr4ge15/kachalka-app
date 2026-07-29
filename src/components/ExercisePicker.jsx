@@ -1,7 +1,7 @@
 import { useState, useMemo, useDeferredValue } from 'react'
-import { createPortal } from 'react-dom'
 import { findSimilar } from '../lib/similar.js'
 import { submusclesOf, secondaryOptionsFor, labelOf, majorOf, defaultSubmuscleFor } from '../lib/muscles.js'
+import SheetDialog from './SheetDialog.jsx'
 
 // Канонические группы мышц из ТЗ (Приложение A / п. 3.2). К ним добавляем
 // все группы, реально встретившиеся в справочнике, чтобы ничего не потерять.
@@ -11,7 +11,14 @@ const BASE_GROUPS = ['грудь', 'спина', 'ноги', 'плечи', 'би
 // Если нужного упражнения нет — «+ добавить своё» (ТЗ 3.2 / 4.4): задаём
 // название и группу, упражнение сохраняется в общий справочник (onCreate) и
 // сразу добавляется в тренировку.
-export default function ExercisePicker({ exercises, onPick, onClose, onCreate, title = 'Упражнение' }) {
+export default function ExercisePicker({
+  exercises,
+  usage = { recent: [], frequent: [] },
+  onPick,
+  onClose,
+  onCreate,
+  title = 'Упражнение',
+}) {
   const [query, setQuery] = useState('')
   const [group, setGroup] = useState('все')
 
@@ -60,6 +67,18 @@ export default function ExercisePicker({ exercises, onPick, onClose, onCreate, t
     [exercises, qTrim]
   )
   const suggestCreate = !!onCreate && !!qTrim && !hasExact
+
+  const shortcuts = useMemo(() => {
+    const byId = new Map(exercises.map((e) => [e.id, e]))
+    const resolve = (ids) => (ids ?? []).map((id) => byId.get(id)).filter(Boolean)
+    return { recent: resolve(usage.recent), frequent: resolve(usage.frequent) }
+  }, [exercises, usage])
+  const showShortcuts = !qTrim && group === 'все'
+  const shortcutIds = useMemo(
+    () => new Set([...shortcuts.recent, ...shortcuts.frequent].map((e) => e.id)),
+    [shortcuts]
+  )
+  const mainList = showShortcuts ? filtered.filter((e) => !shortcutIds.has(e.id)) : filtered
 
   // Похожие по названию — чтобы не плодить дубли (ТЗ 3.2 / 4.4). Нечёткое
   // сопоставление (нормализация ё/е, пробелы, порядок слов, опечатки), а не
@@ -114,23 +133,23 @@ export default function ExercisePicker({ exercises, onPick, onClose, onCreate, t
   // относительно вьюпорта (а не застревает внутри прокручиваемой .content под
   // шапкой/таббаром). Это и есть фикс «модалка не на весь экран».
   if (creating) {
-    return createPortal(
+    return (
       // В режиме создания клик по фону = «назад» к списку (setCreating(false)),
       // а НЕ onClose: иначе промах мимо листа стирал заполненную форму, а во время
       // сохранения ещё и размонтировал пикер на лету. Во время busy фон не реагирует.
-      <div className="overlay" onClick={() => { if (!busy) setCreating(false) }}>
-        <div className="sheet" onClick={(e) => e.stopPropagation()}>
-          <div className="sheet-head">
-            <strong>Своё упражнение</strong>
-            <button className="link-btn" onClick={() => setCreating(false)}>назад</button>
-          </div>
-
+      <SheetDialog
+        title="Своё упражнение"
+        actionLabel="назад"
+        dismissDisabled={busy}
+        onDismiss={() => setCreating(false)}
+      >
           {/* Форма длиннее экрана (тип + группа + под/вторичные мышцы) — держим её
               в прокручиваемом контейнере, иначе на телефоне низ формы (и кнопка
               «Сохранить») недостижим: сам .sheet зафиксирован по высоте экрана. */}
           <div className="sheet-scroll">
           <input
             className="search"
+            data-autofocus
             placeholder="Название упражнения"
             value={newName}
             onChange={(e) => setNewName(e.target.value)}
@@ -236,23 +255,16 @@ export default function ExercisePicker({ exercises, onPick, onClose, onCreate, t
             {busy ? 'Сохранение…' : 'Сохранить и добавить'}
           </button>
           </div>
-        </div>
-      </div>,
-      document.body
+      </SheetDialog>
     )
   }
 
   // ---------------------------- список/поиск --------------------------------
-  return createPortal(
-    <div className="overlay" onClick={onClose}>
-      <div className="sheet" onClick={(e) => e.stopPropagation()}>
-        <div className="sheet-head">
-          <strong>{title}</strong>
-          <button className="link-btn" onClick={onClose}>закрыть</button>
-        </div>
-
+  return (
+    <SheetDialog title={title} onDismiss={onClose}>
         <input
           className="search"
+          data-autofocus
           placeholder="Поиск по названию…"
           value={query}
           onChange={(e) => setQuery(e.target.value)}
@@ -272,13 +284,36 @@ export default function ExercisePicker({ exercises, onPick, onClose, onCreate, t
         </div>
 
         <div className="picker-list">
-          {filtered.map((e) => (
+          {showShortcuts && shortcuts.recent.length > 0 && (
+            <>
+              <div className="group-title">Недавние</div>
+              {shortcuts.recent.map((e) => (
+                <button key={`recent:${e.id}`} className="picker-item" onClick={() => onPick(e)}>
+                  <span>{e.name}</span>
+                  <span className="picker-group">{e.muscle_group}</span>
+                </button>
+              ))}
+            </>
+          )}
+          {showShortcuts && shortcuts.frequent.length > 0 && (
+            <>
+              <div className="group-title">Частые</div>
+              {shortcuts.frequent.map((e) => (
+                <button key={`frequent:${e.id}`} className="picker-item" onClick={() => onPick(e)}>
+                  <span>{e.name}</span>
+                  <span className="picker-group">{e.muscle_group}</span>
+                </button>
+              ))}
+            </>
+          )}
+          {showShortcuts && shortcutIds.size > 0 && <div className="group-title">Все упражнения</div>}
+          {mainList.map((e) => (
             <button key={e.id} className="picker-item" onClick={() => onPick(e)}>
               <span>{e.name}</span>
               <span className="picker-group">{e.muscle_group}</span>
             </button>
           ))}
-          {filtered.length === 0 && !suggestCreate && (
+          {mainList.length === 0 && shortcutIds.size === 0 && !suggestCreate && (
             <p className="muted">Ничего не найдено.</p>
           )}
           {suggestCreate && (
@@ -294,8 +329,6 @@ export default function ExercisePicker({ exercises, onPick, onClose, onCreate, t
             + добавить своё упражнение
           </button>
         )}
-      </div>
-    </div>,
-    document.body
+    </SheetDialog>
   )
 }

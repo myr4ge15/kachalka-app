@@ -24,7 +24,7 @@ const STATE_HINT = { ready: 'можно тренировать', almost: 'поч
 //
 // Пропсы: user, onNavigate(tab), onNewWorkout() — прямой вход в композер новой
 // тренировки (минуя список хаба), общий с плавающей кнопкой «+».
-export default function HomeScreen({ user, onNavigate, onNewWorkout }) {
+export default function HomeScreen({ user, onNavigate, onNewWorkout, onOpenProgress }) {
   // Одно чтение истории на все три блока Главной (сводка/инсайты/свежесть): раньше
   // было три отдельных useLiveQuery, каждый сканировал всю историю заново.
   const home = useLiveQuery(() => getHomeData(user.id, { max: 3 }), [user.id])
@@ -100,12 +100,26 @@ export default function HomeScreen({ user, onNavigate, onNewWorkout }) {
         <section className="sec">
           <p className="sec-title">Выводы</p>
           <div className="ins-list">
-            {insights.map((i) => (
-              <div key={i.id} className={`ins-card ins-${i.tone}`}>
+            {insights.map((i) => {
+              const content = (
+                <>
                 <span className="ins-emoji" aria-hidden="true">{i.emoji}</span>
                 <span className="ins-text">{i.text}</span>
-              </div>
-            ))}
+                </>
+              )
+              return i.kind === 'past-self' && i.exerciseId && onOpenProgress ? (
+                <button
+                  key={i.id}
+                  className={`ins-card action ins-${i.tone}`}
+                  onClick={() => onOpenProgress(i.exerciseId)}
+                >
+                  {content}
+                  <span className="go" aria-hidden="true">›</span>
+                </button>
+              ) : (
+                <div key={i.id} className={`ins-card ins-${i.tone}`}>{content}</div>
+              )
+            })}
           </div>
         </section>
       )}

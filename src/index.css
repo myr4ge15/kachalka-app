@@ -1818,6 +1818,9 @@ label.act.busy { opacity: .55; pointer-events: none; }
 .ins-card.ins-good { border-left-color: var(--green); }
 .ins-card.ins-warn { border-left-color: var(--yellow); }
 .ins-card.ins-info { border-left-color: #185fa5; }
+.ins-card.action { width: 100%; color: var(--text); text-align: left; cursor: pointer; }
+.ins-card.action .ins-text { flex: 1; }
+.ins-card.action .go { color: var(--green); font-weight: 800; font-size: 20px; }
 .ins-emoji { font-size: 20px; flex-shrink: 0; }
 .ins-text { font-size: 14px; line-height: 1.35; font-weight: 600; }
 

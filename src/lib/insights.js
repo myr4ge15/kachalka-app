@@ -83,6 +83,10 @@ const plDays = (n) => `${n} ${plural(n, 'день', 'дня', 'дней')}`
 const plWeeks = (n) => `${n} ${plural(n, 'неделю', 'недели', 'недель')}`
 const plWorkouts = (n) => plural(n, 'тренировку', 'тренировки', 'тренировок')
 const cap = (s) => (s ? s[0].toUpperCase() + s.slice(1) : s)
+const PAST_PERIODS = [
+  { days: 365, tolerance: 45, label: 'год' },
+  { days: 180, tolerance: 30, label: '6 месяцев' },
+]
 
 // Отсортировать по дате тренировки, свежие сверху (как getWorkouts).
 // Последнее ведущее упражнение жима (is_bench_lift) в истории: id, имя, метрика.
@@ -300,6 +304,93 @@ function rStreak(sorted, now, anchor) {
   }
 }
 
+// R8. «Себя прошлого»: сравниваем свежую тренировку с ближайшей записью
+// примерно год / полгода назад. Для веса берём только подходы с ОДИНАКОВЫМ
+// числом повторов — иначе «85×6 против 65×8 = +31%» выглядело бы точным, хотя
+// сравнивает разную работу. Для reps/time ведущая величина сравнима напрямую.
+export function pastSelfInsight(sorted, ctx, { minGainPct = 5 } = {}) {
+  if (!ctx?.performed_at) return null
+  const ctxDay = dayIndex(new Date(ctx.performed_at))
+  let best = null
+
+  for (const currentEntry of ctx.entries ?? []) {
+    const exId = entryExId(currentEntry)
+    if (!exId) continue
+    const metric = entryMetric(currentEntry)
+
+    for (const period of PAST_PERIODS) {
+      const previous = sorted
+        .filter((w) => w.id !== ctx.id && w.performed_at)
+        .map((w) => {
+          const elapsed = ctxDay - dayIndex(new Date(w.performed_at))
+          const entry = (w.entries ?? []).find((e) => entryExId(e) === exId)
+          return { w, entry, distance: Math.abs(elapsed - period.days), elapsed }
+        })
+        .filter((x) => x.entry && x.elapsed > 0 && x.distance <= period.tolerance)
+        .sort((a, b) => a.distance - b.distance || cmpIsoDesc(a.w.performed_at, b.w.performed_at))[0]
+      if (!previous) continue
+
+      let candidate = null
+      if (metric === 'weight') {
+        const currentByReps = new Map()
+        const previousByReps = new Map()
+        for (const set of currentEntry.sets ?? []) {
+          const reps = Number(set.reps) || 0
+          const weight = Number(set.weight) || 0
+          if (reps > 0 && weight > 0) currentByReps.set(reps, Math.max(currentByReps.get(reps) ?? 0, weight))
+        }
+        for (const set of previous.entry.sets ?? []) {
+          const reps = Number(set.reps) || 0
+          const weight = Number(set.weight) || 0
+          if (reps > 0 && weight > 0) previousByReps.set(reps, Math.max(previousByReps.get(reps) ?? 0, weight))
+        }
+        for (const [reps, current] of currentByReps) {
+          const old = previousByReps.get(reps) ?? 0
+          if (old <= 0 || current <= old) continue
+          const pct = Math.round(((current - old) / old) * 100)
+          if (pct >= minGainPct && (!candidate || pct > candidate.pct))
+            candidate = { current, old, reps, pct }
+        }
+      } else {
+        const current = leadingValue(metric, currentEntry.sets)
+        const old = leadingValue(metric, previous.entry.sets)
+        const pct = old > 0 && current > old ? Math.round(((current - old) / old) * 100) : 0
+        if (pct >= minGainPct) candidate = { current, old, reps: null, pct }
+      }
+
+      if (candidate) {
+        const item = {
+          ...candidate,
+          exId,
+          metric,
+          name: entryName(currentEntry),
+          period,
+        }
+        if (!best || item.pct > best.pct || (item.pct === best.pct && String(exId) < String(best.exId)))
+          best = item
+        break // для упражнения предпочитаем год; полгода — только если год не подошёл
+      }
+    }
+  }
+
+  if (!best) return null
+  const values = best.metric === 'weight'
+    ? `${best.old} → ${best.current} кг при ${best.reps} повт.`
+    : best.metric === 'reps'
+      ? `${best.old} повт. → ${best.current} повт.`
+      : `${fmtMetricValue(best.metric, best.old)} → ${fmtMetricValue(best.metric, best.current)}`
+  return {
+    id: `ins:past-self:${ctx.id}:${best.exId}:${best.period.days}`,
+    kind: 'past-self',
+    emoji: '💪',
+    tone: 'good',
+    priority: 55,
+    at: ctx.performed_at,
+    exerciseId: best.exId,
+    text: `${best.name}: ${values} — +${best.pct}% за ${best.period.label}`,
+  }
+}
+
 // ---------------------------------------------------------------------------
 // Движок: собрать инсайты, дедупнуть, отсортировать по важности, отдать верхние.
 //   workouts       — свои тренировки (денормализованные);
@@ -331,6 +422,7 @@ export function buildInsights({
   push(rPlateau(sorted, anchor))
   push(rGroupNeglected(sorted, now, anchor))
   push(rTonnageTrend(sorted, now, anchor))
+  push(pastSelfInsight(sorted, ctx))
   push(rStreak(sorted, now, anchor))
 
   const seen = new Set()

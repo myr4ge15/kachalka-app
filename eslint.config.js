@@ -71,9 +71,9 @@ export default [
     },
   },
 
-  // Конфиги/скрипты в корне (vite.config.js, этот файл) — node-окружение.
+  // Конфиги в корне и служебные scripts/ — node-окружение.
   {
-    files: ['*.{js,cjs,mjs}'],
+    files: ['*.{js,cjs,mjs}', 'scripts/**/*.{js,cjs,mjs}'],
     languageOptions: {
       ecmaVersion: 'latest',
       sourceType: 'module',

@@ -389,7 +389,12 @@ export default function App() {
           <div className="screen-anim" key={tab}>
             <ErrorBoundary fallback={(_err, reset) => <ScreenCrash onRetry={reset} />}>
               {tab === 'home' && (
-                <HomeScreen user={user} onNavigate={goTab} onNewWorkout={startNewWorkout} />
+                <HomeScreen
+                  user={user}
+                  onNavigate={goTab}
+                  onNewWorkout={startNewWorkout}
+                  onOpenProgress={openProgressFor}
+                />
               )}
               {tab === 'history' && (
                 <HistoryScreen

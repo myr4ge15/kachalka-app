@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react'
 import { useLiveQuery } from 'dexie-react-hooks'
-import { getExercises, getWorkout, saveWorkout, createExercise, deleteWorkout as repoDelete, getRecentSessionsForExercise, getProgSettings, setProgForExercise, saveTemplate } from '../db/repo.js'
+import { getExercises, getWorkout, getWorkouts, saveWorkout, createExercise, deleteWorkout as repoDelete, getRecentSessionsForExercise, getProgSettings, setProgForExercise, saveTemplate } from '../db/repo.js'
 import { detectNewPrsOnSave, detectGoalReachedOnSave } from '../db/notifications.js'
 import { detectInsightsOnSave } from '../db/insights.js'
 import { detectBadgesOnSave } from '../db/badges.js'
@@ -18,6 +18,7 @@ import { exportWorkouts } from '../lib/exportWorkout.js'
 import { templateExercisesFromWorkout, defaultTemplateName } from '../lib/templateFromWorkout.js'
 import { vibrate, HAPTIC } from '../lib/haptics.js'
 import { fmtDate } from '../lib/dates.js'
+import { exerciseUsageSections } from '../lib/exerciseUsage.js'
 import CardsSkeleton from '../components/CardsSkeleton.jsx'
 import ExercisePicker from '../components/ExercisePicker.jsx'
 import TemplatePicker from '../components/TemplatePicker.jsx'
@@ -43,6 +44,11 @@ export default function WorkoutScreen({ user, workoutId = null, onBack }) {
   const isNew = workoutId == null
   // Справочник — из локальной базы (офлайн-доступен).
   const exercises = useLiveQuery(() => getExercises(), [], [])
+  const exerciseUsage = useLiveQuery(
+    () => getWorkouts(user.id).then((workouts) => exerciseUsageSections(workouts)),
+    [user.id],
+    { recent: [], frequent: [] }
+  )
   // Настройки автопрогрессии (глобальный тумблер + пер-упражнение). Дефолт до
   // загрузки — включено (как и первый резолв в repo.getProgSettings).
   const prog = useLiveQuery(() => getProgSettings(user.id), [user.id], { enabled: true, byExercise: {} })
@@ -493,6 +499,7 @@ export default function WorkoutScreen({ user, workoutId = null, onBack }) {
       {pickerOpen && (
         <ExercisePicker
           exercises={exercises}
+          usage={exerciseUsage}
           title={replaceIdx != null ? 'Заменить упражнение' : 'Упражнение'}
           onPick={handlePick}
           onCreate={createExercise}

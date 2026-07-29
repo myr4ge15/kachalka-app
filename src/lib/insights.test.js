@@ -267,6 +267,43 @@ describe('R7 серия', () => {
   })
 })
 
+describe('R8 сравнение с собой прошлым', () => {
+  it('сравнивает вес год к году только при одинаковом числе повторов', () => {
+    const list = [
+      wk({ id: 'new', at: daysAgo(0), entries: [{ exId: 'bench', name: 'Жим', sets: [S(85, 6)] }] }),
+      wk({ id: 'old', at: daysAgo(365), entries: [{ exId: 'bench', name: 'Жим', sets: [S(70, 6)] }] }),
+    ]
+    const insight = buildInsights({ workouts: list, now: NOW, max: 10 }).find((i) => i.kind === 'past-self')
+    expect(insight).toBeTruthy()
+    expect(insight.text).toContain('70 → 85 кг при 6 повт.')
+    expect(insight.text).toContain('+21% за год')
+  })
+
+  it('не рисует точный процент для весовых подходов с разными повторами', () => {
+    const list = [
+      wk({ id: 'new', at: daysAgo(0), entries: [{ exId: 'bench', name: 'Жим', sets: [S(85, 6)] }] }),
+      wk({ id: 'old', at: daysAgo(365), entries: [{ exId: 'bench', name: 'Жим', sets: [S(65, 8)] }] }),
+    ]
+    expect(buildInsights({ workouts: list, now: NOW, max: 10 }).find((i) => i.kind === 'past-self')).toBeFalsy()
+  })
+
+  it('если годовой точки нет, сравнивает с шестью месяцами; малый прирост отсекает', () => {
+    const growing = [
+      wk({ id: 'new', at: daysAgo(0), entries: [{ exId: 'pull', name: 'Подтягивания', metric: 'reps', sets: [S(0, 12)] }] }),
+      wk({ id: 'old', at: daysAgo(180), entries: [{ exId: 'pull', name: 'Подтягивания', metric: 'reps', sets: [S(0, 10)] }] }),
+    ]
+    const insight = buildInsights({ workouts: growing, now: NOW, max: 10 }).find((i) => i.kind === 'past-self')
+    expect(insight?.text).toContain('10 повт. → 12 повт.')
+    expect(insight?.text).toContain('за 6 месяцев')
+
+    const flat = [
+      wk({ id: 'new', at: daysAgo(0), entries: [{ exId: 'pull', metric: 'reps', sets: [S(0, 102)] }] }),
+      wk({ id: 'old', at: daysAgo(180), entries: [{ exId: 'pull', metric: 'reps', sets: [S(0, 100)] }] }),
+    ]
+    expect(buildInsights({ workouts: flat, now: NOW, max: 10 }).find((i) => i.kind === 'past-self')).toBeFalsy()
+  })
+})
+
 describe('стабильность id/at', () => {
   it('id и at не зависят от now (для «прочитано» в уведомлениях)', () => {
     const list = [

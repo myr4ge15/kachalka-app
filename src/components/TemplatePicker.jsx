@@ -1,7 +1,7 @@
-import { createPortal } from 'react-dom'
 import { useLiveQuery } from 'dexie-react-hooks'
 import { getTemplates } from '../db/repo.js'
 import { exerciseMetric, fmtTemplateTarget } from '../lib/metric.js'
+import SheetDialog from './SheetDialog.jsx'
 
 // Шит выбора шаблона при создании новой тренировки. onPick(template) →
 // родитель (WorkoutScreen) применяет состав к entries. Стиль — как ExercisePicker.
@@ -39,14 +39,8 @@ export default function TemplatePicker({ user, onPick, onClose }) {
   const shared = list.filter((t) => t.user_id !== user.id) // чужие общие
 
   // Портал в <body>: оверлей на весь вьюпорт, не застревает под шапкой/таббаром.
-  return createPortal(
-    <div className="overlay" onClick={onClose}>
-      <div className="sheet" onClick={(e) => e.stopPropagation()}>
-        <div className="sheet-head">
-          <strong>Выбрать шаблон</strong>
-          <button className="link-btn" onClick={onClose}>закрыть</button>
-        </div>
-
+  return (
+    <SheetDialog title="Выбрать шаблон" onDismiss={onClose}>
         <div className="picker-list">
           {loading && <p className="muted">Загрузка…</p>}
 
@@ -72,8 +66,6 @@ export default function TemplatePicker({ user, onPick, onClose }) {
             </>
           )}
         </div>
-      </div>
-    </div>,
-    document.body
+    </SheetDialog>
   )
 }
