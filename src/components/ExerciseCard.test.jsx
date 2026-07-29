@@ -41,7 +41,7 @@ const prog = (over = {}) => ({
 
 // Рендер с дефолтными no-op колбэками; возвращаем шпионы + container для
 // проверок по классам (set-row/ap — у них нет ARIA-роли).
-function renderCard(entry, cbOver = {}) {
+function renderCard(entry, cbOver = {}, propOver = {}) {
   const cbs = {
     onActivate: vi.fn(),
     onReplace: vi.fn(), onRemove: vi.fn(),
@@ -57,6 +57,7 @@ function renderCard(entry, cbOver = {}) {
       prog={{ enabled: true, byExercise: {} }}
       active
       {...cbs}
+      {...propOver}
     />
   )
   return { ...utils, cbs }
@@ -78,6 +79,26 @@ describe('ExerciseCard — рендер', () => {
   it('без entry.prog панель автопрогрессии не рендерится', () => {
     const { container } = renderCard(weightEntry())
     expect(container.querySelector('.ap')).toBeNull()
+  })
+
+  it('неактивная карточка показывает компактный итог и раскрывается одним тапом', () => {
+    const { container, cbs } = renderCard(weightEntry(), {}, { active: false })
+
+    expect(container.querySelectorAll('.set-row')).toHaveLength(0)
+    expect(screen.queryByText('заменить')).not.toBeInTheDocument()
+    expect(screen.getByText('2 подхода · лучший 60×10')).toBeInTheDocument()
+    expect(screen.getByText('✓ заполнено')).toBeInTheDocument()
+
+    fireEvent.click(screen.getByRole('button', { name: /Открыть Жим лёжа/ }))
+    expect(cbs.onActivate).toHaveBeenCalledWith('e1')
+  })
+
+  it('не выдаёт незаполненную компактную карточку за готовую', () => {
+    const incomplete = { ...weightEntry(), sets: [{ weight: 0, reps: 0, _k: 'a' }] }
+    renderCard(incomplete, {}, { active: false })
+
+    expect(screen.getByText('1 подход · нужно заполнить')).toBeInTheDocument()
+    expect(screen.queryByText('✓ заполнено')).not.toBeInTheDocument()
   })
 })
 

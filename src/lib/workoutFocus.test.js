@@ -1,5 +1,7 @@
 import { describe, expect, it } from 'vitest'
-import { isExerciseIncomplete, pickActiveExerciseId } from './workoutFocus.js'
+import {
+  exerciseFocusSummary, isExerciseIncomplete, pickActiveExerciseId,
+} from './workoutFocus.js'
 
 const entry = (id, sets, metric = 'weight') => ({
   exercise: { id, metric },
@@ -38,5 +40,37 @@ describe('pickActiveExerciseId', () => {
   it('иначе выбирает первое упражнение и устойчив к пустому составу', () => {
     expect(pickActiveExerciseId([filled, incomplete], null)).toBe('filled')
     expect(pickActiveExerciseId([], 'missing')).toBeNull()
+  })
+})
+
+describe('exerciseFocusSummary', () => {
+  it('собирает число подходов и лучший фактический подход', () => {
+    expect(exerciseFocusSummary(entry('bench', [
+      { weight: 65, reps: 6 },
+      { weight: 65, reps: 8 },
+    ]))).toEqual({
+      complete: true,
+      setCount: 2,
+      best: '65×8',
+      text: '2 подхода · лучший 65×8',
+    })
+  })
+
+  it('не называет незаполненную форму готовой', () => {
+    expect(exerciseFocusSummary(entry('bench', [{ weight: 0, reps: 0 }]))).toMatchObject({
+      complete: false,
+      best: null,
+      text: '1 подход · нужно заполнить',
+    })
+  })
+
+  it.each([
+    ['reps', 12, '1 подход · лучший 12'],
+    ['time', 90, '1 подход · лучший 1:30'],
+  ])('форматирует компактный итог для метрики %s', (metric, reps, text) => {
+    expect(exerciseFocusSummary(entry('count', [{ weight: 0, reps }], metric))).toMatchObject({
+      complete: true,
+      text,
+    })
   })
 })

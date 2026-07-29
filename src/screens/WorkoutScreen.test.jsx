@@ -2,7 +2,7 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 import { act, fireEvent, render, screen, waitFor } from '@testing-library/react'
 import { useLiveQuery } from 'dexie-react-hooks'
-import { getRecentSessionsForExercise, getWorkout } from '../db/repo.js'
+import { getRecentSessionsForExercise, getWorkout, saveWorkout } from '../db/repo.js'
 import { clearCache, setCache } from '../lib/cache.js'
 import WorkoutScreen from './WorkoutScreen.jsx'
 
@@ -56,6 +56,8 @@ describe('WorkoutScreen', () => {
     clearCache()
     vi.mocked(getWorkout).mockReset()
     vi.mocked(getRecentSessionsForExercise).mockReset()
+    vi.mocked(saveWorkout).mockReset()
+    vi.mocked(saveWorkout).mockResolvedValue('saved-workout')
     vi.mocked(useLiveQuery).mockImplementation((_query, _deps, fallback) => fallback)
   })
 
@@ -68,7 +70,7 @@ describe('WorkoutScreen', () => {
     expect(screen.getByDisplayValue('8')).toBeInTheDocument()
   })
 
-  it('держит активность по exercise.id и переключает её при фокусе внутри карточки', () => {
+  it('держит активность по exercise.id и раскрывает компактную карточку одним тапом', () => {
     setCache(`workout_draft_new_${user.id}`, [...draft, secondEntry])
     const { container } = render(<WorkoutScreen user={user} />)
     const bench = container.querySelector('[data-exercise-id="bench"]')
@@ -76,11 +78,13 @@ describe('WorkoutScreen', () => {
 
     expect(bench).toHaveAttribute('data-active', 'true')
     expect(pullup).toHaveAttribute('data-active', 'false')
+    expect(screen.queryByDisplayValue('12')).not.toBeInTheDocument()
 
-    fireEvent.focus(screen.getByDisplayValue('12'))
+    fireEvent.click(screen.getByRole('button', { name: /Открыть Подтягивания/ }))
 
     expect(bench).toHaveAttribute('data-active', 'false')
     expect(pullup).toHaveAttribute('data-active', 'true')
+    expect(screen.getByDisplayValue('12')).toBeInTheDocument()
   })
 
   it('при редактировании начинает с первого незаполненного упражнения', async () => {
@@ -137,5 +141,17 @@ describe('WorkoutScreen', () => {
     expect(screen.getByText('Жим лёжа')).toBeInTheDocument()
     expect(screen.getByText('Жим лёжа').closest('[data-exercise-id]')).toHaveAttribute('data-active', 'true')
     expect(screen.getByRole('button', { name: 'Сохранить (1)' })).toBeInTheDocument()
+  })
+
+  it('сохраняет весь состав, включая компактные неактивные карточки', async () => {
+    setCache(`workout_draft_new_${user.id}`, [...draft, secondEntry])
+    const onBack = vi.fn()
+    render(<WorkoutScreen user={user} onBack={onBack} />)
+
+    fireEvent.click(screen.getByRole('button', { name: 'Сохранить (2)' }))
+
+    await waitFor(() => expect(saveWorkout).toHaveBeenCalledOnce())
+    expect(vi.mocked(saveWorkout).mock.calls[0][0].entries).toHaveLength(2)
+    await waitFor(() => expect(onBack).toHaveBeenCalledOnce())
   })
 })

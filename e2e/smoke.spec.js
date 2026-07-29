@@ -15,6 +15,7 @@ import { test, expect } from '@playwright/test'
 
 const APP = '/kachalka-app/'
 const EXERCISE = 'Жим лёжа (e2e)'
+const SECOND_EXERCISE = 'Подтягивания (e2e)'
 
 test('вход → запись тренировки → она в истории после перезагрузки', async ({ page, context }) => {
   await context.addInitScript(() => {
@@ -47,9 +48,23 @@ test('вход → запись тренировки → она в истори�
   await page.getByRole('button', { name: '+ Добавить упражнение' }).click()
   await page.locator('.picker-item').filter({ hasText: EXERCISE }).click()
 
-  const set = page.locator('.set-row').first()
-  await set.locator('input').first().fill('60')   // вес
-  await set.locator('input').nth(1).fill('8')     // повторы
+  // Второе добавленное упражнение становится активным, первое компактно
+  // сворачивается. Тап по сводке возвращает первое без потери значений/состава.
+  await page.getByRole('button', { name: '+ Добавить упражнение' }).click()
+  await page.locator('.picker-item').filter({ hasText: SECOND_EXERCISE }).click()
+  await expect(page.locator('.exercise-card--active')).toContainText(SECOND_EXERCISE)
+  await expect(page.locator('.exercise-card--compact')).toContainText(EXERCISE)
+
+  const pullupSet = page.locator('.exercise-card--active .set-row')
+  await pullupSet.locator('input').fill('10')
+
+  await page.locator('.exercise-card--compact .exercise-compact-toggle').click()
+  await expect(page.locator('.exercise-card--active')).toContainText(EXERCISE)
+  await expect(page.locator('.exercise-card--compact')).toContainText(SECOND_EXERCISE)
+
+  const benchSet = page.locator('.exercise-card--active .set-row')
+  await benchSet.locator('input').first().fill('60')   // вес
+  await benchSet.locator('input').nth(1).fill('8')     // повторы
 
   await page.locator('.save-btn').click()
 
@@ -57,6 +72,8 @@ test('вход → запись тренировки → она в истори�
   const card = page.locator('.history-card').first()
   await expect(card).toContainText(EXERCISE)
   await expect(card).toContainText('60×8')
+  await expect(card).toContainText(SECOND_EXERCISE)
+  await expect(card).toContainText('10')
 
   // --- перезагрузка: данные пережили рестарт (читаются из локальной Dexie) ---
   await page.reload()
@@ -65,5 +82,14 @@ test('вход → запись тренировки → она в истори�
   const afterReload = page.locator('.history-card').first()
   await expect(afterReload).toContainText(EXERCISE)
   await expect(afterReload).toContainText('60×8')
-  await expect(afterReload).toContainText('1 упр · 1 подх.')
+  await expect(afterReload).toContainText(SECOND_EXERCISE)
+  await expect(afterReload).toContainText('2 упр · 2 подх.')
+
+  // Desktop master-detail: список остаётся слева, справа открывается тот же
+  // focus-композер с одной активной и одной компактной карточкой.
+  await page.setViewportSize({ width: 1200, height: 900 })
+  await afterReload.click()
+  await expect(page.locator('.md-list-col')).toBeVisible()
+  await expect(page.locator('.exercise-card--active')).toContainText(EXERCISE)
+  await expect(page.locator('.exercise-card--compact')).toContainText(SECOND_EXERCISE)
 })

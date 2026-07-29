@@ -4,6 +4,7 @@ import { resolveProgSettings } from '../lib/progression.js'
 import {
   daysAgoLabel, progArrow, progTone, nextProgStep, fmtProgStep,
 } from '../lib/progressionCard.js'
+import { exerciseFocusSummary } from '../lib/workoutFocus.js'
 
 // Карточка одного упражнения в композере тренировки (шапка, панель автопрогрессии
 // .ap, таблица подходов, «+ подход»). Чисто презентационная: весь стейт и его
@@ -21,17 +22,50 @@ export default function ExerciseCard({
   const count = isCountMetric(metric) // своего веса / на время — без столбца «кг»
   const isTime = metric === 'time'
   const valLabel = isTime ? 'мин:сек' : 'повт.'
+  const summary = exerciseFocusSummary(entry)
+
+  // Неактивные упражнения остаются доступны одной крупной кнопкой. Никакого
+  // «выполнено» здесь нет: ✓ означает лишь, что значения формы заполнены.
+  if (!active) {
+    return (
+      <div
+        className={`card exercise-card exercise-card--compact${count ? ' count' : ''}`}
+        data-exercise-id={entry.exercise.id}
+        data-active="false"
+      >
+        <button
+          type="button"
+          className="exercise-compact-toggle"
+          aria-expanded="false"
+          aria-label={`Открыть ${entry.exercise.name}: ${summary.text}`}
+          onClick={() => onActivate(entry.exercise.id)}
+        >
+          <span className="exercise-compact-copy">
+            <strong>{entry.exercise.name}</strong>
+            <span className="muted">{summary.text}</span>
+          </span>
+          <span className={summary.complete ? 'exercise-ready ready' : 'exercise-ready'}>
+            {summary.complete ? '✓ заполнено' : 'заполнить'}
+          </span>
+          <span className="exercise-compact-chevron" aria-hidden="true">›</span>
+        </button>
+      </div>
+    )
+  }
 
   return (
     <div
-      className={`card exercise-card${count ? ' count' : ''}`}
+      className={`card exercise-card exercise-card--active${count ? ' count' : ''}`}
       data-exercise-id={entry.exercise.id}
       data-active={active ? 'true' : 'false'}
       onPointerDown={() => onActivate(entry.exercise.id)}
       onFocusCapture={() => onActivate(entry.exercise.id)}
     >
       <div className="exercise-head">
-        <span className="exercise-name">{entry.exercise.name}</span>
+        <span className="exercise-title">
+          <span className="exercise-name">{entry.exercise.name}</span>
+          <span className="exercise-active-badge">сейчас</span>
+        </span>
         <span className="exercise-actions">
           <button className="link-btn" onClick={() => onReplace(ei)}>заменить</button>
           <button className="link-btn danger" onClick={() => onRemove(ei)}>убрать</button>
