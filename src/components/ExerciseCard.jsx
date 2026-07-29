@@ -13,7 +13,7 @@ import { exerciseFocusSummary } from '../lib/workoutFocus.js'
 // `prog` — live-query настроек прогрессии (для resolveProgSettings в панели
 // настроек), `ei` — индекс записи (ключ существующих апдейтеров).
 export default function ExerciseCard({
-  entry, ei, prog, active = true, onActivate = () => {},
+  entry, ei, prog, active = true, cardRef = null, onActivate = () => {},
   onReplace, onRemove,
   onRevertProg, onApplyProg, onToggleProgSettings, onChangeProgSettings,
   onUpdateSet, onStep, onAddSet, onRemoveSet,
@@ -24,8 +24,8 @@ export default function ExerciseCard({
   const valLabel = isTime ? 'мин:сек' : 'повт.'
   const summary = exerciseFocusSummary(entry)
 
-  // Неактивные упражнения остаются доступны одной крупной кнопкой. Никакого
-  // «выполнено» здесь нет: ✓ означает лишь, что значения формы заполнены.
+  // Неактивные упражнения остаются доступны одной крупной кнопкой. Сводка
+  // намеренно без «готово/заполнено»: значения мог подставить шаблон.
   if (!active) {
     return (
       <div
@@ -44,9 +44,6 @@ export default function ExerciseCard({
             <strong>{entry.exercise.name}</strong>
             <span className="muted">{summary.text}</span>
           </span>
-          <span className={summary.complete ? 'exercise-ready ready' : 'exercise-ready'}>
-            {summary.complete ? '✓ заполнено' : 'заполнить'}
-          </span>
           <span className="exercise-compact-chevron" aria-hidden="true">›</span>
         </button>
       </div>
@@ -55,6 +52,7 @@ export default function ExerciseCard({
 
   return (
     <div
+      ref={cardRef}
       className={`card exercise-card exercise-card--active${count ? ' count' : ''}`}
       data-exercise-id={entry.exercise.id}
       data-active={active ? 'true' : 'false'}

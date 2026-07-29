@@ -86,19 +86,19 @@ describe('ExerciseCard — рендер', () => {
 
     expect(container.querySelectorAll('.set-row')).toHaveLength(0)
     expect(screen.queryByText('заменить')).not.toBeInTheDocument()
-    expect(screen.getByText('2 подхода · лучший 60×10')).toBeInTheDocument()
-    expect(screen.getByText('✓ заполнено')).toBeInTheDocument()
+    expect(screen.getByText('2 подхода · 60×10')).toBeInTheDocument()
+    expect(screen.queryByText(/заполнено|готово/i)).not.toBeInTheDocument()
 
     fireEvent.click(screen.getByRole('button', { name: /Открыть Жим лёжа/ }))
     expect(cbs.onActivate).toHaveBeenCalledWith('e1')
   })
 
-  it('не выдаёт незаполненную компактную карточку за готовую', () => {
+  it('нейтрально показывает отсутствие значений без ложного статуса', () => {
     const incomplete = { ...weightEntry(), sets: [{ weight: 0, reps: 0, _k: 'a' }] }
     renderCard(incomplete, {}, { active: false })
 
-    expect(screen.getByText('1 подход · нужно заполнить')).toBeInTheDocument()
-    expect(screen.queryByText('✓ заполнено')).not.toBeInTheDocument()
+    expect(screen.getByText('1 подход · значения не указаны')).toBeInTheDocument()
+    expect(screen.queryByText(/заполнено|готово/i)).not.toBeInTheDocument()
   })
 })
 

@@ -31,8 +31,9 @@ export function pickActiveExerciseId(entries, currentId, { preferIncomplete = fa
   return preferred?.exercise?.id ?? list[0]?.exercise?.id ?? null
 }
 
-// Данные компактной карточки. «Заполнено» описывает форму, а не факт выполнения:
-// явная отметка сделанного подхода появится только в Slice 2.
+// Данные компактной карточки — только нейтральная сводка введённых значений.
+// Не выводим «заполнено/готово»: шаблон и автопрогрессия тоже предзаполняют
+// подходы, а факт выполнения появится только по явному действию в Slice 2.
 export function exerciseFocusSummary(entry) {
   const sets = entry?.sets ?? []
   const metric = exerciseMetric(entry?.exercise)
@@ -45,14 +46,11 @@ export function exerciseFocusSummary(entry) {
     return found
   }, null)
   const setLabel = pluralize(sets.length, 'подход', 'подхода', 'подходов')
-  const complete = !isExerciseIncomplete(entry)
+  const bestText = best && leadingValue(metric, [best]) > 0 ? fmtSet(metric, best) : null
 
   return {
-    complete,
     setCount: sets.length,
-    best: best && leadingValue(metric, [best]) > 0 ? fmtSet(metric, best) : null,
-    text: complete && best
-      ? `${setLabel} · лучший ${fmtSet(metric, best)}`
-      : `${setLabel} · нужно заполнить`,
+    best: bestText,
+    text: bestText ? `${setLabel} · ${bestText}` : `${setLabel} · значения не указаны`,
   }
 }

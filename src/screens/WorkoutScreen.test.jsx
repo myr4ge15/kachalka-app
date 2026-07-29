@@ -30,6 +30,7 @@ vi.mock('../db/badges.js', () => ({ detectBadgesOnSave: vi.fn() }))
 vi.mock('../db/sync.js', () => ({ syncNow: vi.fn() }))
 
 const user = { id: 'u1', name: 'Саня' }
+const scrollIntoView = vi.fn()
 const draft = [{
   exercise: {
     id: 'bench',
@@ -59,6 +60,15 @@ describe('WorkoutScreen', () => {
     vi.mocked(saveWorkout).mockReset()
     vi.mocked(saveWorkout).mockResolvedValue('saved-workout')
     vi.mocked(useLiveQuery).mockImplementation((_query, _deps, fallback) => fallback)
+    scrollIntoView.mockReset()
+    Object.defineProperty(HTMLElement.prototype, 'scrollIntoView', {
+      configurable: true,
+      value: scrollIntoView,
+    })
+    Object.defineProperty(window, 'matchMedia', {
+      configurable: true,
+      value: vi.fn(() => ({ matches: false })),
+    })
   })
 
   it('восстанавливает черновик новой тренировки из сессионного кэша', () => {
@@ -79,12 +89,35 @@ describe('WorkoutScreen', () => {
     expect(bench).toHaveAttribute('data-active', 'true')
     expect(pullup).toHaveAttribute('data-active', 'false')
     expect(screen.queryByDisplayValue('12')).not.toBeInTheDocument()
+    expect(scrollIntoView).not.toHaveBeenCalled()
 
     fireEvent.click(screen.getByRole('button', { name: /Открыть Подтягивания/ }))
 
     expect(bench).toHaveAttribute('data-active', 'false')
     expect(pullup).toHaveAttribute('data-active', 'true')
     expect(screen.getByDisplayValue('12')).toBeInTheDocument()
+    expect(scrollIntoView).toHaveBeenCalledWith({
+      behavior: 'smooth',
+      block: 'center',
+      inline: 'nearest',
+    })
+  })
+
+  it('центрирует без анимации при prefers-reduced-motion', () => {
+    Object.defineProperty(window, 'matchMedia', {
+      configurable: true,
+      value: vi.fn(() => ({ matches: true })),
+    })
+    setCache(`workout_draft_new_${user.id}`, [...draft, secondEntry])
+    render(<WorkoutScreen user={user} />)
+
+    fireEvent.click(screen.getByRole('button', { name: /Открыть Подтягивания/ }))
+
+    expect(scrollIntoView).toHaveBeenCalledWith({
+      behavior: 'auto',
+      block: 'center',
+      inline: 'nearest',
+    })
   })
 
   it('при редактировании начинает с первого незаполненного упражнения', async () => {

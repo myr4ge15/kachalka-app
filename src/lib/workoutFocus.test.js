@@ -49,27 +49,24 @@ describe('exerciseFocusSummary', () => {
       { weight: 65, reps: 6 },
       { weight: 65, reps: 8 },
     ]))).toEqual({
-      complete: true,
       setCount: 2,
       best: '65×8',
-      text: '2 подхода · лучший 65×8',
+      text: '2 подхода · 65×8',
     })
   })
 
-  it('не называет незаполненную форму готовой', () => {
+  it('нейтрально показывает отсутствие значений', () => {
     expect(exerciseFocusSummary(entry('bench', [{ weight: 0, reps: 0 }]))).toMatchObject({
-      complete: false,
       best: null,
-      text: '1 подход · нужно заполнить',
+      text: '1 подход · значения не указаны',
     })
   })
 
   it.each([
-    ['reps', 12, '1 подход · лучший 12'],
-    ['time', 90, '1 подход · лучший 1:30'],
+    ['reps', 12, '1 подход · 12'],
+    ['time', 90, '1 подход · 1:30'],
   ])('форматирует компактный итог для метрики %s', (metric, reps, text) => {
     expect(exerciseFocusSummary(entry('count', [{ weight: 0, reps }], metric))).toMatchObject({
-      complete: true,
       text,
     })
   })

@@ -58,7 +58,7 @@ export default function WorkoutScreen({ user, workoutId = null, onBack }) {
   const DRAFT_KEY = `workout_draft_new_${user.id}`
 
   const [entries, setEntries] = useState(() => (isNew ? getCache(DRAFT_KEY) ?? [] : []))
-  const { activeExerciseId, activateExercise } = useWorkoutFocus(entries, {
+  const { activeExerciseId, activeCardRef, activateExercise } = useWorkoutFocus(entries, {
     preferIncomplete: !isNew,
   })
   const [performedAt, setPerformedAt] = useState(() => new Date().toISOString())
@@ -479,6 +479,7 @@ export default function WorkoutScreen({ user, workoutId = null, onBack }) {
               ei={ei}
               prog={prog}
               active={entry.exercise.id === activeExerciseId}
+              cardRef={entry.exercise.id === activeExerciseId ? activeCardRef : null}
               onActivate={activateExercise}
               onReplace={openReplacePicker}
               onRemove={removeExercise}

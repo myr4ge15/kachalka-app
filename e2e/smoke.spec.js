@@ -61,6 +61,10 @@ test('вход → запись тренировки → она в истори�
   await page.locator('.exercise-card--compact .exercise-compact-toggle').click()
   await expect(page.locator('.exercise-card--active')).toContainText(EXERCISE)
   await expect(page.locator('.exercise-card--compact')).toContainText(SECOND_EXERCISE)
+  await expect.poll(async () => page.locator('.exercise-card--active').evaluate((el) => {
+    const rect = el.getBoundingClientRect()
+    return Math.abs(rect.top + rect.height / 2 - window.innerHeight / 2)
+  })).toBeLessThan(140)
 
   const benchSet = page.locator('.exercise-card--active .set-row')
   await benchSet.locator('input').first().fill('60')   // вес
