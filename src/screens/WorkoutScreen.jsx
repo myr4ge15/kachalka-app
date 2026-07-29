@@ -41,7 +41,7 @@ function toEntries(workout) {
 // Экран-композер (новая тренировка) и экран-деталь (правка существующей).
 //   workoutId == null → новая (черновик в кэше переживает уход с экрана)
 //   workoutId != null → существующая (читаем из документа, кэш не трогаем)
-export default function WorkoutScreen({ user, workoutId = null, onBack }) {
+export default function WorkoutScreen({ user, workoutId = null, onBack, onSaved }) {
   const isNew = workoutId == null
   // Справочник — из локальной базы (офлайн-доступен).
   const exercises = useLiveQuery(() => getExercises(), [], [])
@@ -319,6 +319,17 @@ export default function WorkoutScreen({ user, workoutId = null, onBack }) {
         performed_at: performedAt,
         entries,
       })
+      // Итог строится из уже записанного локального документа. Если чтение
+      // неожиданно не удалось, успешное сохранение всё равно не блокируем:
+      // форма содержит тот же состав и годится как безопасный фолбэк.
+      let savedWorkout
+      try { savedWorkout = await getWorkout(wId) } catch { /* локальная сводка необязательна */ }
+      savedWorkout ??= {
+        id: wId,
+        user_id: user.id,
+        performed_at: performedAt,
+        entries,
+      }
       if (isNew) clearCache(DRAFT_KEY)
       // Тактильный отклик по итогу сохранения: рекорд/цель — «праздничный»
       // паттерн, обычное сохранение — короткий success (см. lib/haptics.js).
@@ -347,7 +358,8 @@ export default function WorkoutScreen({ user, workoutId = null, onBack }) {
       }
       vibrate(celebrated ? HAPTIC.celebrate : HAPTIC.success)
       if (navigator.onLine) syncNow(user.id)
-      onBack?.()
+      if (onSaved) onSaved(savedWorkout)
+      else onBack?.()
     } catch (err) {
       setMessage({ type: 'error', text: 'Не сохранилось: ' + (err.message ?? err) })
       setSaving(false)

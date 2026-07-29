@@ -10,6 +10,7 @@ import WorkoutScreen from './WorkoutScreen.jsx'
 import TemplatesScreen from './TemplatesScreen.jsx'
 import CardsSkeleton from '../components/CardsSkeleton.jsx'
 import ExportBar from '../components/ExportBar.jsx'
+import WorkoutFinishSheet from '../components/WorkoutFinishSheet.jsx'
 
 function fmtDate(iso) {
   const d = new Date(iso)
@@ -65,6 +66,7 @@ export default function HistoryScreen({ user, openNew = false, onOpenNewConsumed
   const isDesktop = useMediaQuery('(min-width: 900px)')
 
   const [selected, setSelected] = useState(null)
+  const [finishedWorkout, setFinishedWorkout] = useState(null)
   // Фильтр по группе мышц (null = «Все»). Чипы строим только из реально
   // встречающихся групп, чтобы не показывать пустые.
   const [filter, setFilter] = useState(null)
@@ -93,9 +95,14 @@ export default function HistoryScreen({ user, openNew = false, onOpenNewConsumed
   // в композере она не нужна, а над баром экспорта/«Сохранить» — просто мешает).
   // На размонтировании гасим флаг, чтобы кнопка вернулась на других вкладках.
   useEffect(() => {
-    onBusyChange?.(selected !== null || selectMode)
+    onBusyChange?.(selected !== null || selectMode || finishedWorkout !== null)
     return () => onBusyChange?.(false)
-  }, [selected, selectMode, onBusyChange])
+  }, [selected, selectMode, finishedWorkout, onBusyChange])
+
+  function handleSaved(workout) {
+    setSelected(null)
+    setFinishedWorkout(workout)
+  }
 
   // Вход в редактор/деталь и возврат к списку должны начинаться с верха страницы.
   // Скроллится не окно, а внешняя .content (overflow-y:auto, см. App.jsx/index.css);
@@ -239,14 +246,20 @@ export default function HistoryScreen({ user, openNew = false, onOpenNewConsumed
           user={user}
           workoutId={selected === 'new' ? null : selected}
           onBack={() => setSelected(null)}
+          onSaved={handleSaved}
         />
       )
     }
     return (
-      <div className="screen">
-        <h2 className="screen-title">Мои тренировки</h2>
-        {renderList()}
-      </div>
+      <>
+        <div className="screen">
+          <h2 className="screen-title">Мои тренировки</h2>
+          {renderList()}
+        </div>
+        {finishedWorkout && (
+          <WorkoutFinishSheet workout={finishedWorkout} onDone={() => setFinishedWorkout(null)} />
+        )}
+      </>
     )
   }
 
@@ -271,10 +284,14 @@ export default function HistoryScreen({ user, openNew = false, onOpenNewConsumed
               user={user}
               workoutId={selected === 'new' ? null : selected}
               onBack={() => setSelected(null)}
+              onSaved={handleSaved}
             />
           )}
         </div>
       </div>
+      {finishedWorkout && (
+        <WorkoutFinishSheet workout={finishedWorkout} onDone={() => setFinishedWorkout(null)} />
+      )}
     </div>
   )
 }

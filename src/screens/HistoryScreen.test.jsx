@@ -7,7 +7,12 @@ import HistoryScreen from './HistoryScreen.jsx'
 vi.mock('dexie-react-hooks', () => ({ useLiveQuery: vi.fn() }))
 vi.mock('../db/repo.js', () => ({ getWorkouts: vi.fn() }))
 vi.mock('./WorkoutScreen.jsx', () => ({
-  default: ({ workoutId }) => <div data-testid="workout-screen">{workoutId ?? 'new'}</div>,
+  default: ({ workoutId, onSaved }) => (
+    <div data-testid="workout-screen">
+      {workoutId ?? 'new'}
+      <button onClick={() => onSaved?.(workout)}>Сохранить тестовую</button>
+    </div>
+  ),
 }))
 vi.mock('./TemplatesScreen.jsx', () => ({
   default: () => <div data-testid="templates-screen">templates</div>,
@@ -59,5 +64,22 @@ describe('HistoryScreen', () => {
     expect(screen.getByTestId('workout-screen')).toHaveTextContent('new')
     await waitFor(() => expect(onConsumed).toHaveBeenCalledOnce())
     expect(onBusy).toHaveBeenCalledWith(true)
+  })
+
+  it('после локального сохранения возвращает историю и открывает итог', async () => {
+    const onBusy = vi.fn()
+    render(<HistoryScreen user={user} openNew onBusyChange={onBusy} />)
+
+    fireEvent.click(screen.getByRole('button', { name: 'Сохранить тестовую' }))
+
+    expect(screen.queryByTestId('workout-screen')).not.toBeInTheDocument()
+    expect(screen.getByRole('dialog', { name: 'Тренировка готова' })).toBeInTheDocument()
+    expect(screen.getByText('Упражнения').nextElementSibling).toHaveTextContent('1')
+    expect(onBusy).toHaveBeenLastCalledWith(true)
+
+    fireEvent.click(screen.getByRole('button', { name: 'Готово' }))
+    expect(screen.queryByRole('dialog', { name: 'Тренировка готова' })).not.toBeInTheDocument()
+    expect(screen.getByText('Мои тренировки')).toBeInTheDocument()
+    await waitFor(() => expect(onBusy).toHaveBeenLastCalledWith(false))
   })
 })

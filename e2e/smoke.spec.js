@@ -72,7 +72,14 @@ test('вход → запись тренировки → она в истори�
 
   await page.locator('.save-btn').click()
 
-  // Сохранение вернуло в список, тренировка на месте.
+  // Локальное сохранение сразу показывает итог поверх Истории — сеть выключена.
+  await expect(page.getByRole('dialog', { name: 'Тренировка готова' })).toBeVisible()
+  await expect(page.getByText('Упражнения').locator('..')).toContainText('2')
+  await expect(page.getByText('Подходы').locator('..')).toContainText('2')
+  await expect(page.getByText('Тоннаж').locator('..')).toContainText('480 кг')
+  await page.getByRole('button', { name: 'Готово' }).click()
+
+  // После одного тапа итог закрыт, тренировка в списке на месте.
   const card = page.locator('.history-card').first()
   await expect(card).toContainText(EXERCISE)
   await expect(card).toContainText('60×8')
@@ -96,4 +103,10 @@ test('вход → запись тренировки → она в истори�
   await expect(page.locator('.md-list-col')).toBeVisible()
   await expect(page.locator('.exercise-card--active')).toContainText(EXERCISE)
   await expect(page.locator('.exercise-card--compact')).toContainText(SECOND_EXERCISE)
+
+  // Повторное сохранение существующей записи завершает тот же предсказуемый поток.
+  await page.locator('.save-btn').click()
+  await expect(page.getByRole('dialog', { name: 'Тренировка готова' })).toBeVisible()
+  await page.getByRole('button', { name: 'Готово' }).click()
+  await expect(page.locator('.history-card').first()).toContainText('2 упр · 2 подх.')
 })

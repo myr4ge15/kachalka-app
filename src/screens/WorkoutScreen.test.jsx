@@ -187,4 +187,23 @@ describe('WorkoutScreen', () => {
     expect(vi.mocked(saveWorkout).mock.calls[0][0].entries).toHaveLength(2)
     await waitFor(() => expect(onBack).toHaveBeenCalledOnce())
   })
+
+  it('после локальной записи отдаёт сохранённую тренировку итоговому экрану', async () => {
+    setCache(`workout_draft_new_${user.id}`, draft)
+    vi.mocked(getWorkout).mockResolvedValue({
+      id: 'saved-workout',
+      user_id: user.id,
+      entries: [{ exercise_id: 'bench', exercise: draft[0].exercise, sets: [{ weight: 60, reps: 8 }] }],
+    })
+    const onSaved = vi.fn()
+    const onBack = vi.fn()
+    render(<WorkoutScreen user={user} onSaved={onSaved} onBack={onBack} />)
+
+    fireEvent.click(screen.getByRole('button', { name: 'Сохранить (1)' }))
+
+    await waitFor(() => expect(onSaved).toHaveBeenCalledWith(expect.objectContaining({
+      id: 'saved-workout',
+    })))
+    expect(onBack).not.toHaveBeenCalled()
+  })
 })

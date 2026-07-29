@@ -640,6 +640,44 @@ input { font-family: inherit; }
   overscroll-behavior-y: contain; touch-action: pan-y;
   -webkit-overflow-scrolling: touch;
 }
+
+/* ---------- workout finish ---------- */
+.workout-finish {
+  flex: 1; min-height: 0;
+  display: flex; flex-direction: column; justify-content: center;
+  padding: 20px 0 4px;
+}
+.workout-finish-mark {
+  width: 72px; height: 72px; border-radius: 50%;
+  display: grid; place-items: center; align-self: center;
+  background: linear-gradient(135deg, var(--g1), var(--g2));
+  color: #fff; font-size: 36px; font-weight: 800;
+  box-shadow: 0 16px 36px rgba(91, 76, 255, .24);
+}
+.workout-finish-lead {
+  margin: 16px 0 24px; text-align: center;
+  color: var(--muted); font-size: 16px;
+}
+.workout-finish-stats {
+  display: grid; grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 8px; margin: 0;
+}
+.workout-finish-stats > div {
+  min-width: 0; padding: 14px 8px; text-align: center;
+  border: 1px solid var(--border); border-radius: 14px;
+  background: var(--surface);
+}
+.workout-finish-stats dt { color: var(--muted); font-size: 12px; }
+.workout-finish-stats dd {
+  margin: 6px 0 0; color: var(--text);
+  font-size: 24px; line-height: 1; font-weight: 800;
+}
+.workout-finish-stats dd span { color: var(--muted); font-size: 13px; font-weight: 600; }
+.workout-finish-done { margin-top: 24px; min-height: 52px; }
+
+@media (max-width: 360px) {
+  .workout-finish-stats { grid-template-columns: 1fr; }
+}
 .picker-item {
   display: flex; justify-content: space-between; align-items: center;
   padding: 14px 8px; background: none; border: none; border-bottom: 1px solid var(--border);
