@@ -31,7 +31,10 @@ export default function SheetDialog({
     const returnTo = returnToRef.current
     const sheet = sheetRef.current
     const initial = sheet?.querySelector('[data-autofocus]') ?? sheet?.querySelector(FOCUSABLE)
-    initial?.focus()
+    // React уже применяет autoFocus дочернего поля во время commit. Не фокусируем
+    // его повторно из эффекта: в iOS PWA второй программный focus может оставить
+    // вложенный scroll-контейнер листа без touch-scroll до реального тапа по полю.
+    if (!sheet?.contains(document.activeElement)) initial?.focus()
     return () => {
       if (returnTo instanceof HTMLElement && returnTo.isConnected) returnTo.focus()
     }

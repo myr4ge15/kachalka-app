@@ -123,8 +123,8 @@ export default function WorkoutScreen({ user, workoutId = null, onBack }) {
   }
 
   async function addExercise(ex) {
-    setPickerOpen(false)
     if (entries.some((e) => e.exercise.id === ex.id)) {
+      setPickerOpen(false)
       setMessage({ type: 'error', text: 'Это упражнение уже добавлено.' })
       return
     }
@@ -139,9 +139,13 @@ export default function WorkoutScreen({ user, workoutId = null, onBack }) {
     } catch {
       built = { sets: [defaultSet(ex)], meta: null }
     }
+    // Закрываем пикер только вместе с добавлением готовой карточки. Иначе между
+    // этими событиями пустой композер успевает отрисоваться, и в desktop
+    // master-detail потоковая кнопка «Сохранить» заметно прыгает вниз.
     // Пока читали историю, состав мог измениться (двойной тап/undo) — анти-дубль
-    // на свежем состоянии внутри апдейтера.
+    // остаётся на свежем состоянии внутри апдейтера.
     setEntries((prev) => appendExerciseIn(prev, ex, built.sets, built.meta))
+    setPickerOpen(false)
   }
 
   // Откат к чистой копии прошлой сессии (ссылка «вернуть как в прошлый раз»).

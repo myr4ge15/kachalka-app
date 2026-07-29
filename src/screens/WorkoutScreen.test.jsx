@@ -1,7 +1,8 @@
 // @vitest-environment jsdom
 import { beforeEach, describe, expect, it, vi } from 'vitest'
-import { fireEvent, render, screen } from '@testing-library/react'
+import { act, fireEvent, render, screen, waitFor } from '@testing-library/react'
 import { useLiveQuery } from 'dexie-react-hooks'
+import { getRecentSessionsForExercise } from '../db/repo.js'
 import { clearCache, setCache } from '../lib/cache.js'
 import WorkoutScreen from './WorkoutScreen.jsx'
 
@@ -62,5 +63,31 @@ describe('WorkoutScreen', () => {
     const dialog = screen.getByRole('dialog', { name: 'Упражнение' })
     fireEvent.keyDown(dialog, { key: 'Escape' })
     expect(screen.queryByRole('dialog', { name: 'Упражнение' })).not.toBeInTheDocument()
+  })
+
+  it('закрывает пикер одновременно с появлением добавленного упражнения', async () => {
+    let finishHistory
+    vi.mocked(getRecentSessionsForExercise).mockReturnValue(
+      new Promise((resolve) => { finishHistory = resolve })
+    )
+    vi.mocked(useLiveQuery).mockImplementation((_query, _deps, fallback) => (
+      Array.isArray(fallback) ? [draft[0].exercise] : fallback
+    ))
+
+    render(<WorkoutScreen user={user} />)
+    fireEvent.click(screen.getByRole('button', { name: '+ Добавить упражнение' }))
+    fireEvent.click(screen.getByRole('button', { name: /Жим лёжа/ }))
+
+    // Пока строится локальная рекомендация, лист не исчезает и пустой экран
+    // с одинокой кнопкой «Сохранить» не успевает попасть в отрисовку.
+    expect(screen.getByRole('dialog', { name: 'Упражнение' })).toBeInTheDocument()
+
+    await act(async () => { finishHistory([]) })
+
+    await waitFor(() => {
+      expect(screen.queryByRole('dialog', { name: 'Упражнение' })).not.toBeInTheDocument()
+    })
+    expect(screen.getByText('Жим лёжа')).toBeInTheDocument()
+    expect(screen.getByRole('button', { name: 'Сохранить (1)' })).toBeInTheDocument()
   })
 })

@@ -19,6 +19,22 @@ describe('SheetDialog', () => {
     expect(onDismiss).toHaveBeenCalledOnce()
   })
 
+  it('не фокусирует повторно уже активное autoFocus-поле', () => {
+    const focus = vi.spyOn(HTMLInputElement.prototype, 'focus')
+    try {
+      render(
+        <SheetDialog title="Поиск" onDismiss={() => {}}>
+          <input data-autofocus autoFocus aria-label="Найти" />
+        </SheetDialog>
+      )
+
+      expect(screen.getByRole('textbox', { name: 'Найти' })).toHaveFocus()
+      expect(focus).toHaveBeenCalledOnce()
+    } finally {
+      focus.mockRestore()
+    }
+  })
+
   it('удерживает Tab внутри и возвращает фокус на кнопку-источник', () => {
     function Host() {
       const [open, setOpen] = useState(false)
