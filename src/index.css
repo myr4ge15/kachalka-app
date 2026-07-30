@@ -1475,6 +1475,19 @@ img.avatar-lg.has-img {
 /* мульти-цели: список карточек + добавление (ЛК 2c) */
 .goals-list { display: flex; flex-direction: column; gap: 10px; }
 .goal-editor-ex { font-size: 17px; font-weight: 700; padding: 4px 0; }
+.goals-toggle {
+  min-height: 44px; padding: 10px 14px;
+  display: flex; align-items: center; justify-content: center; gap: 7px;
+  border: 1px solid var(--border); border-radius: 14px;
+  background: var(--surface); color: var(--g2);
+  font-size: 13px; font-weight: 700; cursor: pointer;
+}
+.goals-toggle:active { background: var(--surface-2); }
+.goals-toggle-arr { font-size: 15px; line-height: 1; }
+.goals-group-title {
+  margin: 6px 2px 0; color: var(--muted);
+  font-size: 11px; font-weight: 700; letter-spacing: .05em; text-transform: uppercase;
+}
 .goal-add {
   background: none; border: 1px dashed var(--border); border-radius: 14px;
   color: var(--green); font-weight: 700; font-size: 14px; padding: 12px; min-height: 48px;

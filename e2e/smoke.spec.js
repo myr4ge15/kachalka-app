@@ -118,6 +118,17 @@ test('вход → запись тренировки → она в истори�
   await expect(afterReload).toContainText(SECOND_EXERCISE)
   await expect(afterReload).toContainText('2 упр · 2 подх.')
 
+  // Переход из длинного Профиля по личному рекорду открывает выбранное
+  // упражнение и после commit ставит общий .content в начало, а не наследует
+  // нижнюю позицию предыдущего экрана.
+  await page.getByRole('button', { name: 'Открыть профиль' }).click()
+  const content = page.locator('.content')
+  await content.evaluate((node) => { node.scrollTop = node.scrollHeight })
+  await page.locator('.pr-row').filter({ hasText: EXERCISE }).click()
+  await expect(page.locator('.prog-select')).toHaveValue('e2e-ex-bench')
+  await expect.poll(() => content.evaluate((node) => node.scrollTop)).toBeLessThan(5)
+  await page.locator('.tabbar .tab').filter({ hasText: 'Тренировки' }).click()
+
   // Desktop master-detail: список остаётся слева, справа открывается тот же
   // focus-композер с одной активной и одной компактной карточкой.
   await page.setViewportSize({ width: 1200, height: 900 })

@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef, lazy, Suspense } from 'react'
+import { useState, useEffect, useLayoutEffect, useRef, lazy, Suspense } from 'react'
 import { useLiveQuery } from 'dexie-react-hooks'
 import { isConfigured, warmup, supabase } from './db/supabase.js'
 import { logout as authLogout, getCachedProfile } from './lib/auth.js'
@@ -257,6 +257,13 @@ export default function App() {
   // Тап по кнопке вкладки всегда возвращает её контент в самый верх — в т.ч.
   // повторный тап по уже активной вкладке (как «прокрутка наверх» в iOS).
   const contentRef = useRef(null)
+  // Сбрасываем позицию ПОСЛЕ React-commit нового экрана. requestAnimationFrame
+  // из обработчика мог сработать ещё на длинном Профиле до commit вкладки, и
+  // «Прогресс» наследовал нижнюю позицию скролла.
+  useLayoutEffect(() => {
+    contentRef.current?.scrollTo({ top: 0 })
+  }, [tab])
+
   function goTab(next) {
     // Повторный тап по уже открытой вкладке — контент не меняется: плавно
     // возвращаем его наверх (как «прокрутка к началу» в iOS) + сигнал «обнови меня»
@@ -266,12 +273,9 @@ export default function App() {
       emitReselect(next)
       return
     }
-    // Переход на ДРУГУЮ вкладку: сначала меняем экран, потом мгновенно ставим
-    // прокрутку в самый верх — ПОСЛЕ рендера нового контента. Раньше scrollTo со
-    // smooth вызывался на старом (длинном) экране до свопа: смена высоты обрывала
-    // анимацию и вкладка (напр. Лента из Профиля) открывалась не на самом верху.
+    // Переход на другую вкладку. Прокрутку после commit делает layout-effect
+    // выше: обработчик не пытается угадать момент рендера через rAF.
     setTab(next)
-    requestAnimationFrame(() => contentRef.current?.scrollTo({ top: 0 }))
   }
 
   // Связка ЛК → «Прогресс»: открыть вкладку с заранее выбранным упражнением.
