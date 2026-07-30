@@ -33,7 +33,7 @@ function tokens(norm) {
 }
 
 // Расстояние Левенштейна (итеративно, две строки) — для опечаток.
-function levenshtein(a, b) {
+export function levenshtein(a, b) {
   if (a === b) return 0
   if (!a.length) return b.length
   if (!b.length) return a.length

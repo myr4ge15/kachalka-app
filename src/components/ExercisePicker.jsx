@@ -1,5 +1,6 @@
 import { useState, useMemo, useDeferredValue } from 'react'
-import { findSimilar } from '../lib/similar.js'
+import { findSimilar, findExactDuplicate } from '../lib/similar.js'
+import { searchExercises } from '../lib/exerciseSearch.js'
 import { submusclesOf, secondaryOptionsFor, labelOf, majorOf, defaultSubmuscleFor } from '../lib/muscles.js'
 import SheetDialog from './SheetDialog.jsx'
 
@@ -50,23 +51,28 @@ export default function ExercisePicker({
   const deferredQuery = useDeferredValue(query)
   const deferredNewName = useDeferredValue(newName)
 
-  const filtered = useMemo(() => {
-    const q = deferredQuery.trim().toLowerCase()
-    return exercises.filter((e) => {
-      const okGroup = group === 'все' || e.muscle_group === group
-      const okQuery = !q || e.name.toLowerCase().includes(q)
-      return okGroup && okQuery
-    })
+  // Фильтр по группе — сначала (он сужает справочник), умный поиск — по остатку.
+  // `byName` — совпадения по названию, `byMuscle` — только по мышце («плеч»).
+  const { byName: filtered, byMuscle } = useMemo(() => {
+    const inGroup =
+      group === 'все' ? exercises : exercises.filter((e) => e.muscle_group === group)
+    return searchExercises(deferredQuery, inGroup)
   }, [exercises, deferredQuery, group])
 
   // Введённого названия нет в справочнике (точного совпадения) → предлагаем
   // создать его прямо из поля. Анти-дубли подтянутся в форме создания (similar).
   const qTrim = deferredQuery.trim()
+  // Сверка нормализованная (ё/е, пробелы, пунктуация): иначе «жим лежа» звало
+  // создать дубль уже существующего «Жим лёжа».
   const hasExact = useMemo(
-    () => !!qTrim && exercises.some((e) => e.name.trim().toLowerCase() === qTrim.toLowerCase()),
+    () => !!qTrim && !!findExactDuplicate(qTrim, exercises),
     [exercises, qTrim]
   )
-  const suggestCreate = !!onCreate && !!qTrim && !hasExact
+  // Запрос, попавший ТОЛЬКО в мышцы («плеч»), — это просмотр группы, а не заявка
+  // на новое упражнение: предлагать создать «плеч» бессмысленно. Общая кнопка
+  // «+ добавить своё упражнение» внизу при этом остаётся доступной.
+  const browsingByMuscle = filtered.length === 0 && byMuscle.length > 0
+  const suggestCreate = !!onCreate && !!qTrim && !hasExact && !browsingByMuscle
 
   const shortcuts = useMemo(() => {
     const byId = new Map(exercises.map((e) => [e.id, e]))
@@ -313,7 +319,18 @@ export default function ExercisePicker({
               <span className="picker-group">{e.muscle_group}</span>
             </button>
           ))}
-          {mainList.length === 0 && shortcutIds.size === 0 && !suggestCreate && (
+          {byMuscle.length > 0 && (
+            <>
+              <div className="group-title">По мышцам</div>
+              {byMuscle.map((e) => (
+                <button key={`muscle:${e.id}`} className="picker-item" onClick={() => onPick(e)}>
+                  <span>{e.name}</span>
+                  <span className="picker-group">{e.muscle_group}</span>
+                </button>
+              ))}
+            </>
+          )}
+          {mainList.length === 0 && byMuscle.length === 0 && shortcutIds.size === 0 && !suggestCreate && (
             <p className="muted">Ничего не найдено.</p>
           )}
           {suggestCreate && (
