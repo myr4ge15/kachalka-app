@@ -229,7 +229,7 @@ export default function WorkoutScreen({ user, workoutId = null, onBack, onSaved 
       title: 'Упражнение убрано',
       sub: removed.exercise?.name,
       actionLabel: 'Отменить',
-      duration: 6000,
+      duration: 4000, // дольше дефолтных 3 c (нужно окно отмены), но не 6 — «висел»
       raised: true, // выше липкой кнопки «Сохранить» — чтобы не перекрывала её
       onAction: () => setEntries((prev) => insertExerciseIn(prev, idx, removed)),
     })
@@ -299,7 +299,7 @@ export default function WorkoutScreen({ user, workoutId = null, onBack, onSaved 
       title: 'Подход удалён',
       sub: entry.exercise?.name,
       actionLabel: 'Отменить',
-      duration: 6000,
+      duration: 4000, // дольше дефолтных 3 c (нужно окно отмены), но не 6 — «висел»
       raised: true, // выше липкой кнопки «Сохранить» — чтобы не перекрывала её
       onAction: () => setEntries((prev) => insertSetIn(prev, exId, si, removed)),
     })

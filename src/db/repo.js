@@ -27,6 +27,7 @@ import { pickLastSets } from '../lib/lastSets.js'
 import { isReactionKind } from '../lib/reactions.js'
 import { defaultSubmuscleFor, cleanSecondary } from '../lib/muscles.js'
 import { pickExerciseShape } from '../lib/entries.js'
+import { planRosterWrite, pickRosterShape } from '../lib/roster.js'
 
 // ----------------------------- Чтение --------------------------------------
 
@@ -200,12 +201,23 @@ export async function getUsers() {
   return sortUsersByOrder(list)
 }
 
-// Сохранить список пользователей в кэш (вызывает экран входа, пока синк не запущен).
+// Сохранить/обновить общий ростер устройства. ЕДИНСТВЕННЫЙ писатель кэша ростера:
+// зовут и экран входа (пока синк не запущен), и pullRoster.
+//
+// МЕРЖ, а не clear() + bulkPut: у вызывающих выборки РАЗНОЙ полноты (экран входа
+// читает login_users анонимно, ДО открытия персональной базы), и деструктивная
+// запись молча обнуляла всё, чего в текущей выборке нет — так у всех разом слетел
+// `sex` (инцидент 29.07.2026). План записи считает чистый lib/roster.js: поля
+// мержатся поверх кэша, удаляются только id, которых в выборке больше нет.
+// Возвращает число записанных строк — pullRoster по нему решает, двигать ли
+// сигнатуру ростера.
 export async function cacheUsers(list) {
-  if (!Array.isArray(list)) return
-  await loginDb.transaction('rw', loginDb.users, async () => {
-    await loginDb.users.clear()
-    await loginDb.users.bulkPut(list)
+  if (!Array.isArray(list)) return 0
+  return loginDb.transaction('rw', loginDb.users, async () => {
+    const { puts, deleteIds } = planRosterWrite(await loginDb.users.toArray(), list)
+    if (deleteIds.length) await loginDb.users.bulkDelete(deleteIds)
+    if (puts.length) await loginDb.users.bulkPut(puts)
+    return puts.length
   })
 }
 
@@ -215,18 +227,19 @@ export async function getCachedUser(userId) {
 }
 
 // Локально проставить свой avatar_url сразу после загрузки (до следующего pull),
-// чтобы шапка/ЛК обновились мгновенно. Мержим, чтобы не затереть name.
+// чтобы шапка/ЛК обновились мгновенно. Мержим, чтобы не затереть name/sex; через
+// pickRosterShape — чтобы белый список полей работал на ВСЕХ писателях ростера.
 export async function setCachedAvatar(userId, url) {
   const u = await loginDb.users.get(userId)
-  await loginDb.users.put({ ...(u ?? { id: userId }), avatar_url: url })
+  await loginDb.users.put(pickRosterShape({ ...(u ?? {}), id: userId, avatar_url: url }))
 }
 
 // Локально проставить своё имя сразу после смены (до следующего pull), чтобы
 // пикер входа и кэш пользователей показывали новое имя. Мержим, чтобы не
-// затереть avatar_url.
+// затереть avatar_url/sex.
 export async function setCachedName(userId, name) {
   const u = await loginDb.users.get(userId)
-  await loginDb.users.put({ ...(u ?? { id: userId }), name })
+  await loginDb.users.put(pickRosterShape({ ...(u ?? {}), id: userId, name }))
 }
 
 // Тренировки пользователя (без удалённых), свежие сверху по ДАТЕ ТРЕНИРОВКИ.

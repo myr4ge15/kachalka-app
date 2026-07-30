@@ -12,7 +12,8 @@
 // ============================================================================
 import { supabase } from '../supabase.js'
 import { withTimeout } from '../../lib/withTimeout.js'
-import { db, loginDb, nowIso, setMeta, getMeta } from '../local.js'
+import { db, nowIso, setMeta, getMeta, getLoginMeta, setLoginMeta } from '../local.js'
+import { cacheUsers } from '../repo.js'
 import { readGoals, writeGoals } from '../notifications.js'
 import { getUserMetaState, readSyncedMeta, acceptSyncedMeta } from '../userMeta.js'
 import { SYNCED_KINDS, planMetaSync } from '../../lib/userMeta.js'
@@ -34,7 +35,15 @@ import { pickExerciseShape } from '../../lib/entries.js'
 // lib/pullReconcile.js, «зазор реконсиляции»).
 const WM_WORKOUTS = 'wm_workouts'   // max updated_at принятых тренировок
 const WM_EXERCISES = 'wm_exercises' // max updated_at справочника
-const SIG_USERS = 'sig_login_users' // сигнатура ростера (id + max updated_at)
+// Сигнатура ростера живёт РЯДОМ С ДАННЫМИ — в login-meta ОБЩЕЙ базы (loginDb), а не
+// в персональной. «Сигнатура в чужом хранилище» уже стоила данных: экран входа портил
+// ростер в loginDb, сигнатура в персональной meta при этом не менялась → usChanged
+// оставался false → refetch не наступал НИКОГДА, и пол не возвращался сам (лечилось
+// только сдвигом updated_at на сервере, т.е. ручной правкой в админке). Побочный
+// бонус: у всех клиентов этот ключ в login-meta пуст → первый pull после обновления
+// делает полный refetch и восстанавливает sex; а второй пользователь того же
+// устройства общий ростер больше не перекачивает.
+const SIG_USERS = 'sig_login_users' // сигнатура ростера (id + max updated_at), login-meta
 const SIG_TEMPLATES = 'sig_templates' // сигнатура окна шаблонов «мои ∪ общие»
 // Кандидаты на удаление тренировки, отсутствовавшие на ПРОШЛОЙ сверке id. Удаляем
 // только со второго подряд отсутствия — страховка от лага read-replica (см.
@@ -137,7 +146,7 @@ export async function pull(userId, justPushed = new Set(), d = db) {
   const wrap = (p) => p.then((w) => ({ ok: true, w })).catch((e) => ({ ok: false, e }))
   const [ex, ros, , wk, tpl] = await Promise.all([
     wrap(pullExercises(d)),
-    wrap(pullRoster(d)),
+    wrap(pullRoster()), // ростер и его сигнатура — в общей loginDb, `d` не нужен
     wrap(pullPrivacyFlag(userId, d)), // best-effort, warnings не копит
     wrap(pullWorkouts(userId, justPushed, d)),
     wrap(pullTemplates(userId, d)),
@@ -209,7 +218,9 @@ async function pullExercises(d = db) {
 }
 
 // ----------------------------- pull: ростер --------------------------------
-async function pullRoster(d = db) {
+// Персональной базы `d` эта стадия не касается: и ростер, и его сигнатура лежат в
+// общей loginDb (см. SIG_USERS выше), поэтому параметра здесь нет.
+async function pullRoster() {
   const warnings = []
   // пользователи (имена для пикера входа). Тянем из view login_users — только
   // id и name, без pin_hash/pin_salt/role: хэши больше не отдаются клиентам
@@ -219,18 +230,18 @@ async function pullRoster(d = db) {
   // растёт), и удаление/появление учётки (меняется набор id) — одного max мало.
   const usProbe = await withTimeout(supabase.from('login_users').select('id, updated_at'))
   const usSig = usProbe.error ? null : rosterSignature(usProbe.data ?? [])
-  const usChanged = usProbe.error ? true : usSig !== (await getMeta(SIG_USERS, d))
+  const usChanged = usProbe.error ? true : usSig !== (await getLoginMeta(SIG_USERS))
   if (usChanged) {
     const us = await withTimeout(supabase.from('login_users').select('id, name, avatar_url, sort_order, sex'))
     if (us.error) warnings.push('пользователи: ' + (us.error.message ?? us.error))
-    else if (us.data) {
-      // Ростер — общий для устройства (loginDb), а не персональный: его читает
-      // пикер входа до выбора учётки. См. local.js / repo.getUsers.
-      await loginDb.transaction('rw', loginDb.users, async () => {
-        await loginDb.users.clear()
-        await loginDb.users.bulkPut(us.data)
-      })
-      if (usSig !== null) await setMeta(SIG_USERS, usSig, d)
+    // Пишем через repo.cacheUsers — ЕДИНСТВЕННЫЙ писатель кэша ростера (мерж +
+    // белый список полей, см. lib/roster.js). Ростер общий для устройства
+    // (loginDb), а не персональный: его читает пикер входа до выбора учётки.
+    // Пустой, но не ошибочный ответ ростер не затирает И сигнатуру не двигает —
+    // следующий прогон попробует снова, вместо того чтобы «запомнить» пустоту.
+    else if (us.data?.length) {
+      await cacheUsers(us.data)
+      if (usSig !== null) await setLoginMeta(SIG_USERS, usSig)
     }
   }
   return warnings

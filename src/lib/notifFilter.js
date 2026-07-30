@@ -19,7 +19,7 @@ export const NOTIF_CATEGORIES = [
   { key: 'records', label: 'Рекорды' },
   { key: 'beaten', label: 'Побитые' },
   { key: 'reactions', label: 'Реакции' },
-  { key: 'insights', label: 'Выводы' },
+  { key: 'insights', label: 'Наблюдения' },
 ]
 
 // Тип уведомления → ключ категории. Неизвестный тип относим к 'records'

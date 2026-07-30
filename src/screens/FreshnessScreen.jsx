@@ -43,7 +43,7 @@ export default function FreshnessScreen({ user, onBack }) {
     <div className="screen fresh-screen">
       <div className="admin-head">
         <button className="admin-back" onClick={onBack}>‹ Назад</button>
-        <h2 className="admin-title">Свежесть групп</h2>
+        <h2 className="admin-title">Готовность мышц</h2>
       </div>
 
       {loading ? (

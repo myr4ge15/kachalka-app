@@ -489,6 +489,14 @@ function UsersSection({ meId, online, errMsg }) {
   const [edRole, setEdRole] = useState('member')
   const [edPrivate, setEdPrivate] = useState(false)
   const [edSex, setEdSex] = useState('') // '' | 'm' | 'f'
+  // Снимок значений на момент открытия формы: сохраняем только РЕАЛЬНО изменённое.
+  // Мина, из-за которой у всех слетел пол (29.07.2026): если серверный
+  // admin_list_users отдаёт список БЕЗ колонки sex (такая редакция функции лежит в
+  // admin.sql / private-user.sql / user-order.sql, и перезапуск любого из них молча
+  // откатывает контракт), то u.sex === undefined → edSex '' → безусловный
+  // adminSetSex(edId, null) затирал пол в БД на каждом «Сохранить». В addUser это
+  // защищено (`if (addSex)`), в saveUser защиты не было.
+  const [edInit, setEdInit] = useState({ name: '', role: 'member', priv: false, sex: '' })
   const [edBusy, setEdBusy] = useState(false)
 
   // сброс PIN
@@ -530,9 +538,14 @@ function UsersSection({ meId, online, errMsg }) {
   useEffect(() => { if (online) reload(); else setUsers([]) /* офлайн — без RPC */ }, [online])
 
   function openEdit(u) {
-    setEdId(u.id); setEdName(u.name ?? ''); setEdRole(u.role ?? 'member')
-    setEdPrivate(Boolean(u.is_private))
-    setEdSex(u.sex === 'm' || u.sex === 'f' ? u.sex : '')
+    const name = u.name ?? ''
+    const role = u.role ?? 'member'
+    const priv = Boolean(u.is_private)
+    const sex = u.sex === 'm' || u.sex === 'f' ? u.sex : ''
+    setEdId(u.id); setEdName(name); setEdRole(role)
+    setEdPrivate(priv)
+    setEdSex(sex)
+    setEdInit({ name, role, priv, sex })
   }
   function closeEdit() { setEdId(null); setEdBusy(false) }
 
@@ -543,9 +556,15 @@ function UsersSection({ meId, online, errMsg }) {
       // нет. Если поздний упадёт, ранние уже закоммичены — форма показала бы
       // устаревшее «всё как ввели». Поэтому в catch зовём reload(): UI отразит
       // РЕАЛЬНОЕ частичное состояние сервера (см. РЕВЬЮ-КОДА-2026-07-13).
-      await adminSetUser(edId, edName, edRole)
-      await adminSetPrivate(edId, edPrivate)
-      await adminSetSex(edId, edSex || null)
+      // Зовём только РЕАЛЬНО изменённое. Холостые RPC не безвредны: они двигают
+      // users.updated_at (триггер trg_touch_users → лишний refetch ростера у всех
+      // устройств), сорят в audit_log, а в случае пола ещё и ЗАТИРАЛИ значение,
+      // которого сервер не отдал в списке (см. edInit выше).
+      if (edName.trim() !== edInit.name.trim() || edRole !== edInit.role) {
+        await adminSetUser(edId, edName, edRole)
+      }
+      if (edPrivate !== edInit.priv) await adminSetPrivate(edId, edPrivate)
+      if (edSex !== edInit.sex) await adminSetSex(edId, edSex || null)
       showToast({ emoji: '✅', title: 'Участник обновлён' })
       if (alive.current) closeEdit()
       reload()

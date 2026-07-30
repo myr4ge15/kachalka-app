@@ -210,7 +210,7 @@ export default function HomeScreen({ user, onNavigate, onNewWorkout, onOpenProgr
       {/* инсайты — 2–3 авто-вывода */}
       {insights.length > 0 && (
         <section className="sec">
-          <p className="sec-title">Выводы</p>
+          <p className="sec-title">Наблюдения</p>
           <div className="ins-list">
             {insights.map((i) => {
               const content = (
@@ -255,13 +255,13 @@ export default function HomeScreen({ user, onNavigate, onNewWorkout, onOpenProgr
         </div>
       </div>
 
-      {/* свежесть групп — тизер, разворачивается в детальный экран */}
+      {/* готовность мышц — тизер, разворачивается в детальный экран */}
       {strip.length > 0 && (
         <section className="sec">
-          <p className="sec-title">Свежесть групп</p>
+          <p className="sec-title">Готовность мышц</p>
           <button className="fr-teaser" onClick={() => onNavigate?.('freshness')}>
             <div className="fr-teaser-head">
-              <span className="fr-teaser-lab">Восстановление по группам</span>
+              <span className="fr-teaser-lab">Что уже восстановилось</span>
               <span className="go">Подробнее ›</span>
             </div>
             <div className="fr-strip">

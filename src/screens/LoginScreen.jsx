@@ -37,13 +37,22 @@ export default function LoginScreen({ onLogin }) {
         // withTimeout: подвисшая сеть иначе держала экран на «Загрузка…» ~минуту
         // (запрос без таймаута). При наличии кэша список уже показан выше —
         // обновление просто тихо отвалится по таймауту.
-        const { data, error } = await withTimeout(
+        // sex тянем вместе с остальным: кэш ростера — источник пола для рейтинга
+        // (getCachedUser → viewerBoard), и на новом устройстве до первого pull
+        // другого источника нет. Раньше его тут не было, и запись кэша обнуляла пол
+        // всем учёткам устройства (инцидент 29.07.2026, см. lib/roster.js).
+        // Фолбэк на выборку без sex — как в pullGoal: на сервере со старой
+        // редакцией вью login_users select упал бы, и устройство без кэша осталось
+        // бы вовсе без ростера, а это единственная точка входа в приложение.
+        const roster = (fields) => withTimeout(
           supabase
             .from('login_users')
-            .select('id, name, avatar_url, sort_order')
+            .select(fields)
             .order('sort_order', { nullsFirst: false })
             .order('id')
         )
+        let { data, error } = await roster('id, name, avatar_url, sort_order, sex')
+        if (error) ({ data, error } = await roster('id, name, avatar_url, sort_order'))
         if (error) throw error
         if (data) {
           await cacheUsers(data)

@@ -3,12 +3,13 @@
 // сохранение/правка тренировок: самый рискованный по потере данных путь.
 import 'fake-indexeddb/auto' // ПЕРВЫМ: ставит глобальный indexedDB до Dexie-модулей
 import { describe, it, expect, beforeEach, afterEach } from 'vitest'
-import { openUserDb, closeUserDb, db } from './local.js'
+import { openUserDb, closeUserDb, db, loginDb } from './local.js'
 import { uniqueUserId } from '../test/idbHarness.js'
 import {
   saveWorkout, deleteWorkout, softDeleteMyWorkouts, getWorkout, getWorkouts,
   createExercise, updateExercise, getCustomExercises, getExercises, pendingCount, deadLetterCount,
   retryDeadLetter, discardDeadLetter, getLastSetsForExercise, toggleReaction,
+  cacheUsers, getUsers, getCachedUser, setCachedAvatar, setCachedName,
 } from './repo.js'
 
 // Упражнение-заготовка (весовое).
@@ -318,5 +319,65 @@ describe('toggleReaction (очередь реакций + кэш ленты)', (
     expect(ops[0]).toMatchObject({ kind: 'clap', op: 'remove' })
     const item = await db.feed.get('w1')
     expect(item.reactions).toEqual([])
+  })
+})
+
+// ---------------------------------------------------------------------------
+// Кэш ОБЩЕГО ростера устройства (loginDb.users). Регрессия «у всех слетел пол»:
+// cacheUsers делал clear() + bulkPut, поэтому неполная выборка экрана входа
+// (select без sex) обнуляла пол всем учёткам устройства. loginDb — синглтон,
+// переживающий тесты (см. idbHarness), поэтому чистим его сами.
+// ---------------------------------------------------------------------------
+describe('cacheUsers (общий ростер устройства)', () => {
+  const DIMA = { id: 'r1', name: 'Дима', avatar_url: null, sort_order: 2, sex: 'm' }
+  const OLYA = { id: 'r2', name: 'Оля', avatar_url: 'a.png', sort_order: 1, sex: 'f' }
+
+  beforeEach(async () => {
+    await loginDb.users.clear()
+  })
+
+  it('выборка БЕЗ sex не обнуляет пол (кейс инцидента 29.07.2026)', async () => {
+    await cacheUsers([DIMA, OLYA])
+    // Ровно то, что делал экран входа до починки.
+    await cacheUsers([
+      { id: 'r1', name: 'Дима', avatar_url: null, sort_order: 2 },
+      { id: 'r2', name: 'Оля', avatar_url: 'a.png', sort_order: 1 },
+    ])
+    expect((await getCachedUser('r1')).sex).toBe('m')
+    expect((await getCachedUser('r2')).sex).toBe('f')
+  })
+
+  it('удаляет учётку, которой больше нет в выборке; порядок — по sort_order', async () => {
+    await cacheUsers([DIMA, OLYA])
+    const n = await cacheUsers([OLYA])
+    expect(n).toBe(1)
+    expect((await getUsers()).map((u) => u.id)).toEqual(['r2'])
+  })
+
+  it('пустой список ростер НЕ затирает (иначе сбой прав лишает офлайн-входа)', async () => {
+    await cacheUsers([DIMA, OLYA])
+    expect(await cacheUsers([])).toBe(0)
+    expect(await loginDb.users.count()).toBe(2)
+  })
+
+  it('легаси-поля старой общей базы (pin_hash/pin_salt) в кэш не переезжают', async () => {
+    await loginDb.users.put({ ...DIMA, pin_hash: 'h', pin_salt: 's' })
+    await cacheUsers([{ id: 'r1', name: 'Дима' }])
+    const row = await getCachedUser('r1')
+    expect(row.pin_hash).toBeUndefined()
+    expect(row.sex).toBe('m') // пол при этом сохранён
+  })
+
+  it('не массив → 0 записей, кэш не тронут', async () => {
+    await cacheUsers([DIMA])
+    expect(await cacheUsers(null)).toBe(0)
+    expect(await loginDb.users.count()).toBe(1)
+  })
+
+  it('setCachedAvatar / setCachedName мержат, не теряя sex', async () => {
+    await cacheUsers([OLYA])
+    await setCachedAvatar('r2', 'new.png')
+    await setCachedName('r2', 'Ольга')
+    expect(await getCachedUser('r2')).toEqual({ ...OLYA, avatar_url: 'new.png', name: 'Ольга' })
   })
 })

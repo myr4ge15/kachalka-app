@@ -8,7 +8,7 @@
 // переиспользовать для любых коротких сообщений.
 //
 // Поведение закрытия:
-//  - авто-скрытие по duration (по умолчанию 4.5 c);
+//  - авто-скрытие по duration (по умолчанию 3 c);
 //  - кнопка действия («Отменить») закрывает тост после срабатывания;
 //  - hideToast(kind) гасит тост извне. С kind — только тост этого вида: так
 //    WorkoutScreen при размонтировании гасит СВОЙ undo-тост (он привязан к экрану:
@@ -58,7 +58,10 @@ export default function Toast() {
     const show = (payload) => {
       clearTimeout(timer.current)
       setToast(payload)
-      timer.current = setTimeout(() => setToast(null), payload?.duration ?? 4500)
+      // 3 c: тост нельзя закрыть касанием (тело pointer-transparent, см. ниже), а
+      // прежние 4.5 c на телефоне читались как «висит и мешает». Тостам с окном
+      // отмены экран передаёт duration подольше — но тоже не «навсегда».
+      timer.current = setTimeout(() => setToast(null), payload?.duration ?? 3000)
     }
     const hide = (kind) => {
       const cur = toastRef.current

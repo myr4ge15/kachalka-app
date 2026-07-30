@@ -48,6 +48,13 @@
   --g2: #2ee6c8;   /* бирюзовый — ссылки/«вперёд» */
   --g3: #ff6ba6;   /* розовый — второй конец градиентов */
   --g4: #ffcf5c;   /* золотой — рекорды/медали */
+  /* Градиент primary-кнопок — приглушённая пара к --g1/--g3. Насыщенные акцентные
+     токены хороши для мелких пятен (FAB, бейджи, полосы прогресса), но на крупной
+     кнопке во всю ширину тот же градиент «режет глаз» в тёмной теме. Отдельные
+     токены, а не хардкод в правиле: кнопок с этим фоном много (Сохранить, Новый
+     шаблон, Создать…), и правиться они должны в одном месте. */
+  --btn-g1: #6a4fd8;
+  --btn-g2: #d9578c;
   --amber: #ffcf5c;
   --glass: rgba(255, 255, 255, .07);
   --glass-2: rgba(255, 255, 255, .12);
@@ -354,14 +361,23 @@ input { font-family: inherit; }
 
 /* ---------- смена экрана ----------
    Микро-continuity при переключении вкладок: контент не «мигает» подменой, а
-   мягко въезжает (лёгкий fade + подъём на 10px, ~180мс). Ключ key={tab} на
-   обёртке перезапускает анимацию на каждую смену. Анимация transient (без
-   forwards) — по завершении трансформа снимается, не создаёт containing block
-   для возможных fixed-оверлеев. Под reduced-motion — мгновенно. */
+   мягко проявляется (fade, ~180мс). Ключ key={tab} на обёртке (App.jsx)
+   перезапускает анимацию на каждую смену. Под reduced-motion — мгновенно.
+
+   ⚠️ ТОЛЬКО opacity — НИКАКИХ transform/translate/filter/will-change в этих
+   кейфреймах. Пока анимация играет, non-none transform делает .screen-anim
+   containing block для ВСЕХ position:fixed потомков, и они начинают считать свои
+   left/bottom от короткого бокса экрана: липкая «Сохранить» (.wk-save-bar)
+   всплывала в центр и прыгала к низу вьюпорта по завершении анимации (заметно при
+   переходе «Главная» → новая тренировка, где key меняется); тот же дефект латентно
+   ловил бар экспорта (.export-bar--fixed). Прежний комментарий здесь утверждал, что
+   transient-анимация (без forwards) containing block не создаёт — это верно только
+   ПОСЛЕ её окончания. opacity создаёт лишь stacking context, поэтому fixed-потомки
+   остаются привязаны к вьюпорту и просто проявляются вместе с экраном. */
 .screen-anim { animation: screen-enter var(--dur-base) var(--ease-out); }
 @keyframes screen-enter {
-  from { opacity: 0; transform: translateY(10px); }
-  to   { opacity: 1; transform: translateY(0); }
+  from { opacity: 0; }
+  to   { opacity: 1; }
 }
 @media (prefers-reduced-motion: reduce) {
   .screen-anim { animation: none; }
@@ -370,8 +386,11 @@ input { font-family: inherit; }
 /* ---------- buttons (Aurora) ---------- */
 .btn { padding: 14px; border-radius: 16px; font-size: 16px; font-weight: 700; border: 1px solid transparent; color: var(--text); }
 .btn.full { width: 100%; }
-/* primary — фиолетово-розовый градиент с мягким свечением */
-.btn.primary { background: linear-gradient(135deg, var(--g1), var(--g3)); color: #fff; box-shadow: 0 10px 30px rgba(124, 92, 255, .45); }
+/* primary — фиолетово-розовый градиент с мягким свечением. Фон и свечение
+   приглушены осознанно (жалоба «кнопки светятся очень ярко, режет глаз»): токены
+   --btn-g1/--btn-g2 темнее акцентных --g1/--g3, а тень вдвое слабее прежней
+   (было 0 10px 30px / .45) — кнопка по-прежнему «приподнята», но не светит. */
+.btn.primary { background: linear-gradient(135deg, var(--btn-g1), var(--btn-g2)); color: #fff; box-shadow: 0 6px 16px rgba(124, 92, 255, .22); }
 .btn.primary:disabled { background: var(--surface-2); color: var(--muted); box-shadow: none; }
 /* outline — пунктирная стеклянная рамка */
 .btn.outline { background: none; border: 1px dashed var(--stroke); color: var(--muted); margin-bottom: 12px; }
@@ -419,6 +438,17 @@ input { font-family: inherit; }
   color: var(--muted); font-size: 13px;
 }
 .full-link.danger:active { color: var(--red); }
+/* «Очистить черновик» — тот же селектор .full-link.danger, но живёт она НАВЕРХУ
+   композера (сразу под датой), а не над «Сохранить». Разделитель и отступ 24px там
+   не нужны, а асимметричные паддинги (14px сверху из правила выше и 4px снизу из
+   .link-btn) визуально сажали текст ниже центра своего бокса. Собственный бокс:
+   симметрично, по центру и с тач-зоной 44px, как у остальных кнопок. */
+.full-link.danger.clear-draft {
+  margin-top: 0; padding: 0 4px;
+  border-top: none;
+  min-height: 44px;
+  display: flex; align-items: center; justify-content: center;
+}
 
 /* ---------- workout ---------- */
 /* Долгое касание по подписям рядом со степперами открывало нативное выделение /

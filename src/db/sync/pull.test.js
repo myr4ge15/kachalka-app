@@ -70,7 +70,7 @@ vi.mock('../supabase.js', () => {
   return { supabase: { from, rpc } }
 })
 
-import { openUserDb, closeUserDb, db, getMeta, setMeta } from '../local.js'
+import { openUserDb, closeUserDb, db, loginDb, getMeta, setMeta, getLoginMeta } from '../local.js'
 import { readGoals, writeGoals } from '../notifications.js'
 import {
   getUserMetaState,
@@ -270,5 +270,119 @@ describe('pullUserMeta', () => {
     const state = await getUserMetaState(db)
     expect(state.badges.dirty).toBe(1)
     expect(state.prog).toEqual({ at: T3, dirty: 0 })
+  })
+})
+
+// ---------------------------------------------------------------------------
+// pullRoster. Регрессия 29.07.2026 «у всех слетел пол»: ростер и его сигнатура
+// лежали в РАЗНЫХ базах (данные — в общей loginDb, сигнатура — в персональной), и
+// после того как экран входа портил кэш, pull считал, что тянуть нечего.
+// ---------------------------------------------------------------------------
+describe('pullRoster', () => {
+  const ROSTER = [
+    { id: 'r1', name: 'Дима', avatar_url: null, sort_order: 1, sex: 'm' },
+    { id: 'r2', name: 'Оля', avatar_url: null, sort_order: 2, sex: 'f' },
+  ]
+  const FULL = 'id, name, avatar_url, sort_order, sex'
+
+  // Проба видит две учётки; полная выборка отдаёт их с полом.
+  function serveRoster(rows = ROSTER) {
+    server.from = (call) => {
+      if (call.table === 'login_users' && call.select === 'id, updated_at') {
+        return { data: rows.map((u) => ({ id: u.id, updated_at: T2 })), error: null }
+      }
+      if (call.table === 'login_users') return { data: rows, error: null }
+      return defaultResponse(call)
+    }
+  }
+  const fullFetches = () =>
+    server.calls.filter((c) => c.table === 'login_users' && c.select === FULL).length
+
+  beforeEach(async () => {
+    await loginDb.users.clear()
+    await loginDb.meta.clear()
+  })
+
+  it('первый прогон: пишет ростер и кладёт сигнатуру в login-meta, а не в персональную', async () => {
+    serveRoster()
+    await pull(userId, new Set(), db)
+
+    expect((await loginDb.users.get('r2')).sex).toBe('f')
+    expect(await getLoginMeta('sig_login_users')).toBeTruthy()
+    expect(await getMeta('sig_login_users', db)).toBeUndefined()
+  })
+
+  it('проба не изменилась → тяжёлой выборки больше нет', async () => {
+    serveRoster()
+    await pull(userId, new Set(), db)
+    expect(fullFetches()).toBe(1)
+
+    server.calls.length = 0
+    await pull(userId, new Set(), db)
+    expect(fullFetches()).toBe(0)
+  })
+
+  it('испорченный кэш лечится сам: старая сигнатура в персональной базе не мешает refetch', async () => {
+    // Состояние клиента ДО обновления: экран входа стёр sex, а сигнатура прошлого
+    // прогона осталась в персональной meta — из-за неё refetch не наступал никогда.
+    serveRoster()
+    await loginDb.users.bulkPut([{ id: 'r1', name: 'Дима' }, { id: 'r2', name: 'Оля' }])
+    await setMeta('sig_login_users', JSON.stringify([['r1', 'r2'], T2]), db)
+
+    await pull(userId, new Set(), db)
+
+    expect((await loginDb.users.get('r1')).sex).toBe('m')
+    expect((await loginDb.users.get('r2')).sex).toBe('f')
+  })
+
+  it('проба изменилась (новая учётка) → полный refetch', async () => {
+    serveRoster()
+    await pull(userId, new Set(), db)
+    server.calls.length = 0
+
+    const grown = [...ROSTER, { id: 'r3', name: 'Женя', avatar_url: null, sort_order: 3, sex: 'm' }]
+    serveRoster(grown)
+    await pull(userId, new Set(), db)
+
+    expect(fullFetches()).toBe(1)
+    expect(await loginDb.users.count()).toBe(3)
+  })
+
+  it('пустой (не ошибочный) ответ не затирает ростер и не сохраняет сигнатуру', async () => {
+    serveRoster()
+    await pull(userId, new Set(), db)
+    const sig = await getLoginMeta('sig_login_users')
+
+    // Проба показывает изменение, а полная выборка вернула пусто (сбой прав/RLS).
+    server.from = (call) => {
+      if (call.table === 'login_users' && call.select === 'id, updated_at') {
+        return { data: [{ id: 'r1', updated_at: T3 }], error: null }
+      }
+      if (call.table === 'login_users') return { data: [], error: null }
+      return defaultResponse(call)
+    }
+    await pull(userId, new Set(), db)
+
+    expect(await loginDb.users.count()).toBe(2) // ростер цел
+    expect(await getLoginMeta('sig_login_users')).toBe(sig) // следующий прогон повторит
+  })
+
+  it('ошибка полной выборки → предупреждение, кэш не тронут', async () => {
+    serveRoster()
+    await pull(userId, new Set(), db)
+
+    server.from = (call) => {
+      if (call.table === 'login_users' && call.select === 'id, updated_at') {
+        return { data: [{ id: 'r1', updated_at: T3 }], error: null }
+      }
+      if (call.table === 'login_users') {
+        return { data: null, error: { message: 'roster unavailable' } }
+      }
+      return defaultResponse(call)
+    }
+    const warnings = await pull(userId, new Set(), db)
+
+    expect(warnings).toContain('пользователи: roster unavailable')
+    expect((await loginDb.users.get('r2')).sex).toBe('f')
   })
 })
