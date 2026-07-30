@@ -2,6 +2,7 @@ import { describe, expect, it } from 'vitest'
 import {
   formatWorkoutDuration,
   pickWorkoutFinishEvent,
+  workoutFinishEvents,
   workoutFinishSummary,
 } from './workoutFinish.js'
 
@@ -81,6 +82,17 @@ describe('pickWorkoutFinishEvent', () => {
       exerciseId: 'bench',
       celebrated: true,
     })
+  })
+
+  it('сохраняет приоритет и отдаёт до трёх категорий для компактной ленты', () => {
+    const events = workoutFinishEvents({
+      reached: [goal()],
+      prs: [pr()],
+      newBadges: [{ icon: '🌱', name: 'Первый шаг' }],
+      insights: [{ emoji: '📈', text: 'Объём растёт' }],
+    })
+
+    expect(events.map((event) => event.kind)).toEqual(['goal', 'pr', 'badge'])
   })
 
   it('рекорд показывает прошлое значение и число дополнительных событий', () => {

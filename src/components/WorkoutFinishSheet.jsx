@@ -2,14 +2,26 @@ import SheetDialog from './SheetDialog.jsx'
 import { fmtTonnage } from '../lib/profileStats.js'
 import { formatWorkoutDuration, workoutFinishSummary } from '../lib/workoutFinish.js'
 
-export default function WorkoutFinishSheet({ workout, event = null, onDone, onOpenProgress }) {
+export default function WorkoutFinishSheet({
+  workout,
+  events = [],
+  onDone,
+  onOpenProgress,
+  onCreateTemplate,
+  templateStatus = 'idle',
+  templateMessage = null,
+}) {
   const summary = workoutFinishSummary(workout)
   const tonnage = fmtTonnage(summary.tonnage)
   const duration = formatWorkoutDuration(summary.durationSeconds)
+  const mainEvent = events[0] ?? null
+  const extraEvents = events.slice(1, 3)
+  const templateBusy = templateStatus === 'busy'
+  const templateDone = templateStatus === 'done'
 
   return (
     <SheetDialog title="Тренировка готова" onDismiss={onDone}>
-      <div className="workout-finish">
+      <div className={`workout-finish${mainEvent?.celebrated ? ' has-celebration' : ''}`}>
         <div className="workout-finish-mark" aria-hidden="true">✓</div>
         <p className="workout-finish-lead">Записали. Можно выдохнуть.</p>
 
@@ -34,29 +46,59 @@ export default function WorkoutFinishSheet({ workout, event = null, onDone, onOp
           )}
         </dl>
 
-        {event && (
-          <div className={`workout-finish-event event-${event.kind}`}>
-            <span className="workout-finish-event-emoji" aria-hidden="true">{event.emoji}</span>
+        {mainEvent && (
+          <div className={`workout-finish-event event-${mainEvent.kind}`}>
+            <span className="workout-finish-event-emoji" aria-hidden="true">{mainEvent.emoji}</span>
             <div>
-              <strong>{event.title}</strong>
-              <p>{event.text}</p>
+              <strong>{mainEvent.title}</strong>
+              <p>{mainEvent.text}</p>
             </div>
           </div>
         )}
 
-        {event?.exerciseId && onOpenProgress && (
+        {extraEvents.length > 0 && (
+          <ul className="workout-finish-more" aria-label="Другие результаты">
+            {extraEvents.map((event) => (
+              <li key={`${event.kind}:${event.title}`}>
+                <span aria-hidden="true">{event.emoji}</span>
+                <span><strong>{event.title}</strong> {event.text}</span>
+              </li>
+            ))}
+          </ul>
+        )}
+
+        {mainEvent?.exerciseId && onOpenProgress && (
           <button
             className="btn primary full workout-finish-progress"
             data-autofocus
-            onClick={() => onOpenProgress(event.exerciseId)}
+            onClick={() => onOpenProgress(mainEvent.exerciseId)}
           >
             Посмотреть прогресс
           </button>
         )}
 
+        {onCreateTemplate && (
+          <button
+            className="btn outline full workout-finish-template"
+            disabled={templateBusy || templateDone}
+            onClick={onCreateTemplate}
+          >
+            {templateDone ? '✓ Шаблон создан' : templateBusy ? 'Создаём шаблон…' : '📋 Сохранить как шаблон'}
+          </button>
+        )}
+
+        {templateMessage && (
+          <p
+            className={`workout-finish-template-msg${templateStatus === 'error' ? ' error' : ''}`}
+            role={templateStatus === 'error' ? 'alert' : 'status'}
+          >
+            {templateMessage}
+          </p>
+        )}
+
         <button
-          className={`btn full workout-finish-done${event?.exerciseId ? ' outline' : ' primary'}`}
-          data-autofocus={!event?.exerciseId || !onOpenProgress || undefined}
+          className={`btn full workout-finish-done${mainEvent?.exerciseId ? ' outline' : ' primary'}`}
+          data-autofocus={!mainEvent?.exerciseId || !onOpenProgress || undefined}
           onClick={onDone}
         >
           Готово

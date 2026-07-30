@@ -1,6 +1,7 @@
 import { useState, useMemo, useEffect } from 'react'
 import { useLiveQuery } from 'dexie-react-hooks'
-import { getWorkouts } from '../db/repo.js'
+import { getWorkouts, saveTemplate } from '../db/repo.js'
+import { syncNow } from '../db/sync.js'
 import { daySubTags, tagSlug, matchesGroup, availableGroups } from '../lib/dayTags.js'
 import { labelOf, majorOf } from '../lib/muscles.js'
 import { exerciseMetric, fmtSet } from '../lib/metric.js'
@@ -11,6 +12,8 @@ import TemplatesScreen from './TemplatesScreen.jsx'
 import CardsSkeleton from '../components/CardsSkeleton.jsx'
 import ExportBar from '../components/ExportBar.jsx'
 import WorkoutFinishSheet from '../components/WorkoutFinishSheet.jsx'
+import { defaultTemplateName, templateExercisesFromWorkout } from '../lib/templateFromWorkout.js'
+import { HAPTIC, vibrate } from '../lib/haptics.js'
 
 function fmtDate(iso) {
   const d = new Date(iso)
@@ -73,6 +76,7 @@ export default function HistoryScreen({
 
   const [selected, setSelected] = useState(null)
   const [finishResult, setFinishResult] = useState(null)
+  const [finishTemplate, setFinishTemplate] = useState({ status: 'idle', message: null })
   // Фильтр по группе мышц (null = «Все»). Чипы строим только из реально
   // встречающихся групп, чтобы не показывать пустые.
   const [filter, setFilter] = useState(null)
@@ -108,11 +112,37 @@ export default function HistoryScreen({
   function handleSaved(result) {
     setSelected(null)
     setFinishResult(result)
+    setFinishTemplate({ status: 'idle', message: null })
   }
 
   function openFinishProgress(exerciseId) {
     setFinishResult(null)
     onOpenProgress?.(exerciseId)
+  }
+
+  async function createFinishTemplate() {
+    const workout = finishResult?.workout
+    if (!workout || finishTemplate.status === 'busy' || finishTemplate.status === 'done') return
+    const name = defaultTemplateName(workout.performed_at)
+    setFinishTemplate({ status: 'busy', message: null })
+    try {
+      const exercises = templateExercisesFromWorkout(workout.entries)
+      if (!exercises.length) throw new Error('В тренировке нет упражнений с подходами.')
+      await saveTemplate({
+        user_id: user.id,
+        name,
+        exercises,
+        is_public: false,
+      })
+      if (navigator.onLine) syncNow(user.id)
+      vibrate(HAPTIC.success)
+      setFinishTemplate({ status: 'done', message: `Шаблон «${name}» создан` })
+    } catch (error) {
+      setFinishTemplate({
+        status: 'error',
+        message: 'Не удалось создать шаблон: ' + (error?.message ?? error),
+      })
+    }
   }
 
   // Вход в редактор/деталь и возврат к списку должны начинаться с верха страницы.
@@ -270,9 +300,12 @@ export default function HistoryScreen({
         {finishResult && (
           <WorkoutFinishSheet
             workout={finishResult.workout}
-            event={finishResult.event}
+            events={finishResult.events}
             onDone={() => setFinishResult(null)}
             onOpenProgress={openFinishProgress}
+            onCreateTemplate={createFinishTemplate}
+            templateStatus={finishTemplate.status}
+            templateMessage={finishTemplate.message}
           />
         )}
       </>
@@ -308,9 +341,12 @@ export default function HistoryScreen({
       {finishResult && (
         <WorkoutFinishSheet
           workout={finishResult.workout}
-          event={finishResult.event}
+          events={finishResult.events}
           onDone={() => setFinishResult(null)}
           onOpenProgress={openFinishProgress}
+          onCreateTemplate={createFinishTemplate}
+          templateStatus={finishTemplate.status}
+          templateMessage={finishTemplate.message}
         />
       )}
     </div>

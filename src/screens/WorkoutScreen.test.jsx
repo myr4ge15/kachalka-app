@@ -214,7 +214,7 @@ describe('WorkoutScreen', () => {
 
     await waitFor(() => expect(onSaved).toHaveBeenCalledWith({
       workout: expect.objectContaining({ id: 'saved-workout' }),
-      event: null,
+      events: [],
     }))
     expect(onBack).not.toHaveBeenCalled()
   })
@@ -234,11 +234,11 @@ describe('WorkoutScreen', () => {
     fireEvent.click(screen.getByRole('button', { name: 'Сохранить (1)' }))
 
     await waitFor(() => expect(onSaved).toHaveBeenCalledWith(expect.objectContaining({
-      event: expect.objectContaining({
+      events: [expect.objectContaining({
         kind: 'pr',
         exerciseId: 'bench',
         title: 'Новый рекорд!',
-      }),
+      })],
     })))
   })
 })

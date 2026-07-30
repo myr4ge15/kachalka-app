@@ -95,6 +95,8 @@ test('вход → запись тренировки → она в истори�
   await expect(page.getByText('Подходы').locator('..')).toContainText('2')
   await expect(page.getByText('Тоннаж').locator('..')).toContainText('480 кг')
   await expect(page.getByText('Новый рекорд!')).toBeVisible()
+  await page.getByRole('button', { name: '📋 Сохранить как шаблон' }).click()
+  await expect(page.locator('.workout-finish-template-msg')).toContainText('Шаблон «Тренировка')
   await page.getByRole('button', { name: 'Посмотреть прогресс' }).click()
   await expect(page.locator('.prog-select')).toHaveValue('e2e-ex-bench')
   await page.locator('.tabbar .tab').filter({ hasText: 'Тренировки' }).click()

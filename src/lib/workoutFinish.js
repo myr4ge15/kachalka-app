@@ -30,69 +30,76 @@ export function formatWorkoutDuration(seconds) {
   return rest ? `${hours} ч ${rest} мин` : `${hours} ч`
 }
 
-// Из результатов уже выполненных локальных детекторов выбираем ОДНО главное
-// событие итогового экрана. Побочные эффекты (цель achievedAt, даты бейджей,
-// уведомления) остаются в DB-слое; здесь только приоритет и презентационная
-// модель. Цель важнее PR, затем бейдж и инсайт.
-export function pickWorkoutFinishEvent({
+// Из результатов уже выполненных локальных детекторов собираем до трёх событий
+// итогового экрана. Первое — крупный акцент, остальные — компактные строки.
+// Побочные эффекты (цель achievedAt, даты бейджей, уведомления) остаются в
+// DB-слое; здесь только приоритет и презентационная модель.
+export function workoutFinishEvents({
   prs = [],
   reached = [],
   newBadges = [],
   insights = [],
 } = {}) {
+  const events = []
+
   if (reached.length) {
     const top = reached.reduce((a, b) => (Number(b.value) > Number(a.value) ? b : a), reached[0])
     const extra = reached.length > 1 ? ` +${reached.length - 1}` : ''
     const reps = top.metric === 'weight' && Number(top.reps) > 0
       ? ` × ${Math.round(Number(top.reps))}`
       : ''
-    return {
+    events.push({
       kind: 'goal',
       emoji: '🎯',
       title: reached.length > 1 ? 'Цели достигнуты!' : 'Цель достигнута!',
       text: `${top.name} — ${fmtMetricValue(top.metric, top.value)}${reps}${extra}`,
       exerciseId: top.exerciseId ?? null,
       celebrated: true,
-    }
+    })
   }
 
   if (prs.length) {
     const top = prs.reduce((a, b) => (Number(b.value) > Number(a.value) ? b : a), prs[0])
     const extra = prs.length > 1 ? ` +${prs.length - 1}` : ''
-    return {
+    events.push({
       kind: 'pr',
       emoji: '🏆',
       title: 'Новый рекорд!',
       text: `${top.name} — ${fmtMetricValue(top.metric, top.value)} (было ${fmtMetricValue(top.metric, top.prev)})${extra}`,
       exerciseId: top.exerciseId ?? null,
       celebrated: true,
-    }
+    })
   }
 
   if (newBadges.length) {
     const top = newBadges[0]
     const extra = newBadges.length > 1 ? ` +${newBadges.length - 1}` : ''
-    return {
+    events.push({
       kind: 'badge',
       emoji: '🏆',
       title: newBadges.length > 1 ? 'Новые достижения!' : 'Новое достижение!',
       text: `${top.icon} ${top.name}${extra}`,
       exerciseId: null,
       celebrated: true,
-    }
+    })
   }
 
   if (insights.length) {
     const top = insights[0]
-    return {
+    events.push({
       kind: 'insight',
       emoji: top.emoji ?? '💡',
       title: 'Вывод после тренировки',
       text: top.text,
       exerciseId: top.exerciseId ?? null,
       celebrated: false,
-    }
+    })
   }
 
-  return null
+  return events.slice(0, 3)
+}
+
+// Совместимый короткий путь для мест, которым нужен только главный акцент.
+export function pickWorkoutFinishEvent(input = {}) {
+  return workoutFinishEvents(input)[0] ?? null
 }

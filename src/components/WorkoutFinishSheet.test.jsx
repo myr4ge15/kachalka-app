@@ -35,13 +35,13 @@ describe('WorkoutFinishSheet', () => {
     render(
       <WorkoutFinishSheet
         workout={workout}
-        event={{
+        events={[{
           kind: 'pr',
           emoji: '🏆',
           title: 'Новый рекорд!',
           text: 'Жим лёжа — 100 кг (было 95 кг)',
           exerciseId: 'bench',
-        }}
+        }]}
         onDone={() => {}}
         onOpenProgress={onOpenProgress}
       />
@@ -51,5 +51,38 @@ describe('WorkoutFinishSheet', () => {
     expect(screen.getByText('Жим лёжа — 100 кг (было 95 кг)')).toBeInTheDocument()
     fireEvent.click(screen.getByRole('button', { name: 'Посмотреть прогресс' }))
     expect(onOpenProgress).toHaveBeenCalledWith('bench')
+  })
+
+  it('показывает дополнительные события компактно и создаёт шаблон одним тапом', () => {
+    const onCreateTemplate = vi.fn()
+    const { rerender } = render(
+      <WorkoutFinishSheet
+        workout={workout}
+        events={[
+          { kind: 'goal', emoji: '🎯', title: 'Цель достигнута!', text: 'Жим — 100 кг' },
+          { kind: 'pr', emoji: '🏆', title: 'Новый рекорд!', text: 'Жим — 100 кг' },
+          { kind: 'badge', emoji: '🏆', title: 'Новое достижение!', text: 'Первый шаг' },
+        ]}
+        onDone={() => {}}
+        onCreateTemplate={onCreateTemplate}
+      />
+    )
+
+    expect(screen.getByRole('list', { name: 'Другие результаты' })).toHaveTextContent('Новый рекорд!')
+    expect(screen.getByRole('list', { name: 'Другие результаты' })).toHaveTextContent('Новое достижение!')
+    fireEvent.click(screen.getByRole('button', { name: '📋 Сохранить как шаблон' }))
+    expect(onCreateTemplate).toHaveBeenCalledOnce()
+
+    rerender(
+      <WorkoutFinishSheet
+        workout={workout}
+        onDone={() => {}}
+        onCreateTemplate={onCreateTemplate}
+        templateStatus="done"
+        templateMessage="Шаблон «Тренировка 30.07» создан"
+      />
+    )
+    expect(screen.getByRole('button', { name: '✓ Шаблон создан' })).toBeDisabled()
+    expect(screen.getByRole('status')).toHaveTextContent('Шаблон «Тренировка 30.07» создан')
   })
 })

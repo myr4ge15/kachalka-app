@@ -2,24 +2,26 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 import { fireEvent, render, screen, waitFor } from '@testing-library/react'
 import { useLiveQuery } from 'dexie-react-hooks'
+import { saveTemplate } from '../db/repo.js'
 import HistoryScreen from './HistoryScreen.jsx'
 
 vi.mock('dexie-react-hooks', () => ({ useLiveQuery: vi.fn() }))
-vi.mock('../db/repo.js', () => ({ getWorkouts: vi.fn() }))
+vi.mock('../db/repo.js', () => ({ getWorkouts: vi.fn(), saveTemplate: vi.fn() }))
+vi.mock('../db/sync.js', () => ({ syncNow: vi.fn() }))
 vi.mock('./WorkoutScreen.jsx', () => ({
   default: ({ workoutId, onSaved }) => (
     <div data-testid="workout-screen">
       {workoutId ?? 'new'}
-      <button onClick={() => onSaved?.({ workout, event: null })}>Сохранить тестовую</button>
+      <button onClick={() => onSaved?.({ workout, events: [] })}>Сохранить тестовую</button>
       <button onClick={() => onSaved?.({
         workout,
-        event: {
+        events: [{
           kind: 'pr',
           emoji: '🏆',
           title: 'Новый рекорд!',
           text: 'Жим лёжа — 80 кг (было 75 кг)',
           exerciseId: 'bench',
-        },
+        }],
       })}>
         Сохранить с рекордом
       </button>
@@ -47,6 +49,8 @@ describe('HistoryScreen', () => {
   beforeEach(() => {
     vi.mocked(useLiveQuery).mockReset()
     vi.mocked(useLiveQuery).mockReturnValue([workout])
+    vi.mocked(saveTemplate).mockReset()
+    vi.mocked(saveTemplate).mockResolvedValue('tpl-1')
     window.matchMedia = vi.fn().mockReturnValue({
       matches: false,
       addEventListener: vi.fn(),
@@ -105,5 +109,25 @@ describe('HistoryScreen', () => {
     fireEvent.click(screen.getByRole('button', { name: 'Посмотреть прогресс' }))
     expect(onOpenProgress).toHaveBeenCalledWith('bench')
     expect(screen.queryByRole('dialog', { name: 'Тренировка готова' })).not.toBeInTheDocument()
+  })
+
+  it('создаёт приватный шаблон из сохранённой тренировки прямо в итоге', async () => {
+    render(<HistoryScreen user={user} openNew />)
+    fireEvent.click(screen.getByRole('button', { name: 'Сохранить тестовую' }))
+
+    fireEvent.click(screen.getByRole('button', { name: '📋 Сохранить как шаблон' }))
+
+    await waitFor(() => expect(saveTemplate).toHaveBeenCalledWith({
+      user_id: user.id,
+      name: 'Тренировка 29.07',
+      exercises: [{
+        exercise: workout.entries[0].exercise,
+        sets: 1,
+        reps: 6,
+        weight: 80,
+      }],
+      is_public: false,
+    }))
+    expect(await screen.findByRole('status')).toHaveTextContent('Шаблон «Тренировка 29.07» создан')
   })
 })
