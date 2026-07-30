@@ -20,6 +20,7 @@ import { vibrate, HAPTIC } from '../lib/haptics.js'
 import { fmtDate } from '../lib/dates.js'
 import { exerciseUsageSections } from '../lib/exerciseUsage.js'
 import { useWorkoutFocus } from '../hooks/useWorkoutFocus.js'
+import { useSetCompletion } from '../hooks/useSetCompletion.js'
 import CardsSkeleton from '../components/CardsSkeleton.jsx'
 import ExercisePicker from '../components/ExercisePicker.jsx'
 import TemplatePicker from '../components/TemplatePicker.jsx'
@@ -56,10 +57,16 @@ export default function WorkoutScreen({ user, workoutId = null, onBack, onSaved 
 
   // Черновик в памяти — только для новой тренировки (ключ привязан к пользователю).
   const DRAFT_KEY = `workout_draft_new_${user.id}`
+  // Отметки выполнения живут рядом с черновиком: уход с экрана посреди занятия
+  // (Лента, Прогресс) не должен гасить галочки, как не гасит состав.
+  const DONE_KEY = `workout_done_new_${user.id}`
 
   const [entries, setEntries] = useState(() => (isNew ? getCache(DRAFT_KEY) ?? [] : []))
   const { activeExerciseId, activeCardRef, activateExercise } = useWorkoutFocus(entries, {
     preferIncomplete: !isNew,
+  })
+  const { doneKeys, toggleSetDone, markEntriesDone } = useSetCompletion({
+    cacheKey: isNew ? DONE_KEY : null,
   })
   const [performedAt, setPerformedAt] = useState(() => new Date().toISOString())
   const [loading, setLoading] = useState(!isNew)
@@ -94,7 +101,11 @@ export default function WorkoutScreen({ user, workoutId = null, onBack, onSaved 
     getWorkout(workoutId).then((w) => {
       if (!alive) return
       if (w) {
-        setEntries(toEntries(w))
+        const loaded = toEntries(w)
+        setEntries(loaded)
+        // Уже записанная тренировка выполнена целиком — открываем её с отметками,
+        // иначе свёрнутые карточки врали бы «не выполнено» по истории.
+        markEntriesDone(loaded)
         setPerformedAt(w.performed_at ?? new Date().toISOString())
       } else {
         setMessage({ type: 'error', text: 'Тренировка не найдена.' })
@@ -102,7 +113,7 @@ export default function WorkoutScreen({ user, workoutId = null, onBack, onSaved 
       setLoading(false)
     })
     return () => { alive = false }
-  }, [isNew, workoutId])
+  }, [isNew, workoutId, markEntriesDone])
 
   function openAddPicker() {
     setReplaceIdx(null)
@@ -329,7 +340,10 @@ export default function WorkoutScreen({ user, workoutId = null, onBack, onSaved 
         performed_at: performedAt,
         entries,
       }
-      if (isNew) clearCache(DRAFT_KEY)
+      if (isNew) {
+        clearCache(DRAFT_KEY)
+        clearCache(DONE_KEY) // отметки — состояние этого занятия, следующему не наследуются
+      }
       // Тактильный отклик по итогу сохранения: рекорд/цель — «праздничный»
       // паттерн, обычное сохранение — короткий success (см. lib/haptics.js).
       let finishEvents = []
@@ -372,6 +386,7 @@ export default function WorkoutScreen({ user, workoutId = null, onBack, onSaved 
   function clearDraft() {
     clearCache(DRAFT_KEY)
     setEntries([])
+    markEntriesDone([]) // пустой состав → отметок выполнения тоже нет
     setClearArm(false)
   }
 
@@ -491,6 +506,8 @@ export default function WorkoutScreen({ user, workoutId = null, onBack, onSaved 
               active={entry.exercise.id === activeExerciseId}
               cardRef={entry.exercise.id === activeExerciseId ? activeCardRef : null}
               onActivate={activateExercise}
+              doneKeys={doneKeys}
+              onToggleSetDone={toggleSetDone}
               onReplace={openReplacePicker}
               onRemove={removeExercise}
               onRevertProg={revertProg}

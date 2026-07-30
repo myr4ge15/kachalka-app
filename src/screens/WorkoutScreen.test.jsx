@@ -131,6 +131,54 @@ describe('WorkoutScreen', () => {
     })
   })
 
+  it('отмечает подход выполненным, и свёрнутая карточка показывает готовность', () => {
+    setCache(`workout_draft_new_${user.id}`, [...draft, secondEntry])
+    render(<WorkoutScreen user={user} />)
+
+    fireEvent.click(screen.getByRole('button', { name: 'Отметить подход 1 выполненным' }))
+    expect(screen.getByRole('button', { name: 'Подход 1 выполнен' })).toBeInTheDocument()
+
+    // Уводим фокус на другое упражнение — статус читается уже в свёрнутом виде.
+    fireEvent.click(screen.getByRole('button', { name: /Открыть Подтягивания/ }))
+    expect(screen.getByText('✓ выполнено · 1 подход · 60×8')).toBeInTheDocument()
+    expect(screen.getByRole('button', { name: /Открыть Жим лёжа/ }))
+      .toBeInTheDocument()
+  })
+
+  it('отметки выполнения не попадают в сохраняемый состав', async () => {
+    setCache(`workout_draft_new_${user.id}`, draft)
+    render(<WorkoutScreen user={user} />)
+
+    fireEvent.click(screen.getByRole('button', { name: 'Отметить подход 1 выполненным' }))
+    fireEvent.click(screen.getByRole('button', { name: 'Сохранить (1)' }))
+
+    await waitFor(() => expect(saveWorkout).toHaveBeenCalledOnce())
+    const saved = vi.mocked(saveWorkout).mock.calls[0][0].entries
+    expect(saved[0].sets).toEqual([{ weight: 60, reps: 8, _k: 'set-1' }])
+  })
+
+  it('правка сохранённой тренировки открывается с отмеченными подходами', async () => {
+    vi.mocked(getWorkout).mockResolvedValue({
+      id: 'w1',
+      performed_at: '2026-07-30T12:00:00.000Z',
+      entries: [
+        { exercise_id: 'bench', exercise: draft[0].exercise, sets: [{ weight: 60, reps: 8 }] },
+        {
+          exercise_id: 'squat',
+          exercise: { id: 'squat', name: 'Присед', metric: 'weight' },
+          sets: [{ weight: 0, reps: 0 }],
+        },
+      ],
+    })
+    render(<WorkoutScreen user={user} workoutId="w1" />)
+
+    await screen.findByText('Присед')
+    // Записанная тренировка выполнена: свёрнутый жим не выглядит незавершённым,
+    // а активный присед показывает подход как выполненный.
+    expect(screen.getByText('✓ выполнено · 1 подход · 60×8')).toBeInTheDocument()
+    expect(screen.getByRole('button', { name: 'Подход 1 выполнен' })).toBeInTheDocument()
+  })
+
   it('при редактировании начинает с первого незаполненного упражнения', async () => {
     vi.mocked(getWorkout).mockResolvedValue({
       id: 'w1',

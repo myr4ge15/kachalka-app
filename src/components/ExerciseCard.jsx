@@ -5,15 +5,19 @@ import {
   daysAgoLabel, progArrow, progTone, nextProgStep, fmtProgStep,
 } from '../lib/progressionCard.js'
 import { exerciseFocusSummary } from '../lib/workoutFocus.js'
+import { isSetDone } from '../lib/setCompletion.js'
 
 // Карточка одного упражнения в композере тренировки (шапка, панель автопрогрессии
 // .ap, таблица подходов, «+ подход»). Чисто презентационная: весь стейт и его
 // апдейтеры приходят колбэками. `active`/`onActivate(exerciseId)` — контракт
-// будущего фокус-режима; Slice 0 только сообщает касание/фокус, не сворачивая UI.
+// фокус-режима: активная карточка развёрнута, остальные сворачиваются в сводку.
 // `prog` — live-query настроек прогрессии (для resolveProgSettings в панели
 // настроек), `ei` — индекс записи (ключ существующих апдейтеров).
+// `doneKeys`/`onToggleSetDone` — явные отметки выполнения подходов (Slice 2):
+// транзиентное состояние экрана, в документ тренировки не попадает.
 export default function ExerciseCard({
   entry, ei, prog, active = true, cardRef = null, onActivate = () => {},
+  doneKeys = null, onToggleSetDone = () => {},
   onReplace, onRemove,
   onRevertProg, onApplyProg, onToggleProgSettings, onChangeProgSettings,
   onUpdateSet, onStep, onAddSet, onRemoveSet,
@@ -22,16 +26,18 @@ export default function ExerciseCard({
   const count = isCountMetric(metric) // своего веса / на время — без столбца «кг»
   const isTime = metric === 'time'
   const valLabel = isTime ? 'мин:сек' : 'повт.'
-  const summary = exerciseFocusSummary(entry)
+  const summary = exerciseFocusSummary(entry, doneKeys)
 
-  // Неактивные упражнения остаются доступны одной крупной кнопкой. Сводка
-  // намеренно без «готово/заполнено»: значения мог подставить шаблон.
+  // Свёрнутое упражнение доступно одной крупной кнопкой. Сводка отвечает на
+  // «выполнено или нет» ТОЛЬКО по явным отметкам: заполненные значения могли
+  // приехать из шаблона или автопрогрессии.
   if (!active) {
     return (
       <div
-        className={`card exercise-card exercise-card--compact${count ? ' count' : ''}`}
+        className={`card exercise-card exercise-card--compact${count ? ' count' : ''}${summary.allDone ? ' exercise-card--done' : ''}`}
         data-exercise-id={entry.exercise.id}
         data-active="false"
+        data-done={summary.allDone ? 'true' : 'false'}
       >
         <button
           type="button"
@@ -42,7 +48,7 @@ export default function ExerciseCard({
         >
           <span className="exercise-compact-copy">
             <strong>{entry.exercise.name}</strong>
-            <span className="muted">{summary.text}</span>
+            <span className={`muted${summary.allDone ? ' done' : ''}`}>{summary.text}</span>
           </span>
           <span className="exercise-compact-chevron" aria-hidden="true">›</span>
         </button>
@@ -155,44 +161,59 @@ export default function ExerciseCard({
           : <><span>#</span><span>кг</span><span>повт.</span><span></span></>}
       </div>
 
-      {entry.sets.map((s, si) => (
-        <div key={s._k ?? si} className="set-row">
-          <span className="set-num">{si + 1}</span>
+      {entry.sets.map((s, si) => {
+        const done = isSetDone(doneKeys, entry.exercise.id, s, si)
+        return (
+          <div key={s._k ?? si} className={`set-row${done ? ' set-row--done' : ''}`}>
+            {/* Номер подхода — он же отметка выполнения: зона тапа 44×44 без
+                отдельного столбца, поэтому степперы не теряют ширину. */}
+            <button
+              type="button"
+              className={`set-done${done ? ' on' : ''}`}
+              aria-pressed={done}
+              aria-label={done
+                ? `Подход ${si + 1} выполнен`
+                : `Отметить подход ${si + 1} выполненным`}
+              onClick={() => onToggleSetDone(entry.exercise.id, s, si)}
+            >
+              <span aria-hidden="true">{done ? '✓' : si + 1}</span>
+            </button>
 
-          {!count && (
-            <div className="stepper">
-              <HoldButton onTrigger={() => onStep(ei, si, 'weight', -1.25)}>−</HoldButton>
-              <input
-                type="text" inputMode="decimal" value={s.weight}
-                onChange={(e) => onUpdateSet(ei, si, 'weight', e.target.value.replace(',', '.'))}
-              />
-              <HoldButton onTrigger={() => onStep(ei, si, 'weight', 1.25)}>+</HoldButton>
-            </div>
-          )}
+            {!count && (
+              <div className="stepper">
+                <HoldButton onTrigger={() => onStep(ei, si, 'weight', -1.25)}>−</HoldButton>
+                <input
+                  type="text" inputMode="decimal" value={s.weight}
+                  onChange={(e) => onUpdateSet(ei, si, 'weight', e.target.value.replace(',', '.'))}
+                />
+                <HoldButton onTrigger={() => onStep(ei, si, 'weight', 1.25)}>+</HoldButton>
+              </div>
+            )}
 
-          {isTime ? (
-            <div className="stepper">
-              <HoldButton onTrigger={() => onStep(ei, si, 'reps', -15)}>−</HoldButton>
-              <input
-                type="text" inputMode="numeric" value={fmtTime(s.reps)}
-                onChange={(e) => onUpdateSet(ei, si, 'reps', parseTime(e.target.value))}
-              />
-              <HoldButton onTrigger={() => onStep(ei, si, 'reps', 15)}>+</HoldButton>
-            </div>
-          ) : (
-            <div className="stepper">
-              <HoldButton onTrigger={() => onStep(ei, si, 'reps', -1)}>−</HoldButton>
-              <input
-                type="number" inputMode="numeric" value={s.reps}
-                onChange={(e) => onUpdateSet(ei, si, 'reps', e.target.value)}
-              />
-              <HoldButton onTrigger={() => onStep(ei, si, 'reps', 1)}>+</HoldButton>
-            </div>
-          )}
+            {isTime ? (
+              <div className="stepper">
+                <HoldButton onTrigger={() => onStep(ei, si, 'reps', -15)}>−</HoldButton>
+                <input
+                  type="text" inputMode="numeric" value={fmtTime(s.reps)}
+                  onChange={(e) => onUpdateSet(ei, si, 'reps', parseTime(e.target.value))}
+                />
+                <HoldButton onTrigger={() => onStep(ei, si, 'reps', 15)}>+</HoldButton>
+              </div>
+            ) : (
+              <div className="stepper">
+                <HoldButton onTrigger={() => onStep(ei, si, 'reps', -1)}>−</HoldButton>
+                <input
+                  type="number" inputMode="numeric" value={s.reps}
+                  onChange={(e) => onUpdateSet(ei, si, 'reps', e.target.value)}
+                />
+                <HoldButton onTrigger={() => onStep(ei, si, 'reps', 1)}>+</HoldButton>
+              </div>
+            )}
 
-          <button className="link-btn danger small" onClick={() => onRemoveSet(ei, si)}>✕</button>
-        </div>
-      ))}
+            <button className="link-btn danger small" onClick={() => onRemoveSet(ei, si)}>✕</button>
+          </div>
+        )
+      })}
 
       <button className="btn ghost full" onClick={() => onAddSet(ei)}>
         + подход (повтор предыдущего)

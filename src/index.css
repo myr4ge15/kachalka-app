@@ -495,20 +495,47 @@ input { font-family: inherit; }
   overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
 }
 .exercise-compact-copy .muted { font-size: 11px; }
+/* Свёрнутое упражнение с явно отмеченными подходами: статус читается цветом,
+   не только текстом (сам текст сводки даёт «✓ выполнено · …»). */
+.exercise-compact-copy .muted.done { color: var(--green); }
+.exercise-card--done { border-color: rgba(46, 230, 160, .28); }
 .exercise-compact-chevron {
   color: var(--muted); font-size: 22px; text-align: right;
 }
 
 .sets-head, .set-row {
-  display: grid; grid-template-columns: 22px 1fr 1fr 26px; gap: 6px; align-items: center;
+  display: grid; grid-template-columns: 44px 1fr 1fr 26px; gap: 6px; align-items: center;
 }
 /* Упражнение без веса (своего веса / на время): один столбец значения */
 .exercise-card.count .sets-head, .exercise-card.count .set-row {
-  grid-template-columns: 22px 1fr 26px;
+  grid-template-columns: 44px 1fr 26px;
 }
 .sets-head { color: var(--muted); font-size: 12px; margin-bottom: 6px; text-align: center; }
 .set-row { margin-bottom: 8px; }
 .set-num { text-align: center; color: var(--muted); }
+/* Отметка «подход выполнен» (PLAN-workout-focus, Slice 2). Номер подхода И есть
+   переключатель: своя зона тапа 44×44 без отдельного столбца, поэтому степперы
+   не отдают ширину. Значения при отметке НЕ меняются — только их подача. */
+.set-done {
+  width: 44px; height: 44px; padding: 0;
+  display: flex; align-items: center; justify-content: center;
+  border-radius: 12px; border: 1px solid var(--border);
+  background: var(--surface-2); color: var(--muted);
+  font-size: 15px; font-weight: 600;
+  user-select: none; -webkit-user-select: none; touch-action: manipulation;
+  transition: transform var(--dur-fast) var(--ease-out),
+              background var(--dur-fast) var(--ease-out), color var(--dur-fast) var(--ease-out);
+}
+/* Короткий «snap» нажатия; под prefers-reduced-motion длительности занулены. */
+.set-done:active { transform: scale(.92); }
+.set-done.on {
+  border-color: var(--green); color: var(--green);
+  background: rgba(46, 230, 160, .14);
+  font-size: 18px;
+}
+/* Выполненный подход уходит на второй план: значения остаются читаемыми и
+   правятся как обычно, но взгляд ведёт к невыполненным строкам. */
+.set-row--done .stepper input { color: var(--muted); }
 
 .stepper { display: flex; align-items: center; gap: 3px; }
 .stepper button {
@@ -1692,9 +1719,10 @@ label.act.busy { opacity: .55; pointer-events: none; }
   .screen { padding: 12px; }
   .card { padding: 14px; }
   .exercise-card, .history-card, .feed-card { padding: 12px; }
-  /* ещё сильнее поджимаем степперы, чтобы цифры влезали на маленьких телефонах */
-  .sets-head, .set-row { grid-template-columns: 20px 1fr 1fr 24px; gap: 5px; }
-  .exercise-card.count .sets-head, .exercise-card.count .set-row { grid-template-columns: 20px 1fr 24px; }
+  /* ещё сильнее поджимаем степперы, чтобы цифры влезали на маленьких телефонах.
+     Столбец отметки выполнения остаётся 44px — зону тапа не урезаем. */
+  .sets-head, .set-row { grid-template-columns: 44px 1fr 1fr 24px; gap: 5px; }
+  .exercise-card.count .sets-head, .exercise-card.count .set-row { grid-template-columns: 44px 1fr 24px; }
   .stepper button { width: 30px; font-size: 18px; }
   .profile .stat-num { font-size: 22px; }
 }

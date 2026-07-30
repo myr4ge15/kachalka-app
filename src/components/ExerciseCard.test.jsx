@@ -48,6 +48,7 @@ function renderCard(entry, cbOver = {}, propOver = {}) {
     onRevertProg: vi.fn(), onApplyProg: vi.fn(),
     onToggleProgSettings: vi.fn(), onChangeProgSettings: vi.fn(),
     onUpdateSet: vi.fn(), onStep: vi.fn(), onAddSet: vi.fn(), onRemoveSet: vi.fn(),
+    onToggleSetDone: vi.fn(),
     ...cbOver,
   }
   const utils = render(
@@ -93,6 +94,27 @@ describe('ExerciseCard — рендер', () => {
     expect(cbs.onActivate).toHaveBeenCalledWith('e1')
   })
 
+  it('компактная карточка показывает прогресс и полную готовность по отметкам', () => {
+    const { container, rerender } = renderCard(weightEntry(), {}, {
+      active: false,
+      doneKeys: new Set(['e1::a']),
+    })
+    expect(screen.getByText('выполнено 1 из 2 · 60×10')).toBeInTheDocument()
+    expect(container.querySelector('[data-exercise-id="e1"]')).toHaveAttribute('data-done', 'false')
+
+    rerender(
+      <ExerciseCard
+        entry={weightEntry()}
+        ei={0}
+        prog={{ enabled: true, byExercise: {} }}
+        active={false}
+        doneKeys={new Set(['e1::a', 'e1::b'])}
+      />
+    )
+    expect(screen.getByText('✓ выполнено · 2 подхода · 60×10')).toBeInTheDocument()
+    expect(container.querySelector('[data-exercise-id="e1"]')).toHaveAttribute('data-done', 'true')
+  })
+
   it('нейтрально показывает отсутствие значений без ложного статуса', () => {
     const incomplete = { ...weightEntry(), sets: [{ weight: 0, reps: 0, _k: 'a' }] }
     renderCard(incomplete, {}, { active: false })
@@ -129,7 +151,7 @@ describe('ExerciseCard — колбэки шапки/подходов перед
 
   it('«+ подход» → onAddSet(ei)', () => {
     const { cbs } = renderCard(weightEntry())
-    fireEvent.click(screen.getByRole('button', { name: /подход/ }))
+    fireEvent.click(screen.getByRole('button', { name: '+ подход (повтор предыдущего)' }))
     expect(cbs.onAddSet).toHaveBeenCalledWith(0)
   })
 
@@ -137,6 +159,30 @@ describe('ExerciseCard — колбэки шапки/подходов перед
     const { cbs } = renderCard(weightEntry())
     fireEvent.click(screen.getAllByText('✕')[0])
     expect(cbs.onRemoveSet).toHaveBeenCalledWith(0, 0)
+  })
+})
+
+describe('ExerciseCard — отметка выполнения подхода (Slice 2)', () => {
+  it('номер подхода переключает готовность и отдаёт упражнение с подходом', () => {
+    const entry = weightEntry()
+    const { cbs } = renderCard(entry)
+
+    fireEvent.click(screen.getByRole('button', { name: 'Отметить подход 2 выполненным' }))
+
+    expect(cbs.onToggleSetDone).toHaveBeenCalledWith('e1', entry.sets[1], 1)
+  })
+
+  it('отмеченный подход показывает ✓, нажатое состояние и не теряет значения', () => {
+    const { container } = renderCard(weightEntry(), {}, { doneKeys: new Set(['e1::a']) })
+    const toggle = screen.getByRole('button', { name: 'Подход 1 выполнен' })
+
+    expect(toggle).toHaveAttribute('aria-pressed', 'true')
+    expect(toggle).toHaveTextContent('✓')
+    expect(container.querySelectorAll('.set-row--done')).toHaveLength(1)
+    // Значения подхода остаются доступными для правки — отмена не удаляет ввод.
+    expect(screen.getAllByDisplayValue('60')).toHaveLength(2)
+    expect(screen.getByRole('button', { name: 'Отметить подход 2 выполненным' }))
+      .toHaveAttribute('aria-pressed', 'false')
   })
 })
 

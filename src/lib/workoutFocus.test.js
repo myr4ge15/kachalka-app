@@ -50,9 +50,35 @@ describe('exerciseFocusSummary', () => {
       { weight: 65, reps: 8 },
     ]))).toEqual({
       setCount: 2,
+      doneCount: 0,
+      allDone: false,
       best: '65×8',
       text: '2 подхода · 65×8',
     })
+  })
+
+  it('показывает частичный и полный прогресс по явным отметкам', () => {
+    const bench = entry('bench', [
+      { weight: 65, reps: 6, _k: 'a' },
+      { weight: 65, reps: 8, _k: 'b' },
+    ])
+
+    expect(exerciseFocusSummary(bench, new Set(['bench::a']))).toMatchObject({
+      doneCount: 1,
+      allDone: false,
+      text: 'выполнено 1 из 2 · 65×8',
+    })
+    expect(exerciseFocusSummary(bench, new Set(['bench::a', 'bench::b']))).toMatchObject({
+      allDone: true,
+      text: '✓ выполнено · 2 подхода · 65×8',
+    })
+  })
+
+  it('отмеченный подход без значений не приписывает «значения не указаны»', () => {
+    expect(exerciseFocusSummary(
+      entry('bench', [{ weight: 0, reps: 0, _k: 'a' }]),
+      new Set(['bench::a'])
+    )).toMatchObject({ text: '✓ выполнено · 1 подход' })
   })
 
   it('нейтрально показывает отсутствие значений', () => {
