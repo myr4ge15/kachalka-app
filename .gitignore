@@ -8,6 +8,8 @@ dist-ssr
 .DS_Store
 .vscode/*
 !.vscode/extensions.json
+# локальные разрешения Claude Code (специфичны для машины); общий .claude/ можно коммитить
+.claude/settings.local.json
 npm-debug.log*
 yarn-debug.log*
 yarn-error.log*
