@@ -1,5 +1,11 @@
 import { describe, it, expect } from 'vitest'
-import { dayTags, tagSlug, groupAccusative } from './dayTags.js'
+import {
+  daySubTags,
+  dayTags,
+  tagSlug,
+  groupAccusative,
+  matchesGroup,
+} from './dayTags.js'
 
 describe('dayTags', () => {
   it('уникальные группы в каноническом порядке', () => {
@@ -13,6 +19,18 @@ describe('dayTags', () => {
 
   it('поддерживает оба формата записи', () => {
     expect(dayTags([{ muscle_group: 'ноги' }])).toEqual(['ноги'])
+  })
+
+  it('кардио одновременно проходит фильтр и остаётся видимой меткой карточки', () => {
+    const entries = [{
+      exercise: {
+        muscle_group: 'кардио',
+        submuscle: 'cardio',
+      },
+    }]
+
+    expect(matchesGroup(entries, 'кардио')).toBe(true)
+    expect(daySubTags(entries)).toContain('cardio')
   })
 })
 

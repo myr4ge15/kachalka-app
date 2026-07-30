@@ -41,13 +41,16 @@ function subOf(entry) {
 }
 
 // Теги дня на уровне ПОДМЫШЦ: уникальные основные подмышцы всех упражнений в
-// каноническом порядке SUBMUSCLE_SLUGS (кардио пропускаем). Цвет чипа наследуется
-// от major (tagSlug(majorOf(sub))), подпись — labelOf(sub) (см. экраны).
+// каноническом порядке SUBMUSCLE_SLUGS. Кардио оставляем видимой меткой: фильтр
+// истории умеет отбирать по группе «кардио», и карточка должна объяснять, почему
+// она попала в результат. В расчётах восстановления кардио по-прежнему отдельно
+// исключается в freshness.js. Цвет чипа наследуется от major
+// (tagSlug(majorOf(sub))), подпись — labelOf(sub) (см. экраны).
 export function daySubTags(entries) {
   const set = new Set()
   for (const e of entries ?? []) {
     const s = subOf(e)
-    if (s && s !== 'cardio') set.add(s)
+    if (s) set.add(s)
   }
   return SUBMUSCLE_SLUGS.filter((s) => set.has(s))
 }
