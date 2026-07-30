@@ -504,20 +504,24 @@ input { font-family: inherit; }
 }
 
 .sets-head, .set-row {
-  display: grid; grid-template-columns: 44px 1fr 1fr 26px; gap: 6px; align-items: center;
+  display: grid; grid-template-columns: 26px 1fr 1fr 26px; gap: 6px; align-items: center;
 }
 /* Упражнение без веса (своего веса / на время): один столбец значения */
 .exercise-card.count .sets-head, .exercise-card.count .set-row {
-  grid-template-columns: 44px 1fr 26px;
+  grid-template-columns: 26px 1fr 26px;
 }
 .sets-head { color: var(--muted); font-size: 12px; margin-bottom: 6px; text-align: center; }
 .set-row { margin-bottom: 8px; }
 .set-num { text-align: center; color: var(--muted); }
 /* Отметка «подход выполнен» (PLAN-workout-focus, Slice 2). Номер подхода И есть
-   переключатель: своя зона тапа 44×44 без отдельного столбца, поэтому степперы
-   не отдают ширину. Значения при отметке НЕ меняются — только их подача. */
+   переключатель. Столбец держим узким (как был у .set-num): ширину строки
+   выкупают степперы — инпут рассчитан так, чтобы «112.5» влезало целиком, и на
+   узких телефонах лишние 20px превращали значение в обрезок. Зону тапа добираем
+   невидимым ::after — он растёт в отступ карточки и в межстрочный зазор, то есть
+   в пустоту, а не в соседний степпер. Значения при отметке НЕ меняются. */
 .set-done {
-  width: 44px; height: 44px; padding: 0;
+  position: relative;
+  width: 100%; height: 44px; padding: 0;
   display: flex; align-items: center; justify-content: center;
   border-radius: 12px; border: 1px solid var(--border);
   background: var(--surface-2); color: var(--muted);
@@ -526,6 +530,9 @@ input { font-family: inherit; }
   transition: transform var(--dur-fast) var(--ease-out),
               background var(--dur-fast) var(--ease-out), color var(--dur-fast) var(--ease-out);
 }
+/* Зазор строки — 8px, поэтому по 4px сверху/снизу смыкаются встык и зоны
+   соседних подходов не перекрываются. Справа 4px < gap (5–6px) — степпер цел. */
+.set-done::after { content: ''; position: absolute; inset: -4px -4px -4px -10px; }
 /* Короткий «snap» нажатия; под prefers-reduced-motion длительности занулены. */
 .set-done:active { transform: scale(.92); }
 .set-done.on {
@@ -1720,9 +1727,10 @@ label.act.busy { opacity: .55; pointer-events: none; }
   .card { padding: 14px; }
   .exercise-card, .history-card, .feed-card { padding: 12px; }
   /* ещё сильнее поджимаем степперы, чтобы цифры влезали на маленьких телефонах.
-     Столбец отметки выполнения остаётся 44px — зону тапа не урезаем. */
-  .sets-head, .set-row { grid-template-columns: 44px 1fr 1fr 24px; gap: 5px; }
-  .exercise-card.count .sets-head, .exercise-card.count .set-row { grid-template-columns: 44px 1fr 24px; }
+     Столбец отметки выполнения жмём вместе со всеми — зона тапа держится на
+     ::after (высота кнопки 44px тут не меняется). */
+  .sets-head, .set-row { grid-template-columns: 24px 1fr 1fr 24px; gap: 5px; }
+  .exercise-card.count .sets-head, .exercise-card.count .set-row { grid-template-columns: 24px 1fr 24px; }
   .stepper button { width: 30px; font-size: 18px; }
   .profile .stat-num { font-size: 22px; }
 }

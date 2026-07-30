@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
 import {
-  allSetKeys, exerciseCompletion, isSetDone, setDoneKey, toggleDoneKey,
+  allSetKeys, exerciseCompletion, isSetDone, remapExerciseKeys, setDoneKey, toggleDoneKey,
 } from './setCompletion.js'
 
 const bench = () => ({
@@ -44,6 +44,29 @@ describe('allSetKeys', () => {
   it('устойчив к пустому и битому составу', () => {
     expect(allSetKeys(null)).toEqual([])
     expect(allSetKeys([{ exercise: null, sets: null }])).toEqual([])
+  })
+})
+
+describe('remapExerciseKeys', () => {
+  it('переносит отметки на новый id и не трогает чужие', () => {
+    const next = remapExerciseKeys(new Set(['bench::a', 'bench::b', 'pullup::c']), 'bench', 'db')
+
+    expect([...next].sort()).toEqual(['db::a', 'db::b', 'pullup::c'])
+  })
+
+  it('«заменить» сохраняет подходы — значит и готовность упражнения', () => {
+    const replaced = { ...bench(), exercise: { id: 'db', metric: 'weight' } }
+    const done = remapExerciseKeys(new Set(['bench::a', 'bench::b']), 'bench', 'db')
+
+    expect(exerciseCompletion(replaced, done)).toMatchObject({ doneCount: 2, allDone: true })
+  })
+
+  it('ничего не делает без отметок или при том же id', () => {
+    const keys = new Set(['bench::a'])
+
+    expect(remapExerciseKeys(keys, 'bench', 'bench')).toBe(keys)
+    expect(remapExerciseKeys(null, 'bench', 'db').size).toBe(0)
+    expect(remapExerciseKeys(keys, 'bench', null)).toBe(keys)
   })
 })
 

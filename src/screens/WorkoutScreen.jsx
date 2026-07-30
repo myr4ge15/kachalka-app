@@ -65,7 +65,7 @@ export default function WorkoutScreen({ user, workoutId = null, onBack, onSaved 
   const { activeExerciseId, activeCardRef, activateExercise } = useWorkoutFocus(entries, {
     preferIncomplete: !isNew,
   })
-  const { doneKeys, toggleSetDone, markEntriesDone } = useSetCompletion({
+  const { doneKeys, toggleSetDone, remapExercise, markEntriesDone } = useSetCompletion({
     cacheKey: isNew ? DONE_KEY : null,
   })
   const [performedAt, setPerformedAt] = useState(() => new Date().toISOString())
@@ -225,6 +225,9 @@ export default function WorkoutScreen({ user, workoutId = null, onBack, onSaved 
       return
     }
     setEntries((prev) => replaceExerciseIn(prev, idx, ex))
+    // Подходы пережили замену — отметки выполнения тоже: ключ отметки завязан на
+    // exercise.id, и без переноса галочки пропали бы при сохранённых значениях.
+    remapExercise(cur.exercise.id, ex.id)
     activateExercise(ex.id)
   }
 

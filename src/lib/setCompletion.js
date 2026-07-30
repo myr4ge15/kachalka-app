@@ -13,6 +13,10 @@
 //   • «Применить рекомендацию»/«вернуть как в прошлый раз» выдают свежие `_k`, то есть
 //     подменённые значения честно считаются невыполненными.
 // Фолбэк на индекс нужен только для подходов без `_k` (документ из Dexie до toEntries).
+//
+// Исключение — «заменить»: там подходы (и их `_k`) СОХРАНЯЮТСЯ намеренно, чтобы не
+// вводить числа заново, меняется только exercise.id. Отметки обязаны переехать вместе
+// с ними (`remapExerciseKeys`), иначе значения остаются, а галочки молча пропадают.
 // ============================================================================
 
 export function setDoneKey(exerciseId, set, si) {
@@ -32,6 +36,18 @@ export function allSetKeys(entries) {
 
 export function isSetDone(doneKeys, exerciseId, set, si) {
   return !!doneKeys?.has(setDoneKey(exerciseId, set, si))
+}
+
+// Перенос отметок упражнения на новый id («заменить» сохраняет подходы и их `_k`).
+// Ключи прочих упражнений не трогаем; множество возвращаем новое (иммутабельность).
+export function remapExerciseKeys(doneKeys, fromId, toId) {
+  if (!doneKeys?.size || !fromId || !toId || fromId === toId) return doneKeys ?? new Set()
+  const prefix = `${fromId}::`
+  const next = new Set()
+  for (const key of doneKeys) {
+    next.add(key.startsWith(prefix) ? `${toId}::${key.slice(prefix.length)}` : key)
+  }
+  return next
 }
 
 // Иммутабельное переключение (отмена доступна тем же тапом и НЕ трогает значения).

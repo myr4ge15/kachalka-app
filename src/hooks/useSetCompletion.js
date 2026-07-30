@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useState } from 'react'
-import { allSetKeys, setDoneKey, toggleDoneKey } from '../lib/setCompletion.js'
+import { allSetKeys, remapExerciseKeys, setDoneKey, toggleDoneKey } from '../lib/setCompletion.js'
 import { getCache, setCache } from '../lib/cache.js'
 import { vibrate, HAPTIC } from '../lib/haptics.js'
 
@@ -25,11 +25,17 @@ export function useSetCompletion({ cacheKey = null } = {}) {
     vibrate(HAPTIC.tap)
   }, [])
 
+  // «Заменить» оставляет введённые подходы — отметки переезжают на новый id вместе
+  // с ними, иначе значения сохраняются, а галочки пропадают (см. setCompletion.js).
+  const remapExercise = useCallback((fromId, toId) => {
+    setDoneKeys((prev) => remapExerciseKeys(prev, fromId, toId))
+  }, [])
+
   // Засев по составу: правка уже сохранённой тренировки открывается «всё выполнено»
   // (записанная тренировка по определению выполнена), пустой состав — сброс отметок.
   const markEntriesDone = useCallback((entries) => {
     setDoneKeys(new Set(allSetKeys(entries)))
   }, [])
 
-  return { doneKeys, toggleSetDone, markEntriesDone }
+  return { doneKeys, toggleSetDone, remapExercise, markEntriesDone }
 }
