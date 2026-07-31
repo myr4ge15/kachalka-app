@@ -160,4 +160,25 @@ test('вход → запись тренировки → она в истори�
   await expect(page.getByRole('dialog', { name: 'Тренировка готова' })).toBeVisible()
   await page.getByRole('button', { name: 'Готово' }).click()
   await expect(page.locator('.history-card').first()).toContainText('2 упр · 2 подх.')
+
+  // --- зоны тапа отметок выполнения (геометрия, юнитам не видна) -------------
+  // Отметки соседних подходов не имеют права делить межстрочный зазор: раздутая
+  // на ±4px невидимая зона смыкалась встык с соседней, и тап чуть выше отметки N
+  // снимал галочку с N−1 — молча и не там, куда целились. Ничего не сохраняем,
+  // это последний шаг сценария.
+  await page.locator('.history-card').first().click()
+  await page.getByRole('button', { name: '+ подход (повтор предыдущего)' }).click()
+  const marks = page.locator('.exercise-card--active .set-done')
+  await expect(marks).toHaveCount(2)
+  const hits = await marks.nth(1).evaluate((node) => {
+    const rect = node.getBoundingClientRect()
+    const at = (dy) => {
+      const el = document.elementFromPoint(rect.x + rect.width / 2, rect.y + dy)
+      const mark = el?.closest?.('.set-done')
+      return mark ? [...document.querySelectorAll('.set-done')].indexOf(mark) : null
+    }
+    // Над отметкой второго подхода — либо она сама, либо ничьё пространство.
+    return [at(-6), at(-2), at(rect.height / 2)]
+  })
+  expect(hits).toEqual([null, null, 1])
 })

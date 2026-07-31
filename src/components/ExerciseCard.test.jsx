@@ -149,6 +149,8 @@ describe('ExerciseCard — колбэки шапки/подходов перед
     expect(cbs.onRemove).toHaveBeenCalledWith(0)
   })
 
+  // Запрос намеренно точный: с отметками выполнения (Slice 2) в карточке есть ещё
+  // кнопки «Отметить подход N выполненным», и широкое /подход/ стало неоднозначным.
   it('«+ подход» → onAddSet(ei)', () => {
     const { cbs } = renderCard(weightEntry())
     fireEvent.click(screen.getByRole('button', { name: '+ подход (повтор предыдущего)' }))

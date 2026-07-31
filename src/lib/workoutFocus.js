@@ -32,6 +32,23 @@ export function pickActiveExerciseId(entries, currentId, { preferIncomplete = fa
   return preferred?.exercise?.id ?? list[0]?.exercise?.id ?? null
 }
 
+// Заявка фокуса на явное действие пользователя: `{ id, revision }`, где рост
+// revision — единственный триггер reveal-скролла (центрирования карточки).
+//
+// Ключевое: активная карточка выбирается АВТОМАТИЧЕСКИ (`pickActiveExerciseId`),
+// пока заявки нет (`request.id === null`), поэтому первый же тап внутри неё —
+// по инпуту, степперу, отметке подхода — приходил как «смена фокуса» и уводил
+// экран в центр ПОД ПАЛЬЦЕМ. Плавная прокрутка длится доли секунды, следующий тап
+// попадал в съехавшую соседнюю строку и снимал отметку не с того подхода.
+// Поэтому: заявку фиксируем (иначе выбор продолжит «плыть» за составом), но
+// revision растёт ТОЛЬКО когда фокус реально переходит на другое упражнение.
+export function nextFocusRequest(request, exerciseId, activeExerciseId) {
+  const id = exerciseId ?? null
+  if (request.id === id) return request
+  const switching = id !== null && id !== activeExerciseId
+  return { id, revision: switching ? request.revision + 1 : request.revision }
+}
+
 // Данные компактной карточки: нейтральная сводка введённых значений плюс — если
 // пользователь ЯВНО отмечал подходы — прогресс выполнения (Slice 2). Сама по себе
 // заполненность значений статусом не считается: подходы предзаполняют шаблон и

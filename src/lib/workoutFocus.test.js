@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
 import {
-  exerciseFocusSummary, isExerciseIncomplete, pickActiveExerciseId,
+  exerciseFocusSummary, isExerciseIncomplete, nextFocusRequest, pickActiveExerciseId,
 } from './workoutFocus.js'
 
 const entry = (id, sets, metric = 'weight') => ({
@@ -40,6 +40,33 @@ describe('pickActiveExerciseId', () => {
   it('иначе выбирает первое упражнение и устойчив к пустому составу', () => {
     expect(pickActiveExerciseId([filled, incomplete], null)).toBe('filled')
     expect(pickActiveExerciseId([], 'missing')).toBeNull()
+  })
+})
+
+describe('nextFocusRequest', () => {
+  it('тап внутри уже активной карточки фиксирует заявку без reveal', () => {
+    // Карточка выбрана автоматически (id заявки ещё null) — центрировать нечего,
+    // иначе экран уезжает под пальцем и следующий тап бьёт мимо подхода.
+    expect(nextFocusRequest({ id: null, revision: 0 }, 'bench', 'bench')).toEqual({
+      id: 'bench', revision: 0,
+    })
+  })
+
+  it('переход на другое упражнение поднимает revision', () => {
+    expect(nextFocusRequest({ id: null, revision: 0 }, 'pullup', 'bench')).toEqual({
+      id: 'pullup', revision: 1,
+    })
+    expect(nextFocusRequest({ id: 'bench', revision: 3 }, 'pullup', 'bench')).toEqual({
+      id: 'pullup', revision: 4,
+    })
+  })
+
+  it('повторная заявка того же упражнения не двигает экран', () => {
+    const request = { id: 'bench', revision: 2 }
+
+    expect(nextFocusRequest(request, 'bench', 'bench')).toBe(request)
+    // Сброс фокуса (пустой состав) тоже не reveal — прокручивать нечего.
+    expect(nextFocusRequest(request, null, 'bench')).toEqual({ id: null, revision: 2 })
   })
 })
 
