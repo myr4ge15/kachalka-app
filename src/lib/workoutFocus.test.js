@@ -71,7 +71,7 @@ describe('nextFocusRequest', () => {
 })
 
 describe('exerciseFocusSummary', () => {
-  it('собирает число подходов и лучший фактический подход', () => {
+  it('перечисляет фактические подходы, а не один лучший', () => {
     expect(exerciseFocusSummary(entry('bench', [
       { weight: 65, reps: 6 },
       { weight: 65, reps: 8 },
@@ -79,9 +79,35 @@ describe('exerciseFocusSummary', () => {
       setCount: 2,
       doneCount: 0,
       allDone: false,
-      best: '65×8',
-      text: '2 подхода · 65×8',
+      sets: '65×6 · 65×8',
+      text: '2 подхода · 65×6 · 65×8',
     })
+  })
+
+  it('схлопывает одинаковые подходы подряд', () => {
+    expect(exerciseFocusSummary(entry('bench', [
+      { weight: 60, reps: 10 },
+      { weight: 60, reps: 10 },
+      { weight: 60, reps: 10 },
+      { weight: 50, reps: 12 },
+    ]))).toMatchObject({ text: '4 подхода · 60×10 ×3 · 50×12' })
+  })
+
+  it('обрезает длинный список подходов многоточием', () => {
+    expect(exerciseFocusSummary(entry('bench', [
+      { weight: 40, reps: 12 },
+      { weight: 45, reps: 11 },
+      { weight: 50, reps: 10 },
+      { weight: 55, reps: 9 },
+      { weight: 60, reps: 8 },
+    ]))).toMatchObject({ text: '5 подходов · 40×12 · 45×11 · 50×10 · 55×9 · …' })
+  })
+
+  it('показывает пропуск незаполненного подхода как «—»', () => {
+    expect(exerciseFocusSummary(entry('bench', [
+      { weight: 60, reps: 8 },
+      { weight: 60, reps: 0 },
+    ]))).toMatchObject({ text: '2 подхода · 60×8 · —' })
   })
 
   it('показывает частичный и полный прогресс по явным отметкам', () => {
@@ -93,11 +119,11 @@ describe('exerciseFocusSummary', () => {
     expect(exerciseFocusSummary(bench, new Set(['bench::a']))).toMatchObject({
       doneCount: 1,
       allDone: false,
-      text: 'выполнено 1 из 2 · 65×8',
+      text: 'выполнено 1 из 2 · 65×6 · 65×8',
     })
     expect(exerciseFocusSummary(bench, new Set(['bench::a', 'bench::b']))).toMatchObject({
       allDone: true,
-      text: '✓ выполнено · 2 подхода · 65×8',
+      text: '✓ выполнено · 2 подхода · 65×6 · 65×8',
     })
   })
 
@@ -110,7 +136,7 @@ describe('exerciseFocusSummary', () => {
 
   it('нейтрально показывает отсутствие значений', () => {
     expect(exerciseFocusSummary(entry('bench', [{ weight: 0, reps: 0 }]))).toMatchObject({
-      best: null,
+      sets: null,
       text: '1 подход · значения не указаны',
     })
   })

@@ -87,7 +87,9 @@ describe('ExerciseCard — рендер', () => {
 
     expect(container.querySelectorAll('.set-row')).toHaveLength(0)
     expect(screen.queryByText('заменить')).not.toBeInTheDocument()
-    expect(screen.getByText('2 подхода · 60×10')).toBeInTheDocument()
+    // Подходы перечисляются целиком: 60×10 и 60×9 — разные, и сводка обязана это
+    // показать (прежний «лучший подход» читался как «оба по 60×10»).
+    expect(screen.getByText('2 подхода · 60×10 · 60×9')).toBeInTheDocument()
     expect(screen.queryByText(/заполнено|готово/i)).not.toBeInTheDocument()
 
     fireEvent.click(screen.getByRole('button', { name: /Открыть Жим лёжа/ }))
@@ -99,7 +101,7 @@ describe('ExerciseCard — рендер', () => {
       active: false,
       doneKeys: new Set(['e1::a']),
     })
-    expect(screen.getByText('выполнено 1 из 2 · 60×10')).toBeInTheDocument()
+    expect(screen.getByText('выполнено 1 из 2 · 60×10 · 60×9')).toBeInTheDocument()
     expect(container.querySelector('[data-exercise-id="e1"]')).toHaveAttribute('data-done', 'false')
 
     rerender(
@@ -111,8 +113,21 @@ describe('ExerciseCard — рендер', () => {
         doneKeys={new Set(['e1::a', 'e1::b'])}
       />
     )
-    expect(screen.getByText('✓ выполнено · 2 подхода · 60×10')).toBeInTheDocument()
+    expect(screen.getByText('✓ выполнено · 2 подхода · 60×10 · 60×9')).toBeInTheDocument()
     expect(container.querySelector('[data-exercise-id="e1"]')).toHaveAttribute('data-done', 'true')
+  })
+
+  it('схлопывает одинаковые подходы, чтобы типовая сводка осталась короткой', () => {
+    const same = {
+      exercise: { id: 'e1', name: 'Жим лёжа', metric: 'weight' },
+      sets: [
+        { weight: 60, reps: 10, _k: 'a' },
+        { weight: 60, reps: 10, _k: 'b' },
+        { weight: 60, reps: 10, _k: 'c' },
+      ],
+    }
+    renderCard(same, {}, { active: false })
+    expect(screen.getByText('3 подхода · 60×10 ×3')).toBeInTheDocument()
   })
 
   it('нейтрально показывает отсутствие значений без ложного статуса', () => {

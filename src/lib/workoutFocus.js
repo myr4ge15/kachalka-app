@@ -1,6 +1,10 @@
-import { exerciseMetric, fmtSet, leadingValue } from './metric.js'
+import { exerciseMetric, fmtSet } from './metric.js'
 import { pluralize } from './plural.js'
 import { exerciseCompletion } from './setCompletion.js'
+
+// Сколько групп подходов помещается в однострочную сводку компактной карточки
+// (11px, `text-overflow: ellipsis` на 390px). Хвост длиннее — «…».
+const SUMMARY_MAX_GROUPS = 4
 
 function blankOrNonPositive(value) {
   if (value === '' || value == null) return true
@@ -49,6 +53,33 @@ export function nextFocusRequest(request, exerciseId, activeExerciseId) {
   return { id, revision: switching ? request.revision + 1 : request.revision }
 }
 
+// Подход считается незаполненным по ведущему числу: у 'weight' это повторы, у
+// 'reps'/'time' — сами повторы/секунды. Оба случая живут в `reps`.
+function unfilledSet(set) {
+  return !(Number(set?.reps) > 0)
+}
+
+// Перечисление подходов для свёрнутой карточки. Раньше здесь показывался ЛУЧШИЙ
+// подход, и «3 подхода · 45×10» читалось как «все три по 45×10», хотя подходы
+// могли быть разными (пирамида, дроп-сет). Поэтому перечисляем фактические
+// подходы по порядку, схлопывая одинаковые ПОДРЯД идущие в «45×10 ×3» —
+// типовой случай «три одинаковых» остаётся такой же короткой строкой.
+// Незаполненный подход показываем как «—», чтобы пропуск был виден.
+export function setsSummaryText(metric, sets) {
+  const groups = []
+  for (const set of sets ?? []) {
+    const text = unfilledSet(set) ? '—' : fmtSet(metric, set)
+    const last = groups[groups.length - 1]
+    if (last && last.text === text) last.n += 1
+    else groups.push({ text, n: 1 })
+  }
+  const shown = groups
+    .slice(0, SUMMARY_MAX_GROUPS)
+    .map((g) => (g.n > 1 ? `${g.text} ×${g.n}` : g.text))
+  if (groups.length > SUMMARY_MAX_GROUPS) shown.push('…')
+  return shown.join(' · ')
+}
+
 // Данные компактной карточки: нейтральная сводка введённых значений плюс — если
 // пользователь ЯВНО отмечал подходы — прогресс выполнения (Slice 2). Сама по себе
 // заполненность значений статусом не считается: подходы предзаполняют шаблон и
@@ -56,33 +87,29 @@ export function nextFocusRequest(request, exerciseId, activeExerciseId) {
 export function exerciseFocusSummary(entry, doneKeys = null) {
   const sets = entry?.sets ?? []
   const metric = exerciseMetric(entry?.exercise)
-  const best = sets.reduce((found, set) => {
-    const value = leadingValue(metric, [set])
-    const foundValue = leadingValue(metric, found ? [found] : [])
-    if (value !== foundValue) return value > foundValue ? set : found
-    // При одинаковом весе информативнее подход с большим числом повторов.
-    if (metric === 'weight' && Number(set?.reps) > Number(found?.reps)) return set
-    return found
-  }, null)
   const setLabel = pluralize(sets.length, 'подход', 'подхода', 'подходов')
-  const bestText = best && leadingValue(metric, [best]) > 0 ? fmtSet(metric, best) : null
+  // Ни одного заполненного подхода — перечислять нечего, остаётся прежняя
+  // нейтральная формулировка «значения не указаны».
+  const setsText = sets.some((set) => !unfilledSet(set))
+    ? setsSummaryText(metric, sets)
+    : null
   const { doneCount, allDone } = exerciseCompletion(entry, doneKeys)
 
   // Статус ведёт строку, значения идут после него: свёрнутая карточка должна
-  // отвечать на «сделано или нет» раньше, чем на «какой был лучший подход».
+  // отвечать на «сделано или нет» раньше, чем на «что было в подходах».
   // Без единой отметки строка остаётся прежней нейтральной сводкой.
   const parts = []
   if (allDone) parts.push('✓ выполнено', setLabel)
   else if (doneCount > 0) parts.push(`выполнено ${doneCount} из ${sets.length}`)
   else parts.push(setLabel)
-  if (bestText) parts.push(bestText)
+  if (setsText) parts.push(setsText)
   else if (doneCount === 0) parts.push('значения не указаны')
 
   return {
     setCount: sets.length,
     doneCount,
     allDone,
-    best: bestText,
+    sets: setsText,
     text: parts.join(' · '),
   }
 }

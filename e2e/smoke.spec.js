@@ -155,10 +155,10 @@ test('вход → запись тренировки → она в истори�
   await expect(page.locator('.exercise-card--active')).toContainText(EXERCISE)
   await expect(page.locator('.exercise-card--compact')).toContainText(SECOND_EXERCISE)
 
-  // Повторное сохранение существующей записи завершает тот же предсказуемый поток.
+  // Повторное сохранение существующей записи — тихий возврат к списку: итоговый
+  // шит принадлежит завершению занятия, а не правке старой записи (v5.12.3).
   await page.locator('.save-btn').click()
-  await expect(page.getByRole('dialog', { name: 'Тренировка готова' })).toBeVisible()
-  await page.getByRole('button', { name: 'Готово' }).click()
+  await expect(page.getByRole('dialog', { name: 'Тренировка готова' })).toHaveCount(0)
   await expect(page.locator('.history-card').first()).toContainText('2 упр · 2 подх.')
 
   // --- зоны тапа отметок выполнения (геометрия, юнитам не видна) -------------

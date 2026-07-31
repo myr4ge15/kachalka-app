@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest'
 import {
-  allSetKeys, exerciseCompletion, isSetDone, remapExerciseKeys, setDoneKey, toggleDoneKey,
+  allSetKeys, exerciseCompletion, isSetDone, keepDoneSets, remapExerciseKeys,
+  setDoneKey, toggleDoneKey,
 } from './setCompletion.js'
 
 const bench = () => ({
@@ -67,6 +68,34 @@ describe('remapExerciseKeys', () => {
     expect(remapExerciseKeys(keys, 'bench', 'bench')).toBe(keys)
     expect(remapExerciseKeys(null, 'bench', 'db').size).toBe(0)
     expect(remapExerciseKeys(keys, 'bench', null)).toBe(keys)
+  })
+})
+
+describe('keepDoneSets', () => {
+  it('оставляет только отмеченные подходы, не трогая их значения', () => {
+    expect(keepDoneSets([bench()], new Set(['bench::a']))).toEqual([{
+      exercise: { id: 'bench', metric: 'weight' },
+      sets: [{ weight: 60, reps: 8, _k: 'a' }],
+    }])
+  })
+
+  it('выбрасывает упражнение, у которого не отмечен ни один подход', () => {
+    const pullup = { exercise: { id: 'pullup' }, sets: [{ weight: 0, reps: 12, _k: 'c' }] }
+
+    expect(keepDoneSets([bench(), pullup], new Set(['pullup::c'])))
+      .toEqual([pullup])
+    expect(keepDoneSets([bench()], new Set())).toEqual([])
+  })
+
+  it('не мутирует исходный состав', () => {
+    const entries = [bench()]
+    keepDoneSets(entries, new Set(['bench::a']))
+    expect(entries[0].sets).toHaveLength(2)
+  })
+
+  it('устойчив к пустому и битому составу', () => {
+    expect(keepDoneSets(null, new Set())).toEqual([])
+    expect(keepDoneSets([{ exercise: null, sets: null }], new Set())).toEqual([])
   })
 })
 

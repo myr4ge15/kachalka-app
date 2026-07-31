@@ -6,6 +6,7 @@ import {
 } from '../lib/progressionCard.js'
 import { exerciseFocusSummary } from '../lib/workoutFocus.js'
 import { isSetDone } from '../lib/setCompletion.js'
+import { plural, pluralize } from '../lib/plural.js'
 
 // Карточка одного упражнения в композере тренировки (шапка, панель автопрогрессии
 // .ap, таблица подходов, «+ подход»). Чисто презентационная: весь стейт и его
@@ -15,9 +16,13 @@ import { isSetDone } from '../lib/setCompletion.js'
 // настроек), `ei` — индекс записи (ключ существующих апдейтеров).
 // `doneKeys`/`onToggleSetDone` — явные отметки выполнения подходов (Slice 2):
 // транзиентное состояние экрана, в документ тренировки не попадает.
+// `dropUnchecked` — режим правки сохранённой тренировки: там карточка открыта
+// «всё выполнено», поэтому снятая отметка означает «подхода не было» и он не
+// попадёт в запись при сохранении. Строку помечаем ДО сохранения, чтобы
+// случайный тап не удалял данные молча.
 export default function ExerciseCard({
   entry, ei, prog, active = true, cardRef = null, onActivate = () => {},
-  doneKeys = null, onToggleSetDone = () => {},
+  doneKeys = null, onToggleSetDone = () => {}, dropUnchecked = false,
   onReplace, onRemove,
   onRevertProg, onApplyProg, onToggleProgSettings, onChangeProgSettings,
   onUpdateSet, onStep, onAddSet, onRemoveSet,
@@ -27,6 +32,8 @@ export default function ExerciseCard({
   const isTime = metric === 'time'
   const valLabel = isTime ? 'мин:сек' : 'повт.'
   const summary = exerciseFocusSummary(entry, doneKeys)
+  // Сколько подходов выпадет из записи при сохранении (только режим правки).
+  const skipCount = dropUnchecked ? summary.setCount - summary.doneCount : 0
 
   // Свёрнутое упражнение доступно одной крупной кнопкой. Сводка отвечает на
   // «выполнено или нет» ТОЛЬКО по явным отметкам: заполненные значения могли
@@ -163,8 +170,12 @@ export default function ExerciseCard({
 
       {entry.sets.map((s, si) => {
         const done = isSetDone(doneKeys, entry.exercise.id, s, si)
+        const skipped = dropUnchecked && !done
         return (
-          <div key={s._k ?? si} className={`set-row${done ? ' set-row--done' : ''}`}>
+          <div
+            key={s._k ?? si}
+            className={`set-row${done ? ' set-row--done' : ''}${skipped ? ' set-row--skip' : ''}`}
+          >
             {/* Номер подхода — он же отметка выполнения: зона тапа 44×44 без
                 отдельного столбца, поэтому степперы не теряют ширину. */}
             <button
@@ -173,7 +184,9 @@ export default function ExerciseCard({
               aria-pressed={done}
               aria-label={done
                 ? `Подход ${si + 1} выполнен`
-                : `Отметить подход ${si + 1} выполненным`}
+                : skipped
+                  ? `Подход ${si + 1} не выполнен и не сохранится — отметить выполненным`
+                  : `Отметить подход ${si + 1} выполненным`}
               onClick={() => onToggleSetDone(entry.exercise.id, s, si)}
             >
               <span aria-hidden="true">{done ? '✓' : si + 1}</span>
@@ -214,6 +227,16 @@ export default function ExerciseCard({
           </div>
         )
       })}
+
+      {/* Явное предупреждение вместо молчаливой потери: в правке снятая отметка
+          выбрасывает подход из записи, а снятые у всех подходов — упражнение. */}
+      {skipCount > 0 && (
+        <p className="sets-skip-note" role="status">
+          {skipCount === entry.sets.length
+            ? 'Ни один подход не отмечен — упражнение не сохранится.'
+            : `${pluralize(skipCount, 'подход', 'подхода', 'подходов')} без отметки ${plural(skipCount, 'не сохранится', 'не сохранятся', 'не сохранятся')}.`}
+        </p>
+      )}
 
       <button className="btn ghost full" onClick={() => onAddSet(ei)}>
         + подход (повтор предыдущего)

@@ -546,6 +546,14 @@ input { font-family: inherit; }
 /* Выполненный подход уходит на второй план: значения остаются читаемыми и
    правятся как обычно, но взгляд ведёт к невыполненным строкам. */
 .set-row--done .stepper input { color: var(--muted); }
+/* Правка сохранённой тренировки: там карточка открыта «всё выполнено», поэтому
+   снятая отметка = «подхода не было» и он не попадёт в запись. Показываем это
+   ДО сохранения — зачёркнутым значением и пунктирной рамкой отметки, — чтобы
+   случайный тап не удалял подход молча. Значения остаются редактируемыми:
+   вернуть подход можно тем же тапом. */
+.set-row--skip .stepper input { color: var(--muted); text-decoration: line-through; }
+.set-row--skip .set-done { border-style: dashed; opacity: .6; }
+.sets-skip-note { margin: 0 0 10px; font-size: 11px; color: var(--muted); }
 
 .stepper { display: flex; align-items: center; gap: 3px; }
 .stepper button {

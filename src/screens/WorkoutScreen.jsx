@@ -21,6 +21,7 @@ import { fmtDate } from '../lib/dates.js'
 import { exerciseUsageSections } from '../lib/exerciseUsage.js'
 import { useWorkoutFocus } from '../hooks/useWorkoutFocus.js'
 import { useSetCompletion } from '../hooks/useSetCompletion.js'
+import { keepDoneSets } from '../lib/setCompletion.js'
 import CardsSkeleton from '../components/CardsSkeleton.jsx'
 import ExercisePicker from '../components/ExercisePicker.jsx'
 import TemplatePicker from '../components/TemplatePicker.jsx'
@@ -65,9 +66,9 @@ export default function WorkoutScreen({ user, workoutId = null, onBack, onSaved 
   const { activeExerciseId, activeCardRef, activateExercise } = useWorkoutFocus(entries, {
     preferIncomplete: !isNew,
   })
-  const { doneKeys, toggleSetDone, remapExercise, markEntriesDone } = useSetCompletion({
-    cacheKey: isNew ? DONE_KEY : null,
-  })
+  const {
+    doneKeys, toggleSetDone, remapExercise, markEntriesDone, markNewSetsDone,
+  } = useSetCompletion({ cacheKey: isNew ? DONE_KEY : null })
   const [performedAt, setPerformedAt] = useState(() => new Date().toISOString())
   const [loading, setLoading] = useState(!isNew)
   const [pickerOpen, setPickerOpen] = useState(false)
@@ -87,6 +88,15 @@ export default function WorkoutScreen({ user, workoutId = null, onBack, onSaved 
   useEffect(() => {
     if (isNew) setCache(DRAFT_KEY, entries)
   }, [isNew, DRAFT_KEY, entries])
+
+  // Правка: в записи хранится только отмеченное (keepDoneSets), поэтому любой
+  // появившийся в составе подход отмечаем сразу — «+ подход», новое упражнение и
+  // «Применить рекомендацию» рождают свежие `_k`, и без этого добавленное молча
+  // не сохранилось бы. Единый эффект на состав вместо правки каждого действия:
+  // ни один путь добавления не может его обойти. Снятые вручную не воскресают.
+  useEffect(() => {
+    if (!isNew) markNewSetsDone(entries)
+  }, [isNew, entries, markNewSetsDone])
 
   // Undo-тост удаления привязан к ЭТОМУ экрану: его «Отменить» зовёт setEntries,
   // которого после ухода со страницы уже нет. Поэтому при размонтировании гасим
@@ -319,8 +329,13 @@ export default function WorkoutScreen({ user, workoutId = null, onBack, onSaved 
     })
   }
 
-  const totalSets = entries.reduce((n, e) => n + e.sets.length, 0)
-  const canSave = entries.length > 0 && totalSets > 0 && !saving
+  // Правка сохранённой тренировки открывается «всё выполнено», поэтому снятая
+  // галочка здесь — единственное явное «этого подхода не было»: такой подход в
+  // запись не идёт (keepDoneSets). У новой тренировки отметок в начале нет
+  // вообще, их отсутствие ничего не значит — состав сохраняется целиком.
+  const entriesToSave = isNew ? entries : keepDoneSets(entries, doneKeys)
+  const totalSets = entriesToSave.reduce((n, e) => n + e.sets.length, 0)
+  const canSave = entriesToSave.length > 0 && totalSets > 0 && !saving
 
   async function save() {
     setSaving(true)
@@ -330,7 +345,7 @@ export default function WorkoutScreen({ user, workoutId = null, onBack, onSaved 
         id: isNew ? undefined : workoutId,
         user_id: user.id,
         performed_at: performedAt,
-        entries,
+        entries: entriesToSave,
       })
       // Итог строится из уже записанного локального документа. Если чтение
       // неожиданно не удалось, успешное сохранение всё равно не блокируем:
@@ -341,7 +356,7 @@ export default function WorkoutScreen({ user, workoutId = null, onBack, onSaved 
         id: wId,
         user_id: user.id,
         performed_at: performedAt,
-        entries,
+        entries: entriesToSave,
       }
       if (isNew) {
         clearCache(DRAFT_KEY)
@@ -373,7 +388,13 @@ export default function WorkoutScreen({ user, workoutId = null, onBack, onSaved 
       }
       vibrate(finishEvents[0]?.celebrated ? HAPTIC.celebrate : HAPTIC.success)
       if (navigator.onLine) syncNow(user.id)
-      if (onSaved) onSaved({ workout: savedWorkout, events: finishEvents })
+      // Итоговый экран — событие ЗАВЕРШЕНИЯ занятия, а не сохранения документа.
+      // Правка старой записи ничего не завершает: событий у неё нет по построению
+      // (рекорды/цели считаются только для новой), и шит выходил пустой сводкой с
+      // «Тренировка готова» поверх тренировки недельной давности. Поэтому правка —
+      // тихий возврат в список: экран закрылся и запись в списке обновилась, это
+      // и есть подтверждение (плюс HAPTIC.success выше).
+      if (isNew && onSaved) onSaved({ workout: savedWorkout, events: finishEvents })
       else onBack?.()
     } catch (err) {
       setMessage({ type: 'error', text: 'Не сохранилось: ' + (err.message ?? err) })
@@ -396,8 +417,9 @@ export default function WorkoutScreen({ user, workoutId = null, onBack, onSaved 
   // Экспорт этой тренировки в JSON-файл (из текущего состава формы).
   function exportOne() {
     const appVersion = typeof __APP_VERSION__ !== 'undefined' ? __APP_VERSION__ : 'dev'
+    // Экспортируем то, что уйдёт в запись: в правке снятые подходы уже не её часть.
     exportWorkouts(
-      { id: workoutId, performed_at: performedAt, created_at: null, entries },
+      { id: workoutId, performed_at: performedAt, created_at: null, entries: entriesToSave },
       appVersion
     )
   }
@@ -416,7 +438,7 @@ export default function WorkoutScreen({ user, workoutId = null, onBack, onSaved 
     setTplBusy(true)
     setMessage(null)
     try {
-      const exercises = templateExercisesFromWorkout(entries)
+      const exercises = templateExercisesFromWorkout(entriesToSave)
       if (exercises.length === 0) throw new Error('В тренировке нет упражнений с подходами.')
       await saveTemplate({ user_id: user.id, name: tplName, exercises, is_public: false })
       setTplArm(false)
@@ -511,6 +533,7 @@ export default function WorkoutScreen({ user, workoutId = null, onBack, onSaved 
               onActivate={activateExercise}
               doneKeys={doneKeys}
               onToggleSetDone={toggleSetDone}
+              dropUnchecked={!isNew}
               onReplace={openReplacePicker}
               onRemove={removeExercise}
               onRevertProg={revertProg}

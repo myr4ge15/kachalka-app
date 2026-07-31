@@ -179,6 +179,70 @@ describe('WorkoutScreen', () => {
     expect(screen.getByRole('button', { name: 'Подход 1 выполнен' })).toBeInTheDocument()
   })
 
+  it('снятая при правке отметка выбрасывает подход из записи', async () => {
+    vi.mocked(getWorkout).mockResolvedValue({
+      id: 'w1',
+      performed_at: '2026-07-30T12:00:00.000Z',
+      entries: [{
+        exercise_id: 'bench',
+        exercise: draft[0].exercise,
+        sets: [{ weight: 60, reps: 8 }, { weight: 60, reps: 6 }],
+      }],
+    })
+    render(<WorkoutScreen user={user} workoutId="w1" />)
+
+    await screen.findByText('Жим лёжа')
+    expect(screen.getByRole('button', { name: 'Сохранить (2)' })).toBeInTheDocument()
+
+    fireEvent.click(screen.getByRole('button', { name: 'Подход 2 выполнен' }))
+
+    // Последствие видно ДО сохранения: счётчик и предупреждение в карточке.
+    expect(screen.getByText('1 подход без отметки не сохранится.')).toBeInTheDocument()
+    fireEvent.click(screen.getByRole('button', { name: 'Сохранить (1)' }))
+
+    await waitFor(() => expect(saveWorkout).toHaveBeenCalledOnce())
+    expect(vi.mocked(saveWorkout).mock.calls[0][0].entries[0].sets)
+      .toEqual([{ weight: 60, reps: 8, _k: expect.anything() }])
+  })
+
+  it('добавленный при правке подход отмечен сразу и сохраняется', async () => {
+    vi.mocked(getWorkout).mockResolvedValue({
+      id: 'w1',
+      performed_at: '2026-07-30T12:00:00.000Z',
+      entries: [{ exercise_id: 'bench', exercise: draft[0].exercise, sets: [{ weight: 60, reps: 8 }] }],
+    })
+    render(<WorkoutScreen user={user} workoutId="w1" />)
+
+    await screen.findByText('Жим лёжа')
+    fireEvent.click(screen.getByRole('button', { name: '+ подход (повтор предыдущего)' }))
+
+    // В правке всё выполнено по умолчанию — иначе новый подход молча выпал бы.
+    expect(screen.getByRole('button', { name: 'Подход 2 выполнен' })).toBeInTheDocument()
+    fireEvent.click(screen.getByRole('button', { name: 'Сохранить (2)' }))
+
+    await waitFor(() => expect(saveWorkout).toHaveBeenCalledOnce())
+    expect(vi.mocked(saveWorkout).mock.calls[0][0].entries[0].sets).toHaveLength(2)
+  })
+
+  it('после правки не показывает итоговый экран, а возвращает в список', async () => {
+    vi.mocked(getWorkout).mockResolvedValue({
+      id: 'w1',
+      performed_at: '2026-07-30T12:00:00.000Z',
+      entries: [{ exercise_id: 'bench', exercise: draft[0].exercise, sets: [{ weight: 60, reps: 8 }] }],
+    })
+    const onSaved = vi.fn()
+    const onBack = vi.fn()
+    render(<WorkoutScreen user={user} workoutId="w1" onSaved={onSaved} onBack={onBack} />)
+
+    await screen.findByText('Жим лёжа')
+    fireEvent.click(screen.getByRole('button', { name: 'Сохранить (1)' }))
+
+    await waitFor(() => expect(onBack).toHaveBeenCalledOnce())
+    expect(onSaved).not.toHaveBeenCalled()
+    // Рекорды/цели для правки не считаем — итога у неё нет по построению.
+    expect(detectNewPrsOnSave).not.toHaveBeenCalled()
+  })
+
   it('при редактировании начинает с первого незаполненного упражнения', async () => {
     vi.mocked(getWorkout).mockResolvedValue({
       id: 'w1',
