@@ -27,6 +27,7 @@ import { pickLastSets } from '../lib/lastSets.js'
 import { isReactionKind } from '../lib/reactions.js'
 import { defaultSubmuscleFor, cleanSecondary } from '../lib/muscles.js'
 import { pickExerciseShape } from '../lib/entries.js'
+import { putWorkoutFeels, pruneRpe, withFeels, feelsForWorkout } from '../lib/rpe.js'
 import { planRosterWrite, pickRosterShape } from '../lib/roster.js'
 
 // ----------------------------- Чтение --------------------------------------
@@ -271,6 +272,11 @@ export async function getLastSetsForExercise(userId, exerciseId) {
 // Свои НЕудалённые тренировки, где встречается упражнение, свежие сверху; из
 // каждой — только подходы этого упражнения. Максимум n сессий (для нуджа
 // «3 подряд легко» и детектора плато). Сеть не нужна — читаем локальные entries.
+//
+// Каждая сессия несёт `id` тренировки и субъективную оценку `feel` (Slice 4,
+// RPE): оценки лежат отдельной картой в meta (см. lib/rpe.js — внутрь документа
+// тренировки их не положить, синк вернул бы документ без них), и подмешиваются
+// здесь, чтобы progression.js получал их вместе с подходами одним объектом.
 export async function getRecentSessionsForExercise(userId, exerciseId, n = 5) {
   if (!userId || !exerciseId) return []
   const list = await db.workouts.where('user_id').equals(userId).toArray()
@@ -291,10 +297,10 @@ export async function getRecentSessionsForExercise(userId, exerciseId, n = 5) {
       .map((s) => ({ weight: Number(s.weight), reps: Number(s.reps) }))
       .filter((s) => Number.isFinite(s.weight) && Number.isFinite(s.reps))
     if (!sets.length) continue
-    out.push({ performed_at: w.performed_at, created_at: w.created_at, sets })
+    out.push({ id: w.id, performed_at: w.performed_at, created_at: w.created_at, sets })
     if (out.length >= n) break
   }
-  return out
+  return withFeels(out, await getRpe(userId), exerciseId)
 }
 
 // ------------------- Настройки автопрогрессии (meta) -----------------------
@@ -330,6 +336,37 @@ export async function setProgForExercise(userId, exerciseId, patch) {
     [exerciseId]: { ...(cur.byExercise[exerciseId] ?? {}), ...patch },
   }
   await writeSyncedMeta(userId, 'prog', { ...cur, byExercise })
+}
+
+// ------------------- Оценки «как пошло» / RPE (meta) -----------------------
+// Субъективная оценка нагрузки по упражнению за сессию (PLAN-autoprogression §7).
+// Живёт в meta по ключу rpe_${userId}, синкается как четвёртый род user_meta.
+// Внутрь документа тренировки не кладётся сознательно: cleanEntries схлопывает
+// подход в {weight, reps}, а pull пересобирает его из серверных колонок — оценка
+// исчезла бы на первом же take-server. Форма и правила — чистый lib/rpe.js.
+export const rpeKey = (userId) => `rpe_${userId}`
+
+export async function getRpe(userId) {
+  const v = await getMeta(rpeKey(userId))
+  return v && typeof v === 'object' ? v : {}
+}
+
+// Оценки одной тренировки: { [exerciseId]: 'easy'|'ok'|'hard' } — для открытия
+// сохранённой тренировки на правку (кнопки должны показать прежний выбор).
+export async function getWorkoutFeels(userId, workoutId) {
+  if (!userId || !workoutId) return {}
+  return feelsForWorkout(await getRpe(userId), workoutId)
+}
+
+// Записать оценки ЦЕЛОЙ тренировки. Зовётся ПОСЛЕ успешного saveWorkout: в
+// композере id тренировки ещё не существует (его выдаёт newId() внутри
+// saveWorkout), поэтому до сохранения оценки живут в стейте экрана.
+// Пустой набор удаляет запись — пропуск оценки не должен копить мусор в карте.
+export async function setWorkoutFeels(userId, workoutId, performedAt, feels) {
+  if (!userId || !workoutId) return
+  const cur = await getRpe(userId)
+  const next = pruneRpe(putWorkoutFeels(cur, workoutId, performedAt, feels))
+  await writeSyncedMeta(userId, 'rpe', next)
 }
 
 // ------------------- Достижения / бейджи (meta) ---------------------------

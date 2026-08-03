@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react'
 import { useLiveQuery } from 'dexie-react-hooks'
-import { getExercises, getWorkout, getWorkouts, saveWorkout, createExercise, deleteWorkout as repoDelete, getRecentSessionsForExercise, getProgSettings, setProgForExercise, saveTemplate } from '../db/repo.js'
+import { getExercises, getWorkout, getWorkouts, saveWorkout, createExercise, deleteWorkout as repoDelete, getRecentSessionsForExercise, getProgSettings, setProgForExercise, saveTemplate, getWorkoutFeels, setWorkoutFeels } from '../db/repo.js'
 import { detectNewPrsOnSave, detectGoalReachedOnSave } from '../db/notifications.js'
 import { detectInsightsOnSave } from '../db/insights.js'
 import { detectBadgesOnSave } from '../db/badges.js'
@@ -61,8 +61,14 @@ export default function WorkoutScreen({ user, workoutId = null, onBack, onSaved 
   // Отметки выполнения живут рядом с черновиком: уход с экрана посреди занятия
   // (Лента, Прогресс) не должен гасить галочки, как не гасит состав.
   const DONE_KEY = `workout_done_new_${user.id}`
+  // Оценки «как пошло» (RPE) до сохранения жить негде: id тренировки рождается
+  // только внутри saveWorkout. Поэтому они, как и отметки выполнения, ждут в
+  // стейте экрана и переживают уход с экрана в том же сессионном кэше.
+  const FEEL_KEY = `workout_feel_new_${user.id}`
 
   const [entries, setEntries] = useState(() => (isNew ? getCache(DRAFT_KEY) ?? [] : []))
+  // { [exerciseId]: 'easy'|'ok'|'hard' } — только за эту тренировку.
+  const [feels, setFeels] = useState(() => (isNew ? getCache(FEEL_KEY) ?? {} : {}))
   const { activeExerciseId, activeCardRef, activateExercise } = useWorkoutFocus(entries, {
     preferIncomplete: !isNew,
   })
@@ -89,6 +95,10 @@ export default function WorkoutScreen({ user, workoutId = null, onBack, onSaved 
     if (isNew) setCache(DRAFT_KEY, entries)
   }, [isNew, DRAFT_KEY, entries])
 
+  useEffect(() => {
+    if (isNew) setCache(FEEL_KEY, feels)
+  }, [isNew, FEEL_KEY, feels])
+
   // Правка: в записи хранится только отмеченное (keepDoneSets), поэтому любой
   // появившийся в составе подход отмечаем сразу — «+ подход», новое упражнение и
   // «Применить рекомендацию» рождают свежие `_k`, и без этого добавленное молча
@@ -108,6 +118,10 @@ export default function WorkoutScreen({ user, workoutId = null, onBack, onSaved 
     if (isNew) return
     let alive = true
     setLoading(true)
+    // Оценки лежат отдельной картой в meta (не в документе — см. lib/rpe.js),
+    // поэтому при открытии на правку подтягиваем их своим чтением. Ошибка тут
+    // не должна мешать правке: без оценок карточки просто откроются пустыми.
+    getWorkoutFeels(user.id, workoutId).then((f) => { if (alive) setFeels(f) }).catch(() => {})
     getWorkout(workoutId).then((w) => {
       if (!alive) return
       if (w) {
@@ -123,7 +137,7 @@ export default function WorkoutScreen({ user, workoutId = null, onBack, onSaved 
       setLoading(false)
     })
     return () => { alive = false }
-  }, [isNew, workoutId, markEntriesDone])
+  }, [isNew, workoutId, user.id, markEntriesDone])
 
   function openAddPicker() {
     setReplaceIdx(null)
@@ -171,6 +185,19 @@ export default function WorkoutScreen({ user, workoutId = null, onBack, onSaved 
     setEntries((prev) => appendExerciseIn(prev, ex, built.sets, built.meta))
     activateExercise(ex.id)
     setPickerOpen(false)
+  }
+
+  // Оценка «как пошло» (RPE). Повторный тап по выбранной кнопке СНИМАЕТ оценку:
+  // она необязательна, и промах не должен фиксироваться навсегда — а отдельной
+  // кнопки «убрать» ради этого заводить незачем.
+  function setFeel(exerciseId, feel) {
+    setFeels((prev) => {
+      const next = { ...prev }
+      if (next[exerciseId] === feel) delete next[exerciseId]
+      else next[exerciseId] = feel
+      return next
+    })
+    vibrate(HAPTIC.tap)
   }
 
   // Откат к чистой копии прошлой сессии (ссылка «вернуть как в прошлый раз»).
@@ -238,6 +265,14 @@ export default function WorkoutScreen({ user, workoutId = null, onBack, onSaved 
     // Подходы пережили замену — отметки выполнения тоже: ключ отметки завязан на
     // exercise.id, и без переноса галочки пропали бы при сохранённых значениях.
     remapExercise(cur.exercise.id, ex.id)
+    // Оценка привязана к тому же id и переезжает вместе с подходами: усилие было
+    // то же самое, поменялась только запись о том, каким упражнением оно названо.
+    setFeels((prev) => {
+      if (!(cur.exercise.id in prev)) return prev
+      const next = { ...prev, [ex.id]: prev[cur.exercise.id] }
+      delete next[cur.exercise.id]
+      return next
+    })
     activateExercise(ex.id)
   }
 
@@ -358,9 +393,20 @@ export default function WorkoutScreen({ user, workoutId = null, onBack, onSaved 
         performed_at: performedAt,
         entries: entriesToSave,
       }
+      // Оценки пишем ПОСЛЕ сохранения — только здесь известен id тренировки.
+      // Пишем лишь по упражнениям, реально попавшим в запись: в правке снятые
+      // отметки выбрасывают упражнение целиком (keepDoneSets), и его оценка
+      // осталась бы висеть без хозяина. Неудача записи оценок не откатывает
+      // успешно сохранённую тренировку — она необязательная надстройка.
+      try {
+        const saved = new Set(entriesToSave.map((e) => e.exercise.id))
+        const kept = Object.fromEntries(Object.entries(feels).filter(([exId]) => saved.has(exId)))
+        await setWorkoutFeels(user.id, wId, performedAt, kept)
+      } catch { /* оценки необязательны, тренировка уже записана */ }
       if (isNew) {
         clearCache(DRAFT_KEY)
         clearCache(DONE_KEY) // отметки — состояние этого занятия, следующему не наследуются
+        clearCache(FEEL_KEY) // оценки тоже: следующая тренировка начинается без них
       }
       // Тактильный отклик по итогу сохранения: рекорд/цель — «праздничный»
       // паттерн, обычное сохранение — короткий success (см. lib/haptics.js).
@@ -409,8 +455,10 @@ export default function WorkoutScreen({ user, workoutId = null, onBack, onSaved 
   // пользователь ждёт, что продолжит добавлять с чистого листа. Уйти — «← Назад».
   function clearDraft() {
     clearCache(DRAFT_KEY)
+    clearCache(FEEL_KEY)
     setEntries([])
     markEntriesDone([]) // пустой состав → отметок выполнения тоже нет
+    setFeels({})        // и оценок: отказ от черновика отменяет занятие целиком
     setClearArm(false)
   }
 
@@ -534,6 +582,8 @@ export default function WorkoutScreen({ user, workoutId = null, onBack, onSaved 
               doneKeys={doneKeys}
               onToggleSetDone={toggleSetDone}
               dropUnchecked={!isNew}
+              feel={feels[entry.exercise.id] ?? null}
+              onSetFeel={setFeel}
               onReplace={openReplacePicker}
               onRemove={removeExercise}
               onRevertProg={revertProg}

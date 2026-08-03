@@ -4,6 +4,7 @@ import {
   analyzeLast,
   recommendProgression,
   easyStreak,
+  feelStreak,
   detectPlateau,
 } from './progression.js'
 
@@ -255,5 +256,194 @@ describe('detectPlateau', () => {
 
   it('мало сессий → рано судить (false)', () => {
     expect(detectPlateau([sess([s(80, 8)]), sess([s(80, 8)])], 'weight', { window: 4 })).toBe(false)
+  })
+})
+
+// ─── RPE (PLAN §7, Slice 4) ─────────────────────────────────────────────────
+// Сессия с субъективной оценкой: {performed_at, sets, feel}.
+const fsess = (sets, feel, performed_at = '2026-01-01') => ({ performed_at, sets, feel })
+const wcfg = { strategy: 'weight', step: 2.5, targetReps: null, repCeiling: 12 }
+const rcfg = { strategy: 'reps', step: 2.5, targetReps: null, repCeiling: 12 }
+
+describe('feelStreak', () => {
+  it('считает подряд идущие одинаковые оценки с самой свежей', () => {
+    const done = [s(80, 10)]
+    expect(feelStreak([fsess(done, 'easy'), fsess(done, 'easy'), fsess(done, 'ok')], 'easy')).toBe(2)
+  })
+
+  it('сессия без оценки обрывает серию — отсутствие оценки не свидетельство', () => {
+    const done = [s(80, 10)]
+    expect(feelStreak([fsess(done, 'easy'), fsess(done, null), fsess(done, 'easy')], 'easy')).toBe(1)
+  })
+
+  it('первая же чужая оценка обрывает серию', () => {
+    const done = [s(80, 10)]
+    expect(feelStreak([fsess(done, 'hard'), fsess(done, 'easy')], 'easy')).toBe(0)
+  })
+
+  it('пустой вход и мусорная искомая оценка → 0', () => {
+    expect(feelStreak(null, 'easy')).toBe(0)
+    expect(feelStreak([], 'easy')).toBe(0)
+    expect(feelStreak([fsess([s(80, 10)], 'easy')], 'ЛЕГКО')).toBe(0)
+  })
+})
+
+describe('recommendProgression + RPE, стратегия «+вес»', () => {
+  const done = [s(80, 10), s(80, 10)] // план добит
+
+  it('ГЛАВНЫЙ случай: план добит, но было тяжело → держим вес, а не +2.5', () => {
+    const r = recommendProgression({
+      metric: 'weight', lastSets: done, settings: wcfg,
+      recentSessions: [fsess(done, 'hard')],
+    })
+    expect(r.kind).toBe('same')
+    expect(r.sets).toEqual([s(80, 10), s(80, 10)])
+    expect(r.reasonText).toMatch(/тяжело/i)
+    expect(r.changed).toBe(false)
+  })
+
+  it('без оценки поведение прежнее: план добит → +шаг', () => {
+    const r = recommendProgression({
+      metric: 'weight', lastSets: done, settings: wcfg,
+      recentSessions: [fsess(done, null)],
+    })
+    expect(r.kind).toBe('up')
+    expect(r.sets).toEqual([s(82.5, 10), s(82.5, 10)])
+    expect(r.reasonText).toBe('Всё выполнено → +2.5 кг')
+  })
+
+  it('три раза подряд «легко» → та же ветка вверх, но причина по факту', () => {
+    const r = recommendProgression({
+      metric: 'weight', lastSets: done, settings: wcfg,
+      recentSessions: [fsess(done, 'easy'), fsess(done, 'easy'), fsess(done, 'easy')],
+    })
+    expect(r.kind).toBe('up')
+    expect(r.sets).toEqual([s(82.5, 10), s(82.5, 10)])
+    expect(r.reasonText).toBe('3 раза подряд «легко» → +2.5 кг')
+  })
+
+  it('двух «легко» мало — причина остаётся расчётной', () => {
+    const r = recommendProgression({
+      metric: 'weight', lastSets: done, settings: wcfg,
+      recentSessions: [fsess(done, 'easy'), fsess(done, 'easy')],
+    })
+    expect(r.reasonText).toBe('Всё выполнено → +2.5 кг')
+  })
+
+  it('лёгкий недобор + два «тяжело» подряд → снижаем, хотя числа дали бы «тот же вес»', () => {
+    const short = [s(80, 10), s(80, 9)] // недобор 1 — сильным не считается
+    const byNumbers = recommendProgression({ metric: 'weight', lastSets: short, settings: wcfg })
+    expect(byNumbers.kind).toBe('same')
+
+    const byFeel = recommendProgression({
+      metric: 'weight', lastSets: short, settings: wcfg,
+      recentSessions: [fsess(short, 'hard'), fsess(short, 'hard')],
+    })
+    expect(byFeel.kind).toBe('down')
+    expect(byFeel.sets).toEqual([s(77.5, 10), s(77.5, 10)])
+    expect(byFeel.reasonText).toBe('2 раза подряд «тяжело» → −2.5 кг, закрепимся')
+  })
+
+  it('одного «тяжело» при лёгком недоборе мало', () => {
+    const short = [s(80, 10), s(80, 9)]
+    const r = recommendProgression({
+      metric: 'weight', lastSets: short, settings: wcfg,
+      recentSessions: [fsess(short, 'hard')],
+    })
+    expect(r.kind).toBe('same')
+  })
+
+  it('сильный недобор без оценок по-прежнему даёт down с прежним текстом', () => {
+    const bad = [s(80, 10), s(80, 6), s(80, 5)]
+    const r = recommendProgression({ metric: 'weight', lastSets: bad, settings: wcfg })
+    expect(r.kind).toBe('down')
+    expect(r.reasonText).toBe('Тяжело далось → −2.5 кг, закрепимся')
+  })
+})
+
+describe('recommendProgression + RPE, стратегия «+повторы»', () => {
+  const done = [s(80, 10), s(80, 10)]
+
+  it('«тяжело» ветирует нудж, который дала бы догадка по числам', () => {
+    const guess = recommendProgression({
+      metric: 'weight', lastSets: done, settings: rcfg,
+      recentSessions: [sess(done), sess(done), sess(done)],
+    })
+    expect(guess.kind).toBe('nudge') // прежнее поведение без оценок
+
+    const felt = recommendProgression({
+      metric: 'weight', lastSets: done, settings: rcfg,
+      recentSessions: [fsess(done, 'hard'), fsess(done, 'easy'), fsess(done, 'easy')],
+    })
+    expect(felt.kind).toBe('same')
+    expect(felt.reasonText).toMatch(/тяжело/i)
+  })
+
+  it('три «легко» дают нудж с формулировкой по факту', () => {
+    const r = recommendProgression({
+      metric: 'weight', lastSets: done, settings: rcfg,
+      recentSessions: [fsess(done, 'easy'), fsess(done, 'easy'), fsess(done, 'easy')],
+    })
+    expect(r.kind).toBe('nudge')
+    expect(r.reasonText).toBe('3 раза подряд «легко» → пора +2.5 кг')
+  })
+
+  it('догадка без оценок сохраняет прежнюю формулировку', () => {
+    const r = recommendProgression({
+      metric: 'weight', lastSets: done, settings: rcfg,
+      recentSessions: [sess(done), sess(done), sess(done)],
+    })
+    expect(r.reasonText).toBe('3 тренировки подряд закрываешь → пора +2.5 кг')
+  })
+})
+
+describe('recommendProgression + RPE, count-метрики', () => {
+  it('планка: выполнил, но тяжело → держим время', () => {
+    const done = [s(0, 60), s(0, 60)]
+    const r = recommendProgression({
+      metric: 'time', lastSets: done, settings: resolveProgSettings(null, 'e', 'time'),
+      recentSessions: [fsess(done, 'hard')],
+    })
+    expect(r.kind).toBe('same')
+    expect(r.sets).toEqual([s(0, 60), s(0, 60)])
+  })
+
+  it('подтягивания: три «легко» → +шаг с причиной по факту', () => {
+    const done = [s(0, 12), s(0, 12)]
+    const r = recommendProgression({
+      metric: 'reps', lastSets: done, settings: resolveProgSettings(null, 'e', 'reps'),
+      recentSessions: [fsess(done, 'easy'), fsess(done, 'easy'), fsess(done, 'easy')],
+    })
+    expect(r.kind).toBe('up')
+    expect(r.sets).toEqual([s(0, 13), s(0, 13)])
+    expect(r.reasonText).toBe('3 раза подряд «легко» → +1 повт.')
+  })
+})
+
+describe('RPE не ломает прежние вызовы', () => {
+  it('recentSessions вообще не передан → поведение как до Slice 4', () => {
+    const done = [s(80, 10), s(80, 10)]
+    const r = recommendProgression({ metric: 'weight', lastSets: done, settings: wcfg })
+    expect(r.kind).toBe('up')
+    expect(r.reasonText).toBe('Всё выполнено → +2.5 кг')
+  })
+
+  it('сессии без поля feel (история до Slice 4) → поведение прежнее', () => {
+    const done = [s(80, 10), s(80, 10)]
+    const r = recommendProgression({
+      metric: 'weight', lastSets: done, settings: wcfg,
+      recentSessions: [sess(done), sess(done), sess(done)],
+    })
+    expect(r.kind).toBe('up')
+    expect(r.reasonText).toBe('Всё выполнено → +2.5 кг')
+  })
+
+  it('смешанная история: свежая сессия без оценки не наследует старую', () => {
+    const done = [s(80, 10), s(80, 10)]
+    const r = recommendProgression({
+      metric: 'weight', lastSets: done, settings: wcfg,
+      recentSessions: [fsess(done, null), fsess(done, 'hard'), fsess(done, 'hard')],
+    })
+    expect(r.kind).toBe('up') // прошлый раз оценки не было → расчёт по числам
   })
 })

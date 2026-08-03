@@ -6,6 +6,7 @@ import {
 } from '../lib/progressionCard.js'
 import { exerciseFocusSummary } from '../lib/workoutFocus.js'
 import { isSetDone } from '../lib/setCompletion.js'
+import { FEELS, FEEL_LABELS } from '../lib/rpe.js'
 import { plural, pluralize } from '../lib/plural.js'
 
 // Карточка одного упражнения в композере тренировки (шапка, панель автопрогрессии
@@ -20,9 +21,14 @@ import { plural, pluralize } from '../lib/plural.js'
 // «всё выполнено», поэтому снятая отметка означает «подхода не было» и он не
 // попадёт в запись при сохранении. Строку помечаем ДО сохранения, чтобы
 // случайный тап не удалял данные молча.
+// `feel`/`onSetFeel` — субъективная оценка «как пошло» (RPE, Slice 4). В отличие
+// от `doneKeys` она НЕ транзиентна: экран запишет её в meta после сохранения
+// тренировки. Оценка необязательна, поэтому строка ничего не требует и не
+// блокирует, а повторный тап по выбранной кнопке снимает выбор.
 export default function ExerciseCard({
   entry, ei, prog, active = true, cardRef = null, onActivate = () => {},
   doneKeys = null, onToggleSetDone = () => {}, dropUnchecked = false,
+  feel = null, onSetFeel = () => {},
   onReplace, onRemove,
   onRevertProg, onApplyProg, onToggleProgSettings, onChangeProgSettings,
   onUpdateSet, onStep, onAddSet, onRemoveSet,
@@ -241,6 +247,25 @@ export default function ExerciseCard({
       <button className="btn ghost full" onClick={() => onAddSet(ei)}>
         + подход (повтор предыдущего)
       </button>
+
+      {/* Оценка идёт ПОСЛЕ подходов и «+ подход» — по хронологии занятия:
+          сначала делаешь упражнение, потом говоришь, как оно пошло. */}
+      <div className="feel" role="group" aria-label={`Как пошло: ${entry.exercise.name}`}>
+        <span className="feel-lbl">Как пошло?</span>
+        <div className="feel-btns">
+          {FEELS.map((f) => (
+            <button
+              key={f}
+              type="button"
+              className={`feel-btn feel-${f}${feel === f ? ' on' : ''}`}
+              aria-pressed={feel === f}
+              onClick={() => onSetFeel(entry.exercise.id, f)}
+            >
+              {FEEL_LABELS[f]}
+            </button>
+          ))}
+        </div>
+      </div>
     </div>
   )
 }

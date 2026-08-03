@@ -17,15 +17,20 @@
 //     держим САМУЮ РАННЮЮ дату. Веха, взятая офлайн на другом устройстве, не
 //     должна исчезать, а полученная «живьём» — деградировать до backfilled;
 //   - prog — настройки автопрогрессии: связный документ, частичное слияние
-//     бессмысленно → last-write-wins по updated_at (кто правил позже, тот прав).
+//     бессмысленно → last-write-wins по updated_at (кто правил позже, тот прав);
+//   - rpe — оценки «как пошло» по тренировкам: ОБЪЕДИНЕНИЕ по (workoutId,
+//     exerciseId), LWW только на спорной паре. История дописывается, а не
+//     переписывается: оценка, поставленная офлайн на телефоне, не должна
+//     исчезать после синка с ноутбука (правило слияния — в lib/rpe.js).
 // ============================================================================
 import { cmpIsoAsc } from './cmp.js'
+import { mergeRpe } from './rpe.js'
 
 // Синкаемые ключи. Значение — «род» ключа: локальный ключ в Dexie-meta это
 // `${kind}_${userId}`, серверный key — сам kind (владелец там колонкой).
 // ⚠️ Расширять ОДНОВРЕМЕННО с белым списком в upsert_user_meta (user-meta.sql),
 // иначе push упрётся в ошибку `unknown user_meta key`.
-export const SYNCED_KINDS = ['badges', 'prog', 'notif_seen_at']
+export const SYNCED_KINDS = ['badges', 'prog', 'notif_seen_at', 'rpe']
 
 // Локальный ключ персональной meta по роду и пользователю.
 export const metaKeyFor = (kind, userId) => `${kind}_${userId}`
@@ -82,6 +87,11 @@ export function mergeMetaValue({ kind, local, remote, localAt, remoteAt }) {
       return cmpIsoAsc(local, remote) >= 0 ? local : remote
     case 'badges':
       return mergeBadges(local, remote)
+    case 'rpe':
+      // Объединение карт оценок; на спорной паре (workoutId, exerciseId)
+      // выигрывает сторона, правившая позже. При равенстве — локальная, как и у
+      // LWW-родов ниже.
+      return mergeRpe(local, remote, cmpIsoAsc(localAt, remoteAt) >= 0)
     default:
       // prog и всё будущее без своего правила — last-write-wins. Часы разные
       // (локальные vs серверные), но расхождение в секунды роли не играет:

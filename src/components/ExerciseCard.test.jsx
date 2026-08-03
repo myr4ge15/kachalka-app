@@ -49,6 +49,7 @@ function renderCard(entry, cbOver = {}, propOver = {}) {
     onToggleProgSettings: vi.fn(), onChangeProgSettings: vi.fn(),
     onUpdateSet: vi.fn(), onStep: vi.fn(), onAddSet: vi.fn(), onRemoveSet: vi.fn(),
     onToggleSetDone: vi.fn(),
+    onSetFeel: vi.fn(),
     ...cbOver,
   }
   const utils = render(
@@ -226,5 +227,45 @@ describe('ExerciseCard — панель автопрогрессии', () => {
     expect(screen.getByText(/выключена/)).toBeInTheDocument()
     fireEvent.click(screen.getByLabelText('Настройки прогрессии'))
     expect(cbs.onToggleProgSettings).toHaveBeenCalledWith(0)
+  })
+})
+
+describe('ExerciseCard — оценка «Как пошло?» (RPE)', () => {
+  it('три кнопки шкалы, ни одна не выбрана по умолчанию', () => {
+    renderCard(weightEntry())
+    expect(screen.getByText('Как пошло?')).toBeInTheDocument()
+    for (const label of ['легко', 'нормально', 'тяжело']) {
+      expect(screen.getByRole('button', { name: label })).toHaveAttribute('aria-pressed', 'false')
+    }
+  })
+
+  it('тап отдаёт id упражнения и значение шкалы', () => {
+    const { cbs } = renderCard(weightEntry())
+    fireEvent.click(screen.getByRole('button', { name: 'тяжело' }))
+    expect(cbs.onSetFeel).toHaveBeenCalledWith('e1', 'hard')
+  })
+
+  it('выбранная оценка отмечена aria-pressed (снятие решает экран, не карточка)', () => {
+    const { cbs } = renderCard(weightEntry(), {}, { feel: 'easy' })
+    expect(screen.getByRole('button', { name: 'легко' })).toHaveAttribute('aria-pressed', 'true')
+    expect(screen.getByRole('button', { name: 'тяжело' })).toHaveAttribute('aria-pressed', 'false')
+    // повторный тап по выбранной уходит тем же колбэком — снятие делает WorkoutScreen
+    fireEvent.click(screen.getByRole('button', { name: 'легко' }))
+    expect(cbs.onSetFeel).toHaveBeenCalledWith('e1', 'easy')
+  })
+
+  it('есть и у упражнений без веса', () => {
+    renderCard(countEntry())
+    expect(screen.getByRole('button', { name: 'нормально' })).toBeInTheDocument()
+  })
+
+  it('свёрнутая карточка оценку не показывает — она часть развёрнутой работы', () => {
+    renderCard(weightEntry(), {}, { active: false })
+    expect(screen.queryByText('Как пошло?')).not.toBeInTheDocument()
+  })
+
+  it('группа подписана именем упражнения — в тренировке таких строк несколько', () => {
+    renderCard(weightEntry())
+    expect(screen.getByRole('group', { name: 'Как пошло: Жим лёжа' })).toBeInTheDocument()
   })
 })

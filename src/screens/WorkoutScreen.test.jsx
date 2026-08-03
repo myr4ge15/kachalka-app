@@ -2,7 +2,7 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 import { act, fireEvent, render, screen, waitFor } from '@testing-library/react'
 import { useLiveQuery } from 'dexie-react-hooks'
-import { getRecentSessionsForExercise, getWorkout, saveWorkout } from '../db/repo.js'
+import { getRecentSessionsForExercise, getWorkout, getWorkoutFeels, saveWorkout, setWorkoutFeels } from '../db/repo.js'
 import { detectGoalReachedOnSave, detectNewPrsOnSave } from '../db/notifications.js'
 import { detectInsightsOnSave } from '../db/insights.js'
 import { detectBadgesOnSave } from '../db/badges.js'
@@ -23,6 +23,8 @@ vi.mock('../db/repo.js', () => ({
   getProgSettings: vi.fn(),
   setProgForExercise: vi.fn(),
   saveTemplate: vi.fn(),
+  getWorkoutFeels: vi.fn(),
+  setWorkoutFeels: vi.fn(),
 }))
 vi.mock('../db/notifications.js', () => ({
   detectNewPrsOnSave: vi.fn(),
@@ -62,6 +64,10 @@ describe('WorkoutScreen', () => {
     vi.mocked(getRecentSessionsForExercise).mockReset()
     vi.mocked(saveWorkout).mockReset()
     vi.mocked(saveWorkout).mockResolvedValue('saved-workout')
+    vi.mocked(getWorkoutFeels).mockReset()
+    vi.mocked(getWorkoutFeels).mockResolvedValue({})
+    vi.mocked(setWorkoutFeels).mockReset()
+    vi.mocked(setWorkoutFeels).mockResolvedValue(undefined)
     vi.mocked(detectNewPrsOnSave).mockReset()
     vi.mocked(detectNewPrsOnSave).mockResolvedValue([])
     vi.mocked(detectGoalReachedOnSave).mockReset()
@@ -155,6 +161,64 @@ describe('WorkoutScreen', () => {
     await waitFor(() => expect(saveWorkout).toHaveBeenCalledOnce())
     const saved = vi.mocked(saveWorkout).mock.calls[0][0].entries
     expect(saved[0].sets).toEqual([{ weight: 60, reps: 8, _k: 'set-1' }])
+  })
+
+  it('оценка «как пошло» пишется ПОСЛЕ сохранения — с id, которого до него нет', async () => {
+    setCache(`workout_draft_new_${user.id}`, draft)
+    render(<WorkoutScreen user={user} />)
+
+    fireEvent.click(screen.getByRole('button', { name: 'тяжело' }))
+    fireEvent.click(screen.getByRole('button', { name: 'Сохранить (1)' }))
+
+    await waitFor(() => expect(setWorkoutFeels).toHaveBeenCalledOnce())
+    const [uid, wId, , feels] = vi.mocked(setWorkoutFeels).mock.calls[0]
+    expect(uid).toBe('u1')
+    expect(wId).toBe('saved-workout') // id выдал saveWorkout, до него оценку писать некуда
+    expect(feels).toEqual({ bench: 'hard' })
+    // в сам документ тренировки оценка не попадает
+    expect(vi.mocked(saveWorkout).mock.calls[0][0].entries[0]).not.toHaveProperty('feel')
+  })
+
+  it('повторный тап снимает оценку — промах не фиксируется навсегда', async () => {
+    setCache(`workout_draft_new_${user.id}`, draft)
+    render(<WorkoutScreen user={user} />)
+
+    fireEvent.click(screen.getByRole('button', { name: 'легко' }))
+    expect(screen.getByRole('button', { name: 'легко' })).toHaveAttribute('aria-pressed', 'true')
+    fireEvent.click(screen.getByRole('button', { name: 'легко' }))
+    expect(screen.getByRole('button', { name: 'легко' })).toHaveAttribute('aria-pressed', 'false')
+
+    fireEvent.click(screen.getByRole('button', { name: 'Сохранить (1)' }))
+    await waitFor(() => expect(setWorkoutFeels).toHaveBeenCalledOnce())
+    expect(vi.mocked(setWorkoutFeels).mock.calls[0][3]).toEqual({})
+  })
+
+  it('сохранение не ломается, если запись оценок упала', async () => {
+    setCache(`workout_draft_new_${user.id}`, draft)
+    vi.mocked(setWorkoutFeels).mockRejectedValue(new Error('meta недоступна'))
+    const onSaved = vi.fn()
+    render(<WorkoutScreen user={user} onSaved={onSaved} />)
+
+    fireEvent.click(screen.getByRole('button', { name: 'нормально' }))
+    fireEvent.click(screen.getByRole('button', { name: 'Сохранить (1)' }))
+
+    await waitFor(() => expect(onSaved).toHaveBeenCalledOnce())
+    expect(screen.queryByText(/Не сохранилось/)).not.toBeInTheDocument()
+  })
+
+  it('правка открывается с прежней оценкой', async () => {
+    vi.mocked(getWorkout).mockResolvedValue({
+      id: 'w1',
+      performed_at: '2026-07-30T12:00:00.000Z',
+      entries: [{ exercise_id: 'bench', exercise: draft[0].exercise, sets: [{ weight: 60, reps: 8 }] }],
+    })
+    vi.mocked(getWorkoutFeels).mockResolvedValue({ bench: 'easy' })
+    render(<WorkoutScreen user={user} workoutId="w1" />)
+
+    await screen.findByText('Жим лёжа')
+    await waitFor(() =>
+      expect(screen.getByRole('button', { name: 'легко' })).toHaveAttribute('aria-pressed', 'true')
+    )
   })
 
   it('правка сохранённой тренировки открывается с отмеченными подходами', async () => {

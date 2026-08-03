@@ -12,8 +12,48 @@ describe('metaKeyFor / SYNCED_KINDS', () => {
     expect(metaKeyFor('notif_seen_at', 'u1')).toBe('notif_seen_at_u1')
   })
 
-  it('синкаем ровно три рода ключей', () => {
-    expect(SYNCED_KINDS).toEqual(['badges', 'prog', 'notif_seen_at'])
+  it('синкаем ровно четыре рода ключей', () => {
+    // ⚠️ Тест-страховка к инварианту AGENTS.md: список обязан совпадать с белым
+    // списком в upsert_user_meta (supabase/user-meta.sql), иначе push упрётся в
+    // `unknown user_meta key`. Меняешь здесь — меняй и там.
+    expect(SYNCED_KINDS).toEqual(['badges', 'prog', 'notif_seen_at', 'rpe'])
+  })
+})
+
+describe('mergeMetaValue — rpe (оценки «как пошло»)', () => {
+  const rec = (at, ex) => ({ at, ex })
+  const merge = (local, remote, localAt, remoteAt) =>
+    mergeMetaValue({ kind: 'rpe', local, remote, localAt, remoteAt })
+
+  it('объединяет оценки, а не переписывает: офлайн-оценка переживает синк', () => {
+    // Телефон оценил жим офлайн, ноут в это же время оценил тягу другой тренировки.
+    const local = { w1: rec('2026-07-01', { bench: 'hard' }) }
+    const remote = { w2: rec('2026-07-02', { row: 'easy' }) }
+    const out = merge(local, remote, NOW, NOW)
+    expect(out.w1.ex).toEqual({ bench: 'hard' })
+    expect(out.w2.ex).toEqual({ row: 'easy' })
+  })
+
+  it('внутри одной тренировки объединяет разные упражнения', () => {
+    const local = { w1: rec('2026-07-01', { bench: 'hard' }) }
+    const remote = { w1: rec('2026-07-01', { squat: 'ok' }) }
+    expect(merge(local, remote, NOW, NOW).w1.ex).toEqual({ bench: 'hard', squat: 'ok' })
+  })
+
+  it('спор об ОДНОЙ оценке решает время правки (LWW только на спорной паре)', () => {
+    const local = { w1: rec('2026-07-01', { bench: 'easy' }) }
+    const remote = { w1: rec('2026-07-01', { bench: 'hard' }) }
+    const older = '2026-07-24T11:00:00.000Z'
+    expect(merge(local, remote, NOW, older).w1.ex.bench).toBe('easy')
+    expect(merge(local, remote, older, NOW).w1.ex.bench).toBe('hard')
+    // при равенстве времени остаётся локальное (как у LWW-родов)
+    expect(merge(local, remote, NOW, NOW).w1.ex.bench).toBe('easy')
+  })
+
+  it('пустая сторона не стирает вторую (общее правило mergeMetaValue)', () => {
+    const local = { w1: rec('2026-07-01', { bench: 'easy' }) }
+    expect(merge(local, null, NOW, NOW)).toEqual(local)
+    expect(merge(null, local, NOW, NOW)).toEqual(local)
   })
 })
 

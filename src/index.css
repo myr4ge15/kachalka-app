@@ -632,6 +632,33 @@ input { font-family: inherit; }
 }
 .ap-stepper button { height: 40px; }
 
+/* ---------- RPE: «Как пошло?» в карточке упражнения ---------- */
+/* Строка НЕ выделена подложкой: оценка необязательна, и панель вокруг неё читалась
+   бы как ещё одно обязательное поле. Отделяем только линией — как настройки
+   прогрессии внутри .ap. Кнопки бледные до выбора: невыбранное состояние не
+   должно спорить за внимание с невыполненными подходами выше. */
+.feel { display: flex; align-items: center; gap: 10px; margin-top: 12px; padding-top: 11px; border-top: 1px solid var(--border); }
+.feel-lbl { color: var(--muted); font-size: 12px; flex-shrink: 0; }
+.feel-btns { display: flex; gap: 6px; flex: 1; }
+.feel-btn {
+  flex: 1; min-height: 44px; padding: 0 4px;
+  border: 1px solid var(--border); border-radius: 10px;
+  background: var(--surface-2); color: var(--muted);
+  font-size: 12px; line-height: 1.2;
+  touch-action: manipulation;
+  transition: transform var(--dur-fast) var(--ease-out),
+              background var(--dur-fast) var(--ease-out), color var(--dur-fast) var(--ease-out);
+}
+.feel-btn:active { transform: scale(.94); }
+.feel-btn.on { font-weight: 600; }
+.feel-btn.feel-easy.on { border-color: var(--green); color: #86efac; background: rgba(22,163,74,.16); }
+.feel-btn.feel-ok.on { border-color: var(--yellow); color: #fde047; background: rgba(250,204,21,.14); }
+.feel-btn.feel-hard.on { border-color: var(--red); color: #fca5a5; background: rgba(239,68,68,.14); }
+/* Узкие экраны: подпись над кнопками, иначе на «нормально» не остаётся ширины. */
+@media (max-width: 360px) {
+  .feel { flex-direction: column; align-items: stretch; gap: 7px; }
+}
+
 /* Тумблер-строка в настройках Профиля (напр. «Рекомендации прогрессии») */
 .toggle-act { display: flex; align-items: center; justify-content: space-between; gap: 12px; text-align: left; }
 .toggle-act-txt { display: flex; flex-direction: column; gap: 2px; }
