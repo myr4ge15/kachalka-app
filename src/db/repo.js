@@ -138,21 +138,12 @@ export async function createExercise({ name, muscle_group, metric, submuscle, se
   return { id, name: clean, muscle_group: group, submuscle: sub, secondary: sec, is_bench_lift: false, metric: mtr, is_custom: true, owner_id: owner }
 }
 
-// Пользовательские (is_custom) упражнения — для экрана «Каталог упражнений».
-// Только то, что добавили участники (не сидовый справочник), без скрытых
-// админкой. Сортировка как в пикере (группа, затем имя), чтобы список был
-// предсказуем. Разделение на «моё/чужое» здесь НЕ делаем: справочник общий,
-// экран режет его по owner_id чистой lib/exerciseCatalog.js.
-export async function getCustomExercises() {
-  const list = await db.exercises.toArray()
-  return list
-    .filter((e) => e.is_custom && !e.is_hidden)
-    .sort(
-      (a, b) =>
-        String(a.muscle_group ?? '').localeCompare(String(b.muscle_group ?? '')) ||
-        String(a.name ?? '').localeCompare(String(b.name ?? ''))
-    )
-}
+// NB: отдельной getCustomExercises больше нет (была до v5.14.0). Экран «Каталог
+// упражнений» показывает ВЕСЬ справочник тремя разделами и берёт его из того же
+// getExercises, что и пикер; раскладка «моё / чужое / общее» — чистая
+// lib/exerciseCatalog.js splitCatalog. Фильтр `where is_custom` в repo как раз и
+// был тем местом, из-за которого экран обещал «твои упражнения», а показывал
+// всё кастомное круга.
 
 // Отредактировать СВОЁ (is_custom) упражнение: название/группа/подмышцы/тип
 // метрики. Офлайн-first, тем же путём, что и создание — правим локальный кэш
