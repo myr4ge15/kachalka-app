@@ -1,13 +1,27 @@
 name: Deploy to GitHub Pages
 
-# Прямой pipeline main: проверки → production-сборка → публикация Pages.
+# Публикация инстанса КРУГА ДРУЗЕЙ. Проверки → production-сборка → Pages.
 # Ключи Supabase берутся из секретов репозитория (Settings → Secrets and variables → Actions):
 #   VITE_SUPABASE_URL, VITE_SUPABASE_KEY (publishable-ключ sb_publishable_...)
 # Pages: Settings → Pages → Source = GitHub Actions.
+#
+# ⚠️ ВЫКАТ ИДЁТ С ТЕГА, А НЕ С main (шаг 1 плана, 03.08.2026).
+#
+# Раньше любой пуш в main немедленно уезжал пятерым живым людям — это был
+# единственный канал поломки клиента и он был всегда открыт. Теперь публикация —
+# отдельное осознанное действие:
+#
+#   git tag v5.14.0 && git push origin v5.14.0
+#
+# Пуш в main проверяется (test.yml), но НЕ публикуется. Откат на прошлую версию —
+# workflow_dispatch с выбором нужного тега в интерфейсе Actions.
+#
+# ⚠️ Тег легко забыть двигать. Через полгода у друзей 5.13, в main 6.x, и слить
+# уже больно. Правило и напоминание — в AGENTS.md, Definition of Done.
 
 on:
   push:
-    branches: [main]
+    tags: ['v*']
   workflow_dispatch:
 
 permissions:

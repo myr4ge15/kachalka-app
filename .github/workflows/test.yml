@@ -4,9 +4,11 @@ name: Tests
 # CI на GitHub Actions делает чистый npm ci, поэтому проблемы песочницы с битым
 # node_modules здесь нет. См. docs/PLAN-tests.md.
 
+# С 03.08.2026 `main` НЕ исключается. Раньше его проверял deploy.yml (он же и
+# публиковал), но публикация переехала на теги — и без этой правки пуш в main
+# остался бы вообще без проверок.
 on:
   push:
-    branches-ignore: [main]
   pull_request:
 
 jobs:
