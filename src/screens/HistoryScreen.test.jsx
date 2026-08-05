@@ -1,8 +1,9 @@
 // @vitest-environment jsdom
 import { beforeEach, describe, expect, it, vi } from 'vitest'
-import { fireEvent, render, screen, waitFor } from '@testing-library/react'
+import { act, fireEvent, render, screen, waitFor } from '@testing-library/react'
 import { useLiveQuery } from 'dexie-react-hooks'
 import { saveTemplate } from '../db/repo.js'
+import { emitReselect } from '../lib/appEvents.js'
 import HistoryScreen from './HistoryScreen.jsx'
 
 vi.mock('dexie-react-hooks', () => ({ useLiveQuery: vi.fn() }))
@@ -97,6 +98,33 @@ describe('HistoryScreen', () => {
     expect(screen.queryByRole('dialog', { name: 'Тренировка готова' })).not.toBeInTheDocument()
     expect(screen.getByText('Мои тренировки')).toBeInTheDocument()
     await waitFor(() => expect(onBusy).toHaveBeenLastCalledWith(false))
+  })
+
+  // Отзыв тестировщицы: из композера тап по УЖЕ активной вкладке «Тренировки»
+  // не делал ничего, и добраться до списка (а значит, до шаблонов) можно было
+  // только кнопкой «Назад», которая по интуиции ведёт на предыдущий экран.
+  it('повторный тап по активной вкладке возвращает из композера к списку', async () => {
+    render(<HistoryScreen user={user} openNew />)
+    expect(screen.getByTestId('workout-screen')).toBeInTheDocument()
+
+    act(() => emitReselect('history'))
+
+    await waitFor(() => expect(screen.queryByTestId('workout-screen')).not.toBeInTheDocument())
+    expect(screen.getByText('Мои тренировки')).toBeInTheDocument()
+  })
+
+  it('повторный тап по ЧУЖОЙ вкладке хаб не трогает', async () => {
+    render(<HistoryScreen user={user} openNew />)
+    act(() => emitReselect('feed'))
+    await waitFor(() => expect(screen.getByTestId('workout-screen')).toBeInTheDocument())
+  })
+
+  it('пустой список зовёт записать тренировку', () => {
+    vi.mocked(useLiveQuery).mockReturnValue([])
+    render(<HistoryScreen user={user} />)
+
+    fireEvent.click(screen.getByRole('button', { name: '+ Записать тренировку' }))
+    expect(screen.getByTestId('workout-screen')).toHaveTextContent('new')
   })
 
   it('из главного события открывает Прогресс нужного упражнения', () => {

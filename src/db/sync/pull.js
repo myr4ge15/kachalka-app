@@ -190,7 +190,7 @@ async function pullExercises(d = db) {
     // НЕ затираем локально созданные упражнения, которые ещё не доехали до сервера
     // (_dirty=1) — иначе своё упражнение пропадёт из пикера до завершения синка.
     const ex = await withTimeout(
-      supabase.from('exercises').select('id, name, muscle_group, submuscle, secondary, is_bench_lift, is_female_lift, is_custom, is_hidden, metric, updated_at')
+      supabase.from('exercises').select('id, name, muscle_group, submuscle, secondary, is_bench_lift, is_female_lift, is_custom, is_hidden, metric, owner_id, updated_at')
     )
     if (ex.error) warnings.push('упражнения: ' + (ex.error.message ?? ex.error))
     else if (ex.data) {

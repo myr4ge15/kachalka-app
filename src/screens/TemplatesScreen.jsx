@@ -522,11 +522,12 @@ function TemplateEditor({ user, templateId, onBack }) {
         </>
       )}
 
+      {/* onCreate: владелец нового упражнения — вошедший (см. WorkoutScreen). */}
       {pickerOpen && (
         <ExercisePicker
           exercises={exercises}
           onPick={addExercise}
-          onCreate={createExercise}
+          onCreate={(p) => createExercise({ ...p, owner_id: user.id })}
           onClose={() => setPickerOpen(false)}
         />
       )}

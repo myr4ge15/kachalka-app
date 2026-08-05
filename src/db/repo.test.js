@@ -215,6 +215,35 @@ describe('updateExercise', () => {
     ).resolves.toBeTruthy()
   })
 
+  it('запоминает владельца нового упражнения и шлёт его в очередь', async () => {
+    const ex = await createExercise({ name: 'Своё с владельцем', muscle_group: 'плечи', owner_id: userId })
+    expect(ex.owner_id).toBe(userId)
+    expect((await db.exercises.get(ex.id)).owner_id).toBe(userId)
+  })
+
+  it('анти-дубль не переписывает владельца: упражнение остаётся у того, кто завёл', async () => {
+    const first = await createExercise({ name: 'Общее', muscle_group: 'спина', owner_id: 'u-other' })
+    const second = await createExercise({ name: '  общее ', muscle_group: 'спина', owner_id: userId })
+    expect(second.id).toBe(first.id)
+    expect(second.owner_id).toBe('u-other')
+  })
+
+  it('отклоняет правку ЧУЖОГО упражнения (владелец другой)', async () => {
+    const ex = await createExercise({ name: 'Чужое', muscle_group: 'ноги', owner_id: 'u-other' })
+    await expect(
+      updateExercise({ id: ex.id, name: 'Переименовал', muscle_group: 'ноги', editor_id: userId })
+    ).rejects.toThrow()
+  })
+
+  it('разрешает правку ничьего (легаси без владельца)', async () => {
+    const ex = await createExercise({ name: 'Легаси', muscle_group: 'пресс' })
+    await expect(
+      updateExercise({ id: ex.id, name: 'Легаси-2', muscle_group: 'пресс', editor_id: userId })
+    ).resolves.toBeTruthy()
+    // владельца при этом НЕ присваиваем: правка не делает упражнение своим
+    expect((await db.exercises.get(ex.id)).owner_id ?? null).toBe(null)
+  })
+
   it('getCustomExercises отдаёт только свои и без скрытых', async () => {
     const mine = await createExercise({ name: 'Своё-1', muscle_group: 'плечи' })
     await db.exercises.put({ id: 'ex_seed2', name: 'Сидовое', muscle_group: 'ноги', is_custom: false })

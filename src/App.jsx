@@ -288,8 +288,16 @@ export default function App() {
   // «Тренировки» — хаб при монтировании/обновлении сразу откроет композер.
   // Порядок важен: интент ставим ДО смены вкладки, иначе хаб успеет отрисовать
   // список и мелькнёт лишний кадр.
+  // Если вкладка «Тренировки» уже открыта (FAB висит над списком), идём в обход
+  // goTab: тот на повторном тапе шлёт `reselect`, а хаб теперь понимает его как
+  // «вернись к списку» и погасил бы только что взведённый интент. Прокрутку
+  // наверх делаем сами — смены вкладки, а значит и layout-эффекта, не будет.
   function startNewWorkout() {
     setOpenNewWorkout(true)
+    if (tab === 'history') {
+      contentRef.current?.scrollTo({ top: 0 })
+      return
+    }
     goTab('history')
   }
 
@@ -438,7 +446,7 @@ export default function App() {
                 <FreshnessScreen user={user} onBack={() => goTab('home')} />
               )}
               {tab === 'myex' && (
-                <MyExercisesScreen onBack={() => goTab('profile')} />
+                <MyExercisesScreen user={user} onBack={() => goTab('profile')} />
               )}
               {tab === 'achievements' && (
                 <AchievementsScreen user={user} onBack={() => goTab('profile')} />

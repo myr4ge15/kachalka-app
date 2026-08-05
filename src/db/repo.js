@@ -23,6 +23,7 @@ import { cmpIsoDesc } from '../lib/cmp.js'
 import { sortUsersByOrder } from '../lib/userOrder.js'
 import { normMetric } from '../lib/metric.js'
 import { clampSet } from '../lib/setLimits.js'
+import { canEditExercise } from '../lib/exerciseCatalog.js'
 import { pickLastSets } from '../lib/lastSets.js'
 import { isReactionKind } from '../lib/reactions.js'
 import { defaultSubmuscleFor, cleanSecondary } from '../lib/muscles.js'
@@ -79,9 +80,13 @@ export async function applyExerciseMergeLocal(fromId) {
 // Анти-дубль: если упражнение с тем же названием уже есть — НЕ плодим копию,
 // возвращаем существующее. Сравнение по нормализованному ключу (ё/е, регистр,
 // пунктуация, двойные пробелы), чтобы «Жим лёжа» и «жим  лежа» считались одним.
-export async function createExercise({ name, muscle_group, metric, submuscle, secondary }) {
+// `owner_id` — кто добавил упражнение. Справочник ОБЩИЙ (одна таблица на круг),
+// поэтому «своё/чужое» держится только на этой колонке; без неё экран каталога
+// показывал бы всем один и тот же список (так и было до v5.14.0). Экраны передают
+// сюда id вошедшего; отсутствие owner_id (легаси-строки) означает «ничьё».
+export async function createExercise({ name, muscle_group, metric, submuscle, secondary, owner_id }) {
   const clean = String(name ?? '').trim()
-  if (!clean) throw new Error('Введите название упражнения.')
+  if (!clean) throw new Error('Введи название упражнения.')
   const group = muscle_group ? String(muscle_group).trim() : null
   const mtr = normMetric(metric)
   // Двухуровневая модель мышц (PLAN-muscle-detail, слайс 1): подмышца (primary) +
@@ -90,10 +95,15 @@ export async function createExercise({ name, muscle_group, metric, submuscle, se
   const sub = submuscle ? String(submuscle).trim() : defaultSubmuscleFor(group)
   const sec = cleanSecondary(secondary, sub)
 
+  const owner = owner_id ?? null
+
   const key = normalizeName(clean)
   const all = await db.exercises.toArray()
   const dup = all.find((e) => normalizeName(e.name) === key)
   if (dup) {
+    // Анти-дубль отдаёт ЧУЖУЮ строку как есть, владельца не переписываем: тот,
+    // кто первым завёл упражнение, остаётся его владельцем, а этот человек просто
+    // им пользуется. Иначе каталог «Добавил я» наполнялся бы чужим трудом.
     return {
       id: dup.id,
       name: dup.name,
@@ -103,6 +113,7 @@ export async function createExercise({ name, muscle_group, metric, submuscle, se
       is_bench_lift: Boolean(dup.is_bench_lift),
       metric: normMetric(dup.metric),
       is_custom: Boolean(dup.is_custom),
+      owner_id: dup.owner_id ?? null,
     }
   }
 
@@ -118,17 +129,20 @@ export async function createExercise({ name, muscle_group, metric, submuscle, se
       is_bench_lift: false,
       metric: mtr,
       unit: 'kg',
+      owner_id: owner,
       _dirty: 1,
     })
     await db.ex_outbox.add({ exerciseId: id, createdAt: nowIso(), attempts: 0 })
   })
 
-  return { id, name: clean, muscle_group: group, submuscle: sub, secondary: sec, is_bench_lift: false, metric: mtr, is_custom: true }
+  return { id, name: clean, muscle_group: group, submuscle: sub, secondary: sec, is_bench_lift: false, metric: mtr, is_custom: true, owner_id: owner }
 }
 
-// Свои (is_custom) упражнения — для экрана «Мои упражнения». Только те, что
-// добавили пользователи (не сидовый справочник), без скрытых админкой. Сортировка
-// как в пикере (группа, затем имя), чтобы список был предсказуем.
+// Пользовательские (is_custom) упражнения — для экрана «Каталог упражнений».
+// Только то, что добавили участники (не сидовый справочник), без скрытых
+// админкой. Сортировка как в пикере (группа, затем имя), чтобы список был
+// предсказуем. Разделение на «моё/чужое» здесь НЕ делаем: справочник общий,
+// экран режет его по owner_id чистой lib/exerciseCatalog.js.
 export async function getCustomExercises() {
   const list = await db.exercises.toArray()
   return list
@@ -143,19 +157,25 @@ export async function getCustomExercises() {
 // Отредактировать СВОЁ (is_custom) упражнение: название/группа/подмышцы/тип
 // метрики. Офлайн-first, тем же путём, что и создание — правим локальный кэш
 // (мгновенный UI) и ставим ре-upsert в `ex_outbox`. Серверный upsert идемпотентен
-// по id, а RLS на `exercises` разрешает update любому участнику (закрытый круг),
-// поэтому отдельной серверной части не нужно. Денормализованные снимки упражнения
-// в истории тренировок починятся на следующем pull (как при правке из админки).
+// по id. Денормализованные снимки упражнения в истории тренировок починятся на
+// следующем pull (как при правке из админки).
 //
-// Только для is_custom: сидовый справочник правит админ (lib/admin.js). Анти-дубль
-// по имени — как в createExercise, но СЕБЯ из проверки исключаем.
-export async function updateExercise({ id, name, muscle_group, metric, submuscle, secondary }) {
+// Только для is_custom: сидовый справочник правит админ (lib/admin.js). Своё или
+// ничьё — проверяем и здесь, и на сервере (политика exercises_update из
+// supabase/exercise-owner.sql): справочник ОБЩИЙ, и правка чужого упражнения
+// разъезжалась по всему кругу. Клиентская проверка нужна ради внятной ошибки и
+// офлайна, серверная — потому что клиент не защита. Анти-дубль по имени — как в
+// createExercise, но СЕБЯ из проверки исключаем.
+export async function updateExercise({ id, name, muscle_group, metric, submuscle, secondary, editor_id }) {
   const ex = await db.exercises.get(id)
   if (!ex) throw new Error('Упражнение не найдено.')
   if (!ex.is_custom) throw new Error('Редактировать можно только свои упражнения.')
+  if (!canEditExercise(ex, editor_id)) {
+    throw new Error('Это упражнение добавил другой участник — править его может только он.')
+  }
 
   const clean = String(name ?? '').trim()
-  if (!clean) throw new Error('Введите название упражнения.')
+  if (!clean) throw new Error('Введи название упражнения.')
 
   const key = normalizeName(clean)
   const all = await db.exercises.toArray()
@@ -617,7 +637,7 @@ function cleanTemplateExercises(exercises) {
 // Передай существующий id, чтобы отредактировать.
 export async function saveTemplate({ id, user_id, name, exercises, is_public }) {
   const clean = String(name ?? '').trim()
-  if (!clean) throw new Error('Введите название шаблона.')
+  if (!clean) throw new Error('Введи название шаблона.')
   const cleaned = cleanTemplateExercises(exercises)
   if (cleaned.length === 0) throw new Error('Добавь хотя бы одно упражнение.')
 

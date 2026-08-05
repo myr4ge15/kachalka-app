@@ -269,6 +269,11 @@ input { font-family: inherit; }
 .screen-title { margin: 4px 0 12px; font-size: 24px; font-weight: 800; letter-spacing: -.01em; }
 .sub { margin-top: -6px; }
 .empty { text-align: center; padding: 32px 0; }
+/* Пустое состояние с призывом к действию: текст + кнопка одним блоком.
+   Нижний отступ .empty съедаем, чтобы кнопка не улетала от объяснения. */
+.empty-cta { display: flex; flex-direction: column; align-items: center; }
+.empty-cta .empty { padding-bottom: 16px; }
+.empty-cta .btn { max-width: 320px; }
 
 /* ---------- cards ---------- */
 .card {
@@ -829,6 +834,11 @@ input { font-family: inherit; }
   color: var(--text); font-size: 16px; text-align: left;
 }
 .picker-group { color: var(--muted); font-size: 12px; }
+/* Строка каталога, которую нельзя править (чужое упражнение): та же геометрия,
+   но не кнопка — приглушаем, чтобы отсутствие реакции на тап было ожидаемым. */
+.picker-item.is-static { width: 100%; opacity: .6; cursor: default; }
+/* Пустой раздел каталога — компактнее общего .empty (их на экране два подряд). */
+.catalog-empty { padding: 10px 0 2px; font-size: 14px; }
 /* Предложение создать упражнение по введённому названию (нет в справочнике) */
 .create-suggest { color: var(--green); font-weight: 600; }
 

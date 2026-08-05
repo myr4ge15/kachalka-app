@@ -193,7 +193,7 @@ function AccessSection({ meId, online, errMsg }) {
                   />
                   <span>
                     {u.name}
-                    {u.id === meId && <span className="admin-you">вы</span>}
+                    {u.id === meId && <span className="admin-you">ты</span>}
                     {u.is_private ? ' · 🔒' : ''}
                   </span>
                 </label>
@@ -671,7 +671,7 @@ function UsersSection({ meId, online, errMsg }) {
                 <div className="admin-ex-main">
                   <span className="admin-ex-name">
                     {u.name}
-                    {u.id === meId && <span className="admin-you">вы</span>}
+                    {u.id === meId && <span className="admin-you">ты</span>}
                   </span>
                   <span className="admin-ex-meta">
                     {u.role === 'admin' ? 'админ' : 'участник'}
@@ -823,7 +823,7 @@ function UserReorderList({ users, meId, onCancel, onSave, errMsg }) {
             >☰</span>
             <span className="admin-ex-name">
               {u.name}
-              {u.id === meId && <span className="admin-you">вы</span>}
+              {u.id === meId && <span className="admin-you">ты</span>}
             </span>
           </li>
         ))}

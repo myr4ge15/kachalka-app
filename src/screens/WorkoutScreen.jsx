@@ -613,13 +613,17 @@ export default function WorkoutScreen({ user, workoutId = null, onBack, onSaved 
         </>
       )}
 
+      {/* onCreate: владельца проставляем здесь, а не в repo — тот не знает, кто
+          вошёл. Справочник упражнений общий на весь круг, и без owner_id новое
+          упражнение осталось бы ничьим, а каталог снова показывал бы всем одно
+          и то же (баг «Мои упражнения одинаковые у разных людей»). */}
       {pickerOpen && (
         <ExercisePicker
           exercises={exercises}
           usage={exerciseUsage}
           title={replaceIdx != null ? 'Заменить упражнение' : 'Упражнение'}
           onPick={handlePick}
-          onCreate={createExercise}
+          onCreate={(p) => createExercise({ ...p, owner_id: user.id })}
           onClose={closePicker}
         />
       )}

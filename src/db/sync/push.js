@@ -81,6 +81,10 @@ export async function pushExercises(d = db) {
           is_custom: true,
           is_bench_lift: Boolean(ex.is_bench_lift),
           metric: ex.metric ?? 'weight',
+          // Владелец (supabase/exercise-owner.sql). Легаси-строки без владельца
+          // отправляем как null — политика exercises_update это разрешает, и
+          // упражнение остаётся ничьим, а не «присваивается» тем, кто его правил.
+          owner_id: ex.owner_id ?? null,
         },
         { onConflict: 'id' }
       )

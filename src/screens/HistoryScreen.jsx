@@ -14,6 +14,7 @@ import ExportBar from '../components/ExportBar.jsx'
 import WorkoutFinishSheet from '../components/WorkoutFinishSheet.jsx'
 import { defaultTemplateName, templateExercisesFromWorkout } from '../lib/templateFromWorkout.js'
 import { HAPTIC, vibrate } from '../lib/haptics.js'
+import { onReselect } from '../lib/appEvents.js'
 
 function fmtDate(iso) {
   const d = new Date(iso)
@@ -101,6 +102,20 @@ export default function HistoryScreen({
     onOpenNewConsumed?.()
   }, [openNew, onOpenNewConsumed])
 
+  // Тап по УЖЕ активной вкладке «Тренировки» = выход из под-вида к списку.
+  // Раньше он не делал ничего: человек, зашедший в композер с Главной, жал
+  // «Тренировки» (ожидая попасть в список — там шаблоны и история) и оставался
+  // на том же экране; единственным выходом была «Назад», которая по интуиции
+  // должна была вернуть на Главную. Теперь вкладка ведёт туда, куда написано.
+  // Данные при этом не теряются: черновик НОВОЙ тренировки живёт в сессионном
+  // кэше (lib/cache.js) и восстановится при повторном входе, а выход из правки
+  // существующей ведёт себя ровно как кнопка «← Назад» рядом.
+  useEffect(() => onReselect((t) => {
+    if (t !== 'history') return
+    setSelected(null)
+    setFinishResult(null)
+  }), [])
+
   // Сообщаем App, занят ли хаб собственным под-видом (тогда плавающая «+» прячется:
   // в композере она не нужна, а над баром экспорта/«Сохранить» — просто мешает).
   // На размонтировании гасим флаг, чтобы кнопка вернулась на других вкладках.
@@ -174,8 +189,18 @@ export default function HistoryScreen({
 
         {loading && <CardsSkeleton cards={4} />}
 
+        {/* Пустой список — единственный экран, где призыв к действию обязан быть
+            ЯВНЫМ: на мобиле вход в композер даёт только плавающая «+», и новичок
+            её не связывает с «записать тренировку». Кнопка ведёт туда же, что и
+            FAB, и на десктопе дублирует «+ Добавить тренировку» сверху — но там
+            список пуст, лишней она не выглядит. */}
         {!loading && list.length === 0 && (
-          <p className="muted empty">Пока нет записанных тренировок.</p>
+          <div className="empty-cta">
+            <p className="muted empty">Пока нет записанных тренировок.</p>
+            <button className="btn primary full" onClick={() => setSelected('new')}>
+              + Записать тренировку
+            </button>
+          </div>
         )}
 
         {groups.length > 0 && (

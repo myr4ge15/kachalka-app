@@ -116,11 +116,11 @@ export default function ExercisePicker({
   async function submitCreate() {
     const name = newName.trim()
     if (!name) {
-      setError('Введите название упражнения.')
+      setError('Введи название упражнения.')
       return
     }
     if (!newGroup) {
-      setError('Выберите группу мышц.')
+      setError('Выбери группу мышц.')
       return
     }
     setBusy(true)
@@ -164,7 +164,7 @@ export default function ExercisePicker({
 
           {similar.length > 0 && (
             <div className="create-similar">
-              <span className="muted">Возможно, уже есть — нажмите, чтобы выбрать:</span>
+              <span className="muted">Возможно, уже есть — нажми, чтобы выбрать:</span>
               {similar.map((e) => (
                 <button key={e.id} className="similar-item" onClick={() => onPick(e)}>
                   <span>{e.name}</span>

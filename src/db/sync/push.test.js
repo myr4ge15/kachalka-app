@@ -107,6 +107,7 @@ describe('pushExercises', () => {
       secondary: ['бицепс'],
       is_bench_lift: 0,
       metric: 'reps',
+      owner_id: userId,
       _dirty: 1,
     })
     await db.ex_outbox.add({ exerciseId: 'ex1', createdAt: '2026-07-29T10:00:00.000Z' })
@@ -126,6 +127,7 @@ describe('pushExercises', () => {
         is_custom: true,
         is_bench_lift: false,
         metric: 'reps',
+        owner_id: userId,
       },
       options: { onConflict: 'id' },
     })
