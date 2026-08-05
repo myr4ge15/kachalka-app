@@ -6,11 +6,15 @@
 // такой. Каноны НЕ копируются в репозиторий: один канон на функцию, одно место с
 // порядком. Результат (bootstrap.sql) — генерируемый артефакт, руками не править.
 //
-//   node scripts/build-bootstrap.mjs [--out путь]
+//   node scripts/build-bootstrap.mjs [--out путь] [--split [КБ]]
 //
-// Скрипт ничего не деплоит и никуда не ходит: читает файлы, пишет один файл.
+// --split нарезает результат на куски под Supabase SQL Editor (он не принимает
+// файл целиком): parts/part-NN.sql, разрыв ТОЛЬКО на границе исходных файлов —
+// внутри канона резать нельзя, там многострочные функции в $$. Дефолт 100 КБ.
+//
+// Скрипт ничего не деплоит и никуда не ходит: читает файлы, пишет файлы.
 // ============================================================================
-import { readFileSync, writeFileSync, existsSync } from 'node:fs'
+import { readFileSync, writeFileSync, existsSync, mkdirSync, rmSync } from 'node:fs'
 import { join, dirname, resolve } from 'node:path'
 import { fileURLToPath } from 'node:url'
 
@@ -56,22 +60,77 @@ const parts = [
   '',
 ]
 
-files.forEach((f, i) => {
-  const n = String(i + 1).padStart(2, '0')
-  parts.push(
+// Блок на каждый исходный файл — неделимая единица: внутри канона многострочные
+// функции в $$ ... $$, резать их нельзя.
+const blocks = files.map((f, i) => ({
+  file: f,
+  n: i + 1,
+  text: [
     '',
     '-- ' + '='.repeat(74),
-    `-- [${n}/${files.length}] ${f}`,
+    `-- [${String(i + 1).padStart(2, '0')}/${files.length}] ${f}`,
     '-- ' + '='.repeat(74),
     '',
     readFileSync(join(sqlDir, f), 'utf8').replace(/\s+$/, ''),
-    ''
-  )
-})
+    '',
+  ].join('\n'),
+}))
 
-const sql = parts.join('\n')
+const sql = parts.join('\n') + blocks.map((b) => b.text).join('\n')
 writeFileSync(outFile, sql, 'utf8')
+const kb = (n) => Math.round(n / 1024)
+console.log(`Собрано ${files.length} файлов → ${outFile} (${kb(sql.length)} КБ)`)
 
-const kb = Math.round(sql.length / 1024)
-console.log(`Собрано ${files.length} файлов → ${outFile} (${kb} КБ)`)
-console.log('Дальше: Supabase → SQL Editor → New query → вставить целиком → Run.')
+// ---- Нарезка под SQL Editor -----------------------------------------------
+const splitArg = process.argv.indexOf('--split')
+if (splitArg > -1) {
+  const limit = (Number(process.argv[splitArg + 1]) || 100) * 1024
+  const partsDir = join(dirname(outFile), 'parts')
+  // Чистим прошлую нарезку, но не падаем, если файлы заблокированы (открыты в
+  // редакторе, сетевой диск): куски всё равно перезапишутся, а лишние снимем ниже.
+  try { rmSync(partsDir, { recursive: true, force: true }) } catch { /* перезапишем */ }
+  mkdirSync(partsDir, { recursive: true })
+
+  const chunks = []
+  let cur = []
+  let size = 0
+  for (const b of blocks) {
+    // Файл крупнее лимита кладём в свой кусок целиком: лучше один большой кусок,
+    // чем разрезанная посередине функция.
+    if (cur.length && size + b.text.length > limit) {
+      chunks.push(cur)
+      cur = []
+      size = 0
+    }
+    cur.push(b)
+    size += b.text.length
+  }
+  if (cur.length) chunks.push(cur)
+
+  chunks.forEach((chunk, i) => {
+    const no = String(i + 1).padStart(2, '0')
+    const head = [
+      '-- ' + '='.repeat(74),
+      `-- СГЕНЕРИРОВАНО. Кусок ${i + 1} из ${chunks.length}.`,
+      `-- Прогонять СТРОГО ПО ПОРЯДКУ: part-01 → part-${String(chunks.length).padStart(2, '0')}.`,
+      '-- Внутри куска:',
+      ...chunk.map((b) => `--   [${String(b.n).padStart(2, '0')}/${files.length}] ${b.file}`),
+      '-- ' + '='.repeat(74),
+      '',
+    ].join('\n')
+    const body = head + chunk.map((b) => b.text).join('\n')
+    writeFileSync(join(partsDir, `part-${no}.sql`), body, 'utf8')
+    console.log(`  part-${no}.sql — ${kb(body.length)} КБ, файлов: ${chunk.length}`)
+  })
+  // Хвосты от прошлой, более длинной нарезки: прогонять их нельзя, порядок собьётся.
+  for (let i = chunks.length; i < chunks.length + 20; i++) {
+    const stale = join(partsDir, `part-${String(i + 1).padStart(2, '0')}.sql`)
+    if (existsSync(stale)) {
+      try { rmSync(stale) } catch { console.warn(`  ⚠ не удалось убрать устаревший ${stale} — удалить вручную`) }
+    }
+  }
+  console.log(`\nНарезано на ${chunks.length} кусков → ${partsDir}`)
+  console.log('SQL Editor: прогонять строго по порядку, следующий — только если предыдущий без ошибок.')
+} else {
+  console.log('Дальше: psql -v ON_ERROR_STOP=1 -f ... либо --split для SQL Editor.')
+}
