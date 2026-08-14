@@ -9,6 +9,23 @@ import { readFileSync } from 'node:fs'
 // import-assertion удалён в Node 22+/24 и даёт deprecation-предупреждение.
 const pkg = JSON.parse(readFileSync(new URL('./package.json', import.meta.url), 'utf-8'))
 
+// Версия, лежащая на сервере ПРЯМО СЕЙЧАС, отдельным крошечным файлом. Нужна
+// плашке обновления: она сверяет её с зашитой в сборку __APP_VERSION__ и не
+// показывается, если обновляться не на что (см. lib/pwaUpdate.isRealUpdate).
+// Файл сознательно исключён из precache (globIgnores ниже) и запрашивается с
+// `cache:'no-store'` — иначе SW отдавал бы старую копию и проверка теряла смысл.
+const versionJson = () => ({
+  name: 'app-version-json',
+  apply: 'build',
+  generateBundle() {
+    this.emitFile({
+      type: 'asset',
+      fileName: 'version.json',
+      source: JSON.stringify({ version: pkg.version }),
+    })
+  },
+})
+
 // base must match your GitHub Pages repo name: '/<repo>/'
 export default defineConfig({
   base: '/kachalka-app/',
@@ -29,6 +46,7 @@ export default defineConfig({
   },
   plugins: [
     react(),
+    versionJson(),
     VitePWA({
       registerType: 'prompt',
       includeAssets: ['favicon.svg'],
@@ -36,7 +54,9 @@ export default defineConfig({
       // выборе аватара) — из precache его исключаем, иначе SW тянул бы его всем
       // на установке. На лету подгрузится при необходимости.
       workbox: {
-        globIgnores: ['**/heic2any-*.js'],
+        // version.json — «какая версия на сервере сейчас». В precache ему нельзя:
+        // закэшированный файл всегда показывал бы версию установленной сборки.
+        globIgnores: ['**/heic2any-*.js', 'version.json'],
         // Активированный (после SKIP_WAITING) SW сразу берёт под контроль уже
         // открытые НЕконтролируемые вкладки. Без этого на десктопе первая сессия
         // часто идёт без контроллера → skipWaiting активирует новый SW, но он не
