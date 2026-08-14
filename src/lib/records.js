@@ -88,11 +88,25 @@ export function minePrs(workouts) {
 }
 
 // «Друг побил твой рекорд»: по элементам ленты (тренировки всех) в хронологии.
-// Для каждой пары (друг, упражнение) держим планку, которую надо побить (старт —
-// мой личный максимум по этому упражнению). Если ведущий показатель друга её
-// превысил — событие; планку поднимаем, чтобы не плодить дубли. Свои тренировки
-// исключаем по userId. myBest — Map(exId → { value, metric, name }) из
-// myBestByExercise. Возвращает
+// Событие — именно ПЕРЕХОД друга через мой рекорд: в окне ленты он был не выше
+// меня, а стал выше. Для каждой пары (друг, упражнение) ведём его максимум в
+// окне; первое появление упражнения у друга — только базис, не событие.
+//
+// ⚠️ Почему так (v5.14.2). Раньше планка стартовала прямо с моего рекорда, а
+// окно ленты — это последние FEED_LIMIT=50 тренировок ВСЕХ участников, то есть
+// на пятерых всего ~3–4 недели. Когда старая тренировка друга выпадала из окна,
+// планка сбрасывалась на мой рекорд, и ближайший его подход — давно привычный,
+// без всякого прогресса — снова «побивал» меня. Уведомление «Сегалодон обошёл
+// тебя: 90 (твой 77.5)» приходило по кругу примерно раз в месяц. Базис из окна
+// это снимает: пока друг стабильно выше меня, событий нет.
+//
+// Плата за отказ от хранения состояния: если друг впервые за 4 недели взялся за
+// упражнение и сразу ушёл выше меня, перехода в окне не видно и уведомления не
+// будет. Тот же слепой угол, что у отметок рекордов в ленте (feed.computePrs), —
+// осознанно, чтобы не заводить новую синкаемую сущность в meta ради дедупа.
+//
+// Свои тренировки исключаем по userId. myBest — Map(exId → { value, metric,
+// name }) из myBestByExercise. Возвращает
 // [{ id, type:'beaten', exId, name, who, metric, value, myValue, at }].
 export function computeBeaten(feedItems, userId, myBest) {
   const chron = [...(feedItems ?? [])]
@@ -103,7 +117,7 @@ export function computeBeaten(feedItems, userId, myBest) {
         cmpIsoAsc(a.created_at, b.created_at) ||
         cmpIsoAsc(String(a.id), String(b.id))
     )
-  const bar = new Map() // `${friend}:${exId}` → текущая планка
+  const seen = new Map() // `${friend}:${exId}` → его максимум в окне (undefined — ещё не видели)
   const out = []
   for (const it of chron) {
     for (const e of it.entries ?? []) {
@@ -115,8 +129,17 @@ export function computeBeaten(feedItems, userId, myBest) {
       const value = leadingValue(metric, e.sets)
       if (value <= 0) continue
       const key = `${it.user_id}:${exId}`
-      const threshold = bar.get(key) ?? mine.value
-      if (value > threshold) {
+      const prev = seen.get(key)
+      // Первое появление упражнения у этого друга в окне — базис. Мы не знаем,
+      // что было до окна, поэтому «обошёл» здесь недоказуемо.
+      if (prev === undefined) {
+        seen.set(key, value)
+        continue
+      }
+      seen.set(key, Math.max(prev, value))
+      // Переход: был не выше меня — стал выше. Друг, который и так впереди,
+      // событий больше не порождает, сколько бы он ни улучшался.
+      if (prev <= mine.value && value > mine.value) {
         out.push({
           id: `beaten:${it.id}:${exId}`,
           type: 'beaten',
@@ -128,7 +151,6 @@ export function computeBeaten(feedItems, userId, myBest) {
           myValue: mine.value,
           at: it.performed_at,
         })
-        bar.set(key, value)
       }
     }
   }

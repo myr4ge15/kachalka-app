@@ -76,18 +76,27 @@ describe('minePrs', () => {
 })
 
 describe('computeBeaten', () => {
-  it('друг превысил мой рекорд — событие; свои тренировки исключаются', () => {
-    const myBest = new Map([['ex1', { value: 80, metric: 'weight', name: 'Жим' }]])
-    const feed = [
-      { id: 'f1', user_id: 'me', performed_at: '2026-01-05',
-        entries: [{ exercise_id: 'ex1', sets: [{ weight: 100, reps: 1 }] }] },
-      { id: 'f2', user_id: 'friend', user_name: 'Петя', performed_at: '2026-01-06',
-        entries: [{ exercise_id: 'ex1', sets: [{ weight: 90, reps: 2 }] }] },
-    ]
-    const out = computeBeaten(feed, 'me', myBest)
-    expect(out).toHaveLength(1)
-    expect(out[0]).toMatchObject({ who: 'Петя', value: 90, myValue: 80 })
+  const myBest = () => new Map([['ex1', { value: 80, metric: 'weight', name: 'Жим' }]])
+  // Элемент ленты с одним упражнением.
+  const item = (id, user_id, performed_at, weight, extra = {}) => ({
+    id,
+    user_id,
+    performed_at,
+    entries: [{ exercise_id: 'ex1', sets: [{ weight, reps: 1 }] }],
+    ...extra,
   })
+
+  it('друг был ниже меня и обошёл — событие; свои тренировки исключаются', () => {
+    const feed = [
+      item('f0', 'friend', '2026-01-04', 70, { user_name: 'Петя' }), // базис: ниже меня
+      item('f1', 'me', '2026-01-05', 100), // своё в расчёт не идёт
+      item('f2', 'friend', '2026-01-06', 90, { user_name: 'Петя' }),
+    ]
+    const out = computeBeaten(feed, 'me', myBest())
+    expect(out).toHaveLength(1)
+    expect(out[0]).toMatchObject({ who: 'Петя', value: 90, myValue: 80, at: '2026-01-06' })
+  })
+
   it('нет своего рекорда по упражнению — нечего бить', () => {
     const feed = [
       { id: 'f1', user_id: 'friend', performed_at: '2026-01-06',
@@ -95,16 +104,51 @@ describe('computeBeaten', () => {
     ]
     expect(computeBeaten(feed, 'me', new Map())).toHaveLength(0)
   })
-  it('планка поднимается — без дублей при повторном превышении', () => {
-    const myBest = new Map([['ex1', { value: 80, metric: 'weight', name: 'Жим' }]])
+
+  it('первое появление упражнения у друга в окне — базис, не событие', () => {
+    // Ровно этот случай ломался: старая тренировка друга выпала из окна ленты,
+    // и его привычный вес снова «побивал» меня (v5.14.2).
+    const feed = [item('f1', 'friend', '2026-01-06', 90)]
+    expect(computeBeaten(feed, 'me', myBest())).toHaveLength(0)
+  })
+
+  it('друг и так был выше меня и просто улучшился — не событие', () => {
     const feed = [
-      { id: 'f1', user_id: 'friend', performed_at: '2026-01-05',
-        entries: [{ exercise_id: 'ex1', sets: [{ weight: 90, reps: 1 }] }] },
-      { id: 'f2', user_id: 'friend', performed_at: '2026-01-06',
-        entries: [{ exercise_id: 'ex1', sets: [{ weight: 85, reps: 1 }] }] },
+      item('f1', 'friend', '2026-01-05', 90),
+      item('f2', 'friend', '2026-01-06', 95),
     ]
-    // 85 < новой планки 90 → второго события нет
-    expect(computeBeaten(feed, 'me', myBest)).toHaveLength(1)
+    expect(computeBeaten(feed, 'me', myBest())).toHaveLength(0)
+  })
+
+  it('после перехода дублей нет, сколько бы друг ни рос', () => {
+    const feed = [
+      item('f1', 'friend', '2026-01-04', 70), // базис
+      item('f2', 'friend', '2026-01-05', 90), // переход через 80 → одно событие
+      item('f3', 'friend', '2026-01-06', 95),
+      item('f4', 'friend', '2026-01-07', 100),
+    ]
+    const out = computeBeaten(feed, 'me', myBest())
+    expect(out).toHaveLength(1)
+    expect(out[0]).toMatchObject({ value: 90, at: '2026-01-05' })
+  })
+
+  it('рост друга ниже моего рекорда событием не считается', () => {
+    const feed = [
+      item('f1', 'friend', '2026-01-04', 60),
+      item('f2', 'friend', '2026-01-05', 75), // выше себя, но ниже моих 80
+    ]
+    expect(computeBeaten(feed, 'me', myBest())).toHaveLength(0)
+  })
+
+  it('друзья считаются независимо друг от друга', () => {
+    const feed = [
+      item('a1', 'petya', '2026-01-04', 70, { user_name: 'Петя' }),
+      item('b1', 'vasya', '2026-01-05', 70, { user_name: 'Вася' }),
+      item('a2', 'petya', '2026-01-06', 90, { user_name: 'Петя' }),
+      item('b2', 'vasya', '2026-01-07', 85, { user_name: 'Вася' }),
+    ]
+    const out = computeBeaten(feed, 'me', myBest())
+    expect(out.map((n) => n.who)).toEqual(['Петя', 'Вася'])
   })
 })
 
