@@ -182,6 +182,13 @@ updated_at)` + `upsert_user_meta` (`supabase/user-meta.sql`, RLS «только 
   (меняет тип возврата → `drop` + повторные гранты + `security definer` из-за чтения `u.sex`).
 - **Приватность:** в `leaderboard_bench` и `tg_*` обязателен фильтр `not is_private_user(...)` —
   бот и лидерборд ходят под service_role в обход RLS.
+- **ACL после каждого `create/create or replace` проверять отрицательно.** В Supabase default
+  privileges могут снова выдать `ALL/EXECUTE` клиентским ролям. Канон `login_users`: сначала
+  `revoke all` у `PUBLIC`/`anon`/`authenticated`, затем только явно нужный `SELECT`; простой view
+  автоматически обновляем и без `security_invoker` исполняется с правами владельца, поэтому
+  `GRANT UPDATE/DELETE` обходит ожидаемую защиту RLS. Внутренние Telegram/trigger helpers
+  (`tg_try_claim_goal`, `tg_notify_record`, `touch_updated_at` и аналоги) — `EXECUTE` только
+  владельцу/service_role; снять нужно в том числе с `PUBLIC`, а не только с `anon`.
 - Порядок применения `.sql` и деплой-заметки — в `supabase/*-deploy.md`; переход на версионированные
   миграции — scaffold в `supabase/migrations/` (`config.toml`, README).
 
