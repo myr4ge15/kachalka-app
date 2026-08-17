@@ -161,6 +161,9 @@ updated_at)` + `upsert_user_meta` (`supabase/user-meta.sql`, RLS «только 
   зафиксировать в результате задачи необходимость передеплоя `tg-record` И `tg-digest` с
   `--no-verify-jwt`; сам деплой выполнять только по прямой просьбе пользователя. `tg-record`
   отправляет все рекорды одной тренировки одной пачкой, иначе Telegram flood limit обрезает хвост.
+  Trigger `tg_notify_record()` не должен содержать webhook-секрет в теле: брать его из
+  `vault.decrypted_secrets` по имени `tg_record_webhook_secret`; канон и порядок ротации —
+  `commercial-hardening-webhook-vault.sql` / `commercial-hardening-deploy.md`.
 - **`admin_list_users` / `login_users` / `admin_set_sex`** → канон `roster-contract.sql`. НЕ
   пересоздавать из `admin.sql` / `private-user.sql` / `user-order.sql` / `gender-leaderboard.sql`:
   `drop+create` там снимает `sex`/`sort_order` с контракта функции, админка показывает пол как «не
