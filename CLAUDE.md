@@ -36,7 +36,8 @@ UI, Supabase как бэкенд, Vitest + RTL, Playwright для e2e. Верс�
 - **Bash-инструмент в Cowork — это изолированная Linux-песочница, не PowerShell.** Пути там
   другие: рабочая папка видна как `/sessions/<session>/mnt/kachalka-app/`. Каждый вызов
   независим, `cd` не переносится — использовать абсолютные пути.
-- **Файловые инструменты (Read/Write/Edit) работают по Windows-путям** (`D:\kachalka-app\...`)
+- **Файловые инструменты (Read/Write/Edit) работают по Windows-путям**
+  (`D:\Projects\kachalka\app\kachalka-app\...`)
   и предпочтительны для правок. Bash — для прогонов `npm`, `git status/diff/log`, `rg`.
 - **Итоговый блок git-команд по DoD выдаём для Windows PowerShell** — его выполняет
   пользователь у себя, а не я в песочнице.
