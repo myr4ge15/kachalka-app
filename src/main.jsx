@@ -5,6 +5,7 @@ import ErrorBoundary from './components/ErrorBoundary.jsx'
 import UpdatePrompt from './components/UpdatePrompt.jsx'
 import { openUserDb } from './db/local.js'
 import { readStoredUserId } from './lib/sessionProfile.js'
+import { splashDelay, SPLASH_FADE_MS } from './lib/splash.js'
 import './index.css'
 
 // ===== Ранняя инициализация (до рендера React) =====
@@ -35,3 +36,15 @@ ReactDOM.createRoot(document.getElementById('root')).render(
     <UpdatePrompt />
   </React.StrictMode>
 )
+
+// Сплэш холодного старта (#splash в index.html) — убираем после первого рендера,
+// но не раньше, чем доиграет его анимация (lib/splash.js). Сначала гасим
+// прозрачностью (класс .splash--out), затем удаляем узел из DOM.
+const splash = document.getElementById('splash')
+if (splash) {
+  const reduce = window.matchMedia?.('(prefers-reduced-motion: reduce)').matches ?? false
+  setTimeout(() => {
+    splash.classList.add('splash--out')
+    setTimeout(() => splash.remove(), reduce ? 0 : SPLASH_FADE_MS)
+  }, splashDelay(performance.now(), reduce))
+}

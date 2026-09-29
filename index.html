@@ -26,6 +26,27 @@
     <title>Журнал тренировок</title>
   </head>
   <body>
+    <!-- Сплэш холодного старта: виден сразу, до загрузки JS. Стили — в index.css
+         (раздел «Сплэш»), убирает main.jsx после первого рендера. Знак — пропорции
+         1:1 с public/favicon.svg (512 → 200). -->
+    <div id="splash" class="splash" aria-hidden="true">
+      <svg class="splash-logo" viewBox="22 22 156 156" focusable="false">
+        <defs>
+          <linearGradient id="splash-grad" x1="0" y1="0" x2="0" y2="1">
+            <stop offset="0" class="splash-stop-1" />
+            <stop offset="1" class="splash-stop-2" />
+          </linearGradient>
+        </defs>
+        <g class="splash-lift">
+          <rect class="splash-bar" x="37.5" y="93.75" width="125" height="12.5" rx="6.25" />
+          <rect class="splash-plate splash-plate--l splash-plate--big" x="59.4" y="68.75" width="13.3" height="62.5" rx="4.7" />
+          <rect class="splash-plate splash-plate--r splash-plate--big" x="127.3" y="68.75" width="13.3" height="62.5" rx="4.7" />
+          <rect class="splash-plate splash-plate--l splash-plate--small" x="43.75" y="76.6" width="13.3" height="46.9" rx="4.7" />
+          <rect class="splash-plate splash-plate--r splash-plate--small" x="143" y="76.6" width="13.3" height="46.9" rx="4.7" />
+        </g>
+      </svg>
+      <p class="splash-title">kachalka-app</p>
+    </div>
     <div id="root"></div>
     <script type="module" src="/src/main.jsx"></script>
   </body>

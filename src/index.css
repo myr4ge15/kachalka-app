@@ -2455,3 +2455,55 @@ label.act.busy { opacity: .55; pointer-events: none; }
    и точечные guard'ы под prefers-reduced-motion (см. :root и .ach-badge/.sync-ico).
    Отдельный блок здесь не нужен — фиксируем это комментарием, чтобы при правках
    не забыть про guard новых эффектов. */
+
+/* ============================================================================
+   Сплэш холодного старта. Разметка — статично в index.html (#splash), поэтому
+   виден сразу, ещё до загрузки JS; убирает его main.jsx после первого рендера,
+   не раньше минимального времени показа (lib/splash.js). Знак — иконка
+   приложения (public/favicon.svg): гриф выезжает из центра, большие блины, за
+   ними маленькие «надеваются» с пружинкой, в конце штангу коротко жмут вверх. */
+.splash {
+  position: fixed; inset: 0; z-index: 10000;
+  display: flex; flex-direction: column; align-items: center; justify-content: center;
+  gap: 24px;
+  background: var(--bg);
+  color: var(--text);
+  transition: opacity 300ms var(--ease-in-out), visibility 0s linear 300ms;
+}
+.splash--out { opacity: 0; visibility: hidden; pointer-events: none; }
+.splash-logo { width: 132px; height: 132px; overflow: visible; }
+.splash--out .splash-logo { transform: scale(1.08); transition: transform 300ms var(--ease-in-out); }
+.splash-stop-1 { stop-color: var(--g1); }
+.splash-stop-2 { stop-color: var(--g3); }
+.splash-bar {
+  fill: var(--text);
+  transform-box: fill-box; transform-origin: center;
+  animation: splash-grow 380ms var(--ease-out) both;
+}
+.splash-plate { fill: url(#splash-grad); transform-box: fill-box; transform-origin: center; }
+.splash-plate--l { animation: splash-slide-l 420ms cubic-bezier(.3, 1.5, .5, 1) both; }
+.splash-plate--r { animation: splash-slide-r 420ms cubic-bezier(.3, 1.5, .5, 1) both; }
+.splash-plate--big { animation-delay: 300ms; }
+.splash-plate--small { animation-delay: 420ms; }
+.splash-lift {
+  transform-box: view-box; transform-origin: 100px 100px;
+  animation: splash-lift 360ms var(--ease-in-out) 860ms both;
+}
+.splash-title {
+  margin: 0;
+  font-size: 18px; font-weight: 700; letter-spacing: .01em;
+  animation: splash-rise 420ms var(--ease-out) 260ms both;
+}
+@keyframes splash-grow { from { transform: scaleX(0); } to { transform: none; } }
+@keyframes splash-slide-l { from { opacity: 0; transform: translateX(-60px); } to { opacity: 1; transform: none; } }
+@keyframes splash-slide-r { from { opacity: 0; transform: translateX(60px); } to { opacity: 1; transform: none; } }
+@keyframes splash-lift {
+  0% { transform: none; }
+  45% { transform: translateY(-10px) scale(1.04); }
+  100% { transform: none; }
+}
+@keyframes splash-rise { from { opacity: 0; transform: translateY(8px); } to { opacity: 1; transform: none; } }
+@media (prefers-reduced-motion: reduce) {
+  .splash, .splash--out .splash-logo { transition: none; }
+  .splash-bar, .splash-plate, .splash-lift, .splash-title { animation: none; }
+}
