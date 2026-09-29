@@ -1,4 +1,4 @@
-import { useState, useEffect, useLayoutEffect, useRef, lazy, Suspense } from 'react'
+import { useState, useEffect, useLayoutEffect, useRef, Suspense } from 'react'
 import { useLiveQuery } from 'dexie-react-hooks'
 import { isConfigured, warmup, supabase } from './db/supabase.js'
 import { logout as authLogout, getCachedProfile } from './lib/auth.js'
@@ -17,36 +17,25 @@ import AddFab from './components/AddFab.jsx'
 import Avatar from './components/Avatar.jsx'
 import ScreenSkeleton from './components/ScreenSkeleton.jsx'
 import ErrorBoundary from './components/ErrorBoundary.jsx'
+import { lazyScreen } from './components/lazyScreen.jsx'
 
 // Экраны-вкладки грузим лениво: код активной вкладки подтягивается по требованию.
 // Главный выигрыш — «Прогресс» тянет тяжёлый recharts, который теперь не попадает
 // в стартовый бандл, а грузится отдельным чанком при открытии вкладки.
-// Функции импорта держим отдельно, чтобы ПРЕФЕТЧИТЬ их в простое после входа
-// (см. эффект ниже): без префетча первое переключение на каждую вкладку упиралось
-// в загрузку чанка → мелькал Suspense-скелетон, хотя данные уже локальны. С
-// префетчем чанки уже в кэше → переход мгновенный, без заглушки.
-const load = {
-  home: () => import('./screens/HomeScreen.jsx'),
-  history: () => import('./screens/HistoryScreen.jsx'),
-  progress: () => import('./screens/ProgressScreen.jsx'),
-  feed: () => import('./screens/FeedScreen.jsx'),
-  notif: () => import('./screens/NotificationsScreen.jsx'),
-  profile: () => import('./screens/ProfileScreen.jsx'),
-  admin: () => import('./screens/AdminScreen.jsx'),
-  freshness: () => import('./screens/FreshnessScreen.jsx'),
-  myex: () => import('./screens/MyExercisesScreen.jsx'),
-  achievements: () => import('./screens/AchievementsScreen.jsx'),
-}
-const HomeScreen = lazy(load.home)
-const HistoryScreen = lazy(load.history)
-const ProgressScreen = lazy(load.progress)
-const FeedScreen = lazy(load.feed)
-const NotificationsScreen = lazy(load.notif)
-const ProfileScreen = lazy(load.profile)
-const AdminScreen = lazy(load.admin)
-const FreshnessScreen = lazy(load.freshness)
-const MyExercisesScreen = lazy(load.myex)
-const AchievementsScreen = lazy(load.achievements)
+// Экраны ПРЕФЕТЧИМ в простое после входа (см. эффект ниже). Голый React.lazy для
+// этого не годился: префетч грел чанк, но lazy всё равно суспендился на первом
+// рендере, и React 19 держал скелетон ~300 мс — задержка первого захода на каждую
+// вкладку после холодного старта. lazyScreen после preload рендерит экран напрямую.
+const HomeScreen = lazyScreen(() => import('./screens/HomeScreen.jsx'))
+const HistoryScreen = lazyScreen(() => import('./screens/HistoryScreen.jsx'))
+const ProgressScreen = lazyScreen(() => import('./screens/ProgressScreen.jsx'))
+const FeedScreen = lazyScreen(() => import('./screens/FeedScreen.jsx'))
+const NotificationsScreen = lazyScreen(() => import('./screens/NotificationsScreen.jsx'))
+const ProfileScreen = lazyScreen(() => import('./screens/ProfileScreen.jsx'))
+const AdminScreen = lazyScreen(() => import('./screens/AdminScreen.jsx'))
+const FreshnessScreen = lazyScreen(() => import('./screens/FreshnessScreen.jsx'))
+const MyExercisesScreen = lazyScreen(() => import('./screens/MyExercisesScreen.jsx'))
+const AchievementsScreen = lazyScreen(() => import('./screens/AchievementsScreen.jsx'))
 
 // Иконка состояния синхронизации — инлайн-SVG (без зависимостей), как TabIcon.
 // Красится через currentColor (цвет задаёт класс .sync-badge.<cls>), спиннер
@@ -236,15 +225,16 @@ export default function App() {
   // Запоминаем активную вкладку
   useEffect(() => { sessionStorage.setItem(TAB_KEY, tab) }, [tab])
 
-  // Префетч чанков остальных вкладок в простое после входа: активная вкладка уже
+  // Префетч экранов остальных вкладок в простое после входа: активная вкладка уже
   // грузится, а прочие подтягиваем заранее, чтобы их открытие было мгновенным и не
-  // мелькал Suspense-скелетон. Повторный import уже загруженного модуля — no-op
-  // (браузер отдаёт из кэша). Ошибки глотаем: префетч — оптимизация, не критичен.
+  // мелькал Suspense-скелетон. Повторный preload — no-op (общий промис).
+  // Ошибки глотаем: префетч — оптимизация, не критичен.
   useEffect(() => {
     if (!user?.id) return
-    const imports = [load.history, load.feed, load.progress, load.freshness, load.notif, load.profile, load.myex]
-    if (user.role === 'admin') imports.push(load.admin)
-    const prefetch = () => { for (const imp of imports) imp().catch(() => {}) }
+    const screens = [HomeScreen, HistoryScreen, FeedScreen, ProgressScreen, FreshnessScreen,
+      NotificationsScreen, ProfileScreen, MyExercisesScreen, AchievementsScreen]
+    if (user.role === 'admin') screens.push(AdminScreen)
+    const prefetch = () => { for (const s of screens) s.preload().catch(() => {}) }
     const ric = window.requestIdleCallback
     if (ric) {
       const id = ric(prefetch, { timeout: 3000 })
