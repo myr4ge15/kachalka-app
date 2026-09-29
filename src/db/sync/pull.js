@@ -198,15 +198,20 @@ async function pullExercises(d = db) {
       await d.transaction('rw', d.exercises, d.ex_outbox, async () => {
         const dirty = await d.exercises.filter((e) => e._dirty).toArray()
         const ops = await d.ex_outbox.toArray()
+        // _dirty с ЖИВОЙ операцией — правка ждёт push'а (в т.ч. сделанная, пока шёл
+        // прошлый upsert, см. push.pushExercises): локальную версию сохраняем, даже
+        // если сервер упражнение уже знает. Иначе правка перезаписывалась серверной.
+        const keep = protectedFromPull(dirty, ops, (o) => o.exerciseId)
         await d.exercises.clear()
         await d.exercises.bulkPut(ex.data)
-        // вернуть несинхронизированные локальные упражнения, если сервер их ещё не знает
-        for (const e of dirty) if (!serverExIds.has(e.id)) await d.exercises.put(e)
-        // Сервер уже знает ранее «грязное» упражнение → его версия принята выше
-        // (clear+bulkPut), а операция в очереди осиротела. Выкидываем её, чтобы не
-        // слать лишний upsert на следующем push (симметрично обработке шаблонов).
+        // вернуть несинхронизированные локальные упражнения: новые (сервер их ещё не
+        // знает) и правки с живой операцией
+        for (const e of dirty) if (!serverExIds.has(e.id) || keep.has(e.id)) await d.exercises.put(e)
+        // Сервер знает «грязное» упражнение, а живой операции нет (очередь умерла в
+        // dead-letter) → принята серверная версия, осиротевшие операции выкидываем,
+        // чтобы не слать лишний upsert (симметрично обработке шаблонов).
         for (const e of dirty)
-          if (serverExIds.has(e.id))
+          if (serverExIds.has(e.id) && !keep.has(e.id))
             for (const o of ops) if (o.exerciseId === e.id) await d.ex_outbox.delete(o.seq)
       })
       // watermark = max по фактически принятым строкам (safe против лага реплики:
@@ -508,7 +513,16 @@ export async function pullGoal(userId, d = db) {
         .map((g) => [g.exerciseId, Number(g.targetWeight), normMetric(g.metric), Number(g.targetReps) || 0, g.exerciseName ?? '—', g.achievedAt ?? null])
         .sort((a, b) => String(a[0]).localeCompare(String(b[0])))
     )
-  if (norm(local) !== norm(next)) await writeGoals(userId, next, d)
+  // Перечитываем цели перед записью (в транзакции): пока шёл select, человек мог
+  // сохранить/удалить цель, а сохранение тренировки — проставить achievedAt. Такая
+  // правка новее серверного списка — не затираем её (как перепроверка в
+  // pullUserMeta): массив изменился → пропускаем, следующий цикл сверит заново.
+  await d.transaction('rw', d.meta, async () => {
+    const fresh = await readGoals(userId, d)
+    if (fresh.some((g) => g._dirty)) return
+    if (JSON.stringify(fresh) !== JSON.stringify(local)) return
+    if (norm(fresh) !== norm(next)) await writeGoals(userId, next, d)
+  })
 }
 
 // --------------------------- личный meta: pull -----------------------------
@@ -544,8 +558,11 @@ export async function pullUserMeta(userId, d = db) {
       hasRemote: Boolean(row),
       now,
     })
-    const after = await getUserMetaState(d)
-    if ((after[kind]?.at ?? '') !== (before[kind]?.at ?? '')) continue
-    await acceptSyncedMeta(userId, kind, plan, d)
+    // Перепроверка и запись — одной транзакцией, чтобы правка не вклинилась между ними.
+    await d.transaction('rw', d.meta, async () => {
+      const after = await getUserMetaState(d)
+      if ((after[kind]?.at ?? '') !== (before[kind]?.at ?? '')) return
+      await acceptSyncedMeta(userId, kind, plan, d)
+    })
   }
 }

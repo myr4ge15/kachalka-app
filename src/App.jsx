@@ -9,6 +9,7 @@ import { openUserDb, closeUserDb } from './db/local.js'
 import { syncBadgeState } from './lib/syncStatus.js'
 import { readStoredUserId, hydrateProfile } from './lib/sessionProfile.js'
 import { emitReselect } from './lib/appEvents.js'
+import { markAppReady } from './lib/splash.js'
 import { canShowFab } from './lib/quickAdd.js'
 import LoginScreen from './screens/LoginScreen.jsx'
 import Toast from './components/Toast.jsx'
@@ -307,15 +308,21 @@ export default function App() {
   // локальные). Персональную базу открываем ДО setUser, иначе экраны/синк
   // прочитают ещё закрытый `db`. Старый «толстый» блок {id,name,role} читаем по
   // id и тут же перезаписываем тонким — стираем утёкшие имя/роль.
+  // Готовность для сплэша (markAppReady) — по итогу восстановления: без этого
+  // сплэш снимался по таймеру и мельком показывал экран входа, пока база открывалась.
   useEffect(() => {
     const id = readStoredUserId(localStorage.getItem(SESSION_KEY))
-    if (!id) return
+    if (!id) { markAppReady(); return }
     ;(async () => {
       const [roster, cache] = await Promise.all([getCachedUser(id), getCachedProfile(id)])
       await openUserDb(id)
       localStorage.setItem(SESSION_KEY, JSON.stringify({ id }))
       setUser(hydrateProfile(id, roster, cache))
-    })().catch(() => {})
+    })()
+      // Не глушим молча: человек окажется на экране входа, и без следа в консоли
+      // такие случаи (напр. не открылась персональная база) не разобрать.
+      .catch((err) => console.error('Не удалось восстановить сессию:', err))
+      .finally(markAppReady)
   }, [])
 
   // Если сессия Supabase завершилась (refresh-токен истёк через ~7 дней или

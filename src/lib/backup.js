@@ -9,7 +9,8 @@
 // синхронизацию.
 //
 // ЧТО ВНУТРИ: тренировки (тем же чистильщиком, что и обычный экспорт истории —
-// cleanWorkoutForExport), цели, бейджи, настройки автопрогрессии + флаг
+// cleanWorkoutForExport), цели, бейджи, настройки автопрогрессии, оценки «как пошло»
+// (RPE, lib/rpe.js) + флаг
 // приватности (справочно). Шаблоны и упражнения — НЕ здесь: у шаблонов свой
 // экспорт (exportTemplate.js), а упражнения общие для всех, их импорт плодил бы
 // дубли на весь круг.
@@ -24,6 +25,7 @@
 // ============================================================================
 import { cleanWorkoutForExport, downloadJson } from './exportWorkout.js'
 import { normMetric } from './metric.js'
+import { mergeRpe } from './rpe.js'
 
 export const BACKUP_SCHEMA = 'full-backup/v1'
 
@@ -38,7 +40,7 @@ export class BackupError extends Error {
 // ------------------------------- сборка ------------------------------------
 
 // Снимок для выгрузки. `data` — уже собранное состояние из Dexie:
-//   { userId, userName, workouts, goals, badges, prog, priv }
+//   { userId, userName, workouts, goals, badges, prog, rpe, priv }
 export function buildBackup(data, appVersion = 'dev', now = new Date()) {
   const at = now instanceof Date ? now : new Date(now)
   const d = data ?? {}
@@ -69,6 +71,9 @@ export function buildBackup(data, appVersion = 'dev', now = new Date()) {
         achievedAt: g.achievedAt ?? null,
       })),
     badges: d.badges ?? {},
+    // Оценки «как пошло»: { [workoutId]: { at, ex: { [exerciseId]: feel } } }.
+    // Отдельной картой, как и в meta (в документе тренировки их нет, см. lib/rpe.js).
+    rpe: d.rpe ?? {},
     settings: {
       progression: d.prog ?? null,
       // Справочно, при импорте игнорируется (см. шапку файла).
@@ -163,7 +168,7 @@ function importEntry(e, exercises) {
 //
 // snapshot — результат parseBackup; current — текущее состояние:
 //   { workoutIds: Set|Array, goals: [], badges: {}, prog: undefined|obj,
-//     exercises: Map|obj }
+//     rpe: {}, exercises: Map|obj }
 //
 // Возвращает готовые к записи куски (null — «менять нечего») и счётчики для
 // тоста. `workouts` идут в repo.saveWorkout КАК ЕСТЬ, с исходным id — поэтому
@@ -235,19 +240,36 @@ export function planImport(snapshot, current = {}) {
     if (added > 0 || !curProg) prog = { enabled, byExercise }
   }
 
+  // ── оценки «как пошло» ───────────────────────────────────────────────────
+  // Объединение с приоритетом ТЕКУЩИХ оценок (mergeRpe, preferLocal): добавляем
+  // только пары (тренировка, упражнение), которых на устройстве ещё нет.
+  const curRpe = current.rpe ?? {}
+  const mergedRpe = mergeRpe(curRpe, snapshot?.rpe ?? {}, true)
+  const rpeCount = countFeels(mergedRpe) - countFeels(curRpe)
+  const rpe = rpeCount > 0 ? mergedRpe : null
+
   return {
     workouts,
     goals: addGoals.length ? [...curGoals, ...addGoals] : null,
     badges: badgesCount ? { ...curBadges, ...addBadges } : null,
     prog,
+    rpe,
     counts: {
       workouts: workouts.length,
       workoutsSkipped,
       goals: addGoals.length,
       badges: badgesCount,
       prog: prog ? 1 : 0,
+      rpe: Math.max(0, rpeCount),
     },
   }
+}
+
+// Сколько оценок (пар тренировка × упражнение) в карте RPE.
+function countFeels(map) {
+  let n = 0
+  for (const rec of Object.values(map ?? {})) n += Object.keys(rec?.ex ?? {}).length
+  return n
 }
 
 // Короткий человеческий итог импорта для тоста. Пусто → «всё уже на месте».
@@ -257,6 +279,7 @@ export function describeImport(counts) {
   if (c.workouts) parts.push(`тренировок: ${c.workouts}`)
   if (c.goals) parts.push(`целей: ${c.goals}`)
   if (c.badges) parts.push(`достижений: ${c.badges}`)
+  if (c.rpe) parts.push(`оценок «как пошло»: ${c.rpe}`)
   if (c.prog) parts.push('настройки прогрессии')
   if (parts.length === 0) return 'Всё из файла уже было в приложении.'
   return `Добавлено — ${parts.join(', ')}.`

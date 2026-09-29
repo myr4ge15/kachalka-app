@@ -1,5 +1,31 @@
-import { describe, it, expect } from 'vitest'
-import { splashDelay, SPLASH_MIN_MS } from './splash.js'
+import { describe, it, expect, beforeEach, vi } from 'vitest'
+import { splashDelay, SPLASH_MIN_MS, markAppReady, onAppReady, resetAppReady } from './splash.js'
+
+describe('onAppReady / markAppReady', () => {
+  beforeEach(() => resetAppReady())
+
+  it('зовёт подписчика по сигналу готовности, один раз', () => {
+    const fn = vi.fn()
+    onAppReady(fn)
+    expect(fn).not.toHaveBeenCalled()
+    markAppReady()
+    markAppReady()
+    expect(fn).toHaveBeenCalledTimes(1)
+  })
+  it('опоздавший подписчик получает сигнал сразу', () => {
+    markAppReady()
+    const fn = vi.fn()
+    onAppReady(fn)
+    expect(fn).toHaveBeenCalledTimes(1)
+  })
+  it('отписка до сигнала отменяет вызов', () => {
+    const fn = vi.fn()
+    const off = onAppReady(fn)
+    off()
+    markAppReady()
+    expect(fn).not.toHaveBeenCalled()
+  })
+})
 
 describe('splashDelay', () => {
   it('добирает остаток до минимального времени показа', () => {

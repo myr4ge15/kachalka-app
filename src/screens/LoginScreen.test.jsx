@@ -29,6 +29,7 @@ vi.mock('../db/local.js', () => ({ migrateLoginZone: vi.fn(() => Promise.resolve
 vi.mock('../lib/auth.js', () => ({
   login: vi.fn(),
   verifyPinOffline: vi.fn(),
+  dropForeignSession: vi.fn(async () => {}),
   LoginError: class LoginError extends Error {},
 }))
 

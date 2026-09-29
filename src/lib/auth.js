@@ -14,7 +14,7 @@
 // не у других клиентов. PIN текущей сессии держим в памяти (не на диске) как
 // запасной путь молчаливого перевыпуска сессии.
 // ============================================================================
-import { supabase } from '../db/supabase.js'
+import { supabase, isSessionOf } from '../db/supabase.js'
 import { getLoginMeta, setLoginMeta } from '../db/local.js'
 import { verifyPin } from './hash.js'
 import { DB_TIMEOUT_MS, withTimeout } from './withTimeout.js'
@@ -216,6 +216,20 @@ export async function setName(userId, name) {
   const cached = (await getLoginMeta(pinCacheKey(userId))) ?? {}
   await setLoginMeta(pinCacheKey(userId), { ...cached, name: clean })
   return clean
+}
+
+// Офлайн-анлок открывает UI учётке B, а в хранилище может остаться сессия A
+// (общий телефон, выход не дождался signOut). Фоновый перевыпуск сессии B может не
+// пройти, и до тех пор всё сетевое шло бы под JWT A. Синк такую сессию уже не
+// использует (hasSession(userId)), а здесь её снимаем совсем — локально, без сети.
+export async function dropForeignSession(userId) {
+  try {
+    const { data } = await supabase.auth.getSession()
+    const session = data?.session
+    if (session && !isSessionOf(session, userId)) {
+      await withTimeout(supabase.auth.signOut({ scope: 'local' }), 3000)
+    }
+  } catch { /* не критично: синк всё равно не пойдёт под чужой сессией */ }
 }
 
 // Молчаливый перевыпуск сессии (сеть появилась, UI уже открыт офлайн).

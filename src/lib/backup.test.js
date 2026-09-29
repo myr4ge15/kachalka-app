@@ -106,7 +106,7 @@ describe('planImport', () => {
 
   it('пустая база: добавляет всё, упражнение берёт из локального справочника', () => {
     const p = planImport(snap(), { workoutIds: [], goals: [], badges: {}, prog: undefined, exercises })
-    expect(p.counts).toEqual({ workouts: 1, workoutsSkipped: 0, goals: 1, badges: 1, prog: 1 })
+    expect(p.counts).toEqual({ workouts: 1, workoutsSkipped: 0, goals: 1, badges: 1, prog: 1, rpe: 0 })
     // полная форма из справочника, а не усечённая из файла
     expect(p.workouts[0].entries[0].exercise.is_bench_lift).toBe(true)
     expect(p.workouts[0].entries[0].exercise.secondary).toEqual(['трицепс'])
@@ -119,7 +119,7 @@ describe('planImport', () => {
     const b = snap()
     const cur = { workoutIds: ['w1'], goals, badges, prog: { enabled: false, byExercise: { ex1: { step: 2.5 } } }, exercises }
     const p = planImport(b, cur)
-    expect(p.counts).toEqual({ workouts: 0, workoutsSkipped: 0, goals: 0, badges: 0, prog: 0 })
+    expect(p.counts).toEqual({ workouts: 0, workoutsSkipped: 0, goals: 0, badges: 0, prog: 0, rpe: 0 })
     expect(p.goals).toBe(null)
     expect(p.badges).toBe(null)
     expect(p.prog).toBe(null)
@@ -200,7 +200,7 @@ describe('planImport', () => {
 
   it('пустой current и пустой снимок не роняют план', () => {
     const p = planImport({ workouts: [], goals: [], badges: {} }, {})
-    expect(p.counts).toEqual({ workouts: 0, workoutsSkipped: 0, goals: 0, badges: 0, prog: 0 })
+    expect(p.counts).toEqual({ workouts: 0, workoutsSkipped: 0, goals: 0, badges: 0, prog: 0, rpe: 0 })
     expect(planImport(undefined, undefined).workouts).toEqual([])
   })
 
@@ -218,5 +218,36 @@ describe('describeImport', () => {
   it('нечего добавлять → понятный текст', () => {
     expect(describeImport({ workouts: 0, goals: 0, badges: 0, prog: 0 })).toBe('Всё из файла уже было в приложении.')
     expect(describeImport(undefined)).toBe('Всё из файла уже было в приложении.')
+  })
+})
+
+describe('оценки «как пошло» (RPE) в бэкапе', () => {
+  const rpeSnap = {
+    w1: { at: '2026-07-20T10:00:00.000Z', ex: { ex1: 'easy', ex2: 'hard' } },
+    w2: { at: '2026-07-22T10:00:00.000Z', ex: { ex1: 'ok' } },
+  }
+
+  it('buildBackup кладёт карту оценок в снимок', () => {
+    const b = buildBackup({ userId: 'u1', rpe: rpeSnap }, '5.15.1', new Date('2026-07-24T10:00:00Z'))
+    expect(b.rpe).toEqual(rpeSnap)
+    expect(buildBackup({ userId: 'u1' }).rpe).toEqual({})
+  })
+
+  it('planImport добавляет только отсутствующие оценки, текущие не перетирает', () => {
+    const cur = { w1: { at: '2026-07-20T10:00:00.000Z', ex: { ex1: 'ok' } } }
+    const p = planImport({ rpe: rpeSnap }, { rpe: cur })
+    expect(p.counts.rpe).toBe(2) // w1/ex2 и w2/ex1; w1/ex1 уже есть
+    expect(p.rpe.w1.ex).toEqual({ ex1: 'ok', ex2: 'hard' })
+    expect(p.rpe.w2.ex).toEqual({ ex1: 'ok' })
+  })
+
+  it('повторный импорт тех же оценок ничего не пишет', () => {
+    const p = planImport({ rpe: rpeSnap }, { rpe: rpeSnap })
+    expect(p.rpe).toBe(null)
+    expect(p.counts.rpe).toBe(0)
+  })
+
+  it('describeImport упоминает оценки', () => {
+    expect(describeImport({ rpe: 3 })).toBe('Добавлено — оценок «как пошло»: 3.')
   })
 })

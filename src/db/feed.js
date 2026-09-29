@@ -108,6 +108,19 @@ async function attachReactions(items) {
   } catch { /* нет таблицы/офлайн — карточки без реакций */ }
 }
 
+// Стабильный отпечаток реакций окна ленты (порядок элементов уже задан сортировкой).
+function reactionsKey(items) {
+  return JSON.stringify(
+    (items ?? []).map((i) => [
+      i.id,
+      // сервер отдаёт реакции без гарантии порядка — сортируем, чтобы не писать зря
+      (i.reactions ?? [])
+        .map((r) => [String(r.user_id), String(r.kind), r.name ?? null, r.created_at ?? null])
+        .sort((a, b) => (a[0] + a[1]).localeCompare(b[0] + b[1])),
+    ])
+  )
+}
+
 // Отметки новых рекордов в ленте (ТЗ §4.3).
 // Идём по всему окну ленты в хронологическом порядке и для каждого автора
 // отдельно отслеживаем лучший ВЕДУЩИЙ показатель по упражнению (вес для weight,
@@ -154,7 +167,7 @@ export async function fetchFeed(userId, d = db) {
   // ролью `anon` (после auth-harden у неё нет грантов) → «permission denied for
   // table workouts». Тихо выходим, как при офлайне; повторно дёрнет либо poll
   // синка, либо ре-триггер по onAuthStateChange (SIGNED_IN), см. sync.startSync.
-  if (!(await hasSession())) return
+  if (!(await hasSession(userId))) return
 
   // Дешёвая проба окна ленты (id + updated_at по тем же 50 строкам). Тяжёлый
   // вложенный join тянем ТОЛЬКО когда окно изменилось (новая/правленая/удалённая
@@ -192,6 +205,9 @@ export async function fetchFeed(userId, d = db) {
     items = await d.feed.toArray()
     items.sort((a, b) => cmpIsoDesc(a.performed_at, b.performed_at))
   }
+  // Снимок реакций кэша ДО переналожения (attachReactions мутирует элементы): при
+  // неизменном окне по нему решаем, есть ли что писать вообще.
+  const reactionsBefore = changed ? null : reactionsKey(items)
   await attachReactions(items)
 
   // Оптимистичная очередь реакций поверх серверного снимка: ещё не отправленные
@@ -205,6 +221,11 @@ export async function fetchFeed(userId, d = db) {
       finalItems = applyReactionQueue(items, ops, { id: userId, name: me?.name })
     }
   } catch { /* нет очереди/ростра — показываем как есть */ }
+
+  // Окно не изменилось и реакции те же — кэш не трогаем. Иначе clear+bulkPut на
+  // каждом поллинге (20–60 c) будил все useLiveQuery по ленте, включая счётчик
+  // уведомлений в шапке с пересчётом инсайтов по всей истории.
+  if (!changed && reactionsKey(finalItems) === reactionsBefore) return
 
   // Успешный ответ (в т.ч. ПУСТОЙ) применяем целиком: сетевые/серверные сбои
   // уходят в throw выше и сюда не доходят, поэтому пустой список здесь —

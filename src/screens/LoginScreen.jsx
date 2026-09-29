@@ -2,7 +2,7 @@ import { useState, useEffect, useRef } from 'react'
 import { supabase } from '../db/supabase.js'
 import { getUsers, cacheUsers } from '../db/repo.js'
 import { migrateLoginZone } from '../db/local.js'
-import { login as authLogin, verifyPinOffline, LoginError } from '../lib/auth.js'
+import { login as authLogin, verifyPinOffline, dropForeignSession, LoginError } from '../lib/auth.js'
 import { withTimeout } from '../lib/withTimeout.js'
 
 export default function LoginScreen({ onLogin }) {
@@ -101,6 +101,9 @@ export default function LoginScreen({ onLogin }) {
       //             null           — кэша нет (первый вход на устройстве).
       const offline = await verifyPinOffline(selected.id, pin)
       if (offline) {
+        // Чужую сессию, оставшуюся на устройстве, снимаем ДО входа: её SIGNED_OUT
+        // должен отработать, пока App ещё на экране входа, а не выкинуть нас позже.
+        await dropForeignSession(selected.id)
         // UI открываем сразу; если есть сеть — молча перевыпускаем сессию.
         if (navigator.onLine) authLogin(selected.id, pin).catch(() => {})
         onLogin(offline)

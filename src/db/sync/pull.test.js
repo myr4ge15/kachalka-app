@@ -229,6 +229,64 @@ describe('pullGoal', () => {
       _dirty: 0,
     })
   })
+
+  it('не затирает цель, сохранённую пока шёл запрос к серверу', async () => {
+    const fresh = { exerciseId: 'ex2', exerciseName: 'Присед', metric: 'weight', targetWeight: 140, achievedAt: null, _dirty: 1 }
+    server.from = async (call) => {
+      if (call.table !== 'goals') return defaultResponse(call)
+      // человек сохранил новую цель, пока ответ был в пути
+      await writeGoals(userId, [fresh], db)
+      // на сервере — другой список (без новой цели): его запись стёрла бы её
+      return { data: [{ exercise_id: 'ex1', target_weight: 100, metric: 'weight', achieved_at: null }], error: null }
+    }
+
+    await pullGoal(userId, db)
+
+    expect(await readGoals(userId, db)).toEqual([fresh])
+  })
+
+  it('без правок во время запроса принимает серверный список', async () => {
+    server.from = (call) => {
+      if (call.table !== 'goals') return defaultResponse(call)
+      return { data: [{ exercise_id: 'ex1', target_weight: 100, metric: 'weight', achieved_at: null }], error: null }
+    }
+
+    await pullGoal(userId, db)
+
+    expect(await readGoals(userId, db)).toMatchObject([{ exerciseId: 'ex1', targetWeight: 100, _dirty: 0 }])
+  })
+})
+
+describe('pull справочника упражнений', () => {
+  function exercisesServer(rows) {
+    return (call) => {
+      if (call.table === 'exercises' && call.select === 'updated_at') return { data: [{ updated_at: T3 }], error: null }
+      if (call.table === 'exercises') return { data: rows, error: null }
+      return defaultResponse(call)
+    }
+  }
+
+  it('правка известного серверу упражнения с живой операцией не затирается', async () => {
+    await db.exercises.put({ id: 'ex1', name: 'Тяга блока', _dirty: 1 })
+    await db.ex_outbox.add({ exerciseId: 'ex1', createdAt: T3 })
+    server.from = exercisesServer([{ id: 'ex1', name: 'Тяга', updated_at: T2 }])
+
+    await pull(userId, new Set(), db)
+
+    expect(await db.exercises.get('ex1')).toMatchObject({ name: 'Тяга блока', _dirty: 1 })
+    expect(await db.ex_outbox.count()).toBe(1)
+  })
+
+  it('без живой операции (dead-letter) берёт серверную версию и чистит очередь', async () => {
+    await db.exercises.put({ id: 'ex1', name: 'Тяга блока', _dirty: 1 })
+    await db.ex_outbox.add({ exerciseId: 'ex1', createdAt: T3, _dead: 1 })
+    server.from = exercisesServer([{ id: 'ex1', name: 'Тяга', updated_at: T2 }])
+
+    await pull(userId, new Set(), db)
+
+    expect((await db.exercises.get('ex1')).name).toBe('Тяга')
+    expect(await db.ex_outbox.count()).toBe(0)
+  })
 })
 
 describe('pullUserMeta', () => {

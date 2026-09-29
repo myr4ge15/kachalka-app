@@ -5,7 +5,7 @@ import { detectNewPrsOnSave, detectGoalReachedOnSave } from '../db/notifications
 import { detectInsightsOnSave } from '../db/insights.js'
 import { detectBadgesOnSave } from '../db/badges.js'
 import { syncNow } from '../db/sync.js'
-import { getCache, setCache, clearCache } from '../lib/cache.js'
+import { readDraft, writeDraft, clearDraft as dropDraft } from '../lib/draftStore.js'
 import { showToast, hideToast } from '../components/Toast.jsx'
 import { buildRecommendation, defaultSet, sk } from '../lib/progressionCard.js'
 import { workoutFinishEvents } from '../lib/workoutFinish.js'
@@ -56,19 +56,21 @@ export default function WorkoutScreen({ user, workoutId = null, onBack, onSaved 
   // загрузки — включено (как и первый резолв в repo.getProgSettings).
   const prog = useLiveQuery(() => getProgSettings(user.id), [user.id], { enabled: true, byExercise: {} })
 
-  // Черновик в памяти — только для новой тренировки (ключ привязан к пользователю).
+  // Черновик — только для новой тренировки (ключ привязан к пользователю). Лежит в
+  // lib/draftStore (память + localStorage): переживает и уход с экрана, и выгрузку
+  // PWA в фоне / перезагрузку на обновление посреди занятия.
   const DRAFT_KEY = `workout_draft_new_${user.id}`
   // Отметки выполнения живут рядом с черновиком: уход с экрана посреди занятия
   // (Лента, Прогресс) не должен гасить галочки, как не гасит состав.
   const DONE_KEY = `workout_done_new_${user.id}`
   // Оценки «как пошло» (RPE) до сохранения жить негде: id тренировки рождается
   // только внутри saveWorkout. Поэтому они, как и отметки выполнения, ждут в
-  // стейте экрана и переживают уход с экрана в том же сессионном кэше.
+  // стейте экрана и переживают уход с экрана в том же хранилище черновика.
   const FEEL_KEY = `workout_feel_new_${user.id}`
 
-  const [entries, setEntries] = useState(() => (isNew ? getCache(DRAFT_KEY) ?? [] : []))
+  const [entries, setEntries] = useState(() => (isNew ? readDraft(DRAFT_KEY) ?? [] : []))
   // { [exerciseId]: 'easy'|'ok'|'hard' } — только за эту тренировку.
-  const [feels, setFeels] = useState(() => (isNew ? getCache(FEEL_KEY) ?? {} : {}))
+  const [feels, setFeels] = useState(() => (isNew ? readDraft(FEEL_KEY) ?? {} : {}))
   const { activeExerciseId, activeCardRef, activateExercise } = useWorkoutFocus(entries, {
     preferIncomplete: !isNew,
   })
@@ -92,11 +94,11 @@ export default function WorkoutScreen({ user, workoutId = null, onBack, onSaved 
 
   // Сохраняем черновик новой тренировки при каждом изменении состава.
   useEffect(() => {
-    if (isNew) setCache(DRAFT_KEY, entries)
+    if (isNew) writeDraft(DRAFT_KEY, entries)
   }, [isNew, DRAFT_KEY, entries])
 
   useEffect(() => {
-    if (isNew) setCache(FEEL_KEY, feels)
+    if (isNew) writeDraft(FEEL_KEY, feels)
   }, [isNew, FEEL_KEY, feels])
 
   // Правка: в записи хранится только отмеченное (keepDoneSets), поэтому любой
@@ -134,6 +136,12 @@ export default function WorkoutScreen({ user, workoutId = null, onBack, onSaved 
       } else {
         setMessage({ type: 'error', text: 'Тренировка не найдена.' })
       }
+      setLoading(false)
+    }).catch((err) => {
+      // Чтение из Dexie упало (напр. база закрыта при выходе) — не оставляем
+      // экран в вечной «загрузке», показываем причину.
+      if (!alive) return
+      setMessage({ type: 'error', text: 'Не удалось открыть тренировку: ' + (err?.message ?? err) })
       setLoading(false)
     })
     return () => { alive = false }
@@ -404,9 +412,9 @@ export default function WorkoutScreen({ user, workoutId = null, onBack, onSaved 
         await setWorkoutFeels(user.id, wId, performedAt, kept)
       } catch { /* оценки необязательны, тренировка уже записана */ }
       if (isNew) {
-        clearCache(DRAFT_KEY)
-        clearCache(DONE_KEY) // отметки — состояние этого занятия, следующему не наследуются
-        clearCache(FEEL_KEY) // оценки тоже: следующая тренировка начинается без них
+        dropDraft(DRAFT_KEY)
+        dropDraft(DONE_KEY) // отметки — состояние этого занятия, следующему не наследуются
+        dropDraft(FEEL_KEY) // оценки тоже: следующая тренировка начинается без них
       }
       // Тактильный отклик по итогу сохранения: рекорд/цель — «праздничный»
       // паттерн, обычное сохранение — короткий success (см. lib/haptics.js).
@@ -454,8 +462,8 @@ export default function WorkoutScreen({ user, workoutId = null, onBack, onSaved 
   // ОСТАЁМСЯ на экране новой тренировки (пустой composer), а не уходим в список —
   // пользователь ждёт, что продолжит добавлять с чистого листа. Уйти — «← Назад».
   function clearDraft() {
-    clearCache(DRAFT_KEY)
-    clearCache(FEEL_KEY)
+    dropDraft(DRAFT_KEY)
+    dropDraft(FEEL_KEY)
     setEntries([])
     markEntriesDone([]) // пустой состав → отметок выполнения тоже нет
     setFeels({})        // и оценок: отказ от черновика отменяет занятие целиком

@@ -1,26 +1,26 @@
 import { useCallback, useEffect, useRef, useState } from 'react'
 import { allSetKeys, remapExerciseKeys, setDoneKey, toggleDoneKey } from '../lib/setCompletion.js'
-import { getCache, setCache } from '../lib/cache.js'
+import { readDraft, writeDraft } from '../lib/draftStore.js'
 import { vibrate, HAPTIC } from '../lib/haptics.js'
 
 // Отметки «подход выполнен» (PLAN-workout-focus, Slice 2). Транзиентное UI-состояние:
 // в документ тренировки и Dexie не попадает, схема и синк не меняются.
 //
-// `cacheKey` — опциональный ключ сессионного кэша (lib/cache.js, память): черновик
+// `cacheKey` — опциональный ключ хранилища черновика (lib/draftStore.js): черновик
 // новой тренировки уже переживает уход с экрана, и отметки должны переживать вместе
 // с ним, иначе взгляд в Ленту посреди занятия сбрасывал бы все галочки.
 export function useSetCompletion({ cacheKey = null } = {}) {
   const [doneKeys, setDoneKeys] = useState(() => new Set(
-    cacheKey ? getCache(cacheKey) ?? [] : []
+    cacheKey ? readDraft(cacheKey) ?? [] : []
   ))
   // Ключи, которые экран уже видел. Нужны ТОЛЬКО режиму правки (см. markNewSetsDone):
   // отличают «подход появился только что» от «пользователь снял с него отметку» —
   // в обоих случаях ключа нет в doneKeys, а смысл противоположный.
   const seenRef = useRef(new Set(doneKeys))
 
-  // Set в кэш кладём массивом — кэш переживает размонтирование, но не сериализуется.
+  // Set кладём массивом — хранилище сериализует значение в JSON.
   useEffect(() => {
-    if (cacheKey) setCache(cacheKey, [...doneKeys])
+    if (cacheKey) writeDraft(cacheKey, [...doneKeys])
   }, [cacheKey, doneKeys])
 
   // Отмена — тем же тапом и БЕЗ удаления значений подхода.

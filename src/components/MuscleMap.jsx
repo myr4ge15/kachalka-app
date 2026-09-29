@@ -18,19 +18,13 @@
 // ============================================================================
 import { BODY_OUTLINE, NEUTRAL_PARTS, FRONT_REGIONS, BACK_REGIONS } from './muscleBodyPaths.js'
 
-const BUCKET_COLOR = {
-  fresh: '#ef4444',
-  recent: '#f59e0b',
-  due: '#14b8a6',
-  overdue: '#3b82f6',
-  never: '#64748b',
-}
-const BODY = '#171f2c'      // заливка контура тела
-const MUSCLE = '#2b374d'    // мышца без данных
-const STROKE = '#3a4a63'    // контур
+// Цвета — токены --fr-*/--mm-* из index.css (красная линия «никакого хардкода в
+// JSX»). В SVG-атрибут fill var() не подставить, поэтому зона получает КЛАСС
+// бакета, а заливку ему задаёт CSS. Неизвестный бакет → «мышца без данных».
+const BUCKETS = new Set(['fresh', 'recent', 'due', 'overdue', 'never'])
 
-export function bucketColor(bucket) {
-  return BUCKET_COLOR[bucket] ?? MUSCLE
+export function bucketClass(bucket) {
+  return BUCKETS.has(bucket) ? `mm-b-${bucket}` : 'mm-muscle'
 }
 
 // Анатомическая зона → наши подмышцы. Цвет зоны = «самая пора» из них.
@@ -87,18 +81,19 @@ export default function MuscleMap({ bySub = {}, selected = null, onSelect }) {
             {/* Штриховка «нет данных»: две муарные полосы под 45° — зона без истории
                 выглядит намеренно «не отслеживается», а не как мёртвый серый. */}
             <pattern id={untrackedId} patternUnits="userSpaceOnUse" width="24" height="24" patternTransform="rotate(45)">
-              <rect width="24" height="24" fill="#222c3d" />
-              <rect width="12" height="24" fill="#2e3a51" />
+              <rect className="mm-hatch-1" width="24" height="24" />
+              <rect className="mm-hatch-2" width="12" height="24" />
             </pattern>
           </defs>
-          <path d={BODY_OUTLINE[side]} fill={BODY} stroke={STROKE} strokeWidth="2.5" vectorEffect="non-scaling-stroke" />
+          <path className="mm-body" d={BODY_OUTLINE[side]} strokeWidth="2.5" vectorEffect="non-scaling-stroke" />
           {(NEUTRAL_PARTS[side] ?? []).map((d, i) => (
-            <path key={`n${i}`} d={d} fill={MUSCLE} stroke={STROKE} strokeWidth="1" vectorEffect="non-scaling-stroke" aria-hidden="true" />
+            <path key={`n${i}`} className="mm-muscle" d={d} strokeWidth="1" vectorEffect="non-scaling-stroke" aria-hidden="true" />
           ))}
           {Object.entries(regions).map(([region, paths]) => {
             const bucket = regionBucket(region, bySub)
-            // Есть данные → цвет давности; нет данных → штриховка «не тренировал».
-            const fill = bucket ? bucketColor(bucket) : `url(#${untrackedId})`
+            // Есть данные → класс цвета давности; нет данных → штриховка «не тренировал».
+            const cls = bucket ? bucketClass(bucket) : null
+            const fill = bucket ? undefined : `url(#${untrackedId})`
             const sel = selected === region
             return (
               <g
@@ -117,7 +112,7 @@ export default function MuscleMap({ bySub = {}, selected = null, onSelect }) {
                 }}
               >
                 {paths.map((d, i) => (
-                  <path key={i} d={d} fill={fill} stroke={STROKE} strokeWidth="1" vectorEffect="non-scaling-stroke" />
+                  <path key={i} className={cls ? `mm-part ${cls}` : 'mm-part'} d={d} fill={fill} strokeWidth="1" vectorEffect="non-scaling-stroke" />
                 ))}
               </g>
             )

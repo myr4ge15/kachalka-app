@@ -35,9 +35,15 @@ export async function getUserMetaState(d = db) {
 
 // Точечное обновление состояния одного рода (мержим поверх текущего, чтобы не
 // затирать соседей при параллельных правках).
+// Read-modify-write одной записи на все роды — в транзакции: иначе приём с сервера
+// рода X, пересёкшийся с пользовательской записью рода Y, мог вернуть Y старое
+// состояние и потерять его флаг dirty (правка не уехала бы и проиграла серверу).
 export async function setUserMetaState(kind, patch, d = db) {
-  const cur = await getUserMetaState(d)
-  await setMeta(STATE_KEY, { ...cur, [kind]: { ...cur[kind], ...patch } }, d)
+  if (!d) return
+  await d.transaction('rw', d.meta, async () => {
+    const cur = await getUserMetaState(d)
+    await setMeta(STATE_KEY, { ...cur, [kind]: { ...cur[kind], ...patch } }, d)
+  })
 }
 
 // Прочитать синкаемое значение (сырое, как лежит в meta).
@@ -47,15 +53,23 @@ export async function readSyncedMeta(userId, kind, d = db) {
 
 // ПОЛЬЗОВАТЕЛЬСКАЯ запись: значение + пометка «отправить». Зовётся из repo.js
 // (бейджи, настройки прогрессии) и notifications.js (метка «прочитано»).
+// Значение и пометка «отправить» пишутся одной транзакцией: между ними не должен
+// вклиниться pull, иначе он сольёт новое значение со старой отметкой времени.
 export async function writeSyncedMeta(userId, kind, value, d = db) {
-  await setMeta(metaKeyFor(kind, userId), value, d)
-  await setUserMetaState(kind, { at: nowIso(), dirty: 1 }, d)
+  if (!d) return
+  await d.transaction('rw', d.meta, async () => {
+    await setMeta(metaKeyFor(kind, userId), value, d)
+    await setUserMetaState(kind, { at: nowIso(), dirty: 1 }, d)
+  })
 }
 
 // Приём значения с сервера: пишем без пометки dirty. write=false — значение не
 // изменилось, трогаем только отметку времени (лишняя запись meta дёргала бы
 // useLiveQuery на всех экранах).
 export async function acceptSyncedMeta(userId, kind, { value, write, dirty, at }, d = db) {
-  if (write) await setMeta(metaKeyFor(kind, userId), value, d)
-  await setUserMetaState(kind, { at: at ?? nowIso(), dirty: dirty ? 1 : 0 }, d)
+  if (!d) return
+  await d.transaction('rw', d.meta, async () => {
+    if (write) await setMeta(metaKeyFor(kind, userId), value, d)
+    await setUserMetaState(kind, { at: at ?? nowIso(), dirty: dirty ? 1 : 0 }, d)
+  })
 }

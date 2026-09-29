@@ -208,6 +208,20 @@ export async function detectGoalReachedOnSave(userId, workoutId) {
     })
     return { ...g, achievedAt: nowIso() }
   })
-  if (changed) await writeGoals(userId, next)
+  // Пишем поверх СВЕЖЕГО массива, а не снимка со входа: пока считали, синк мог
+  // закоммитить свои правки (снятый _dirty, achieved_at от бота). Патчим только
+  // achievedAt достигнутых целей.
+  if (changed) {
+    const stamped = new Map(next.filter((g) => g.achievedAt).map((g) => [g.exerciseId, g.achievedAt]))
+    await db.transaction('rw', db.meta, async () => {
+      const cur = await readGoals(userId)
+      await writeGoals(userId, cur.map((g) =>
+        !g.achievedAt && !g._deleted && stamped.has(g.exerciseId) &&
+        reached.some((r) => r.exerciseId === g.exerciseId)
+          ? { ...g, achievedAt: stamped.get(g.exerciseId) }
+          : g
+      ))
+    })
+  }
   return reached
 }

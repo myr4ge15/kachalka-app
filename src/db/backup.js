@@ -7,21 +7,23 @@
 // repo.saveWorkout — он же ставит upsert в `outbox`, и обычный синк отправит их
 // на сервер тем же путём, что и ручную запись. Цели уходят на сервер по _dirty.
 // ============================================================================
-import { db, getMeta, setMeta } from './local.js'
-import { getWorkouts, getBadges, writeBadges, saveWorkout, progKey } from './repo.js'
+import { db, getMeta } from './local.js'
+import { getWorkouts, getBadges, writeBadges, saveWorkout, progKey, getRpe } from './repo.js'
+import { writeSyncedMeta } from './userMeta.js'
 import { readGoals, writeGoals } from './notifications.js'
 import { downloadBackup, parseBackup, assertSameOwner, planImport } from '../lib/backup.js'
 
 // Собрать всё личное состояние и сразу скачать файлом.
 export async function exportAllMyData(userId, appVersion = 'dev') {
-  const [workouts, goals, badges, prog, priv] = await Promise.all([
+  const [workouts, goals, badges, prog, rpe, priv] = await Promise.all([
     getWorkouts(userId),
     readGoals(userId),
     getBadges(userId),
     getMeta(progKey(userId)),
+    getRpe(userId),
     getMeta(`priv_${userId}`),
   ])
-  downloadBackup({ userId, workouts, goals, badges, prog, priv }, appVersion)
+  downloadBackup({ userId, workouts, goals, badges, prog, rpe, priv }, appVersion)
   return workouts.length
 }
 
@@ -33,11 +35,12 @@ export async function importAllMyData(userId, text) {
 
   // Справочник упражнений берём ЦЕЛИКОМ (включая is_hidden): в истории могут
   // лежать скрытые админкой упражнения, и для них полная форма тоже нужна.
-  const [all, goals, badges, prog, exercises] = await Promise.all([
+  const [all, goals, badges, prog, rpe, exercises] = await Promise.all([
     db.workouts.toArray(),
     readGoals(userId),
     getBadges(userId),
     getMeta(progKey(userId)),
+    getRpe(userId),
     db.exercises.toArray(),
   ])
 
@@ -48,6 +51,7 @@ export async function importAllMyData(userId, text) {
     goals,
     badges,
     prog,
+    rpe,
     exercises: new Map(exercises.map((e) => [e.id, e])),
   })
 
@@ -63,7 +67,11 @@ export async function importAllMyData(userId, text) {
   }
   if (plan.goals) await writeGoals(userId, plan.goals)
   if (plan.badges) await writeBadges(userId, plan.badges)
-  if (plan.prog) await setMeta(progKey(userId), plan.prog)
+  // Синкаемые роды пишем ТОЛЬКО через writeSyncedMeta (dirty + свежая отметка):
+  // иначе ближайший pullUserMeta по LWW отдал бы приоритет серверному значению
+  // и восстановленное пропало бы, так и не доехав до сервера.
+  if (plan.prog) await writeSyncedMeta(userId, 'prog', plan.prog)
+  if (plan.rpe) await writeSyncedMeta(userId, 'rpe', plan.rpe)
 
   return { ...plan.counts, workouts: plan.counts.workouts - failed, failed }
 }

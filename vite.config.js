@@ -114,6 +114,16 @@ export default defineConfig({
     chunkSizeWarningLimit: 1400,
     rollupOptions: {
       output: {
+        // Общий чанк без собственной точки входа Rollup называет по первому попавшемуся
+        // модулю («Skeleton-*.js» на 127 kB со всей общей логикой экранов) — при разборе
+        // бандла это сбивает с толку. Такие чанки помечаем префиксом shared- (имя
+        // первого модуля оставляем подсказкой, иначе мелкие общие чанки неразличимы).
+        chunkFileNames(chunk) {
+          const manual = ['charts', 'supabase', 'react-vendor']
+          return chunk.facadeModuleId || manual.includes(chunk.name)
+            ? 'assets/[name]-[hash].js'
+            : 'assets/shared-[name]-[hash].js'
+        },
         // Делим вендоров на отдельные кэшируемые чанки, чтобы ни один кусок не
         // превышал лимит и обновление приложения не инвалидировало react/supabase.
         // recharts (только в «Прогрессе») вынесен в свой чанк и грузится лениво.

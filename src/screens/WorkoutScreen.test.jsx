@@ -6,7 +6,7 @@ import { getRecentSessionsForExercise, getWorkout, getWorkoutFeels, saveWorkout,
 import { detectGoalReachedOnSave, detectNewPrsOnSave } from '../db/notifications.js'
 import { detectInsightsOnSave } from '../db/insights.js'
 import { detectBadgesOnSave } from '../db/badges.js'
-import { clearCache, setCache } from '../lib/cache.js'
+import { readDraft, resetDraftMemory, writeDraft } from '../lib/draftStore.js'
 import WorkoutScreen from './WorkoutScreen.jsx'
 
 vi.mock('dexie-react-hooks', () => ({
@@ -59,7 +59,8 @@ const secondEntry = {
 
 describe('WorkoutScreen', () => {
   beforeEach(() => {
-    clearCache()
+    resetDraftMemory()
+    localStorage.clear()
     vi.mocked(getWorkout).mockReset()
     vi.mocked(getRecentSessionsForExercise).mockReset()
     vi.mocked(saveWorkout).mockReset()
@@ -88,8 +89,21 @@ describe('WorkoutScreen', () => {
     })
   })
 
-  it('восстанавливает черновик новой тренировки из сессионного кэша', () => {
-    setCache(`workout_draft_new_${user.id}`, draft)
+  it('черновик переживает перезапуск страницы (выгрузку PWA в фоне)', () => {
+    const first = render(<WorkoutScreen user={user} />)
+    first.unmount()
+    writeDraft(`workout_draft_new_${user.id}`, draft)
+    // «Перезапуск»: память модуля пуста, остаётся только диск.
+    resetDraftMemory()
+    expect(readDraft(`workout_draft_new_${user.id}`)).toEqual(draft)
+
+    render(<WorkoutScreen user={user} />)
+    expect(screen.getByText('Жим лёжа')).toBeInTheDocument()
+    expect(screen.getByDisplayValue('60')).toBeInTheDocument()
+  })
+
+  it('восстанавливает черновик новой тренировки из хранилища черновика', () => {
+    writeDraft(`workout_draft_new_${user.id}`, draft)
     render(<WorkoutScreen user={user} />)
 
     expect(screen.getByText('Жим лёжа')).toBeInTheDocument()
@@ -98,7 +112,7 @@ describe('WorkoutScreen', () => {
   })
 
   it('держит активность по exercise.id и раскрывает компактную карточку одним тапом', () => {
-    setCache(`workout_draft_new_${user.id}`, [...draft, secondEntry])
+    writeDraft(`workout_draft_new_${user.id}`, [...draft, secondEntry])
     const { container } = render(<WorkoutScreen user={user} />)
     const bench = container.querySelector('[data-exercise-id="bench"]')
     const pullup = container.querySelector('[data-exercise-id="pullup"]')
@@ -125,7 +139,7 @@ describe('WorkoutScreen', () => {
       configurable: true,
       value: vi.fn(() => ({ matches: true })),
     })
-    setCache(`workout_draft_new_${user.id}`, [...draft, secondEntry])
+    writeDraft(`workout_draft_new_${user.id}`, [...draft, secondEntry])
     render(<WorkoutScreen user={user} />)
 
     fireEvent.click(screen.getByRole('button', { name: /Открыть Подтягивания/ }))
@@ -138,7 +152,7 @@ describe('WorkoutScreen', () => {
   })
 
   it('отмечает подход выполненным, и свёрнутая карточка показывает готовность', () => {
-    setCache(`workout_draft_new_${user.id}`, [...draft, secondEntry])
+    writeDraft(`workout_draft_new_${user.id}`, [...draft, secondEntry])
     render(<WorkoutScreen user={user} />)
 
     fireEvent.click(screen.getByRole('button', { name: 'Отметить подход 1 выполненным' }))
@@ -152,7 +166,7 @@ describe('WorkoutScreen', () => {
   })
 
   it('отметки выполнения не попадают в сохраняемый состав', async () => {
-    setCache(`workout_draft_new_${user.id}`, draft)
+    writeDraft(`workout_draft_new_${user.id}`, draft)
     render(<WorkoutScreen user={user} />)
 
     fireEvent.click(screen.getByRole('button', { name: 'Отметить подход 1 выполненным' }))
@@ -164,7 +178,7 @@ describe('WorkoutScreen', () => {
   })
 
   it('оценка «как пошло» пишется ПОСЛЕ сохранения — с id, которого до него нет', async () => {
-    setCache(`workout_draft_new_${user.id}`, draft)
+    writeDraft(`workout_draft_new_${user.id}`, draft)
     render(<WorkoutScreen user={user} />)
 
     fireEvent.click(screen.getByRole('button', { name: 'тяжело' }))
@@ -180,7 +194,7 @@ describe('WorkoutScreen', () => {
   })
 
   it('повторный тап снимает оценку — промах не фиксируется навсегда', async () => {
-    setCache(`workout_draft_new_${user.id}`, draft)
+    writeDraft(`workout_draft_new_${user.id}`, draft)
     render(<WorkoutScreen user={user} />)
 
     fireEvent.click(screen.getByRole('button', { name: 'легко' }))
@@ -194,7 +208,7 @@ describe('WorkoutScreen', () => {
   })
 
   it('сохранение не ломается, если запись оценок упала', async () => {
-    setCache(`workout_draft_new_${user.id}`, draft)
+    writeDraft(`workout_draft_new_${user.id}`, draft)
     vi.mocked(setWorkoutFeels).mockRejectedValue(new Error('meta недоступна'))
     const onSaved = vi.fn()
     render(<WorkoutScreen user={user} onSaved={onSaved} />)
@@ -364,7 +378,7 @@ describe('WorkoutScreen', () => {
   })
 
   it('сохраняет весь состав, включая компактные неактивные карточки', async () => {
-    setCache(`workout_draft_new_${user.id}`, [...draft, secondEntry])
+    writeDraft(`workout_draft_new_${user.id}`, [...draft, secondEntry])
     const onBack = vi.fn()
     render(<WorkoutScreen user={user} onBack={onBack} />)
 
@@ -376,7 +390,7 @@ describe('WorkoutScreen', () => {
   })
 
   it('после локальной записи отдаёт сохранённую тренировку итоговому экрану', async () => {
-    setCache(`workout_draft_new_${user.id}`, draft)
+    writeDraft(`workout_draft_new_${user.id}`, draft)
     vi.mocked(getWorkout).mockResolvedValue({
       id: 'saved-workout',
       user_id: user.id,
@@ -396,7 +410,7 @@ describe('WorkoutScreen', () => {
   })
 
   it('передаёт рекорд итоговому экрану вместо отдельного поздравительного тоста', async () => {
-    setCache(`workout_draft_new_${user.id}`, draft)
+    writeDraft(`workout_draft_new_${user.id}`, draft)
     vi.mocked(detectNewPrsOnSave).mockResolvedValue([{
       exerciseId: 'bench',
       name: 'Жим лёжа',

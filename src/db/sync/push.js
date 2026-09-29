@@ -70,30 +70,45 @@ export async function pushExercises(d = db) {
       await d.ex_outbox.delete(op.seq)
       return
     }
+    const payload = exercisePayload(ex)
     const { error } = await withTimeout(
-      supabase.from('exercises').upsert(
-        {
-          id: ex.id,
-          name: ex.name,
-          muscle_group: ex.muscle_group ?? null,
-          submuscle: ex.submuscle ?? null,
-          secondary: ex.secondary ?? [],
-          is_custom: true,
-          is_bench_lift: Boolean(ex.is_bench_lift),
-          metric: ex.metric ?? 'weight',
-          // Владелец (supabase/exercise-owner.sql). Легаси-строки без владельца
-          // отправляем как null — политика exercises_update это разрешает, и
-          // упражнение остаётся ничьим, а не «присваивается» тем, кто его правил.
-          owner_id: ex.owner_id ?? null,
-        },
-        { onConflict: 'id' }
-      )
+      supabase.from('exercises').upsert(payload, { onConflict: 'id' })
     )
     if (error) throw error
-    await d.exercises.update(ex.id, { _dirty: 0 })
-    await d.ex_outbox.delete(op.seq)
+    // Упражнение могли поправить, пока шёл upsert: updateExercise видит ещё живую
+    // операцию и новую не ставит. Снять _dirty и удалить операцию «вслепую» значило
+    // бы потерять правку (pullExercises затем перезапишет строку серверной). Поэтому
+    // сверяем отправленный снимок с текущей строкой: изменилась — операцию оставляем,
+    // ближайший прогон дошлёт свежие поля.
+    await d.transaction('rw', d.exercises, d.ex_outbox, async () => {
+      const cur = await d.exercises.get(ex.id)
+      if (cur && !sameJson(exercisePayload(cur), payload)) return
+      if (cur) await d.exercises.update(ex.id, { _dirty: 0 })
+      await d.ex_outbox.delete(op.seq)
+    })
   })
 }
+
+// Снимок полей упражнения, уходящих на сервер. Им же сверяем «не поменялось ли
+// упражнение за время запроса» — локальной метки времени у упражнения нет.
+function exercisePayload(ex) {
+  return {
+    id: ex.id,
+    name: ex.name,
+    muscle_group: ex.muscle_group ?? null,
+    submuscle: ex.submuscle ?? null,
+    secondary: ex.secondary ?? [],
+    is_custom: true,
+    is_bench_lift: Boolean(ex.is_bench_lift),
+    metric: ex.metric ?? 'weight',
+    // Владелец (supabase/exercise-owner.sql). Легаси-строки без владельца
+    // отправляем как null — политика exercises_update это разрешает, и
+    // упражнение остаётся ничьим, а не «присваивается» тем, кто его правил.
+    owner_id: ex.owner_id ?? null,
+  }
+}
+
+const sameJson = (a, b) => JSON.stringify(a) === JSON.stringify(b)
 
 // Отправляем шаблоны (tpl_outbox) в Supabase. Идёт ПОСЛЕ pushExercises и ДО
 // push() тренировок: template_exercises.exercise_id ссылается на exercises (FK),
@@ -128,8 +143,15 @@ export async function pushTemplates(d = db) {
         })
       )
       if (error) throw error
-      await d.templates.update(doc.id, { _dirty: 0 })
-      await d.tpl_outbox.delete(op.seq)
+      // Шаблон правили, пока шёл upsert (updated_at сдвинулся) — операцию и _dirty
+      // оставляем: enqueueTpl новую не поставил, свежую версию дошлёт следующий
+      // прогон. Удалили за это время — у tombstone своя delete-операция.
+      await d.transaction('rw', d.templates, d.tpl_outbox, async () => {
+        const cur = await d.templates.get(doc.id)
+        if (cur && !cur._deleted && cur.updated_at !== doc.updated_at) return
+        if (cur && !cur._deleted) await d.templates.update(doc.id, { _dirty: 0 })
+        await d.tpl_outbox.delete(op.seq)
+      })
     } else if (op.type === 'delete') {
       const { error } = await withTimeout(
         supabase.from('workout_templates').delete().eq('id', op.templateId)
@@ -168,12 +190,26 @@ export async function push(d = db) {
         })
       )
       if (error) throw error
-      // Снимаем _dirty и базис merge-часов: запись уехала, серверный updated_at
-      // (истинное время правки) подтянет следующий pull в этом же цикле как
-      // чистую (take-server). Базис заново захватит первая локальная правка.
-      await d.workouts.update(doc.id, { _dirty: 0, _base_updated_at: null })
-      await d.outbox.delete(op.seq)
       justPushed.add(doc.id)
+      await d.transaction('rw', d.workouts, d.outbox, async () => {
+        const cur = await d.workouts.get(doc.id)
+        if (cur && !cur._deleted && cur.updated_at !== doc.updated_at) {
+          // Тренировку правили, пока шёл upsert: saveWorkout видит ещё живую
+          // операцию и новую не ставит. Снять _dirty здесь = pull этого же цикла
+          // возьмёт серверную (уже устаревшую) версию, и правка молча пропадёт.
+          // Оставляем _dirty и операцию — свежую версию дошлёт следующий прогон.
+          // Базис обнуляем: серверная версия теперь НАША (только что отправленная),
+          // сравнение с прежним базисом дало бы ложный конфликт merge-часов.
+          await d.workouts.update(doc.id, { _base_updated_at: null })
+          return
+        }
+        // Снимаем _dirty и базис merge-часов: запись уехала, серверный updated_at
+        // (истинное время правки) подтянет следующий pull в этом же цикле как
+        // чистую (take-server). Базис заново захватит первая локальная правка.
+        // Удалённую за время запроса не трогаем: у неё своя delete-операция.
+        if (cur && !cur._deleted) await d.workouts.update(doc.id, { _dirty: 0, _base_updated_at: null })
+        await d.outbox.delete(op.seq)
+      })
     } else if (op.type === 'delete') {
       const { error } = await withTimeout(
         supabase.from('workouts').delete().eq('id', op.workoutId)
@@ -228,14 +264,21 @@ export async function pushReactions(userId, d = db) {
 export async function pushGoal(userId, d = db) {
   const goals = await readGoals(userId, d)
   if (!goals.some((g) => g._dirty)) return
-  // Рабочая копия ПОЛНОГО массива целей: мутируем по мере успешных операций и
-  // персистим СРАЗУ после каждой. Раньше локальное состояние писалось один раз в
-  // конце — если 2-я цель кидала, серверная операция по 1-й уже закоммичена, а
-  // writeGoals не вызывался → 1-я «залипала» dirty, а tombstone удалённой не
-  // снимался. Теперь прерывание в середине оставляет согласованную картину:
-  // обработанные цели отражены локально, остаток ждёт следующего pushGoal.
-  let next = goals.slice()
-  const commit = () => writeGoals(userId, next, d)
+  // Результат каждой операции персистим СРАЗУ после неё: если 2-я цель кидает,
+  // серверная операция по 1-й уже закоммичена и локально отражена, остаток ждёт
+  // следующего pushGoal.
+  //
+  // Коммит — по СВЕЖЕМУ массиву, а не по снимку со входа: пока шёл RPC, человек мог
+  // добавить/поправить другую цель (или эту же), а detectGoalReachedOnSave —
+  // проставить achievedAt. Запись снимка целиком молча стирала такие правки.
+  // Поэтому перечитываем цели в транзакции и патчим ТОЛЬКО отправленную, причём
+  // _dirty снимаем, лишь если её поля не поменялись за время запроса.
+  const commit = (exerciseId, patch) =>
+    d.transaction('rw', d.meta, async () => {
+      const cur = await readGoals(userId, d)
+      const next = patch(cur, cur.find((x) => x.exerciseId === exerciseId))
+      if (next !== cur) await writeGoals(userId, next, d)
+    })
   for (const g of goals) {
     // Удаление цели (tombstone): шлём delete_my_goal и выкидываем из массива.
     if (g._deleted && g._dirty) {
@@ -243,8 +286,13 @@ export async function pushGoal(userId, d = db) {
         supabase.rpc('delete_my_goal', { p_exercise_id: g.exerciseId })
       )
       if (res.error) throw res.error
-      next = next.filter((x) => x.exerciseId !== g.exerciseId)
-      await commit()
+      // Цель могли завести заново, пока шёл delete: тогда это уже не tombstone —
+      // оставляем, её upsert уйдёт следующим прогоном.
+      await commit(g.exerciseId, (cur, fresh) =>
+        fresh && fresh._deleted
+          ? cur.filter((x) => x.exerciseId !== g.exerciseId)
+          : cur
+      )
       continue
     }
     // Поставлена/изменена цель: апсерт по составному ключу.
@@ -265,15 +313,28 @@ export async function pushGoal(userId, d = db) {
       )
       if (res.error) throw res.error
       const row = Array.isArray(res.data) ? res.data[0] : res.data
-      next = next.map((x) =>
-        x.exerciseId === g.exerciseId
-          ? { ...x, _dirty: 0, achievedAt: row?.achieved_at ?? x.achievedAt ?? null }
-          : x
+      await commit(g.exerciseId, (cur, fresh) =>
+        fresh && sameGoalTarget(fresh, g)
+          ? cur.map((x) =>
+              x === fresh
+                ? { ...x, _dirty: 0, achievedAt: row?.achieved_at ?? x.achievedAt ?? null }
+                : x
+            )
+          : cur // правили во время запроса — остаётся dirty, дошлём свежую версию
       )
-      await commit()
       continue
     }
   }
+}
+
+// Та же ли цель, что ушла на сервер (значение, повторы, метрика, не удалена).
+function sameGoalTarget(a, b) {
+  return (
+    !a._deleted &&
+    Number(a.targetWeight) === Number(b.targetWeight) &&
+    (Number(a.targetReps) || 0) === (Number(b.targetReps) || 0) &&
+    normMetric(a.metric) === normMetric(b.metric)
+  )
 }
 
 // --------------------------- личный meta: push -----------------------------
@@ -301,6 +362,12 @@ export async function pushUserMeta(userId, d = db) {
       supabase.rpc('upsert_user_meta', { p_key: kind, p_value: value })
     )
     if (res.error) throw res.error
-    await setUserMetaState(kind, { at: res.data ?? nowIso(), dirty: 0 }, d)
+    // Ключ правили, пока шёл запрос (writeSyncedMeta сдвинул at) — отправлено уже
+    // не последнее значение: dirty не снимаем, свежее уедет следующим прогоном.
+    await d.transaction('rw', d.meta, async () => {
+      const now = await getUserMetaState(d)
+      if (now[kind].at !== state[kind].at) return
+      await setUserMetaState(kind, { at: res.data ?? nowIso(), dirty: 0 }, d)
+    })
   }
 }

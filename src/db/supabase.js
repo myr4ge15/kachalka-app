@@ -43,14 +43,31 @@ export const isConfigured = Boolean(url && key)
 // уходит без JWT и RLS отвечает «permission denied for table workouts» (баг при
 // первом входе/перезапуске). `getSession()` дожидается окончания инициализации
 // GoTrue, поэтому здесь же снимается и гонка восстановления сессии после рестарта.
-export async function hasSession() {
+//
+// userId (необязательно) — для КОГО собираемся синкать. Сессия другой учётки
+// (осталась на общем устройстве, пока фоновый перевыпуск после офлайн-анлока не
+// прошёл) приравнивается к отсутствию: под чужим JWT pull отдаёт пустоту, а push
+// личного meta берёт владельца из app_uid() — данные B уехали бы в user_meta A.
+export async function hasSession(userId = null) {
   if (!isConfigured) return false
   try {
     const { data } = await supabase.auth.getSession()
-    return Boolean(data?.session)
+    const session = data?.session
+    if (!session) return false
+    return !userId || isSessionOf(session, userId)
   } catch {
     return false
   }
+}
+
+// app_user_id из claim'а app_metadata (его кладёт auth-login). Нет claim'а —
+// сверять не с чем: не блокируем (старые сессии/иной мост), решает серверный RLS.
+export function sessionAppUserId(session) {
+  return session?.user?.app_metadata?.app_user_id ?? null
+}
+export function isSessionOf(session, userId) {
+  const owner = sessionAppUserId(session)
+  return owner == null || String(owner) === String(userId)
 }
 
 // «Прогрев» базы: дешёвый запрос при старте приложения, чтобы разбудить

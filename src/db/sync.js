@@ -78,7 +78,9 @@ export async function syncNow(userId) {
   // Не синкаем, пока не поднята настоящая сессия: pull/push защищённых таблиц
   // ролью `anon` ловят «permission denied» (баг ленты при первом входе). Как
   // только сессия появится, прогон вызовет ре-триггер по onAuthStateChange.
-  if (!(await hasSession())) return
+  // Сессия ДРУГОЙ учётки (см. hasSession) — тоже «нет сессии»: иначе личные
+  // данные этого пользователя уехали бы под чужим JWT.
+  if (!(await hasSession(userId))) return
   running = true
   setState({ syncing: true })
   try {
