@@ -290,26 +290,40 @@ input { font-family: inherit; }
 
 /* «+» по центру нижнего меню (components/AddFab.jsx, редизайн v6 этап 2): круг
    акцента приподнят над панелью, обводка цветом фона «вырезает» его из меню.
-   Когда кнопка скрыта (занятый хаб, вложенный роут), на её месте пустышка той же
-   ширины (.tab-add--empty) — вкладки не прыгают. */
+   Кнопка есть всегда (v6.0.4). Когда хаб занят (композер / экспорт), круг
+   УТАПЛИВАЕТСЯ (.tab-add--sunk): плоский, приглушённый, неактивный — не налезает на
+   «Сохранить» и не оставляет дыры по центру меню. Переход — той же кривой с лёгким
+   перелётом, что и точка вкладки. */
 .tab-add {
   flex: 0 0 72px; display: flex; justify-content: center; align-items: flex-start;
   padding: 0; background: none; border: none; cursor: pointer;
 }
 .tab-add-circle {
+  --add-ease: cubic-bezier(.3, 1.25, .5, 1);
   width: 58px; height: 58px; margin-top: -24px; border-radius: 50%;
   display: flex; align-items: center; justify-content: center;
   background: var(--acc); color: var(--on-acc);
   border: 5px solid var(--bg);
   box-shadow: 0 8px 20px color-mix(in srgb, var(--acc) 35%, transparent);
-  transition: transform var(--dur-fast) var(--ease-out);
+  transition:
+    margin-top 320ms var(--add-ease), width 320ms var(--add-ease), height 320ms var(--add-ease),
+    background-color .25s ease, color .25s ease, border-color .25s ease, box-shadow .25s ease,
+    transform var(--dur-fast) var(--ease-out);
 }
+.tab-add-circle .fab-ico { width: 28px; height: 28px; transition: width 320ms var(--add-ease), height 320ms var(--add-ease); }
 .tab-add:active .tab-add-circle { transform: scale(.92); }
 .tab-add:focus-visible { outline: none; }
 .tab-add:focus-visible .tab-add-circle { outline: 3px solid var(--acc-2); outline-offset: 2px; }
-.tab-add--empty { pointer-events: none; }
+.tab-add--sunk { cursor: default; }
+.tab-add--sunk .tab-add-circle {
+  width: 40px; height: 40px; margin-top: 8px;
+  background: var(--surface-2); color: var(--muted);
+  border-color: transparent; box-shadow: none;
+}
+.tab-add--sunk .tab-add-circle .fab-ico { width: 20px; height: 20px; }
+.tab-add--sunk:active .tab-add-circle { transform: none; }
 @media (prefers-reduced-motion: reduce) {
-  .tab-add-circle { transition: none; }
+  .tab-add-circle, .tab-add-circle .fab-ico { transition: background-color .15s linear, color .15s linear; }
   .tab-add:active .tab-add-circle { transform: none; }
 }
 

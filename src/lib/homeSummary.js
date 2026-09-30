@@ -48,6 +48,11 @@ export function buildTrainingRhythm(workouts, { now = new Date(), weeks = 8 } = 
     byDay.set(day, rec)
   }
 
+  // Первый день с тренировкой вообще: недели, закончившиеся ДО него, помечаются
+  // beforeFirst — это «ещё не пользовался приложением», а не пропуски (Ритм не должен
+  // считать их в среднее: новичок с одной тренировкой видел «0,1 в неделю»).
+  const firstDay = [...byDay.keys()].sort()[0] ?? null
+
   const today = new Date(now)
   today.setHours(12, 0, 0, 0)
   const currentMonday = mondayOf(today)
@@ -74,6 +79,7 @@ export function buildTrainingRhythm(workouts, { now = new Date(), weeks = 8 } = 
       start: days[0].day,
       end: days[6].day,
       current: weekOffset === 0,
+      beforeFirst: firstDay === null || days[6].day < firstDay,
       count: days.reduce((sum, d) => sum + d.count, 0),
       days,
     })

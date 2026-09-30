@@ -142,9 +142,16 @@ describe('buildTrainingRhythm', () => {
     expect(trained.tags.length).toBeGreaterThan(0)
   })
 
+  it('недели до первой тренировки помечены beforeFirst — это не пропуски', () => {
+    const rhythm = buildTrainingRhythm([
+      wk({ id: 'a', at: daysAgo(9), entries: [{ exId: 'bp', group: 'грудь', sets: [S(80, 5)] }] }),
+    ], { now: NOW, weeks: 4 })
+    expect(rhythm.map((w) => w.beforeFirst)).toEqual([true, true, false, false])
+  })
+
   it('пустая история всё равно даёт восемь устойчивых недель', () => {
     const rhythm = buildTrainingRhythm([], { now: NOW })
     expect(rhythm).toHaveLength(8)
-    expect(rhythm.every((w) => w.count === 0)).toBe(true)
+    expect(rhythm.every((w) => w.count === 0 && w.beforeFirst)).toBe(true)
   })
 })

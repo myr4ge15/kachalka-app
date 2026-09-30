@@ -39,6 +39,7 @@ function weekRange(week) {
   return `${startDay} ${startMonth} – ${endDay} ${endMonth}`
 }
 
+const weeksWord = (n) => plural(n, 'неделю', 'недели', 'недель')
 const workoutCount = (n) => `${n} ${plural(n, 'тренировка', 'тренировки', 'тренировок')}`
 const dayLabel = (ymd) => localDate(ymd).toLocaleDateString('ru-RU', { day: 'numeric', month: 'long' })
 
@@ -227,18 +228,32 @@ export default function HomeScreen({ user, onNavigate, onNewWorkout, onOpenProgr
         <section className="sec">
           <p className="sec-title">Ритм</p>
           <div className="rhythm-card">
+            {/* Шапка: среднее в неделю, а если оно меньше одной или считать ещё не
+                из чего — честный итог за период (lib/rhythmChart.js, mode). */}
             <div className="rh-top">
-              <span className="rh-avg-n">{fmtAvg(chart.avg)}</span>
-              <span className="rh-avg-l">
-                {avgWord(chart.avg)} в неделю
-                <br />в среднем за {chart.avgWeeks} {plural(chart.avgWeeks, 'неделю', 'недели', 'недель')}
-              </span>
+              {chart.mode === 'avg' ? (
+                <>
+                  <span className="rh-avg-n">{fmtAvg(chart.avg)}</span>
+                  <span className="rh-avg-l">
+                    {avgWord(chart.avg)} в неделю
+                    <br />в среднем за {chart.weeks} {weeksWord(chart.weeks)}
+                  </span>
+                </>
+              ) : (
+                <>
+                  <span className="rh-avg-n">{chart.total}</span>
+                  <span className="rh-avg-l">
+                    {plural(chart.total, 'тренировка', 'тренировки', 'тренировок')}
+                    <br />{chart.onlyCurrent ? 'на этой неделе' : `за ${chart.weeks} ${weeksWord(chart.weeks)}`}
+                  </span>
+                </>
+              )}
             </div>
             <div
               className="rh-chart"
               style={{ '--rh-max': chart.max, '--rh-avg': chart.avg }}
             >
-              {chart.avg > 0 && <span className="rh-avg-line" aria-hidden="true" />}
+              {chart.mode === 'avg' && <span className="rh-avg-line" aria-hidden="true" />}
               {rhythm.map((week) => {
                 const expanded = openWeek === week.key
                 return (
@@ -285,8 +300,8 @@ export default function HomeScreen({ user, onNavigate, onNewWorkout, onOpenProgr
               </div>
             )}
             <p className="rh-note">
-              Столбик — тренировки за неделю, под ним — её понедельник. Пунктир — твоё среднее.
-              Нажми на неделю — покажу даты.
+              Столбик — тренировки за неделю, под ним — её понедельник, яркий — текущая неделя.
+              {chart.mode === 'avg' ? ' Пунктир — твоё среднее.' : ''} Нажми на неделю — покажу даты.
             </p>
             <button className="rhythm-history" onClick={() => onNavigate?.('history')}>
               Открыть всю историю <span aria-hidden="true">›</span>

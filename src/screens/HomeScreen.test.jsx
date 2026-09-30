@@ -23,6 +23,7 @@ const readyHome = {
       start: i === 7 ? '2026-07-27' : `2026-0${i + 1}-06`,
       end: i === 7 ? '2026-08-02' : `2026-0${i + 1}-12`,
       current: i === 7,
+      beforeFirst: i !== 7,
       count: i === 7 ? 1 : 0,
       days: Array.from({ length: 7 }, (_, d) => ({
         day: i === 7 ? `2026-07-${String(27 + d).padStart(2, '0')}` : `2026-0${i + 1}-${String(6 + d).padStart(2, '0')}`,
@@ -67,7 +68,10 @@ describe('HomeScreen', () => {
 
     fireEvent.click(screen.getByRole('button', { name: /Начать тренировку/ }))
     expect(onNewWorkout).toHaveBeenCalledOnce()
-    expect(screen.getByText('эта')).toBeInTheDocument()
+    expect(screen.getByText('27.07')).toBeInTheDocument()
+    expect(screen.queryByText('эта')).toBeNull()
+    // 7 недель до первой тренировки не в счёт — итог за эту неделю, не «0,1 в неделю»
+    expect(screen.getByText(/на этой неделе/)).toBeInTheDocument()
 
     fireEvent.click(screen.getByRole('button', { name: 'Жим лёжа: 70 → 85 кг при 6 повт. — +21% за год' }))
     expect(onOpenProgress).toHaveBeenCalledWith('bench')

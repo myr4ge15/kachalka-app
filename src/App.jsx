@@ -10,7 +10,7 @@ import { syncBadgeState } from './lib/syncStatus.js'
 import { readStoredUserId, hydrateProfile } from './lib/sessionProfile.js'
 import { emitReselect } from './lib/appEvents.js'
 import { markAppReady } from './lib/splash.js'
-import { canShowFab } from './lib/quickAdd.js'
+import { fabState } from './lib/quickAdd.js'
 import { useTabDot } from './hooks/useTabDot.js'
 import LoginScreen from './screens/LoginScreen.jsx'
 import Toast from './components/Toast.jsx'
@@ -491,13 +491,10 @@ export default function App() {
           <TabIcon name="history" />
           <span>Тренировки</span>
         </button>
-        {/* «+» по центру меню (редизайн v6): запись тренировки в один тап. Где
-            показывать — чистая canShowFab (lib/quickAdd.js): на основных вкладках,
-            кроме занятого хаба (открыт композер / режим экспорта). Когда скрыта —
-            пустое место той же ширины, чтобы вкладки не прыгали. */}
-        {canShowFab({ tab, busy: historyBusy })
-          ? <AddFab onClick={startNewWorkout} />
-          : <span className="tab-add tab-add--empty" aria-hidden="true" />}
+        {/* «+» по центру меню (редизайн v6): запись тренировки в один тап. Есть
+            ВСЕГДА (v6.0.4, в т.ч. на вложенных роутах); когда хаб занят (композер /
+            экспорт) — утоплен и неактивен, см. lib/quickAdd.js fabState. */}
+        <AddFab onClick={startNewWorkout} sunk={fabState({ busy: historyBusy }) === 'sunk'} />
         <button
           className={tab === 'feed' ? 'tab active' : 'tab'}
           onClick={() => goTab('feed')}
