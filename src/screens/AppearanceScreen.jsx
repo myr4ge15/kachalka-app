@@ -21,7 +21,7 @@ export default function AppearanceScreen({ onBack, user, storage, root }) {
   const choose = (next) => {
     setPref(next)
     applyAccent(docRoot, next)
-    saveAccent(store, next)
+    saveAccent(store, next, user?.id ?? null) // с владельцем — см. lib/accent.js loadAccentOwner
     if (user?.id) setAccentPref(user.id, next).catch(() => {})
   }
 

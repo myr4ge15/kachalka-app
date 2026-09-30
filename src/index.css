@@ -382,17 +382,15 @@ input { font-family: inherit; }
 }
 .user-list { display: flex; flex-direction: column; gap: 8px; margin-top: 18px; text-align: left; }
 .user-btn {
-  display: flex; align-items: center; gap: 12px; min-height: 60px; padding: 10px 14px;
+  display: flex; align-items: center; gap: 12px; min-height: 56px; padding: 10px 16px;
   border-radius: 14px; border: 0; background: var(--surface-2); color: var(--text);
   font-size: 17px; font-weight: 700; cursor: pointer; text-align: left;
 }
 .user-btn:active { background: var(--border); }
-.user-btn-ava { display: flex; flex: none; }
 .user-btn-name { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .user-btn-chev { flex: none; color: var(--muted); }
 
 .login-pin-head { display: flex; margin: -6px 0 4px; }
-.login-avatar { display: flex; justify-content: center; margin-bottom: 12px; }
 
 .pin-dots { display: flex; gap: 16px; justify-content: center; margin: 22px 0; }
 .dot { width: 18px; height: 18px; border-radius: 50%; border: 2px solid var(--muted); transition: background .12s, border-color .12s; }
@@ -926,6 +924,10 @@ input { font-family: inherit; }
   color: var(--text); font-size: 16px; font-weight: 600; text-align: left;
 }
 .picker-item:active { background: var(--surface); }
+/* v6.2.4: строки списка в flex-колонке НЕ сжимаются. min-height у .picker-item
+   отменяет min-height:auto flex-элемента, и многострочные строки (шаблоны с
+   составом) сплющивались до 56 px и наезжали друг на друга. */
+.picker-list > * { flex-shrink: 0; }
 .picker-group { color: var(--muted); font-size: 12px; }
 /* Строка каталога, которую нельзя править (чужое упражнение): та же геометрия,
    но не кнопка — приглушаем, чтобы отсутствие реакции на тап было ожидаемым. */
@@ -1150,7 +1152,7 @@ input { font-family: inherit; }
 /* Карточка шаблона в пикере: имя + «N упр.» + краткий состав */
 .tpl-pick { flex-wrap: wrap; }
 .tpl-pick-name { font-weight: 600; }
-.tpl-pick-sub { flex-basis: 100%; font-size: 12px; margin-top: 4px; text-align: left; }
+.tpl-pick-sub { flex-basis: 100%; font-size: 12px; font-weight: 400; line-height: 1.4; margin-top: 4px; text-align: left; }
 
 /* ---------- публичные/приватные шаблоны ---------- */
 /* Заголовок группы «Мои» / «Общие в круге» */

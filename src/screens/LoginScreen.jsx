@@ -4,7 +4,6 @@ import { getUsers, cacheUsers } from '../db/repo.js'
 import { migrateLoginZone } from '../db/local.js'
 import { login as authLogin, verifyPinOffline, dropForeignSession, LoginError } from '../lib/auth.js'
 import { withTimeout } from '../lib/withTimeout.js'
-import Avatar from '../components/Avatar.jsx'
 import BackButton from '../components/BackButton.jsx'
 
 export default function LoginScreen({ onLogin }) {
@@ -171,9 +170,6 @@ export default function LoginScreen({ onLogin }) {
           <div className="user-list">
             {users.map((u) => (
               <button key={u.id} className="user-btn" onClick={() => pickUser(u)}>
-                <span className="user-btn-ava" aria-hidden="true">
-                  <Avatar name={u.name} url={u.avatar_url} className="avatar" />
-                </span>
                 <span className="user-btn-name">{u.name}</span>
                 <svg className="user-btn-chev" viewBox="0 0 24 24" width="18" height="18" fill="none"
                   stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round"
@@ -196,9 +192,6 @@ export default function LoginScreen({ onLogin }) {
         <div className="login-pin-head">
           <BackButton onClick={() => setSelected(null)} label="Выбрать другого" />
         </div>
-        <span className="login-avatar" aria-hidden="true">
-          <Avatar name={selected.name} url={selected.avatar_url} className="avatar-lg" />
-        </span>
         <h2 className="title">{selected.name}</h2>
         <p className="muted login-sub">Введи PIN — 4 цифры</p>
 

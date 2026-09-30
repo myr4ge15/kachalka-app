@@ -351,9 +351,11 @@ export async function setProgEnabled(userId, enabled) {
 export async function getAccentPref(userId) {
   return (await getMeta(`accent_${userId}`)) ?? null
 }
+// `by` (v6.2.4) — владелец значения: useAccentSync принимает только значение со
+// своим `by`, поэтому ошибочно залитые v6.2.0 чужие цвета (без `by`) игнорируются.
 export async function setAccentPref(userId, pref) {
   if (!userId || !pref) return
-  await writeSyncedMeta(userId, 'accent', { id: pref.id, hue: pref.hue })
+  await writeSyncedMeta(userId, 'accent', { id: pref.id, hue: pref.hue, by: String(userId) })
 }
 
 // Пер-упражненческие настройки (шестерёнка в карточке): мержим patch поверх

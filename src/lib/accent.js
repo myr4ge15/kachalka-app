@@ -88,12 +88,16 @@ export function applyAccent(root, pref) {
   }
 }
 
-// Есть ли на устройстве ЯВНЫЙ выбор (ключ записан), а не просто дефолт. Нужно
-// синку (hooks/useAccentSync): выбор, сделанный до появления синка, заливаем на
-// сервер, а «дефолт по отсутствию» — нет, чтобы новое устройство не перетёрло
-// выбор с основного телефона вольтом.
-export function hasStoredAccent(storage) {
-  try { return storage?.getItem(ACCENT_KEY) != null } catch { return false }
+// Чей выбор лежит на устройстве (v6.2.4): поле `by` = id учётки, которая выбрала
+// цвет в «Оформлении». localStorage один на устройство, а учёток на нём может быть
+// несколько — без владельца цвет одной учётки утекал в другую (в v6.2.0 хук
+// заливал «найденный на устройстве» выбор в учётку того, кто вошёл следующим).
+// null — выбор без владельца (дефолт, старые версии). Сплэш поле игнорирует.
+export function loadAccentOwner(storage) {
+  try {
+    const v = JSON.parse(storage?.getItem(ACCENT_KEY) ?? 'null')
+    return v && typeof v === 'object' && typeof v.by === 'string' ? v.by : null
+  } catch { return null }
 }
 
 // Равны ли два выбора (для «свой» важен оттенок, для готового — только id).
@@ -107,6 +111,12 @@ export function loadAccent(storage) {
   try { return parseAccent(storage?.getItem(ACCENT_KEY) ?? '') } catch { return parseAccent('') }
 }
 
-export function saveAccent(storage, pref) {
-  try { storage?.setItem(ACCENT_KEY, serializeAccent(pref)); return true } catch { return false }
+// owner — id учётки, чей это выбор (см. loadAccentOwner); без него — «ничей».
+export function saveAccent(storage, pref, owner = null) {
+  try {
+    const v = JSON.parse(serializeAccent(pref))
+    if (owner) v.by = String(owner)
+    storage?.setItem(ACCENT_KEY, JSON.stringify(v))
+    return true
+  } catch { return false }
 }

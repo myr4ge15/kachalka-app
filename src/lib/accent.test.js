@@ -116,11 +116,16 @@ describe('public/accent-boot.js совпадает с lib/accent.js', () => {
 })
 
 describe('accent: для синка', () => {
-  it('hasStoredAccent отличает явный выбор от дефолта', async () => {
-    const { hasStoredAccent } = await import('./accent.js')
-    expect(hasStoredAccent({ getItem: () => null })).toBe(false)
-    expect(hasStoredAccent({ getItem: () => '{"id":"teal"}' })).toBe(true)
-    expect(hasStoredAccent({ getItem: () => { throw new Error('x') } })).toBe(false)
+  it('saveAccent с владельцем, loadAccentOwner его читает; сплэш-парсер поле игнорирует', async () => {
+    const { saveAccent, loadAccentOwner, loadAccent } = await import('./accent.js')
+    const m = new Map()
+    const st = { getItem: (k) => m.get(k) ?? null, setItem: (k, v) => m.set(k, v) }
+    saveAccent(st, { id: 'teal', hue: 5 }, 'u1')
+    expect(loadAccentOwner(st)).toBe('u1')
+    expect(loadAccent(st)).toEqual({ id: 'teal', hue: 5 })
+    saveAccent(st, { id: 'volt' })
+    expect(loadAccentOwner(st)).toBeNull()
+    expect(loadAccentOwner({ getItem: () => { throw new Error('x') } })).toBeNull()
   })
   it('sameAccent: у готовых важен id, у своего — ещё и оттенок', async () => {
     const { sameAccent } = await import('./accent.js')

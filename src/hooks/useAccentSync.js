@@ -1,16 +1,21 @@
 import { useEffect } from 'react'
 import { useLiveQuery } from 'dexie-react-hooks'
-import { getAccentPref, setAccentPref } from '../db/repo.js'
-import { applyAccent, hasStoredAccent, loadAccent, parseAccent, sameAccent, saveAccent } from '../lib/accent.js'
+import { getAccentPref } from '../db/repo.js'
+import {
+  DEFAULT_ACCENT, applyAccent, loadAccent, loadAccentOwner, parseAccent, sameAccent, saveAccent,
+} from '../lib/accent.js'
 
-// Синк акцента между устройствами (v6.2.0). Источник правды после входа — род
-// `accent` в персональной meta (синкается через user_meta, LWW). Этот хук:
-//  • значение из meta (своё или пришедшее pull'ом с другого устройства)
-//    применяет к <html> и кладёт в localStorage — сплэш следующего запуска
-//    (public/accent-boot.js) рисуется уже в нём;
-//  • если в meta пусто, а на устройстве есть ЯВНЫЙ выбор (сделан до синка) —
-//    заливает его наверх. Дефолт «по отсутствию ключа» не заливаем.
-// Экран «Оформление» пишет выбор сам (repo.setAccentPref), хук лишь применяет.
+// Синк акцента между устройствами одной учётки (v6.2.0, переделан в v6.2.4).
+//
+// Источник правды после входа — род `accent` в персональной meta (синк через
+// user_meta, LWW). Принимаем значение ТОЛЬКО со своим владельцем (`by === userId`):
+//  • v6.2.0 заливал в учётку «найденный на устройстве» выбор — на общем телефоне
+//    это был цвет ДРУГОЙ учётки, и он разъезжался по её устройствам. Такие
+//    значения без `by` игнорируются; автозаливки больше нет — в учётку пишет
+//    только явный выбор в «Оформлении» (repo.setAccentPref).
+//  • Своего значения нет, а на устройстве лежит цвет чужой учётки (или «ничей»
+//    из старой версии) — возвращаем вольт, а не показываем чужой цвет.
+// Применённое кладём в localStorage с владельцем — сплэш следующего запуска.
 export function useAccentSync(userId, {
   storage = typeof localStorage !== 'undefined' ? localStorage : null,
   root = typeof document !== 'undefined' ? document.documentElement : null,
@@ -18,14 +23,24 @@ export function useAccentSync(userId, {
   const remote = useLiveQuery(() => (userId ? getAccentPref(userId) : null), [userId], undefined)
   useEffect(() => {
     if (!userId || remote === undefined) return
-    if (remote == null) {
-      if (hasStoredAccent(storage)) setAccentPref(userId, loadAccent(storage)).catch(() => {})
+    const mine = remote && typeof remote === 'object' && remote.by === String(userId)
+    if (mine) {
+      const next = parseAccent(JSON.stringify(remote))
+      if (!sameAccent(next, loadAccent(storage)) || loadAccentOwner(storage) !== String(userId)
+        || root?.dataset?.accent !== next.id) {
+        applyAccent(root, next)
+        saveAccent(storage, next, userId)
+      }
       return
     }
-    const next = parseAccent(JSON.stringify(remote))
-    if (!sameAccent(next, loadAccent(storage)) || root?.dataset?.accent !== next.id) {
-      applyAccent(root, next)
-      saveAccent(storage, next)
+    // Своего выбора в учётке нет: свой локальный (сделан на этом устройстве) —
+    // оставляем, чужой или «ничей» — сбрасываем на дефолт.
+    if (loadAccentOwner(storage) !== String(userId)) {
+      const def = { id: DEFAULT_ACCENT, hue: loadAccent(storage).hue }
+      if (!sameAccent(def, loadAccent(storage)) || root?.dataset?.accent !== DEFAULT_ACCENT) {
+        applyAccent(root, def)
+      }
+      saveAccent(storage, def)
     }
   }, [userId, remote, storage, root])
 }
