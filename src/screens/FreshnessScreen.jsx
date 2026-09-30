@@ -132,7 +132,7 @@ export default function FreshnessScreen({ user, onBack }) {
                     onClick={() => pickSub(x.submuscle)}
                   >
                     <i className={`fr-sw st-${x.status}`} aria-hidden="true" />
-                    {cap(labelOf(x.submuscle))}
+                    {labelOf(x.submuscle)}
                   </button>
                 )
               })}

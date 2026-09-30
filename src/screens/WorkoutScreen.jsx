@@ -561,8 +561,7 @@ export default function WorkoutScreen({ user, workoutId = null, onBack, onSaved 
             <div className="wk-empty">
               <div className="wk-empty-ico" aria-hidden="true">
                 <svg viewBox="0 0 24 24" width="26" height="26" fill="none" stroke="currentColor"
-                  strokeWidth="2" strokeLinecap="round"><rect x="2" y="8" width="4" height="8" rx="1.5" />
-                  <rect x="18" y="8" width="4" height="8" rx="1.5" /><path d="M6 12h12" /></svg>
+                  strokeWidth="2" strokeLinecap="round"><path d="M1.5 12h21" /><rect x="3" y="8.5" width="2.6" height="7" rx="1" fill="currentColor" stroke="none" /><rect x="6.4" y="6" width="3" height="12" rx="1.2" fill="currentColor" stroke="none" /><rect x="14.6" y="6" width="3" height="12" rx="1.2" fill="currentColor" stroke="none" /><rect x="18.4" y="8.5" width="2.6" height="7" rx="1" fill="currentColor" stroke="none" /></svg>
               </div>
               <b>Добавь упражнение, чтобы начать</b>
               {isNew && <span>Или возьми шаблон — подходы и веса подставятся сами.</span>}

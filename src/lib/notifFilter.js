@@ -15,11 +15,11 @@ import { cmpIsoAsc } from './cmp.js'
 
 // Порядок = порядок чипов слева направо. 'all' всегда первым.
 export const NOTIF_CATEGORIES = [
-  { key: 'all', label: 'Все' },
-  { key: 'records', label: 'Рекорды' },
-  { key: 'beaten', label: 'Побитые' },
-  { key: 'reactions', label: 'Реакции' },
-  { key: 'insights', label: 'Наблюдения' },
+  { key: 'all', label: 'все' },
+  { key: 'records', label: 'рекорды' },
+  { key: 'beaten', label: 'побитые' },
+  { key: 'reactions', label: 'реакции' },
+  { key: 'insights', label: 'наблюдения' },
 ]
 
 // Тип уведомления → ключ категории. Неизвестный тип относим к 'records'

@@ -12,6 +12,7 @@ describe('setSex (свой пол, v6.2.0)', () => {
   let online
   beforeEach(() => {
     rpc.mockReset()
+    hasSession.mockReset().mockResolvedValue(true)
     online = vi.spyOn(navigator, 'onLine', 'get').mockReturnValue(true)
   })
   afterEach(() => online.mockRestore())
@@ -37,8 +38,15 @@ describe('setSex (свой пол, v6.2.0)', () => {
     expect(rpc).not.toHaveBeenCalled()
   })
 
-  it('«permission denied for function» от сервера — та же понятная ошибка', async () => {
+  it('«permission denied for function» при своей сессии — права на сервере, а не «перезайди»', async () => {
     rpc.mockResolvedValue({ data: null, error: { message: 'permission denied for function set_my_sex', code: '42501' } })
+    const err = await setSex('u1', 'f').catch((e) => e)
+    expect(err).toMatchObject({ code: 'server' })
+    expect(err.message).toMatch(/прав на set_my_sex.*permission denied/)
+  })
+
+  it('протухший JWT — «перезайди»', async () => {
+    rpc.mockResolvedValue({ data: null, error: { message: 'JWT expired' } })
     await expect(setSex('u1', 'f')).rejects.toMatchObject({ code: 'session' })
   })
 

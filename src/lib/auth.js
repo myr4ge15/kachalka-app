@@ -208,12 +208,7 @@ export async function setName(userId, name) {
   } catch (e) {
     throw new LoginError('network', 'Нет сети — попробуй позже.')
   }
-  if (res.error) {
-    // 42501 — нет сессии/не владелец; иначе общий серверный отказ (вкл. «RPC
-    // ещё не задеплоен»: set_my_name не существует → message с 'function'/'schema').
-    if (isNoSessionError(res.error)) throw new LoginError('session', NO_SESSION_MSG)
-    throw new LoginError('server', res.error.message ?? 'Не удалось сменить имя.')
-  }
+  if (res.error) throw rpcError(res.error, 'set_my_name', 'Не удалось сменить имя.')
   // Обновляем имя в офлайн-кэше своего профиля (хэш/соль/роль сохраняем).
   const cached = (await getLoginMeta(pinCacheKey(userId))) ?? {}
   await setLoginMeta(pinCacheKey(userId), { ...cached, name: clean })
@@ -237,10 +232,7 @@ export async function setSex(userId, sex) {
   } catch {
     throw new LoginError('network', 'Нет сети — попробуй позже.')
   }
-  if (res.error) {
-    if (isNoSessionError(res.error)) throw new LoginError('session', NO_SESSION_MSG)
-    throw new LoginError('server', res.error.message ?? 'Не удалось сохранить.')
-  }
+  if (res.error) throw rpcError(res.error, 'set_my_sex', 'Не удалось сохранить.')
   return v
 }
 
@@ -250,9 +242,17 @@ export async function setSex(userId, sex) {
 // function …» (инцидент 30.09, у одного из друзей при выборе пола). Перед вызовом
 // пробуем тихо перевыпустить сессию по PIN из памяти; не вышло — понятная ошибка.
 const NO_SESSION_MSG = 'Нет связи с сервером под твоей учёткой. Выйди и зайди заново по PIN, пока есть интернет.'
-function isNoSessionError(err) {
+// Отказ «мои» RPC ПОСЛЕ ensureOwnSession: своя сессия уже проверена, значит
+// «permission denied for function» — это права на сервере (у роли authenticated нет
+// EXECUTE), а не «перезайди». Раньше оба случая давали одно «выйди и зайди заново»,
+// и по жалобе нельзя было понять причину (30.09, v6.3.1). Текст сервера оставляем в сообщении.
+function rpcError(err, fn, fallback) {
   const m = String(err?.message ?? '')
-  return err?.code === '42501' || /permission denied|not authenticated|JWT/i.test(m)
+  if (/JWT|not authenticated/i.test(m)) return new LoginError('session', NO_SESSION_MSG)
+  if (err?.code === '42501' || /permission denied/i.test(m)) {
+    return new LoginError('server', `Сервер не дал прав на ${fn} — напиши админу. (${m || err?.code})`)
+  }
+  return new LoginError('server', m || fallback)
 }
 export async function ensureOwnSession(userId) {
   if (await hasSession(userId)) return
