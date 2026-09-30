@@ -28,37 +28,66 @@
        url('./assets/fonts/Onest-ExtraBold.ttf') format('truetype');
 }
 
+/* Sofia Sans Condensed — цифры и заголовки (редизайн «Спорт-блоки», v6). Самохостинг
+   woff2, подмножества latin/cyrillic через unicode-range: кириллический файл
+   качается, только если на экране есть кириллица. */
+@font-face {
+  font-family: 'Sofia Sans Condensed'; font-style: normal; font-weight: 800; font-display: swap;
+  src: url('./assets/fonts/SofiaSansCondensed-ExtraBold-latin.woff2') format('woff2');
+  unicode-range: U+0000-00FF, U+0131, U+0152-0153, U+02BB-02BC, U+02C6, U+02DA, U+02DC, U+0304, U+0308, U+0329, U+2000-206F, U+20AC, U+2122, U+2191, U+2193, U+2212, U+2215, U+FEFF, U+FFFD;
+}
+@font-face {
+  font-family: 'Sofia Sans Condensed'; font-style: normal; font-weight: 800; font-display: swap;
+  src: url('./assets/fonts/SofiaSansCondensed-ExtraBold-cyrillic.woff2') format('woff2');
+  unicode-range: U+0301, U+0400-045F, U+0490-0491, U+04B0-04B1, U+2116;
+}
+@font-face {
+  font-family: 'Sofia Sans Condensed'; font-style: normal; font-weight: 900; font-display: swap;
+  src: url('./assets/fonts/SofiaSansCondensed-Black-latin.woff2') format('woff2');
+  unicode-range: U+0000-00FF, U+0131, U+0152-0153, U+02BB-02BC, U+02C6, U+02DA, U+02DC, U+0304, U+0308, U+0329, U+2000-206F, U+20AC, U+2122, U+2191, U+2193, U+2212, U+2215, U+FEFF, U+FFFD;
+}
+@font-face {
+  font-family: 'Sofia Sans Condensed'; font-style: normal; font-weight: 900; font-display: swap;
+  src: url('./assets/fonts/SofiaSansCondensed-Black-cyrillic.woff2') format('woff2');
+  unicode-range: U+0301, U+0400-045F, U+0490-0491, U+04B0-04B1, U+2116;
+}
+
 :root {
-  /* ── Палитра Aurora Glass (слайс 0) ──────────────────────────────────────
-     Существующие имена токенов СОХРАНЕНЫ (весь downstream-CSS ссылается на них),
-     значения перенаправлены на палитру Aurora. Поэтому «переезд» карточек/кнопок/
-     фона на новый вид происходит почти без правок JSX и остального CSS. */
-  --bg: #0a0a1a;                       /* базовый тёмный фон под aurora-градиентом */
-  --surface: rgba(255, 255, 255, .06); /* стекло-поверхность (карточки/инпуты) */
-  --surface-2: rgba(255, 255, 255, .10);/* стекло поплотнее (вложенные плашки) */
-  --border: rgba(255, 255, 255, .14);  /* = --stroke, тонкая светлая обводка */
-  --text: #f3f5ff;
-  --muted: #a6accd;
-  --green: #2ee6a0;                    /* мятный «успех/готово» (был брендовый green) */
-  --green-d: #1fbf83;                  /* тёмный мятный для градиентов прогресса */
-  --red: #ff6b8a;
-  --yellow: #ffcf5c;
-  /* ── Новые токены Aurora ── */
-  --g1: #7c5cff;   /* фиолетовый — основной акцент (primary-кнопки, active) */
-  --g2: #2ee6c8;   /* бирюзовый — ссылки/«вперёд» */
-  --g3: #ff6ba6;   /* розовый — второй конец градиентов */
-  --g4: #ffcf5c;   /* золотой — рекорды/медали */
-  /* Градиент primary-кнопок — приглушённая пара к --g1/--g3. Насыщенные акцентные
-     токены хороши для мелких пятен (FAB, бейджи, полосы прогресса), но на крупной
-     кнопке во всю ширину тот же градиент «режет глаз» в тёмной теме. Отдельные
-     токены, а не хардкод в правиле: кнопок с этим фоном много (Сохранить, Новый
-     шаблон, Создать…), и правиться они должны в одном месте. */
-  --btn-g1: #6a4fd8;
-  --btn-g2: #d9578c;
-  --amber: #ffcf5c;
-  --glass: rgba(255, 255, 255, .07);
-  --glass-2: rgba(255, 255, 255, .12);
-  --stroke: rgba(255, 255, 255, .14);
+  /* ── Палитра «Спорт-блоки» (редизайн v6, PLAN-redesign-sport-blocks) ────────
+     Как и при переходе на Aurora, старые имена токенов СОХРАНЕНЫ и перенаправлены:
+     весь остальной CSS ссылается на них. Фон — «ночной», поверхности плотные (без
+     стекла). Акцент выбирает пользователь: значения — в html[data-accent] ниже,
+     «свой оттенок» — инлайном на <html> (lib/accent.js, public/accent-boot.js). */
+  color-scheme: dark;
+  --bg: #111827;
+  --surface: #1C2433;       /* карточки, инпуты */
+  --surface-2: #253045;     /* вложенные плашки, нажатие */
+  --surface-solid: rgba(17, 24, 39, .94); /* плавающие оверлеи и липкие слои */
+  --border: #2F3A50;
+  --text: #F8FAFC;
+  --muted: #AEB6C4;
+  --green: #34D399;         /* смысловой «успех/готово/рост» — не акцент */
+  --green-d: #10B981;
+  --red: #F87171;
+  --yellow: #FBBF24;
+  /* ── Акцент (по умолчанию «вольт»; переопределяется html[data-accent]) ── */
+  --acc: #C8F135;           /* главное действие, активное состояние */
+  --acc-2: #D9F77A;         /* светлый вариант — ссылки, подписи на тёмном */
+  --on-acc: #10140A;        /* текст/иконки ПОВЕРХ акцента (всегда тёмный) */
+  --acc-soft: rgba(200, 241, 53, .15); /* подложка выбранного */
+  /* ── Имена Aurora, перенаправленные на новую палитру ── */
+  --g1: var(--acc);
+  --g2: var(--acc-2);
+  --g3: var(--acc);
+  --g4: #FACC15;            /* рекорды/медали — смысловой, не акцент */
+  --btn-g1: var(--acc);
+  --btn-g2: var(--acc);
+  --amber: #FACC15;
+  --glass: var(--surface);
+  --glass-2: var(--surface-2);
+  --stroke: var(--border);
+  /* Шрифт крупных чисел и заголовков экранов */
+  --font-display: 'Sofia Sans Condensed', 'Onest', system-ui, sans-serif;
   /* Бакеты давности «Свежести» (lib/freshness.js): список, легенда и карта мышц
      (MuscleMap) берут цвета отсюда, чтобы легенда не разъезжалась с картой. */
   --fr-fresh: #ef4444;   /* отдыхает */
@@ -85,6 +114,16 @@
   --press-scale: .97;  /* «продавливание» кнопки на :active */
   font-family: 'Onest', system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif;
 }
+
+/* Готовые акценты (экран «Профиль → Оформление», lib/accent.js ACCENTS). Текст на
+   акценте — всегда тёмный --on-acc: на вольте, жёлтом и персике белый нечитаем. */
+html[data-accent="volt"] { --acc: #C8F135; --acc-2: #D9F77A; --on-acc: #10140A; --acc-soft: rgba(200, 241, 53, .15); }
+html[data-accent="teal"] { --acc: #2DD4BF; --acc-2: #7EE8DA; --on-acc: #04201C; --acc-soft: rgba(45, 212, 191, .15); }
+html[data-accent="red"] { --acc: #FF4D5E; --acc-2: #FF8F9A; --on-acc: #1C0406; --acc-soft: rgba(255, 77, 94, .15); }
+html[data-accent="yellow"] { --acc: #FFD60A; --acc-2: #FFE45C; --on-acc: #141100; --acc-soft: rgba(255, 214, 10, .14); }
+html[data-accent="pink"] { --acc: #FF4FB0; --acc-2: #FF93CF; --on-acc: #22031A; --acc-soft: rgba(255, 79, 176, .15); }
+html[data-accent="violet"] { --acc: #9B7BFF; --acc-2: #C2B0FF; --on-acc: #0F0826; --acc-soft: rgba(155, 123, 255, .16); }
+html[data-accent="peach"] { --acc: #FFBE98; --acc-2: #FFD6BE; --on-acc: #2A1206; --acc-soft: rgba(255, 190, 152, .15); }
 
 /* Уважать системную настройку «уменьшить движение»: зануляем длительности и
    отключаем масштаб нажатия ЦЕНТРАЛИЗОВАННО через переменные — потребителям не
@@ -119,14 +158,8 @@ input { font-family: inherit; }
   height: 100vh; height: 100dvh;
   display: flex; flex-direction: column;
   overflow: hidden;
-  /* Aurora-градиент: три мягких цветных пятна поверх базового --bg. Фон
-     прикреплён к вьюпорту (не скроллится вместе с контентом). */
-  background:
-    radial-gradient(75vw 60vh at 10% -8%, rgba(124, 92, 255, .30), transparent 62%),
-    radial-gradient(70vw 60vh at 108% 6%, rgba(46, 230, 200, .18), transparent 60%),
-    radial-gradient(95vw 65vh at 50% 116%, rgba(255, 107, 166, .20), transparent 62%),
-    var(--bg);
-  background-attachment: fixed;
+  /* Ровный «ночной» фон (редизайн v6): без aurora-пятен. */
+  background: var(--bg);
 }
 
 .topbar {
@@ -139,7 +172,7 @@ input { font-family: inherit; }
   border-bottom: 1px solid var(--stroke);
   position: sticky; top: 0; z-index: 5;
   /* Стеклянная шапка — aurora просвечивает, залипает при скролле контента. */
-  background: rgba(12, 10, 26, .55);
+  background: rgba(17, 24, 39, .55);
   backdrop-filter: blur(24px); -webkit-backdrop-filter: blur(24px);
 }
 /* Имя в шапке — кнопка-вход в Профиль (зона тапа ≥44px) */
@@ -189,13 +222,13 @@ input { font-family: inherit; }
 .bell-ico { width: 22px; height: 22px; display: block; }
 .bell:active { background: var(--surface-2); color: var(--text); }
 /* Есть непрочитанные — колокольчик «оживает» цветом текста + чуть ярче обводка */
-.bell.has { color: var(--text); border-color: rgba(124, 92, 255, .5); }
+.bell.has { color: var(--text); border-color: color-mix(in srgb, var(--acc) 50%, transparent); }
 .bell-count {
   position: absolute; top: -7px; right: -7px; min-width: 20px; height: 20px; padding: 0 5px;
   border-radius: 999px; background: linear-gradient(135deg, var(--g1), var(--g3));
-  color: #fff; font-size: 12px; font-weight: 700;
+  color: var(--on-acc); font-size: 12px; font-weight: 700;
   display: flex; align-items: center; justify-content: center; border: 2px solid var(--bg);
-  box-shadow: 0 2px 8px rgba(124, 92, 255, .5);
+  box-shadow: 0 2px 8px color-mix(in srgb, var(--acc) 50%, transparent);
 }
 
 /* Единственная прокручиваемая область: скроллбар появляется только когда
@@ -214,7 +247,7 @@ input { font-family: inherit; }
   display: flex; border-top: 1px solid var(--stroke);
   /* Стеклянный таббар: полупрозрачный тёмный слой с размытием — aurora-фон
      мягко просвечивает сквозь него. */
-  background: rgba(20, 16, 40, .55);
+  background: rgba(17, 24, 39, .55);
   backdrop-filter: blur(24px); -webkit-backdrop-filter: blur(24px);
   padding-bottom: env(safe-area-inset-bottom);
 }
@@ -226,7 +259,7 @@ input { font-family: inherit; }
 }
 .tab .tab-ico { transition: transform .25s ease; }
 .tab.active { color: var(--text); }
-.tab.active .tab-ico { transform: scale(1.12); filter: drop-shadow(0 0 10px rgba(124, 92, 255, .8)); }
+.tab.active .tab-ico { transform: scale(1.12); filter: drop-shadow(0 0 10px color-mix(in srgb, var(--acc) 80%, transparent)); }
 @media (prefers-reduced-motion: reduce) {
   .tab, .tab .tab-ico { transition: none; }
   .tab.active .tab-ico { transform: none; }
@@ -247,12 +280,12 @@ input { font-family: inherit; }
   bottom: calc(84px + env(safe-area-inset-bottom));
   width: 56px; height: 56px; border-radius: 50%;
   display: flex; align-items: center; justify-content: center;
-  border: none; padding: 0; color: #fff; cursor: pointer;
+  border: none; padding: 0; color: var(--on-acc); cursor: pointer;
   background: linear-gradient(135deg, var(--g1), var(--g3));
-  box-shadow: 0 10px 28px rgba(124, 92, 255, .5);
+  box-shadow: 0 10px 28px color-mix(in srgb, var(--acc) 50%, transparent);
   transition: transform var(--dur-fast) var(--ease-out), box-shadow var(--dur-fast) var(--ease-out);
 }
-.fab:active { transform: scale(.92); box-shadow: 0 6px 16px rgba(124, 92, 255, .45); }
+.fab:active { transform: scale(.92); box-shadow: 0 6px 16px color-mix(in srgb, var(--acc) 45%, transparent); }
 @media (prefers-reduced-motion: reduce) {
   .fab { transition: none; }
   .fab:active { transform: none; }
@@ -279,7 +312,7 @@ input { font-family: inherit; }
      ширине). Aurora живёт на полноэкранном .app (уже после входа). */
   background: var(--bg);
 }
-.screen-title { margin: 4px 0 12px; font-size: 24px; font-weight: 800; letter-spacing: -.01em; }
+.screen-title { margin: 4px 0 12px; font-family: var(--font-display); font-size: 30px; font-weight: 900; line-height: 1; text-transform: uppercase; letter-spacing: .01em; }
 .sub { margin-top: -6px; }
 .empty { text-align: center; padding: 32px 0; }
 /* Пустое состояние с призывом к действию: текст + кнопка одним блоком.
@@ -408,7 +441,7 @@ input { font-family: inherit; }
    приглушены осознанно (жалоба «кнопки светятся очень ярко, режет глаз»): токены
    --btn-g1/--btn-g2 темнее акцентных --g1/--g3, а тень вдвое слабее прежней
    (было 0 10px 30px / .45) — кнопка по-прежнему «приподнята», но не светит. */
-.btn.primary { background: linear-gradient(135deg, var(--btn-g1), var(--btn-g2)); color: #fff; box-shadow: 0 6px 16px rgba(124, 92, 255, .22); }
+.btn.primary { background: linear-gradient(135deg, var(--btn-g1), var(--btn-g2)); color: var(--on-acc); box-shadow: 0 6px 16px color-mix(in srgb, var(--acc) 22%, transparent); }
 .btn.primary:disabled { background: var(--surface-2); color: var(--muted); box-shadow: none; }
 /* outline — пунктирная стеклянная рамка */
 .btn.outline { background: none; border: 1px dashed var(--stroke); color: var(--muted); margin-bottom: 12px; }
@@ -483,7 +516,7 @@ input { font-family: inherit; }
 .exercise-card { padding: 14px; }
 .exercise-card--active {
   border-color: var(--g1);
-  box-shadow: inset 0 1px 0 rgba(255, 255, 255, .14), 0 0 0 1px rgba(124, 92, 255, .12);
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, .14), 0 0 0 1px color-mix(in srgb, var(--acc) 12%, transparent);
 }
 .exercise-head { display: flex; justify-content: space-between; align-items: center; gap: 8px; margin-bottom: 10px; }
 .exercise-title {
@@ -492,7 +525,7 @@ input { font-family: inherit; }
 .exercise-name { font-weight: 600; }
 .exercise-active-badge {
   flex-shrink: 0; padding: 2px 7px; border-radius: 999px;
-  background: rgba(124, 92, 255, .18); color: var(--g3);
+  background: color-mix(in srgb, var(--acc) 18%, transparent); color: var(--g3);
   font-size: 10px; font-weight: 700; text-transform: uppercase; letter-spacing: .04em;
 }
 .exercise-actions { display: flex; align-items: center; gap: 4px; flex-shrink: 0; }
@@ -516,7 +549,7 @@ input { font-family: inherit; }
 /* Свёрнутое упражнение с явно отмеченными подходами: статус читается цветом,
    не только текстом (сам текст сводки даёт «✓ выполнено · …»). */
 .exercise-compact-copy .muted.done { color: var(--green); }
-.exercise-card--done { border-color: rgba(46, 230, 160, .28); }
+.exercise-card--done { border-color: rgba(52, 211, 153, .28); }
 .exercise-compact-chevron {
   color: var(--muted); font-size: 22px; text-align: right;
 }
@@ -558,7 +591,7 @@ input { font-family: inherit; }
 .set-done:active { transform: scale(.92); }
 .set-done.on {
   border-color: var(--green); color: var(--green);
-  background: rgba(46, 230, 160, .14);
+  background: rgba(52, 211, 153, .14);
   font-size: 18px;
 }
 /* Выполненный подход уходит на второй план: значения остаются читаемыми и
@@ -596,7 +629,7 @@ input { font-family: inherit; }
 
 /* ---------- автопрогрессия: панель «прошлая → рекомендуем» ---------- */
 .ap {
-  background: rgba(46,230,200,.10); border: 1px solid rgba(46,230,200,.30);
+  background: color-mix(in srgb, var(--acc-2) 10%, transparent); border: 1px solid color-mix(in srgb, var(--acc-2) 30%, transparent);
   border-radius: 14px; padding: 11px 13px; margin-bottom: 12px;
 }
 .ap-row { display: flex; justify-content: space-between; align-items: baseline; margin-bottom: 6px; }
@@ -741,7 +774,7 @@ input { font-family: inherit; }
   padding: 7px 14px; border-radius: 999px;
   border: 1px solid var(--border); background: var(--surface); color: var(--muted); font-size: 14px;
 }
-.chip.active { background: linear-gradient(135deg, var(--g1), var(--g2)); color: #fff; border-color: transparent; }
+.chip.active { background: linear-gradient(135deg, var(--g1), var(--g2)); color: var(--on-acc); border-color: transparent; }
 /* Многострочный ряд чипов (для длинных списков — напр. вторичные мышцы) */
 .chips.wrap { flex-wrap: wrap; overflow: visible; }
 /* Приглушённая приписка группы у чипа вторичной мышцы (напр. «трицепс · трицепс») */
@@ -772,8 +805,8 @@ input { font-family: inherit; }
   width: 72px; height: 72px; border-radius: 50%;
   display: grid; place-items: center; align-self: center;
   background: linear-gradient(135deg, var(--g1), var(--g2));
-  color: #fff; font-size: 36px; font-weight: 800;
-  box-shadow: 0 16px 36px rgba(91, 76, 255, .24);
+  color: var(--on-acc); font-size: 36px; font-weight: 800;
+  box-shadow: 0 16px 36px color-mix(in srgb, var(--acc) 24%, transparent);
 }
 .workout-finish-lead {
   margin: 16px 0 24px; text-align: center;
@@ -801,7 +834,7 @@ input { font-family: inherit; }
   background: var(--surface-2);
 }
 .workout-finish-event.event-goal,
-.workout-finish-event.event-pr { border-color: rgba(124, 108, 255, .5); }
+.workout-finish-event.event-pr { border-color: color-mix(in srgb, var(--acc) 50%, transparent); }
 .workout-finish-event-emoji {
   width: 42px; height: 42px; display: grid; place-items: center;
   border-radius: 13px; background: var(--surface); font-size: 23px;
@@ -933,7 +966,7 @@ input { font-family: inherit; }
   /* Тот же случай: бар висит НАД списком карточек, поэтому подложка плотная.
      Обводка по контуру здесь нейтральная (не мятная, как у тоста/плашки) — это
      рабочая панель, а не событие, подсвечивать её незачем. */
-  background: rgba(20, 16, 40, .94); border: 1px solid var(--border);
+  background: var(--surface-solid); border: 1px solid var(--border);
   backdrop-filter: blur(20px); -webkit-backdrop-filter: blur(20px);
   box-shadow: 0 10px 30px rgba(0, 0, 0, .5);
 }
@@ -1103,15 +1136,15 @@ input { font-family: inherit; }
      с тем, что под ней. Берём тот же плотный тёмный слой, что у липких шапки/таббара,
      + размытие: плашка читается над любой подложкой. Свечение по контуру отделяет её
      от карточки даже там, где тень теряется на тёмном фоне. */
-  background: rgba(20, 16, 40, .94); border: 1px solid var(--green); color: var(--text);
+  background: var(--surface-solid); border: 1px solid var(--green); color: var(--text);
   backdrop-filter: blur(20px); -webkit-backdrop-filter: blur(20px);
-  box-shadow: 0 10px 30px rgba(0, 0, 0, .55), 0 0 0 4px rgba(46, 230, 160, .12);
+  box-shadow: 0 10px 30px rgba(0, 0, 0, .55), 0 0 0 4px rgba(52, 211, 153, .12);
 }
 .update-pill-dot {
   width: 8px; height: 8px; flex-shrink: 0; border-radius: 50%;
   /* Ореол — в тон мятному --green (#2ee6a0). Раньше тут был старый брендовый
      зелёный (22,163,74) — на новой палитре он читался грязным пятном. */
-  background: var(--green); box-shadow: 0 0 0 3px rgba(46, 230, 160, .22);
+  background: var(--green); box-shadow: 0 0 0 3px rgba(52, 211, 153, .22);
 }
 .update-pill-text { font-size: 14px; font-weight: 600; white-space: nowrap; }
 .update-pill-go {
@@ -1126,7 +1159,7 @@ input { font-family: inherit; }
 .update-pill-close:active { background: var(--border); }
 
 .stat { display: flex; flex-direction: column; align-items: center; gap: 2px; }
-.stat-num { font-size: 32px; font-weight: 700; color: var(--green); }
+.stat-num { font-family: var(--font-display); font-size: 36px; font-weight: 900; line-height: 1; color: var(--text); }
 .stat-sub { font-size: 12px; }
 
 /* Шапка весовых упражнений: рекорд (всех времён) + форма сейчас (N недель). */
@@ -1149,10 +1182,10 @@ input { font-family: inherit; }
 .prog-goal-guide {
   width: 100%; min-height: 52px; margin-bottom: 6px; padding: 9px 10px;
   display: flex; align-items: center; gap: 9px; text-align: left;
-  color: var(--text); background: rgba(73,214,200,.08);
-  border: 1px solid rgba(73,214,200,.28); border-radius: 12px;
+  color: var(--text); background: color-mix(in srgb, var(--acc-2) 8%, transparent);
+  border: 1px solid color-mix(in srgb, var(--acc-2) 28%, transparent); border-radius: 12px;
 }
-.prog-goal-guide:active { background: rgba(73,214,200,.14); }
+.prog-goal-guide:active { background: color-mix(in srgb, var(--acc-2) 14%, transparent); }
 .prog-goal-mark { flex: 0 0 auto; font-size: 19px; }
 .prog-goal-copy { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 2px; }
 .prog-goal-title { font-size: 13px; font-weight: 800; }
@@ -1242,8 +1275,8 @@ input { font-family: inherit; }
   width: 40px; height: 40px; flex-shrink: 0; border-radius: 50%;
   display: flex; align-items: center; justify-content: center;
   background: linear-gradient(135deg, var(--g1), var(--g3)); border: none;
-  font-weight: 700; font-size: 17px; color: #fff;
-  box-shadow: 0 6px 18px rgba(124, 92, 255, .4);
+  font-weight: 700; font-size: 17px; color: var(--on-acc);
+  box-shadow: 0 6px 18px color-mix(in srgb, var(--acc) 40%, transparent);
 }
 
 /* Маленький аватар для шапки и строк лидерборда (ЛК 2c). */
@@ -1251,7 +1284,7 @@ input { font-family: inherit; }
   width: 26px; height: 26px; flex-shrink: 0; border-radius: 50%;
   display: flex; align-items: center; justify-content: center;
   background: linear-gradient(135deg, var(--g1), var(--g3)); border: none;
-  font-weight: 700; font-size: 12px; color: #fff;
+  font-weight: 700; font-size: 12px; color: var(--on-acc);
 }
 
 /* Картиночный вариант аватара (есть avatar_url): img с тем же размером, обрезка по кругу. */
@@ -1278,7 +1311,7 @@ img.avatar-lg.has-img {
   display: inline-flex; align-items: center; gap: 5px;
   min-width: 0; max-width: 100%; box-sizing: border-box;
   font-size: 13px; font-weight: 600; color: var(--g4);
-  background: rgba(255,207,92,.16); border: 1px solid rgba(255,207,92,.45);
+  background: rgba(250, 204, 21, .16); border: 1px solid rgba(250, 204, 21, .45);
   border-radius: 999px; padding: 4px 10px;
 }
 .pr-badge-icon,
@@ -1308,10 +1341,10 @@ img.avatar-lg.has-img {
 .reaction-btn:active { background: var(--border); }
 .reaction-btn.static { cursor: default; }
 .reaction-btn.static:active { background: var(--surface-2); }
-.reaction-btn.mine { border-color: var(--g1); background: rgba(124,92,255,.22); }
+.reaction-btn.mine { border-color: var(--g1); background: color-mix(in srgb, var(--acc) 22%, transparent); }
 .reaction-emoji { font-size: 16px; }
 .reaction-count { font-size: 13px; font-weight: 600; color: var(--muted); }
-.reaction-btn.mine .reaction-count { color: #cbb8ff; }
+.reaction-btn.mine .reaction-count { color: var(--acc-2); }
 .reaction-who { font-size: 12px; margin-top: 6px; }
 
 /* ---------- лидерборд (жим лёжа, ТЗ §4.3) ---------- */
@@ -1328,7 +1361,7 @@ img.avatar-lg.has-img {
   padding: 8px 6px; border-radius: 8px;
 }
 .lb-row + .lb-row { border-top: 1px solid var(--border); }
-.lb-row.me { background: rgba(124,92,255,.18); border: 1px solid var(--g1); }
+.lb-row.me { background: color-mix(in srgb, var(--acc) 18%, transparent); border: 1px solid var(--g1); }
 .lb-place {
   width: 24px; flex-shrink: 0; text-align: center;
   font-size: 16px; font-weight: 700; color: var(--muted);
@@ -1453,10 +1486,10 @@ img.avatar-lg.has-img {
   display: flex; align-items: center; justify-content: center; font-size: 20px;
   background: var(--surface-2); border: 1px solid var(--border);
 }
-.notif.mine .n-icon   { color: var(--g4); border-color: var(--g4); background: rgba(255,207,92,.14); }
-.notif.beaten .n-icon { color: #fca5a5; border-color: var(--red); background: rgba(255,107,138,.12); }
-.notif.goal .n-icon   { color: var(--green); border-color: var(--green); background: rgba(46,230,160,.14); }
-.notif.reaction .n-icon { border-color: var(--green); background: rgba(46,230,160,.10); }
+.notif.mine .n-icon   { color: var(--g4); border-color: var(--g4); background: rgba(250, 204, 21, .14); }
+.notif.beaten .n-icon { color: #fca5a5; border-color: var(--red); background: rgba(248, 113, 113, .12); }
+.notif.goal .n-icon   { color: var(--green); border-color: var(--green); background: rgba(52, 211, 153, .14); }
+.notif.reaction .n-icon { border-color: var(--green); background: rgba(52, 211, 153, .10); }
 .n-body { flex: 1; min-width: 0; }
 .n-title { font-weight: 600; font-size: 15px; line-height: 1.3; margin-bottom: 2px; }
 /* У непрочитанного справа сидит точка (.n-dot, absolute top/right:14px) — резервируем
@@ -1482,9 +1515,9 @@ img.avatar-lg.has-img {
   display: flex; align-items: center; gap: 12px; padding: 13px 14px; border-radius: 14px;
   /* Плавающий оверлей → ПЛОТНАЯ подложка, а не стеклянный `--surface-2` (он полупрозрачен
      и над карточкой сливался с ней — тот же дефект, что чинили у `.update-pill` в v5.6.1). */
-  background: rgba(20, 16, 40, .94); border: 1px solid var(--green); color: var(--text);
+  background: var(--surface-solid); border: 1px solid var(--green); color: var(--text);
   backdrop-filter: blur(20px); -webkit-backdrop-filter: blur(20px);
-  box-shadow: 0 10px 30px rgba(0, 0, 0, .55), 0 0 0 4px rgba(46, 230, 160, .12);
+  box-shadow: 0 10px 30px rgba(0, 0, 0, .55), 0 0 0 4px rgba(52, 211, 153, .12);
   transition: transform .35s cubic-bezier(.2,.8,.2,1), opacity .35s ease;
   /* Тост — фиксированная полоса поверх .content (единственного скроллера), но вне
      него. Делаем её pointer-transparent, иначе палец, попавший на тост, не мог
@@ -1536,14 +1569,14 @@ img.avatar-lg.has-img {
 .avatar-lg {
   width: 62px; height: 62px; border-radius: 50%; flex-shrink: 0;
   display: flex; align-items: center; justify-content: center;
-  font-weight: 800; font-size: 26px; color: #fff;
+  font-weight: 800; font-size: 26px; color: var(--on-acc);
   background: linear-gradient(135deg, var(--g1), var(--g3)); border: none;
-  box-shadow: 0 10px 30px rgba(124, 92, 255, .45);
+  box-shadow: 0 10px 30px color-mix(in srgb, var(--acc) 45%, transparent);
 }
 .role-badge {
   display: inline-block; margin-top: 7px; font-size: 11px; font-weight: 700;
   letter-spacing: .05em; text-transform: uppercase; color: var(--g2);
-  background: rgba(46,230,200,.15); border: 1px solid rgba(46,230,200,.45);
+  background: color-mix(in srgb, var(--acc-2) 15%, transparent); border: 1px solid color-mix(in srgb, var(--acc-2) 45%, transparent);
   border-radius: 999px; padding: 2px 9px;
 }
 
@@ -1650,7 +1683,7 @@ img.avatar-lg.has-img {
 .pr-val { font-weight: 800; flex-shrink: 0; display: flex; align-items: center; gap: 6px; }
 .pr-val .u { font-size: 13px; color: var(--muted); font-weight: 600; }
 .pr-val .arr { color: var(--green); font-weight: 800; }
-.pr-more { background: rgba(124,92,255,.06); }
+.pr-more { background: color-mix(in srgb, var(--acc) 6%, transparent); }
 .pr-toggle {
   width: 100%; min-height: 44px; padding: 10px 14px;
   display: flex; align-items: center; justify-content: center; gap: 7px;
@@ -1673,7 +1706,7 @@ img.avatar-lg.has-img {
   background: rgba(22,163,74,.07); border: 1px solid var(--green-d); border-radius: 16px;
   padding: 14px; color: var(--text); text-align: left;
 }
-.leader-link:active { background: rgba(46,230,160,.14); }
+.leader-link:active { background: rgba(52, 211, 153, .14); }
 .leader-link .v { font-weight: 700; font-size: 15px; }
 .leader-link .k { color: var(--muted); font-size: 12px; margin-top: 3px; }
 .leader-link .go { color: var(--green); font-weight: 800; font-size: 14px; flex-shrink: 0; }
@@ -1754,7 +1787,7 @@ label.act.busy { opacity: .55; pointer-events: none; }
 .danger-text { margin: 0; font-size: 13px; color: #fca5a5; line-height: 1.5; }
 .danger-actions { display: flex; gap: 10px; }
 .danger-actions .btn { flex: 1; margin-top: 0; }
-.btn.danger { background: rgba(255, 107, 138, .16); border: 1px solid rgba(255, 107, 138, .5); color: var(--red); }
+.btn.danger { background: rgba(248, 113, 113, .16); border: 1px solid rgba(248, 113, 113, .5); color: var(--red); }
 
 /* Форма «Сделать шаблон из тренировки» — нейтральная (не «опасная») коробка. */
 .tpl-from-wk {
@@ -1836,7 +1869,7 @@ label.act.busy { opacity: .55; pointer-events: none; }
     border-top: none;
     border-right: 1px solid var(--stroke);
     /* Стеклянный сайдбар в тон мобильному таббару. */
-    background: rgba(20, 16, 40, .55);
+    background: rgba(17, 24, 39, .55);
     backdrop-filter: blur(24px); -webkit-backdrop-filter: blur(24px);
   }
 
@@ -1852,7 +1885,7 @@ label.act.busy { opacity: .55; pointer-events: none; }
     width: 34px; height: 34px; flex-shrink: 0; border-radius: 10px;
     display: flex; align-items: center; justify-content: center; font-size: 19px;
     background: linear-gradient(135deg, var(--g1), var(--g3)); border: none;
-    box-shadow: 0 6px 18px rgba(124, 92, 255, .45);
+    box-shadow: 0 6px 18px color-mix(in srgb, var(--acc) 45%, transparent);
   }
   .side-brand-txt { font-weight: 800; font-size: 16px; }
 
@@ -1885,7 +1918,7 @@ label.act.busy { opacity: .55; pointer-events: none; }
   }
   .side-profile:hover { background: var(--surface); }
   .side-profile.active {
-    color: #fff; background: rgba(124, 92, 255, .18); border-color: var(--g1);
+    color: #fff; background: color-mix(in srgb, var(--acc) 18%, transparent); border-color: var(--g1);
   }
   .side-profile-name { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 
@@ -1994,7 +2027,7 @@ label.act.busy { opacity: .55; pointer-events: none; }
   background: var(--surface); border: 1px solid var(--border); border-radius: 10px;
   color: var(--text); font-size: 14px; font-weight: 600; padding: 8px 12px; min-height: 40px;
 }
-.admin-title { margin: 0; font-size: 20px; font-weight: 800; color: var(--text); }
+.admin-title { margin: 0; font-family: var(--font-display); font-size: 26px; font-weight: 900; line-height: 1; text-transform: uppercase; letter-spacing: .01em; color: var(--text); }
 .admin-offline {
   margin: 0 0 10px; padding: 10px 12px; border-radius: 10px; font-size: 13px; font-weight: 600;
   color: #fcd34d; background: rgba(250,204,21,.10); border: 1px solid rgba(250,204,21,.35);
@@ -2143,7 +2176,7 @@ label.act.busy { opacity: .55; pointer-events: none; }
 .home-tags-lab { font-size: 12px; color: var(--muted); margin-right: 2px; }
 .home-streak {
   flex: 0 0 auto; text-align: center; padding: 8px 12px; border-radius: 14px;
-  background: linear-gradient(135deg, rgba(255,207,92,.22), rgba(255,107,166,.18));
+  background: linear-gradient(135deg, rgba(250, 204, 21, .22), color-mix(in srgb, var(--acc) 18%, transparent));
   border: 1px solid var(--stroke);
 }
 .home-streak-n {
@@ -2462,10 +2495,10 @@ label.act.busy { opacity: .55; pointer-events: none; }
    в «матовую» непрозрачную поверхность, читаемость сохраняется. Блок в самом
    конце файла, чтобы перекрывать в т.ч. десктопный `.tabbar` из медиазапроса. */
 @supports not ((backdrop-filter: blur(2px)) or (-webkit-backdrop-filter: blur(2px))) {
-  .card                 { background: rgba(20, 18, 40, .82); }
-  .btn.ghost            { background: rgba(20, 18, 40, .82); }
-  .topbar               { background: rgba(12, 10, 26, .94); }
-  .tabbar               { background: rgba(20, 16, 40, .94); }
+  .card                 { background: rgba(17, 24, 39, .82); }
+  .btn.ghost            { background: rgba(17, 24, 39, .82); }
+  .topbar               { background: var(--surface-solid); }
+  .tabbar               { background: var(--surface-solid); }
 }
 
 /* Контраст: секц-заголовки и подзаголовки лежат ПРЯМО на aurora-градиенте (не в
@@ -2531,3 +2564,58 @@ label.act.busy { opacity: .55; pointer-events: none; }
   .splash, .splash--out .splash-logo { transition: none; }
   .splash-bar, .splash-plate, .splash-lift, .splash-title { animation: none; }
 }
+
+/* ============================================================================
+   Оформление (Профиль → Настройки) — редизайн «Спорт-блоки», этап 1.
+   7 готовых акцентов + «свой оттенок» (screens/AppearanceScreen.jsx). */
+.accent-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 8px; }
+.accent-tile {
+  display: flex; flex-direction: column; align-items: center; gap: 8px;
+  min-height: 84px; padding: 12px 4px 10px; border-radius: 14px;
+  background: var(--surface); border: 1px solid var(--border); color: var(--text);
+  font-size: 12px; font-weight: 700;
+  transition: transform var(--dur-fast) var(--ease-out);
+}
+.accent-tile:active { transform: scale(var(--press-scale)); }
+.accent-tile.on { border-color: var(--text); box-shadow: inset 0 0 0 1px var(--text); }
+.accent-tile:focus-visible, .hue-range:focus-visible { outline: 3px solid var(--acc-2); outline-offset: 2px; }
+.accent-sw { width: 38px; height: 38px; border-radius: 12px; flex: none; box-shadow: inset 0 0 0 2px rgba(255, 255, 255, .12); }
+.accent-sw--volt { background: #C8F135; }
+.accent-sw--teal { background: #2DD4BF; }
+.accent-sw--red { background: #FF4D5E; }
+.accent-sw--yellow { background: #FFD60A; }
+.accent-sw--pink { background: #FF4FB0; }
+.accent-sw--violet { background: #9B7BFF; }
+.accent-sw--peach { background: #FFBE98; }
+.accent-sw--hue { background: oklch(0.79 0.19 var(--sw-hue, 200)); }
+.accent-sw--rainbow {
+  background: conic-gradient(oklch(.79 .19 0), oklch(.79 .19 90), oklch(.79 .19 180), oklch(.79 .19 270), oklch(.79 .19 360));
+}
+.hue-card { background: var(--surface); border: 1px solid var(--border); border-radius: 16px; padding: 12px; }
+.hue-card.on { border-color: var(--text); }
+.hue-range {
+  -webkit-appearance: none; appearance: none; display: block; width: 100%; height: 36px; margin: 0;
+  border-radius: 12px; cursor: pointer;
+  background: linear-gradient(90deg, oklch(.79 .19 0), oklch(.79 .19 45), oklch(.79 .19 90), oklch(.79 .19 135),
+    oklch(.79 .19 180), oklch(.79 .19 225), oklch(.79 .19 270), oklch(.79 .19 315), oklch(.79 .19 360));
+}
+.hue-range::-webkit-slider-thumb {
+  -webkit-appearance: none; width: 26px; height: 46px; border-radius: 10px;
+  background: #fff; border: 3px solid var(--bg); box-shadow: 0 2px 10px rgba(0, 0, 0, .55);
+}
+.hue-range::-moz-range-thumb {
+  width: 22px; height: 40px; border-radius: 10px;
+  background: #fff; border: 3px solid var(--bg); box-shadow: 0 2px 10px rgba(0, 0, 0, .55);
+}
+.hue-row { display: flex; align-items: center; gap: 10px; margin-top: 10px; font-size: 13px; line-height: 1.4; }
+.hue-row .accent-sw { width: 34px; height: 34px; border-radius: 10px; }
+.hue-warn {
+  margin: 10px 0 0; padding: 8px 10px; border-radius: 10px; font-size: 13px; font-weight: 700;
+  color: #FDE68A; background: rgba(251, 191, 36, .12);
+}
+.appearance-preview { display: grid; gap: 10px; padding: 12px; border-radius: 16px; background: var(--surface); border: 1px solid var(--border); }
+.appearance-preview .btn.primary { width: 100%; }
+.appearance-preview-row { display: flex; align-items: center; gap: 8px; }
+.appearance-num { margin-left: auto; font-family: var(--font-display); font-weight: 900; font-size: 34px; line-height: 1; color: var(--acc); }
+.appearance-num small { font-size: 14px; color: var(--muted); font-weight: 800; }
+.appearance-note { font-size: 13px; margin: 10px 2px 0; }

@@ -1,4 +1,4 @@
-# Шрифты приложения — Onest (самохостинг)
+# Шрифты приложения — Onest и Sofia Sans Condensed (самохостинг)
 
 Редизайн **Aurora Glass** использует **Onest** — современный геометрический
 гротеск с полной поддержкой кириллицы, лицензия **SIL Open Font License 1.1**
@@ -27,8 +27,25 @@
 Пока файлов нет — приложение работает на системном фолбэк-стеке
 (`system-ui, -apple-system, 'Segoe UI', Roboto`), кириллица остаётся читаемой.
 
+## Sofia Sans Condensed — цифры и заголовки (редизайн «Спорт-блоки», v6)
+
+Сжатый спортивный гротеск с кириллицей (SIL OFL 1.1) для крупных чисел и заголовков
+экранов. Лежит готовыми `.woff2` — только нужные начертания и подмножества:
+
+| Начертание | weight | файлы |
+|------------|--------|-------|
+| ExtraBold  | 800    | `SofiaSansCondensed-ExtraBold-latin.woff2`, `…-cyrillic.woff2` |
+| Black      | 900    | `SofiaSansCondensed-Black-latin.woff2`, `…-cyrillic.woff2` |
+
+Подмножества разделены `unicode-range` в `@font-face` (`src/index.css`): браузер качает
+кириллический файл только если на экране есть кириллица. Источник — пакет
+`@fontsource/sofia-sans-condensed` (статические файлы Google Fonts).
+
 ## Лицензия
 
 Onest © The Onest Project Authors, распространяется под SIL Open Font License,
 Version 1.1. Положите рядом файл `OFL.txt` из архива шрифта (требование лицензии
 при встраивании).
+
+Sofia Sans Condensed © The Sofia Sans Project Authors, SIL Open Font License 1.1 —
+текст лицензии в `OFL-SofiaSansCondensed.txt`.

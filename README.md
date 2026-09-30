@@ -58,8 +58,9 @@
 (лицензия MIT, © 2022 ELABBASSI Hicham).
 
 Шрифт интерфейса — [Onest](https://github.com/RTDeluxe/onest)
-(SIL Open Font License 1.1), самохостится со своего origin.
+(SIL Open Font License 1.1), самохостится со своего origin. Цифры и заголовки —
+[Sofia Sans Condensed](https://github.com/lettersoup/Sofia-Sans) (SIL Open Font License 1.1), тоже самохостинг.
 
 ---
 
-**Версия 5.15.2**
+**Версия 6.0.0**

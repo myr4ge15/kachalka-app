@@ -36,6 +36,7 @@ const AdminScreen = lazyScreen(() => import('./screens/AdminScreen.jsx'))
 const FreshnessScreen = lazyScreen(() => import('./screens/FreshnessScreen.jsx'))
 const MyExercisesScreen = lazyScreen(() => import('./screens/MyExercisesScreen.jsx'))
 const AchievementsScreen = lazyScreen(() => import('./screens/AchievementsScreen.jsx'))
+const AppearanceScreen = lazyScreen(() => import('./screens/AppearanceScreen.jsx'))
 
 // Иконка состояния синхронизации — инлайн-SVG (без зависимостей), как TabIcon.
 // Красится через currentColor (цвет задаёт класс .sync-badge.<cls>), спиннер
@@ -174,7 +175,7 @@ export default function App() {
   const [tab, setTab] = useState(() => {
     const saved = sessionStorage.getItem(TAB_KEY)
     return saved && saved !== 'workout' ? saved : 'home'
-  }) // 'home' | 'history' | 'feed' | 'progress' | 'notif' | 'profile' | 'admin' | 'freshness' | 'myex' | 'achievements'
+  }) // 'home' | 'history' | 'feed' | 'progress' | 'notif' | 'profile' | 'admin' | 'freshness' | 'myex' | 'achievements' | 'appearance'
 
   // Упражнение, с которым открыть «Прогресс» (проброс из ЛК по тапу на рекорд).
   const [progressExId, setProgressExId] = useState(null)
@@ -232,7 +233,7 @@ export default function App() {
   useEffect(() => {
     if (!user?.id) return
     const screens = [HomeScreen, HistoryScreen, FeedScreen, ProgressScreen, FreshnessScreen,
-      NotificationsScreen, ProfileScreen, MyExercisesScreen, AchievementsScreen]
+      NotificationsScreen, ProfileScreen, MyExercisesScreen, AchievementsScreen, AppearanceScreen]
     if (user.role === 'admin') screens.push(AdminScreen)
     const prefetch = () => { for (const s of screens) s.preload().catch(() => {}) }
     const ric = window.requestIdleCallback
@@ -434,6 +435,7 @@ export default function App() {
                   onOpenAdmin={() => goTab('admin')}
                   onOpenMyExercises={() => goTab('myex')}
                   onOpenAchievements={() => goTab('achievements')}
+                  onOpenAppearance={() => goTab('appearance')}
                 />
               )}
               {tab === 'admin' && user.role === 'admin' && (
@@ -447,6 +449,9 @@ export default function App() {
               )}
               {tab === 'achievements' && (
                 <AchievementsScreen user={user} onBack={() => goTab('profile')} />
+              )}
+              {tab === 'appearance' && (
+                <AppearanceScreen onBack={() => goTab('profile')} />
               )}
             </ErrorBoundary>
           </div>

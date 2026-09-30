@@ -17,13 +17,16 @@
     <!-- user-scalable=no + maximum-scale=1: PWA-приложение, а не страница — двойной
          тап/пинч-зум только ломают вёрстку и мешают быстрым тапам в зале. -->
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover" />
-    <meta name="theme-color" content="#0a0a1a" />
+    <meta name="theme-color" content="#111827" />
     <!-- standalone-режим PWA: mobile-web-app-capable (стандарт) + apple-* (iOS Safari
          его до сих пор требует, иначе приложение открывается в обычной вкладке). -->
     <meta name="mobile-web-app-capable" content="yes" />
     <meta name="apple-mobile-web-app-capable" content="yes" />
     <meta name="apple-mobile-web-app-title" content="kachalka-app" />
     <title>Журнал тренировок</title>
+    <!-- Акцент, выбранный в «Профиль → Оформление», — ДО отрисовки сплэша: иначе первый
+         кадр мигал бы вольтом. Обычный скрипт, а не инлайн: CSP script-src 'self'. -->
+    <script src="./accent-boot.js"></script>
   </head>
   <body>
     <!-- Сплэш холодного старта: виден сразу, до загрузки JS. Стили — в index.css

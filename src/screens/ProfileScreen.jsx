@@ -43,7 +43,7 @@ function GoalStepper({ onDec, onInc, children }) {
 }
 
 // Пропсы: user, onLogout, onOpenProgress(exerciseId), onOpenFeed().
-export default function ProfileScreen({ user, onLogout, onOpenProgress, onOpenFeed, onRenamed, onOpenAdmin, onOpenMyExercises, onOpenAchievements }) {
+export default function ProfileScreen({ user, onLogout, onOpenProgress, onOpenFeed, onRenamed, onOpenAdmin, onOpenMyExercises, onOpenAchievements, onOpenAppearance }) {
   const workouts = useLiveQuery(() => getWorkouts(user.id), [user.id])
   const goals = useLiveQuery(() => readGoals(user.id), [user.id])
   const myCached = useLiveQuery(() => getCachedUser(user.id), [user.id])
@@ -672,6 +672,12 @@ export default function ProfileScreen({ user, onLogout, onOpenProgress, onOpenFe
 
         {settingsOpen && (
         <div className="actions">
+          <button className="act" onClick={() => onOpenAppearance?.()}>
+            <span className="act-txt">
+              🎨 Оформление
+              <span className="act-sub">акцентный цвет приложения</span>
+            </span>
+          </button>
           <button
             className="act toggle-act"
             role="switch"
