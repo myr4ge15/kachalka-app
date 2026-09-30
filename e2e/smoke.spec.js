@@ -58,9 +58,11 @@ test('вход → запись тренировки → она в истори�
   // --- запись тренировки ----------------------------------------------------
   await page.locator('.tabbar .tab').filter({ hasText: 'Тренировки' }).click()
   
-  // ИСПРАВЛЕНИЕ: На мобильном вьюпорте (390x844) используется плавающая 
-  // кнопка «+» (FAB). Десктопная кнопка «+ Добавить тренировку» скрыта.
-  await page.locator('.fab').click()
+  // На мобильном вьюпорте (390x844) новая тренировка — кнопка «+» по центру нижнего
+  // меню (v6.0.1; до этого — плавающая .fab). Ищем по доступному имени, а не по
+  // классу: разметка кнопки меняется с редизайном, подпись — нет. Десктопная
+  // «+ Добавить тренировку» на мобиле скрыта.
+  await page.getByRole('button', { name: 'Записать тренировку' }).click()
   
   await page.getByRole('button', { name: '+ Добавить упражнение' }).click()
   await page.locator('.picker-item').filter({ hasText: EXERCISE }).click()
@@ -138,7 +140,7 @@ test('вход → запись тренировки → она в истори�
   // там бар уже в потоке (position: static в master-detail).
   await page.addStyleTag({ content: '.screen-anim { animation-duration: 5s !important; }' })
   await page.locator('.tabbar .tab').filter({ hasText: 'Главная' }).click()
-  await page.locator('.fab').click()
+  await page.getByRole('button', { name: 'Записать тренировку' }).click()
   const saveBar = page.locator('.wk-save-bar')
   await expect(saveBar).toBeVisible()
   const gapFromBottom = await saveBar.evaluate(
