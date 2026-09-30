@@ -4,7 +4,7 @@ import { rhythmChart, fmtAvg, avgWord, mondayLabel } from './rhythmChart.js'
 const wk = (count, { current = false, beforeFirst = false, start = '2026-09-07' } = {}) => ({ count, current, beforeFirst, start })
 
 describe('rhythmChart', () => {
-  it('среднее — по завершённым неделям, текущая не занижает', () => {
+  it('среднее — по завершенным неделям, текущая не занижает', () => {
     const r = rhythmChart([wk(2), wk(3), wk(2), wk(0, { current: true })])
     expect(r).toMatchObject({ mode: 'avg', avg: 2.3, weeks: 3, max: 3, total: 7 })
   })

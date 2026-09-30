@@ -6,7 +6,7 @@
 // запись только владельцу по первому сегменту пути == app_uid()). После аплоада
 // публичный URL пишем в users.avatar_url через SECURITY DEFINER set_my_avatar_url.
 //
-// fitDimensions вынесена отдельно (чистая, без DOM) — её и юнит-тестим.
+// fitDimensions вынесена отдельно (чистая, без DOM) — ее и юнит-тестим.
 // ============================================================================
 import { supabase } from '../db/supabase.js'
 
@@ -21,7 +21,7 @@ export function fitDimensions(w, h, max = 256) {
 }
 
 // HEIC/HEIF (формат фото iPhone по умолчанию) <img> не декодирует нигде, кроме
-// Safari/WebKit → аватар с айфона падал на onerror. Распознаём такой файл и
+// Safari/WebKit → аватар с айфона падал на onerror. Распознаем такой файл и
 // конвертируем в JPEG до сжатия. Определяем по MIME, расширению и magic-bytes
 // (ISO-BMFF box `ftyp` + brand) — браузеры часто отдают для HEIC пустой type.
 const HEIF_BRANDS = new Set([
@@ -58,7 +58,7 @@ async function toDecodableFile(file) {
 }
 
 // Загрузить File в HTMLImageElement (через object URL, который потом отзываем).
-// URL отзываем после загрузки/ошибки, но картинку уже декодированной отдаём
+// URL отзываем после загрузки/ошибки, но картинку уже декодированной отдаем
 // наружу — drawImage по ней безопасен.
 function loadImage(file) {
   return new Promise((resolve, reject) => {

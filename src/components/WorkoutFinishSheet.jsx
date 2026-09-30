@@ -83,7 +83,7 @@ export default function WorkoutFinishSheet({
             disabled={templateBusy || templateDone}
             onClick={onCreateTemplate}
           >
-            {templateDone ? '✓ Шаблон создан' : templateBusy ? 'Создаём шаблон…' : '📋 Сохранить как шаблон'}
+            {templateDone ? '✓ Шаблон создан' : templateBusy ? 'Создаем шаблон…' : '📋 Сохранить как шаблон'}
           </button>
         )}
 

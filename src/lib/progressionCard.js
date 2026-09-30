@@ -1,15 +1,15 @@
 // Оркестрация рекомендации автопрогрессии (PLAN-autoprogression) для карточки
 // упражнения в WorkoutScreen + чистые форматтеры панели. Без React/Dexie/сети —
 // покрыто progressionCard.test.js. Вынесено из WorkoutScreen.jsx (техдолг: разбить
-// экран на 800+ строк), сам экран остаётся оркестратором стейта.
+// экран на 800+ строк), сам экран остается оркестратором стейта.
 import { exerciseMetric } from './metric.js'
 import { recommendProgression, resolveProgSettings } from './progression.js'
 import { plural } from './plural.js'
 
-// Стабильный ключ строки подхода — ТОЛЬКО для React key. В БД/на сервер не идёт
+// Стабильный ключ строки подхода — ТОЛЬКО для React key. В БД/на сервер не идет
 // (cleanEntries сериализует подход как {weight,reps}). Нужен, чтобы при undo-вставке
 // подхода в середину React не переиспользовал DOM/значение инпута соседней строки.
-// Счётчик — модульный синглтон: и билдер рекомендации, и хендлеры экрана берут ключи
+// Счетчик — модульный синглтон: и билдер рекомендации, и хендлеры экрана берут ключи
 // из одного источника, иначе возможны коллизии _k при вставке.
 let _setKeySeq = 0
 export const sk = () => `s${++_setKeySeq}`
@@ -44,7 +44,7 @@ export function progArrow(kind) {
   if (kind === 'down') return '↘'
   return '='
 }
-// Тон чипа причины (цвет): вверх/нудж — зелёный, тот же — жёлтый, вниз — красный.
+// Тон чипа причины (цвет): вверх/нудж — зеленый, тот же — желтый, вниз — красный.
 export function progTone(kind) {
   if (kind === 'up' || kind === 'nudge') return 'up'
   if (kind === 'down') return 'down'
@@ -85,8 +85,8 @@ export function buildRecommendation(ex, sessions, progState) {
   if (!progState?.enabled) return { sets: copyOrDefault(), meta: null }
 
   const settings = resolveProgSettings(progState, ex.id, metric)
-  // Ручной/выкл на упражнение: подсказку не даём, но показываем компактную
-  // строку-заглушку с шестерёнкой — чтобы стратегию можно было ВЕРНУТЬ (иначе
+  // Ручной/выкл на упражнение: подсказку не даем, но показываем компактную
+  // строку-заглушку с шестеренкой — чтобы стратегию можно было ВЕРНУТЬ (иначе
   // после выбора «ручной» панель с настройками исчезала безвозвратно, UX-ловушка).
   if (settings.strategy === 'manual' || settings.strategy === 'off') {
     return {

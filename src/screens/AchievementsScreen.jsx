@@ -7,7 +7,7 @@ import CardsSkeleton from '../components/CardsSkeleton.jsx'
 import BackButton from '../components/BackButton.jsx'
 
 // Экран «Достижения» (PLAN-badges, Slice 1b). Сетка бейджей по категориям:
-// полученные — с датой, закрытые — с прогресс-баром до вехи. Всё считается на
+// полученные — с датой, закрытые — с прогресс-баром до вехи. Все считается на
 // клиенте из локальных тренировок (db/badges.js → lib/badges.js), живо
 // обновляется через useLiveQuery. Схему/синк не трогаем.
 //
@@ -40,7 +40,7 @@ export default function AchievementsScreen({ user, onBack }) {
             <div className="ach-bar"><i style={{ width: `${pct}%` }} /></div>
             {data.next && (
               <div className="ach-hero-sub">
-                До «{data.next.def.icon} {data.next.def.name}» — ещё{' '}
+                До «{data.next.def.icon} {data.next.def.name}» — еще{' '}
                 {fmtBadgeValue(data.next.def, data.next.remaining)}
               </div>
             )}

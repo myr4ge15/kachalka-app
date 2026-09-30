@@ -27,7 +27,7 @@ describe('normMetric', () => {
 })
 
 describe('exerciseMetric', () => {
-  it('берёт metric из объекта упражнения, дефолт weight', () => {
+  it('берет metric из объекта упражнения, дефолт weight', () => {
     expect(exerciseMetric({ metric: 'time' })).toBe('time')
     expect(exerciseMetric({ metric: 'reps' })).toBe('reps')
     expect(exerciseMetric({})).toBe('weight')

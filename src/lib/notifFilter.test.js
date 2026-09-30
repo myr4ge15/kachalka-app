@@ -4,7 +4,7 @@ import { NOTIF_CATEGORIES, notifCategory, filterNotifs, activeCategories, unread
 const n = (type, at = '2026-07-10') => ({ type, at, id: `${type}:${at}` })
 
 describe('notifCategory', () => {
-  it('сводит пять типов к четырём группам', () => {
+  it('сводит пять типов к четырем группам', () => {
     expect(notifCategory('mine')).toBe('records')
     expect(notifCategory('goal')).toBe('records')
     expect(notifCategory('badge')).toBe('records')
@@ -40,7 +40,7 @@ describe('filterNotifs', () => {
 })
 
 describe('activeCategories', () => {
-  it('только присутствующие категории + всегда all, порядок сохранён', () => {
+  it('только присутствующие категории + всегда all, порядок сохранен', () => {
     const cats = activeCategories([n('reaction'), n('mine')])
     expect(cats.map((c) => c.key)).toEqual(['all', 'records', 'reactions'])
   })
@@ -61,7 +61,7 @@ describe('unreadCount', () => {
     expect(unreadCount(list, '2026-07-10')).toBe(1) // строго новее → только 12
     expect(unreadCount(list, '2026-07-12')).toBe(0)
   })
-  it('пустой seen (ещё не открывали) → все непрочитаны', () => {
+  it('пустой seen (еще не открывали) → все непрочитаны', () => {
     expect(unreadCount(list, '')).toBe(3)
     expect(unreadCount(list, null)).toBe(3)
     expect(unreadCount(list, undefined)).toBe(3)

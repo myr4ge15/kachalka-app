@@ -15,7 +15,7 @@ describe('nextHoldDelay', () => {
   it('не опускается ниже HOLD_MIN (пол)', () => {
     expect(nextHoldDelay(HOLD_MIN + HOLD_STEP - 1)).toBe(HOLD_MIN) // чуть выше пола → пол
     expect(nextHoldDelay(HOLD_MIN)).toBe(HOLD_MIN)
-    expect(nextHoldDelay(10)).toBe(HOLD_MIN) // уже ниже пола → остаёмся на полу
+    expect(nextHoldDelay(10)).toBe(HOLD_MIN) // уже ниже пола → остаемся на полу
   })
 
   it('КРАЙ: prev=0 трактуется как falsy → сброс на HOLD_START (Number(0)||HOLD_START)', () => {

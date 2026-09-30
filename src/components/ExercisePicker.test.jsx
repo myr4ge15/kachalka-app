@@ -8,7 +8,7 @@ import { render, screen, fireEvent } from '@testing-library/react'
 import ExercisePicker from './ExercisePicker.jsx'
 
 const CATALOG = [
-  { id: 'bench', name: 'Жим лёжа', muscle_group: 'грудь', submuscle: 'chest_middle', secondary: ['triceps'] },
+  { id: 'bench', name: 'Жим лежа', muscle_group: 'грудь', submuscle: 'chest_middle', secondary: ['triceps'] },
   { id: 'pulldown', name: 'Тяга верхнего блока', muscle_group: 'спина', submuscle: 'lats', secondary: [] },
   { id: 'press-seated', name: 'Жим гантелей сидя', muscle_group: 'плечи', submuscle: 'delt_front', secondary: [] },
 ]
@@ -37,17 +37,17 @@ describe('ExercisePicker — умный поиск', () => {
 
     expect(await screen.findByText('По мышцам')).toBeInTheDocument()
     expect(screen.getByText('Жим гантелей сидя')).toBeInTheDocument()
-    expect(screen.queryByText('Жим лёжа')).not.toBeInTheDocument()
+    expect(screen.queryByText('Жим лежа')).not.toBeInTheDocument()
     // Просмотр группы — не заявка на упражнение с названием «плеч».
     expect(screen.queryByText(/Создать/)).not.toBeInTheDocument()
-    expect(screen.getByText('+ добавить своё упражнение')).toBeInTheDocument()
+    expect(screen.getByText('+ добавить свое упражнение')).toBeInTheDocument()
   })
 
-  it('находит существующее упражнение без ё и не предлагает создать дубль', async () => {
+  it('находит существующее упражнение без е и не предлагает создать дубль', async () => {
     const { search } = renderPicker()
     type(search, 'жим лежа')
 
-    expect(await screen.findByText('Жим лёжа')).toBeInTheDocument()
+    expect(await screen.findByText('Жим лежа')).toBeInTheDocument()
     expect(screen.queryByText(/Создать/)).not.toBeInTheDocument()
   })
 
@@ -65,11 +65,11 @@ describe('ExercisePicker — умный поиск', () => {
 
     fireEvent.click(screen.getByRole('button', { name: 'грудь' }))
 
-    expect(await screen.findByText('Жим лёжа')).toBeInTheDocument()
+    expect(await screen.findByText('Жим лежа')).toBeInTheDocument()
     expect(screen.queryByText('Жим гантелей сидя')).not.toBeInTheDocument()
   })
 
-  it('выбор из блока «По мышцам» отдаёт упражнение родителю', async () => {
+  it('выбор из блока «По мышцам» отдает упражнение родителю', async () => {
     const { search, onPick } = renderPicker()
     type(search, 'плеч')
 

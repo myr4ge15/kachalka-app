@@ -28,7 +28,7 @@ function readyQueries({ privateUser = false, rows = male } = {}) {
   vi.mocked(useLiveQuery)
     .mockReturnValueOnce(privateUser)
     .mockReturnValueOnce({ male: rows, female: [] })
-    .mockReturnValueOnce({ male: 'жим лёжа', female: 'ягодичный мостик' })
+    .mockReturnValueOnce({ male: 'жим лежа', female: 'ягодичный мостик' })
     .mockReturnValueOnce([
       { id: 'me', avatar_url: null },
       { id: 'dima', avatar_url: null },
@@ -45,7 +45,7 @@ describe('Leaderboard rivalry', () => {
 
     expect(screen.getByRole('region', { name: 'Ближайший ориентир' })).toBeInTheDocument()
     expect(screen.getByText('До Дима — 5 кг')).toBeInTheDocument()
-    expect(screen.getByText('Рейтинг · жим лёжа')).toBeInTheDocument()
+    expect(screen.getByText('Рейтинг · жим лежа')).toBeInTheDocument()
   })
 
   it('не показывает ни рейтинг, ни ориентир приватному пользователю', () => {
@@ -61,6 +61,6 @@ describe('Leaderboard rivalry', () => {
     render(<Leaderboard user={user} />)
 
     expect(screen.queryByLabelText('Ближайший ориентир')).not.toBeInTheDocument()
-    expect(screen.getByText('Рейтинг · жим лёжа')).toBeInTheDocument()
+    expect(screen.getByText('Рейтинг · жим лежа')).toBeInTheDocument()
   })
 })

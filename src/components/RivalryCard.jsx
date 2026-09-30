@@ -25,7 +25,7 @@ function RivalRow({ row, place, isMe, avatarUrl }) {
   )
 }
 
-// Props-driven карточка: получает только уже разрешённые строки текущего борда.
+// Props-driven карточка: получает только уже разрешенные строки текущего борда.
 // При null не рисует заглушку — пустые/загрузочные состояния остаются едиными
 // с существующим лидербордом.
 export default function RivalryCard({ rivalry, avatarById = new Map() }) {

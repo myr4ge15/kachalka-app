@@ -35,7 +35,7 @@ describe('workoutsThisMonth', () => {
 })
 
 describe('personalRecords', () => {
-  it('жим лёжа сверху, далее весовые по убыванию, не-весовые в конце', () => {
+  it('жим лежа сверху, далее весовые по убыванию, не-весовые в конце', () => {
     const workouts = [
       wk('w1', '2026-01-01', [
         { exercise_id: 'bench', exercise: { id: 'bench', name: 'Жим', is_bench_lift: true }, sets: [{ weight: 90, reps: 1 }] },

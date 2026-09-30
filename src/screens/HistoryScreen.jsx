@@ -52,7 +52,7 @@ function useMediaQuery(query) {
 //   openNew            — одноразовый интент «открой сразу новую тренировку»
 //                        (плавающая «+» и кнопки Главной); гасится через
 //                        onOpenNewConsumed, чтобы не переоткрывать композер.
-//   onBusyChange(bool) — хаб ушёл в под-вид (композер/деталь/шаблоны) или включил
+//   onBusyChange(bool) — хаб ушел в под-вид (композер/деталь/шаблоны) или включил
 //                        режим выбора для экспорта: App прячет плавающую «+».
 //   openCalendar       — одноразовый интент «открой календарь» (v6.3.0): false —
 //                        нет; null — на сегодня; 'YYYY-MM-DD' — сразу этот день.
@@ -69,7 +69,7 @@ export default function HistoryScreen({
   const loading = workouts === undefined
   // useMemo, а не голое `workouts ?? []`: при загрузке (workouts===undefined) `?? []`
   // давал бы НОВЫЙ [] на каждый рендер → deps производных useMemo (groups/shown)
-  // менялись бы каждый раз и мемоизация не работала. Мемо-обёртка держит ссылку
+  // менялись бы каждый раз и мемоизация не работала. Мемо-обертка держит ссылку
   // стабильной (пустой массив един, пока workouts не приедет).
   const list = useMemo(() => workouts ?? [], [workouts])
 
@@ -90,7 +90,7 @@ export default function HistoryScreen({
   )
 
   // Режим экспорта: мультивыбор тренировок из списка → выгрузка в JSON. Общий хук
-  // с «Шаблонами» (useExportSelection). «Все» берёт отфильтрованный shown, выгрузка
+  // с «Шаблонами» (useExportSelection). «Все» берет отфильтрованный shown, выгрузка
   // — из полного list.
   const { selectMode, picked, toggleSelectMode, togglePick, pickAll, exportPicked } =
     useExportSelection(exportWorkouts)
@@ -116,10 +116,10 @@ export default function HistoryScreen({
   // Раньше он не делал ничего: человек, зашедший в композер с Главной, жал
   // «Тренировки» (ожидая попасть в список — там шаблоны и история) и оставался
   // на том же экране; единственным выходом была «Назад», которая по интуиции
-  // должна была вернуть на Главную. Теперь вкладка ведёт туда, куда написано.
-  // Данные при этом не теряются: черновик НОВОЙ тренировки живёт в хранилище
+  // должна была вернуть на Главную. Теперь вкладка ведет туда, куда написано.
+  // Данные при этом не теряются: черновик НОВОЙ тренировки живет в хранилище
   // черновика (lib/draftStore.js) и восстановится при повторном входе, а выход из правки
-  // существующей ведёт себя ровно как кнопка «← Назад» рядом.
+  // существующей ведет себя ровно как кнопка «← Назад» рядом.
   useEffect(() => onReselect((t) => {
     if (t !== 'history') return
     setSelected(null)
@@ -172,9 +172,9 @@ export default function HistoryScreen({
 
   // Вход в редактор/деталь и возврат к списку должны начинаться с верха страницы.
   // Скроллится не окно, а внешняя .content (overflow-y:auto, см. App.jsx/index.css);
-  // при смене под-вида внутри хаба её позиция не сбрасывалась — после «Сохранить»
+  // при смене под-вида внутри хаба ее позиция не сбрасывалась — после «Сохранить»
   // (кнопка внизу редактора) пользователь возвращался к списку, прокрученному вниз.
-  // На десктопе (master-detail) список остаётся на месте — прыжок к верху не нужен.
+  // На десктопе (master-detail) список остается на месте — прыжок к верху не нужен.
   useEffect(() => {
     if (!isDesktop) document.querySelector('.content')?.scrollTo({ top: 0 })
   }, [selected, isDesktop])
@@ -190,8 +190,8 @@ export default function HistoryScreen({
           <button className="back-btn" aria-label="Календарь тренировок" onClick={() => setCalendar({ date: null })}>
             <svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" strokeWidth="2"
               strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
-              <rect x="3.5" y="5" width="17" height="15.5" rx="3" /><path d="M3.5 10h17M8 3v4M16 3v4" />
-              <circle cx="12" cy="15" r="1.6" fill="currentColor" stroke="none" />
+              {/* Тот же значок, что у даты в карточке тренировки (DateField). */}
+              <rect x="3" y="5" width="18" height="16" rx="3" /><path d="M3 10h18M8 3v4M16 3v4" />
             </svg>
           </button>
         )}
@@ -235,8 +235,8 @@ export default function HistoryScreen({
         {loading && <CardsSkeleton cards={4} />}
 
         {/* Пустой список — единственный экран, где призыв к действию обязан быть
-            ЯВНЫМ: на мобиле вход в композер даёт только плавающая «+», и новичок
-            её не связывает с «записать тренировку». Кнопка ведёт туда же, что и
+            ЯВНЫМ: на мобиле вход в композер дает только плавающая «+», и новичок
+            ее не связывает с «записать тренировку». Кнопка ведет туда же, что и
             FAB, и на десктопе дублирует «+ Добавить тренировку» сверху — но там
             список пуст, лишней она не выглядит. */}
         {!loading && list.length === 0 && (
@@ -291,7 +291,7 @@ export default function HistoryScreen({
                 <div>
                   <div className="history-date">
                     {fmtCardDate(w.performed_at)}
-                    {unsynced && <span className="dot-unsynced" title="Ждёт синхронизации">●</span>}
+                    {unsynced && <span className="dot-unsynced" title="Ждет синхронизации">●</span>}
                   </div>
                   <div className="muted history-sub">
                     {exCount} упр. · {setCount} подх.
@@ -331,8 +331,8 @@ export default function HistoryScreen({
           )
         })}
 
-        {/* Экспорт уведён из верхнего слота под список, чтобы верх занимали фильтры.
-            Вне режима выбора — приглушённая ссылка внизу; в режиме выбора — фиксир.
+        {/* Экспорт уведен из верхнего слота под список, чтобы верх занимали фильтры.
+            Вне режима выбора — приглушенная ссылка внизу; в режиме выбора — фиксир.
             бар над таббаром (общий ExportBar). «Все» — по отфильтрованному shown. */}
         <ExportBar
           selectMode={selectMode}
@@ -402,7 +402,7 @@ export default function HistoryScreen({
                 <svg viewBox="0 0 24 24" width="30" height="30" fill="none" stroke="currentColor"
                   strokeWidth="2" strokeLinecap="round"><path d="M1.5 12h21" /><rect x="3" y="8.5" width="2.6" height="7" rx="1" fill="currentColor" stroke="none" /><rect x="6.4" y="6" width="3" height="12" rx="1.2" fill="currentColor" stroke="none" /><rect x="14.6" y="6" width="3" height="12" rx="1.2" fill="currentColor" stroke="none" /><rect x="18.4" y="8.5" width="2.6" height="7" rx="1" fill="currentColor" stroke="none" /></svg>
               </span>
-              <p>Выбери тренировку в списке, чтобы посмотреть и отредактировать её,
+              <p>Выбери тренировку в списке, чтобы посмотреть и отредактировать ее,
                  или начни новую кнопкой «+ Новая тренировка» слева.</p>
             </div>
           ) : (

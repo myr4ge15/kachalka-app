@@ -3,9 +3,9 @@
 // в Профиле). Чистая логика — в src/lib/backup.js, здесь только чтение Dexie и
 // запись через уже существующие точки входа.
 //
-// ИНВАРИАНТ СОБЛЮДЁН: сеть не трогаем. Восстановленные тренировки пишутся через
+// ИНВАРИАНТ СОБЛЮДЕН: сеть не трогаем. Восстановленные тренировки пишутся через
 // repo.saveWorkout — он же ставит upsert в `outbox`, и обычный синк отправит их
-// на сервер тем же путём, что и ручную запись. Цели уходят на сервер по _dirty.
+// на сервер тем же путем, что и ручную запись. Цели уходят на сервер по _dirty.
 // ============================================================================
 import { db, getMeta } from './local.js'
 import { getWorkouts, getBadges, writeBadges, saveWorkout, progKey, getRpe } from './repo.js'
@@ -13,7 +13,7 @@ import { writeSyncedMeta } from './userMeta.js'
 import { readGoals, writeGoals } from './notifications.js'
 import { downloadBackup, parseBackup, assertSameOwner, planImport } from '../lib/backup.js'
 
-// Собрать всё личное состояние и сразу скачать файлом.
+// Собрать все личное состояние и сразу скачать файлом.
 export async function exportAllMyData(userId, appVersion = 'dev') {
   const [workouts, goals, badges, prog, rpe, priv] = await Promise.all([
     getWorkouts(userId),
@@ -33,7 +33,7 @@ export async function importAllMyData(userId, text) {
   const snapshot = parseBackup(text)
   assertSameOwner(snapshot, userId)
 
-  // Справочник упражнений берём ЦЕЛИКОМ (включая is_hidden): в истории могут
+  // Справочник упражнений берем ЦЕЛИКОМ (включая is_hidden): в истории могут
   // лежать скрытые админкой упражнения, и для них полная форма тоже нужна.
   const [all, goals, badges, prog, rpe, exercises] = await Promise.all([
     db.workouts.toArray(),
@@ -46,7 +46,7 @@ export async function importAllMyData(userId, text) {
 
   const plan = planImport(snapshot, {
     // Занятыми считаем ВСЕ id, включая tombstone'ы: импорт не должен воскрешать
-    // удалённую тренировку (иначе «удалил → восстановил бэкап» вернёт её молча).
+    // удаленную тренировку (иначе «удалил → восстановил бэкап» вернет ее молча).
     workoutIds: new Set(all.map((w) => w.id)),
     goals,
     badges,

@@ -5,7 +5,7 @@ const wk = (day, entries) => ({ performed_at: day, entries })
 const ex = (id, name, extra = {}) => ({ id, name, ...extra })
 
 describe('collectExercises', () => {
-  it('собирает упражнения из истории, жим лёжа — первым, дальше по имени (ru)', () => {
+  it('собирает упражнения из истории, жим лежа — первым, дальше по имени (ru)', () => {
     const workouts = [
       wk('2026-01-01', [{ exercise: ex('a', 'Присед'), sets: [{ weight: 100, reps: 5 }] }]),
       wk('2026-01-02', [{ exercise: ex('b', 'Жим', { is_bench_lift: true }), sets: [{ weight: 80, reps: 5 }] }]),
@@ -39,7 +39,7 @@ describe('collectExercises', () => {
     expect(collectExercises(workouts)[0].metric).toBe('time')
   })
 
-  it('берёт id из exercise_id, если нет вложенного exercise', () => {
+  it('берет id из exercise_id, если нет вложенного exercise', () => {
     const workouts = [wk('2026-01-01', [{ exercise_id: 'x1', sets: [{ weight: 50, reps: 5 }] }])]
     const list = collectExercises(workouts)
     expect(list).toHaveLength(1)

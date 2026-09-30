@@ -5,7 +5,7 @@ import PersonalRecords from './PersonalRecords.jsx'
 import { fmtMetricValue } from '../lib/metric.js'
 
 const recs = () => [
-  { exId: 'e1', name: 'Жим лёжа', metric: 'weight', value: 100, isBench: true },
+  { exId: 'e1', name: 'Жим лежа', metric: 'weight', value: 100, isBench: true },
   { exId: 'e2', name: 'Присед', metric: 'weight', value: 140, isBench: false },
 ]
 
@@ -25,7 +25,7 @@ describe('PersonalRecords', () => {
 
   it('рендерит рекорды и форматирует значение по метрике', () => {
     const { container } = render(<PersonalRecords records={recs()} onOpenProgress={() => {}} />)
-    expect(screen.getByText('Жим лёжа')).toBeInTheDocument()
+    expect(screen.getByText('Жим лежа')).toBeInTheDocument()
     expect(screen.getByText('Присед')).toBeInTheDocument()
     expect(container.textContent).toContain(fmtMetricValue('weight', 100))
   })
@@ -43,7 +43,7 @@ describe('PersonalRecords', () => {
     expect(container.querySelector('.star')).toHaveTextContent('★')
   })
 
-  it('длинный список свёрнут до пяти записей и показывает общее число', () => {
+  it('длинный список свернут до пяти записей и показывает общее число', () => {
     render(<PersonalRecords records={manyRecs()} onOpenProgress={() => {}} />)
 
     expect(screen.getByLabelText('6 рекордов')).toBeInTheDocument()

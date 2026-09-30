@@ -146,14 +146,14 @@ describe('R2 обгон друга', () => {
   })
 
   it('равный вес соперника — ничья, а не обгон', () => {
-    // Мой новый жим 100 == вес Ивана 100: сравнялся, но не превзошёл.
+    // Мой новый жим 100 == вес Ивана 100: сравнялся, но не превзошел.
     const leaderboard = { male: [{ user_id: 'ivan', user_name: 'Иван', weight: 100 }], female: [] }
     const res = buildInsights({ workouts: list, leaderboard, userId: 'me', now: NOW })
     expect(res.find((i) => i.kind === 'overtook')).toBeFalsy()
   })
 })
 
-describe('R3 рекордный объём по группе', () => {
+describe('R3 рекордный объем по группе', () => {
   it('срабатывает, когда контекст побил прежний максимум группы', () => {
     const list = [
       wk({ id: 'big', at: daysAgo(0), entries: [{ exId: 'x', group: 'спина', sets: [S(100, 10)] }] }), // 1000
@@ -165,7 +165,7 @@ describe('R3 рекордный объём по группе', () => {
     expect(vol.text).toContain('спина')
   })
 
-  it('первая тренировка группы не даёт «рекордный объём»', () => {
+  it('первая тренировка группы не дает «рекордный объем»', () => {
     const list = [wk({ id: 'only', at: daysAgo(0), entries: [{ exId: 'x', group: 'спина', sets: [S(100, 10)] }] })]
     const res = buildInsights({ workouts: list, now: NOW })
     expect(res.find((i) => i.kind === 'volume')).toBeFalsy()
@@ -217,7 +217,7 @@ describe('R5 забытая мышца (подмышца)', () => {
     expect(n.text).not.toContain('Большая ягодичная не')
   })
 
-  it('всё свежее → правило молчит', () => {
+  it('все свежее → правило молчит', () => {
     const list = [wk({ id: 'a', at: daysAgo(1), entries: [{ exId: 'bp', group: 'грудь', sets: [S(80, 5)] }] })]
     const res = buildInsights({ workouts: list, now: NOW, max: 5 })
     expect(res.find((i) => i.kind === 'neglect')).toBeFalsy()

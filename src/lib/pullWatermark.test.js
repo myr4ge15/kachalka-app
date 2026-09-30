@@ -14,7 +14,7 @@ describe('maxUpdatedAt', () => {
     expect(maxUpdatedAt(null)).toBe(null)
     expect(maxUpdatedAt([{ id: 'a' }, { id: 'b' }])).toBe(null)
   })
-  it('игнорирует строки без updated_at, но берёт максимум из валидных', () => {
+  it('игнорирует строки без updated_at, но берет максимум из валидных', () => {
     expect(maxUpdatedAt([{ updated_at: T1 }, { id: 'x' }, { updated_at: T3 }])).toBe(T3)
   })
   it('различает микросекунды (лексикографически = хронологически)', () => {
@@ -57,7 +57,7 @@ describe('rosterSignature', () => {
   })
   it('меняется при удалении строки (id пропал), хотя max не вырос', () => {
     const before = rosterSignature([{ id: 'u1', updated_at: T3 }, { id: 'u2', updated_at: T1 }])
-    const after = rosterSignature([{ id: 'u1', updated_at: T3 }]) // u2 удалён, max тот же T3
+    const after = rosterSignature([{ id: 'u1', updated_at: T3 }]) // u2 удален, max тот же T3
     expect(before).not.toBe(after)
   })
   it('меняется при появлении новой строки', () => {

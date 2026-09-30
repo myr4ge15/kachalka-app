@@ -1,6 +1,6 @@
 // @vitest-environment jsdom
-// Админка, раздел «Пользователи»: форма правки участника зовёт RPC ТОЛЬКО по
-// изменённым полям. Регрессия 29.07.2026 — saveUser безусловно звал
+// Админка, раздел «Пользователи»: форма правки участника зовет RPC ТОЛЬКО по
+// измененным полям. Регрессия 29.07.2026 — saveUser безусловно звал
 // adminSetSex(id, edSex || null), и если серверный admin_list_users отдавал список
 // без колонки sex, любая правка имени физически стирала пол в БД.
 import { beforeEach, describe, expect, it, vi } from 'vitest'
@@ -48,7 +48,7 @@ beforeEach(() => {
 })
 
 describe('AdminScreen: правка участника', () => {
-  it('«Сохранить» без изменений не зовёт ни один RPC', async () => {
+  it('«Сохранить» без изменений не зовет ни один RPC', async () => {
     const user = userEvent.setup()
     const save = await openDimaEdit(user)
 
@@ -75,7 +75,7 @@ describe('AdminScreen: правка участника', () => {
     expect(adminSetSex).not.toHaveBeenCalled()
   })
 
-  it('смена только имени зовёт только adminSetUser', async () => {
+  it('смена только имени зовет только adminSetUser', async () => {
     const user = userEvent.setup()
     const save = await openDimaEdit(user)
 
@@ -88,7 +88,7 @@ describe('AdminScreen: правка участника', () => {
     expect(adminSetSex).not.toHaveBeenCalled()
   })
 
-  it('смена пола зовёт adminSetSex с новым значением', async () => {
+  it('смена пола зовет adminSetSex с новым значением', async () => {
     const user = userEvent.setup()
     const save = await openDimaEdit(user)
 
@@ -99,7 +99,7 @@ describe('AdminScreen: правка участника', () => {
     expect(adminSetUser).not.toHaveBeenCalled()
   })
 
-  it('сброс пола в «не задан» передаётся как null', async () => {
+  it('сброс пола в «не задан» передается как null', async () => {
     const user = userEvent.setup()
     const save = await openDimaEdit(user)
 

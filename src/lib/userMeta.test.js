@@ -14,7 +14,7 @@ describe('metaKeyFor / SYNCED_KINDS', () => {
 
   it('синкаем ровно пять родов ключей (accent — с v6.2.0, user-meta-accent.sql)', () => {
     // ⚠️ Тест-страховка к инварианту AGENTS.md: список обязан совпадать с белым
-    // списком в upsert_user_meta (supabase/user-meta.sql), иначе push упрётся в
+    // списком в upsert_user_meta (supabase/user-meta.sql), иначе push упрется в
     // `unknown user_meta key`. Меняешь здесь — меняй и там.
     expect(SYNCED_KINDS).toEqual(['badges', 'prog', 'notif_seen_at', 'rpe', 'accent'])
   })
@@ -46,7 +46,7 @@ describe('mergeMetaValue — rpe (оценки «как пошло»)', () => {
     const older = '2026-07-24T11:00:00.000Z'
     expect(merge(local, remote, NOW, older).w1.ex.bench).toBe('easy')
     expect(merge(local, remote, older, NOW).w1.ex.bench).toBe('hard')
-    // при равенстве времени остаётся локальное (как у LWW-родов)
+    // при равенстве времени остается локальное (как у LWW-родов)
     expect(merge(local, remote, NOW, NOW).w1.ex.bench).toBe('easy')
   })
 
@@ -71,7 +71,7 @@ describe('sameMetaValue', () => {
 describe('mergeMetaValue: notif_seen_at', () => {
   const merge = (local, remote) => mergeMetaValue({ kind: 'notif_seen_at', local, remote })
 
-  it('берёт максимум времени (метка «прочитано» не откатывается назад)', () => {
+  it('берет максимум времени (метка «прочитано» не откатывается назад)', () => {
     expect(merge('2026-07-01T00:00:00.000Z', '2026-07-10T00:00:00.000Z')).toBe('2026-07-10T00:00:00.000Z')
     expect(merge('2026-07-10T00:00:00.000Z', '2026-07-01T00:00:00.000Z')).toBe('2026-07-10T00:00:00.000Z')
   })
@@ -109,7 +109,7 @@ describe('mergeMetaValue: badges', () => {
     expect(out.first.backfilled).toBe(false)
   })
 
-  it('историческая с обеих сторон остаётся исторической', () => {
+  it('историческая с обеих сторон остается исторической', () => {
     const out = merge(
       { first: { at: '2026-01-01T00:00:00.000Z', backfilled: true } },
       { first: { at: '2026-01-02T00:00:00.000Z', backfilled: true } }
@@ -127,7 +127,7 @@ describe('mergeMetaValue: prog (last-write-wins)', () => {
     expect(mergeMetaValue({ kind: 'prog', local, remote, localAt: '2026-07-03', remoteAt: '2026-07-02' })).toBe(local)
   })
 
-  it('при равных отметках оставляем локальное (не дёргаем экран зря)', () => {
+  it('при равных отметках оставляем локальное (не дергаем экран зря)', () => {
     expect(mergeMetaValue({ kind: 'prog', local, remote, localAt: '2026-07-02', remoteAt: '2026-07-02' })).toBe(local)
   })
 })
@@ -167,7 +167,7 @@ describe('planMetaSync', () => {
     expect(p).toMatchObject({ value: '2026-07-20T00:00:00.000Z', write: false, dirty: 1, at: NOW })
   })
 
-  it('слияние бейджей дало третье состояние → и пишем локально, и шлём на сервер', () => {
+  it('слияние бейджей дало третье состояние → и пишем локально, и шлем на сервер', () => {
     const p = planMetaSync({
       kind: 'badges',
       local: { first: { at: '2026-01-01T00:00:00.000Z' } },

@@ -96,7 +96,7 @@ function workoutRow(id, userId) {
       exercise_id: 'ex1',
       exercise: {
         id: 'ex1',
-        name: 'Жим лёжа',
+        name: 'Жим лежа',
         muscle_group: 'грудь',
         metric: 'weight',
       },
@@ -230,13 +230,13 @@ describe('pullGoal', () => {
     })
   })
 
-  it('не затирает цель, сохранённую пока шёл запрос к серверу', async () => {
+  it('не затирает цель, сохраненную пока шел запрос к серверу', async () => {
     const fresh = { exerciseId: 'ex2', exerciseName: 'Присед', metric: 'weight', targetWeight: 140, achievedAt: null, _dirty: 1 }
     server.from = async (call) => {
       if (call.table !== 'goals') return defaultResponse(call)
       // человек сохранил новую цель, пока ответ был в пути
       await writeGoals(userId, [fresh], db)
-      // на сервере — другой список (без новой цели): его запись стёрла бы её
+      // на сервере — другой список (без новой цели): его запись стерла бы ее
       return { data: [{ exercise_id: 'ex1', target_weight: 100, metric: 'weight', achieved_at: null }], error: null }
     }
 
@@ -277,7 +277,7 @@ describe('pull справочника упражнений', () => {
     expect(await db.ex_outbox.count()).toBe(1)
   })
 
-  it('без живой операции (dead-letter) берёт серверную версию и чистит очередь', async () => {
+  it('без живой операции (dead-letter) берет серверную версию и чистит очередь', async () => {
     await db.exercises.put({ id: 'ex1', name: 'Тяга блока', _dirty: 1 })
     await db.ex_outbox.add({ exerciseId: 'ex1', createdAt: T3, _dead: 1 })
     server.from = exercisesServer([{ id: 'ex1', name: 'Тяга', updated_at: T2 }])
@@ -343,7 +343,7 @@ describe('pullRoster', () => {
   ]
   const FULL = 'id, name, avatar_url, sort_order, sex'
 
-  // Проба видит две учётки; полная выборка отдаёт их с полом.
+  // Проба видит две учетки; полная выборка отдает их с полом.
   function serveRoster(rows = ROSTER) {
     server.from = (call) => {
       if (call.table === 'login_users' && call.select === 'id, updated_at') {
@@ -361,7 +361,7 @@ describe('pullRoster', () => {
     await loginDb.meta.clear()
   })
 
-  it('первый прогон: пишет ростер и кладёт сигнатуру в login-meta, а не в персональную', async () => {
+  it('первый прогон: пишет ростер и кладет сигнатуру в login-meta, а не в персональную', async () => {
     serveRoster()
     await pull(userId, new Set(), db)
 
@@ -370,7 +370,7 @@ describe('pullRoster', () => {
     expect(await getMeta('sig_login_users', db)).toBeUndefined()
   })
 
-  it('проба не изменилась → тяжёлой выборки больше нет', async () => {
+  it('проба не изменилась → тяжелой выборки больше нет', async () => {
     serveRoster()
     await pull(userId, new Set(), db)
     expect(fullFetches()).toBe(1)
@@ -381,8 +381,8 @@ describe('pullRoster', () => {
   })
 
   it('испорченный кэш лечится сам: старая сигнатура в персональной базе не мешает refetch', async () => {
-    // Состояние клиента ДО обновления: экран входа стёр sex, а сигнатура прошлого
-    // прогона осталась в персональной meta — из-за неё refetch не наступал никогда.
+    // Состояние клиента ДО обновления: экран входа стер sex, а сигнатура прошлого
+    // прогона осталась в персональной meta — из-за нее refetch не наступал никогда.
     serveRoster()
     await loginDb.users.bulkPut([{ id: 'r1', name: 'Дима' }, { id: 'r2', name: 'Оля' }])
     await setMeta('sig_login_users', JSON.stringify([['r1', 'r2'], T2]), db)
@@ -393,7 +393,7 @@ describe('pullRoster', () => {
     expect((await loginDb.users.get('r2')).sex).toBe('f')
   })
 
-  it('проба изменилась (новая учётка) → полный refetch', async () => {
+  it('проба изменилась (новая учетка) → полный refetch', async () => {
     serveRoster()
     await pull(userId, new Set(), db)
     server.calls.length = 0

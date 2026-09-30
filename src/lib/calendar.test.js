@@ -21,7 +21,7 @@ describe('calendar', () => {
     expect(monthOf('2026-09-01')).toEqual({ year: 2026, month: 8 })
     expect(localYmd('2026-09-01')).toBe('2026-09-01')
   })
-  it('тренировки по локальным дням и счёт за месяц', () => {
+  it('тренировки по локальным дням и счет за месяц', () => {
     const w = [
       { id: 'a', performed_at: new Date(2026, 8, 29, 23, 30).toISOString() },
       { id: 'b', performed_at: new Date(2026, 8, 29, 8).toISOString() },

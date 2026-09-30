@@ -6,7 +6,7 @@ import { useState } from 'react'
 //
 // exportFn(chosen, appVersion) — конкретная выгрузка (exportWorkouts/exportTemplates).
 // pickAll(items)/exportPicked(items) принимают актуальный список ЯВНО: у Истории
-// «Все» берёт отфильтрованный список (shown), а выгрузка — из полного (list).
+// «Все» берет отфильтрованный список (shown), а выгрузка — из полного (list).
 export function useExportSelection(exportFn) {
   const [selectMode, setSelectMode] = useState(false)
   const [picked, setPicked] = useState(() => new Set())

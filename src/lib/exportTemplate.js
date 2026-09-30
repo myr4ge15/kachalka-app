@@ -1,7 +1,7 @@
 // ============================================================================
 // Экспорт шаблонов тренировок в JSON — по образцу exportWorkout.js. Чистые
 // функции (cleanTemplateForExport/buildTemplatesExport/templatesExportFilename)
-// — без DOM, тестируются в node; exportTemplates — браузерная обёртка
+// — без DOM, тестируются в node; exportTemplates — браузерная обертка
 // (переиспользует downloadJson из exportWorkout.js).
 //
 // Снимок «человекочитаемый», без служебных полей синка (_dirty/user_id/
@@ -70,7 +70,7 @@ export function templatesExportFilename(templates, now = new Date()) {
   return list.length === 1 ? `template-${day}.json` : `templates-${list.length}-${day}.json`
 }
 
-// Удобная обёртка: собрать снимок и сразу скачать (один шаблон или массив).
+// Удобная обертка: собрать снимок и сразу скачать (один шаблон или массив).
 export function exportTemplates(templates, appVersion = 'dev', now = new Date()) {
   const list = Array.isArray(templates) ? templates : [templates]
   if (list.length === 0) return

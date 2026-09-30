@@ -12,15 +12,15 @@ const srv = vi.hoisted(() => ({
     exercises: [],
     loginUsers: [],
     workoutsMain: [], // ответ основного оконного запроса тренировок (SELECT_WORKOUT)
-    workoutIds: [],   // ответ дешёвого select('id') для реконсиляции удалений
+    workoutIds: [],   // ответ дешевого select('id') для реконсиляции удалений
     upsertWorkout: () => ({ error: null }), // (args) => {error}
     deleteWorkout: () => ({ error: null }),
-    exFullFetches: 0, // сколько раз дёрнут ПОЛНЫЙ select справочника (не проба updated_at)
+    exFullFetches: 0, // сколько раз дернут ПОЛНЫЙ select справочника (не проба updated_at)
   },
 }))
 
 // Замоканный Supabase: цепочки-билдеры «thenable», ответ выбирается по таблице/
-// select/eq. Покрывает только то, что дёргает syncNow в тестируемых сценариях.
+// select/eq. Покрывает только то, что дергает syncNow в тестируемых сценариях.
 vi.mock('./supabase.js', () => {
   const { state } = srv
   function resolveFrom(b) {
@@ -40,7 +40,7 @@ vi.mock('./supabase.js', () => {
       if (b._delete) return state.deleteWorkout(b)
       if (b._select === 'id') return { data: state.workoutIds.map((id) => ({ id })), error: null }
       if (b._eqUser) {
-        // инкрементально: если задан .gt('updated_at', wm) — отдаём только дельту
+        // инкрементально: если задан .gt('updated_at', wm) — отдаем только дельту
         let rows = state.workoutsMain
         if (b._gtUpdated) rows = rows.filter((r) => r.updated_at > b._gtUpdated)
         return { data: rows, error: null }
@@ -89,7 +89,7 @@ import { saveWorkout } from './repo.js'
 import { syncNow, runOutbox } from './sync.js'
 import { uniqueUserId } from '../test/idbHarness.js'
 
-const bench = { id: 'ex_bench', name: 'Жим лёжа', muscle_group: 'грудь', is_bench_lift: true, metric: 'weight' }
+const bench = { id: 'ex_bench', name: 'Жим лежа', muscle_group: 'грудь', is_bench_lift: true, metric: 'weight' }
 
 // server row в форме SELECT_WORKOUT (для rowToDoc в pull).
 function serverRow({ id, user_id, performed_at = '2026-01-10', updated_at, weight = 100, reps = 5 }) {
@@ -147,7 +147,7 @@ describe('push: слив очереди outbox', () => {
     expect(doc._base_updated_at).toBe(null)
   })
 
-  it('dead-letter: после MAX_ATTEMPTS ошибок upsert операция помечается _dead, документ остаётся _dirty', async () => {
+  it('dead-letter: после MAX_ATTEMPTS ошибок upsert операция помечается _dead, документ остается _dirty', async () => {
     srv.state.upsertWorkout = () => ({ error: { message: 'boom' } })
     const id = await saveWorkout({ user_id: userId, performed_at: '2026-01-10', entries: [{ exercise: bench, sets: [{ weight: 100, reps: 5 }] }] })
     for (let i = 0; i < 5; i++) await syncNow(userId) // MAX_ATTEMPTS = 5
@@ -155,13 +155,13 @@ describe('push: слив очереди outbox', () => {
     expect(op._dead).toBe(1)
     expect(op.attempts).toBe(5)
     const doc = await db.workouts.get(id)
-    expect(doc._dirty).toBe(1) // правка не потеряна, ждёт разбора
+    expect(doc._dirty).toBe(1) // правка не потеряна, ждет разбора
   })
 })
 
 describe('pull: merge-часы', () => {
   it('take-server: чистую локальную запись перезаписывает более свежая серверная', async () => {
-    // чистый локальный документ (пришёл ранее pull'ом)
+    // чистый локальный документ (пришел ранее pull'ом)
     await db.workouts.put({
       id: 'w1', user_id: userId, performed_at: '2026-01-10',
       created_at: '2026-01-10', updated_at: '2026-01-10T00:00:00.000Z', _base_updated_at: null,
@@ -176,7 +176,7 @@ describe('pull: merge-часы', () => {
   })
 
   it('keep-local: грязную локальную правку (сервер не новее базиса) pull не трогает', async () => {
-    // грязный документ БЕЗ операции в очереди (push ничего не шлёт) — базис = серверный updated_at
+    // грязный документ БЕЗ операции в очереди (push ничего не шлет) — базис = серверный updated_at
     await db.workouts.put({
       id: 'w2', user_id: userId, performed_at: '2026-01-10',
       created_at: '2026-01-10', updated_at: '2026-01-15T00:00:00.000Z',
@@ -213,9 +213,9 @@ describe('pull: merge-часы', () => {
     expect(log.value[0]).toMatchObject({ id: 'cf1', winner: 'server' })
   })
 
-  it('conflict (локальная позже): наша более поздняя правка выживает, но конфликт всё равно виден в журнале', async () => {
-    // Базис T1, сервер уехал до T2 (> базиса → конфликт), но наша версия T3 ещё позже
-    // → выживает локальная, push довезёт; факт расхождения логируется.
+  it('conflict (локальная позже): наша более поздняя правка выживает, но конфликт все равно виден в журнале', async () => {
+    // Базис T1, сервер уехал до T2 (> базиса → конфликт), но наша версия T3 еще позже
+    // → выживает локальная, push довезет; факт расхождения логируется.
     await db.workouts.put({
       id: 'cf2', user_id: userId, performed_at: '2026-01-10',
       created_at: '2026-01-10', updated_at: '2026-03-01T00:00:00.000Z',
@@ -228,7 +228,7 @@ describe('pull: merge-часы', () => {
     await syncNow(userId)
     const doc = await db.workouts.get('cf2')
     expect(doc.entries[0].sets[0].weight).toBe(200) // локальная правка сохранена
-    expect(doc._dirty).toBe(1)                      // ждёт push
+    expect(doc._dirty).toBe(1)                      // ждет push
     const log = await db.meta.get('merge_conflicts')
     expect(log.value[0]).toMatchObject({ id: 'cf2', winner: 'local' })
   })
@@ -240,13 +240,13 @@ describe('pull: merge-часы', () => {
       entries: [{ exercise_id: bench.id, exercise: bench, sets: [{ weight: 100, reps: 5 }] }],
       _dirty: 0, _deleted: 0,
     })
-    srv.state.workoutsMain = [] // сервер записи не отдаёт
-    srv.state.workoutIds = []   // и её нет в полном списке id → удалена
+    srv.state.workoutsMain = [] // сервер записи не отдает
+    srv.state.workoutIds = []   // и ее нет в полном списке id → удалена
     // Слайс 1 (v4.0.2): удаляем только после ДВУХ подряд отсутствий id — защита
     // чужой чистой записи от лага read-replica. Первый прогон лишь помечает
-    // кандидата (запись остаётся), второй подтверждает и удаляет.
+    // кандидата (запись остается), второй подтверждает и удаляет.
     await syncNow(userId)
-    expect(await db.workouts.get('gone')).toBeTruthy() // 1-й прогон: кандидат, ещё жива
+    expect(await db.workouts.get('gone')).toBeTruthy() // 1-й прогон: кандидат, еще жива
     await syncNow(userId)
     expect(await db.workouts.get('gone')).toBeUndefined() // 2-й прогон: удалена
   })
@@ -295,7 +295,7 @@ describe('pull: инкрементальный watermark', () => {
     expect((await db.workouts.get('w1')).entries[0].sets[0].weight).toBe(100)
 
     // сервер «изменил» контент, но updated_at НЕ вырос (== T1) → дельта пуста →
-    // локальная версия остаётся прежней (инкрементальный фильтр .gt отсёк строку)
+    // локальная версия остается прежней (инкрементальный фильтр .gt отсек строку)
     srv.state.workoutsMain = [serverRow({ id: 'w1', user_id: userId, updated_at: T1, weight: 999 })]
     await syncNow(userId)
     expect((await db.workouts.get('w1')).entries[0].sets[0].weight).toBe(100)
@@ -311,7 +311,7 @@ describe('pull: инкрементальный watermark', () => {
     srv.state.workoutIds = ['w1']
     await syncNow(userId)
 
-    // добавилась w2@T2; w1 остаётся @T1 (не в дельте > T1)
+    // добавилась w2@T2; w1 остается @T1 (не в дельте > T1)
     srv.state.workoutsMain = [
       serverRow({ id: 'w1', user_id: userId, updated_at: T1, weight: 100 }),
       serverRow({ id: 'w2', user_id: userId, updated_at: T2, weight: 80 }),
@@ -356,7 +356,7 @@ describe('runOutbox (дедуп push-циклов)', () => {
     const seen = []
     await runOutbox(t, async (op) => { seen.push(op.seq); await t.delete(op.seq) })
     expect(seen).toEqual([1, 2, 3]) // по возрастанию seq
-    expect(t.size).toBe(0)         // всё слито
+    expect(t.size).toBe(0)         // все слито
   })
 
   it('deadLetter: первая ошибка (не достигнут MAX) растит attempts и БРОСАЕТ (стоп очереди)', async () => {

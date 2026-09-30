@@ -2,9 +2,9 @@
 //
 // Первый компонентный тест (RTL) — заодно доказательство, что jsdom-слой Vitest
 // поднят. ExerciseCard чисто презентационная: весь стейт/апдейтеры живут в
-// WorkoutScreen и приходят колбэками, поэтому её можно рендерить без Dexie/сети.
+// WorkoutScreen и приходят колбэками, поэтому ее можно рендерить без Dexie/сети.
 // Смысл сетки — зафиксировать поведение перед разбивкой WorkoutScreen (техдолг):
-// какие клики какой колбэк с каким индексом дёргают, что скрывается для метрик
+// какие клики какой колбэк с каким индексом дергают, что скрывается для метрик
 // без веса, как показывается панель автопрогрессии .ap (полная/muted).
 //
 // Осознанно НЕ проверяем степперы веса/повторов: их кнопки — HoldButton на
@@ -15,7 +15,7 @@ import { render, screen, fireEvent } from '@testing-library/react'
 import ExerciseCard from './ExerciseCard.jsx'
 
 const weightEntry = () => ({
-  exercise: { id: 'e1', name: 'Жим лёжа', metric: 'weight' },
+  exercise: { id: 'e1', name: 'Жим лежа', metric: 'weight' },
   sets: [
     { weight: 60, reps: 10, _k: 'a' },
     { weight: 60, reps: 9, _k: 'b' },
@@ -67,7 +67,7 @@ function renderCard(entry, cbOver = {}, propOver = {}) {
 describe('ExerciseCard — рендер', () => {
   it('показывает имя упражнения и по строке на каждый подход', () => {
     const { container } = renderCard(weightEntry())
-    expect(screen.getByText('Жим лёжа')).toBeInTheDocument()
+    expect(screen.getByText('Жим лежа')).toBeInTheDocument()
     expect(container.querySelectorAll('.set-row')).toHaveLength(2)
   })
 
@@ -92,18 +92,18 @@ describe('ExerciseCard — рендер', () => {
     expect(screen.getByText('2 подхода · 60×10 · 60×9')).toBeInTheDocument()
     expect(screen.queryByText(/заполнено|готово/i)).not.toBeInTheDocument()
 
-    fireEvent.click(screen.getByRole('button', { name: /Открыть Жим лёжа/ }))
+    fireEvent.click(screen.getByRole('button', { name: /Открыть Жим лежа/ }))
     expect(cbs.onActivate).toHaveBeenCalledWith('e1')
   })
 
   it('компактная карточка без подходов прямо говорит, что не сохранится', () => {
-    renderCard({ exercise: { id: 'e1', name: 'Жим лёжа', metric: 'weight' }, sets: [] }, {}, { active: false })
+    renderCard({ exercise: { id: 'e1', name: 'Жим лежа', metric: 'weight' }, sets: [] }, {}, { active: false })
     expect(screen.getByText('подходов нет — не сохранится')).toBeInTheDocument()
   })
 
   it('схлопывает одинаковые подходы, чтобы типовая сводка осталась короткой', () => {
     const same = {
-      exercise: { id: 'e1', name: 'Жим лёжа', metric: 'weight' },
+      exercise: { id: 'e1', name: 'Жим лежа', metric: 'weight' },
       sets: [
         { weight: 60, reps: 10, _k: 'a' },
         { weight: 60, reps: 10, _k: 'b' },
@@ -148,7 +148,7 @@ describe('ExerciseCard — колбэки шапки/подходов перед
     expect(cbs.onRemove).toHaveBeenCalledWith(0)
   })
 
-  // Запрос намеренно точный: с отметками выполнения (Slice 2) в карточке есть ещё
+  // Запрос намеренно точный: с отметками выполнения (Slice 2) в карточке есть еще
   // кнопки «Отметить подход N выполненным», и широкое /подход/ стало неоднозначным.
   it('«+ подход» → onAddSet(ei)', () => {
     const { cbs } = renderCard(weightEntry())
@@ -182,14 +182,14 @@ describe('ExerciseCard — панель автопрогрессии', () => {
     expect(cbs.onApplyProg).toHaveBeenCalledWith(0)
   })
 
-  it('applied=true → показывает откат и зовёт onRevertProg', () => {
+  it('applied=true → показывает откат и зовет onRevertProg', () => {
     const entry = { ...weightEntry(), prog: prog({ applied: true }) }
     const { cbs } = renderCard(entry)
     fireEvent.click(screen.getByText('вернуть как в прошлый раз'))
     expect(cbs.onRevertProg).toHaveBeenCalledWith(0)
   })
 
-  it('muted (стратегия off): компактная строка + шестерёнка зовёт onToggleProgSettings', () => {
+  it('muted (стратегия off): компактная строка + шестеренка зовет onToggleProgSettings', () => {
     const entry = { ...weightEntry(), prog: prog({ muted: true, strategy: 'off' }) }
     const { cbs } = renderCard(entry)
     expect(screen.getByText(/Прогрессия:/)).toBeInTheDocument()
@@ -208,7 +208,7 @@ describe('ExerciseCard — оценка «Как пошло?» (RPE)', () => {
     }
   })
 
-  it('тап отдаёт id упражнения и значение шкалы', () => {
+  it('тап отдает id упражнения и значение шкалы', () => {
     const { cbs } = renderCard(weightEntry())
     fireEvent.click(screen.getByRole('button', { name: 'тяжело' }))
     expect(cbs.onSetFeel).toHaveBeenCalledWith('e1', 'hard')
@@ -228,13 +228,13 @@ describe('ExerciseCard — оценка «Как пошло?» (RPE)', () => {
     expect(screen.getByRole('button', { name: 'нормально' })).toBeInTheDocument()
   })
 
-  it('свёрнутая карточка оценку не показывает — она часть развёрнутой работы', () => {
+  it('свернутая карточка оценку не показывает — она часть развернутой работы', () => {
     renderCard(weightEntry(), {}, { active: false })
     expect(screen.queryByText('Как пошло?')).not.toBeInTheDocument()
   })
 
   it('группа подписана именем упражнения — в тренировке таких строк несколько', () => {
     renderCard(weightEntry())
-    expect(screen.getByRole('group', { name: 'Как пошло: Жим лёжа' })).toBeInTheDocument()
+    expect(screen.getByRole('group', { name: 'Как пошло: Жим лежа' })).toBeInTheDocument()
   })
 })

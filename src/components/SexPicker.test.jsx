@@ -4,7 +4,7 @@ import { fireEvent, render, screen } from '@testing-library/react'
 import SexPicker from './SexPicker.jsx'
 
 describe('SexPicker', () => {
-  it('отмечает текущее значение и отдаёт новое', () => {
+  it('отмечает текущее значение и отдает новое', () => {
     const onChange = vi.fn()
     render(<SexPicker value="f" onChange={onChange} />)
     expect(screen.getByRole('radio', { name: 'Женский' })).toHaveAttribute('aria-checked', 'true')

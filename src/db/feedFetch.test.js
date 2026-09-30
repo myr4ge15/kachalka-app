@@ -77,7 +77,7 @@ describe('fetchFeed — запись кэша только при изменен
     expect((await db.feed.get('w1')).reactions).toHaveLength(2)
   })
 
-  it('под сессией другой учётки ленту не трогает', async () => {
+  it('под сессией другой учетки ленту не трогает', async () => {
     server.session = 'someone-else'
 
     await fetchFeed(userId, db)

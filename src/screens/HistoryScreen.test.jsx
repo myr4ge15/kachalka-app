@@ -20,7 +20,7 @@ vi.mock('./WorkoutScreen.jsx', () => ({
           kind: 'pr',
           emoji: '🏆',
           title: 'Новый рекорд!',
-          text: 'Жим лёжа — 80 кг (было 75 кг)',
+          text: 'Жим лежа — 80 кг (было 75 кг)',
           exerciseId: 'bench',
         }],
       })}>
@@ -41,7 +41,7 @@ const workout = {
   performed_at: '2026-07-29T10:00:00Z',
   entries: [{
     exercise_id: 'bench',
-    exercise: { id: 'bench', name: 'Жим лёжа', metric: 'weight', muscle_group: 'грудь' },
+    exercise: { id: 'bench', name: 'Жим лежа', metric: 'weight', muscle_group: 'грудь' },
     sets: [{ weight: 80, reps: 6 }],
   }],
 }
@@ -61,7 +61,7 @@ describe('HistoryScreen', () => {
 
   it('на мобильном открывает выбранную тренировку вместо списка', () => {
     render(<HistoryScreen user={user} />)
-    fireEvent.click(screen.getByText('Жим лёжа').closest('button'))
+    fireEvent.click(screen.getByText('Жим лежа').closest('button'))
     expect(screen.getByTestId('workout-screen')).toHaveTextContent('w1')
     expect(screen.queryByText('Мои тренировки')).not.toBeInTheDocument()
   })
@@ -102,7 +102,7 @@ describe('HistoryScreen', () => {
 
   // Отзыв тестировщицы: из композера тап по УЖЕ активной вкладке «Тренировки»
   // не делал ничего, и добраться до списка (а значит, до шаблонов) можно было
-  // только кнопкой «Назад», которая по интуиции ведёт на предыдущий экран.
+  // только кнопкой «Назад», которая по интуиции ведет на предыдущий экран.
   it('повторный тап по активной вкладке возвращает из композера к списку', async () => {
     render(<HistoryScreen user={user} openNew />)
     expect(screen.getByTestId('workout-screen')).toBeInTheDocument()
@@ -119,7 +119,7 @@ describe('HistoryScreen', () => {
     await waitFor(() => expect(screen.getByTestId('workout-screen')).toBeInTheDocument())
   })
 
-  it('пустой список зовёт записать тренировку', () => {
+  it('пустой список зовет записать тренировку', () => {
     vi.mocked(useLiveQuery).mockReturnValue([])
     render(<HistoryScreen user={user} />)
 
@@ -139,7 +139,7 @@ describe('HistoryScreen', () => {
     expect(screen.queryByRole('dialog', { name: 'Тренировка готова' })).not.toBeInTheDocument()
   })
 
-  it('создаёт приватный шаблон из сохранённой тренировки прямо в итоге', async () => {
+  it('создает приватный шаблон из сохраненной тренировки прямо в итоге', async () => {
     render(<HistoryScreen user={user} openNew />)
     fireEvent.click(screen.getByRole('button', { name: 'Сохранить тестовую' }))
 
@@ -175,7 +175,7 @@ describe('HistoryScreen', () => {
     expect(dialog).toHaveTextContent('Июль 2026')
     expect(dialog).toHaveTextContent('1 тренировка')
     expect(screen.getByRole('button', { name: '29, 1 тренировка' })).toHaveAttribute('aria-pressed', 'true')
-    expect(dialog).toHaveTextContent('Жим лёжа')
+    expect(dialog).toHaveTextContent('Жим лежа')
     expect(dialog).toHaveTextContent('80')
     fireEvent.click(screen.getByRole('button', { name: 'Открыть тренировку' }))
     expect(screen.queryByRole('dialog')).not.toBeInTheDocument()

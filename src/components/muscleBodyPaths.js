@@ -3,7 +3,7 @@
 // Источник: react-native-body-highlighter (MIT, (c) 2022 ELABBASSI Hicham)
 // https://github.com/HichamELBSI/react-native-body-highlighter — контур тела,
 // мышечные зоны и нейтральные части (голова/волосы/шея/кисти/стопы). У некоторых
-// частей геометрия в path.common (голова/волосы), поэтому берём common+left+right.
+// частей геометрия в path.common (голова/волосы), поэтому берем common+left+right.
 // Данные, не логика. viewBox: спереди 0 0 724 1448, сзади 724 0 724 1448.
 // ============================================================================
 export const BODY_OUTLINE = {

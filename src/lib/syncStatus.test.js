@@ -11,7 +11,7 @@ describe('syncBadgeState', () => {
     })
   })
 
-  it('офлайн с очередью показывает счётчик', () => {
+  it('офлайн с очередью показывает счетчик', () => {
     expect(syncBadgeState({ online: false, syncing: false, pending: 3 })).toEqual({
       cls: 'offline',
       icon: 'offline',
@@ -20,7 +20,7 @@ describe('syncBadgeState', () => {
     })
   })
 
-  it('идёт синхронизация — крутящийся кружок, приоритетнее очереди', () => {
+  it('идет синхронизация — крутящийся кружок, приоритетнее очереди', () => {
     expect(syncBadgeState({ online: true, syncing: true, pending: 2 })).toEqual({
       cls: 'busy',
       icon: 'syncing',
@@ -38,7 +38,7 @@ describe('syncBadgeState', () => {
     })
   })
 
-  it('всё отправлено — только галочка, без текста', () => {
+  it('все отправлено — только галочка, без текста', () => {
     expect(syncBadgeState({ online: true, syncing: false, pending: 0, dead: 0 })).toEqual({
       cls: 'ok',
       icon: 'ok',
@@ -48,7 +48,7 @@ describe('syncBadgeState', () => {
   })
 
   // Ключевой регресс-кейс: dead-letter не должен выглядеть как «синхронизировано»,
-  // пока на карточках висят жёлтые кружки (_dirty). Ждём предупреждающий бейдж.
+  // пока на карточках висят желтые кружки (_dirty). Ждем предупреждающий бейдж.
   it('застрявшие изменения (dead-letter) — предупреждение, а не «синхронизировано»', () => {
     expect(syncBadgeState({ online: true, syncing: false, pending: 0, dead: 2 })).toEqual({
       cls: 'warn',
@@ -67,8 +67,8 @@ describe('syncBadgeState', () => {
     })
   })
 
-  // Регресс-кейс авиарежима: navigator.onLine остаётся true, запрос падает по таймауту,
-  // очередь пуста → раньше показывалась зелёная галочка «Синхронизировано». Ждём
+  // Регресс-кейс авиарежима: navigator.onLine остается true, запрос падает по таймауту,
+  // очередь пуста → раньше показывалась зеленая галочка «Синхронизировано». Ждем
   // предупреждение, а не «ок».
   it('сетевой сбой последнего прогона — розовое облако (нет связи), а не «синхронизировано»', () => {
     expect(syncBadgeState({ online: true, syncing: false, pending: 0, dead: 0, netError: true })).toEqual({
@@ -79,7 +79,7 @@ describe('syncBadgeState', () => {
     })
   })
 
-  it('идёт синхронизация приоритетнее сетевого сбоя', () => {
+  it('идет синхронизация приоритетнее сетевого сбоя', () => {
     expect(syncBadgeState({ online: true, syncing: true, netError: true })).toEqual({
       cls: 'busy',
       icon: 'syncing',

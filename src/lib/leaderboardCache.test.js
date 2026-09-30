@@ -4,13 +4,13 @@ import { LEADERBOARD_TTL_MS, shouldRefetchLeaderboard } from './leaderboardCache
 describe('shouldRefetchLeaderboard', () => {
   const now = Date.parse('2026-07-08T12:00:00.000Z')
 
-  it('снимка ещё не было → идём на сервер', () => {
+  it('снимка еще не было → идем на сервер', () => {
     expect(shouldRefetchLeaderboard(null, now)).toBe(true)
     expect(shouldRefetchLeaderboard(undefined, now)).toBe(true)
     expect(shouldRefetchLeaderboard('', now)).toBe(true)
   })
 
-  it('битая метка времени → идём на сервер (не залипаем на кэше)', () => {
+  it('битая метка времени → идем на сервер (не залипаем на кэше)', () => {
     expect(shouldRefetchLeaderboard('не-дата', now)).toBe(true)
   })
 
@@ -19,12 +19,12 @@ describe('shouldRefetchLeaderboard', () => {
     expect(shouldRefetchLeaderboard(recent, now)).toBe(false)
   })
 
-  it('снимок старше TTL → идём на сервер', () => {
+  it('снимок старше TTL → идем на сервер', () => {
     const stale = new Date(now - LEADERBOARD_TTL_MS - 1).toISOString()
     expect(shouldRefetchLeaderboard(stale, now)).toBe(true)
   })
 
-  it('ровно на границе TTL → идём на сервер', () => {
+  it('ровно на границе TTL → идем на сервер', () => {
     const edge = new Date(now - LEADERBOARD_TTL_MS).toISOString()
     expect(shouldRefetchLeaderboard(edge, now)).toBe(true)
   })

@@ -2,7 +2,7 @@ import { useState, useEffect, useRef } from 'react'
 import { supabase } from '../db/supabase.js'
 import { getUsers, cacheUsers } from '../db/repo.js'
 import { migrateLoginZone } from '../db/local.js'
-import { login as authLogin, verifyPinOffline, dropForeignSession, LoginError } from '../lib/auth.js'
+import { login as authLogin, verifyPinOffline, dropForeignSession, noteLoginFailure, LoginError } from '../lib/auth.js'
 import { withTimeout } from '../lib/withTimeout.js'
 import BackButton from '../components/BackButton.jsx'
 
@@ -13,15 +13,15 @@ export default function LoginScreen({ onLogin }) {
   const [error, setError] = useState('')
   const [loading, setLoading] = useState(true)
   const [busy, setBusy] = useState(false)
-  // Синхронный замок «попытка в полёте»: setBusy(true) применяется асинхронно,
+  // Синхронный замок «попытка в полете»: setBusy(true) применяется асинхронно,
   // поэтому гонка backspace+перенабор до 4 цифр могла вызвать submit() дважды до
-  // ре-рендера (лишняя попытка → инфляция серверного счётчика блокировки). Ref
+  // ре-рендера (лишняя попытка → инфляция серверного счетчика блокировки). Ref
   // меняется синхронно и не зависит от тайминга коммита состояния.
   const inFlight = useRef(false)
 
   // Имена для пикера: сначала из кэша (IndexedDB) — мгновенно и офлайн, затем
   // тихо обновляем из login_users (view БЕЗ хэшей/соли/роли, доступен анониму).
-  // PIN здесь больше не тянем: сверка идёт в auth-login (онлайн) либо по
+  // PIN здесь больше не тянем: сверка идет в auth-login (онлайн) либо по
   // локальному кэшу своего хэша (офлайн, verifyPinOffline).
   useEffect(() => {
     let alive = true
@@ -41,7 +41,7 @@ export default function LoginScreen({ onLogin }) {
         // sex тянем вместе с остальным: кэш ростера — источник пола для рейтинга
         // (getCachedUser → viewerBoard), и на новом устройстве до первого pull
         // другого источника нет. Раньше его тут не было, и запись кэша обнуляла пол
-        // всем учёткам устройства (инцидент 29.07.2026, см. lib/roster.js).
+        // всем учеткам устройства (инцидент 29.07.2026, см. lib/roster.js).
         // Фолбэк на выборку без sex — как в pullGoal: на сервере со старой
         // редакцией вью login_users select упал бы, и устройство без кэша осталось
         // бы вовсе без ростера, а это единственная точка входа в приложение.
@@ -102,22 +102,24 @@ export default function LoginScreen({ onLogin }) {
       //             null           — кэша нет (первый вход на устройстве).
       const offline = await verifyPinOffline(selected.id, pin)
       if (offline) {
-        // Чужую сессию, оставшуюся на устройстве, снимаем ДО входа: её SIGNED_OUT
-        // должен отработать, пока App ещё на экране входа, а не выкинуть нас позже.
+        // Чужую сессию, оставшуюся на устройстве, снимаем ДО входа: ее SIGNED_OUT
+        // должен отработать, пока App еще на экране входа, а не выкинуть нас позже.
         await dropForeignSession(selected.id)
-        // UI открываем сразу; если есть сеть — молча перевыпускаем сессию.
-        if (navigator.onLine) authLogin(selected.id, pin).catch(() => {})
+        // UI открываем сразу; если есть сеть — перевыпускаем сессию в фоне. Ошибку
+        // не глотаем: запоминаем причину (устаревший PIN и т.п.), ее покажут «мои»
+        // серверные действия вместо безликого «перезайди» (v6.3.2).
+        if (navigator.onLine) authLogin(selected.id, pin).catch(noteLoginFailure)
         onLogin(offline)
         return
       }
 
-      // 2) Кэш не подошёл (false) или его нет (null). Офлайн — судим по локальному
+      // 2) Кэш не подошел (false) или его нет (null). Офлайн — судим по локальному
       //    вердикту: промах кэша → «Неверный PIN», отсутствие кэша → нужна сеть.
       if (!navigator.onLine) {
         setError(
           offline === false
             ? 'Неверный PIN'
-            : 'Нет сети, а на этом устройстве ещё не входили. Подключись к сети для первого входа.'
+            : 'Нет сети, а на этом устройстве еще не входили. Подключись к сети для первого входа.'
         )
         setPin('')
         return
@@ -125,7 +127,7 @@ export default function LoginScreen({ onLogin }) {
 
       // 3) Онлайн — сверяем PIN на сервере, НЕ отбивая по устаревшему кэшу. Это чинит
       //    «новый PIN после смены не заходит» (старый локальный хэш давал false):
-      //    успех authLogin перезапишет кэш свежим хэшем. Реально неверный PIN придёт
+      //    успех authLogin перезапишет кэш свежим хэшем. Реально неверный PIN придет
       //    как LoginError('invalid') → «Неверный PIN» (обработка в catch ниже).
       const user = await authLogin(selected.id, pin)
       onLogin(user)
@@ -165,7 +167,6 @@ export default function LoginScreen({ onLogin }) {
               strokeWidth="2.2" strokeLinecap="round"><path d="M1.5 12h21" /><rect x="3" y="8.5" width="2.6" height="7" rx="1" fill="currentColor" stroke="none" /><rect x="6.4" y="6" width="3" height="12" rx="1.2" fill="currentColor" stroke="none" /><rect x="14.6" y="6" width="3" height="12" rx="1.2" fill="currentColor" stroke="none" /><rect x="18.4" y="8.5" width="2.6" height="7" rx="1" fill="currentColor" stroke="none" /></svg>
           </div>
           <h1 className="title">Журнал тренировок</h1>
-          <p className="muted login-sub">Выбери себя</p>
           <div className="user-list">
             {users.map((u) => (
               <button key={u.id} className="user-btn" onClick={() => pickUser(u)}>
@@ -214,7 +215,12 @@ export default function LoginScreen({ onLogin }) {
           ))}
           <span />
           <button className="key" disabled={busy} onClick={() => pressDigit('0')}>0</button>
-          <button className="key key-del" disabled={busy} onClick={backspace}>⌫</button>
+          <button className="key key-del" disabled={busy} onClick={backspace} aria-label="Стереть">
+            <svg viewBox="0 0 24 24" width="36" height="36" fill="none" stroke="currentColor" strokeWidth="1.8"
+              strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+              <path d="M21 5H9l-6 7 6 7h12a1 1 0 0 0 1-1V6a1 1 0 0 0-1-1z" /><path d="M17 9.5l-5 5M12 9.5l5 5" />
+            </svg>
+          </button>
         </div>
       </div>
     </div>

@@ -2,8 +2,9 @@ import { useState } from 'react'
 import { normMetric, fmtMetricValue } from '../lib/metric.js'
 import { currentBestValue, goalProgress } from '../lib/profileStats.js'
 import { useRevealFocus } from '../hooks/useRevealFocus.js'
+import PencilIcon from './PencilIcon.jsx'
 
-// Read-only список личных целей с прогресс-баром (сам редактор цели остаётся в
+// Read-only список личных целей с прогресс-баром (сам редактор цели остается в
 // ProfileScreen). Презентационный: goalList + workouts (для текущего рекорда) +
 // onEdit(goal)/onAdd. Прогресс/достижение/повторы-при-весе считаются из
 // денормализованных тренировок. Повторы (PLAN-goal-reps) — только у весовой цели.
@@ -76,11 +77,11 @@ export default function GoalsList({ goalList, workouts, onEdit, onAdd }) {
           </div>
         ) : (
           <div className="goal-sub">
-            текущий рекорд {fmtMetricValue(m, cur)} · осталось {fmtMetricValue(m, left)}
+            текущий рекорд: {fmtMetricValue(m, cur)} · осталось: {fmtMetricValue(m, left)}
             {reps ? <> · нужно ≥{reps} повт. в подходе</> : null}
           </div>
         )}
-        <button className="goal-edit" onClick={() => onEdit(g)}>✎ Изменить цель</button>
+        <button className="goal-edit" onClick={() => onEdit(g)}><PencilIcon size={15} /> Изменить цель</button>
       </div>
     )
   }

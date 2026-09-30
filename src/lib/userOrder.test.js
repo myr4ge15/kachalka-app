@@ -10,7 +10,7 @@ describe('sortUsersByOrder', () => {
     ]
     expect(sortUsersByOrder(list).map((u) => u.id)).toEqual(['a', 'b', 'c'])
   })
-  it('учётки без порядка (null) — в конец, без алфавита', () => {
+  it('учетки без порядка (null) — в конец, без алфавита', () => {
     const list = [
       { id: 'noorder1', name: 'Яков', sort_order: null },
       { id: 'ordered', name: 'Борис', sort_order: 0 },

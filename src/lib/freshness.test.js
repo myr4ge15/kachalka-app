@@ -77,7 +77,7 @@ describe('freshnessBucket', () => {
 })
 
 describe('lastTrainedByGroup', () => {
-  it('берёт самую свежую тренировку по каждой группе', () => {
+  it('берет самую свежую тренировку по каждой группе', () => {
     const list = [
       wk({ id: 'a', at: daysAgo(10), entries: [{ exId: 'bp', group: 'грудь' }] }),
       wk({ id: 'b', at: daysAgo(2), entries: [{ exId: 'bp', group: 'грудь' }] }),
@@ -87,7 +87,7 @@ describe('lastTrainedByGroup', () => {
     expect(m.get('грудь').at).toBe(list[1].performed_at)
     expect(m.get('ноги').at).toBe(list[2].performed_at)
   })
-  it('пропускает удалённые и без даты', () => {
+  it('пропускает удаленные и без даты', () => {
     const list = [
       wk({ id: 'd', at: daysAgo(1), entries: [{ exId: 'bp', group: 'грудь' }], deleted: true }),
       wk({ id: 'n', at: null, entries: [{ exId: 'sq', group: 'ноги' }] }),
@@ -153,7 +153,7 @@ describe('imbalance', () => {
     expect(im[0].kind).toBe('stale') // stale раньше never
     expect(im.some((x) => x.group === 'спина' && x.kind === 'never')).toBe(true)
   })
-  it('всё свежее → пустой дисбаланс', () => {
+  it('все свежее → пустой дисбаланс', () => {
     const all = ['грудь', 'спина', 'ноги', 'плечи', 'бицепс', 'трицепс', 'пресс']
     const list = all.map((g, i) => wk({ id: `w${i}`, at: daysAgo(1), entries: [{ exId: g, group: g }] }))
     expect(imbalance(list, { now: NOW, windowDays: 14 })).toEqual([])
@@ -172,7 +172,7 @@ describe('groupBuckets', () => {
     ]
     const m = groupBuckets(recovery, imb)
     expect(m).toEqual({ ноги: 'overdue', грудь: 'fresh', спина: 'never' })
-    // stale в карту не идёт (спина уже покрыта recovery/never; stale — только текст дисбаланса)
+    // stale в карту не идет (спина уже покрыта recovery/never; stale — только текст дисбаланса)
     expect(m['плечи']).toBeUndefined()
   })
   it('пустые входы → пустая карта', () => {
@@ -288,7 +288,7 @@ describe('submuscleBuckets', () => {
     const imb = [{ submuscle: 'delt_rear', kind: 'never' }, { submuscle: 'lats', kind: 'stale', daysSince: 20 }]
     const m = submuscleBuckets(rec, imb)
     expect(m).toEqual({ quads: 'recent', chest_lower: 'fresh', delt_rear: 'never' })
-    expect(m.lats).toBeUndefined() // stale в карту не идёт
+    expect(m.lats).toBeUndefined() // stale в карту не идет
   })
   it('пустые входы → пустая карта', () => {
     expect(submuscleBuckets([], [])).toEqual({})
@@ -312,7 +312,7 @@ describe('recoveryLead (тизер Главной — одна ось с под�
     expect(lead.kind).toBe('resting')
     expect(lead.items.map((x) => x.group)).toEqual(['ноги'])
   })
-  it('almost тоже ещё не «восстановились»', () => {
+  it('almost тоже еще не «восстановились»', () => {
     expect(recoveryLead([f('плечи', 'almost', 'fresh', 1)]).kind).toBe('resting')
   })
   it('все ready и никто не выпал из окна → ready', () => {

@@ -14,9 +14,10 @@ import { submusclesOf, secondaryOptionsFor, labelOf, majorOf, defaultSubmuscleFo
 import { showToast } from '../components/Toast.jsx'
 import CardsSkeleton from '../components/CardsSkeleton.jsx'
 import BackButton from '../components/BackButton.jsx'
+import PencilIcon from '../components/PencilIcon.jsx'
 
 // Экран «Админка» (PLAN-admin). Виден только при role='admin' (вход из Профиля);
-// сервер всё равно перепроверяет роль в каждой операции. Все мутации требуют
+// сервер все равно перепроверяет роль в каждой операции. Все мутации требуют
 // сети — офлайн действия задизейблены с пояснением.
 //
 // Пропсы: user, onBack().
@@ -24,7 +25,7 @@ export default function AdminScreen({ user, onBack }) {
   const { online } = useSyncStatus()
   const exercises = useLiveQuery(() => getAllExercisesForAdmin(), [], [])
 
-  // Разделы свёрнуты по умолчанию; раскрывается тот, что админ сам открыл (аккордеон).
+  // Разделы свернуты по умолчанию; раскрывается тот, что админ сам открыл (аккордеон).
   const [open, setOpen] = useState(null) // null | 'exercises' | 'users' | 'access'
   const toggle = (key) => setOpen((cur) => (cur === key ? null : key))
 
@@ -102,7 +103,7 @@ export default function AdminScreen({ user, onBack }) {
 // Админ-управляемые связи «избранного круга» (v3.14.0). Приватный виден только
 // себе и админу; здесь админ открывает ВЗАИМНЫЙ доступ между приватным участником
 // и выбранными людьми (оба начинают видеть тренировки друг друга). В общий рейтинг
-// приватный всё равно не попадает (см. supabase/connections.sql). Всё — online-RPC
+// приватный все равно не попадает (см. supabase/connections.sql). Все — online-RPC
 // с гейтом is_admin(), локального кэша нет.
 function AccessSection({ meId, online, errMsg }) {
   const [users, setUsers] = useState(null)
@@ -128,7 +129,7 @@ function AccessSection({ meId, online, errMsg }) {
     }
   }
   // Перезагрузка ТОЛЬКО на смену online. `reload` намеренно вне deps: он
-  // пересоздаётся каждый рендер, но всегда делает один и тот же fetch, а
+  // пересоздается каждый рендер, но всегда делает один и тот же fetch, а
   // stale-сеттеры после размонтирования отсекает alive-ref.
   // eslint-disable-next-line react-hooks/exhaustive-deps
   useEffect(() => { if (online) reload(); else setUsers([]) }, [online])
@@ -221,7 +222,7 @@ function ExercisesSection({ exercises, online, errMsg }) {
   const [mBusy, setMBusy] = useState(false)
 
   // Guard от setState после размонтирования (аккордеон-секцию можно свернуть, пока
-  // RPC в полёте) — как в UsersSection/AccessSection.
+  // RPC в полете) — как в UsersSection/AccessSection.
   const alive = useRef(true)
   useEffect(() => { alive.current = true; return () => { alive.current = false } }, [])
 
@@ -266,7 +267,7 @@ function ExercisesSection({ exercises, online, errMsg }) {
         id: ex.id,
         name: ex.name,
         muscle_group: ex.muscle_group ?? '',
-        // Сохраняем текущую разметку мышц — иначе быстрый тумблер скрытия её бы стёр.
+        // Сохраняем текущую разметку мышц — иначе быстрый тумблер скрытия ее бы стер.
         submuscle: ex.submuscle ?? '',
         secondary: Array.isArray(ex.secondary) ? ex.secondary : [],
         is_bench_lift: Boolean(ex.is_bench_lift),
@@ -388,7 +389,7 @@ function ExercisesSection({ exercises, online, errMsg }) {
                 <label className="admin-check">
                   <input type="checkbox" checked={form.is_bench_lift}
                     onChange={(e) => setForm((f) => ({ ...f, is_bench_lift: e.target.checked }))} />
-                  <span>Жим лёжа — мужской лидерборд ⭐</span>
+                  <span>Жим лежа — мужской лидерборд ⭐</span>
                 </label>
                 <label className="admin-check">
                   <input type="checkbox" checked={form.is_female_lift}
@@ -419,12 +420,12 @@ function ExercisesSection({ exercises, online, errMsg }) {
                     {ex.muscle_group || '—'}
                     {ex.submuscle ? ' · ' + labelOf(ex.submuscle) : ''}
                     {Array.isArray(ex.secondary) && ex.secondary.length ? ` +${ex.secondary.length}` : ''}
-                    {ex.is_custom ? ' · своё' : ''}
+                    {ex.is_custom ? ' · свое' : ''}
                     {ex.is_hidden ? ' · скрыто' : ''}
                   </span>
                 </div>
                 <div className="admin-ex-btns">
-                  <button className="admin-mini" onClick={() => openEdit(ex)} aria-label="Изменить">✎</button>
+                  <button className="admin-mini" onClick={() => openEdit(ex)} aria-label="Изменить"><PencilIcon size={16} /></button>
                   <button className="admin-mini" onClick={() => toggleHidden(ex)} disabled={!online}
                     aria-label={ex.is_hidden ? 'Показать' : 'Скрыть'}>
                     {ex.is_hidden ? '👁' : '🙈'}
@@ -490,9 +491,9 @@ function UsersSection({ meId, online, errMsg }) {
   const [edRole, setEdRole] = useState('member')
   const [edPrivate, setEdPrivate] = useState(false)
   const [edSex, setEdSex] = useState('') // '' | 'm' | 'f'
-  // Снимок значений на момент открытия формы: сохраняем только РЕАЛЬНО изменённое.
+  // Снимок значений на момент открытия формы: сохраняем только РЕАЛЬНО измененное.
   // Мина, из-за которой у всех слетел пол (29.07.2026): если серверный
-  // admin_list_users отдаёт список БЕЗ колонки sex (такая редакция функции лежит в
+  // admin_list_users отдает список БЕЗ колонки sex (такая редакция функции лежит в
   // admin.sql / private-user.sql / user-order.sql, и перезапуск любого из них молча
   // откатывает контракт), то u.sex === undefined → edSex '' → безусловный
   // adminSetSex(edId, null) затирал пол в БД на каждом «Сохранить». В addUser это
@@ -505,7 +506,7 @@ function UsersSection({ meId, online, errMsg }) {
   const [pinBusy, setPinBusy] = useState(false)
   const [shownPin, setShownPin] = useState(null) // { id, pin }
 
-  // порядок учёток на экране входа (drag-and-drop)
+  // порядок учеток на экране входа (drag-and-drop)
   const [reorder, setReorder] = useState(false)
 
   // добавить участника
@@ -518,7 +519,7 @@ function UsersSection({ meId, online, errMsg }) {
   const [addBusy, setAddBusy] = useState(false)
 
   // Guard от setState после размонтирования (секцию можно свернуть на лету, пока
-  // RPC в полёте) — как в Login/Profile. Иначе React варнит «update on unmounted».
+  // RPC в полете) — как в Login/Profile. Иначе React варнит «update on unmounted».
   const alive = useRef(true)
   useEffect(() => { alive.current = true; return () => { alive.current = false } }, [])
 
@@ -534,7 +535,7 @@ function UsersSection({ meId, online, errMsg }) {
     }
   }
   // Перезагрузка ТОЛЬКО на смену online — `reload` вне deps намеренно (см. выше:
-  // пересоздаётся каждый рендер, тот же fetch, stale-сеты гасит alive-ref).
+  // пересоздается каждый рендер, тот же fetch, stale-сеты гасит alive-ref).
   // eslint-disable-next-line react-hooks/exhaustive-deps
   useEffect(() => { if (online) reload(); else setUsers([]) /* офлайн — без RPC */ }, [online])
 
@@ -554,19 +555,19 @@ function UsersSection({ meId, online, errMsg }) {
     setEdBusy(true)
     try {
       // Три отдельных RPC (имя/роль → приватность → пол): единого серверного вызова
-      // нет. Если поздний упадёт, ранние уже закоммичены — форма показала бы
-      // устаревшее «всё как ввели». Поэтому в catch зовём reload(): UI отразит
+      // нет. Если поздний упадет, ранние уже закоммичены — форма показала бы
+      // устаревшее «все как ввели». Поэтому в catch зовем reload(): UI отразит
       // РЕАЛЬНОЕ частичное состояние сервера (см. РЕВЬЮ-КОДА-2026-07-13).
-      // Зовём только РЕАЛЬНО изменённое. Холостые RPC не безвредны: они двигают
+      // Зовем только РЕАЛЬНО измененное. Холостые RPC не безвредны: они двигают
       // users.updated_at (триггер trg_touch_users → лишний refetch ростера у всех
-      // устройств), сорят в audit_log, а в случае пола ещё и ЗАТИРАЛИ значение,
+      // устройств), сорят в audit_log, а в случае пола еще и ЗАТИРАЛИ значение,
       // которого сервер не отдал в списке (см. edInit выше).
       if (edName.trim() !== edInit.name.trim() || edRole !== edInit.role) {
         await adminSetUser(edId, edName, edRole)
       }
       if (edPrivate !== edInit.priv) await adminSetPrivate(edId, edPrivate)
       if (edSex !== edInit.sex) await adminSetSex(edId, edSex || null)
-      showToast({ emoji: '✅', title: 'Участник обновлён' })
+      showToast({ emoji: '✅', title: 'Участник обновлен' })
       if (alive.current) closeEdit()
       reload()
     } catch (e) {
@@ -593,7 +594,7 @@ function UsersSection({ meId, online, errMsg }) {
     setAddBusy(true)
     try {
       const u = await adminCreateUser(addName, addRole, addPin)
-      // Приватность/пол ставим отдельными шагами (создание идёт через Edge
+      // Приватность/пол ставим отдельными шагами (создание идет через Edge
       // Function, флаги — через RPC), чтобы не трогать серверную функцию создания.
       if (addPrivate) await adminSetPrivate(u.id, true)
       if (addSex) await adminSetSex(u.id, addSex)
@@ -602,7 +603,7 @@ function UsersSection({ meId, online, errMsg }) {
       reload()
     } catch (e) {
       showToast({ emoji: '⚠️', title: 'Не удалось', sub: errMsg(e) })
-      // Учётка могла создаться, а флаги (приватность/пол) — упасть: подтягиваем
+      // Учетка могла создаться, а флаги (приватность/пол) — упасть: подтягиваем
       // список, чтобы UI показал реально созданного участника (не пустую форму).
       reload()
     } finally {
@@ -622,7 +623,7 @@ function UsersSection({ meId, online, errMsg }) {
           onCancel={() => setReorder(false)}
           onSave={async (ids) => {
             await adminSetUserOrder(ids)
-            showToast({ emoji: '↕️', title: 'Порядок сохранён', sub: 'Так учётки идут на экране входа.' })
+            showToast({ emoji: '↕️', title: 'Порядок сохранен', sub: 'Так учетки идут на экране входа.' })
             setReorder(false)
             reload()
           }}
@@ -651,7 +652,7 @@ function UsersSection({ meId, online, errMsg }) {
                   <span className="field-lab">Пол (для лидерборда)</span>
                   <select className="prog-select" value={edSex} onChange={(e) => setEdSex(e.target.value)}>
                     <option value="">не задан (жим)</option>
-                    <option value="m">М · жим лёжа</option>
+                    <option value="m">М · жим лежа</option>
                     <option value="f">Ж · ягодичный мостик</option>
                   </select>
                 </label>
@@ -683,7 +684,7 @@ function UsersSection({ meId, online, errMsg }) {
                   </span>
                 </div>
                 <div className="admin-ex-btns">
-                  <button className="admin-mini" onClick={() => openEdit(u)} disabled={!online} aria-label="Изменить">✎</button>
+                  <button className="admin-mini" onClick={() => openEdit(u)} disabled={!online} aria-label="Изменить"><PencilIcon size={16} /></button>
                   <button className="admin-mini" onClick={() => resetPin(u)}
                     disabled={!online || (pinBusy && pinForId === u.id)} aria-label="Сбросить PIN">🔑</button>
                 </div>
@@ -723,7 +724,7 @@ function UsersSection({ meId, online, errMsg }) {
             <span className="field-lab">Пол (для лидерборда)</span>
             <select className="prog-select" value={addSex} onChange={(e) => setAddSex(e.target.value)}>
               <option value="">не задан (жим)</option>
-              <option value="m">М · жим лёжа</option>
+              <option value="m">М · жим лежа</option>
               <option value="f">Ж · ягодичный мостик</option>
             </select>
           </label>
@@ -757,7 +758,7 @@ function UsersSection({ meId, online, errMsg }) {
   )
 }
 
-// Перетаскивание учёток для задания порядка на экране входа. Pointer Events
+// Перетаскивание учеток для задания порядка на экране входа. Pointer Events
 // (работает на тач-экранах: setPointerCapture + touch-action:none на ручке).
 // Порядок мутируется локально при перетаскивании, на сервер уходит одним RPC.
 function UserReorderList({ users, meId, onCancel, onSave, errMsg }) {
@@ -805,7 +806,7 @@ function UserReorderList({ users, meId, onCancel, onSave, errMsg }) {
 
   return (
     <div className="user-reorder">
-      <p className="admin-hint">Перетащи за ☰, чтобы задать порядок учёток на экране входа.</p>
+      <p className="admin-hint">Перетащи за ☰, чтобы задать порядок учеток на экране входа.</p>
       <ul className="admin-list reorder">
         {order.map((u) => (
           <li

@@ -12,9 +12,9 @@ if (!url || !key) {
   )
 }
 
-// Сессию даёт Supabase Auth (логин-мост, см. src/lib/auth.js): храним и
-// автоматически обновляем токен. persistSession кладёт сессию в localStorage —
-// вход переживает перезапуск приложения (окно ~7 дней задаётся в Auth→Sessions).
+// Сессию дает Supabase Auth (логин-мост, см. src/lib/auth.js): храним и
+// автоматически обновляем токен. persistSession кладет сессию в localStorage —
+// вход переживает перезапуск приложения (окно ~7 дней задается в Auth→Sessions).
 // detectSessionInUrl выключаем: это PWA, не OAuth-редирект.
 //
 // Плейсхолдеры при отсутствии .env: createClient требует СИНТАКСИЧЕСКИ валидный
@@ -37,17 +37,17 @@ export const supabase = createClient(
 export const isConfigured = Boolean(url && key)
 
 // true, если у клиента УЖЕ поднята настоящая Auth-сессия. Нужно, чтобы не
-// дёргать защищённые RLS-таблицы (`workouts` и пр.) ролью `anon` в момент, когда
+// дергать защищенные RLS-таблицы (`workouts` и пр.) ролью `anon` в момент, когда
 // React-профиль уже восстановлен из localStorage (синхронно), а сессия Supabase
-// Auth ещё поднимается из своего хранилища асинхронно — иначе первый запрос
+// Auth еще поднимается из своего хранилища асинхронно — иначе первый запрос
 // уходит без JWT и RLS отвечает «permission denied for table workouts» (баг при
 // первом входе/перезапуске). `getSession()` дожидается окончания инициализации
 // GoTrue, поэтому здесь же снимается и гонка восстановления сессии после рестарта.
 //
-// userId (необязательно) — для КОГО собираемся синкать. Сессия другой учётки
+// userId (необязательно) — для КОГО собираемся синкать. Сессия другой учетки
 // (осталась на общем устройстве, пока фоновый перевыпуск после офлайн-анлока не
-// прошёл) приравнивается к отсутствию: под чужим JWT pull отдаёт пустоту, а push
-// личного meta берёт владельца из app_uid() — данные B уехали бы в user_meta A.
+// прошел) приравнивается к отсутствию: под чужим JWT pull отдает пустоту, а push
+// личного meta берет владельца из app_uid() — данные B уехали бы в user_meta A.
 export async function hasSession(userId = null) {
   if (!isConfigured) return false
   try {
@@ -60,7 +60,7 @@ export async function hasSession(userId = null) {
   }
 }
 
-// app_user_id из claim'а app_metadata (его кладёт auth-login). Нет claim'а —
+// app_user_id из claim'а app_metadata (его кладет auth-login). Нет claim'а —
 // сверять не с чем: не блокируем (старые сессии/иной мост), решает серверный RLS.
 export function sessionAppUserId(session) {
   return session?.user?.app_metadata?.app_user_id ?? null
@@ -70,10 +70,10 @@ export function isSessionOf(session, userId) {
   return owner == null || String(owner) === String(userId)
 }
 
-// «Прогрев» базы: дешёвый запрос при старте приложения, чтобы разбудить
+// «Прогрев» базы: дешевый запрос при старте приложения, чтобы разбудить
 // бесплатный проект Supabase из паузы заранее — до того как пользователь
-// нажмёт «Сохранить». Ошибки молча глотаем: это не критичный путь.
-// Бьём по login_users (доступен анониму и после ужесточения RLS) — иначе
+// нажмет «Сохранить». Ошибки молча глотаем: это не критичный путь.
+// Бьем по login_users (доступен анониму и после ужесточения RLS) — иначе
 // прогрев по exercises после ужесточения словил бы 401.
 export function warmup() {
   if (!isConfigured) return

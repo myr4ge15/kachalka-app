@@ -22,15 +22,15 @@ import { normMetric } from '../../lib/metric.js'
 
 // После стольких неудачных попыток операция считается «отравленной» и
 // откладывается в dead-letter (флаг _dead): она больше не блокирует очередь,
-// но остаётся в базе для диагностики. Иначе один битый upsert вешал синк навсегда.
+// но остается в базе для диагностики. Иначе один битый upsert вешал синк навсегда.
 const MAX_ATTEMPTS = 5
 
 // Единый прогон очереди outbox с общей политикой повторов/dead-letter (раньше
-// этот блок был скопирован в 4 push-циклах, РЕВЬЮ-КОДА-2026-07-13). Идём по seq;
+// этот блок был скопирован в 4 push-циклах, РЕВЬЮ-КОДА-2026-07-13). Идем по seq;
 // `handler(op)` делает работу и САМ удаляет операцию на успехе (успех = не бросил).
 //   - table — Dexie-таблица очереди (ex_outbox/tpl_outbox/outbox/reaction_outbox);
 //   - deadLetter=true (тренировки/упражнения/шаблоны): _dead-операции пропускаем;
-//     на ошибке растим attempts, после MAX помечаем `_dead` и идём дальше (не
+//     на ошибке растим attempts, после MAX помечаем `_dead` и идем дальше (не
 //     вешаем очередь), иначе БРОСАЕМ — прекращаем проход, сохраняя порядок;
 //   - deadLetter=false (реакции, низкий приоритет): без _dead-флага и без throw —
 //     после MAX попыток операцию просто выбрасываем, очередь не блокируем.
@@ -48,7 +48,7 @@ export async function runOutbox(table, handler, { deadLetter = true } = {}) {
       if (deadLetter) {
         const dead = attempts >= MAX_ATTEMPTS
         await table.update(op.seq, { attempts, lastError, ...(dead ? { _dead: 1 } : {}) })
-        if (dead) continue // в dead-letter — не вешаем очередь, идём дальше
+        if (dead) continue // в dead-letter — не вешаем очередь, идем дальше
         throw err // прекращаем проход, попробуем позже
       }
       // без dead-letter (реакции): после MAX просто выбрасываем, иначе копим attempts
@@ -59,7 +59,7 @@ export async function runOutbox(table, handler, { deadLetter = true } = {}) {
   }
 }
 
-// Отправляем пользовательские упражнения (ex_outbox) в Supabase. Идёт ПЕРЕД
+// Отправляем пользовательские упражнения (ex_outbox) в Supabase. Идет ПЕРЕД
 // push() тренировок: запись может ссылаться на свежесозданное упражнение (FK),
 // поэтому упражнение должно появиться на сервере первым. Upsert по id
 // идемпотентен — повторная отправка после обрыва безопасна.
@@ -75,11 +75,11 @@ export async function pushExercises(d = db) {
       supabase.from('exercises').upsert(payload, { onConflict: 'id' })
     )
     if (error) throw error
-    // Упражнение могли поправить, пока шёл upsert: updateExercise видит ещё живую
+    // Упражнение могли поправить, пока шел upsert: updateExercise видит еще живую
     // операцию и новую не ставит. Снять _dirty и удалить операцию «вслепую» значило
     // бы потерять правку (pullExercises затем перезапишет строку серверной). Поэтому
     // сверяем отправленный снимок с текущей строкой: изменилась — операцию оставляем,
-    // ближайший прогон дошлёт свежие поля.
+    // ближайший прогон дошлет свежие поля.
     await d.transaction('rw', d.exercises, d.ex_outbox, async () => {
       const cur = await d.exercises.get(ex.id)
       if (cur && !sameJson(exercisePayload(cur), payload)) return
@@ -103,14 +103,14 @@ function exercisePayload(ex) {
     metric: ex.metric ?? 'weight',
     // Владелец (supabase/exercise-owner.sql). Легаси-строки без владельца
     // отправляем как null — политика exercises_update это разрешает, и
-    // упражнение остаётся ничьим, а не «присваивается» тем, кто его правил.
+    // упражнение остается ничьим, а не «присваивается» тем, кто его правил.
     owner_id: ex.owner_id ?? null,
   }
 }
 
 const sameJson = (a, b) => JSON.stringify(a) === JSON.stringify(b)
 
-// Отправляем шаблоны (tpl_outbox) в Supabase. Идёт ПОСЛЕ pushExercises и ДО
+// Отправляем шаблоны (tpl_outbox) в Supabase. Идет ПОСЛЕ pushExercises и ДО
 // push() тренировок: template_exercises.exercise_id ссылается на exercises (FK),
 // поэтому упражнение должно появиться на сервере раньше шаблона. Upsert по
 // клиентскому id идемпотентен — повтор после обрыва безопасен.
@@ -122,7 +122,7 @@ export async function pushTemplates(d = db) {
         await d.tpl_outbox.delete(op.seq)
         return
       }
-      // Передаём упорядоченный массив объектов {id, sets, reps, weight}.
+      // Передаем упорядоченный массив объектов {id, sets, reps, weight}.
       // Серверный upsert_template принимает и легаси-форму (массив строк-uuid),
       // поэтому совместим при поэтапной раскатке (сервер обновляется раньше).
       const exerciseIds = [...(doc.exercises ?? [])]
@@ -143,8 +143,8 @@ export async function pushTemplates(d = db) {
         })
       )
       if (error) throw error
-      // Шаблон правили, пока шёл upsert (updated_at сдвинулся) — операцию и _dirty
-      // оставляем: enqueueTpl новую не поставил, свежую версию дошлёт следующий
+      // Шаблон правили, пока шел upsert (updated_at сдвинулся) — операцию и _dirty
+      // оставляем: enqueueTpl новую не поставил, свежую версию дошлет следующий
       // прогон. Удалили за это время — у tombstone своя delete-операция.
       await d.transaction('rw', d.templates, d.tpl_outbox, async () => {
         const cur = await d.templates.get(doc.id)
@@ -166,9 +166,9 @@ export async function pushTemplates(d = db) {
 // Отправляем очередь по порядку. На первой же ошибке прекращаем — сохранится
 // порядок и не словим частичную отправку при недоступной сети.
 export async function push(d = db) {
-  // id'шники только что отправленных (upsert) тренировок — отдаём наверх, чтобы
+  // id'шники только что отправленных (upsert) тренировок — отдаем наверх, чтобы
   // последующий pull в этом же цикле не «удалил» их, если read-replica сервера
-  // ещё не показывает свежую запись в SELECT (push идёт ДО pull).
+  // еще не показывает свежую запись в SELECT (push идет ДО pull).
   const justPushed = new Set()
   await runOutbox(d.outbox, async (op) => {
     if (op.type === 'upsert') {
@@ -194,10 +194,10 @@ export async function push(d = db) {
       await d.transaction('rw', d.workouts, d.outbox, async () => {
         const cur = await d.workouts.get(doc.id)
         if (cur && !cur._deleted && cur.updated_at !== doc.updated_at) {
-          // Тренировку правили, пока шёл upsert: saveWorkout видит ещё живую
+          // Тренировку правили, пока шел upsert: saveWorkout видит еще живую
           // операцию и новую не ставит. Снять _dirty здесь = pull этого же цикла
-          // возьмёт серверную (уже устаревшую) версию, и правка молча пропадёт.
-          // Оставляем _dirty и операцию — свежую версию дошлёт следующий прогон.
+          // возьмет серверную (уже устаревшую) версию, и правка молча пропадет.
+          // Оставляем _dirty и операцию — свежую версию дошлет следующий прогон.
           // Базис обнуляем: серверная версия теперь НАША (только что отправленная),
           // сравнение с прежним базисом дало бы ложный конфликт merge-часов.
           await d.workouts.update(doc.id, { _base_updated_at: null })
@@ -206,7 +206,7 @@ export async function push(d = db) {
         // Снимаем _dirty и базис merge-часов: запись уехала, серверный updated_at
         // (истинное время правки) подтянет следующий pull в этом же цикле как
         // чистую (take-server). Базис заново захватит первая локальная правка.
-        // Удалённую за время запроса не трогаем: у неё своя delete-операция.
+        // Удаленную за время запроса не трогаем: у нее своя delete-операция.
         if (cur && !cur._deleted) await d.workouts.update(doc.id, { _dirty: 0, _base_updated_at: null })
         await d.outbox.delete(op.seq)
       })
@@ -224,11 +224,11 @@ export async function push(d = db) {
 
 // ----------------------------- реакции -------------------------------------
 // Отправляем очередь реакций (reaction_outbox) в Supabase. Реакции всегда СВОИ
-// (RLS: user_id = app_uid()), поэтому user_id берём из userId синка. Идёт ПОСЛЕ
+// (RLS: user_id = app_uid()), поэтому user_id берем из userId синка. Идет ПОСЛЕ
 // push() тренировок: реакция ссылается на workout (FK) — своя тренировка должна
 // уехать раньше (чужие в ленте на сервере уже есть). insert идемпотентен
 // (onConflict → ignore), delete по составному ключу. Реакции низкоприоритетны:
-// на ошибке НЕ роняем весь синк (вызов обёрнут в try/catch выше), а операцию
+// на ошибке НЕ роняем весь синк (вызов обернут в try/catch выше), а операцию
 // после MAX_ATTEMPTS попыток просто выбрасываем (без dead-letter UI).
 export async function pushReactions(userId, d = db) {
   // deadLetter:false — реакции низкоприоритетны: не роняем очередь на ошибке и
@@ -259,20 +259,20 @@ export async function pushReactions(userId, d = db) {
 // сервер (таблица goals, составной ключ user_id+exercise_id), чтобы достижение
 // увидел Telegram-бот. Пуш — только при _dirty у конкретной цели: upsert_goal
 // апсертит/сбрасывает achieved_at при смене веса, delete_my_goal удаляет
-// помеченную tombstone (_deleted). Всё обёрнуто в try/catch на стороне вызова:
-// если goals-multi.sql ещё не задеплоен (RPC нет) — синк тренировок не падает.
+// помеченную tombstone (_deleted). Все обернуто в try/catch на стороне вызова:
+// если goals-multi.sql еще не задеплоен (RPC нет) — синк тренировок не падает.
 export async function pushGoal(userId, d = db) {
   const goals = await readGoals(userId, d)
   if (!goals.some((g) => g._dirty)) return
-  // Результат каждой операции персистим СРАЗУ после неё: если 2-я цель кидает,
-  // серверная операция по 1-й уже закоммичена и локально отражена, остаток ждёт
+  // Результат каждой операции персистим СРАЗУ после нее: если 2-я цель кидает,
+  // серверная операция по 1-й уже закоммичена и локально отражена, остаток ждет
   // следующего pushGoal.
   //
-  // Коммит — по СВЕЖЕМУ массиву, а не по снимку со входа: пока шёл RPC, человек мог
+  // Коммит — по СВЕЖЕМУ массиву, а не по снимку со входа: пока шел RPC, человек мог
   // добавить/поправить другую цель (или эту же), а detectGoalReachedOnSave —
   // проставить achievedAt. Запись снимка целиком молча стирала такие правки.
-  // Поэтому перечитываем цели в транзакции и патчим ТОЛЬКО отправленную, причём
-  // _dirty снимаем, лишь если её поля не поменялись за время запроса.
+  // Поэтому перечитываем цели в транзакции и патчим ТОЛЬКО отправленную, причем
+  // _dirty снимаем, лишь если ее поля не поменялись за время запроса.
   const commit = (exerciseId, patch) =>
     d.transaction('rw', d.meta, async () => {
       const cur = await readGoals(userId, d)
@@ -280,14 +280,14 @@ export async function pushGoal(userId, d = db) {
       if (next !== cur) await writeGoals(userId, next, d)
     })
   for (const g of goals) {
-    // Удаление цели (tombstone): шлём delete_my_goal и выкидываем из массива.
+    // Удаление цели (tombstone): шлем delete_my_goal и выкидываем из массива.
     if (g._deleted && g._dirty) {
       const res = await withTimeout(
         supabase.rpc('delete_my_goal', { p_exercise_id: g.exerciseId })
       )
       if (res.error) throw res.error
-      // Цель могли завести заново, пока шёл delete: тогда это уже не tombstone —
-      // оставляем, её upsert уйдёт следующим прогоном.
+      // Цель могли завести заново, пока шел delete: тогда это уже не tombstone —
+      // оставляем, ее upsert уйдет следующим прогоном.
       await commit(g.exerciseId, (cur, fresh) =>
         fresh && fresh._deleted
           ? cur.filter((x) => x.exerciseId !== g.exerciseId)
@@ -297,7 +297,7 @@ export async function pushGoal(userId, d = db) {
     }
     // Поставлена/изменена цель: апсерт по составному ключу.
     if (g._dirty && g.exerciseId && Number(g.targetWeight) > 0) {
-      // p_target_weight несёт целевое ведущее значение в единицах метрики
+      // p_target_weight несет целевое ведущее значение в единицах метрики
       // (кг / повторы / секунды); p_metric говорит серверу/боту, как трактовать.
       // p_target_reps (PLAN-goal-reps) — необязательные повторы при целевом весе
       // (только у весовой цели); null → требования по повторам нет.
@@ -320,7 +320,7 @@ export async function pushGoal(userId, d = db) {
                 ? { ...x, _dirty: 0, achievedAt: row?.achieved_at ?? x.achievedAt ?? null }
                 : x
             )
-          : cur // правили во время запроса — остаётся dirty, дошлём свежую версию
+          : cur // правили во время запроса — остается dirty, дошлем свежую версию
       )
       continue
     }
@@ -342,8 +342,8 @@ function sameGoalTarget(a, b) {
 // Dexie-meta и раньше не покидали устройство (BACKLOG «Синк локального meta»).
 // Отправляем те роды ключей, что помечены dirty в состоянии синка
 // (db/userMeta.js): по одному RPC upsert_user_meta на ключ, серверный
-// updated_at кладём отметкой — по нему pull отличает «своё, уже учтённое» от
-// чужой правки. Владелец на сервере берётся из app_uid(), не из параметра.
+// updated_at кладем отметкой — по нему pull отличает «свое, уже учтенное» от
+// чужой правки. Владелец на сервере берется из app_uid(), не из параметра.
 //
 // Состояние коммитим СРАЗУ после каждого ключа (как в pushGoal): падение на
 // втором ключе не должно откатывать успешно отправленный первый.
@@ -362,7 +362,7 @@ export async function pushUserMeta(userId, d = db) {
       supabase.rpc('upsert_user_meta', { p_key: kind, p_value: value })
     )
     if (res.error) throw res.error
-    // Ключ правили, пока шёл запрос (writeSyncedMeta сдвинул at) — отправлено уже
+    // Ключ правили, пока шел запрос (writeSyncedMeta сдвинул at) — отправлено уже
     // не последнее значение: dirty не снимаем, свежее уедет следующим прогоном.
     await d.transaction('rw', d.meta, async () => {
       const now = await getUserMetaState(d)

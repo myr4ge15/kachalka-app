@@ -42,15 +42,15 @@ describe('fitDimensions', () => {
 })
 
 describe('isHeic', () => {
-  it('распознаёт по MIME image/heic и image/heif', async () => {
+  it('распознает по MIME image/heic и image/heif', async () => {
     expect(await isHeic(fileOf([], { type: 'image/heic' }))).toBe(true)
     expect(await isHeic(fileOf([], { type: 'image/HEIF' }))).toBe(true)
   })
-  it('распознаёт по расширению .heic/.heif (регистронезависимо)', async () => {
+  it('распознает по расширению .heic/.heif (регистронезависимо)', async () => {
     expect(await isHeic(fileOf([], { name: 'photo.HEIC' }))).toBe(true)
     expect(await isHeic(fileOf([], { name: 'img.heif' }))).toBe(true)
   })
-  it('распознаёт по magic-bytes (ftyp + heic-brand) при пустом type', async () => {
+  it('распознает по magic-bytes (ftyp + heic-brand) при пустом type', async () => {
     expect(await isHeic(fileOf(ftyp('heic')))).toBe(true)
     expect(await isHeic(fileOf(ftyp('mif1')))).toBe(true)
   })

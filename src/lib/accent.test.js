@@ -127,7 +127,7 @@ describe('accent: для синка', () => {
     expect(loadAccentOwner(st)).toBeNull()
     expect(loadAccentOwner({ getItem: () => { throw new Error('x') } })).toBeNull()
   })
-  it('sameAccent: у готовых важен id, у своего — ещё и оттенок', async () => {
+  it('sameAccent: у готовых важен id, у своего — еще и оттенок', async () => {
     const { sameAccent } = await import('./accent.js')
     expect(sameAccent({ id: 'teal', hue: 1 }, { id: 'teal', hue: 99 })).toBe(true)
     expect(sameAccent({ id: 'custom', hue: 1 }, { id: 'custom', hue: 99 })).toBe(false)

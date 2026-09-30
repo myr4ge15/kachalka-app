@@ -93,7 +93,7 @@ describe('buildHomeSummary', () => {
     expect(s.nearestGoal.left).toBe(10)
   })
 
-  it('достигнутые/удалённые цели не считаются', () => {
+  it('достигнутые/удаленные цели не считаются', () => {
     const list = [wk({ id: 'a', at: daysAgo(1), entries: [{ exId: 'bp', name: 'Жим', sets: [S(90, 5)] }] })]
     const goals = [{ exerciseId: 'bp', exerciseName: 'Жим', metric: 'weight', targetWeight: 100, achievedAt: '2026-01-01' }]
     const s = buildHomeSummary({ workouts: list, goals, now: NOW })
@@ -149,7 +149,7 @@ describe('buildTrainingRhythm', () => {
     expect(rhythm.map((w) => w.beforeFirst)).toEqual([true, true, false, false])
   })
 
-  it('пустая история всё равно даёт восемь устойчивых недель', () => {
+  it('пустая история все равно дает восемь устойчивых недель', () => {
     const rhythm = buildTrainingRhythm([], { now: NOW })
     expect(rhythm).toHaveLength(8)
     expect(rhythm.every((w) => w.count === 0 && w.beforeFirst)).toBe(true)

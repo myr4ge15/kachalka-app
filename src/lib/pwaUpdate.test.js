@@ -10,10 +10,10 @@ describe('shouldReshowUpdate', () => {
   it('не откладывали (snoozedAt=0) → не навязываем', () => {
     expect(shouldReshowUpdate({ hasWaiting: true, snoozedAt: 0, now: 9e9, ttl: TTL })).toBe(false)
   })
-  it('TTL ещё не вышел → ждём', () => {
+  it('TTL еще не вышел → ждем', () => {
     expect(shouldReshowUpdate({ hasWaiting: true, snoozedAt: 1000, now: 1000 + TTL - 1, ttl: TTL })).toBe(false)
   })
-  it('TTL вышел и SW ждёт → показываем повторно', () => {
+  it('TTL вышел и SW ждет → показываем повторно', () => {
     expect(shouldReshowUpdate({ hasWaiting: true, snoozedAt: 1000, now: 1000 + TTL, ttl: TTL })).toBe(true)
   })
   it('сильно после TTL → показываем', () => {

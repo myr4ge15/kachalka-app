@@ -1,10 +1,10 @@
 // ============================================================================
 // Достижения / бейджи (🎮 система мотивации) — чистые функции БЕЗ Dexie/сети.
 //
-// Вехи (пороги) по четырём категориям, посчитанные из уже имеющихся данных
+// Вехи (пороги) по четырем категориям, посчитанные из уже имеющихся данных
 // профиля. Даты получения хранит слой БД (db/badges.js) в персональной `meta`;
 // здесь — только «какие вехи закрыты сейчас» и прогресс до следующей. Никакого
-// IndexedDB → всё тестируется в node.
+// IndexedDB → все тестируется в node.
 //
 // Опираемся на готовые агрегаты (формулы не дублируем):
 //   profileStats.currentStreak / totalTonnage / fmtTonnage, records.minePrs.
@@ -45,7 +45,7 @@ export function maxStreakWeeks(workouts) {
 }
 
 // Определения вех — единый источник правды для экрана и детекта. `valueKey` —
-// какое поле из currentValues сравнивать с `threshold`. Для объёма threshold в
+// какое поле из currentValues сравнивать с `threshold`. Для объема threshold в
 // КГ (сравнивается с тоннажем в кг), в UI показывается тоннами через fmtTonnage.
 export const BADGES = [
   // Регулярность (число тренировок)
@@ -57,10 +57,10 @@ export const BADGES = [
   { id: 'streak_3', cat: 'streak', valueKey: 'maxStreakWeeks', threshold: 3, icon: '🔥', name: '3 недели подряд', desc: 'Три недели без пропусков' },
   { id: 'streak_7', cat: 'streak', valueKey: 'maxStreakWeeks', threshold: 7, icon: '⚡', name: 'Consistency', desc: 'Семь недель подряд — режим' },
   { id: 'streak_30', cat: 'streak', valueKey: 'maxStreakWeeks', threshold: 30, icon: '🌟', name: 'Несокрушимый', desc: 'Тридцать недель без срывов' },
-  // Объём (суммарный тоннаж, порог в кг)
+  // Объем (суммарный тоннаж, порог в кг)
   { id: 'vol_10', cat: 'volume', valueKey: 'tonnage', threshold: 10_000, icon: '🪨', name: '10 тонн', desc: 'Суммарно поднято 10 тонн' },
   { id: 'vol_100', cat: 'volume', valueKey: 'tonnage', threshold: 100_000, icon: '🏗️', name: '100 тонн', desc: 'Суммарно поднято 100 тонн' },
-  { id: 'vol_1000', cat: 'volume', valueKey: 'tonnage', threshold: 1_000_000, icon: '🦍', name: 'Король объёма', desc: 'Суммарно поднята тысяча тонн' },
+  { id: 'vol_1000', cat: 'volume', valueKey: 'tonnage', threshold: 1_000_000, icon: '🦍', name: 'Король объема', desc: 'Суммарно поднята тысяча тонн' },
   // Рекорды (число личных рекордов)
   { id: 'pr_1', cat: 'records', valueKey: 'prCount', threshold: 1, icon: '🥉', name: 'Первый рекорд', desc: 'Побит первый личный рекорд' },
   { id: 'pr_10', cat: 'records', valueKey: 'prCount', threshold: 10, icon: '🥈', name: '10 рекордов', desc: 'Десять личных рекордов' },
@@ -71,12 +71,12 @@ export const BADGES = [
 export const BADGE_CATS = [
   { cat: 'regularity', label: 'Регулярность', icon: '⚡' },
   { cat: 'streak', label: 'Серии подряд', icon: '🔥' },
-  { cat: 'volume', label: 'Объём', icon: '🦍' },
+  { cat: 'volume', label: 'Объем', icon: '🦍' },
   { cat: 'records', label: 'Рекорды', icon: '🏆' },
 ]
 
 // Один проход по истории → значения всех метрик, на которых стоят вехи.
-// Переиспользуем готовые функции, серию берём максимальную за историю.
+// Переиспользуем готовые функции, серию берем максимальную за историю.
 export function currentValues(workouts, now = new Date()) {
   const list = workouts ?? []
   return {
@@ -101,7 +101,7 @@ export function badgeProgress(def, values) {
 //   earned      — id вех, считающихся полученными (закрыты СЕЙЧАС ИЛИ уже
 //                 отмечены в earnedMap — необратимость: упавший показатель бейдж
 //                 не снимает);
-//   newlyEarned — закрыты сейчас, но ещё НЕ отмечены (кандидаты на выдачу/тост).
+//   newlyEarned — закрыты сейчас, но еще НЕ отмечены (кандидаты на выдачу/тост).
 export function evaluateBadges(values, earnedMap, now = new Date()) {
   void now
   const earned = []
@@ -117,7 +117,7 @@ export function evaluateBadges(values, earnedMap, now = new Date()) {
 }
 
 // Ближайшая незакрытая веха (по проценту готовности) — для шапки экрана
-// «до <бейдж> — ещё N». null, если всё получено.
+// «до <бейдж> — еще N». null, если все получено.
 export function nextBadge(values) {
   let best = null
   for (const def of BADGES) {
@@ -130,7 +130,7 @@ export function nextBadge(values) {
   return best
 }
 
-// Форматирование значения/порога в единицах категории (объём → тонны через
+// Форматирование значения/порога в единицах категории (объем → тонны через
 // fmtTonnage, остальное — целое число). Возвращает строку для подписи.
 export function fmtBadgeValue(def, value) {
   if (def?.cat === 'volume') {
@@ -142,8 +142,8 @@ export function fmtBadgeValue(def, value) {
 
 // ИСТОРИЧЕСКАЯ дата получения каждого сейчас-закрытого бейджа (Slice 2): проход
 // по хронологии вместо «сегодня» у бэкфилла. Возвращает { [badgeId]: ISO }.
-// Регулярность — дата N-й тренировки; объём — момент, когда накопленный тоннаж
-// пересёк порог; рекорды — дата N-го личного рекорда (minePrs хронологичен);
+// Регулярность — дата N-й тренировки; объем — момент, когда накопленный тоннаж
+// пересек порог; рекорды — дата N-го личного рекорда (minePrs хронологичен);
 // серии — дата тренировки, завершившей серию нужной длины (первая тренировка
 // завершающей недели). Для незакрытых вех записи нет.
 export function badgeEarnedDates(workouts) {
@@ -152,14 +152,14 @@ export function badgeEarnedDates(workouts) {
     .filter((w) => w.performed_at)
     .sort((a, b) => cmpIsoAsc(a.performed_at, b.performed_at) || cmpIsoAsc(a.created_at, b.created_at))
 
-  // Регулярность: дата N-й по счёту тренировки.
+  // Регулярность: дата N-й по счету тренировки.
   for (const def of BADGES) {
     if (def.cat === 'regularity' && chron.length >= def.threshold) {
       out[def.id] = chron[def.threshold - 1].performed_at
     }
   }
 
-  // Объём: накапливаем тоннаж, ловим момент пересечения каждого порога.
+  // Объем: накапливаем тоннаж, ловим момент пересечения каждого порога.
   const volDefs = BADGES.filter((b) => b.cat === 'volume').sort((a, b) => a.threshold - b.threshold)
   const volPending = new Set(volDefs.map((d) => d.id))
   let cum = 0
@@ -187,7 +187,7 @@ export function badgeEarnedDates(workouts) {
     }
   }
 
-  // Серии: неделя → самая ранняя тренировка в ней; идём по неделям, растим серию,
+  // Серии: неделя → самая ранняя тренировка в ней; идем по неделям, растим серию,
   // при достижении нужной длины ставим дату завершившей неделю тренировки.
   const weekFirst = new Map()
   for (const w of chron) {

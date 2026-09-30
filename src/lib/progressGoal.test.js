@@ -2,7 +2,7 @@ import { describe, expect, it } from 'vitest'
 import { buildGoalGuide, selectProgressGoal } from './progressGoal.js'
 
 describe('selectProgressGoal', () => {
-  it('берёт только активную цель выбранного упражнения', () => {
+  it('берет только активную цель выбранного упражнения', () => {
     const goals = [
       { exerciseId: 'bench', targetWeight: 90, achievedAt: '2026-07-01' },
       { exerciseId: 'squat', targetWeight: 140 },

@@ -13,7 +13,7 @@ describe('SaveBar', () => {
     expect(onSave).toHaveBeenCalledTimes(1)
   })
 
-  it('totalSets=0 → без счётчика', () => {
+  it('totalSets=0 → без счетчика', () => {
     render(<SaveBar canSave saving={false} totalSets={0} onSave={() => {}} />)
     expect(screen.getByRole('button', { name: 'Сохранить' })).toBeInTheDocument()
   })

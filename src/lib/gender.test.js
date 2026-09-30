@@ -6,6 +6,6 @@ describe('byGender', () => {
     expect(byGender('f', 'тренировал', 'тренировала')).toBe('тренировала')
     expect(byGender('m', 'тренировал', 'тренировала')).toBe('тренировал')
     expect(byGender(null, 'тренировал', 'тренировала')).toBe('тренировал')
-    expect(byGender(undefined, 'обошёл', 'обошла')).toBe('обошёл')
+    expect(byGender(undefined, 'обошел', 'обошла')).toBe('обошел')
   })
 })

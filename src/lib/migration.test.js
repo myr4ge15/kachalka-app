@@ -16,7 +16,7 @@ describe('selectDirtyForMigration', () => {
     expect(got.workouts.map((w) => w.id).sort()).toEqual(['w1', 'w2'])
   })
 
-  it('берёт операции outbox только для переносимых тренировок', () => {
+  it('берет операции outbox только для переносимых тренировок', () => {
     const workouts = [
       { id: 'w1', user_id: A, _dirty: 1 },
       { id: 'w3', user_id: A }, // чистая
@@ -53,7 +53,7 @@ describe('selectDirtyForMigration', () => {
       { id: 'w1', user_id: A, _dirty: 1, entries: [{ exercise_id: 'ex-custom', sets: [] }] },
     ]
     const exercises = [
-      { id: 'ex-custom', name: 'Своё', _dirty: 1 }, // несинхрон. кастомное → переносим
+      { id: 'ex-custom', name: 'Свое', _dirty: 1 }, // несинхрон. кастомное → переносим
       { id: 'ex-seed', name: 'Сидовое', _dirty: 0 }, // чистое, не упомянуто → нет
     ]
     const exOutbox = [

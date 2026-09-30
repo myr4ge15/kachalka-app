@@ -39,7 +39,7 @@ describe('findNearestRival', () => {
     expect(result).toMatchObject({ gap: 2, gapMetric: 'reps', tied: false })
   })
 
-  it('распознаёт полностью равный результат', () => {
+  it('распознает полностью равный результат', () => {
     const result = findNearestRival([row('u1', 100, 6), row('me', 100, 6)], 'me')
 
     expect(result).toMatchObject({ gap: 0, tied: true })

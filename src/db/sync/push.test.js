@@ -154,7 +154,7 @@ describe('pushTemplates', () => {
       {
         id: 'tpl-del',
         user_id: userId,
-        name: 'Удалённый',
+        name: 'Удаленный',
         exercises: [],
         _dirty: 0,
         _deleted: 1,
@@ -262,11 +262,11 @@ describe('push тренировок и реакций', () => {
   })
 })
 
-// Правка, сделанная ПОКА ШЁЛ сетевой upsert: repo видит ещё живую операцию и новую
+// Правка, сделанная ПОКА ШЕЛ сетевой upsert: repo видит еще живую операцию и новую
 // не ставит. Push не должен снимать _dirty и удалять операцию — иначе pull того же
 // цикла перезапишет правку серверной версией.
 describe('push — правка во время отправки не теряется', () => {
-  it('тренировка: остаётся dirty с операцией, базис обнулён', async () => {
+  it('тренировка: остается dirty с операцией, базис обнулен', async () => {
     await db.workouts.put({
       id: 'w1', user_id: userId, performed_at: '2026-07-28',
       updated_at: '2026-07-28T20:00:00.000Z', _base_updated_at: '2026-07-27T20:00:00.000Z',
@@ -289,7 +289,7 @@ describe('push — правка во время отправки не теряе
     expect(await db.outbox.count()).toBe(1)
   })
 
-  it('тренировка без правки в полёте — как раньше: чистая, очередь пуста', async () => {
+  it('тренировка без правки в полете — как раньше: чистая, очередь пуста', async () => {
     await db.workouts.put({
       id: 'w1', user_id: userId, performed_at: '2026-07-28',
       updated_at: '2026-07-28T20:00:00.000Z', _dirty: 1, _deleted: 0,
@@ -303,7 +303,7 @@ describe('push — правка во время отправки не теряе
     expect(await db.outbox.count()).toBe(0)
   })
 
-  it('упражнение: правка названия во время upsert остаётся в очереди', async () => {
+  it('упражнение: правка названия во время upsert остается в очереди', async () => {
     await db.exercises.put({ id: 'ex1', name: 'Тяга', muscle_group: 'спина', owner_id: userId, _dirty: 1 })
     await db.ex_outbox.add({ exerciseId: 'ex1', createdAt: '2026-07-29T10:00:00.000Z' })
     server.from = async () => {
@@ -317,7 +317,7 @@ describe('push — правка во время отправки не теряе
     expect(await db.ex_outbox.count()).toBe(1)
   })
 
-  it('шаблон: правка во время upsert остаётся в очереди', async () => {
+  it('шаблон: правка во время upsert остается в очереди', async () => {
     await db.templates.put({
       id: 't1', user_id: userId, name: 'Спина', is_public: 0,
       updated_at: '2026-07-29T10:00:00.000Z', exercises: [], _dirty: 1, _deleted: 0,
@@ -338,7 +338,7 @@ describe('push — правка во время отправки не теряе
 describe('pushGoal / pushUserMeta — правки во время отправки', () => {
   const goalA = { exerciseId: 'exA', exerciseName: 'Жим', metric: 'weight', targetWeight: 100, achievedAt: null, _dirty: 1 }
 
-  it('цель, добавленная пока шёл upsert другой, не стирается', async () => {
+  it('цель, добавленная пока шел upsert другой, не стирается', async () => {
     await writeGoals(userId, [goalA], db)
     server.rpc = async (name) => {
       if (name === 'upsert_goal') {
@@ -356,7 +356,7 @@ describe('pushGoal / pushUserMeta — правки во время отправ�
     expect(goals[1]._dirty).toBe(1)
   })
 
-  it('цель, изменённая во время своего upsert, остаётся dirty', async () => {
+  it('цель, измененная во время своего upsert, остается dirty', async () => {
     await writeGoals(userId, [goalA], db)
     server.rpc = async (name) => {
       if (name === 'upsert_goal') await writeGoals(userId, [{ ...goalA, targetWeight: 105 }], db)
@@ -368,7 +368,7 @@ describe('pushGoal / pushUserMeta — правки во время отправ�
     expect((await readGoals(userId, db))[0]).toMatchObject({ targetWeight: 105, _dirty: 1 })
   })
 
-  it('цель, заведённая заново во время delete, не выкидывается', async () => {
+  it('цель, заведенная заново во время delete, не выкидывается', async () => {
     await writeGoals(userId, [{ ...goalA, _deleted: 1 }], db)
     server.rpc = async (name) => {
       if (name === 'delete_my_goal') await writeGoals(userId, [{ ...goalA, targetWeight: 90 }], db)
@@ -380,11 +380,11 @@ describe('pushGoal / pushUserMeta — правки во время отправ�
     expect(await readGoals(userId, db)).toEqual([{ ...goalA, targetWeight: 90 }])
   })
 
-  it('ключ user_meta, изменённый во время отправки, остаётся dirty', async () => {
+  it('ключ user_meta, измененный во время отправки, остается dirty', async () => {
     await writeSyncedMeta(userId, 'prog', { enabled: true, byExercise: {} }, db)
     server.rpc = async (name) => {
       if (name === 'upsert_user_meta') {
-        // отметка времени правки обязана сдвинуться — ждём смены миллисекунды
+        // отметка времени правки обязана сдвинуться — ждем смены миллисекунды
         await new Promise((r) => setTimeout(r, 5))
         await writeSyncedMeta(userId, 'prog', { enabled: false, byExercise: {} }, db)
       }

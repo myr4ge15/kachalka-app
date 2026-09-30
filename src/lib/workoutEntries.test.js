@@ -36,7 +36,7 @@ describe('removeExerciseIn / insertExerciseIn', () => {
     const out = insertExerciseIn(cur, 0, entry(wEx('a'), []))
     expect(out.map((e) => e.exercise.id)).toEqual(['a', 'b'])
   })
-  it('undo с индексом больше длины кладёт в конец', () => {
+  it('undo с индексом больше длины кладет в конец', () => {
     const cur = [entry(wEx('a'), [])]
     const out = insertExerciseIn(cur, 9, entry(wEx('b'), []))
     expect(out.map((e) => e.exercise.id)).toEqual(['a', 'b'])

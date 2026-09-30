@@ -1,7 +1,7 @@
 // Интеграционные тесты db-обвязки инсайтов/свежести (db/insights.js) на реальном
 // Dexie поверх fake-indexeddb. Чистые движки (lib/insights, lib/homeSummary,
 // lib/freshness) покрыты отдельно — здесь проверяем ПРОВОДКУ: что обвязка читает
-// историю из базы и отдаёт корректно собранные структуры для Главной/экрана
+// историю из базы и отдает корректно собранные структуры для Главной/экрана
 // свежести/тоста после сохранения.
 import 'fake-indexeddb/auto' // ПЕРВЫМ: ставит глобальный indexedDB до Dexie-модулей
 import { describe, it, expect, beforeEach, afterEach } from 'vitest'
@@ -10,10 +10,10 @@ import { uniqueUserId } from '../test/idbHarness.js'
 import { saveWorkout } from './repo.js'
 import { getHomeData, detectInsightsOnSave, getFreshness } from './insights.js'
 
-const bench = { id: 'ex_bench', name: 'Жим лёжа', muscle_group: 'грудь', is_bench_lift: true, metric: 'weight' }
+const bench = { id: 'ex_bench', name: 'Жим лежа', muscle_group: 'грудь', is_bench_lift: true, metric: 'weight' }
 const entry = (ex, sets) => ({ exercise: ex, sets })
 // Свежие даты относительно реального «сейчас» — detectInsightsOnSave/движки
-// используют реальный Date, поэтому историю кладём недавней.
+// используют реальный Date, поэтому историю кладем недавней.
 const daysAgo = (n) => {
   const d = new Date()
   d.setDate(d.getDate() - n)
@@ -59,7 +59,7 @@ describe('getHomeData', () => {
 })
 
 describe('detectInsightsOnSave', () => {
-  it('рекордная тренировка даёт инсайт-рекорд (kind pr)', async () => {
+  it('рекордная тренировка дает инсайт-рекорд (kind pr)', async () => {
     await wk(userId, daysAgo(7), [{ weight: 80, reps: 5 }])
     const wId = await wk(userId, daysAgo(0), [{ weight: 90, reps: 5 }])
     const insights = await detectInsightsOnSave(userId, wId)

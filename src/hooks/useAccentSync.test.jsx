@@ -15,7 +15,7 @@ const mem = (init) => {
 const stored = (s) => JSON.parse(s.m.get(ACCENT_KEY))
 
 describe('useAccentSync (v6.2.4: только свой выбор)', () => {
-  it('своё значение из учётки применяется и запоминается с владельцем', () => {
+  it('свое значение из учетки применяется и запоминается с владельцем', () => {
     vi.mocked(useLiveQuery).mockReturnValue({ id: 'peach', hue: 200, by: 'u1' })
     const storage = mem()
     const root = document.createElement('div')
@@ -34,14 +34,14 @@ describe('useAccentSync (v6.2.4: только свой выбор)', () => {
     expect(stored(storage).by).toBeUndefined()
   })
 
-  it('значение другой учётки в своей meta не принимается', () => {
+  it('значение другой учетки в своей meta не принимается', () => {
     vi.mocked(useLiveQuery).mockReturnValue({ id: 'pink', hue: 200, by: 'u2' })
     const root = document.createElement('div')
     renderHook(() => useAccentSync('u1', { storage: mem(), root }))
     expect(root.dataset.accent).toBe('volt')
   })
 
-  it('в учётке пусто, на устройстве свой выбор — оставляем как есть', () => {
+  it('в учетке пусто, на устройстве свой выбор — оставляем как есть', () => {
     vi.mocked(useLiveQuery).mockReturnValue(null)
     const storage = mem('{"id":"teal","hue":200,"by":"u1"}')
     const root = document.createElement('div')

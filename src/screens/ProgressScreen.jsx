@@ -25,13 +25,13 @@ function cssVar(name, fallback) {
 const PERIODS = [
   { id: 'week', label: 'Неделя' },
   { id: 'month', label: 'Месяц' },
-  { id: 'all', label: 'Всё' },
+  { id: 'all', label: 'Все' },
   { id: 'custom', label: 'Период' },
 ]
 
 // Окно «формы сейчас» — лучший фактический вес за последние FORM_WEEKS недель.
 // Отдельная от «рекорда» метрика, чтобы возврат после паузы отслеживался сам по
-// себе и не упирался каждый раз в далёкий личный пик.
+// себе и не упирался каждый раз в далекий личный пик.
 const FORM_WEEKS = 6
 
 // Границы периода как ISO-дни (YYYY-MM-DD) или null = без ограничения.
@@ -69,7 +69,7 @@ export default function ProgressScreen({
   // «гасим» проброс в родителе (one-shot) — иначе progressExId залипал бы, и
   // следующий прямой вход на вкладку «Прогресс» переоткрывал бы то же упражнение
   // вместо дефолта (жим). Сброс делает initialExerciseId=null; гард != null
-  // не даёт повторно дёрнуть setSelId — текущий выбор сохраняется.
+  // не дает повторно дернуть setSelId — текущий выбор сохраняется.
   useEffect(() => {
     if (initialExerciseId != null) {
       setSelId(initialExerciseId)
@@ -87,7 +87,7 @@ export default function ProgressScreen({
     return picked || list.find((x) => x.is_bench_lift) || list[0]
   }, [list, selId])
 
-  // Тип берём из явного metric (приходит в денормализованном снимке упражнения);
+  // Тип берем из явного metric (приходит в денормализованном снимке упражнения);
   // для легаси-записей без поля — фолбэк на «есть ли вес в подходах» (hasWeight).
   const metric = selected
     ? (selected.metric ?? (selected.hasWeight ? 'weight' : 'reps'))
@@ -96,7 +96,7 @@ export default function ProgressScreen({
     ? (selected.metric ? selected.metric === 'weight' : selected.hasWeight)
     : true
 
-  // PR и направление считаем по ВСЕЙ истории (рекорд — личный за всё время),
+  // PR и направление считаем по ВСЕЙ истории (рекорд — личный за все время),
   // а период лишь сужает отображаемые точки. Поэтому строим ряд целиком и
   // фильтруем результат, а не входные тренировки.
   const [period, setPeriod] = useState('all')
@@ -155,21 +155,21 @@ export default function ProgressScreen({
     line: cssVar('--green', '#16a34a'),
     down: cssVar('--red', '#ef4444'),
     flat: cssVar('--muted', '#94a3b8'),
-    pr: cssVar('--g4', '#facc15'), // цвет рекордов (v6.2.2): как 🏆 и звёзды Профиля
+    pr: cssVar('--g4', '#facc15'), // цвет рекордов (v6.2.2): как 🏆 и звезды Профиля
     bg: cssVar('--bg', '#0f172a'),
     border: cssVar('--border', '#334155'),
     text: cssVar('--text', '#e2e8f0'),
     goal: cssVar('--acc', '#C8F135'), // цель — выбранный акцент
   }), [])
 
-  // Цвет точки по смыслу: рекорд > спад/рост. Жёлтый — новый максимум,
-  // зелёный — рост к прошлой сессии, красный — спад, серый — без изменений.
+  // Цвет точки по смыслу: рекорд > спад/рост. Желтый — новый максимум,
+  // зеленый — рост к прошлой сессии, красный — спад, серый — без изменений.
   const dotColor = (p) =>
     p.isPr ? c.pr : p.dir === 'down' ? c.down : p.dir === 'flat' ? c.flat : c.line
 
   // Линию красим посегментно через градиент по оси X: каждый сегмент — своим
-  // цветом (рост зелёный / спад красный) с резкой границей (две стоп-точки на
-  // одном офсете). При одной точке линии нет — берём сплошной зелёный.
+  // цветом (рост зеленый / спад красный) с резкой границей (две стоп-точки на
+  // одном офсете). При одной точке линии нет — берем сплошной зеленый.
   const gradId = 'progDir'
   const stops = useMemo(() => {
     const n = data.length
@@ -185,7 +185,7 @@ export default function ProgressScreen({
   }, [data, c])
   // Градиент рисуем только когда линия НЕ строго горизонтальна: при нулевом
   // размахе значений (все точки на одной высоте) bbox градиента вырождается и
-  // штрих не отрисовывается — берём сплошной цвет, чтобы линия была видна.
+  // штрих не отрисовывается — берем сплошной цвет, чтобы линия была видна.
   const lineStroke = data.length >= 2 && seriesValueSpread(data) > 0 ? `url(#${gradId})` : c.line
 
   return (
@@ -193,7 +193,7 @@ export default function ProgressScreen({
       <h2 className="screen-title">Прогресс</h2>
       <p className="muted sub">
         {weighted
-          ? 'По дням — максимальный поднятый вес. 1ПМ (расчётный) — справочно'
+          ? <>По дням — максимальный поднятый вес.<br />1ПМ (расчетный) — справочно</>
           : metric === 'time'
             ? 'Упражнение на время — динамика по лучшему подходу (мин:сек)'
             : 'Упражнение без веса — динамика по лучшему подходу (повт.)'}
@@ -209,7 +209,7 @@ export default function ProgressScreen({
         <>
           {/* Десктоп (≥900px) раскладывает это в две колонки: слева контролы
               (выбор упражнения + период), справа сводка/график/таблица. На мобиле
-              .prog-layout — обычный блок, всё стекается как раньше. */}
+              .prog-layout — обычный блок, все стекается как раньше. */}
           <div className="prog-layout">
           <div className="prog-aside">
           <label className="prog-pick">
@@ -268,7 +268,7 @@ export default function ProgressScreen({
                     <div className="stat-cell">
                       <span className="stat-cell-label">Рекорд</span>
                       <span className="stat-num gold">{allBest} кг</span>
-                      <span className="muted stat-sub">за всё время</span>
+                      <span className="muted stat-sub">за все время</span>
                     </div>
                     <div className="stat-cell stat-cell-right">
                       <span className="stat-cell-label">Форма сейчас</span>
@@ -303,7 +303,7 @@ export default function ProgressScreen({
                       </span>
                       <span className="prog-goal-sub">
                         {goalGuide.left > 0
-                          ? `осталось ${fmtMetricValue(goalGuide.metric, goalGuide.left)}`
+                          ? `осталось: ${fmtMetricValue(goalGuide.metric, goalGuide.left)}`
                           : goalGuide.reps
                             ? `вес уже есть · осталось выполнить ≥${goalGuide.reps} повт.`
                             : 'целевой показатель уже достигнут'}
@@ -419,7 +419,7 @@ export default function ProgressScreen({
               {weighted && (
                 <p className="formula-note">
                   1ПМ считается по формуле Эпли:{' '}
-                  <code>вес × (1 + повторы ÷ 30)</code>. Это расчётная оценка
+                  <code>вес × (1 + повторы ÷ 30)</code>. Это расчетная оценка
                   максимума «на раз», а не результат реального теста — чем больше
                   повторов в подходе, тем выше погрешность.
                 </p>

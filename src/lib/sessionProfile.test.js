@@ -5,7 +5,7 @@ describe('readStoredUserId', () => {
   it('новый тонкий формат {id}', () => {
     expect(readStoredUserId(JSON.stringify({ id: 'u1' }))).toBe('u1')
   })
-  it('старый толстый формат {id,name,role} → берём только id', () => {
+  it('старый толстый формат {id,name,role} → берем только id', () => {
     expect(readStoredUserId(JSON.stringify({ id: 'u1', name: 'Аня', role: 'admin' }))).toBe('u1')
   })
   it('голая id-строка (не-JSON)', () => {
@@ -35,8 +35,8 @@ describe('hydrateProfile', () => {
   it('нет ни ростера, ни кэша → name/role = null', () => {
     expect(hydrateProfile('u1', null, null)).toEqual({ id: 'u1', name: null, role: null })
   })
-  it('роль есть только в кэше PIN (ростер её не отдаёт)', () => {
-    // roster (login_users) не содержит role — даже если передать, роль берём из cache
+  it('роль есть только в кэше PIN (ростер ее не отдает)', () => {
+    // roster (login_users) не содержит role — даже если передать, роль берем из cache
     expect(hydrateProfile('u1', { name: 'Аня', role: 'admin' }, { name: 'Аня', role: 'member' }).role)
       .toBe('member')
   })

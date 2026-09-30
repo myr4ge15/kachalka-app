@@ -16,7 +16,7 @@ const workouts = [
 ]
 const goals = [
   { exerciseId: 'ex1', exerciseName: 'Жим', metric: 'weight', targetWeight: 120, targetReps: 3, achievedAt: null, _dirty: 1 },
-  { exerciseId: 'ex9', exerciseName: 'Удалённая', metric: 'weight', targetWeight: 50, _deleted: 1, _dirty: 1 },
+  { exerciseId: 'ex9', exerciseName: 'Удаленная', metric: 'weight', targetWeight: 50, _deleted: 1, _dirty: 1 },
 ]
 const badges = { reg_1: { at: '2026-01-01T00:00:00.000Z', backfilled: false } }
 
@@ -28,7 +28,7 @@ const snap = () =>
   )
 
 describe('buildBackup', () => {
-  it('собирает конверт со схемой, владельцем и счётчиками', () => {
+  it('собирает конверт со схемой, владельцем и счетчиками', () => {
     const b = snap()
     expect(b.schema).toBe(BACKUP_SCHEMA)
     expect(b.app_version).toBe('5.1.0')
@@ -101,13 +101,13 @@ describe('assertSameOwner', () => {
 
 describe('planImport', () => {
   const exercises = new Map([
-    ['ex1', { id: 'ex1', name: 'Жим лёжа', muscle_group: 'грудь', submuscle: 'грудь_верх', secondary: ['трицепс'], is_bench_lift: true, metric: 'weight' }],
+    ['ex1', { id: 'ex1', name: 'Жим лежа', muscle_group: 'грудь', submuscle: 'грудь_верх', secondary: ['трицепс'], is_bench_lift: true, metric: 'weight' }],
   ])
 
-  it('пустая база: добавляет всё, упражнение берёт из локального справочника', () => {
+  it('пустая база: добавляет все, упражнение берет из локального справочника', () => {
     const p = planImport(snap(), { workoutIds: [], goals: [], badges: {}, prog: undefined, exercises })
     expect(p.counts).toEqual({ workouts: 1, workoutsSkipped: 0, goals: 1, badges: 1, prog: 1, rpe: 0 })
-    // полная форма из справочника, а не усечённая из файла
+    // полная форма из справочника, а не усеченная из файла
     expect(p.workouts[0].entries[0].exercise.is_bench_lift).toBe(true)
     expect(p.workouts[0].entries[0].exercise.secondary).toEqual(['трицепс'])
     // упражнения нет локально → фолбэк на снимок
@@ -133,9 +133,9 @@ describe('planImport', () => {
     expect(p.goals).toBe(null) // цель на ex1 уже есть — не трогаем
   })
 
-  it('удалённую цель не воскрешает (tombstone занимает exerciseId)', () => {
+  it('удаленную цель не воскрешает (tombstone занимает exerciseId)', () => {
     const b = snap()
-    b.goals.push({ exerciseId: 'ex9', exerciseName: 'Удалённая', metric: 'weight', targetWeight: 50, achievedAt: null })
+    b.goals.push({ exerciseId: 'ex9', exerciseName: 'Удаленная', metric: 'weight', targetWeight: 50, achievedAt: null })
     const p = planImport(b, { workoutIds: [], goals, badges: {}, exercises })
     expect(p.goals).toBe(null)
   })
@@ -187,7 +187,7 @@ describe('planImport', () => {
     expect(p.prog).toEqual({ enabled: true, byExercise: { ex7: { step: 5 }, ex1: { step: 2.5 } } })
   })
 
-  it('прогрессия: если настроек не было вовсе — берём тумблер из файла', () => {
+  it('прогрессия: если настроек не было вовсе — берем тумблер из файла', () => {
     const p = planImport(snap(), { workoutIds: [], goals: [], badges: {}, prog: undefined, exercises })
     expect(p.prog).toEqual({ enabled: false, byExercise: { ex1: { step: 2.5 } } })
   })
@@ -205,8 +205,8 @@ describe('planImport', () => {
   })
 
   it('exercises можно передать обычным объектом, не только Map', () => {
-    const p = planImport(snap(), { workoutIds: [], goals: [], badges: {}, exercises: { ex1: { id: 'ex1', name: 'Жим лёжа', is_bench_lift: true } } })
-    expect(p.workouts[0].entries[0].exercise.name).toBe('Жим лёжа')
+    const p = planImport(snap(), { workoutIds: [], goals: [], badges: {}, exercises: { ex1: { id: 'ex1', name: 'Жим лежа', is_bench_lift: true } } })
+    expect(p.workouts[0].entries[0].exercise.name).toBe('Жим лежа')
   })
 })
 
@@ -216,8 +216,8 @@ describe('describeImport', () => {
       .toBe('Добавлено — тренировок: 3, достижений: 2, настройки прогрессии.')
   })
   it('нечего добавлять → понятный текст', () => {
-    expect(describeImport({ workouts: 0, goals: 0, badges: 0, prog: 0 })).toBe('Всё из файла уже было в приложении.')
-    expect(describeImport(undefined)).toBe('Всё из файла уже было в приложении.')
+    expect(describeImport({ workouts: 0, goals: 0, badges: 0, prog: 0 })).toBe('Все из файла уже было в приложении.')
+    expect(describeImport(undefined)).toBe('Все из файла уже было в приложении.')
   })
 })
 
@@ -227,7 +227,7 @@ describe('оценки «как пошло» (RPE) в бэкапе', () => {
     w2: { at: '2026-07-22T10:00:00.000Z', ex: { ex1: 'ok' } },
   }
 
-  it('buildBackup кладёт карту оценок в снимок', () => {
+  it('buildBackup кладет карту оценок в снимок', () => {
     const b = buildBackup({ userId: 'u1', rpe: rpeSnap }, '5.15.1', new Date('2026-07-24T10:00:00Z'))
     expect(b.rpe).toEqual(rpeSnap)
     expect(buildBackup({ userId: 'u1' }).rpe).toEqual({})
@@ -250,4 +250,4 @@ describe('оценки «как пошло» (RPE) в бэкапе', () => {
   it('describeImport упоминает оценки', () => {
     expect(describeImport({ rpe: 3 })).toBe('Добавлено — оценок «как пошло»: 3.')
   })
-})
+})

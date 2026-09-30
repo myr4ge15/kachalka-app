@@ -99,7 +99,7 @@ describe('buildRecommendation', () => {
     expect(r.meta).toMatchObject({ muted: true, strategy: 'off' })
   })
 
-  it('всё выполнено (+вес) → ветка up с рекомендацией и applied', () => {
+  it('все выполнено (+вес) → ветка up с рекомендацией и applied', () => {
     // весовая цель по первому рабочему подходу = 10 повт., оба подхода закрыты
     const r = buildRecommendation(ex(), [sess([s(50, 10), s(50, 10)])], on({ e1: { strategy: 'weight', step: 2.5 } }))
     expect(r.meta).toMatchObject({ muted: false, kind: 'up', applied: true })

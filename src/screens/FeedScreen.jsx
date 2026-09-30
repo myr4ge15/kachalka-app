@@ -26,7 +26,7 @@ export default function FeedScreen({ user }) {
     for (const u of users ?? []) m.set(u.id, u.avatar_url)
     return m
   }, [users])
-  // Своё имя (для оптимистичной строки реакций). Из ростра, фолбэк — user.name.
+  // Свое имя (для оптимистичной строки реакций). Из ростра, фолбэк — user.name.
   const myName = useMemo(
     () => (users ?? []).find((u) => u.id === user.id)?.name ?? user.name ?? 'Ты',
     [users, user.id, user.name]
@@ -44,7 +44,7 @@ export default function FeedScreen({ user }) {
 
   // Приватный пользователь (флаг кэшируется на pull в meta `priv_${id}`). Раньше
   // ему прятали ленту и лидерборд целиком. С v3.14.0 приватный видит УРЕЗАННУЮ
-  // ленту — только «избранный круг» (принятые связи, connections.sql); RLS отдаёт
+  // ленту — только «избранный круг» (принятые связи, connections.sql); RLS отдает
   // ему свои + связанных, поэтому обычный fetchFeed уже возвращает нужное. Скрываем
   // только лидерборд (в общий рейтинг приватный по-прежнему не входит).
   const myPrivate = useLiveQuery(() => getMeta(`priv_${user.id}`), [user.id], false)
@@ -54,7 +54,7 @@ export default function FeedScreen({ user }) {
 
   // Тап по реакции: оптимистично (очередь + правка кэша ленты), затем отправка.
   const onReact = useCallback((workoutId, kind, mine) => {
-    // Тактильный отклик на постановку реакции (не на снятие) — лёгкое касание.
+    // Тактильный отклик на постановку реакции (не на снятие) — легкое касание.
     if (!mine) vibrate(HAPTIC.tap)
     toggleReaction({ userId: user.id, userName: myName, workoutId, kind, mine })
       .then(() => { if (navigator.onLine) syncNow(user.id) })
@@ -66,7 +66,7 @@ export default function FeedScreen({ user }) {
   const listRef = useRef(list)
   listRef.current = list
 
-  // Guard от setState после размонтирования: экран рвётся на смене вкладки
+  // Guard от setState после размонтирования: экран рвется на смене вкладки
   // (key={tab} в App), а fetchFeed может дорезолвиться позже (как в Profile/Admin).
   const aliveRef = useRef(true)
   useEffect(() => { aliveRef.current = true; return () => { aliveRef.current = false } }, [])
@@ -105,12 +105,12 @@ export default function FeedScreen({ user }) {
   // Скроллится не сам экран, а родительский .content (см. App.jsx/index.css),
   // поэтому touch-слушатели вешаем на него. Чистая математика жеста (резина/порог)
   // — в lib/pullRefresh.js. Индикатор .ptr следует за пальцем, на отпускании
-  // пружинит назад; при переходе порога — лёгкий haptic + обновление.
+  // пружинит назад; при переходе порога — легкий haptic + обновление.
   const rootRef = useRef(null)
   const [pull, setPull] = useState(0)
   const [dragging, setDragging] = useState(false)
   // Индикатор крутится только для обновления, ЗАПУЩЕННОГО жестом (не для тихого
-  // авто-refresh при входе на вкладку/возврате/сети — тот лениту не «дёргает»).
+  // авто-refresh при входе на вкладку/возврате/сети — тот лениту не «дергает»).
   const [ptrBusy, setPtrBusy] = useState(false)
   const pullRef = useRef(0)
   const refreshingRef = useRef(refreshing)
@@ -177,7 +177,7 @@ export default function FeedScreen({ user }) {
     <div className="screen feed-screen" ref={rootRef}>
       {/* Индикатор жеста «потянуть вниз»: компактный круглый бейдж, выплывает из-за
           верхнего края и доворачивает стрелку по мере протягивания; при достижении
-          порога — «готов» (зелёный), во время обновления — крутится. Экран под ним
+          порога — «готов» (зеленый), во время обновления — крутится. Экран под ним
           неподвижен. */}
       {ptrShown && (
         <div
@@ -215,9 +215,9 @@ export default function FeedScreen({ user }) {
         </button>
       </div>
       {/* Приватному про ограниченный круг говорим РОВНО ОДИН раз — в подзаголовке.
-          Раньше та же мысль дублировалась ещё отдельным абзацем под ним и третий
-          раз в пустом состоянии; на пустой ленте человек читал её трижды подряд.
-          Пустое состояние теперь несёт только действие («попроси админа»). */}
+          Раньше та же мысль дублировалась еще отдельным абзацем под ним и третий
+          раз в пустом состоянии; на пустой ленте человек читал ее трижды подряд.
+          Пустое состояние теперь несет только действие («попроси админа»). */}
       <p className="muted sub">
         {myPrivate
           ? 'Приватный режим — видны только те, кому админ открыл взаимный доступ'
@@ -289,7 +289,7 @@ export default function FeedScreen({ user }) {
             {(() => {
               const { kinds, names, total } = summarizeReactions(w.reactions, user.id)
               const line = reactorLine(names)
-              // Своя тренировка — самолайк запрещён: показываем только СВОДКУ
+              // Своя тренировка — самолайк запрещен: показываем только СВОДКУ
               // реакций других (статичные чипы + имена), без кнопок. Нет реакций
               // — не рендерим блок вовсе.
               if (isMe) {

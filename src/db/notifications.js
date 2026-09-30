@@ -1,7 +1,7 @@
 // ============================================================================
 // Бейджи-уведомления о рекордах (ТЗ §4.5, MVP) — слой БД.
 //
-// Всё считается на клиенте из уже имеющихся данных, схему/синк не трогаем:
+// Все считается на клиенте из уже имеющихся данных, схему/синк не трогаем:
 //   - «У тебя новый рекорд» — из локальной истории своих тренировок (db.workouts);
 //   - «Друг побил твой рекорд» — из кэша общей ленты (db.feed).
 // Чистые алгоритмы — в src/lib/records.js (тестируются в node). Здесь только
@@ -24,7 +24,7 @@ import { unreadCount } from '../lib/notifFilter.js'
 
 // Метка «прочитано» неймспейснута по userId — иначе на общем устройстве второй
 // вошедший наследует «прочитано» первого (notif_seen_at был глобальным). Старый
-// глобальный ключ больше не читаем (станет мёртвым; одноразовый эффект — при
+// глобальный ключ больше не читаем (станет мертвым; одноразовый эффект — при
 // первом открытии после обновления уведомления покажутся непрочитанными).
 const seenKey = (userId) => `notif_seen_at_${userId}`
 const LIMIT = 40 // сколько последних уведомлений держим в списке
@@ -33,13 +33,13 @@ const LIMIT = 40 // сколько последних уведомлений д�
 //   [{ exerciseId, exerciseName, metric, targetWeight, achievedAt, _dirty, _deleted }]
 //   (achievedAt: null | ISO; _deleted: 1 → tombstone до отправки delete на сервер).
 // metric (v1.16) — тип цели ('weight'/'reps'/'time'), как у упражнения; targetWeight
-// несёт ЦЕЛЕВОЕ ведущее значение в единицах метрики (кг / повторы / секунды), как
+// несет ЦЕЛЕВОЕ ведущее значение в единицах метрики (кг / повторы / секунды), как
 // reps хранит секунды для time-упражнений. Легаси-цель без metric → 'weight'.
 export const goalKey = (userId) => `goal_${userId}`
 
 // Прочитать цели как МАССИВ. Совместимость: старое значение — одиночный объект
 // цели (до мульти-целей) — мигрируем в массив на лету. Не персистим здесь (чтение
-// зовётся и из useLiveQuery); первая же запись (save/sync) сохранит массив.
+// зовется и из useLiveQuery); первая же запись (save/sync) сохранит массив.
 export async function readGoals(userId, d) {
   const v = await getMeta(goalKey(userId), d)
   if (Array.isArray(v)) return v
@@ -60,7 +60,7 @@ export async function writeGoals(userId, goals, d) {
   await setMeta(goalKey(userId), goals, d)
 }
 
-// Мои тренировки (без удалённых).
+// Мои тренировки (без удаленных).
 async function myWorkouts(userId) {
   const list = await db.workouts.where('user_id').equals(userId).toArray()
   return list.filter((w) => !w._deleted)
@@ -84,7 +84,7 @@ async function goalNotif(userId) {
 }
 
 // Инсайты как уведомления (виш BACKLOG «Инсайты»): авто-выводы движка правил
-// (объём/серия/забытая группа/тренд/обгон/плато). Личный рекорд (kind 'pr') из
+// (объем/серия/забытая группа/тренд/обгон/плато). Личный рекорд (kind 'pr') из
 // набора исключаем — его уже показывает уведомление типа 'mine', не дублируем.
 // Лидерборд подтягиваем для «обгона друга»; ошибка/пусто → без него.
 async function insightNotifs(userId, workouts) {
@@ -122,7 +122,7 @@ export async function getNotifications(userId) {
   const mine = minePrs(workouts)
   const beaten = computeBeaten(feedItems, userId, myBest)
   const goal = await goalNotif(userId)
-  // Реакции на мои тренировки — из того же окна ленты (в нём есть и мои записи).
+  // Реакции на мои тренировки — из того же окна ленты (в нем есть и мои записи).
   const reactions = computeReactionNotifs(feedItems, userId)
   const insights = await insightNotifs(userId, workouts)
   const badges = await badgeNotifs(userId)
@@ -131,19 +131,19 @@ export async function getNotifications(userId) {
     .slice(0, LIMIT)
 }
 
-// Метка «последнего просмотра» (ISO, '' если ещё не открывали) — для своего userId.
+// Метка «последнего просмотра» (ISO, '' если еще не открывали) — для своего userId.
 export async function getSeenAt(userId) {
   return (await getMeta(seenKey(userId))) ?? ''
 }
 
-// Число непрочитанных (событие новее метки просмотра). Счётчик — чистый
+// Число непрочитанных (событие новее метки просмотра). Счетчик — чистый
 // unreadCount (lib/notifFilter), db-слой лишь строит список и метку.
 export async function countUnread(userId) {
   const [seen, list] = await Promise.all([getSeenAt(userId), getNotifications(userId)])
   return unreadCount(list, seen)
 }
 
-// Двигаем метку на время самого свежего уведомления (всё прочитано).
+// Двигаем метку на время самого свежего уведомления (все прочитано).
 export async function markAllSeen(userId, list) {
   const seen = await getSeenAt(userId)
   const newest = (list ?? []).reduce(
@@ -151,7 +151,7 @@ export async function markAllSeen(userId, list) {
     seen
   )
   // Через writeSyncedMeta: метка уезжает в серверный user_meta, поэтому
-  // «прочитано» теперь общее для всех устройств (раньше у каждого было своё).
+  // «прочитано» теперь общее для всех устройств (раньше у каждого было свое).
   await writeSyncedMeta(userId, 'notif_seen_at', newest || nowIso())
 }
 
@@ -165,10 +165,10 @@ export async function detectNewPrsOnSave(userId, workoutId) {
   return computeNewPrs(saved.entries, othersBest)
 }
 
-// Какие личные цели достигнуты ВПЕРВЫЕ именно этой тренировкой. Идём по ВСЕМ
+// Какие личные цели достигнуты ВПЕРВЫЕ именно этой тренировкой. Идем по ВСЕМ
 // не-достигнутым целям: ведущий показатель по упражнению цели (вес / повторы /
-// секунды — по метрике упражнения) ДО этой тренировки был ниже target, а с её
-// учётом стал ≥ target (как рекорд). myBestByExercise возвращает ведущее значение
+// секунды — по метрике упражнения) ДО этой тренировки был ниже target, а с ее
+// учетом стал ≥ target (как рекорд). myBestByExercise возвращает ведущее значение
 // в единицах метрики упражнения, поэтому сравнение работает для всех метрик.
 // Достигнутым проставляем achievedAt (дедуп) и возвращаем массив
 // { exerciseId, name, metric, value } для экрана-финиша (пусто — ничего не достигнуто).
@@ -194,7 +194,7 @@ export async function detectGoalReachedOnSave(userId, workoutId) {
       const curMet = goalMetByExercise(all, g.exerciseId, g.targetWeight, g.targetReps)
       crossed = !prevMet && curMet
     } else {
-      // reps/time: ведущая метрика одна (повторы/секунды) — старый расчёт по максимуму.
+      // reps/time: ведущая метрика одна (повторы/секунды) — старый расчет по максимуму.
       const cur = bestAll.get(g.exerciseId)?.value ?? 0
       const prev = bestPrev.get(g.exerciseId)?.value ?? 0
       crossed = crossedGoal(prev, cur, g.targetWeight)

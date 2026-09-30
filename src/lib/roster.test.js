@@ -9,7 +9,7 @@ describe('pickRosterShape', () => {
     const out = pickRosterShape({ ...OLYA, pin_hash: 'x', pin_salt: 'y', role: 'admin', updated_at: 'T' })
     expect(out).toEqual(OLYA)
   })
-  it('НЕ добавляет отсутствующие ключи (иначе мерж затрёт кэш пачкой undefined)', () => {
+  it('НЕ добавляет отсутствующие ключи (иначе мерж затрет кэш пачкой undefined)', () => {
     const out = pickRosterShape({ id: 'u1', name: 'Дима' })
     expect(Object.keys(out)).toEqual(['id', 'name'])
     expect('sex' in out).toBe(false)
@@ -40,12 +40,12 @@ describe('planRosterWrite', () => {
     expect(puts[0].sex).toBe(null)
   })
 
-  it('обновляет изменённые поля и сохраняет непришедшие', () => {
+  it('обновляет измененные поля и сохраняет непришедшие', () => {
     const { puts } = planRosterWrite([OLYA], [{ id: 'u2', name: 'Ольга' }])
     expect(puts).toEqual([{ ...OLYA, name: 'Ольга' }])
   })
 
-  it('новая учётка добавляется целиком', () => {
+  it('новая учетка добавляется целиком', () => {
     const { puts, deleteIds } = planRosterWrite([DIMA], [DIMA, OLYA])
     expect(puts).toEqual([DIMA, OLYA])
     expect(deleteIds).toEqual([])

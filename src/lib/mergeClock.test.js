@@ -16,7 +16,7 @@ describe('mergeDecision', () => {
     expect(
       mergeDecision({ dirty: false, deleted: true, baseUpdatedAt: T0, serverUpdatedAt: T2 })
     ).toBe('keep-local')
-    // даже если ещё и dirty — удаление побеждает
+    // даже если еще и dirty — удаление побеждает
     expect(
       mergeDecision({ dirty: true, deleted: true, baseUpdatedAt: T0, serverUpdatedAt: T2 })
     ).toBe('keep-local')

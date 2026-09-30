@@ -17,7 +17,7 @@ const renderA = (over) => {
 }
 
 describe('WorkoutActions — существующая тренировка', () => {
-  it('показывает экспорт / шаблон / удаление и дёргает колбэки', () => {
+  it('показывает экспорт / шаблон / удаление и дергает колбэки', () => {
     const { props } = renderA({ isNew: false })
     fireEvent.click(screen.getByRole('button', { name: 'Экспорт в JSON' }))
     expect(props.onExport).toHaveBeenCalled()
@@ -27,13 +27,13 @@ describe('WorkoutActions — существующая тренировка', () 
     expect(props.onArmDel).toHaveBeenCalled()
   })
 
-  it('delArm → «Да, удалить» зовёт onDelete', () => {
+  it('delArm → «Да, удалить» зовет onDelete', () => {
     const { props } = renderA({ isNew: false, delArm: true })
     fireEvent.click(screen.getByText('Да, удалить'))
     expect(props.onDelete).toHaveBeenCalled()
   })
 
-  it('tplArm: пустое имя блокирует «Создать шаблон», непустое — зовёт onMakeTemplate', () => {
+  it('tplArm: пустое имя блокирует «Создать шаблон», непустое — зовет onMakeTemplate', () => {
     const props = base({ isNew: false, tplArm: true, tplName: '' })
     const { rerender } = render(<WorkoutActions {...props} />)
     expect(screen.getByText('Создать шаблон')).toBeDisabled()
@@ -46,7 +46,7 @@ describe('WorkoutActions — существующая тренировка', () 
 })
 
 describe('WorkoutActions — новая тренировка', () => {
-  it('без раскрытого подтверждения ничего не рисует — кнопка «Очистить» живёт в шапке экрана', () => {
+  it('без раскрытого подтверждения ничего не рисует — кнопка «Очистить» живет в шапке экрана', () => {
     const { container } = renderA({ isNew: true, hasEntries: true })
     expect(container).toBeEmptyDOMElement()
     expect(screen.queryByText('Экспорт в JSON')).toBeNull()

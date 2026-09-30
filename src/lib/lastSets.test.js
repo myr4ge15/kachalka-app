@@ -20,12 +20,12 @@ describe('pickLastSets', () => {
     ])
   })
 
-  it('null, если упражнение ещё не делали', () => {
+  it('null, если упражнение еще не делали', () => {
     const workouts = [wk('w1', '2026-01-01', [en('bench', [{ weight: 80, reps: 8 }])])]
     expect(pickLastSets(workouts, 'squat')).toBe(null)
   })
 
-  it('пропускает удалённые тренировки', () => {
+  it('пропускает удаленные тренировки', () => {
     const workouts = [
       wk('w2', '2026-03-01', [en('bench', [{ weight: 120, reps: 3 }])], { _deleted: 1 }),
       wk('w1', '2026-01-01', [en('bench', [{ weight: 80, reps: 8 }])]),

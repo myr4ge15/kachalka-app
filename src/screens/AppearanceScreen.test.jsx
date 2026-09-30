@@ -40,7 +40,7 @@ describe('AppearanceScreen', () => {
     expect(JSON.parse(st.map.get(ACCENT_KEY))).toEqual({ id: 'custom', hue: 10 })
   })
 
-  it('поднимает сохранённый выбор и уходит назад', () => {
+  it('поднимает сохраненный выбор и уходит назад', () => {
     const onBack = vi.fn()
     render(<AppearanceScreen onBack={onBack} storage={memStorage('{"id":"custom","hue":290}')} root={document.createElement('div')} />)
     expect(screen.getByRole('radio', { name: 'Свой' })).toHaveAttribute('aria-checked', 'true')

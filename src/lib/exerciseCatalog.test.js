@@ -8,7 +8,7 @@ const custom = (id, owner) => ({ id, is_custom: true, owner_id: owner })
 const global_ = (id) => ({ id, is_custom: false, owner_id: null })
 
 describe('canEditExercise', () => {
-  it('своё кастомное — можно', () => {
+  it('свое кастомное — можно', () => {
     expect(canEditExercise(custom('1', ME), ME)).toBe(true)
   })
 
@@ -17,12 +17,12 @@ describe('canEditExercise', () => {
   })
 
   // Ровно та дыра, из-за которой member мог править общий справочник: до среза D
-  // ничьё считалось «можно», и карандаш появлялся у 36 упражнений круга.
+  // ничье считалось «можно», и карандаш появлялся у 36 упражнений круга.
   it('общее (is_custom = false) — нельзя даже владельцу-админу: правит admin-RPC', () => {
     expect(canEditExercise(global_('1'), ME)).toBe(false)
   })
 
-  it('кастомное без владельца — нельзя: ничьё = общее', () => {
+  it('кастомное без владельца — нельзя: ничье = общее', () => {
     expect(canEditExercise(custom('1', null), ME)).toBe(false)
     expect(canEditExercise({ id: '1', is_custom: true }, ME)).toBe(false)
   })
@@ -54,7 +54,7 @@ describe('splitCatalog', () => {
     expect(global).toHaveLength(1)
   })
 
-  it('без userId (профиль ещё не подъехал) своих нет, а не «все мои»', () => {
+  it('без userId (профиль еще не подъехал) своих нет, а не «все мои»', () => {
     const { mine, others } = splitCatalog([custom('1', ME)], undefined)
     expect(mine).toEqual([])
     expect(others).toHaveLength(1)

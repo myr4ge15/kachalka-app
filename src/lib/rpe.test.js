@@ -12,7 +12,7 @@ describe('normFeel', () => {
     for (const f of FEELS) expect(normFeel(f)).toBe(f)
   })
 
-  it('всё остальное — null (отсутствие оценки легально)', () => {
+  it('все остальное — null (отсутствие оценки легально)', () => {
     for (const v of [undefined, null, '', 'EASY', 'легко', 7, 0, {}, []]) {
       expect(normFeel(v)).toBe(null)
     }
@@ -64,7 +64,7 @@ describe('putWorkoutFeels', () => {
 describe('feelsForWorkout / feelFor', () => {
   const map = { w1: rec('2026-01-01', { e1: 'easy', e2: 'hard' }) }
 
-  it('отдаёт оценки тренировки и одного упражнения', () => {
+  it('отдает оценки тренировки и одного упражнения', () => {
     expect(feelsForWorkout(map, 'w1')).toEqual({ e1: 'easy', e2: 'hard' })
     expect(feelFor(map, 'w1', 'e2')).toBe('hard')
   })
@@ -108,7 +108,7 @@ describe('pruneRpe', () => {
     expect(Object.keys(pruneRpe(map)).length).toBe(RPE_KEEP)
   })
 
-  it('режет и по размеру: у сервера жёсткий лимит 64 КБ на значение', () => {
+  it('режет и по размеру: у сервера жесткий лимит 64 КБ на значение', () => {
     // Патология, которую одна обрезка по числу тренировок не ловит: тренировок
     // мало, но упражнений в каждой очень много.
     const map = {}
@@ -160,7 +160,7 @@ describe('mergeRpe', () => {
     expect(mergeRpe(a, { w1: rec('2026-01-01', {}) })).toEqual(a)
   })
 
-  it('берёт непустую дату', () => {
+  it('берет непустую дату', () => {
     const local = { w1: rec('', { e1: 'easy' }) }
     const remote = { w1: rec('2026-01-01', { e2: 'ok' }) }
     expect(mergeRpe(local, remote).w1.at).toBe('2026-01-01')

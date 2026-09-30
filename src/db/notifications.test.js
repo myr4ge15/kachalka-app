@@ -14,7 +14,7 @@ import {
   detectNewPrsOnSave, detectGoalReachedOnSave,
 } from './notifications.js'
 
-const bench = { id: 'ex_bench', name: 'Жим лёжа', muscle_group: 'грудь', is_bench_lift: true, metric: 'weight' }
+const bench = { id: 'ex_bench', name: 'Жим лежа', muscle_group: 'грудь', is_bench_lift: true, metric: 'weight' }
 const entry = (ex, sets) => ({ exercise: ex, sets })
 const wk = (userId, at, sets) =>
   saveWorkout({ user_id: userId, performed_at: at, entries: [entry(bench, sets)] })
@@ -135,13 +135,13 @@ describe('detectGoalReachedOnSave', () => {
 })
 
 describe('countUnread / markAllSeen / getSeenAt (водяной знак)', () => {
-  it('достигнутая цель даёт непрочитанное, markAllSeen обнуляет', async () => {
+  it('достигнутая цель дает непрочитанное, markAllSeen обнуляет', async () => {
     // Готовая достигнутая цель → уведомление типа goal в списке.
     await writeGoals(userId, [{
       exerciseId: 'ex_bench', exerciseName: 'Жим', metric: 'weight',
       targetWeight: 100, achievedAt: '2026-03-01T10:00:00.000Z',
     }])
-    expect(await getSeenAt(userId)).toBe('') // ещё не открывали
+    expect(await getSeenAt(userId)).toBe('') // еще не открывали
     expect(await countUnread(userId)).toBeGreaterThanOrEqual(1)
 
     const list = await getNotifications(userId)

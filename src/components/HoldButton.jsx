@@ -38,7 +38,7 @@ export default function HoldButton({ onTrigger, children, className, disabled, .
     if (disabled) return
     if (e.button != null && e.button !== 0) return // только основная кнопка/тач
     e.preventDefault()
-    // Захват гарантирует pointerup/pointercancel даже если палец ушёл за кнопку.
+    // Захват гарантирует pointerup/pointercancel даже если палец ушел за кнопку.
     // Без него потерянный pointerup оставлял auto-repeat навсегда активным:
     // частые React-обновления выглядели как полностью «зависший» скролл.
     pointer.current = e.pointerId

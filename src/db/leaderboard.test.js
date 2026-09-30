@@ -2,7 +2,7 @@
 // (cmpBoard/viewerBoard/splitBoards/computeBoardFromFeed) до сих пор были без
 // покрытия, хотя это ядро рейтинга; плюс интеграционный getCachedLeaderboard
 // (приоритет серверного снимка → фолбэк из кэша ленты) на fake-indexeddb.
-import 'fake-indexeddb/auto' // ПЕРВЫМ: local.js создаёт Dexie на импорте
+import 'fake-indexeddb/auto' // ПЕРВЫМ: local.js создает Dexie на импорте
 import { describe, it, expect, beforeEach, afterEach } from 'vitest'
 import { openUserDb, closeUserDb, db, loginDb } from './local.js'
 import { uniqueUserId } from '../test/idbHarness.js'

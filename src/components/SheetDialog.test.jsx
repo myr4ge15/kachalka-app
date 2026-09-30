@@ -5,7 +5,7 @@ import { fireEvent, render, screen } from '@testing-library/react'
 import SheetDialog from './SheetDialog.jsx'
 
 describe('SheetDialog', () => {
-  it('даёт листу modal-семантику и закрывается по Escape', () => {
+  it('дает листу modal-семантику и закрывается по Escape', () => {
     const onDismiss = vi.fn()
     render(
       <SheetDialog title="Выбрать упражнение" onDismiss={onDismiss}>

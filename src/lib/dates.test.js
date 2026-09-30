@@ -18,7 +18,7 @@ describe('toDateInput / fromDateInput', () => {
     expect(d.getHours()).toBe(new Date(prev).getHours())
     expect(d.getMinutes()).toBe(new Date(prev).getMinutes())
   })
-  it('пустой prevIso → день берётся из value', () => {
+  it('пустой prevIso → день берется из value', () => {
     expect(toDateInput(fromDateInput('2020-02-29', ''))).toBe('2020-02-29')
   })
 })
@@ -69,7 +69,7 @@ describe('fmtDayChip', () => {
 
 describe('fmtCardDate', () => {
   const now = new Date(2026, 8, 30, 12, 0)
-  it('сегодня/вчера как у чипа, иначе с днём недели', () => {
+  it('сегодня/вчера как у чипа, иначе с днем недели', () => {
     expect(fmtCardDate(new Date(2026, 8, 30, 9).toISOString(), now)).toBe('Сегодня, 30 сентября')
     expect(fmtCardDate(new Date(2026, 8, 28, 9).toISOString(), now)).toBe('Пн, 28 сентября')
     expect(fmtCardDate(new Date(2025, 11, 31, 9).toISOString(), now)).toBe('Ср, 31 декабря 2025')

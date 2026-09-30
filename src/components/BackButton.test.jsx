@@ -4,7 +4,7 @@ import { fireEvent, render, screen } from '@testing-library/react'
 import BackButton from './BackButton.jsx'
 
 describe('BackButton', () => {
-  it('подписан для скринридера и зовёт onClick', () => {
+  it('подписан для скринридера и зовет onClick', () => {
     const onClick = vi.fn()
     render(<BackButton onClick={onClick} />)
     fireEvent.click(screen.getByRole('button', { name: 'Назад' }))

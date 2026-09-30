@@ -10,7 +10,7 @@ import { setAccentPref } from '../db/repo.js'
 // насыщенность фиксированы в lib/accent.js, поэтому интерфейс не ломается). Выбор
 // применяется сразу ко всему приложению, хранится на устройстве (сплэш рисуется
 // до входа — public/accent-boot.js) и с v6.2.0 синкается между устройствами
-// учётки (род `accent` в user_meta; применение пришедшего — hooks/useAccentSync).
+// учетки (род `accent` в user_meta; применение пришедшего — hooks/useAccentSync).
 //
 // Пропсы: onBack(), [user] — для синка, [storage], [root] — для тестов.
 export default function AppearanceScreen({ onBack, user, storage, root }) {
@@ -83,7 +83,7 @@ export default function AppearanceScreen({ onBack, user, storage, root }) {
             {/* Только число оттенка — цвет собирает CSS (.accent-sw--hue), без хардкода в JSX. */}
             <span className="accent-sw accent-sw--hue" style={{ '--sw-hue': pref.hue }} aria-hidden="true" />
             <span className="muted">
-              Двигай ползунок — цвет применится сразу. Яркость подбирается сама, чтобы всё читалось.
+              Двигай ползунок — цвет применится сразу. Яркость подбирается сама, чтобы все читалось.
             </span>
           </div>
           {isCustom && isRedZone(pref.hue) && (
@@ -103,7 +103,7 @@ export default function AppearanceScreen({ onBack, user, storage, root }) {
           </div>
         </div>
         <p className="muted appearance-note">
-          Фон у всех одинаковый — ночной. Цвет только твой и сохраняется в учётке — будет таким же на всех твоих устройствах.
+          Фон у всех одинаковый — ночной. Цвет только твой и сохраняется в учетке — будет таким же на всех твоих устройствах.
         </p>
       </section>
     </div>

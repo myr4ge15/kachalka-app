@@ -5,7 +5,7 @@
 // цель, забытая группа) в один объект для HomeScreen. Тестируется в node.
 //
 // Ничего не считает заново, если это уже есть в profileStats/insights: серию и
-// «за месяц» берём из profileStats, тоннаж-окна и день/группы — из insights.
+// «за месяц» берем из profileStats, тоннаж-окна и день/группы — из insights.
 // ============================================================================
 import { currentStreak, workoutsThisMonth, currentBestValue, goalProgress } from './profileStats.js'
 import { dayIndex, tonnageInWindow } from './insights.js'
@@ -49,7 +49,7 @@ export function buildTrainingRhythm(workouts, { now = new Date(), weeks = 8 } = 
   }
 
   // Первый день с тренировкой вообще: недели, закончившиеся ДО него, помечаются
-  // beforeFirst — это «ещё не пользовался приложением», а не пропуски (Ритм не должен
+  // beforeFirst — это «еще не пользовался приложением», а не пропуски (Ритм не должен
   // считать их в среднее: новичок с одной тренировкой видел «0,1 в неделю»).
   const firstDay = [...byDay.keys()].sort()[0] ?? null
 
@@ -87,7 +87,7 @@ export function buildTrainingRhythm(workouts, { now = new Date(), weeks = 8 } = 
   return out
 }
 
-// Последний зафиксированный личный рекорд (свежайший по дате): идём по истории от
+// Последний зафиксированный личный рекорд (свежайший по дате): идем по истории от
 // старых к новым, держим лучший ведущий показатель по упражнению и ловим момент
 // превышения. Возвращаем самый недавний. { name, metric, value, at } | null.
 function latestPr(sorted) {
@@ -117,7 +117,7 @@ function latestPr(sorted) {
 // mostNeglectedGroup из lib/freshness.js (там же recovery/дисбаланс/heatmap).
 
 // Ближайшая к достижению активная цель. goals — массив (readGoals), workouts —
-// свои тренировки (для текущего рекорда). Считаем прогресс, берём с наибольшим %.
+// свои тренировки (для текущего рекорда). Считаем прогресс, берем с наибольшим %.
 function nearestGoal(goals, sorted) {
   const active = (goals ?? []).filter((g) => !g._deleted && !g.achievedAt && g.exerciseId && g.targetWeight)
   let best = null

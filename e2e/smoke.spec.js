@@ -6,7 +6,7 @@
 // входе, монтирование WorkoutScreen внутри HistoryScreen, сохранение через repo
 // + очередь, чтение истории из локальной базы после полного рестарта страницы.
 //
-// Сеть НЕ участвует: navigator.onLine подменён на false (LoginScreen уходит в
+// Сеть НЕ участвует: navigator.onLine подменен на false (LoginScreen уходит в
 // ветку офлайн-сверки PIN, синк не стартует), а любые запросы к supabase.co
 // режутся route'ом. Локальное состояние «устройство уже входило» раскладывает
 // src/test/e2eSeed.js (грузится в странице через vite dev-сервер).
@@ -14,7 +14,7 @@
 import { test, expect } from '@playwright/test'
 
 const APP = '/kachalka-app/'
-const EXERCISE = 'Жим лёжа (e2e)'
+const EXERCISE = 'Жим лежа (e2e)'
 const SECOND_EXERCISE = 'Подтягивания (e2e)'
 
 test('вход → запись тренировки → она в истории после перезагрузки', async ({ page, context }) => {
@@ -132,10 +132,10 @@ test('вход → запись тренировки → она в истори�
   await page.locator('.tabbar .tab').filter({ hasText: 'Тренировки' }).click()
 
   // Липкая «Сохранить» не должна зависеть от фазы анимации входа экрана: пока
-  // .screen-anim анимировала transform, обёртка на ~180мс становилась containing
+  // .screen-anim анимировала transform, обертка на ~180мс становилась containing
   // block для position:fixed, и бар всплывал в центр, а потом прыгал к низу
   // вьюпорта (видно при переходе «Главная» → новая тренировка, где меняется
-  // key={tab}). Замедляем анимацию, чтобы замер гарантированно попал в её середину,
+  // key={tab}). Замедляем анимацию, чтобы замер гарантированно попал в ее середину,
   // а не гонялся с длительностью. Проверяем ДО перехода на десктопный вьюпорт —
   // там бар уже в потоке (position: static в master-detail).
   await page.addStyleTag({ content: '.screen-anim { animation-duration: 5s !important; }' })
@@ -149,7 +149,7 @@ test('вход → запись тренировки → она в истори�
   expect(gapFromBottom).toBeLessThan(120) // ≈72px над таббаром, а не «в центре»
   await page.locator('.tabbar .tab').filter({ hasText: 'Тренировки' }).click()
 
-  // Desktop master-detail: список остаётся слева, справа открывается тот же
+  // Desktop master-detail: список остается слева, справа открывается тот же
   // focus-композер с одной активной и одной компактной карточкой.
   await page.setViewportSize({ width: 1200, height: 900 })
   await afterReload.click()

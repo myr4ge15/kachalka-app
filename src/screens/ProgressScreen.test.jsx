@@ -28,7 +28,7 @@ const workout = {
     exercise_id: 'bench',
     exercise: {
       id: 'bench',
-      name: 'Жим лёжа',
+      name: 'Жим лежа',
       metric: 'weight',
       is_bench_lift: true,
     },
@@ -39,12 +39,12 @@ const workout = {
 describe('ProgressScreen — ориентир цели', () => {
   beforeEach(() => vi.mocked(useLiveQuery).mockReset())
 
-  it('показывает разрыв до активной цели и открывает её', () => {
+  it('показывает разрыв до активной цели и открывает ее', () => {
     vi.mocked(useLiveQuery)
       .mockReturnValueOnce([workout])
       .mockReturnValueOnce([{
         exerciseId: 'bench',
-        exerciseName: 'Жим лёжа',
+        exerciseName: 'Жим лежа',
         metric: 'weight',
         targetWeight: 100,
       }])
@@ -53,8 +53,8 @@ describe('ProgressScreen — ориентир цели', () => {
     render(<ProgressScreen user={{ id: 'u1' }} onOpenGoals={onOpenGoals} />)
 
     expect(screen.getByText('Цель · 100 кг')).toBeInTheDocument()
-    expect(screen.getByText('осталось 10 кг')).toBeInTheDocument()
-    fireEvent.click(screen.getByRole('button', { name: 'Открыть цель Жим лёжа' }))
+    expect(screen.getByText('осталось: 10 кг')).toBeInTheDocument()
+    fireEvent.click(screen.getByRole('button', { name: 'Открыть цель Жим лежа' }))
     expect(onOpenGoals).toHaveBeenCalledOnce()
   })
 })

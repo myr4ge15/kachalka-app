@@ -1,10 +1,10 @@
 // ============================================================================
 // Клиентский слой админки (PLAN-admin). Все операции — НАД ЧУЖИМИ строками,
-// поэтому идут привилегированным путём с серверным гейтом role='admin':
+// поэтому идут привилегированным путем с серверным гейтом role='admin':
 //   - непарольные (список/правка/слияние упражнений, имя/роль) — SECURITY
 //     DEFINER-RPC (is_admin() внутри); клиентскому role верим только для показа
 //     пункта меню, не для доступа;
-//   - сброс PIN и создание учётки — service-role Edge Functions с реальным
+//   - сброс PIN и создание учетки — service-role Edge Functions с реальным
 //     access_token админа в Bearer (серверу нужен claim app_user_id).
 //
 // Сеть отделена от Dexie (repo.js): после успешной правки упражнения зеркалим
@@ -29,7 +29,7 @@ export class AdminError extends Error {
   }
 }
 
-// fetch с жёстким таймаутом (как в lib/auth.js): подвисшая сеть не вешает UI.
+// fetch с жестким таймаутом (как в lib/auth.js): подвисшая сеть не вешает UI.
 async function fetchWithTimeout(url, opts, ms = DB_TIMEOUT_MS) {
   const ctrl = new AbortController()
   const t = setTimeout(() => ctrl.abort(), ms)
@@ -67,7 +67,7 @@ export async function adminListUsers() {
   }))
 }
 
-// Задать порядок учёток на экране входа (drag-and-drop в админке). ids — полный
+// Задать порядок учеток на экране входа (drag-and-drop в админке). ids — полный
 // список id в нужном порядке; позиция в массиве = sort_order. RPC с is_admin().
 export async function adminSetUserOrder(ids) {
   if (!Array.isArray(ids) || ids.length === 0) throw new AdminError('Пустой список.')
@@ -98,7 +98,7 @@ export async function adminSetSex(id, sex) {
   return { id, sex: v }
 }
 
-// Сменить имя/роль участника. Сервер бережёт последнего админа от разжалования.
+// Сменить имя/роль участника. Сервер бережет последнего админа от разжалования.
 export async function adminSetUser(id, name, role) {
   const clean = String(name ?? '').trim()
   if (clean.length < 1 || clean.length > 40) throw new AdminError('Имя — от 1 до 40 символов.')

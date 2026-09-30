@@ -3,7 +3,7 @@
 //
 // Превращает состав тренировки (денормализованные entries) в список упражнений
 // ШАБЛОНА с целевым планом (подходы × повторы × вес). Форма результата совпадает с
-// той, что ждёт repo.saveTemplate → cleanTemplateExercises/cleanTargets:
+// той, что ждет repo.saveTemplate → cleanTemplateExercises/cleanTargets:
 //   { exercise, sets, reps, weight }
 // где sets — число подходов, reps — целевые повторы (у time — секунды), weight —
 // целевой вес (0 у не-весовых).
@@ -11,7 +11,7 @@
 import { exerciseMetric } from './metric.js'
 
 // «Целевой» подход упражнения = лучший рабочий подход: по весу (весовые) или по
-// повторам/секундам (без веса). Он и задаёт план reps × weight будущего шаблона,
+// повторам/секундам (без веса). Он и задает план reps × weight будущего шаблона,
 // а число подходов = сколько их было в тренировке.
 export function templateExercisesFromWorkout(entries) {
   return (entries ?? [])

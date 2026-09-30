@@ -10,7 +10,7 @@ import Skeleton from '../components/Skeleton.jsx'
 import CardsSkeleton from '../components/CardsSkeleton.jsx'
 import RivalryCard from '../components/RivalryCard.jsx'
 
-// Медаль для тройки призёров, дальше — номер места.
+// Медаль для тройки призеров, дальше — номер места.
 // Место — крупной цифрой; тройка лидеров — в кружке золота/серебра/бронзы (v6.2.1,
 // вместо эмодзи-медалей: цифры читаются одинаково на всех устройствах).
 const PODIUM = ['gold', 'silver', 'bronze']
@@ -19,10 +19,10 @@ function Place({ i }) {
 }
 
 // Лидерборд (ТЗ §4.3, §8.3) — борд по полу зрителя (v1.13.1).
-// Мужской — по жиму лёжа (`is_bench_lift`), женский — по ягодичному мостику
+// Мужской — по жиму лежа (`is_bench_lift`), женский — по ягодичному мостику
 // (`is_female_lift`). Зритель видит ТОЛЬКО свой борд: мужчинам (и не заданному
 // полу) — мужской, женщинам — женский (чужой борд не показываем). Место — по
-// ФАКТИЧЕСКОМУ макс. весу, расчётный 1ПМ (Эпли) — сноской. Самодостаточен: сам
+// ФАКТИЧЕСКОМУ макс. весу, расчетный 1ПМ (Эпли) — сноской. Самодостаточен: сам
 // тянет и кэширует данные. Пол зрителя — users.sex из кэша (getCachedUser).
 export default function Leaderboard({ user }) {
   // Приватный пользователь не участвует в рейтинге — блок прячем целиком (флаг
@@ -31,7 +31,7 @@ export default function Leaderboard({ user }) {
   const board = useLiveQuery(() => getCachedLeaderboard(), [], undefined)
   const names = useLiveQuery(() => getLeadExerciseNames(), [], null)
   const users = useLiveQuery(() => getUsers(), [], [])
-  // Пол зрителя — чтобы показать только его борд. Дефолт false = «ещё грузим»
+  // Пол зрителя — чтобы показать только его борд. Дефолт false = «еще грузим»
   // (отличаем от undefined «строки нет в кэше» → фолбэк в мужской борд).
   const meRow = useLiveQuery(() => getCachedUser(user.id), [user.id], false)
   const avatarById = useMemo(() => {
@@ -42,14 +42,14 @@ export default function Leaderboard({ user }) {
   const [error, setError] = useState(null)
 
   // Обновляем при входе на экран и появлении сети. Ошибку НЕ глотаем молча:
-  // логируем и кладём в state. Частая причина — не задеплоен RPC
-  // `leaderboard_bench`; тогда рейтинг всё равно посчитается фолбэком из кэша
+  // логируем и кладем в state. Частая причина — не задеплоен RPC
+  // `leaderboard_bench`; тогда рейтинг все равно посчитается фолбэком из кэша
   // Ленты (см. getCachedLeaderboard), поэтому баннер показываем только когда
   // показать нечего (см. ниже). Подписки — через общий хаб (lib/appEvents.js).
   useEffect(() => {
     // Гард размонтирования: вкладку закрывают при уходе с Ленты, а fetchLeaderboard
     // может резолвиться уже после — setError на размонтированном компоненте иначе
-    // даёт React-варн (тот же класс, что в Profile/Admin, ниже по влиянию).
+    // дает React-варн (тот же класс, что в Profile/Admin, ниже по влиянию).
     let alive = true
     const refresh = () => {
       if (!navigator.onLine) return
@@ -84,10 +84,10 @@ export default function Leaderboard({ user }) {
   const rows = (isFemaleViewer ? board.female : board.male) ?? []
   const title = isFemaleViewer
     ? `Рейтинг · ${names?.female ?? 'ягодичный мостик'}`
-    : `Рейтинг · ${names?.male ?? 'жим лёжа'}`
+    : `Рейтинг · ${names?.male ?? 'жим лежа'}`
   const rivalry = findNearestRival(rows, user.id)
 
-  // Нет данных в своём борде — компактная карточка-заглушка (видимое состояние
+  // Нет данных в своем борде — компактная карточка-заглушка (видимое состояние
   // вместо молчаливого null, иначе пустой рейтинг выглядит как «фичи нет»).
   if (rows.length === 0) {
     // Баннер ошибки — ТОЛЬКО когда не загрузилось вообще ничего (пусты оба борда).
@@ -104,7 +104,7 @@ export default function Leaderboard({ user }) {
           <p className="muted lb-empty">Не удалось загрузить рейтинг. Проверь соединение и попробуй позже.</p>
         ) : (
           <p className="muted lb-empty">
-            Пока нет данных — запиши подход в {isFemaleViewer ? 'ягодичном мостике' : 'жиме лёжа'}.
+            Пока нет данных — запиши подход в {isFemaleViewer ? 'ягодичном мостике' : 'жиме лежа'}.
           </p>
         )}
       </div>
@@ -148,7 +148,7 @@ function BoardCard({ title, rows, user, avatarById }) {
         })}
       </ol>
       <p className="muted lb-note">
-        Место — по фактическому весу. 1ПМ — расчётная оценка «на раз» (Эпли),
+        Место — по фактическому весу. 1ПМ — расчетная оценка «на раз» (Эпли),
         всегда ≥ факта: видно, кто в теории может выжать больше.
       </p>
     </div>

@@ -2,8 +2,8 @@
 // Логин-мост к Supabase Auth (PLAN-auth §1, §5).
 //
 // Вход больше НЕ проверяет PIN на клиенте против публичной БД. Вместо этого:
-//   - онлайн: шлём { user_id, pin } в Edge Function auth-login по TLS. Она
-//     сверяет PIN service-ролью, мостит к скрытой учётке Supabase Auth и
+//   - онлайн: шлем { user_id, pin } в Edge Function auth-login по TLS. Она
+//     сверяет PIN service-ролью, мостит к скрытой учетке Supabase Auth и
 //     возвращает настоящую сессию (access+refresh) + наши pin_hash/pin_salt.
 //     setSession сохраняет сессию (supabase-js сам обновляет токен);
 //     pin_hash/salt кэшируем локально для офлайн-разблокировки.
@@ -19,7 +19,7 @@ import { getLoginMeta, setLoginMeta } from '../db/local.js'
 import { verifyPin } from './hash.js'
 import { DB_TIMEOUT_MS, withTimeout } from './withTimeout.js'
 
-// fetch с жёстким таймаутом через AbortController: подвисшая сеть (корпоративный
+// fetch с жестким таймаутом через AbortController: подвисшая сеть (корпоративный
 // прокси/фаервол «держит» соединение, не отклоняя его) иначе вешала вход на
 // минуту+. По истечении DB_TIMEOUT_MS запрос прерывается → fetch бросает →
 // вызов мапит это в LoginError('network'), а не крутит спиннер бесконечно.
@@ -39,12 +39,15 @@ const ANON = import.meta.env.VITE_SUPABASE_KEY ?? ''
 
 // Ключ локального кэша офлайн-разблокировки (свои хэш+соль+имя+роль).
 // Кэш лежит в ОБЩЕЙ login-базе (loginDb.meta), а не в персональной: офлайн-
-// разблокировка читает его ДО входа, когда личная база ещё не открыта
+// разблокировка читает его ДО входа, когда личная база еще не открыта
 // (PLAN-user-isolation). Ключ уже неймспейснут по userId.
 const pinCacheKey = (userId) => `pin_${userId}`
 
 // PIN текущей сессии в памяти (чистится при logout). Не на диске.
 let sessionPin = null
+// Последний неудачный фоновый вход и чья это учетка (см. noteLoginFailure).
+let lastLoginFailure = null
+let lastLoginUserId = null
 
 // Ошибка входа с машиночитаемым кодом для UI.
 export class LoginError extends Error {
@@ -58,6 +61,7 @@ export class LoginError extends Error {
 
 // Онлайн-вход через auth-login. Возвращает { id, name, role }.
 export async function login(userId, pin) {
+  lastLoginUserId = userId
   let res
   try {
     res = await fetchWithTimeout(FN_URL, {
@@ -100,6 +104,7 @@ export async function login(userId, pin) {
     role: body.user.role,
   })
   sessionPin = pin
+  lastLoginFailure = null
   return { id: body.user.id, name: body.user.name, role: body.user.role }
 }
 
@@ -118,7 +123,7 @@ export async function verifyPinOffline(userId, pin) {
 
 // Профиль из офлайн-кэша PIN (loginDb.meta pin_${id}) для восстановления сессии
 // БЕЗ хранения имени/роли в localStorage (на общих телефонах они лежали открыто).
-// Роль в ростер/view login_users не отдаётся, поэтому role берём именно отсюда.
+// Роль в ростер/view login_users не отдается, поэтому role берем именно отсюда.
 // Возвращает { id, name, role } или null, если кэша нет (на устройстве не входили).
 export async function getCachedProfile(userId) {
   if (!userId) return null
@@ -128,7 +133,7 @@ export async function getCachedProfile(userId) {
 }
 
 // Смена своего PIN (PLAN-cabinet-2c §1). Требует ОНЛАЙН и валидную сессию:
-// шлём { user_id, current_pin, new_pin } в Edge Function auth-set-pin с Bearer
+// шлем { user_id, current_pin, new_pin } в Edge Function auth-set-pin с Bearer
 // текущего access_token (а не anon — серверу нужен claim app_user_id для
 // проверки владельца). На успех обновляем офлайн-кэш своими новыми хэш/солью,
 // чтобы офлайн-разблокировка сразу принимала новый PIN. Ошибки — LoginError.
@@ -218,8 +223,8 @@ export async function setName(userId, name) {
 // Свой пол (v6.2.0): 'm' | 'f' | null («не указывать»). Нужен рейтингу: мужской
 // борд — жим, женский — ягодичный мостик. Пишем users.sex через SECURITY DEFINER
 // set_my_sex (supabase/set-my-sex.sql, владелец — app_uid()); админский
-// admin_set_sex остаётся для правки чужого. Только онлайн, как смена имени.
-// Возвращает сохранённое значение; ошибки — LoginError.
+// admin_set_sex остается для правки чужого. Только онлайн, как смена имени.
+// Возвращает сохраненное значение; ошибки — LoginError.
 export async function setSex(userId, sex) {
   const v = sex === 'm' || sex === 'f' ? sex : null
   if (!navigator.onLine) {
@@ -237,11 +242,11 @@ export async function setSex(userId, sex) {
 }
 
 // Серверные «мои» RPC (set_my_sex, set_my_name) выполняются только под настоящей
-// сессией ЭТОЙ учётки. После офлайн-входа сессии может не быть (или она чужая —
+// сессией ЭТОЙ учетки. После офлайн-входа сессии может не быть (или она чужая —
 // общий телефон), и запрос уходит анонимно: сервер отвечает «permission denied for
 // function …» (инцидент 30.09, у одного из друзей при выборе пола). Перед вызовом
 // пробуем тихо перевыпустить сессию по PIN из памяти; не вышло — понятная ошибка.
-const NO_SESSION_MSG = 'Нет связи с сервером под твоей учёткой. Выйди и зайди заново по PIN, пока есть интернет.'
+const NO_SESSION_MSG = 'Нет связи с сервером под твоей учеткой. Выйди и зайди заново по PIN, пока есть интернет.'
 // Отказ «мои» RPC ПОСЛЕ ensureOwnSession: своя сессия уже проверена, значит
 // «permission denied for function» — это права на сервере (у роли authenticated нет
 // EXECUTE), а не «перезайди». Раньше оба случая давали одно «выйди и зайди заново»,
@@ -257,13 +262,36 @@ function rpcError(err, fn, fallback) {
 export async function ensureOwnSession(userId) {
   if (await hasSession(userId)) return
   if ((await refreshSessionSilently(userId)) && (await hasSession(userId))) return
-  throw new LoginError('session', NO_SESSION_MSG)
+  throw new LoginError('session', sessionFailureMessage())
 }
 
-// Офлайн-анлок открывает UI учётке B, а в хранилище может остаться сессия A
+// Почему своей сессии нет (v6.3.2). Вход открывает UI по ЛОКАЛЬНОМУ кэшу PIN, а
+// сессию перевыпускает в фоне — и раньше глотал ошибку фонового входа. У друга так
+// месяцами не было сессии (синк висел «↑ 4», пол не менялся), а мы видели только
+// «выйди и зайди заново». Запоминаем последнюю причину и показываем ее.
+export function noteLoginFailure(err) {
+  lastLoginFailure = err ?? null
+  // Сервер не принял PIN, который принял локальный кэш → кэш устарел (PIN меняли на
+  // другом устройстве или админ сбросил). Стираем устаревший хэш: следующий вход
+  // пойдет через сервер и честно скажет «Неверный PIN» или впустит с новым.
+  if (err instanceof LoginError && err.code === 'invalid' && lastLoginUserId) {
+    const key = pinCacheKey(lastLoginUserId)
+    getLoginMeta(key).then((c) => c && setLoginMeta(key, { ...c, pin_hash: null, pin_salt: null })).catch(() => {})
+  }
+}
+function sessionFailureMessage() {
+  const e = lastLoginFailure
+  if (!(e instanceof LoginError)) return NO_SESSION_MSG
+  if (e.code === 'invalid') return 'Сервер не принял PIN, с которым ты вошел — похоже, его меняли. Выйди и войди с актуальным PIN.'
+  if (e.code === 'locked') return 'Сервер входа временно заблокировал попытки. Подожди немного и попробуй снова.'
+  if (e.code === 'network') return 'Не достучаться до сервера входа. Проверь интернет и попробуй еще раз.'
+  return `Сервер входа не выдал сессию: ${e.message}`
+}
+
+// Офлайн-анлок открывает UI учетке B, а в хранилище может остаться сессия A
 // (общий телефон, выход не дождался signOut). Фоновый перевыпуск сессии B может не
-// пройти, и до тех пор всё сетевое шло бы под JWT A. Синк такую сессию уже не
-// использует (hasSession(userId)), а здесь её снимаем совсем — локально, без сети.
+// пройти, и до тех пор все сетевое шло бы под JWT A. Синк такую сессию уже не
+// использует (hasSession(userId)), а здесь ее снимаем совсем — локально, без сети.
 export async function dropForeignSession(userId) {
   try {
     const { data } = await supabase.auth.getSession()
@@ -271,7 +299,7 @@ export async function dropForeignSession(userId) {
     if (session && !isSessionOf(session, userId)) {
       await withTimeout(supabase.auth.signOut({ scope: 'local' }), 3000)
     }
-  } catch { /* не критично: синк всё равно не пойдёт под чужой сессией */ }
+  } catch { /* не критично: синк все равно не пойдет под чужой сессией */ }
 }
 
 // Молчаливый перевыпуск сессии (сеть появилась, UI уже открыт офлайн).
@@ -281,7 +309,9 @@ export async function refreshSessionSilently(userId) {
   try {
     await login(userId, sessionPin)
     return true
-  } catch {
+  } catch (e) {
+    lastLoginUserId = userId
+    noteLoginFailure(e)
     return false
   }
 }
@@ -292,8 +322,8 @@ export function getSessionPin() {
 
 export async function logout() {
   sessionPin = null
-  // scope:'local' — чистим ТОЛЬКО локально сохранённую сессию, без сетевого
-  // вызова /logout (по умолчанию scope:'global' дёргает сервер и в авиарежиме
+  // scope:'local' — чистим ТОЛЬКО локально сохраненную сессию, без сетевого
+  // вызова /logout (по умолчанию scope:'global' дергает сервер и в авиарежиме
   // висел минутами/не отвечал). Таймаут — страховка на случай зависшего I/O.
   try {
     await withTimeout(supabase.auth.signOut({ scope: 'local' }), 3000)

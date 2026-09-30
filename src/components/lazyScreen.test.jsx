@@ -7,7 +7,7 @@ import { lazyScreen } from './lazyScreen.jsx'
 const Hello = ({ name }) => <p>Привет, {name}</p>
 const mod = { default: Hello }
 
-// Screen передаём элементом, а не компонентом: ESLint без react-плагина
+// Screen передаем элементом, а не компонентом: ESLint без react-плагина
 // не видит JSX-использование параметра.
 function mount(el) {
   return render(<Suspense fallback={<p>загрузка</p>}>{el}</Suspense>)
@@ -22,14 +22,14 @@ describe('lazyScreen', () => {
     expect(screen.queryByText('загрузка')).toBeNull()
   })
 
-  it('без preload ведёт себя как обычный lazy', async () => {
+  it('без preload ведет себя как обычный lazy', async () => {
     const Screen = lazyScreen(() => Promise.resolve(mod))
     mount(<Screen name="Андрюша" />)
     expect(screen.getByText('загрузка')).toBeInTheDocument()
     expect(await screen.findByText('Привет, Андрюша')).toBeInTheDocument()
   })
 
-  it('фабрику зовёт один раз на префетч и рендер', async () => {
+  it('фабрику зовет один раз на префетч и рендер', async () => {
     const factory = vi.fn(() => Promise.resolve(mod))
     const Screen = lazyScreen(factory)
     Screen.preload()
@@ -39,7 +39,7 @@ describe('lazyScreen', () => {
     expect(factory).toHaveBeenCalledTimes(1)
   })
 
-  it('экран, смонтированный до загрузки, не перемонтируется после неё', async () => {
+  it('экран, смонтированный до загрузки, не перемонтируется после нее', async () => {
     let mounts = 0
     const Counted = () => {
       useEffect(() => { mounts++ }, [])
@@ -56,7 +56,7 @@ describe('lazyScreen', () => {
     expect(mounts).toBe(1)
   })
 
-  it('упавшая загрузка не залипает: повторный preload снова зовёт import', async () => {
+  it('упавшая загрузка не залипает: повторный preload снова зовет import', async () => {
     const factory = vi.fn()
       .mockImplementationOnce(() => Promise.reject(new Error('net')))
       .mockImplementation(() => Promise.resolve(mod))

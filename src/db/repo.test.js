@@ -13,7 +13,7 @@ import {
 } from './repo.js'
 
 // Упражнение-заготовка (весовое).
-const bench = { id: 'ex_bench', name: 'Жим лёжа', muscle_group: 'грудь', is_bench_lift: true, metric: 'weight' }
+const bench = { id: 'ex_bench', name: 'Жим лежа', muscle_group: 'грудь', is_bench_lift: true, metric: 'weight' }
 const entry = (ex, sets) => ({ exercise: ex, sets })
 
 let userId
@@ -86,7 +86,7 @@ describe('очередь: схлопывание дублей', () => {
     expect(await db.outbox.where('workoutId').equals(id).count()).toBe(1)
     await deleteWorkout(id)
     const ops = await db.outbox.where('workoutId').equals(id).toArray()
-    // upsert снят, остаётся ровно один delete
+    // upsert снят, остается ровно один delete
     expect(ops).toHaveLength(1)
     expect(ops[0].type).toBe('delete')
   })
@@ -115,7 +115,7 @@ describe('deleteWorkout / тумбстон', () => {
     expect(await getWorkout(id)).toBe(null) // из UI не виден
   })
 
-  it('getWorkouts не показывает удалённые', async () => {
+  it('getWorkouts не показывает удаленные', async () => {
     const a = await saveWorkout({ user_id: userId, performed_at: '2026-01-11', entries: [entry(bench, [{ weight: 100, reps: 5 }])] })
     await saveWorkout({ user_id: userId, performed_at: '2026-01-12', entries: [entry(bench, [{ weight: 101, reps: 5 }])] })
     await deleteWorkout(a)
@@ -146,7 +146,7 @@ describe('softDeleteMyWorkouts', () => {
 })
 
 describe('createExercise', () => {
-  it('создаёт _dirty упражнение и ставит его в ex_outbox', async () => {
+  it('создает _dirty упражнение и ставит его в ex_outbox', async () => {
     const ex = await createExercise({ name: 'Присед', muscle_group: 'ноги', metric: 'weight' })
     expect(ex.id).toBeTruthy()
     const stored = await db.exercises.get(ex.id)
@@ -171,7 +171,7 @@ describe('createExercise', () => {
 
 // NB: правка требует владельца — createExercise здесь везде с owner_id,
 // updateExercise с editor_id. Без них правка отклоняется по праву доступа
-// (см. отдельные кейсы про чужое и ничьё ниже), и тест проверял бы не то.
+// (см. отдельные кейсы про чужое и ничье ниже), и тест проверял бы не то.
 describe('updateExercise', () => {
   it('меняет поля своего упражнения и ставит ре-upsert в ex_outbox', async () => {
     const ex = await createExercise({ name: 'Тяга блока', muscle_group: 'спина', metric: 'weight', owner_id: userId })
@@ -218,13 +218,13 @@ describe('updateExercise', () => {
     ).resolves.toBeTruthy()
   })
 
-  it('запоминает владельца нового упражнения и шлёт его в очередь', async () => {
-    const ex = await createExercise({ name: 'Своё с владельцем', muscle_group: 'плечи', owner_id: userId })
+  it('запоминает владельца нового упражнения и шлет его в очередь', async () => {
+    const ex = await createExercise({ name: 'Свое с владельцем', muscle_group: 'плечи', owner_id: userId })
     expect(ex.owner_id).toBe(userId)
     expect((await db.exercises.get(ex.id)).owner_id).toBe(userId)
   })
 
-  it('анти-дубль не переписывает владельца: упражнение остаётся у того, кто завёл', async () => {
+  it('анти-дубль не переписывает владельца: упражнение остается у того, кто завел', async () => {
     const first = await createExercise({ name: 'Общее', muscle_group: 'спина', owner_id: 'u-other' })
     const second = await createExercise({ name: '  общее ', muscle_group: 'спина', owner_id: userId })
     expect(second.id).toBe(first.id)
@@ -238,7 +238,7 @@ describe('updateExercise', () => {
     ).rejects.toThrow()
   })
 
-  // Ничьё = общее (is_custom переводится в false бэкфиллом exercise-owner.sql).
+  // Ничье = общее (is_custom переводится в false бэкфиллом exercise-owner.sql).
   // Клиент это правило зеркалит: править кастомное без владельца тоже нельзя,
   // иначе member редактировал бы общий справочник — ровно то, что чинил срез D.
   it('отклоняет правку ничьего (кастомное без владельца = общее)', async () => {
@@ -248,10 +248,10 @@ describe('updateExercise', () => {
     ).rejects.toThrow()
   })
 
-  it('getExercises отдаёт весь справочник без скрытых (каталог режет его сам)', async () => {
-    const mine = await createExercise({ name: 'Своё-1', muscle_group: 'плечи', owner_id: userId })
+  it('getExercises отдает весь справочник без скрытых (каталог режет его сам)', async () => {
+    const mine = await createExercise({ name: 'Свое-1', muscle_group: 'плечи', owner_id: userId })
     await db.exercises.put({ id: 'ex_seed2', name: 'Сидовое', muscle_group: 'ноги', is_custom: false })
-    const hidden = await createExercise({ name: 'Своё-скрытое', muscle_group: 'плечи', owner_id: userId })
+    const hidden = await createExercise({ name: 'Свое-скрытое', muscle_group: 'плечи', owner_id: userId })
     await db.exercises.update(hidden.id, { is_hidden: true })
     const ids = (await getExercises()).map((e) => e.id)
     expect(ids).toContain(mine.id)
@@ -264,7 +264,7 @@ describe('dead-letter: pendingCount / retry / discard', () => {
   it('pendingCount считает живые операции, _dead — нет', async () => {
     const id = await saveWorkout({ user_id: userId, performed_at: '2026-01-10', entries: [entry(bench, [{ weight: 100, reps: 5 }])] })
     expect(await pendingCount()).toBe(1)
-    // помечаем операцию мёртвой вручную
+    // помечаем операцию мертвой вручную
     const op = await db.outbox.where('workoutId').equals(id).first()
     await db.outbox.update(op.seq, { _dead: 1 })
     expect(await pendingCount()).toBe(0)
@@ -297,7 +297,7 @@ describe('dead-letter: pendingCount / retry / discard', () => {
 })
 
 describe('getLastSetsForExercise (автоподстановка)', () => {
-  it('отдаёт подходы последней тренировки по упражнению', async () => {
+  it('отдает подходы последней тренировки по упражнению', async () => {
     await saveWorkout({ user_id: userId, performed_at: '2026-01-01',
       entries: [entry(bench, [{ weight: 80, reps: 8 }])] })
     await saveWorkout({ user_id: userId, performed_at: '2026-03-01',
@@ -305,13 +305,13 @@ describe('getLastSetsForExercise (автоподстановка)', () => {
     const sets = await getLastSetsForExercise(userId, 'ex_bench')
     expect(sets).toEqual([{ weight: 100, reps: 5 }, { weight: 100, reps: 4 }])
   })
-  it('null, если упражнение ещё не делали', async () => {
+  it('null, если упражнение еще не делали', async () => {
     expect(await getLastSetsForExercise(userId, 'ex_bench')).toBe(null)
   })
 })
 
 describe('toggleReaction (очередь реакций + кэш ленты)', () => {
-  // Кладём заготовку карточки ленты, чтобы проверить оптимистичную правку.
+  // Кладем заготовку карточки ленты, чтобы проверить оптимистичную правку.
   async function seedFeed(workoutId, reactions = []) {
     await db.feed.put({ id: workoutId, performed_at: '2026-05-01', reactions })
   }
@@ -358,7 +358,7 @@ describe('toggleReaction (очередь реакций + кэш ленты)', (
 // ---------------------------------------------------------------------------
 // Кэш ОБЩЕГО ростера устройства (loginDb.users). Регрессия «у всех слетел пол»:
 // cacheUsers делал clear() + bulkPut, поэтому неполная выборка экрана входа
-// (select без sex) обнуляла пол всем учёткам устройства. loginDb — синглтон,
+// (select без sex) обнуляла пол всем учеткам устройства. loginDb — синглтон,
 // переживающий тесты (см. idbHarness), поэтому чистим его сами.
 // ---------------------------------------------------------------------------
 describe('cacheUsers (общий ростер устройства)', () => {
@@ -380,7 +380,7 @@ describe('cacheUsers (общий ростер устройства)', () => {
     expect((await getCachedUser('r2')).sex).toBe('f')
   })
 
-  it('удаляет учётку, которой больше нет в выборке; порядок — по sort_order', async () => {
+  it('удаляет учетку, которой больше нет в выборке; порядок — по sort_order', async () => {
     await cacheUsers([DIMA, OLYA])
     const n = await cacheUsers([OLYA])
     expect(n).toBe(1)
@@ -398,7 +398,7 @@ describe('cacheUsers (общий ростер устройства)', () => {
     await cacheUsers([{ id: 'r1', name: 'Дима' }])
     const row = await getCachedUser('r1')
     expect(row.pin_hash).toBeUndefined()
-    expect(row.sex).toBe('m') // пол при этом сохранён
+    expect(row.sex).toBe('m') // пол при этом сохранен
   })
 
   it('не массив → 0 записей, кэш не тронут', async () => {

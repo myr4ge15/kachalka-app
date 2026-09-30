@@ -1,10 +1,10 @@
 // ============================================================================
 // Экспорт тренировок в JSON. Чистые функции (cleanWorkoutForExport/buildExport/
 // exportFilename) — без DOM, тестируются в node. downloadJson/exportWorkouts —
-// браузерные обёртки (Blob + <a download>), в node не зовутся.
+// браузерные обертки (Blob + <a download>), в node не зовутся.
 //
 // Снимок намеренно «человекочитаемый» и без служебных полей синка
-// (_dirty/_deleted/user_id/updated_at): отдаём дату, упражнения (с метрикой) и
+// (_dirty/_deleted/user_id/updated_at): отдаем дату, упражнения (с метрикой) и
 // подходы {weight, reps} как есть — так выгрузку легко открыть/перенести.
 // ============================================================================
 import { exerciseMetric } from './metric.js'
@@ -53,7 +53,7 @@ function ymd(d) {
   return Number.isNaN(t.getTime()) ? '' : t.toISOString().slice(0, 10)
 }
 
-// Имя файла: одна тренировка → workout-YYYY-MM-DD.json (по её дате),
+// Имя файла: одна тренировка → workout-YYYY-MM-DD.json (по ее дате),
 // несколько → workouts-N-YYYY-MM-DD.json (N штук, дата выгрузки).
 export function exportFilename(workouts, now = new Date()) {
   const list = Array.isArray(workouts) ? workouts : [workouts]
@@ -77,7 +77,7 @@ export function downloadJson(obj, filename) {
   setTimeout(() => URL.revokeObjectURL(url), 1000)
 }
 
-// Удобная обёртка: собрать снимок и сразу скачать (одна тренировка или массив).
+// Удобная обертка: собрать снимок и сразу скачать (одна тренировка или массив).
 export function exportWorkouts(workouts, appVersion = 'dev', now = new Date()) {
   const list = Array.isArray(workouts) ? workouts : [workouts]
   if (list.length === 0) return

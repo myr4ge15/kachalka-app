@@ -19,9 +19,9 @@ const ex = (id, name, target = {}, extra = {}) => ({
 })
 
 describe('cleanTemplateForExport', () => {
-  it('отдаёт имя/видимость/состав без служебных полей синка', () => {
+  it('отдает имя/видимость/состав без служебных полей синка', () => {
     const out = cleanTemplateForExport(
-      tpl('t1', 'День груди', [ex('e1', 'Жим лёжа', { sets: 3, reps: 10, weight: 80 })], { is_public: 1 })
+      tpl('t1', 'День груди', [ex('e1', 'Жим лежа', { sets: 3, reps: 10, weight: 80 })], { is_public: 1 })
     )
     expect(out).toEqual({
       id: 't1',
@@ -29,7 +29,7 @@ describe('cleanTemplateForExport', () => {
       is_public: true,
       author: null,
       exercises: [{
-        exercise: { id: 'e1', name: 'Жим лёжа', muscle_group: 'грудь', metric: 'weight' },
+        exercise: { id: 'e1', name: 'Жим лежа', muscle_group: 'грудь', metric: 'weight' },
         sets: 3, reps: 10, weight: 80,
       }],
     })

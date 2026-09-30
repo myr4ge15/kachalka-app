@@ -25,7 +25,7 @@ describe('createSerialQueue', () => {
       active--
     }
 
-    // Быстрый выход-вход другой учёткой во время «миграции» A:
+    // Быстрый выход-вход другой учеткой во время «миграции» A:
     // open(A) долгий, следом close и open(B) поставлены почти сразу.
     const pA = run(op('openA', 5)) // долгая миграция A
     const pClose = run(op('close', 1))
@@ -52,7 +52,7 @@ describe('createSerialQueue', () => {
     expect(results).toEqual([1, 2, 3])
   })
 
-  it('ошибка операции отдаётся вызвавшему, но не рвёт очередь', async () => {
+  it('ошибка операции отдается вызвавшему, но не рвет очередь', async () => {
     const run = createSerialQueue()
     const seen = []
 
@@ -61,7 +61,7 @@ describe('createSerialQueue', () => {
 
     await expect(pFail).rejects.toThrow('boom')
     await expect(pOk).resolves.toBe('ok')
-    expect(seen).toEqual(['after-fail']) // последующая операция всё равно выполнилась
+    expect(seen).toEqual(['after-fail']) // последующая операция все равно выполнилась
   })
 
   it('операция, поставленная после того как очередь опустела, выполняется сразу', async () => {

@@ -1,6 +1,6 @@
 // ============================================================================
 // Полный бэкап личных данных: «Скачать все мои данные» + «Восстановить из файла»
-// (Профиль → Настройки). Чистые функции БЕЗ Dexie/React/сети — DB-обвязка живёт
+// (Профиль → Настройки). Чистые функции БЕЗ Dexie/React/сети — DB-обвязка живет
 // в src/db/backup.js.
 //
 // ЗАЧЕМ. Часть пользовательских сущностей лежит ТОЛЬКО локально (см. AGENTS.md:
@@ -20,7 +20,7 @@
 // идемпотентен (дедуп по id тренировки / exerciseId цели / id бейджа).
 //
 // ФЛАГ ПРИВАТНОСТИ НЕ ВОССТАНАВЛИВАЕТСЯ: priv_${id} — зеркало серверного
-// my_is_private, его переписывает ближайший pull. Кладём в файл только чтобы
+// my_is_private, его переписывает ближайший pull. Кладем в файл только чтобы
 // снимок был полным для глаз человека.
 // ============================================================================
 import { cleanWorkoutForExport, downloadJson } from './exportWorkout.js'
@@ -49,8 +49,8 @@ export function buildBackup(data, appVersion = 'dev', now = new Date()) {
     schema: BACKUP_SCHEMA,
     app_version: appVersion,
     exported_at: Number.isNaN(at.getTime()) ? null : at.toISOString(),
-    // Владелец снимка: импорт в ЧУЖУЮ учётку запрещён (см. assertSameOwner) —
-    // id тренировок на сервере принадлежат автору, чужой upsert упрётся в
+    // Владелец снимка: импорт в ЧУЖУЮ учетку запрещен (см. assertSameOwner) —
+    // id тренировок на сервере принадлежат автору, чужой upsert упрется в
     // проверку владельца и уедет в dead-letter.
     user: { id: d.userId ?? null, name: d.userName ?? null },
     counts: {
@@ -83,7 +83,7 @@ export function buildBackup(data, appVersion = 'dev', now = new Date()) {
 }
 
 // YYYY-MM-DD из даты/ISO ('' если не распарсилось). Копия из exportWorkout.js —
-// там она не экспортируется, а тянуть ради трёх строк новый общий модуль дороже.
+// там она не экспортируется, а тянуть ради трех строк новый общий модуль дороже.
 function ymd(d) {
   const t = d instanceof Date ? d : new Date(d)
   return Number.isNaN(t.getTime()) ? '' : t.toISOString().slice(0, 10)
@@ -127,7 +127,7 @@ export function parseBackup(text) {
   return obj
 }
 
-// Проверка владельца: восстанавливаем только в СВОЮ учётку. Снимок без user.id
+// Проверка владельца: восстанавливаем только в СВОЮ учетку. Снимок без user.id
 // (совсем старый/рукописный) пропускаем — сверять не с чем.
 export function assertSameOwner(snapshot, userId) {
   const owner = snapshot?.user?.id ?? null
@@ -148,7 +148,7 @@ function lookupExercise(exercises, id) {
   return exercises[id] ?? null
 }
 
-// Одна запись снимка → запись для saveWorkout. Упражнение берём из ЛОКАЛЬНОГО
+// Одна запись снимка → запись для saveWorkout. Упражнение берем из ЛОКАЛЬНОГО
 // справочника (там полная форма: submuscle/secondary/is_bench_lift), снимок —
 // фолбэк для упражнений, которых на устройстве нет.
 function importEntry(e, exercises) {
@@ -170,7 +170,7 @@ function importEntry(e, exercises) {
 //   { workoutIds: Set|Array, goals: [], badges: {}, prog: undefined|obj,
 //     rpe: {}, exercises: Map|obj }
 //
-// Возвращает готовые к записи куски (null — «менять нечего») и счётчики для
+// Возвращает готовые к записи куски (null — «менять нечего») и счетчики для
 // тоста. `workouts` идут в repo.saveWorkout КАК ЕСТЬ, с исходным id — поэтому
 // повторный импорт того же файла ничего не добавит.
 export function planImport(snapshot, current = {}) {
@@ -184,7 +184,7 @@ export function planImport(snapshot, current = {}) {
   for (const w of snapshot?.workouts ?? []) {
     // Без id дедуп невозможен: повторный импорт плодил бы копии. Пропускаем.
     if (!w?.id) { workoutsSkipped++; continue }
-    if (have.has(w.id)) continue // уже есть — НЕ трогаем (в т.ч. локально изменённую)
+    if (have.has(w.id)) continue // уже есть — НЕ трогаем (в т.ч. локально измененную)
     const entries = (w.entries ?? [])
       .map((e) => importEntry(e, current.exercises))
       .filter(Boolean)
@@ -206,7 +206,7 @@ export function planImport(snapshot, current = {}) {
       targetWeight: g.targetWeight,
       targetReps: g.targetReps ?? null,
       achievedAt: g.achievedAt ?? null,
-      // _dirty:1 — синк отправит восстановленную цель на сервер (её увидит бот).
+      // _dirty:1 — синк отправит восстановленную цель на сервер (ее увидит бот).
       _dirty: 1,
     }))
 
@@ -234,15 +234,15 @@ export function planImport(snapshot, current = {}) {
       byExercise[exId] = cfg
       added++
     }
-    // Глобальный тумблер восстанавливаем ТОЛЬКО если настроек ещё не было
-    // вообще — иначе перетёрли бы текущий выбор пользователя.
+    // Глобальный тумблер восстанавливаем ТОЛЬКО если настроек еще не было
+    // вообще — иначе перетерли бы текущий выбор пользователя.
     const enabled = curProg ? curProg.enabled !== false : snapProg.enabled !== false
     if (added > 0 || !curProg) prog = { enabled, byExercise }
   }
 
   // ── оценки «как пошло» ───────────────────────────────────────────────────
   // Объединение с приоритетом ТЕКУЩИХ оценок (mergeRpe, preferLocal): добавляем
-  // только пары (тренировка, упражнение), которых на устройстве ещё нет.
+  // только пары (тренировка, упражнение), которых на устройстве еще нет.
   const curRpe = current.rpe ?? {}
   const mergedRpe = mergeRpe(curRpe, snapshot?.rpe ?? {}, true)
   const rpeCount = countFeels(mergedRpe) - countFeels(curRpe)
@@ -272,7 +272,7 @@ function countFeels(map) {
   return n
 }
 
-// Короткий человеческий итог импорта для тоста. Пусто → «всё уже на месте».
+// Короткий человеческий итог импорта для тоста. Пусто → «все уже на месте».
 export function describeImport(counts) {
   const c = counts ?? {}
   const parts = []
@@ -281,6 +281,6 @@ export function describeImport(counts) {
   if (c.badges) parts.push(`достижений: ${c.badges}`)
   if (c.rpe) parts.push(`оценок «как пошло»: ${c.rpe}`)
   if (c.prog) parts.push('настройки прогрессии')
-  if (parts.length === 0) return 'Всё из файла уже было в приложении.'
+  if (parts.length === 0) return 'Все из файла уже было в приложении.'
   return `Добавлено — ${parts.join(', ')}.`
 }

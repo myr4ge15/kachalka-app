@@ -15,5 +15,5 @@ export function plural(n, one, few, many) {
   return many
 }
 
-// «N форма» — число + просклонённое слово.
+// «N форма» — число + просклоненное слово.
 export const pluralize = (n, one, few, many) => `${n} ${plural(n, one, few, many)}`

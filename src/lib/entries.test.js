@@ -34,7 +34,7 @@ describe('sortDesc', () => {
     ]
     expect(sortDesc(ws).map((w) => w.id)).toEqual(['b', 'c', 'a'])
   })
-  it('выкидывает удалённые и битые (null) строки', () => {
+  it('выкидывает удаленные и битые (null) строки', () => {
     const ws = [null, { id: 'a', performed_at: '2026-01-01' }, { id: 'b', _deleted: 1, performed_at: '2026-02-01' }]
     expect(sortDesc(ws).map((w) => w.id)).toEqual(['a'])
   })
@@ -51,7 +51,7 @@ describe('sortDesc', () => {
     const same = { performed_at: '2026-01-01T10:00:00Z', created_at: '2026-01-01T10:00:00Z' }
     const a = { id: 'a', ...same }
     const b = { id: 'b', ...same }
-    // Любой порядок входа даёт один и тот же результат (иначе якорь инсайтов флипал бы).
+    // Любой порядок входа дает один и тот же результат (иначе якорь инсайтов флипал бы).
     expect(sortDesc([a, b]).map((w) => w.id)).toEqual(sortDesc([b, a]).map((w) => w.id))
   })
 })

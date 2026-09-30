@@ -21,7 +21,7 @@ export const entryExId = (e) => e.exercise_id ?? e.exercise?.id ?? null
 // денормализованном e.exercise.metric. Дефолт 'weight'.
 export const entryMetric = (e) => normMetric(e.metric ?? e.exercise?.metric)
 
-// История без удалённых, новейшее сверху (по performed_at, тай-брейк created_at,
+// История без удаленных, новейшее сверху (по performed_at, тай-брейк created_at,
 // затем id). Тай-брейк по id обязателен: при равных performed_at И created_at
 // (две записи в одну секунду) порядок массива недетерминирован → якорь инсайтов
 // (buildInsights) и «последняя тренировка»/latestPr в homeSummary флипали между
@@ -42,8 +42,8 @@ export function sortDesc(workouts) {
 // templateRowToDoc, repo.cleanEntries/cleanTemplateExercises), и поля начали
 // разъезжаться (РЕВЬЮ-КОДА-2026-07-13). Принимает объект упражнения (join с
 // сервера или из формы), возвращает единый снимок; фолбэк при ОТСУТСТВИИ
-// упражнения остаётся на месте вызова (у sync — {id,name:'—'}, у repo — undefined).
-// NB: лента (feed.rowToItem) НЕ здесь — у неё намеренно ПЛОСКАЯ усечённая форма
+// упражнения остается на месте вызова (у sync — {id,name:'—'}, у repo — undefined).
+// NB: лента (feed.rowToItem) НЕ здесь — у нее намеренно ПЛОСКАЯ усеченная форма
 // (без вложенного exercise, зато с is_female_lift). metric через normMetric: для
 // серверных enum-значений это тождественно прежнему `?? 'weight'`, но заодно
 // валидирует форму (repo уже так делал).

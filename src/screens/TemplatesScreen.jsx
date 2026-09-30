@@ -79,7 +79,7 @@ function TemplateCard({ t, mine, onOpen, selectMode = false, picked = false, onP
               <span className="tpl-badge" title="Виден всем">🌐 общий</span>
             )}
             {Boolean(t._dirty) && (
-              <span className="dot-unsynced" title="Ждёт синхронизации">●</span>
+              <span className="dot-unsynced" title="Ждет синхронизации">●</span>
             )}
           </div>
           <div className="muted history-sub">
@@ -111,8 +111,8 @@ function TemplateCard({ t, mine, onOpen, selectMode = false, picked = false, onP
   )
 }
 
-// Свёрнутость групп списка запоминаем между заходами (localStorage, синхронно).
-// Дефолт — свёрнуто; ключ на пользователя, чтобы не смешивать состояние учёток.
+// Свернутость групп списка запоминаем между заходами (localStorage, синхронно).
+// Дефолт — свернуто; ключ на пользователя, чтобы не смешивать состояние учеток.
 function readGroupOpen(userId, key, dflt = false) {
   try {
     const v = localStorage.getItem(`tpl_group_${key}_${userId}`)
@@ -123,7 +123,7 @@ function writeGroupOpen(userId, key, open) {
   try { localStorage.setItem(`tpl_group_${key}_${userId}`, open ? '1' : '0') } catch { /* приватный режим */ }
 }
 
-// Заголовок сворачиваемой группы: тап переключает раскрытие, стрелка ▸/▾ + счётчик.
+// Заголовок сворачиваемой группы: тап переключает раскрытие, стрелка ▸/▾ + счетчик.
 function GroupHeader({ title, count, open, onToggle }) {
   return (
     <button className="group-title group-toggle" onClick={onToggle} aria-expanded={open}>
@@ -143,7 +143,7 @@ function TemplateList({ user, onBack, onOpen }) {
   const mine = list.filter((t) => t.user_id === user.id)
   const shared = list.filter((t) => t.user_id !== user.id) // чужие общие
 
-  // Раскрытость групп (по умолчанию свёрнуты, состояние помним в localStorage).
+  // Раскрытость групп (по умолчанию свернуты, состояние помним в localStorage).
   const [mineOpen, setMineOpen] = useState(() => readGroupOpen(user.id, 'mine'))
   const [sharedOpen, setSharedOpen] = useState(() => readGroupOpen(user.id, 'shared'))
   function toggleMine() {

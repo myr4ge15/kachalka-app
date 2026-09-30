@@ -16,13 +16,13 @@ const workout = (values) => ({
 })
 
 describe('GoalsList', () => {
-  it('рендерит цель с прогресс-баром (нет истории → 0%) и зовёт onEdit/onAdd', () => {
+  it('рендерит цель с прогресс-баром (нет истории → 0%) и зовет onEdit/onAdd', () => {
     const g = goal()
     const onEdit = vi.fn(); const onAdd = vi.fn()
     render(<GoalsList goalList={[g]} workouts={[]} onEdit={onEdit} onAdd={onAdd} />)
     expect(screen.getByText('Жим', { exact: false })).toBeInTheDocument()
     expect(screen.getByText('0%')).toBeInTheDocument()
-    fireEvent.click(screen.getByText('✎ Изменить цель'))
+    fireEvent.click(screen.getByRole('button', { name: 'Изменить цель' }))
     expect(onEdit).toHaveBeenCalledWith(g)
     fireEvent.click(screen.getByText('+ Добавить цель'))
     expect(onAdd).toHaveBeenCalled()
@@ -39,7 +39,7 @@ describe('GoalsList', () => {
     expect(screen.getByText(/нужно ≥5 повт/)).toBeInTheDocument()
   })
 
-  it('сворачивает длинный список до трёх ближайших к 100% целей', () => {
+  it('сворачивает длинный список до трех ближайших к 100% целей', () => {
     const goals = [
       goal({ exerciseId: 'e1', exerciseName: 'Дальняя 20%' }),
       goal({ exerciseId: 'e2', exerciseName: 'Близкая 95%' }),
@@ -94,7 +94,7 @@ describe('GoalsList', () => {
     expect(screen.queryByText('Цель 20%', { exact: false })).not.toBeInTheDocument()
   })
 
-  it('не показывает раскрытие для трёх целей', () => {
+  it('не показывает раскрытие для трех целей', () => {
     const goals = [1, 2, 3].map((n) => goal({ exerciseId: `e${n}`, exerciseName: `Цель ${n}` }))
     render(<GoalsList goalList={goals} workouts={[]} onEdit={() => {}} onAdd={() => {}} />)
     expect(screen.queryByRole('button', { name: /Показать остальные/ })).not.toBeInTheDocument()

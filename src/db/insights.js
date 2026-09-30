@@ -3,8 +3,8 @@
 // сводка»). Читает уже локальные данные (Dexie) и кормит их чистым движкам
 // (src/lib/insights.js, src/lib/homeSummary.js). Схему/синк не трогаем.
 //
-// Всё считается из имеющегося: свои тренировки (db.workouts), кэш ленты (db.feed —
-// не нужен движку напрямую, но лидерборд для «обгона» берём из кэша), цели (meta),
+// Все считается из имеющегося: свои тренировки (db.workouts), кэш ленты (db.feed —
+// не нужен движку напрямую, но лидерборд для «обгона» берем из кэша), цели (meta),
 // снимок лидерборда (getCachedLeaderboard). Сеть не требуется — офлайн-доступно.
 // ============================================================================
 import { getWorkouts, getCachedUser } from './repo.js'
@@ -59,7 +59,7 @@ export async function getHomeData(userId, { max = 3 } = {}) {
   }
 }
 
-// Инсайты именно этой (только что сохранённой) тренировки — для тоста после
+// Инсайты именно этой (только что сохраненной) тренировки — для тоста после
 // сохранения. leaderboard тоже тянем, чтобы «обгон» мог всплыть сразу.
 export async function detectInsightsOnSave(userId, workoutId, { max = 3 } = {}) {
   const [workouts, leaderboard, sex] = await Promise.all([getWorkouts(userId), safeLeaderboard(), mySex(userId)])
@@ -67,7 +67,7 @@ export async function detectInsightsOnSave(userId, workoutId, { max = 3 } = {}) 
 }
 
 // Свежесть по группам (детальный экран + тизер Главной): recovery-список
-// (когда снова тренировать) + дисбаланс. Всё из локальных тренировок, офлайн.
+// (когда снова тренировать) + дисбаланс. Все из локальных тренировок, офлайн.
 export async function getFreshness(userId) {
   const [workouts, sex] = await Promise.all([getWorkouts(userId), mySex(userId)])
   return {

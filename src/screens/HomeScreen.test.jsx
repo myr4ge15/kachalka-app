@@ -41,7 +41,7 @@ const readyHome = {
     exerciseId: 'bench',
     emoji: '💪',
     tone: 'good',
-    text: 'Жим лёжа: 70 → 85 кг при 6 повт. — +21% за год',
+    text: 'Жим лежа: 70 → 85 кг при 6 повт. — +21% за год',
   }],
   freshness: { recovery: [] },
 }
@@ -60,7 +60,7 @@ describe('HomeScreen', () => {
     })
   })
 
-  it('показывает инсайт «себя прошлого» и ведёт в Прогресс', () => {
+  it('показывает инсайт «себя прошлого» и ведет в Прогресс', () => {
     vi.mocked(useLiveQuery).mockReturnValue(readyHome)
     const onNavigate = vi.fn()
     const onOpenProgress = vi.fn()
@@ -71,10 +71,10 @@ describe('HomeScreen', () => {
     expect(onNewWorkout).toHaveBeenCalledOnce()
     expect(screen.getByText('27.07')).toBeInTheDocument()
     expect(screen.queryByText('эта')).toBeNull()
-    // 7 недель до первой тренировки не в счёт — итог за эту неделю, не «0,1 в неделю»
+    // 7 недель до первой тренировки не в счет — итог за эту неделю, не «0,1 в неделю»
     expect(screen.getByText(/на этой неделе/)).toBeInTheDocument()
 
-    fireEvent.click(screen.getByRole('button', { name: 'Жим лёжа: 70 → 85 кг при 6 повт. — +21% за год' }))
+    fireEvent.click(screen.getByRole('button', { name: 'Жим лежа: 70 → 85 кг при 6 повт. — +21% за год' }))
     expect(onOpenProgress).toHaveBeenCalledWith('bench')
     // Быстрые кнопки «Прогресс/Лента» убраны в v6.0.3 — это есть в нижнем меню.
     expect(screen.queryByRole('button', { name: 'Прогресс' })).toBeNull()
@@ -91,7 +91,7 @@ describe('HomeScreen', () => {
     expect(onNavigate).toHaveBeenCalledWith('history')
   })
 
-  it('заголовок — сегодняшняя дата, а не приветствие; «Открыть в календаре» передаёт день недели', () => {
+  it('заголовок — сегодняшняя дата, а не приветствие; «Открыть в календаре» передает день недели', () => {
     vi.mocked(useLiveQuery).mockReturnValue(readyHome)
     const onOpenCalendar = vi.fn()
     render(<HomeScreen user={user} onOpenCalendar={onOpenCalendar} />)
@@ -104,7 +104,7 @@ describe('HomeScreen', () => {
     expect(onOpenCalendar).toHaveBeenLastCalledWith('2026-07-29')
   })
 
-  it('в пустом состоянии даёт прямой вход в новую тренировку', () => {
+  it('в пустом состоянии дает прямой вход в новую тренировку', () => {
     vi.mocked(useLiveQuery).mockReturnValue({
       summary: { hasData: false },
       insights: [],

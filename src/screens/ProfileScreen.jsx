@@ -25,14 +25,15 @@ import CardsSkeleton from '../components/CardsSkeleton.jsx'
 import StatGrid from '../components/StatGrid.jsx'
 import PersonalRecords from '../components/PersonalRecords.jsx'
 import GoalsList from '../components/GoalsList.jsx'
+import PencilIcon from '../components/PencilIcon.jsx'
 
-// Экран «Профиль» (ЛК). Всё про самого пользователя; пер-упражненческую
+// Экран «Профиль» (ЛК). Все про самого пользователя; пер-упражненческую
 // аналитику не дублируем — рекорды уводят в «Прогресс». Считаем на клиенте из
 // уже имеющихся денормализованных тренировок. Цель (фаза 2b) дополнительно
 // уходит на сервер при сохранении, чтобы достижение увидел Telegram-бот.
 //
 // Степпер значения цели: −/+ с удержанием и слот под инпут+единицу (children).
-// Раньше вёрстка .goal-stepper дублировалась для веса/повторов/времени.
+// Раньше верстка .goal-stepper дублировалась для веса/повторов/времени.
 function GoalStepper({ onDec, onInc, children }) {
   return (
     <div className="goal-stepper">
@@ -55,7 +56,7 @@ export default function ProfileScreen({ user, onLogout, onOpenProgress, onOpenFe
   // Гард от setState после размонтирования. Экран профиля уходит при смене нижней
   // вкладки, а async-обработчики (загрузка аватара, RPC смены имени/PIN, удаление
   // данных, повтор/отклонение dead-letter) делают setState в try/finally уже ПОСЛЕ
-  // await — уход с профиля в процессе иначе даёт React-варн «update on unmounted».
+  // await — уход с профиля в процессе иначе дает React-варн «update on unmounted».
   // Как в UsersSection/AccessSection (AdminScreen); ссылка «гард как в Profile»
   // из AdminScreen теперь не вводит в заблуждение.
   const aliveRef = useRef(true)
@@ -70,7 +71,7 @@ export default function ProfileScreen({ user, onLogout, onOpenProgress, onOpenFe
     [workouts]
   )
 
-  // Место в лидерборде в СВОЁМ борде (мужской — жим, женский — ягодичный мостик).
+  // Место в лидерборде в СВОЕМ борде (мужской — жим, женский — ягодичный мостик).
   // Кэш Ленты/снимок, только чтение. { n, board } | null (до загрузки — null).
   // useLiveQuery над Dexie-кэшем: место само пересчитывается, когда pull освежает
   // снимок лидерборда, а не только на маунте экрана (прежний one-shot effect).
@@ -102,14 +103,14 @@ export default function ProfileScreen({ user, onLogout, onOpenProgress, onOpenFe
   const [edIsNew, setEdIsNew] = useState(false) // добавляем новую (можно выбрать упражнение) или правим цель существующей
 
   // Редактор рендерится инлайн в секции «Мои цели» (вверху экрана). Если открыть
-  // его, проскроллив вниз (кнопка «+ Добавить цель»), форма встаёт на месте секции
-  // — выше видимой области. Доводим форму до экрана после её появления.
+  // его, проскроллив вниз (кнопка «+ Добавить цель»), форма встает на месте секции
+  // — выше видимой области. Доводим форму до экрана после ее появления.
   const editorRef = useRef(null)
   useEffect(() => {
     if (editing) editorRef.current?.scrollIntoView({ behavior: 'smooth', block: 'center' })
   }, [editing])
 
-  // Блок «Настройки» свёрнут по умолчанию: экран профиля длинный (статы + цели +
+  // Блок «Настройки» свернут по умолчанию: экран профиля длинный (статы + цели +
   // рекорды + настройки + danger-zone), редко используемые действия прячем.
   const [settingsOpen, setSettingsOpen] = useState(false)
 
@@ -137,7 +138,7 @@ export default function ProfileScreen({ user, onLogout, onOpenProgress, onOpenFe
     try {
       await setPin(user.id, curPin, newPin)
       if (aliveRef.current) closePinForm()
-      showToast({ emoji: '🔑', title: 'PIN обновлён', sub: 'Вход — уже новым PIN.' })
+      showToast({ emoji: '🔑', title: 'PIN обновлен', sub: 'Вход — уже новым PIN.' })
     } catch (e) {
       if (!aliveRef.current) return
       setPinBusy(false)
@@ -159,7 +160,7 @@ export default function ProfileScreen({ user, onLogout, onOpenProgress, onOpenFe
     try {
       const url = await uploadMyAvatar(user.id, file)
       await setCachedAvatar(user.id, url) // мгновенно обновить шапку/ЛК до pull
-      showToast({ emoji: '📷', title: 'Аватар обновлён' })
+      showToast({ emoji: '📷', title: 'Аватар обновлен' })
     } catch (err) {
       showToast({ emoji: '⚠️', title: 'Не удалось загрузить', sub: String(err?.message ?? err) })
     } finally {
@@ -235,7 +236,7 @@ export default function ProfileScreen({ user, onLogout, onOpenProgress, onOpenFe
 
   // ── Застрявшие изменения (dead-letter) ─────────────────────────────────
   // Операции, провалившие все попытки отправки. Обычно — затянувшийся холодный
-  // старт/обрыв; даём пересобрать или отклонить, чтобы не копились молча.
+  // старт/обрыв; даем пересобрать или отклонить, чтобы не копились молча.
   const deadCount = useLiveQuery(() => deadLetterCount(), [], 0)
   const [dlBusy, setDlBusy] = useState(false)
   const [dlArm, setDlArm] = useState(false) // подтверждение «отклонить» (теряет правки)
@@ -266,7 +267,7 @@ export default function ProfileScreen({ user, onLogout, onOpenProgress, onOpenFe
   }
 
   // ── Все мои данные: выгрузка и восстановление ──────────────────────────
-  // Часть личных сущностей (бейджи, настройки прогрессии) живёт ТОЛЬКО локально
+  // Часть личных сущностей (бейджи, настройки прогрессии) живет ТОЛЬКО локально
   // и умирает вместе с чисткой браузера — файл-снимок закрывает этот риск.
   // Восстановление намеренно ТОЛЬКО ДОБАВЛЯЕТ недостающее: затереть свежие
   // данные старым файлом невозможно (см. lib/backup.js planImport).
@@ -275,7 +276,7 @@ export default function ProfileScreen({ user, onLogout, onOpenProgress, onOpenFe
     setBkBusy(true)
     try {
       const n = await exportAllMyData(user.id, APP_VERSION)
-      showToast({ emoji: '💾', title: 'Файл сохранён', sub: `Тренировок в выгрузке: ${n}` })
+      showToast({ emoji: '💾', title: 'Файл сохранен', sub: `Тренировок в выгрузке: ${n}` })
     } catch (e) {
       showToast({ emoji: '⚠️', title: 'Не удалось выгрузить', sub: String(e?.message ?? e) })
     } finally {
@@ -305,11 +306,11 @@ export default function ProfileScreen({ user, onLogout, onOpenProgress, onOpenFe
     }
   }
 
-  // Видимые цели (без tombstone'ов) и упражнения, по которым цели ещё нет
+  // Видимые цели (без tombstone'ов) и упражнения, по которым цели еще нет
   // (для пикера «добавить»). Имя редактируемой цели — из самого списка.
   const goalList = (goals ?? []).filter((g) => !g._deleted)
   // Цели — по любой метрике (вес/повторы/время): предлагаем все упражнения из
-  // рекордов, по которым цели ещё нет.
+  // рекордов, по которым цели еще нет.
   const addOptions = records.filter(
     (r) => !goalList.some((g) => g.exerciseId === r.exId)
   )
@@ -334,7 +335,7 @@ export default function ProfileScreen({ user, onLogout, onOpenProgress, onOpenFe
     if (m === 'time') setEdTimeStr(fmtTime(n))
   }
 
-  // Открыть редактор: новая цель (выбор упражнения из ещё-без-цели) или правка
+  // Открыть редактор: новая цель (выбор упражнения из еще-без-цели) или правка
   // существующей (упражнение фиксировано).
   function openAddGoal() {
     if (addOptions.length === 0) {
@@ -417,7 +418,7 @@ export default function ProfileScreen({ user, onLogout, onOpenProgress, onOpenFe
   }
 
   // Удалить цель: tombstone (_deleted+_dirty) — синк отправит delete_my_goal и
-  // выкинет её из массива; из списка пропадает сразу.
+  // выкинет ее из массива; из списка пропадает сразу.
   async function deleteGoal(exerciseId) {
     const list = await readGoals(user.id)
     const next = list.map((g) =>
@@ -460,7 +461,7 @@ export default function ProfileScreen({ user, onLogout, onOpenProgress, onOpenFe
           ) : (
             <div className="prof-name">
               <span className="txt">{user.name}</span>
-              <button className="name-edit" onClick={openName} aria-label="Изменить имя">✎</button>
+              <button className="name-edit" onClick={openName} aria-label="Изменить имя"><PencilIcon size={18} /></button>
             </div>
           )}
           {user.role === 'admin' && <span className="role-badge">админ</span>}
@@ -477,7 +478,7 @@ export default function ProfileScreen({ user, onLogout, onOpenProgress, onOpenFe
 
       {!loading && summary.totalWorkouts > 0 && (
         <>
-          {/* быстрые цифры — «за всё время». Скользящие метрики (за месяц,
+          {/* быстрые цифры — «за все время». Скользящие метрики (за месяц,
               серия) живут на Главной, здесь не дублируем (акценты разведены). */}
           <StatGrid totalWorkouts={summary.totalWorkouts} tonnage={summary.tonnage} />
 
@@ -643,7 +644,7 @@ export default function ProfileScreen({ user, onLogout, onOpenProgress, onOpenFe
               <button className="leader-link" onClick={() => onOpenFeed?.()}>
                 <div>
                   <div className="v">{place.n}-е место {place.board === 'f' ? 'по ягодичному мостику' : 'по жиму'}</div>
-                  <div className="k">лидерборд живёт в Ленте</div>
+                  <div className="k">лидерборд живет в Ленте</div>
                 </div>
                 <span className="go">Лента ›</span>
               </button>
@@ -652,7 +653,7 @@ export default function ProfileScreen({ user, onLogout, onOpenProgress, onOpenFe
         </>
       )}
 
-      {/* настройки и выход — свёрнуто по умолчанию, чтобы длинный экран не пух */}
+      {/* настройки и выход — свернуто по умолчанию, чтобы длинный экран не пух */}
       <section className="sec settings-sec">
         <button
           className="settings-toggle"
@@ -663,7 +664,7 @@ export default function ProfileScreen({ user, onLogout, onOpenProgress, onOpenFe
           <span className="settings-chev" aria-hidden="true">{settingsOpen ? '▾' : '▸'}</span>
         </button>
 
-        {/* Проблема с отправкой — важный алерт: виден всегда, даже когда свёрнуто. */}
+        {/* Проблема с отправкой — важный алерт: виден всегда, даже когда свернуто. */}
         {deadCount > 0 && (
           <div className="danger-confirm">
             <p className="danger-text">
@@ -737,7 +738,7 @@ export default function ProfileScreen({ user, onLogout, onOpenProgress, onOpenFe
                 <input
                   className="pin-input" type="password" inputMode="numeric"
                   autoComplete="off" name="rpt-code" data-lpignore="true" data-1p-ignore
-                  placeholder="ещё раз"
+                  placeholder="еще раз"
                   value={rptPin} onChange={(e) => setRptPin(onlyDigits(e.target.value))}
                 />
               </label>
@@ -783,7 +784,7 @@ export default function ProfileScreen({ user, onLogout, onOpenProgress, onOpenFe
             <div className="danger-confirm">
               <p className="danger-text">
                 Удалить все свои тренировки? Отменить это нельзя — если не уверен,
-                сначала нажми «Скачать все мои данные». Учётная запись, цель и шаблоны останутся.
+                сначала нажми «Скачать все мои данные». Учетная запись, цель и шаблоны останутся.
               </p>
               <div className="danger-actions">
                 <button className="btn ghost" onClick={() => setDelArm(false)} disabled={delBusy}>Отмена</button>

@@ -8,7 +8,7 @@ import { pickSaveCelebration } from './saveCelebration.js'
 const pr = (over = {}) => ({ name: 'Жим', metric: 'weight', value: 100, prev: 90, ...over })
 const goal = (over = {}) => ({ name: 'Жим', metric: 'weight', value: 100, reps: null, ...over })
 const badge = (over = {}) => ({ icon: '🌱', name: 'Первый шаг', ...over })
-const insight = (over = {}) => ({ emoji: '📈', text: 'Объём растёт', ...over })
+const insight = (over = {}) => ({ emoji: '📈', text: 'Объем растет', ...over })
 
 describe('pickSaveCelebration', () => {
   it('ничего не сработало → тоста нет, вибрация обычная', () => {
@@ -72,7 +72,7 @@ describe('pickSaveCelebration', () => {
   it('инсайт: тост есть, но вибрация ОБЫЧНАЯ (celebrated=false)', () => {
     const { toast, celebrated } = pickSaveCelebration({ insights: [insight()] })
     expect(celebrated).toBe(false)
-    expect(toast).toMatchObject({ emoji: '📈', title: 'Вывод после тренировки', sub: 'Объём растёт' })
+    expect(toast).toMatchObject({ emoji: '📈', title: 'Вывод после тренировки', sub: 'Объем растет' })
   })
 
   it('инсайт НЕ показывается, если сработал бейдж', () => {

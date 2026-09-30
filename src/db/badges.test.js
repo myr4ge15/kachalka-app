@@ -11,7 +11,7 @@ import { saveWorkout, getBadges } from './repo.js'
 import { getBadgesView, backfillBadges, detectBadgesOnSave } from './badges.js'
 import { BADGES } from '../lib/badges.js'
 
-const bench = { id: 'ex_bench', name: 'Жим лёжа', muscle_group: 'грудь', is_bench_lift: true, metric: 'weight' }
+const bench = { id: 'ex_bench', name: 'Жим лежа', muscle_group: 'грудь', is_bench_lift: true, metric: 'weight' }
 // Одинаковые тренировки: рекордов нет (minePrs требует prev>0), тоннаж мал —
 // в игру входят только вехи регулярности (число тренировок), что и нужно.
 const wk = (userId, at = '2026-02-01') =>

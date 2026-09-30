@@ -78,7 +78,7 @@ describe('evaluateBadges', () => {
     expect(newlyEarned).not.toContain('reg_50')
     expect(earned).toEqual(expect.arrayContaining(['reg_1', 'reg_10']))
   })
-  it('необратимость: показатель упал, но бейдж уже выдан — остаётся получен, без повторного тоста', () => {
+  it('необратимость: показатель упал, но бейдж уже выдан — остается получен, без повторного тоста', () => {
     const earnedMap = { streak_3: { at: '2026-01-01T00:00:00Z' } }
     const { earned, newlyEarned } = evaluateBadges({ maxStreakWeeks: 1 }, earnedMap)
     expect(earned).toContain('streak_3') // не снят, хотя серия=1
@@ -96,13 +96,13 @@ describe('evaluateBadges', () => {
 })
 
 describe('nextBadge', () => {
-  it('объём между порогами → ближайшая незакрытая веха (vol_100 на 50%)', () => {
+  it('объем между порогами → ближайшая незакрытая веха (vol_100 на 50%)', () => {
     const nb = nextBadge({ count: 0, maxStreakWeeks: 0, tonnage: 50_000, prCount: 0 })
     expect(nb.def.id).toBe('vol_100')
     expect(nb.pct).toBe(50)
     expect(nb.remaining).toBe(50_000)
   })
-  it('всё получено → null', () => {
+  it('все получено → null', () => {
     const nb = nextBadge({ count: 999, maxStreakWeeks: 999, tonnage: 9_000_000, prCount: 999 })
     expect(nb).toBeNull()
   })
@@ -119,7 +119,7 @@ describe('badgeEarnedDates', () => {
     expect(d.reg_1).toBe('2026-01-05') // 1-я по хронологии
     expect(d.reg_10).toBeUndefined() // порог не достигнут
   })
-  it('объём — момент пересечения порога накопленным тоннажем', () => {
+  it('объем — момент пересечения порога накопленным тоннажем', () => {
     // vol_10 = 10 000 кг. 100×50=5000, +100×60=11000 (пересекли на 2-й)
     const workouts = [
       wk('a', '2026-01-01', [exW('sq', [setW(100, 50)])]), // 5000
@@ -153,7 +153,7 @@ describe('badgeEarnedDates', () => {
 })
 
 describe('fmtBadgeValue', () => {
-  it('объём форматируется тоннами', () => {
+  it('объем форматируется тоннами', () => {
     expect(fmtBadgeValue(byId.vol_1000, byId.vol_1000.threshold)).toBe('1000 т')
     expect(fmtBadgeValue(byId.vol_10, byId.vol_10.threshold)).toBe('10 т')
   })

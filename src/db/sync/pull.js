@@ -27,15 +27,15 @@ import { pickExerciseShape } from '../../lib/entries.js'
 
 // Инкрементальный pull (BACKLOG-техдолг): вместо полного снапшота всей базы каждые
 // 20 c тянем ТОЛЬКО дельту по серверному watermark updated_at. Тренировки —
-// `updated_at > wm_workouts` (тяжёлый join лишь по изменённым); справочник/ростер/
-// шаблоны — дешёвая проба (max updated_at / сигнатура id) и полный refetch только
+// `updated_at > wm_workouts` (тяжелый join лишь по измененным); справочник/ростер/
+// шаблоны — дешевая проба (max updated_at / сигнатура id) и полный refetch только
 // при изменении. Watermark'и/сигнатуры лежат в meta (ключи ниже). Удаления
 // тренировок watermark не двигают (строка исчезает) → сверяем отдельно, по
-// ПОЛНОМУ дешёвому списку серверных id (select id), как и раньше (см.
+// ПОЛНОМУ дешевому списку серверных id (select id), как и раньше (см.
 // lib/pullReconcile.js, «зазор реконсиляции»).
 const WM_WORKOUTS = 'wm_workouts'   // max updated_at принятых тренировок
 const WM_EXERCISES = 'wm_exercises' // max updated_at справочника
-// Сигнатура ростера живёт РЯДОМ С ДАННЫМИ — в login-meta ОБЩЕЙ базы (loginDb), а не
+// Сигнатура ростера живет РЯДОМ С ДАННЫМИ — в login-meta ОБЩЕЙ базы (loginDb), а не
 // в персональной. «Сигнатура в чужом хранилище» уже стоила данных: экран входа портил
 // ростер в loginDb, сигнатура в персональной meta при этом не менялась → usChanged
 // оставался false → refetch не наступал НИКОГДА, и пол не возвращался сам (лечилось
@@ -79,12 +79,12 @@ function rowToDoc(w) {
     user_id: w.user_id,
     performed_at: w.performed_at,
     // created_at с сервера (для сортировки хаба). Фолбэк на performed_at,
-    // если сервер ещё не отдаёт это поле.
+    // если сервер еще не отдает это поле.
     created_at: w.created_at ?? w.performed_at,
     // updated_at — СЕРВЕРНЫЕ merge-часы (PLAN-merge-clock): монотонное время
     // последней правки, назначается сервером в upsert_workout. Сравнивается на
     // pull с локальным базисом (_base_updated_at). Фолбэк на created_at для строк
-    // со старого сервера, ещё не отдающего колонку.
+    // со старого сервера, еще не отдающего колонку.
     updated_at: w.updated_at ?? w.created_at ?? nowIso(),
     entries,
     _dirty: 0,
@@ -113,7 +113,7 @@ function templateRowToDoc(t) {
     user_id: t.user_id,
     name: t.name,
     // Видимость как 0|1 (см. repo.saveTemplate). author_name — для пометки
-    // «от <Имя>» у чужих общих шаблонов (своё имя в UI не показываем).
+    // «от <Имя>» у чужих общих шаблонов (свое имя в UI не показываем).
     is_public: t.is_public ? 1 : 0,
     author_name: t.author?.name ?? null,
     created_at: t.created_at ?? nowIso(),
@@ -126,11 +126,11 @@ function templateRowToDoc(t) {
 
 // d — ЗАХВАЧЕННЫЙ на входе syncNow инстанс персональной базы (см. syncNow). Все
 // записи идут в него, а не в живую модульную привязку `db`: если пользователь
-// сменит учётку посреди сетевого await, `db` укажет на чужую базу, а `d` останется
+// сменит учетку посреди сетевого await, `db` укажет на чужую базу, а `d` останется
 // прежним (и уже закрытым при свопе → запись бросит DatabaseClosedError, прогон
-// аборнётся в catch — без кросс-протечки данных A в базу B).
+// аборнется в catch — без кросс-протечки данных A в базу B).
 // Оркестратор pull: последовательно гоняет частные подтяжки и собирает их
-// предупреждения в один список. Порядок сохранён историческим (FK-зависимостей
+// предупреждения в один список. Порядок сохранен историческим (FK-зависимостей
 // между подтяжками нет). Частичные сбои НЕ роняют синк (тренировки важнее
 // справочника) и не маскируются под успех — каждая подтяжка возвращает свои
 // warnings наверх, статус покажет «синхронизировано, но справочник/шаблоны не
@@ -151,7 +151,7 @@ export async function pull(userId, justPushed = new Set(), d = db) {
     wrap(pullWorkouts(userId, justPushed, d)),
     wrap(pullTemplates(userId, d)),
   ])
-  // Тренировки — КРИТИЧНАЯ подтяжка: её сбой = сетевой сбой всего прогона (как и
+  // Тренировки — КРИТИЧНАЯ подтяжка: ее сбой = сетевой сбой всего прогона (как и
   // раньше, когда throw из pullWorkouts пробрасывался в syncNow → netError). Бросаем
   // ПОСЛЕ того, как Promise.all дождался остальных, поэтому unhandled rejection нет.
   if (!wk.ok) throw wk.e
@@ -170,15 +170,15 @@ export async function pull(userId, justPushed = new Set(), d = db) {
 // --------------------------- pull: справочник ------------------------------
 async function pullExercises(d = db) {
   const warnings = []
-  // справочник упражнений. Инкрементально: сперва дешёвая проба самого свежего
+  // справочник упражнений. Инкрементально: сперва дешевая проба самого свежего
   // updated_at (1 строка). Не вырос с прошлого раза → пропускаем целиком (ни
   // трансфера, ни churn'а Dexie). Удаления справочника не бывает (soft-hide через
-  // is_hidden — строка остаётся, триггер двигает updated_at), поэтому max-watermark
+  // is_hidden — строка остается, триггер двигает updated_at), поэтому max-watermark
   // ПОЛНЫЙ: пропущенного нет. Проба упала (старый сервер без колонки / сеть) →
   // деградируем к прежнему полному refetch, чтобы синк справочника не встал.
   const exProbe = await withTimeout(
     // nullsFirst:false — иначе при descending Postgres ставит NULL первым, и если
-    // хоть у одной строки updated_at пуст, проба вернёт null → changedSince(null,…)
+    // хоть у одной строки updated_at пуст, проба вернет null → changedSince(null,…)
     // === false → полный refetch справочника пропускается, новые упражнения не
     // подтянутся. Нужен именно МАКСИМАЛЬНЫЙ непустой updated_at.
     supabase.from('exercises').select('updated_at')
@@ -187,8 +187,8 @@ async function pullExercises(d = db) {
   const exServerMax = exProbe.error ? null : (exProbe.data?.[0]?.updated_at ?? null)
   const exChanged = exProbe.error ? true : changedSince(exServerMax, await getMeta(WM_EXERCISES, d))
   if (exChanged) {
-    // НЕ затираем локально созданные упражнения, которые ещё не доехали до сервера
-    // (_dirty=1) — иначе своё упражнение пропадёт из пикера до завершения синка.
+    // НЕ затираем локально созданные упражнения, которые еще не доехали до сервера
+    // (_dirty=1) — иначе свое упражнение пропадет из пикера до завершения синка.
     const ex = await withTimeout(
       supabase.from('exercises').select('id, name, muscle_group, submuscle, secondary, is_bench_lift, is_female_lift, is_custom, is_hidden, metric, owner_id, updated_at')
     )
@@ -198,13 +198,13 @@ async function pullExercises(d = db) {
       await d.transaction('rw', d.exercises, d.ex_outbox, async () => {
         const dirty = await d.exercises.filter((e) => e._dirty).toArray()
         const ops = await d.ex_outbox.toArray()
-        // _dirty с ЖИВОЙ операцией — правка ждёт push'а (в т.ч. сделанная, пока шёл
+        // _dirty с ЖИВОЙ операцией — правка ждет push'а (в т.ч. сделанная, пока шел
         // прошлый upsert, см. push.pushExercises): локальную версию сохраняем, даже
         // если сервер упражнение уже знает. Иначе правка перезаписывалась серверной.
         const keep = protectedFromPull(dirty, ops, (o) => o.exerciseId)
         await d.exercises.clear()
         await d.exercises.bulkPut(ex.data)
-        // вернуть несинхронизированные локальные упражнения: новые (сервер их ещё не
+        // вернуть несинхронизированные локальные упражнения: новые (сервер их еще не
         // знает) и правки с живой операцией
         for (const e of dirty) if (!serverExIds.has(e.id) || keep.has(e.id)) await d.exercises.put(e)
         // Сервер знает «грязное» упражнение, а живой операции нет (очередь умерла в
@@ -230,9 +230,9 @@ async function pullRoster() {
   // пользователи (имена для пикера входа). Тянем из view login_users — только
   // id и name, без pin_hash/pin_salt/role: хэши больше не отдаются клиентам
   // (сверка PIN — в auth-login онлайн или по своему кэшу офлайн, см. lib/auth.js).
-  // Инкрементально: дешёвая проба (id, updated_at) → сигнатура. Не изменилась →
+  // Инкрементально: дешевая проба (id, updated_at) → сигнатура. Не изменилась →
   // пропуск. Сигнатура (набор id + max updated_at) ловит и правку (updated_at
-  // растёт), и удаление/появление учётки (меняется набор id) — одного max мало.
+  // растет), и удаление/появление учетки (меняется набор id) — одного max мало.
   const usProbe = await withTimeout(supabase.from('login_users').select('id, updated_at'))
   const usSig = usProbe.error ? null : rosterSignature(usProbe.data ?? [])
   const usChanged = usProbe.error ? true : usSig !== (await getLoginMeta(SIG_USERS))
@@ -241,7 +241,7 @@ async function pullRoster() {
     if (us.error) warnings.push('пользователи: ' + (us.error.message ?? us.error))
     // Пишем через repo.cacheUsers — ЕДИНСТВЕННЫЙ писатель кэша ростера (мерж +
     // белый список полей, см. lib/roster.js). Ростер общий для устройства
-    // (loginDb), а не персональный: его читает пикер входа до выбора учётки.
+    // (loginDb), а не персональный: его читает пикер входа до выбора учетки.
     // Пустой, но не ошибочный ответ ростер не затирает И сигнатуру не двигает —
     // следующий прогон попробует снова, вместо того чтобы «запомнить» пустоту.
     else if (us.data?.length) {
@@ -254,7 +254,7 @@ async function pullRoster() {
 
 // --------------------------- pull: приватность -----------------------------
 // Свой флаг приватности (для UI: у приватного прячем блок лидерборда и место в
-// профиле). Колонка is_private клиентам не грантится → берём через RPC
+// профиле). Колонка is_private клиентам не грантится → берем через RPC
 // my_is_private (DEFINER). Не критично для синка — ошибку только проглатываем,
 // warnings не копим (флаг косметический).
 async function pullPrivacyFlag(userId, d = db) {
@@ -270,18 +270,18 @@ async function pullWorkouts(userId, justPushed = new Set(), d = db) {
   // тренировки пользователя — ТОЛЬКО дельта по watermark. Первый прогон (wm пуст)
   // тянет всю историю один раз, дальше — лишь `updated_at > wm` (обычно 0 строк).
   // Порядок по updated_at asc, чтобы watermark двигался монотонно. Лимита нет:
-  // ограничивать нельзя (отсечённые старше wm строки иначе не доедут никогда).
+  // ограничивать нельзя (отсеченные старше wm строки иначе не доедут никогда).
   const wmWorkouts = await getMeta(WM_WORKOUTS, d)
   let wkQuery = supabase.from('workouts').select(SELECT_WORKOUT).eq('user_id', userId)
   if (wmWorkouts) wkQuery = wkQuery.gt('updated_at', wmWorkouts)
   wkQuery = wkQuery.order('updated_at', { ascending: true })
-  // Оконный запрос дельты (тяжёлый join) и ПОЛНЫЙ набор серверных id (без join'ов —
-  // дёшево, лишь UUID'ы для НАДЁЖНОЙ реконсиляции удалений: контент тянем по
-  // watermark, но удаления так не увидеть — строка исчезает, updated_at не растёт)
+  // Оконный запрос дельты (тяжелый join) и ПОЛНЫЙ набор серверных id (без join'ов —
+  // дешево, лишь UUID'ы для НАДЕЖНОЙ реконсиляции удалений: контент тянем по
+  // watermark, но удаления так не увидеть — строка исчезает, updated_at не растет)
   // независимы → гоняем одним Promise.all (–1 round-trip). Список id заворачиваем в
   // .catch: его сетевой сбой НЕ должен ронять прогон — реконсиляцию удалений в этом
   // цикле просто пропускаем (не удаляем вслепую), поэтому приводим к форме { error }
-  // как у PostgREST, а не даём Promise.all зареджектиться.
+  // как у PostgREST, а не даем Promise.all зареджектиться.
   const [wk, idsRes] = await Promise.all([
     withTimeout(wkQuery),
     withTimeout(supabase.from('workouts').select('id').eq('user_id', userId))
@@ -314,7 +314,7 @@ async function pullWorkouts(userId, justPushed = new Set(), d = db) {
         await d.workouts.put(serverDoc)
         continue
       }
-      // Часы-осведомлённое решение (PLAN-merge-clock): сравниваем серверный
+      // Часы-осведомленное решение (PLAN-merge-clock): сравниваем серверный
       // updated_at с локальным базисом (_base_updated_at).
       const decision = mergeDecision({
         dirty: Boolean(local._dirty),
@@ -328,7 +328,7 @@ async function pullWorkouts(userId, justPushed = new Set(), d = db) {
         // Slice 1: выживает более поздняя по updated_at правка, проигравшую
         // логируем — тихая потеря становится видимой. Сравнение «локальное
         // клиентское время vs серверное» — best-effort (часы устройств могут
-        // расходиться), но единственный сигнал времени для ещё не отправленной
+        // расходиться), но единственный сигнал времени для еще не отправленной
         // локальной правки.
         const serverLater = cmpIsoAsc(local.updated_at, serverDoc.updated_at) <= 0
         conflicts.push({
@@ -340,17 +340,17 @@ async function pullWorkouts(userId, justPushed = new Set(), d = db) {
           local: local.updated_at ?? null,
         })
         if (serverLater) {
-          // Серверная правка позже — принимаем её и снимаем осиротевшую очередь
+          // Серверная правка позже — принимаем ее и снимаем осиротевшую очередь
           // этой тренировки, чтобы наша проигравшая версия не уехала обратно.
           await d.workouts.put(serverDoc)
           const ops = await d.outbox.where('workoutId').equals(row.id).toArray()
           for (const o of ops) if (o.type === 'upsert') await d.outbox.delete(o.seq)
         }
-        // serverLater=false → наша правка позже: оставляем локальную (push довезёт).
+        // serverLater=false → наша правка позже: оставляем локальную (push довезет).
       }
-      // decision === 'keep-local' → запись не трогаем (правка ждёт push'а).
+      // decision === 'keep-local' → запись не трогаем (правка ждет push'а).
     }
-    // Удалённые на сервере (и чистые локально) — убираем локально. Сверка по
+    // Удаленные на сервере (и чистые локально) — убираем локально. Сверка по
     // ПОЛНОМУ набору серверных id (allServerIds), а не по окну контента: так
     // доезжает и удаление записи старше окна. _dirty/_deleted и только что
     // отправленные (лаг read-replica) защищены внутри selectStaleWorkoutIds.
@@ -372,10 +372,10 @@ async function pullWorkouts(userId, justPushed = new Set(), d = db) {
   // Пусто (дельты не было) → watermark не трогаем.
   // NB: fetchedMax считается по ВСЕМ полученным строкам, включая те, что мы решили
   // НЕ принимать (keep-local / конфликт в пользу локальной версии). Это корректно,
-  // ПОКА локальную правку довезёт push: тогда серверный updated_at обгонит watermark
+  // ПОКА локальную правку довезет push: тогда серверный updated_at обгонит watermark
   // и строка при следующем pull приедет как take-server. Если же очередь этой правки
-  // умрёт в dead-letter — серверную версию watermark уже «перешагнул» (updated_at ≤
-  // wm) и инкрементальный .gt её не дотянет; узкий путь рассинхрона, лечится разбором
+  // умрет в dead-letter — серверную версию watermark уже «перешагнул» (updated_at ≤
+  // wm) и инкрементальный .gt ее не дотянет; узкий путь рассинхрона, лечится разбором
   // dead-letter (retry/discard в Профиле).
   const fetchedMax = maxUpdatedAt(serverRows)
   if (fetchedMax && changedSince(fetchedMax, wmWorkouts)) {
@@ -396,9 +396,9 @@ async function pullWorkouts(userId, justPushed = new Set(), d = db) {
 // --------------------------- pull: шаблоны ---------------------------------
 async function pullTemplates(userId, d = db) {
   const warnings = []
-  // шаблоны: «мои ∪ общие в круге» (их мало). Инкрементально: дешёвая проба
-  // (id, updated_at) по окну → сигнатура. Не изменилась → пропуск тяжёлого fetch'а
-  // (join с template_exercises). Сигнатура ловит и правку (updated_at растёт), и
+  // шаблоны: «мои ∪ общие в круге» (их мало). Инкрементально: дешевая проба
+  // (id, updated_at) по окну → сигнатура. Не изменилась → пропуск тяжелого fetch'а
+  // (join с template_exercises). Сигнатура ловит и правку (updated_at растет), и
   // пропажу чужого общего (автор сделал приватным → id выпал из окна) — одного max
   // мало. Проба упала → деградируем к полному refetch.
   const tplProbe = await withTimeout(
@@ -422,8 +422,8 @@ async function pullTemplates(userId, d = db) {
         // ВСЕ локальные шаблоны: чистую запись, входившую в окно, но пропавшую из
         // свежей выборки, удаляем — так уходит чужой общий, который автор сделал
         // приватным. Тумбстоны и _dirty с ЖИВОЙ операцией в очереди защищаем; _dirty
-        // без живой операции (очередь умерла в dead-letter/пуста) НЕ защищаем — её
-        // флаг иначе не снять, отдаём приоритет серверу и гасим «вечный» кружок.
+        // без живой операции (очередь умерла в dead-letter/пуста) НЕ защищаем — ее
+        // флаг иначе не снять, отдаем приоритет серверу и гасим «вечный» кружок.
         const locals = await d.templates.toArray()
         const ops = await d.tpl_outbox.toArray()
         const protectedIds = protectedFromPull(locals, ops)
@@ -431,8 +431,8 @@ async function pullTemplates(userId, d = db) {
         for (const row of tpl.data) {
           if (protectedIds.has(row.id)) continue
           await d.templates.put(templateRowToDoc(row))
-          // Приняли серверную версию ранее «грязной» записи → выкидываем её
-          // осиротевшие/мёртвые операции, чтобы очередь не копила мусор.
+          // Приняли серверную версию ранее «грязной» записи → выкидываем ее
+          // осиротевшие/мертвые операции, чтобы очередь не копила мусор.
           if (dirtyIds.has(row.id)) {
             for (const o of ops) if (o.templateId === row.id) await d.tpl_outbox.delete(o.seq)
           }
@@ -454,16 +454,16 @@ async function pullTemplates(userId, d = db) {
 
 // ------------------------------- цели: pull --------------------------------
 // Подтягиваем серверные цели в локальный массив. Сервер — источник правды, пока
-// нет локальных несинхронизированных правок (если есть хоть один _dirty — ждём
+// нет локальных несинхронизированных правок (если есть хоть один _dirty — ждем
 // ближайший pushGoal, last-write-wins как у тренировок). Так сюда приезжают цели
-// с других устройств, исчезают удалённые там и обновляется achieved_at от бота.
+// с других устройств, исчезают удаленные там и обновляется achieved_at от бота.
 // Имя упражнения — из локального справочника (фолбэк — прежнее имя).
 export async function pullGoal(userId, d = db) {
   const local = await readGoals(userId, d)
   if (local.some((g) => g._dirty)) return
-  // metric читаем отдельной попыткой: на не-обновлённом сервере колонки ещё нет
-  // (тогда select с ней вернёт ошибку → откат на старый набор полей, цели тянутся
-  // как весовые). Метрику цели всё равно дублирует metric упражнения в справочнике.
+  // metric читаем отдельной попыткой: на не-обновленном сервере колонки еще нет
+  // (тогда select с ней вернет ошибку → откат на старый набор полей, цели тянутся
+  // как весовые). Метрику цели все равно дублирует metric упражнения в справочнике.
   let res = await withTimeout(
     supabase
       .from('goals')
@@ -485,7 +485,7 @@ export async function pullGoal(userId, d = db) {
   for (const row of rows) {
     const ex = await d.exercises.get(row.exercise_id)
     // target_reps (PLAN-goal-reps) — необязательные повторы при целевом весе у
-    // весовой цели; на не-обновлённом сервере поля нет → undefined → null.
+    // весовой цели; на не-обновленном сервере поля нет → undefined → null.
     const reps = Number(row.target_reps)
     next.push({
       exerciseId: row.exercise_id,
@@ -494,7 +494,7 @@ export async function pullGoal(userId, d = db) {
       metric: normMetric(row.metric ?? ex?.metric ?? byEx.get(row.exercise_id)?.metric),
       targetWeight: Number(row.target_weight),
       targetReps: reps > 0 ? Math.round(reps) : null,
-      // Достижение МОНОТОННО: раз взятую цель не «разберём» обратно из-за пустого
+      // Достижение МОНОТОННО: раз взятую цель не «разберем» обратно из-за пустого
       // серверного achieved_at. Для не-весовых целей (reps/time) сервер achieved_at
       // НИКОГДА не считает — они достигаются только в приложении (detectGoalReached
       // штампует achievedAt локально). Без сохранения локального значения ближайший
@@ -504,7 +504,7 @@ export async function pullGoal(userId, d = db) {
       _dirty: 0,
     })
   }
-  // Пишем только при реальном изменении состава/значений (чтобы не дёргать
+  // Пишем только при реальном изменении состава/значений (чтобы не дергать
   // useLiveQuery вхолостую). Сравнение нормализованное, по ключу exerciseId.
   const norm = (arr) =>
     JSON.stringify(
@@ -513,9 +513,9 @@ export async function pullGoal(userId, d = db) {
         .map((g) => [g.exerciseId, Number(g.targetWeight), normMetric(g.metric), Number(g.targetReps) || 0, g.exerciseName ?? '—', g.achievedAt ?? null])
         .sort((a, b) => String(a[0]).localeCompare(String(b[0])))
     )
-  // Перечитываем цели перед записью (в транзакции): пока шёл select, человек мог
+  // Перечитываем цели перед записью (в транзакции): пока шел select, человек мог
   // сохранить/удалить цель, а сохранение тренировки — проставить achievedAt. Такая
-  // правка новее серверного списка — не затираем её (как перепроверка в
+  // правка новее серверного списка — не затираем ее (как перепроверка в
   // pullUserMeta): массив изменился → пропускаем, следующий цикл сверит заново.
   await d.transaction('rw', d.meta, async () => {
     const fresh = await readGoals(userId, d)
@@ -526,13 +526,13 @@ export async function pullGoal(userId, d = db) {
 }
 
 // --------------------------- личный meta: pull -----------------------------
-// Тянем СВОИ строки user_meta (RLS отдаёт только их) и сливаем с локальными по
+// Тянем СВОИ строки user_meta (RLS отдает только их) и сливаем с локальными по
 // правилам рода ключа — чистый planMetaSync (lib/userMeta.js): «прочитано» —
 // максимум, бейджи — объединение, настройки прогрессии — last-write-wins.
 // Никакого «сервер всегда прав»: значение, полученное офлайн на этом устройстве,
 // переживает pull и уезжает наверх ближайшим pushUserMeta.
 //
-// Мягкая деградация: если user-meta.sql ещё не задеплоен, select упадёт — просто
+// Мягкая деградация: если user-meta.sql еще не задеплоен, select упадет — просто
 // выходим, синк тренировок этим не задет (push в тот же прогон отдаст ошибку в
 // предупреждение, чтобы «не синкается» не было невидимым).
 export async function pullUserMeta(userId, d = db) {
@@ -546,8 +546,8 @@ export async function pullUserMeta(userId, d = db) {
     const row = rows.get(kind)
     // Локальное состояние читаем ПОСЛЕ сетевого ответа и перепроверяем перед
     // записью: если пользователь правил этот ключ прямо во время запроса, его
-    // правка новее нашего плана — оставляем её (уедет ближайшим pushUserMeta),
-    // иначе слияние тихо затёрло бы свежий ввод.
+    // правка новее нашего плана — оставляем ее (уедет ближайшим pushUserMeta),
+    // иначе слияние тихо затерло бы свежий ввод.
     const before = await getUserMetaState(d)
     const plan = planMetaSync({
       kind,

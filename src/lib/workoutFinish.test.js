@@ -7,7 +7,7 @@ import {
 } from './workoutFinish.js'
 
 describe('workoutFinishSummary', () => {
-  it('считает упражнения, подходы и весовой тоннаж сохранённой тренировки', () => {
+  it('считает упражнения, подходы и весовой тоннаж сохраненной тренировки', () => {
     const summary = workoutFinishSummary({
       entries: [
         {
@@ -84,12 +84,12 @@ describe('pickWorkoutFinishEvent', () => {
     })
   })
 
-  it('сохраняет приоритет и отдаёт до трёх категорий для компактной ленты', () => {
+  it('сохраняет приоритет и отдает до трех категорий для компактной ленты', () => {
     const events = workoutFinishEvents({
       reached: [goal()],
       prs: [pr()],
       newBadges: [{ icon: '🌱', name: 'Первый шаг' }],
-      insights: [{ emoji: '📈', text: 'Объём растёт' }],
+      insights: [{ emoji: '📈', text: 'Объем растет' }],
     })
 
     expect(events.map((event) => event.kind)).toEqual(['goal', 'pr', 'badge'])
@@ -110,7 +110,7 @@ describe('pickWorkoutFinishEvent', () => {
   it('бейдж важнее инсайта, но не предлагает график упражнения', () => {
     expect(pickWorkoutFinishEvent({
       newBadges: [{ icon: '🌱', name: 'Первый шаг' }],
-      insights: [{ emoji: '📈', text: 'Объём растёт', exerciseId: 'bench' }],
+      insights: [{ emoji: '📈', text: 'Объем растет', exerciseId: 'bench' }],
     })).toEqual({
       kind: 'badge',
       emoji: '🏆',
@@ -121,7 +121,7 @@ describe('pickWorkoutFinishEvent', () => {
     })
   })
 
-  it('тихий инсайт остаётся непраздничным, пустой результат — null', () => {
+  it('тихий инсайт остается непраздничным, пустой результат — null', () => {
     expect(pickWorkoutFinishEvent({
       insights: [{ emoji: '💪', text: 'Сильнее себя прошлого', exerciseId: 'bench' }],
     })).toEqual({

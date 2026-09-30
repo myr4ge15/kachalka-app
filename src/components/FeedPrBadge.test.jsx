@@ -8,19 +8,19 @@ describe('FeedPrBadge', () => {
     const { container } = render(
       <FeedPrBadge
         pr={{
-          name: 'Жим гантелей лёжа на наклонной скамье',
+          name: 'Жим гантелей лежа на наклонной скамье',
           metric: 'weight',
           value: 32,
         }}
       />
     )
 
-    expect(screen.getByText('Жим гантелей лёжа на наклонной скамье'))
+    expect(screen.getByText('Жим гантелей лежа на наклонной скамье'))
       .toHaveClass('pr-badge-name')
     expect(screen.getByText('· 32 кг')).toHaveClass('pr-badge-value')
     expect(container.firstChild).toHaveAttribute(
       'title',
-      'Новый личный рекорд: Жим гантелей лёжа на наклонной скамье — 32 кг'
+      'Новый личный рекорд: Жим гантелей лежа на наклонной скамье — 32 кг'
     )
   })
 

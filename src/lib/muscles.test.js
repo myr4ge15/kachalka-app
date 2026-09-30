@@ -90,9 +90,9 @@ describe('muscles — хелперы', () => {
     // serratus — тоже грудь
     expect(majorOf('serratus')).toBe('грудь')
     expect(submusclesOf('грудь')).toEqual(['chest_upper', 'chest_middle', 'chest_lower', 'serratus'])
-    // chest_lower сохранён (совместимость исторических снимков), но не дефолт
+    // chest_lower сохранен (совместимость исторических снимков), но не дефолт
     expect(isKnownSub('chest_lower')).toBe(true)
-    // hip_flexors — primary подъёмов ног, major пресс, быстрое восстановление
+    // hip_flexors — primary подъемов ног, major пресс, быстрое восстановление
     expect(majorOf('hip_flexors')).toBe('пресс')
     expect(recoveryHoursFor('hip_flexors')).toBe(24)
     // кор — отдельная подмышца пресса (глубокие стабилизаторы, планка)

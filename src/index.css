@@ -3,7 +3,7 @@
    'self', поэтому шрифт грузим со своего origin, без Google Fonts. Sora из плана
    отвергнут: у него нет кириллических глифов (только latin/latin-ext) → весь
    русский текст падал бы на системный фолбэк. Onest — современный геометрический
-   гротеск с ПОЛНОЙ кириллицей (OFL). Файлы кладём в src/assets/fonts/; src
+   гротеск с ПОЛНОЙ кириллицей (OFL). Файлы кладем в src/assets/fonts/; src
    перечисляет и .woff2 (предпочтительно, легче), и .ttf — грузится первый
    доступный формат. font-display: swap — текст виден сразу системным фолбэком,
    подменяется без «мигания невидимым». */
@@ -81,8 +81,8 @@
   --yellow: #FBBF24;
   /* ── Акцент (по умолчанию «вольт»; переопределяется html[data-accent]) ── */
   --acc: #C8F135;           /* главное действие, активное состояние */
-  --acc-2: #D9F77A;         /* светлый вариант — ссылки, подписи на тёмном */
-  --on-acc: #10140A;        /* текст/иконки ПОВЕРХ акцента (всегда тёмный) */
+  --acc-2: #D9F77A;         /* светлый вариант — ссылки, подписи на темном */
+  --on-acc: #10140A;        /* текст/иконки ПОВЕРХ акцента (всегда темный) */
   --acc-soft: rgba(200, 241, 53, .15); /* подложка выбранного */
   /* ── Имена Aurora, перенаправленные на новую палитру ── */
   --g1: var(--acc);
@@ -125,7 +125,7 @@
 }
 
 /* Готовые акценты (экран «Профиль → Оформление», lib/accent.js ACCENTS). Текст на
-   акценте — всегда тёмный --on-acc: на вольте, жёлтом и персике белый нечитаем. */
+   акценте — всегда темный --on-acc: на вольте, желтом и персике белый нечитаем. */
 html[data-accent="volt"] { --acc: #C8F135; --acc-2: #D9F77A; --on-acc: #10140A; --acc-soft: rgba(200, 241, 53, .15); }
 html[data-accent="teal"] { --acc: #2DD4BF; --acc-2: #7EE8DA; --on-acc: #04201C; --acc-soft: rgba(45, 212, 191, .15); }
 html[data-accent="red"] { --acc: #FF4D5E; --acc-2: #FF8F9A; --on-acc: #1C0406; --acc-soft: rgba(255, 77, 94, .15); }
@@ -159,7 +159,7 @@ button { font-family: inherit; cursor: pointer; }
 input { font-family: inherit; }
 
 /* ---------- layout ---------- */
-/* Приложение занимает ровно динамическую высоту вьюпорта (100dvh, без учёта
+/* Приложение занимает ровно динамическую высоту вьюпорта (100dvh, без учета
    адресной строки) и само не скроллится — иначе на мобиле появлялся «резиновый»
    скролл, даже когда контент влезал. Прокручивается только внутренняя .content
    и только при переполнении. */
@@ -174,7 +174,7 @@ input { font-family: inherit; }
 .topbar {
   display: flex; align-items: center; justify-content: space-between;
   padding: 12px 16px;
-  /* отступ под вырез/чёлку на мобиле */
+  /* отступ под вырез/челку на мобиле */
   padding-top: calc(12px + env(safe-area-inset-top));
   padding-left: calc(16px + env(safe-area-inset-left));
   padding-right: calc(16px + env(safe-area-inset-right));
@@ -218,14 +218,14 @@ input { font-family: inherit; }
 /* Метка несинхронизированной тренировки в Истории */
 .dot-unsynced { color: #fcd34d; font-size: 10px; margin-left: 6px; vertical-align: middle; }
 
-/* Колокольчик уведомлений в шапке + счётчик непрочитанных (ТЗ §4.5).
+/* Колокольчик уведомлений в шапке + счетчик непрочитанных (ТЗ §4.5).
    Центрируем эмодзи flex'ом и гасим дефолтный padding кнопки: iOS Safari (UA-стили
    -webkit-appearance) рендерит текст кнопки по baseline-метрикам эмодзи — 🔔 визуально
    съезжал вниз/вбок внутри квадрата. */
 .bell {
   position: relative; width: 44px; height: 44px; flex-shrink: 0;
   display: inline-flex; align-items: center; justify-content: center; padding: 0;
-  margin-right: 8px; border-radius: 12px; border: 1px solid var(--stroke);
+  border-radius: 12px; border: 1px solid var(--stroke);
   background: var(--surface); color: var(--text); line-height: 1;
   backdrop-filter: blur(20px); -webkit-backdrop-filter: blur(20px);
 }
@@ -242,7 +242,7 @@ input { font-family: inherit; }
 }
 
 /* Единственная прокручиваемая область: скроллбар появляется только когда
-   контент реально выше доступного места. min-height:0 — чтобы flex-ребёнок мог
+   контент реально выше доступного места. min-height:0 — чтобы flex-ребенок мог
    сжиматься и скроллиться, а не распирать .app. Нижний отступ учитывает высоту
    таббара + домашний индикатор. */
 .content {
@@ -272,12 +272,12 @@ input { font-family: inherit; }
 }
 .tab:active { transform: scale(var(--press-scale)); }
 .tab.active { color: var(--acc); }
-/* Точка активной вкладки — ОДНА на всё меню и переезжает под нажатую вкладку
+/* Точка активной вкладки — ОДНА на все меню и переезжает под нажатую вкладку
    (v6.0.3, вариант A из prototypes/nav-animation.html). Позицию пишет
    hooks/useTabDot.js в --dot-x; transition включается только после первой
    расстановки (data-dot-ready), чтобы точка не выезжала из угла при загрузке.
-   Лёгкий «перелёт» кривой — это и есть плавность; под reduced-motion — короткий
-   линейный сдвиг без перелёта (движение 4px-точки, а не всего экрана). */
+   Легкий «перелет» кривой — это и есть плавность; под reduced-motion — короткий
+   линейный сдвиг без перелета (движение 4px-точки, а не всего экрана). */
 .tab-dot {
   position: absolute; left: 0; bottom: calc(4px + env(safe-area-inset-bottom));
   width: 4px; height: 4px; border-radius: 50%; background: var(--acc);
@@ -292,7 +292,7 @@ input { font-family: inherit; }
   .tab { transition: none; }
   .tabbar[data-dot-ready] .tab-dot { transition: transform 150ms linear, opacity .15s linear; }
 }
-/* Бренд-шапка сайдбара живёт в .tabbar, но нужна только на десктопе, где таббар
+/* Бренд-шапка сайдбара живет в .tabbar, но нужна только на десктопе, где таббар
    становится левой колонкой (см. медиазапрос ≥900px внизу). На мобиле — скрыта.
    Профиль в подвале сайдбара (.side-foot) — тоже только для десктопа. */
 .side-brand, .side-foot, .side-new { display: none; }
@@ -300,9 +300,9 @@ input { font-family: inherit; }
 /* «+» по центру нижнего меню (components/AddFab.jsx, редизайн v6 этап 2): круг
    акцента приподнят над панелью, обводка цветом фона «вырезает» его из меню.
    Кнопка есть всегда (v6.0.4). Когда хаб занят (композер / экспорт), круг
-   УТАПЛИВАЕТСЯ (.tab-add--sunk): плоский, приглушённый, неактивный — не налезает на
-   «Сохранить» и не оставляет дыры по центру меню. Переход — той же кривой с лёгким
-   перелётом, что и точка вкладки. */
+   УТАПЛИВАЕТСЯ (.tab-add--sunk): плоский, приглушенный, неактивный — не налезает на
+   «Сохранить» и не оставляет дыры по центру меню. Переход — той же кривой с легким
+   перелетом, что и точка вкладки. */
 .tab-add {
   flex: 0 0 72px; display: flex; justify-content: center; align-items: flex-start;
   padding: 0; background: none; border: none; cursor: pointer;
@@ -328,7 +328,7 @@ input { font-family: inherit; }
   /* Тот же квадрат 44×44 со скруглением 12, что у «назад» и колокольчика. */
   width: 44px; height: 44px; margin-top: 6px; border-radius: 12px;
   background: var(--surface); color: color-mix(in srgb, var(--text) 45%, transparent);
-  /* v6.2.5: как «назад» и колокольчик (и свёрнутое упражнение) — подложка и тонкая
+  /* v6.2.5: как «назад» и колокольчик (и свернутое упражнение) — подложка и тонкая
      обводка: та же кнопка, просто сейчас выключена. */
   border: 1px solid var(--stroke); box-shadow: none;
 }
@@ -355,9 +355,9 @@ input { font-family: inherit; }
   overflow-y: auto; overscroll-behavior: contain;
   /* Вход/загрузка/ошибки рендерятся ВНЕ .app и ограничены по ширине (max-width от
      .screen). Aurora-градиент на этом узком боксе рисовался только по центру, а по
-     краям вьюпорта оставался голый тёмный body — получались вертикальные «полосы».
-     Поэтому шелл входа — СПЛОШНОЙ тёмный фон (ровно, без пятен и полос на любой
-     ширине). Aurora живёт на полноэкранном .app (уже после входа). */
+     краям вьюпорта оставался голый темный body — получались вертикальные «полосы».
+     Поэтому шелл входа — СПЛОШНОЙ темный фон (ровно, без пятен и полос на любой
+     ширине). Aurora живет на полноэкранном .app (уже после входа). */
   background: var(--bg);
 }
 .screen-title { margin: 4px 0 12px; font-family: var(--font-display); font-size: 30px; font-weight: 900; line-height: 1; text-transform: uppercase; letter-spacing: .01em; }
@@ -438,8 +438,8 @@ input { font-family: inherit; }
 /* ---------- skeleton (каркас загрузки) ----------
    Примитив «мгновенности»: серая плашка формы будущего контента вместо строки
    «Загрузка…» или пустого экрана. Рендерится компонентом <Skeleton> (в разметке —
-   уже финальная геометрия карточек), поверх идёт лёгкий shimmer. Под reduced-motion
-   блик выключается, сама плашка остаётся (каркас полезен и без движения). */
+   уже финальная геометрия карточек), поверх идет легкий shimmer. Под reduced-motion
+   блик выключается, сама плашка остается (каркас полезен и без движения). */
 .skel {
   display: block;
   background: var(--surface-2);
@@ -463,7 +463,7 @@ input { font-family: inherit; }
    поэтому экран рисует заглушку даже когда данные уже в кэше. Держим контейнер
    загрузки (aria-busy) прозрачным первые ~220мс — быстрое локальное чтение
    успевает размонтировать скелетон ДО появления, и контент возникает без мигания.
-   По-настоящему медленная загрузка (первый вход / тяжёлый чанк) заглушку покажет. */
+   По-настоящему медленная загрузка (первый вход / тяжелый чанк) заглушку покажет. */
 [aria-busy="true"] { animation: skel-appear .18s var(--ease-in-out) .22s both; }
 @keyframes skel-appear { from { opacity: 0; } to { opacity: 1; } }
 @media (prefers-reduced-motion: reduce) {
@@ -477,7 +477,7 @@ input { font-family: inherit; }
 
 /* ---------- смена экрана ----------
    Микро-continuity при переключении вкладок: контент не «мигает» подменой, а
-   мягко проявляется (fade, ~180мс). Ключ key={tab} на обёртке (App.jsx)
+   мягко проявляется (fade, ~180мс). Ключ key={tab} на обертке (App.jsx)
    перезапускает анимацию на каждую смену. Под reduced-motion — мгновенно.
 
    ⚠️ ТОЛЬКО opacity — НИКАКИХ transform/translate/filter/will-change в этих
@@ -487,8 +487,8 @@ input { font-family: inherit; }
    всплывала в центр и прыгала к низу вьюпорта по завершении анимации (заметно при
    переходе «Главная» → новая тренировка, где key меняется); тот же дефект латентно
    ловил бар экспорта (.export-bar--fixed). Прежний комментарий здесь утверждал, что
-   transient-анимация (без forwards) containing block не создаёт — это верно только
-   ПОСЛЕ её окончания. opacity создаёт лишь stacking context, поэтому fixed-потомки
+   transient-анимация (без forwards) containing block не создает — это верно только
+   ПОСЛЕ ее окончания. opacity создает лишь stacking context, поэтому fixed-потомки
    остаются привязаны к вьюпорту и просто проявляются вместе с экраном. */
 .screen-anim { animation: screen-enter var(--dur-base) var(--ease-out); }
 @keyframes screen-enter {
@@ -607,7 +607,7 @@ input { font-family: inherit; }
 .exercise-actions .link-btn { font-size: 13px; font-weight: 600; color: var(--acc-2); padding: 10px 2px; }
 .exercise-actions .link-btn.danger { color: var(--red); }
 
-/* Свёрнутое упражнение — одна строка-кнопка. */
+/* Свернутое упражнение — одна строка-кнопка. */
 .exercise-card--compact { padding: 0; overflow: hidden; border-radius: 14px; }
 .exercise-compact-toggle {
   width: 100%; min-height: 58px; display: flex; align-items: center; gap: 10px;
@@ -657,7 +657,7 @@ input { font-family: inherit; }
 .stepper input::-webkit-inner-spin-button { -webkit-appearance: none; margin: 0; }
 .stepper input[type=number] { -moz-appearance: textfield; appearance: textfield; }
 
-/* ✕ удаления подхода: приглушён и у правого края, подальше от «+» степпера;
+/* ✕ удаления подхода: приглушен и у правого края, подальше от «+» степпера;
    промах подстрахован undo-тостом. Зона тапа — вся ячейка 30×44. */
 .set-rm {
   width: 30px; height: 44px; border: 0; background: none; color: var(--muted);
@@ -716,7 +716,7 @@ input { font-family: inherit; }
 }
 
 /* «Как пошло?» — после подходов, по хронологии занятия. Цвет выбора смысловой:
-   легко — рост, нормально — акцент, тяжело — жёлтый. */
+   легко — рост, нормально — акцент, тяжело — желтый. */
 .feel { display: flex; align-items: center; gap: 8px; margin-top: 12px; padding-top: 10px; border-top: 1px solid var(--border); }
 .feel-lbl { color: var(--muted); font-size: 12px; font-weight: 600; flex-shrink: 0; }
 .feel-btns { display: grid; grid-auto-flow: column; grid-auto-columns: 1fr; gap: 5px; flex: 1; }
@@ -729,7 +729,7 @@ input { font-family: inherit; }
 .feel-btn.feel-easy.on { background: var(--green); color: #052014; }
 .feel-btn.feel-ok.on { background: var(--acc); color: var(--on-acc); }
 .feel-btn.feel-hard.on { background: var(--yellow); color: #2a2000; }
-/* Узкие экраны: подпись над кнопками, иначе на «нормально» не остаётся ширины. */
+/* Узкие экраны: подпись над кнопками, иначе на «нормально» не остается ширины. */
 @media (max-width: 360px) {
   .feel { flex-direction: column; align-items: stretch; gap: 7px; }
 }
@@ -746,7 +746,7 @@ input { font-family: inherit; }
 .wk-add:active { background: var(--surface-2); }
 .wk-add-ico { color: var(--acc); }
 
-/* Действия сохранённой тренировки — список строк внизу, отделён линией. */
+/* Действия сохраненной тренировки — список строк внизу, отделен линией. */
 .wk-acts { margin-top: 18px; padding-top: 6px; border-top: 1px solid var(--border); }
 .wk-act {
   width: 100%; min-height: 50px; display: flex; align-items: center; gap: 12px;
@@ -776,7 +776,7 @@ input { font-family: inherit; }
 /* ---------- exercise picker ---------- */
 /* Оверлей рендерится порталом в <body> (см. ExercisePicker/TemplatePicker),
    поэтому position:fixed точно относительно вьюпорта. z-index выше шапки (5),
-   таббара и баннера обновления (30) — модалка перекрывает всё чрезмерное. */
+   таббара и баннера обновления (30) — модалка перекрывает все чрезмерное. */
 .overlay {
   position: fixed; inset: 0; background: rgba(0,0,0,.55);
   display: flex; align-items: stretch; z-index: 100;
@@ -831,7 +831,7 @@ input { font-family: inherit; }
 .chip.active { background: linear-gradient(135deg, var(--g1), var(--g2)); color: var(--on-acc); border-color: transparent; }
 /* Многострочный ряд чипов (для длинных списков — напр. вторичные мышцы) */
 .chips.wrap { flex-wrap: wrap; overflow: visible; }
-/* Приглушённая приписка группы у чипа вторичной мышцы (напр. «трицепс · трицепс») */
+/* Приглушенная приписка группы у чипа вторичной мышцы (напр. «трицепс · трицепс») */
 .chip-major { opacity: .6; font-size: 12px; }
 .chip.active .chip-major { opacity: .85; }
 .picker-list {
@@ -840,7 +840,7 @@ input { font-family: inherit; }
   overscroll-behavior-y: contain; touch-action: pan-y;
   -webkit-overflow-scrolling: touch;
 }
-/* Прокручиваемое тело формы «Своё упражнение»: шапка листа зафиксирована,
+/* Прокручиваемое тело формы «Свое упражнение»: шапка листа зафиксирована,
    а длинный набор полей (тип/группа/мышцы + кнопка) скроллится внутри. */
 .sheet-scroll {
   flex: 1; min-height: 0; overflow-y: auto;
@@ -957,10 +957,10 @@ input { font-family: inherit; }
   background: var(--surface); border-radius: 16px; padding: 0 6px;
 }
 .catalog-list .picker-item:last-child { border-bottom: 0; }
-/* Предложение создать упражнение по введённому названию (нет в справочнике) */
+/* Предложение создать упражнение по введенному названию (нет в справочнике) */
 .create-suggest { color: var(--acc-2); font-weight: 600; }
 
-/* кнопка «добавить своё» под списком + форма создания */
+/* кнопка «добавить свое» под списком + форма создания */
 .create-open { flex-shrink: 0; margin-top: 12px; margin-bottom: 0; }
 .create-label { flex-shrink: 0; margin-top: 14px; font-size: 13px; color: var(--muted); }
 .create-error { flex-shrink: 0; }
@@ -1034,8 +1034,8 @@ input { font-family: inherit; }
   flex-wrap: wrap; margin: -8px 0 16px;
 }
 .export-bar-actions { display: flex; align-items: center; gap: 12px; }
-/* Экспорт уведён под список: ссылка внизу по центру, а в режиме выбора — бар
-   фиксируется над таббаром (как «Сохранить»), чтобы счётчик/«Скачать» не терялись
+/* Экспорт уведен под список: ссылка внизу по центру, а в режиме выбора — бар
+   фиксируется над таббаром (как «Сохранить»), чтобы счетчик/«Скачать» не терялись
    при прокрутке длинного списка. */
 .export-toggle--bottom { margin: 20px 0 4px; text-align: center; }
 .export-bar--fixed {
@@ -1045,7 +1045,7 @@ input { font-family: inherit; }
   padding: 10px 14px; border-radius: 12px;
   /* Тот же случай: бар висит НАД списком карточек, поэтому подложка плотная.
      Обводка по контуру здесь нейтральная (не мятная, как у тоста/плашки) — это
-     рабочая панель, а не событие, подсвечивать её незачем. */
+     рабочая панель, а не событие, подсвечивать ее незачем. */
   background: var(--surface-solid); border: 1px solid var(--border);
   backdrop-filter: blur(20px); -webkit-backdrop-filter: blur(20px);
   box-shadow: 0 10px 30px rgba(0, 0, 0, .5);
@@ -1074,7 +1074,7 @@ input { font-family: inherit; }
 .history-ex:first-child { border-top: none; }
 .history-ex-name { font-size: 15px; font-weight: 600; line-height: 1.35; min-width: 0; }
 /* Подходы переносятся МЕЖДУ сетами (по пробелу после запятой), но сам токен —
-   «14×12» / «1:00» — не рвём посимвольно (word-break:keep-all). Имя может ужиматься
+   «14×12» / «1:00» — не рвем посимвольно (word-break:keep-all). Имя может ужиматься
    и переноситься по словам, оставляя колонке подходов ширину. Так длинные серии
    (напр. 8×«1:00» скакалки) не убегают за край карточки. */
 .history-ex-sets {
@@ -1089,7 +1089,7 @@ input { font-family: inherit; }
   font-size: 12px; line-height: 1.2; padding: 3px 10px; border-radius: 999px;
   border: 1px solid var(--border); background: var(--surface-2); color: var(--muted);
 }
-/* Цвет на группу мышц (тёмная тема: мягкий фон-тинт + рамка + светлый текст). */
+/* Цвет на группу мышц (темная тема: мягкий фон-тинт + рамка + светлый текст). */
 .day-tag.tag-chest     { background: rgba(250,204,21,.14); border-color: var(--yellow); color: #facc15; }
 .day-tag.tag-back      { background: rgba(125,119,221,.16); border-color: #534ab7; color: #afa9ec; }
 .day-tag.tag-legs      { background: rgba(56,138,221,.16); border-color: #185fa5; color: #85b7eb; }
@@ -1122,7 +1122,7 @@ input { font-family: inherit; }
 .tpl-link-ico { color: var(--acc); flex: none; }
 .tpl-link-txt { flex: 1; }
 .tpl-link-chev { color: var(--muted); flex: none; }
-/* На мобиле «+ Добавить тренировку» скрыта (её роль у плавающей «+», v5.4.1), и
+/* На мобиле «+ Добавить тренировку» скрыта (ее роль у плавающей «+», v5.4.1), и
    «Шаблоны» оказываются первыми под заголовком — отрицательный отступ, который
    поджимал их к кнопке, тут прилепил бы их к самому заголовку. */
 .screen-title + .tpl-link { margin-top: 0; }
@@ -1130,7 +1130,7 @@ input { font-family: inherit; }
 /* Строка упражнения в редакторе шаблона: хват + название/цели + «убрать».
    touch-action:none держим ТОЛЬКО на ручке (.tpl-handle): иначе вся строка
    перехватывала тач, и страница не скроллилась пальцем по упражнениям (скролл
-   ловился лишь в пустых зонах). Drag и так идёт через setPointerCapture на ручке. */
+   ловился лишь в пустых зонах). Drag и так идет через setPointerCapture на ручке. */
 .tpl-row {
   display: flex; align-items: flex-start; gap: 10px;
   background: var(--surface); border: 1px solid var(--border);
@@ -1222,12 +1222,12 @@ input { font-family: inherit; }
   max-width: calc(100% - 24px);
   display: inline-flex; align-items: center; gap: 8px;
   padding: 6px 8px 6px 14px; border-radius: 999px;
-  /* Плашка ПЛАВАЕТ поверх контента, поэтому подложка у неё ПЛОТНАЯ, а не стеклянная.
+  /* Плашка ПЛАВАЕТ поверх контента, поэтому подложка у нее ПЛОТНАЯ, а не стеклянная.
      После редизайна `--surface-2` стал полупрозрачным (rgba(255,255,255,.10)) — над
      карточкой (`--glass`, 7% белого) это давало почти тот же тон, и плашка сливалась
-     с тем, что под ней. Берём тот же плотный тёмный слой, что у липких шапки/таббара,
-     + размытие: плашка читается над любой подложкой. Свечение по контуру отделяет её
-     от карточки даже там, где тень теряется на тёмном фоне. */
+     с тем, что под ней. Берем тот же плотный темный слой, что у липких шапки/таббара,
+     + размытие: плашка читается над любой подложкой. Свечение по контуру отделяет ее
+     от карточки даже там, где тень теряется на темном фоне. */
   background: var(--surface-solid); border: 1px solid var(--acc); color: var(--text);
   backdrop-filter: blur(20px); -webkit-backdrop-filter: blur(20px);
   box-shadow: 0 10px 30px rgba(0, 0, 0, .55), 0 0 0 4px color-mix(in srgb, var(--acc) 12%, transparent);
@@ -1235,7 +1235,7 @@ input { font-family: inherit; }
 .update-pill-dot {
   width: 8px; height: 8px; flex-shrink: 0; border-radius: 50%;
   /* Ореол — в тон мятному --green (#2ee6a0). Раньше тут был старый брендовый
-     зелёный (22,163,74) — на новой палитре он читался грязным пятном. */
+     зеленый (22,163,74) — на новой палитре он читался грязным пятном. */
   background: var(--acc); box-shadow: 0 0 0 3px color-mix(in srgb, var(--acc) 25%, transparent);
 }
 .update-pill-text { font-size: 14px; font-weight: 600; white-space: nowrap; }
@@ -1254,7 +1254,7 @@ input { font-family: inherit; }
 .stat-num { font-family: var(--font-display); font-size: 36px; font-weight: 900; line-height: 1; color: var(--text); }
 .stat-sub { font-size: 12px; }
 
-/* Шапка весовых упражнений: рекорд (всех времён) + форма сейчас (N недель). */
+/* Шапка весовых упражнений: рекорд (всех времен) + форма сейчас (N недель). */
 .stat-duo { padding: 14px; border-radius: 16px; }
 .stat-duo-row { display: grid; grid-template-columns: 1fr 1fr; }
 .stat-cell { display: flex; flex-direction: column; gap: 2px; }
@@ -1296,7 +1296,7 @@ input { font-family: inherit; }
   appearance: none; -webkit-appearance: none;
 }
 
-/* переключатель периода графика (неделя / месяц / всё / диапазон) — сегменты
+/* переключатель периода графика (неделя / месяц / все / диапазон) — сегменты
    в одной подложке (v6.2.2), как «Стратегия прогрессии». */
 .prog-periods {
   display: grid; grid-auto-flow: column; grid-auto-columns: 1fr; gap: 3px;
@@ -1328,7 +1328,7 @@ input { font-family: inherit; }
   min-height: 48px; padding: 8px 0; border-bottom: 1px solid var(--border);
 }
 /* Шапку таблицы («Дата · Подходы · вес») центрировать не нужно — она однострочная;
-   но при желании остаётся выровненной по центру вместе со всеми. */
+   но при желании остается выровненной по центру вместе со всеми. */
 .prog-row:last-child { border-bottom: none; }
 .prog-row-head { color: var(--muted); font-size: 12px; padding-top: 0; }
 .prog-sets { font-size: 14px; line-height: 1.4; word-break: break-word; }
@@ -1346,8 +1346,8 @@ input { font-family: inherit; }
 .feed-screen { position: relative; }
 /* Индикатор жеста «потянуть вниз»: компактный круглый бейдж по центру сверху
    (между заголовком слева и меткой «обновить» справа — там пусто). Позицию/поворот
-   стрелки/прозрачность ведёт FeedScreen по прогрессу жеста; при готовности (порог)
-   — зелёный, во время обновления (.loading) — крутится. Контент под ним стоит на
+   стрелки/прозрачность ведет FeedScreen по прогрессу жеста; при готовности (порог)
+   — зеленый, во время обновления (.loading) — крутится. Контент под ним стоит на
    месте, поэтому лента не «отваливается». */
 .ptr {
   position: absolute; top: 0; left: 50%; z-index: 3;
@@ -1462,7 +1462,7 @@ img.avatar-lg.has-img {
 .reaction-btn.mine .reaction-count { color: var(--acc-2); }
 .reaction-who { font-size: 12px; margin-top: 6px; }
 
-/* ---------- лидерборд (жим лёжа, ТЗ §4.3) ---------- */
+/* ---------- лидерборд (жим лежа, ТЗ §4.3) ---------- */
 .lb-card { padding: 14px; border-radius: 16px; }
 .lb-head {
   display: flex; align-items: baseline; justify-content: space-between;
@@ -1481,7 +1481,7 @@ img.avatar-lg.has-img {
 .lb-row + .lb-row { border-top: 1px solid var(--border); }
 .lb-row.me { background: var(--acc-soft); box-shadow: inset 0 0 0 1.5px color-mix(in srgb, var(--acc) 55%, transparent); }
 .lb-row.me + .lb-row, .lb-row + .lb-row.me { border-top-color: transparent; }
-/* Место — крупная цифра; тройка — кружок золото/серебро/бронза (текст тёмный). */
+/* Место — крупная цифра; тройка — кружок золото/серебро/бронза (текст темный). */
 .lb-place {
   width: 28px; height: 28px; flex-shrink: 0; border-radius: 50%;
   display: grid; place-items: center;
@@ -1594,8 +1594,8 @@ img.avatar-lg.has-img {
   padding: 13px 14px; margin-bottom: 10px;
 }
 /* Непрочитанные подсвечиваем цветной полосой слева (v6.2.1 — по смыслу цвета):
-   свой рекорд — золото рекордов (--g4), друг побил твой — жёлтый, цель — зелёный
-   (успех), реакция друга — акцент. Рамка — приглушённый тот же цвет. */
+   свой рекорд — золото рекордов (--g4), друг побил твой — желтый, цель — зеленый
+   (успех), реакция друга — акцент. Рамка — приглушенный тот же цвет. */
 .notif.unread.mine     { border-color: color-mix(in srgb, var(--g4) 45%, transparent); }
 .notif.unread.beaten   { border-color: color-mix(in srgb, var(--yellow) 45%, transparent); }
 .notif.unread.goal     { border-color: color-mix(in srgb, var(--green) 45%, transparent); }
@@ -1620,7 +1620,7 @@ img.avatar-lg.has-img {
 .n-body { flex: 1; min-width: 0; }
 .n-title { font-weight: 600; font-size: 15px; line-height: 1.3; margin-bottom: 2px; }
 /* У непрочитанного справа сидит точка (.n-dot, absolute top/right:14px) — резервируем
-   под неё место, чтобы значок не наплывал на текст заголовка (напр. имя рекорда). */
+   под нее место, чтобы значок не наплывал на текст заголовка (напр. имя рекорда). */
 .notif.unread .n-title { padding-right: 16px; }
 .n-title .hl { color: var(--g4); }
 .n-text { font-size: 13px; color: var(--muted); line-height: 1.45; }
@@ -1647,7 +1647,7 @@ img.avatar-lg.has-img {
   box-shadow: 0 10px 30px rgba(0, 0, 0, .55), 0 0 0 4px color-mix(in srgb, var(--acc) 12%, transparent);
   transition: transform .35s cubic-bezier(.2,.8,.2,1), opacity .35s ease;
   /* Тост — фиксированная полоса поверх .content (единственного скроллера), но вне
-     него. Делаем её pointer-transparent, иначе палец, попавший на тост, не мог
+     него. Делаем ее pointer-transparent, иначе палец, попавший на тост, не мог
      прокрутить страницу тренировки (тост съедал вертикальный скролл). Касания
      проваливаются на .content под тостом; интерактивна только кнопка действия. */
   pointer-events: none;
@@ -1679,7 +1679,7 @@ img.avatar-lg.has-img {
 }
 /* «Настройки» — раскрывающийся заголовок-кнопка (сворачивает длинный хвост
    профиля: смена PIN, админка, danger-zone). Оформлена как явная кнопка-строка
-   (surface + рамка), чтобы её было легко заметить внизу длинного профиля. */
+   (surface + рамка), чтобы ее было легко заметить внизу длинного профиля. */
 .settings-toggle {
   display: flex; align-items: center; justify-content: space-between; width: 100%;
   background: var(--surface); border: 1px solid var(--border); border-radius: 14px;
@@ -1859,7 +1859,7 @@ img.avatar-lg.has-img {
 .act:active { background: var(--surface-2); }
 .act.soon { opacity: .55; }
 /* Двухстрочная строка настройки (заголовок + пояснение), напр. бэкап данных.
-   Тот же приём, что у .toggle-act-txt, но без тумблера справа. */
+   Тот же прием, что у .toggle-act-txt, но без тумблера справа. */
 .act-txt { display: flex; flex-direction: column; gap: 2px; }
 .act-sub { color: var(--muted); font-size: 12px; font-weight: 400; }
 /* Восстановление из файла — <label>, ему нужны курсор и блокировка вручную. */
@@ -1953,8 +1953,8 @@ label.act.busy { opacity: .55; pointer-events: none; }
   .screen { padding: 12px; }
   .card { padding: 14px; }
   .exercise-card, .history-card, .feed-card { padding: 12px; }
-  /* ещё сильнее поджимаем степперы, чтобы цифры влезали на маленьких телефонах.
-     Столбец отметки выполнения жмём вместе со всеми — зона тапа держится на
+  /* еще сильнее поджимаем степперы, чтобы цифры влезали на маленьких телефонах.
+     Столбец отметки выполнения жмем вместе со всеми — зона тапа держится на
      ::after (высота кнопки 44px тут не меняется). */
   .sets-head, .set-row { grid-template-columns: 24px 1fr 1fr 24px; gap: 5px; }
   .exercise-card.count .sets-head, .exercise-card.count .set-row { grid-template-columns: 24px 1fr 24px; }
@@ -1969,7 +1969,7 @@ label.act.busy { opacity: .55; pointer-events: none; }
 }
 
 /* ---------- десктоп-каркас: боковая навигация (≥900px) ----------
-   На широких экранах приложение перестаёт быть «большим телефоном»: нижний
+   На широких экранах приложение перестает быть «большим телефоном»: нижний
    таббар превращается в левую колонку-сайдбар, шапка и контент уезжают вправо,
    контент получает больше ширины. Мобильная раскладка (<900px) не меняется —
    весь десктоп-вид заперт внутри этого медиазапроса. Слайс 1: только каркас,
@@ -2035,10 +2035,10 @@ label.act.busy { opacity: .55; pointer-events: none; }
   .side-new:disabled { background: var(--surface-2); color: var(--muted); cursor: default; transform: none; }
 
   /* ЛК, статус синка и колокольчик уехали в сайдбар — шапка на десктопе не
-     нужна, скрываем её целиком (место освобождается под контент). */
+     нужна, скрываем ее целиком (место освобождается под контент). */
   .topbar { display: none; }
 
-  /* Профиль в подвале сайдбара — прижат к низу (margin-top:auto), отделён
+  /* Профиль в подвале сайдбара — прижат к низу (margin-top:auto), отделен
      линией сверху; оформлен как пункт навигации. */
   .side-foot {
     display: block; margin-top: auto;
@@ -2142,7 +2142,7 @@ label.act.busy { opacity: .55; pointer-events: none; }
     width: 100%; max-width: none; margin-top: 10px;
   }
   .md-detail-col .wk-save-spacer { display: none; }
-  /* Открытая (просматриваемая) карточка в списке — зелёная рамка. */
+  /* Открытая (просматриваемая) карточка в списке — зеленая рамка. */
   .history-card.open { border-color: var(--acc); background: var(--acc-soft); }
   /* Заглушка правой колонки, пока ничего не выбрано. */
   .md-empty {
@@ -2176,7 +2176,7 @@ label.act.busy { opacity: .55; pointer-events: none; }
   border: 1px solid color-mix(in srgb, var(--yellow) 32%, transparent);
 }
 
-/* Навигация по разделам админки — аккордеон (свёрнуты по умолчанию). */
+/* Навигация по разделам админки — аккордеон (свернуты по умолчанию). */
 .admin-nav { display: flex; flex-direction: column; gap: 8px; }
 .admin-nav-btn {
   display: flex; align-items: center; justify-content: space-between; gap: 10px;
@@ -2287,7 +2287,7 @@ label.act.busy { opacity: .55; pointer-events: none; }
 }
 .admin-add-link:disabled { opacity: .45; }
 
-/* Порядок учёток на входе (drag-and-drop) */
+/* Порядок учеток на входе (drag-and-drop) */
 .user-reorder { margin-top: 6px; }
 .user-reorder .admin-ex-actions { margin-top: 16px; margin-bottom: 8px; }
 .admin-list.reorder { margin-top: 8px; gap: 10px; }
@@ -2303,7 +2303,7 @@ label.act.busy { opacity: .55; pointer-events: none; }
 
 /* ======================= Главная (Домашняя сводка + Инсайты) ======================= */
 /* Класс-имена sec/sec-title/stat-grid/goal/bar в index.css заскоуплены под .profile,
-   поэтому на Главной повторяем нужные (значения те же — единая тёмная тема). */
+   поэтому на Главной повторяем нужные (значения те же — единая темная тема). */
 .home .sec { margin-bottom: 16px; }
 
 /* Главное действие (v6.0.3): крупная кнопка акцента, текст — --on-acc. */
@@ -2374,7 +2374,7 @@ label.act.busy { opacity: .55; pointer-events: none; }
 }
 .rh-col:focus-visible { outline: 2px solid var(--acc-2); outline-offset: 1px; }
 /* Числа над столбиками — обычным шрифтом и мельче: крупный display-шрифт у Ритма
-   один — итог слева. Нули не пишем: пустая неделя и так видна по плоской чёрточке
+   один — итог слева. Нули не пишем: пустая неделя и так видна по плоской черточке
    (отзыв, v6.3.0). */
 .rh-num { height: var(--rh-num-h); font-size: 13px; font-weight: 600; line-height: var(--rh-num-h); color: var(--muted); font-variant-numeric: tabular-nums; }
 .rh-col.current .rh-num { color: var(--acc); }
@@ -2481,7 +2481,7 @@ label.act.busy { opacity: .55; pointer-events: none; }
 .fr-lead .k { color: var(--muted); font-size: 12px; margin-top: 1px; }
 
 /* Полоса тизера — ось ВОССТАНОВЛЕНИЯ (state), одна ось с подписью карточки:
-   красный «дай отдых» → жёлтый «почти» → бирюзовый «можно». Бакеты давности
+   красный «дай отдых» → желтый «почти» → бирюзовый «можно». Бакеты давности
    (fr-fresh/recent/due/overdue) живут на детальном экране, где есть легенда. */
 .fr-bar.st-resting { background: var(--fr-fresh); }
 .fr-bar.st-almost  { background: var(--fr-recent); }
@@ -2562,7 +2562,7 @@ label.act.busy { opacity: .55; pointer-events: none; }
 .fr-sw.st-stale   { background: var(--fr-overdue); }
 .fr-sw.st-never   { background: var(--fr-never); }
 
-/* ---- «Готовность мышц» v6.2.5: всё на одном экране, без длинного списка ---- */
+/* ---- «Готовность мышц» v6.2.5: все на одном экране, без длинного списка ---- */
 .fr-tip {
   display: flex; align-items: center; gap: 10px; margin-bottom: 10px;
   padding: 11px 13px; border-radius: 14px; background: var(--acc-soft);
@@ -2710,7 +2710,7 @@ label.act.busy { opacity: .55; pointer-events: none; }
 
 /* ============================================================================
    Сплэш холодного старта. Разметка — статично в index.html (#splash), поэтому
-   виден сразу, ещё до загрузки JS; убирает его main.jsx после первого рендера,
+   виден сразу, еще до загрузки JS; убирает его main.jsx после первого рендера,
    не раньше минимального времени показа (lib/splash.js). Знак — иконка
    приложения (public/favicon.svg): гриф выезжает из центра, большие блины, за
    ними маленькие «надеваются» с пружинкой, в конце штангу коротко жмут вверх. */
@@ -2817,7 +2817,7 @@ label.act.busy { opacity: .55; pointer-events: none; }
 
 /* ---------- календарь тренировок (v6.3.0) ----------
    «Поиск по дате» в «Моих тренировках». Дни с тренировкой — залитый акцентом круг,
-   сегодня — обводка, 2+ тренировки — маленький счётчик. Только акцент и нейтральные
+   сегодня — обводка, 2+ тренировки — маленький счетчик. Только акцент и нейтральные
    токены: экран не должен читаться как «женский» трекер. */
 .screen-head { display: flex; align-items: center; justify-content: space-between; gap: 12px; margin: 4px 0 12px; }
 .screen-head .screen-title { margin: 0; }
@@ -2843,7 +2843,7 @@ label.act.busy { opacity: .55; pointer-events: none; }
 .cal-day.today { border-color: var(--acc-2); }
 .cal-day.trained.today { box-shadow: 0 0 0 2px var(--bg), 0 0 0 4px var(--acc-2); }
 .cal-day.picked:not(.trained) { background: var(--surface-2); color: var(--text); }
-.cal-day.trained.picked { box-shadow: 0 0 0 2px var(--bg), 0 0 0 4px var(--text); }
+.cal-day.trained.picked { box-shadow: 0 0 0 2px var(--bg), 0 0 0 3px var(--muted); }
 .cal-day.future { opacity: .35; cursor: default; }
 .cal-day:focus-visible { outline: 2px solid var(--acc-2); outline-offset: 2px; }
 .cal-multi {
@@ -2880,11 +2880,16 @@ label > span.muted:first-child, .date-field > .muted, .create-label, .field-lab,
 /* Подписи-«ярлыки» у крупных цифр и групп — называют: 600 · 13 · серый, без капса. */
 .home-block-k, .stat-cell-label, .goals-group-title, .group-title, .rival-kicker { font-size: var(--fs-meta); font-weight: var(--fw-strong); color: var(--muted); }
 /* Переходы на другой экран — 600 · 15 · акцент, с большой буквы. */
-.rhythm-history, .fr-teaser .go, .home-row .go, .leader-link .go { font-size: var(--fs-body); font-weight: var(--fw-strong); color: var(--acc-2); }
+.rhythm-history, .home-row .go, .leader-link .go { font-size: var(--fs-body); font-weight: var(--fw-strong); color: var(--acc-2); }
 /* Короткие действия внутри карточек — 600 · 14, с маленькой буквы. */
 .link-btn { font-weight: var(--fw-strong); }
+/* «Подробнее ›» в шапке карточки «Готовность мышц» — 14: рядом с заголовком 16 крупнее
+   выглядело слишком громко (отзыв, v6.3.2). */
+.fr-teaser .go { font-size: var(--fs-label); font-weight: var(--fw-strong); color: var(--acc-2); }
+.pencil-ico { vertical-align: -2px; flex: none; }
+.goal-edit { display: inline-flex; align-items: center; gap: 6px; }
 /* Кнопки: залита только доступная главная. Выключенная — как поле/колокольчик:
-   тёмная подложка и тонкая обводка. «Добавить» — обводка без пунктира. */
+   темная подложка и тонкая обводка. «Добавить» — обводка без пунктира. */
 .btn { font-weight: var(--fw-strong); }
 .btn.primary:disabled {
   background: var(--surface); color: var(--muted); border-color: var(--stroke); box-shadow: none;

@@ -1,6 +1,6 @@
 // @vitest-environment jsdom
 // Экран входа: выборка ростера. Регрессия 29.07.2026 — select без `sex` вместе с
-// деструктивной записью кэша обнулял пол ВСЕМ учёткам устройства (см. lib/roster.js).
+// деструктивной записью кэша обнулял пол ВСЕМ учеткам устройства (см. lib/roster.js).
 // Здесь пиннится именно место регрессии: какие поля экран спрашивает и что делает,
 // если сервер такую выборку не принимает.
 import { beforeEach, describe, expect, it, vi } from 'vitest'
@@ -9,7 +9,7 @@ import LoginScreen from './LoginScreen.jsx'
 import { supabase } from '../db/supabase.js'
 import { cacheUsers, getUsers } from '../db/repo.js'
 
-// Билдер запоминает строку select и отдаёт заранее заданный результат.
+// Билдер запоминает строку select и отдает заранее заданный результат.
 const selects = []
 let results = []
 vi.mock('../db/supabase.js', () => ({
@@ -53,7 +53,7 @@ describe('LoginScreen: выборка ростера', () => {
     expect(await screen.findByText('Дима')).toBeInTheDocument()
   })
 
-  it('если сервер не знает колонку sex — берёт прежний набор полей, а не падает', async () => {
+  it('если сервер не знает колонку sex — берет прежний набор полей, а не падает', async () => {
     const legacy = [{ id: 'u1', name: 'Дима', avatar_url: null, sort_order: 1 }]
     results = [
       { data: null, error: { message: 'column login_users.sex does not exist' } },

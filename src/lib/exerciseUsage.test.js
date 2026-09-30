@@ -31,7 +31,7 @@ describe('exerciseUsageSections', () => {
     expect(result.frequent).toEqual(['a', 'c', 'd'])
   })
 
-  it('не показывает одноразовые упражнения как частые и пропускает удалённые записи', () => {
+  it('не показывает одноразовые упражнения как частые и пропускает удаленные записи', () => {
     const result = exerciseUsageSections([
       workout('gone', 30, ['x'], { _deleted: 1 }),
       workout('one', 10, ['y']),

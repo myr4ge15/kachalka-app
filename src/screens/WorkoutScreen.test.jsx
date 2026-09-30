@@ -39,7 +39,7 @@ const scrollIntoView = vi.fn()
 const draft = [{
   exercise: {
     id: 'bench',
-    name: 'Жим лёжа',
+    name: 'Жим лежа',
     metric: 'weight',
     muscle_group: 'грудь',
     secondary: [],
@@ -93,12 +93,12 @@ describe('WorkoutScreen', () => {
     const first = render(<WorkoutScreen user={user} />)
     first.unmount()
     writeDraft(`workout_draft_new_${user.id}`, draft)
-    // «Перезапуск»: память модуля пуста, остаётся только диск.
+    // «Перезапуск»: память модуля пуста, остается только диск.
     resetDraftMemory()
     expect(readDraft(`workout_draft_new_${user.id}`)).toEqual(draft)
 
     render(<WorkoutScreen user={user} />)
-    expect(screen.getByText('Жим лёжа')).toBeInTheDocument()
+    expect(screen.getByText('Жим лежа')).toBeInTheDocument()
     expect(screen.getByDisplayValue('60')).toBeInTheDocument()
   })
 
@@ -106,7 +106,7 @@ describe('WorkoutScreen', () => {
     writeDraft(`workout_draft_new_${user.id}`, draft)
     render(<WorkoutScreen user={user} />)
 
-    expect(screen.getByText('Жим лёжа')).toBeInTheDocument()
+    expect(screen.getByText('Жим лежа')).toBeInTheDocument()
     expect(screen.getByDisplayValue('60')).toBeInTheDocument()
     expect(screen.getByDisplayValue('8')).toBeInTheDocument()
   })
@@ -151,7 +151,7 @@ describe('WorkoutScreen', () => {
     })
   })
 
-  it('свёрнутая карточка показывает сводку подходов, отметок выполнения нет', () => {
+  it('свернутая карточка показывает сводку подходов, отметок выполнения нет', () => {
     writeDraft(`workout_draft_new_${user.id}`, [...draft, secondEntry])
     render(<WorkoutScreen user={user} />)
 
@@ -218,13 +218,13 @@ describe('WorkoutScreen', () => {
     vi.mocked(getWorkoutFeels).mockResolvedValue({ bench: 'easy' })
     render(<WorkoutScreen user={user} workoutId="w1" />)
 
-    await screen.findByText('Жим лёжа')
+    await screen.findByText('Жим лежа')
     await waitFor(() =>
       expect(screen.getByRole('button', { name: 'легко' })).toHaveAttribute('aria-pressed', 'true')
     )
   })
 
-  it('в правке подход, удалённый ✕, не сохраняется', async () => {
+  it('в правке подход, удаленный ✕, не сохраняется', async () => {
     vi.mocked(getWorkout).mockResolvedValue({
       id: 'w1',
       performed_at: '2026-07-30T12:00:00.000Z',
@@ -236,7 +236,7 @@ describe('WorkoutScreen', () => {
     })
     render(<WorkoutScreen user={user} workoutId="w1" />)
 
-    await screen.findByText('Жим лёжа')
+    await screen.findByText('Жим лежа')
     expect(screen.getByRole('button', { name: 'Сохранить (2)' })).toBeInTheDocument()
     fireEvent.click(screen.getByRole('button', { name: 'Удалить подход 2' }))
     fireEvent.click(screen.getByRole('button', { name: 'Сохранить (1)' }))
@@ -254,7 +254,7 @@ describe('WorkoutScreen', () => {
     })
     render(<WorkoutScreen user={user} workoutId="w1" />)
 
-    await screen.findByText('Жим лёжа')
+    await screen.findByText('Жим лежа')
     fireEvent.click(screen.getByRole('button', { name: '+ подход (повтор предыдущего)' }))
     fireEvent.click(screen.getByRole('button', { name: 'Сохранить (2)' }))
 
@@ -272,12 +272,12 @@ describe('WorkoutScreen', () => {
     const onBack = vi.fn()
     render(<WorkoutScreen user={user} workoutId="w1" onSaved={onSaved} onBack={onBack} />)
 
-    await screen.findByText('Жим лёжа')
+    await screen.findByText('Жим лежа')
     fireEvent.click(screen.getByRole('button', { name: 'Сохранить (1)' }))
 
     await waitFor(() => expect(onBack).toHaveBeenCalledOnce())
     expect(onSaved).not.toHaveBeenCalled()
-    // Рекорды/цели для правки не считаем — итога у неё нет по построению.
+    // Рекорды/цели для правки не считаем — итога у нее нет по построению.
     expect(detectNewPrsOnSave).not.toHaveBeenCalled()
   })
 
@@ -321,7 +321,7 @@ describe('WorkoutScreen', () => {
 
     render(<WorkoutScreen user={user} />)
     fireEvent.click(screen.getByRole('button', { name: 'Добавить упражнение' }))
-    fireEvent.click(screen.getByRole('button', { name: /Жим лёжа/ }))
+    fireEvent.click(screen.getByRole('button', { name: /Жим лежа/ }))
 
     // Пока строится локальная рекомендация, лист не исчезает и пустой экран
     // с одинокой кнопкой «Сохранить» не успевает попасть в отрисовку.
@@ -332,8 +332,8 @@ describe('WorkoutScreen', () => {
     await waitFor(() => {
       expect(screen.queryByRole('dialog', { name: 'Упражнение' })).not.toBeInTheDocument()
     })
-    expect(screen.getByText('Жим лёжа')).toBeInTheDocument()
-    expect(screen.getByText('Жим лёжа').closest('[data-exercise-id]')).toHaveAttribute('data-active', 'true')
+    expect(screen.getByText('Жим лежа')).toBeInTheDocument()
+    expect(screen.getByText('Жим лежа').closest('[data-exercise-id]')).toHaveAttribute('data-active', 'true')
     expect(screen.getByRole('button', { name: 'Сохранить (1)' })).toBeInTheDocument()
   })
 
@@ -349,7 +349,7 @@ describe('WorkoutScreen', () => {
     await waitFor(() => expect(onBack).toHaveBeenCalledOnce())
   })
 
-  it('после локальной записи отдаёт сохранённую тренировку итоговому экрану', async () => {
+  it('после локальной записи отдает сохраненную тренировку итоговому экрану', async () => {
     writeDraft(`workout_draft_new_${user.id}`, draft)
     vi.mocked(getWorkout).mockResolvedValue({
       id: 'saved-workout',
@@ -369,11 +369,11 @@ describe('WorkoutScreen', () => {
     expect(onBack).not.toHaveBeenCalled()
   })
 
-  it('передаёт рекорд итоговому экрану вместо отдельного поздравительного тоста', async () => {
+  it('передает рекорд итоговому экрану вместо отдельного поздравительного тоста', async () => {
     writeDraft(`workout_draft_new_${user.id}`, draft)
     vi.mocked(detectNewPrsOnSave).mockResolvedValue([{
       exerciseId: 'bench',
-      name: 'Жим лёжа',
+      name: 'Жим лежа',
       metric: 'weight',
       value: 100,
       prev: 95,

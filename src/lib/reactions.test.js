@@ -7,7 +7,7 @@ import {
 const r = (user_id, kind, name) => ({ user_id, kind, name })
 
 describe('isReactionKind / REACTION_KINDS', () => {
-  it('распознаёт валидные виды и отвергает мусор', () => {
+  it('распознает валидные виды и отвергает мусор', () => {
     expect(REACTION_KINDS.map((k) => k.kind)).toEqual(['muscle', 'fire', 'clap', 'wow'])
     expect(isReactionKind('fire')).toBe(true)
     expect(isReactionKind('like')).toBe(false)

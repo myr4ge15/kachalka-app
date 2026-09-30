@@ -6,7 +6,7 @@ const hasSession = vi.fn(async () => true)
 vi.mock('../db/supabase.js', () => ({ supabase: { rpc: (...a) => rpc(...a) }, isSessionOf: () => true, hasSession: (...a) => hasSession(...a) }))
 vi.mock('../db/local.js', () => ({ getLoginMeta: vi.fn(), setLoginMeta: vi.fn() }))
 
-const { setSex, LoginError } = await import('./auth.js')
+const { setSex, LoginError, noteLoginFailure } = await import('./auth.js')
 
 describe('setSex (свой пол, v6.2.0)', () => {
   let online
@@ -17,7 +17,7 @@ describe('setSex (свой пол, v6.2.0)', () => {
   })
   afterEach(() => online.mockRestore())
 
-  it('зовёт set_my_sex и нормализует мусор в null', async () => {
+  it('зовет set_my_sex и нормализует мусор в null', async () => {
     rpc.mockResolvedValue({ data: 'f', error: null })
     await expect(setSex('u1', 'f')).resolves.toBe('f')
     expect(rpc).toHaveBeenCalledWith('set_my_sex', { p_sex: 'f' })
@@ -45,12 +45,22 @@ describe('setSex (свой пол, v6.2.0)', () => {
     expect(err.message).toMatch(/прав на set_my_sex.*permission denied/)
   })
 
+  it('фоновый вход не прошел — показываем причину, а не безликое «перезайди»', async () => {
+    hasSession.mockResolvedValue(false)
+    noteLoginFailure(new LoginError('invalid', 'Неверный PIN'))
+    await expect(setSex('u1', 'f')).rejects.toMatchObject({ code: 'session', message: expect.stringMatching(/не принял PIN/) })
+    noteLoginFailure(new LoginError('server', 'user not linked'))
+    await expect(setSex('u1', 'f')).rejects.toMatchObject({ message: expect.stringMatching(/user not linked/) })
+    noteLoginFailure(null)
+    expect(rpc).not.toHaveBeenCalled()
+  })
+
   it('протухший JWT — «перезайди»', async () => {
     rpc.mockResolvedValue({ data: null, error: { message: 'JWT expired' } })
     await expect(setSex('u1', 'f')).rejects.toMatchObject({ code: 'session' })
   })
 
-  it('ошибка сервера (например, RPC ещё не задеплоен) — LoginError server', async () => {
+  it('ошибка сервера (например, RPC еще не задеплоен) — LoginError server', async () => {
     rpc.mockResolvedValue({ data: null, error: { message: 'function set_my_sex does not exist' } })
     await expect(setSex('u1', 'm')).rejects.toMatchObject({ code: 'server' })
   })

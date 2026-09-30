@@ -11,7 +11,7 @@ const workout = {
 }
 
 describe('WorkoutFinishSheet', () => {
-  it('показывает спокойный итог сохранённой тренировки', () => {
+  it('показывает спокойный итог сохраненной тренировки', () => {
     render(<WorkoutFinishSheet workout={workout} onDone={() => {}} />)
 
     expect(screen.getByRole('dialog', { name: 'Тренировка готова' })).toBeInTheDocument()
@@ -39,7 +39,7 @@ describe('WorkoutFinishSheet', () => {
           kind: 'pr',
           emoji: '🏆',
           title: 'Новый рекорд!',
-          text: 'Жим лёжа — 100 кг (было 95 кг)',
+          text: 'Жим лежа — 100 кг (было 95 кг)',
           exerciseId: 'bench',
         }]}
         onDone={() => {}}
@@ -48,12 +48,12 @@ describe('WorkoutFinishSheet', () => {
     )
 
     expect(screen.getByText('Новый рекорд!')).toBeInTheDocument()
-    expect(screen.getByText('Жим лёжа — 100 кг (было 95 кг)')).toBeInTheDocument()
+    expect(screen.getByText('Жим лежа — 100 кг (было 95 кг)')).toBeInTheDocument()
     fireEvent.click(screen.getByRole('button', { name: 'Посмотреть прогресс' }))
     expect(onOpenProgress).toHaveBeenCalledWith('bench')
   })
 
-  it('показывает дополнительные события компактно и создаёт шаблон одним тапом', () => {
+  it('показывает дополнительные события компактно и создает шаблон одним тапом', () => {
     const onCreateTemplate = vi.fn()
     const { rerender } = render(
       <WorkoutFinishSheet

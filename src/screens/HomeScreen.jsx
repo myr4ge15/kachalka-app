@@ -46,7 +46,7 @@ const workoutCount = (n) => `${n} ${plural(n, 'тренировка', 'трен�
 const dayLabel = (ymd) => localDate(ymd).toLocaleDateString('ru-RU', { day: 'numeric', month: 'long' })
 
 // Главный экран — «5 секунд после открытия» (виш BACKLOG «Домашняя сводка»).
-// Персональная сводка + авто-инсайты. Всё из локальной базы (офлайн-доступно),
+// Персональная сводка + авто-инсайты. Все из локальной базы (офлайн-доступно),
 // живо обновляется через useLiveQuery. Дефолт-вкладка при входе (см. App.jsx).
 //
 // Пропсы: user, onNavigate(tab), onNewWorkout() — прямой вход в композер новой
@@ -96,7 +96,7 @@ export default function HomeScreen({ user, onNavigate, onNewWorkout, onOpenProgr
 
   // Тизер свежести: полоска групп (канонический порядок) + подпись. Карточка
   // называется «Восстановление по группам» → и цвет полоски, и подпись читают ОДНУ
-  // ось — `state` (порог восстановления), а не давность `bucket` (иначе «всё красное,
+  // ось — `state` (порог восстановления), а не давность `bucket` (иначе «все красное,
   // но все восстановились»). Про давность говорит только ветка «пора проработать».
   const rec = freshness?.recovery ?? []
   const strip = [...rec].sort((a, b) => canonIdx(a.group) - canonIdx(b.group))
@@ -182,7 +182,7 @@ export default function HomeScreen({ user, onNavigate, onNewWorkout, onOpenProgr
                 <div className="fr-lead-body">
                   <div className="v">Мышцы восстанавливаются</div>
                   <div className="k">
-                    ещё отдыхают: {lead.items.map((f) => f.group).join(', ')}
+                    еще отдыхают: {lead.items.map((f) => f.group).join(', ')}
                   </div>
                 </div>
               </div>
@@ -216,21 +216,21 @@ export default function HomeScreen({ user, onNavigate, onNewWorkout, onOpenProgr
             </div>
             <div className="bar"><i style={{ width: `${goalProgress(summary.nearestGoal.current, summary.nearestGoal.target)}%` }} /></div>
             <div className="goal-sub">
-              текущий {fmtMetricValue(summary.nearestGoal.metric, summary.nearestGoal.current)} · осталось {fmtMetricValue(summary.nearestGoal.metric, summary.nearestGoal.left)}
+              текущий: {fmtMetricValue(summary.nearestGoal.metric, summary.nearestGoal.current)} · осталось: {fmtMetricValue(summary.nearestGoal.metric, summary.nearestGoal.left)}
             </div>
           </div>
         </section>
       )}
 
       {/* Ритм v2 (отзыв «непонятно»): столбик на неделю, число — над ним, понедельник —
-          под ним, пунктир — среднее за завершённые недели. Тап по столбику раскрывает
+          под ним, пунктир — среднее за завершенные недели. Тап по столбику раскрывает
           даты и группы этой недели под графиком. Высоты — CSS из чисел в переменных
           (--rh-n / --rh-max / --rh-avg), цвета — только токены. */}
       {rhythm.length > 0 && (
         <section className="sec">
           <p className="sec-title">Ритм</p>
           <div className="rhythm-card">
-            {/* Шапка: среднее в неделю, а если оно меньше одной или считать ещё не
+            {/* Шапка: среднее в неделю, а если оно меньше одной или считать еще не
                 из чего — честный итог за период (lib/rhythmChart.js, mode). */}
             <div className="rh-top">
               {chart.mode === 'avg' ? (
@@ -303,11 +303,11 @@ export default function HomeScreen({ user, onNavigate, onNewWorkout, onOpenProgr
             )}
             <p className="rh-note">
               Один столбик — одна неделя: сверху число тренировок, снизу дата, с которой неделя
-              началась.{chart.mode === 'avg' ? ' Пунктир — твоё среднее.' : ''} Нажми
+              началась.{chart.mode === 'avg' ? ' Пунктир — твое среднее.' : ''} Нажми
               на столбик, чтобы увидеть дни и мышцы.
             </p>
-            {/* v6.3.0: ведёт в календарь «Моих тренировок». Открыта неделя с
-                тренировками — календарь сразу показывает её последний день. */}
+            {/* v6.3.0: ведет в календарь «Моих тренировок». Открыта неделя с
+                тренировками — календарь сразу показывает ее последний день. */}
             <button
               className="rhythm-history"
               onClick={() => (onOpenCalendar ? onOpenCalendar(openDays.at(-1)?.day ?? null) : onNavigate?.('history'))}

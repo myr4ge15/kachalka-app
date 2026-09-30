@@ -19,11 +19,11 @@ export default function NotificationsScreen({ user }) {
   const loading = list === undefined
   // useMemo, а не голое `list ?? []`: при загрузке (list===undefined) `?? []` давал
   // бы НОВЫЙ [] на каждый рендер → deps эффекта «пометить прочитанным» менялись бы
-  // вхолостую. Мемо-обёртка держит ссылку стабильной, пока list не приедет.
+  // вхолостую. Мемо-обертка держит ссылку стабильной, пока list не приедет.
   const items = useMemo(() => list ?? [], [list])
 
   // Метка «было прочитано до открытия» фиксируется один раз на маунте — по ней
-  // подсвечиваем непрочитанные. Затем двигаем метку вперёд (бейдж гаснет).
+  // подсвечиваем непрочитанные. Затем двигаем метку вперед (бейдж гаснет).
   const seenRef = useRef('')
   const [ready, setReady] = useState(false)
   useEffect(() => {
@@ -37,7 +37,7 @@ export default function NotificationsScreen({ user }) {
     return () => { alive = false }
   }, [user.id])
 
-  // Как только список и метка готовы — помечаем всё прочитанным (один раз).
+  // Как только список и метка готовы — помечаем все прочитанным (один раз).
   const marked = useRef(false)
   useEffect(() => {
     if (!ready || loading || marked.current) return
@@ -69,7 +69,7 @@ export default function NotificationsScreen({ user }) {
 
       {!loading && items.length > 0 && (
         <div className="muted notif-count">
-          {unreadCount > 0 ? `${unreadCount} новых` : 'всё прочитано'}
+          {unreadCount > 0 ? `${unreadCount} новых` : 'все прочитано'}
         </div>
       )}
 
@@ -153,7 +153,7 @@ export default function NotificationsScreen({ user }) {
                 <>
                   <div className="n-title">Твой рекорд побит</div>
                   <div className="n-text">
-                    <b>{n.who}</b> {byGender(sexOf(n.whoId), 'обошёл', 'обошла')} тебя в «{n.name}»: <b>{fmtMetricValue(n.metric, n.value)}</b>
+                    <b>{n.who}</b> {byGender(sexOf(n.whoId), 'обошел', 'обошла')} тебя в «{n.name}»: <b>{fmtMetricValue(n.metric, n.value)}</b>
                     {` (твой ${fmtMetricValue(n.metric, n.myValue)})`}
                   </div>
                 </>

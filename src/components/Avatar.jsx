@@ -1,5 +1,5 @@
 // Аватар пользователя (ЛК фаза 2c). Есть avatar_url → картинка, иначе — прежний
-// инициал имени. Класс контейнера передаётся снаружи (`avatar`, `avatar-lg`,
+// инициал имени. Класс контейнера передается снаружи (`avatar`, `avatar-lg`,
 // `avatar-sm`), стили для img-варианта — `.has-img` в index.css.
 import { useState, useEffect } from 'react'
 

@@ -29,7 +29,7 @@ import SaveBar from '../components/SaveBar.jsx'
 import BackButton from '../components/BackButton.jsx'
 
 // локальный документ → редактируемая форма [{ exercise, sets:[{weight,reps}] }].
-// sk() — стабильный ключ строки подхода для React (единый модульный счётчик в
+// sk() — стабильный ключ строки подхода для React (единый модульный счетчик в
 // lib/progressionCard.js). defaultSet/buildRecommendation оттуда же.
 function toEntries(workout) {
   return (workout?.entries ?? []).map((e) => ({
@@ -99,7 +99,7 @@ export default function WorkoutScreen({ user, workoutId = null, onBack, onSaved 
   // Остаток отметок выполнения из версий до 6.1.0 — больше не читается.
   useEffect(() => { dropDraft(`workout_done_new_${user.id}`) }, [user.id])
 
-  // Undo-тост удаления привязан к ЭТОМУ экрану: его «Отменить» зовёт setEntries,
+  // Undo-тост удаления привязан к ЭТОМУ экрану: его «Отменить» зовет setEntries,
   // которого после ухода со страницы уже нет. Поэтому при размонтировании гасим
   // его (kind:'undo') — смена вкладки/возврат к списку убирают зависший тост.
   useEffect(() => () => hideToast('undo'), [])
@@ -175,7 +175,7 @@ export default function WorkoutScreen({ user, workoutId = null, onBack, onSaved 
     // этими событиями пустой композер успевает отрисоваться, и в desktop
     // master-detail потоковая кнопка «Сохранить» заметно прыгает вниз.
     // Пока читали историю, состав мог измениться (двойной тап/undo) — анти-дубль
-    // остаётся на свежем состоянии внутри апдейтера.
+    // остается на свежем состоянии внутри апдейтера.
     setEntries((prev) => appendExerciseIn(prev, ex, built.sets, built.meta))
     activateExercise(ex.id)
     setPickerOpen(false)
@@ -204,7 +204,7 @@ export default function WorkoutScreen({ user, workoutId = null, onBack, onSaved 
     setEntries((prev) => applyProgIn(prev, ei))
   }
 
-  // Показать/спрятать настройки прогрессии (шестерёнка) в карточке.
+  // Показать/спрятать настройки прогрессии (шестеренка) в карточке.
   function toggleProgSettings(ei) {
     setEntries((prev) => toggleProgSettingsIn(prev, ei))
   }
@@ -233,8 +233,8 @@ export default function WorkoutScreen({ user, workoutId = null, onBack, onSaved 
         // применявшим рекомендацию возвращаем копию прошлого, ручную правку не трогаем.
         return { ...e, prog: null, sets: wasApplied ? built.sets : e.sets }
       }
-      // Держим шестерёнку открытой после переключения (в т.ч. на ручной/выкл —
-      // строка-заглушка остаётся, стратегию можно вернуть). Для полной рекомендации
+      // Держим шестеренку открытой после переключения (в т.ч. на ручной/выкл —
+      // строка-заглушка остается, стратегию можно вернуть). Для полной рекомендации
       // сохраняем applied; sets меняем, только если рекомендация была применена.
       return {
         ...e,
@@ -271,7 +271,7 @@ export default function WorkoutScreen({ user, workoutId = null, onBack, onSaved 
     const removed = entries[idx]
     setEntries((prev) => removeExerciseIn(prev, idx))
     if (!removed) return
-    // Удаление срабатывает сразу, но даём окно отмены — кнопка удаления
+    // Удаление срабатывает сразу, но даем окно отмены — кнопка удаления
     // соседствует с зоной сохранения/добавления, легко нажать случайно.
     showToast({
       emoji: '🗑',
@@ -280,16 +280,16 @@ export default function WorkoutScreen({ user, workoutId = null, onBack, onSaved 
       sub: removed.exercise?.name,
       actionLabel: 'Отменить',
       duration: 4000, // дольше дефолтных 3 c (нужно окно отмены), но не 6 — «висел»
-      raised: true, // выше липкой кнопки «Сохранить» — чтобы не перекрывала её
+      raised: true, // выше липкой кнопки «Сохранить» — чтобы не перекрывала ее
       onAction: () => setEntries((prev) => insertExerciseIn(prev, idx, removed)),
     })
   }
 
   // Применение шаблона (только новая тренировка): добавляем упражнения шаблона,
-  // которых ещё нет (анти-дубль по exercise.id), каждому — подходы по целевому
+  // которых еще нет (анти-дубль по exercise.id), каждому — подходы по целевому
   // плану шаблона (подходы × повторы × вес), либо один дефолтный, если плана нет.
   // Рекомендацию автопрогрессии показываем СПРАВОЧНО (applied:false): план шаблона
-  // в подходах остаётся, панель лишь подсказывает «прошлая → рекомендуем сегодня»
+  // в подходах остается, панель лишь подсказывает «прошлая → рекомендуем сегодня»
   // с кнопкой «Применить рекомендацию» (перебивает план шаблона по желанию).
   async function applyTemplate(tpl) {
     setTplPickerOpen(false)
@@ -305,7 +305,7 @@ export default function WorkoutScreen({ user, workoutId = null, onBack, onSaved 
       const ex = item.exercise ?? { id: item.exercise_id, name: '—' }
       const sets = setsFromTemplate(ex, item)
       // Рекомендация справочно: план шаблона в sets не подменяем, панель — не
-      // применённая (applied:false). Нет истории/выключено → панели нет (meta:null).
+      // примененная (applied:false). Нет истории/выключено → панели нет (meta:null).
       let meta = null
       try {
         const sessions = await getRecentSessionsForExercise(user.id, ex.id, 5)
@@ -346,11 +346,11 @@ export default function WorkoutScreen({ user, workoutId = null, onBack, onSaved 
     showToast({
       emoji: '🗑',
       kind: 'undo', // привязан к экрану — гасится при размонтировании WorkoutScreen
-      title: 'Подход удалён',
+      title: 'Подход удален',
       sub: entry.exercise?.name,
       actionLabel: 'Отменить',
       duration: 4000, // дольше дефолтных 3 c (нужно окно отмены), но не 6 — «висел»
-      raised: true, // выше липкой кнопки «Сохранить» — чтобы не перекрывала её
+      raised: true, // выше липкой кнопки «Сохранить» — чтобы не перекрывала ее
       onAction: () => setEntries((prev) => insertSetIn(prev, exId, si, removed)),
     })
   }
@@ -372,7 +372,7 @@ export default function WorkoutScreen({ user, workoutId = null, onBack, onSaved 
         entries: entriesToSave,
       })
       // Итог строится из уже записанного локального документа. Если чтение
-      // неожиданно не удалось, успешное сохранение всё равно не блокируем:
+      // неожиданно не удалось, успешное сохранение все равно не блокируем:
       // форма содержит тот же состав и годится как безопасный фолбэк.
       let savedWorkout
       try { savedWorkout = await getWorkout(wId) } catch { /* локальная сводка необязательна */ }
@@ -385,7 +385,7 @@ export default function WorkoutScreen({ user, workoutId = null, onBack, onSaved 
       // Оценки пишем ПОСЛЕ сохранения — только здесь известен id тренировки.
       // Пишем лишь по упражнениям, реально попавшим в запись: упражнение без
       // подходов не сохраняется, и его оценка осталась бы висеть без хозяина. Неудача записи оценок не откатывает
-      // успешно сохранённую тренировку — она необязательная надстройка.
+      // успешно сохраненную тренировку — она необязательная надстройка.
       try {
         const saved = new Set(entriesToSave.map((e) => e.exercise.id))
         const kept = Object.fromEntries(Object.entries(feels).filter(([exId]) => saved.has(exId)))
@@ -404,7 +404,7 @@ export default function WorkoutScreen({ user, workoutId = null, onBack, onSaved 
       if (isNew) {
         try {
           // Детект — с побочными эффектами (цель штампует achievedAt, бейджи —
-          // meta), поэтому зовём ВСЕГДА и по порядку. detectBadgesOnSave всегда
+          // meta), поэтому зовем ВСЕГДА и по порядку. detectBadgesOnSave всегда
           // размечает новые вехи (для экрана и колокольчика), даже если тост
           // перекрыт рекордом/целью.
           const prs = await detectNewPrsOnSave(user.id, wId)
@@ -422,7 +422,7 @@ export default function WorkoutScreen({ user, workoutId = null, onBack, onSaved 
       vibrate(finishEvents[0]?.celebrated ? HAPTIC.celebrate : HAPTIC.success)
       if (navigator.onLine) syncNow(user.id)
       // Итоговый экран — событие ЗАВЕРШЕНИЯ занятия, а не сохранения документа.
-      // Правка старой записи ничего не завершает: событий у неё нет по построению
+      // Правка старой записи ничего не завершает: событий у нее нет по построению
       // (рекорды/цели считаются только для новой), и шит выходил пустой сводкой с
       // «Тренировка готова» поверх тренировки недельной давности. Поэтому правка —
       // тихий возврат в список: экран закрылся и запись в списке обновилась, это
@@ -438,8 +438,8 @@ export default function WorkoutScreen({ user, workoutId = null, onBack, onSaved 
   // Отказ от новой тренировки. Экран «Назад» намеренно СОХРАНЯЕТ черновик в кэше
   // (случайный уход не теряет набранный состав — в т.ч. упражнения из шаблона),
   // поэтому явный отказ вынесен в отдельную кнопку: чистим кэш + состав, но
-  // ОСТАЁМСЯ на экране новой тренировки (пустой composer), а не уходим в список —
-  // пользователь ждёт, что продолжит добавлять с чистого листа. Уйти — «← Назад».
+  // ОСТАЕМСЯ на экране новой тренировки (пустой composer), а не уходим в список —
+  // пользователь ждет, что продолжит добавлять с чистого листа. Уйти — «← Назад».
   function clearDraft() {
     dropDraft(DRAFT_KEY)
     dropDraft(FEEL_KEY)
@@ -451,7 +451,7 @@ export default function WorkoutScreen({ user, workoutId = null, onBack, onSaved 
   // Экспорт этой тренировки в JSON-файл (из текущего состава формы).
   function exportOne() {
     const appVersion = typeof __APP_VERSION__ !== 'undefined' ? __APP_VERSION__ : 'dev'
-    // Экспортируем то, что уйдёт в запись: в правке снятые подходы уже не её часть.
+    // Экспортируем то, что уйдет в запись: в правке снятые подходы уже не ее часть.
     exportWorkouts(
       { id: workoutId, performed_at: performedAt, created_at: null, entries: entriesToSave },
       appVersion
@@ -466,7 +466,7 @@ export default function WorkoutScreen({ user, workoutId = null, onBack, onSaved 
   }
 
   // Создать шаблон из текущего состава тренировки: план (подходы × повторы × вес)
-  // берём по лучшему подходу каждого упражнения (см. lib/templateFromWorkout.js).
+  // берем по лучшему подходу каждого упражнения (см. lib/templateFromWorkout.js).
   // Приватный шаблон (is_public:false) — как «Новый шаблон» в разделе «Шаблоны».
   async function makeTemplate() {
     setTplBusy(true)
@@ -610,7 +610,7 @@ export default function WorkoutScreen({ user, workoutId = null, onBack, onSaved 
       )}
 
       {/* onCreate: владельца проставляем здесь, а не в repo — тот не знает, кто
-          вошёл. Справочник упражнений общий на весь круг, и без owner_id новое
+          вошел. Справочник упражнений общий на весь круг, и без owner_id новое
           упражнение осталось бы ничьим, а каталог снова показывал бы всем одно
           и то же (баг «Мои упражнения одинаковые у разных людей»). */}
       {pickerOpen && (

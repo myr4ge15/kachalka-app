@@ -1,7 +1,7 @@
 import { fmtMetricValue } from '../lib/metric.js'
 
 // Компактный PR-бейдж для карточки Ленты: длинное название можно ужать
-// многоточием, но значение рекорда всегда остаётся видимым целиком.
+// многоточием, но значение рекорда всегда остается видимым целиком.
 export default function FeedPrBadge({ pr }) {
   const value = fmtMetricValue(pr.metric, pr.value)
 

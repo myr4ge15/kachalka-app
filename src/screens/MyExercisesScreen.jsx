@@ -5,13 +5,14 @@ import { submusclesOf, secondaryOptionsFor, labelOf, majorOf, defaultSubmuscleFo
 import { splitCatalog, canEditExercise } from '../lib/exerciseCatalog.js'
 import CardsSkeleton from '../components/CardsSkeleton.jsx'
 import BackButton from '../components/BackButton.jsx'
+import PencilIcon from '../components/PencilIcon.jsx'
 
 // Экран «Каталог упражнений»: ВЕСЬ справочник тремя разделами — «Добавил я»,
 // «Добавили другие» (кастомные, по owner_id) и «Базовые» (глобальные, is_custom =
 // false: сидовый справочник плюс легаси, у которого автора найти не удалось).
 //
 // Именно «Базовые», а не «Общие», по двум причинам: (1) рядом с «Добавили другие»
-// «общее» читается как синоним «не моё» — разница между «завёл кто-то из круга» и
+// «общее» читается как синоним «не мое» — разница между «завел кто-то из круга» и
 // «было в приложении» из заголовков не следует; (2) «Общие» в приложении уже
 // занято — так называются расшаренные кругу ШАБЛОНЫ (TemplatesScreen,
 // TemplatePicker), и одно слово в двух смыслах путало бы сильнее, чем помогало.
@@ -42,7 +43,7 @@ export default function MyExercisesScreen({ user, onBack }) {
     [list, user?.id]
   )
 
-  // Группы для формы: канон из ТЗ + всё, что реально встретилось в справочнике.
+  // Группы для формы: канон из ТЗ + все, что реально встретилось в справочнике.
   const createGroups = useMemo(() => {
     const set = new Set(BASE_GROUPS)
     for (const e of list ?? []) if (e.muscle_group) set.add(e.muscle_group)
@@ -72,14 +73,14 @@ export default function MyExercisesScreen({ user, onBack }) {
         <CardsSkeleton cards={4} />
       ) : list.length === 0 ? (
         <p className="muted empty">
-          Справочник пуст. Своё упражнение можно создать при добавлении упражнения
-          в тренировку («+ добавить своё упражнение»).
+          Справочник пуст. Свое упражнение можно создать при добавлении упражнения
+          в тренировку («+ добавить свое упражнение»).
         </p>
       ) : (
         <>
           <p className="muted sub">
             Справочник один на всех: править можно свои упражнения, и изменения
-            увидят все. Базовые ведёт админ.
+            увидят все. Базовые ведет админ.
           </p>
 
           <Section
@@ -112,7 +113,7 @@ export default function MyExercisesScreen({ user, onBack }) {
 // Раздел каталога. Непригодные к правке строки (чужие и общие) показываем, но не
 // делаем кнопкой: тап, который открывает форму и упирается в ошибку сохранения,
 // хуже, чем честно неактивная строка. Пустой раздел не прячем — иначе непонятно,
-// куда делось «Добавил я», когда своих упражнений ещё нет.
+// куда делось «Добавил я», когда своих упражнений еще нет.
 function Section({ title, list, userId, onEdit, empty }) {
   return (
     <>
@@ -134,7 +135,7 @@ function Section({ title, list, userId, onEdit, empty }) {
             return editable ? (
               <button key={e.id} className="picker-item" onClick={() => onEdit(e)}>
                 {body}
-                <span className="picker-group">{e.muscle_group ?? '—'} ✎</span>
+                <span className="picker-group">{e.muscle_group ?? '—'} <PencilIcon size={13} /></span>
               </button>
             ) : (
               <div key={e.id} className="picker-item is-static">

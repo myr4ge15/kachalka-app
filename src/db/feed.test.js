@@ -1,7 +1,7 @@
 // Тесты ленты (db/feed.js). Сеть (fetchFeed) не трогаем — покрываем чистую
-// денормализацию серверной строки (rowToItem), расчёт отметок рекордов в окне
+// денормализацию серверной строки (rowToItem), расчет отметок рекордов в окне
 // ленты (computePrs) и чтение кэша (getCachedFeed на fake-indexeddb).
-import 'fake-indexeddb/auto' // ПЕРВЫМ: local.js создаёт Dexie на импорте
+import 'fake-indexeddb/auto' // ПЕРВЫМ: local.js создает Dexie на импорте
 import { describe, it, expect, beforeEach, afterEach } from 'vitest'
 import { openUserDb, closeUserDb, db } from './local.js'
 import { uniqueUserId } from '../test/idbHarness.js'

@@ -1,11 +1,11 @@
 // Регрессия на пять реальных промахов старого `name.includes(query)` в пикере:
-// ё/е, порядок слов, префикс слова, опечатка, запрос мышцей вместо названия.
+// е/е, порядок слов, префикс слова, опечатка, запрос мышцей вместо названия.
 import { describe, it, expect } from 'vitest'
 import { searchExercises } from './exerciseSearch.js'
 
 const CATALOG = [
-  { id: 'bench', name: 'Жим лёжа', muscle_group: 'грудь', submuscle: 'chest_middle', secondary: ['triceps', 'delt_front'] },
-  { id: 'bench-narrow', name: 'Жим лёжа узким хватом', muscle_group: 'грудь', submuscle: 'chest_middle', secondary: ['triceps'] },
+  { id: 'bench', name: 'Жим лежа', muscle_group: 'грудь', submuscle: 'chest_middle', secondary: ['triceps', 'delt_front'] },
+  { id: 'bench-narrow', name: 'Жим лежа узким хватом', muscle_group: 'грудь', submuscle: 'chest_middle', secondary: ['triceps'] },
   { id: 'pulldown', name: 'Тяга верхнего блока', muscle_group: 'спина', submuscle: 'lats', secondary: ['biceps'] },
   { id: 'press-seated', name: 'Жим гантелей сидя', muscle_group: 'плечи', submuscle: 'delt_front', secondary: ['triceps'] },
   { id: 'lat-raise', name: 'Разведение в стороны', muscle_group: 'плечи', submuscle: 'delt_side', secondary: [] },
@@ -16,7 +16,7 @@ const CATALOG = [
 const ids = (list) => list.map((e) => e.id)
 
 describe('searchExercises — совпадения по названию', () => {
-  it('игнорирует разницу ё/е', () => {
+  it('игнорирует разницу е/е', () => {
     expect(ids(searchExercises('жим лежа', CATALOG).byName)).toContain('bench')
   })
 
@@ -36,7 +36,7 @@ describe('searchExercises — совпадения по названию', () =>
     expect(ids(searchExercises('жим лежа', CATALOG).byName)).toEqual(['bench', 'bench-narrow'])
   })
 
-  it('точное совпадение идёт первым, даже если длиннее прочих совпадений', () => {
+  it('точное совпадение идет первым, даже если длиннее прочих совпадений', () => {
     const found = ids(searchExercises('жим ногами', CATALOG).byName)
     expect(found[0]).toBe('legpress')
   })
@@ -45,7 +45,7 @@ describe('searchExercises — совпадения по названию', () =>
     expect(ids(searchExercises('жим жим', CATALOG).byName)).toEqual([])
   })
 
-  it('пустой запрос отдаёт справочник как есть', () => {
+  it('пустой запрос отдает справочник как есть', () => {
     const { byName, byMuscle } = searchExercises('   ', CATALOG)
     expect(byName).toBe(CATALOG)
     expect(byMuscle).toEqual([])
@@ -53,7 +53,7 @@ describe('searchExercises — совпадения по названию', () =>
 })
 
 describe('searchExercises — совпадения по мышцам', () => {
-  it('находит всю группу по началу её названия', () => {
+  it('находит всю группу по началу ее названия', () => {
     const { byName, byMuscle } = searchExercises('плеч', CATALOG)
     expect(byName).toEqual([])
     expect(ids(byMuscle)).toEqual(['press-seated', 'lat-raise'])
@@ -73,9 +73,9 @@ describe('searchExercises — совпадения по мышцам', () => {
     for (const id of ids(byName)) expect(ids(byMuscle)).not.toContain(id)
   })
 
-  it('запрос названием группы отдаёт всю группу, включая словоформы', () => {
+  it('запрос названием группы отдает всю группу, включая словоформы', () => {
     // «ноги» ≠ префикс «ногами» (русская словоформа, стемминг не делаем), но
-    // группа у «Жима ногами» — «ноги», поэтому упражнение всё равно находится.
+    // группа у «Жима ногами» — «ноги», поэтому упражнение все равно находится.
     const { byName, byMuscle } = searchExercises('ноги', CATALOG)
     expect(byName).toEqual([])
     expect(ids(byMuscle)).toEqual(['squat', 'legpress'])
@@ -96,14 +96,14 @@ describe('searchExercises — защита от шума', () => {
     expect(ids(byName)).toEqual(['legpress'])
   })
 
-  it('не выдаёт мусор на бессмысленный запрос', () => {
+  it('не выдает мусор на бессмысленный запрос', () => {
     const { byName, byMuscle } = searchExercises('квкцужб', CATALOG)
     expect(byName).toEqual([])
     expect(byMuscle).toEqual([])
   })
 
   it('терпит упражнение без подмышц и вторичных', () => {
-    const bare = [{ id: 'x', name: 'Своё упражнение', muscle_group: 'грудь' }]
+    const bare = [{ id: 'x', name: 'Свое упражнение', muscle_group: 'грудь' }]
     expect(ids(searchExercises('грудь', bare).byMuscle)).toEqual(['x'])
   })
 })

@@ -21,8 +21,8 @@ export function maxUpdatedAt(rows, key = 'updated_at') {
 }
 
 // Изменилось ли что-то на сервере с прошлого pull. serverMax — max updated_at по
-// серверной пробе, watermark — сохранённое значение прошлого прогона.
-//   watermark пуст (первый прогон)         → true  (качаем всё);
+// серверной пробе, watermark — сохраненное значение прошлого прогона.
+//   watermark пуст (первый прогон)         → true  (качаем все);
 //   serverMax пуст (сервер пуст/без поля)  → false (нечего тянуть);
 //   serverMax > watermark                  → true.
 export function changedSince(serverMax, watermark) {
@@ -33,7 +33,7 @@ export function changedSince(serverMax, watermark) {
 
 // Сигнатура ростера/окна для сущностей, где ВОЗМОЖНО удаление строки (users,
 // шаблоны): одного max(updated_at) мало — пропажа строки его не двигает. Сигнатура
-// = отсортированные id + max updated_at. Меняется и на правке (updated_at растёт),
+// = отсортированные id + max updated_at. Меняется и на правке (updated_at растет),
 // и на удалении/появлении (меняется набор id). Сравнение строк сигнатур в sync.js.
 export function rosterSignature(rows, idKey = 'id', tsKey = 'updated_at') {
   const ids = (rows ?? [])

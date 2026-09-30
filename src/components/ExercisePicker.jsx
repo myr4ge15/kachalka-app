@@ -9,7 +9,7 @@ import SheetDialog from './SheetDialog.jsx'
 const BASE_GROUPS = ['грудь', 'спина', 'ноги', 'плечи', 'бицепс', 'трицепс', 'пресс', 'кардио']
 
 // Подбор упражнения из справочника: поиск по названию + фильтр по группе.
-// Если нужного упражнения нет — «+ добавить своё» (ТЗ 3.2 / 4.4): задаём
+// Если нужного упражнения нет — «+ добавить свое» (ТЗ 3.2 / 4.4): задаем
 // название и группу, упражнение сохраняется в общий справочник (onCreate) и
 // сразу добавляется в тренировку.
 export default function ExercisePicker({
@@ -38,15 +38,15 @@ export default function ExercisePicker({
     return ['все', ...Array.from(set)]
   }, [exercises])
 
-  // Группы, предлагаемые в форме создания: канон из ТЗ + всё, что есть в базе.
+  // Группы, предлагаемые в форме создания: канон из ТЗ + все, что есть в базе.
   const createGroups = useMemo(() => {
     const set = new Set(BASE_GROUPS)
     for (const e of exercises) if (e.muscle_group) set.add(e.muscle_group)
     return Array.from(set)
   }, [exercises])
 
-  // Поиск и поиск похожих не блокируют ввод: фильтрация идёт по «отложенному»
-  // значению (useDeferredValue), пока поле остаётся отзывчивым на каждую букву —
+  // Поиск и поиск похожих не блокируют ввод: фильтрация идет по «отложенному»
+  // значению (useDeferredValue), пока поле остается отзывчивым на каждую букву —
   // фактический debounce без таймеров. Заметно на мобильном и большом справочнике.
   const deferredQuery = useDeferredValue(query)
   const deferredNewName = useDeferredValue(newName)
@@ -59,18 +59,18 @@ export default function ExercisePicker({
     return searchExercises(deferredQuery, inGroup)
   }, [exercises, deferredQuery, group])
 
-  // Введённого названия нет в справочнике (точного совпадения) → предлагаем
+  // Введенного названия нет в справочнике (точного совпадения) → предлагаем
   // создать его прямо из поля. Анти-дубли подтянутся в форме создания (similar).
   const qTrim = deferredQuery.trim()
-  // Сверка нормализованная (ё/е, пробелы, пунктуация): иначе «жим лежа» звало
-  // создать дубль уже существующего «Жим лёжа».
+  // Сверка нормализованная (е/е, пробелы, пунктуация): иначе «жим лежа» звало
+  // создать дубль уже существующего «Жим лежа».
   const hasExact = useMemo(
     () => !!qTrim && !!findExactDuplicate(qTrim, exercises),
     [exercises, qTrim]
   )
   // Запрос, попавший ТОЛЬКО в мышцы («плеч»), — это просмотр группы, а не заявка
   // на новое упражнение: предлагать создать «плеч» бессмысленно. Общая кнопка
-  // «+ добавить своё упражнение» внизу при этом остаётся доступной.
+  // «+ добавить свое упражнение» внизу при этом остается доступной.
   const browsingByMuscle = filtered.length === 0 && byMuscle.length > 0
   const suggestCreate = !!onCreate && !!qTrim && !hasExact && !browsingByMuscle
 
@@ -86,9 +86,9 @@ export default function ExercisePicker({
   )
   const mainList = showShortcuts ? filtered.filter((e) => !shortcutIds.has(e.id)) : filtered
 
-  // Похожие по названию — чтобы не плодить дубли (ТЗ 3.2 / 4.4). Нечёткое
-  // сопоставление (нормализация ё/е, пробелы, порядок слов, опечатки), а не
-  // голый includes(), который дубли вроде «жим лёжа»/«жим лежа» пропускает.
+  // Похожие по названию — чтобы не плодить дубли (ТЗ 3.2 / 4.4). Нечеткое
+  // сопоставление (нормализация е/е, пробелы, порядок слов, опечатки), а не
+  // голый includes(), который дубли вроде «жим лежа»/«жим лежа» пропускает.
   const similar = useMemo(
     () => findSimilar(deferredNewName, exercises, { threshold: 0.45, limit: 5 }),
     [exercises, deferredNewName]
@@ -142,14 +142,14 @@ export default function ExercisePicker({
     return (
       // В режиме создания клик по фону = «назад» к списку (setCreating(false)),
       // а НЕ onClose: иначе промах мимо листа стирал заполненную форму, а во время
-      // сохранения ещё и размонтировал пикер на лету. Во время busy фон не реагирует.
+      // сохранения еще и размонтировал пикер на лету. Во время busy фон не реагирует.
       <SheetDialog
-        title="Своё упражнение"
+        title="Свое упражнение"
         actionLabel="назад"
         dismissDisabled={busy}
         onDismiss={() => setCreating(false)}
       >
-          {/* Форма длиннее экрана (тип + группа + под/вторичные мышцы) — держим её
+          {/* Форма длиннее экрана (тип + группа + под/вторичные мышцы) — держим ее
               в прокручиваемом контейнере, иначе на телефоне низ формы (и кнопка
               «Сохранить») недостижим: сам .sheet зафиксирован по высоте экрана. */}
           <div className="sheet-scroll">
@@ -343,7 +343,7 @@ export default function ExercisePicker({
 
         {onCreate && !suggestCreate && (
           <button className="btn outline full create-open" onClick={openCreate}>
-            + добавить своё упражнение
+            + добавить свое упражнение
           </button>
         )}
     </SheetDialog>

@@ -20,7 +20,7 @@ describe('pollIntervalFor', () => {
 })
 
 describe('isRealtimeAlive', () => {
-  it('живой только на подтверждённой подписке', () => {
+  it('живой только на подтвержденной подписке', () => {
     expect(isRealtimeAlive('SUBSCRIBED')).toBe(true)
   })
   it('прочие статусы — не живой (страховочный опрос)', () => {

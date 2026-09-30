@@ -54,7 +54,7 @@ export function fmtDayChip(iso, now = new Date()) {
 }
 
 // Дата на карточке тренировки (v6.2.0): «Сегодня, 30 сентября» / «Вчера, …» как у
-// чипа, иначе с днём недели — «Пн, 28 сентября» (другой год — с годом).
+// чипа, иначе с днем недели — «Пн, 28 сентября» (другой год — с годом).
 const WEEKDAYS = ['Вс', 'Пн', 'Вт', 'Ср', 'Чт', 'Пт', 'Сб']
 export function fmtCardDate(iso, now = new Date()) {
   const chip = fmtDayChip(iso, now)
@@ -71,7 +71,7 @@ export function toDateInput(iso) {
 }
 
 // YYYY-MM-DD из <input type=date> → ISO, СОХРАНЯЯ время суток исходной даты
-// (или текущее, если её нет): меняем только календарный день.
+// (или текущее, если ее нет): меняем только календарный день.
 export function fromDateInput(value, prevIso) {
   const base = prevIso ? new Date(prevIso) : new Date()
   const [y, m, d] = value.split('-').map(Number)
@@ -81,7 +81,7 @@ export function fromDateInput(value, prevIso) {
 
 // «N назад» — относительная свежесть (для метки обновления Ленты). На вход — метка
 // времени в мс (Date.now()) и текущее время (инъектируется в тестах). Единицы —
-// сокращённые (мин/ч/дн), чтобы обойти русскую плюрализацию. Пустой/невалидный/
+// сокращенные (мин/ч/дн), чтобы обойти русскую плюрализацию. Пустой/невалидный/
 // будущий вход → ''.
 export function fmtAgo(updatedMs, now = Date.now()) {
   const t = Number(updatedMs)
@@ -97,7 +97,7 @@ export function fmtAgo(updatedMs, now = Date.now()) {
 }
 
 // Заголовок Главной (v6.3.0): вместо «Привет, имя!» при каждом открытии — сегодняшний
-// день недели и дата («Среда, 30 сентября»). Меняется каждый день и несёт смысл.
+// день недели и дата («Среда, 30 сентября»). Меняется каждый день и несет смысл.
 const HOME_TITLE = new Intl.DateTimeFormat('ru-RU', { weekday: 'long', day: 'numeric', month: 'long' })
 export function fmtHomeTitle(now = new Date()) {
   const s = HOME_TITLE.format(now)

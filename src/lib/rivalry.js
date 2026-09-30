@@ -7,7 +7,7 @@ function num(value) {
 }
 
 // Строки из getCachedLeaderboard уже отсортированы каноническим cmpBoard.
-// Копию сортируем ещё раз, чтобы модель не зависела от порядка устаревшего кэша.
+// Копию сортируем еще раз, чтобы модель не зависела от порядка устаревшего кэша.
 function compareRows(a, b) {
   return (
     num(b.weight) - num(a.weight) ||
@@ -47,7 +47,7 @@ export function findNearestRival(rows, userId) {
     tied,
     gap,
     gapMetric,
-    // Геометрия шкалы; цвет остаётся CSS-токеном.
+    // Геометрия шкалы; цвет остается CSS-токеном.
     progress: Math.max(0, Math.min(100, Math.round(num(me.weight) / maxWeight * 100))),
   }
 }

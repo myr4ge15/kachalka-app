@@ -4,7 +4,7 @@ import { splashDelay, SPLASH_MIN_MS, markAppReady, onAppReady, resetAppReady } f
 describe('onAppReady / markAppReady', () => {
   beforeEach(() => resetAppReady())
 
-  it('зовёт подписчика по сигналу готовности, один раз', () => {
+  it('зовет подписчика по сигналу готовности, один раз', () => {
     const fn = vi.fn()
     onAppReady(fn)
     expect(fn).not.toHaveBeenCalled()
@@ -31,13 +31,13 @@ describe('splashDelay', () => {
   it('добирает остаток до минимального времени показа', () => {
     expect(splashDelay(400)).toBe(SPLASH_MIN_MS - 400)
   })
-  it('не ждёт, если приложение грузилось дольше минимума', () => {
+  it('не ждет, если приложение грузилось дольше минимума', () => {
     expect(splashDelay(SPLASH_MIN_MS + 500)).toBe(0)
   })
   it('при «уменьшить движение» убирает сплэш сразу', () => {
     expect(splashDelay(0, true)).toBe(0)
   })
-  it('битое время считает нулём', () => {
+  it('битое время считает нулем', () => {
     expect(splashDelay(NaN)).toBe(SPLASH_MIN_MS)
   })
   it('поддерживает свой минимум', () => {

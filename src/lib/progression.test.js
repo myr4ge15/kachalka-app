@@ -39,7 +39,7 @@ describe('resolveProgSettings', () => {
     const prog = { byExercise: { e1: { strategy: 'weight' } } }
     expect(resolveProgSettings(prog, 'e1', 'reps').strategy).toBe('reps')
     expect(resolveProgSettings(prog, 'e1', 'time').strategy).toBe('reps')
-    // а для весового 'weight' остаётся
+    // а для весового 'weight' остается
     expect(resolveProgSettings(prog, 'e1', 'weight').strategy).toBe('weight')
   })
 
@@ -85,7 +85,7 @@ describe('analyzeLast', () => {
 describe('recommendProgression — весовые, стратегия +вес', () => {
   const cfg = { strategy: 'weight', step: 2.5, targetReps: null, repCeiling: 12 }
 
-  it('всё выполнено → +вес', () => {
+  it('все выполнено → +вес', () => {
     const r = recommendProgression({ metric: 'weight', lastSets: [s(80, 10), s(80, 10), s(80, 10)], settings: cfg })
     expect(r.kind).toBe('up')
     expect(r.sets).toEqual([s(82.5, 10), s(82.5, 10), s(82.5, 10)])
@@ -93,7 +93,7 @@ describe('recommendProgression — весовые, стратегия +вес', 
     expect(r.reasonText).toMatch(/\+2\.5 кг/)
   })
 
-  it('лёгкий недобор → тот же вес (same), добиваем план', () => {
+  it('легкий недобор → тот же вес (same), добиваем план', () => {
     const r = recommendProgression({ metric: 'weight', lastSets: [s(80, 10), s(80, 9), s(80, 8)], settings: cfg })
     expect(r.kind).toBe('same')
     expect(r.sets).toEqual([s(80, 10), s(80, 10), s(80, 10)])
@@ -106,7 +106,7 @@ describe('recommendProgression — весовые, стратегия +вес', 
     expect(r.sets).toEqual([s(77.5, 10), s(77.5, 10), s(77.5, 10)])
   })
 
-  it('одиночный подход без override → не снижаем (мягкий дефолт), а идём вверх', () => {
+  it('одиночный подход без override → не снижаем (мягкий дефолт), а идем вверх', () => {
     // цель = сам подход → выполнено → up
     const r = recommendProgression({ metric: 'weight', lastSets: [s(80, 3)], settings: cfg })
     expect(r.kind).toBe('up')
@@ -118,7 +118,7 @@ describe('recommendProgression — весовые, стратегия +вес', 
     expect(r.sets).toEqual([s(80, 10)])
   })
 
-  it('ветка down не уводит вес ≤ 0 (лёгкий снаряд)', () => {
+  it('ветка down не уводит вес ≤ 0 (легкий снаряд)', () => {
     const r = recommendProgression({ metric: 'weight', lastSets: [s(2.5, 2), s(2.5, 2), s(2.5, 2)], settings: { ...cfg, targetReps: 8 } })
     expect(r.kind).toBe('down')
     // 2.5 − 2.5 = 0 → оставляем 2.5, вес не обнуляем
@@ -136,7 +136,7 @@ describe('recommendProgression — весовые, стратегия +вес', 
 describe('recommendProgression — весовые, стратегия +повторы', () => {
   const cfg = { strategy: 'reps', step: 2.5, targetReps: null, repCeiling: 12 }
 
-  it('выполнил, ещё не потолок → +1 повтор, вес тот же', () => {
+  it('выполнил, еще не потолок → +1 повтор, вес тот же', () => {
     const r = recommendProgression({
       metric: 'weight',
       lastSets: [s(80, 10), s(80, 10)],
@@ -148,7 +148,7 @@ describe('recommendProgression — весовые, стратегия +повт�
     expect(r.reasonText).toMatch(/\+1 повтор/)
   })
 
-  it('дошёл до потолка повторов → +вес, повторы сброшены', () => {
+  it('дошел до потолка повторов → +вес, повторы сброшены', () => {
     const r = recommendProgression({
       metric: 'weight',
       lastSets: [s(80, 12), s(80, 12)],
@@ -175,7 +175,7 @@ describe('recommendProgression — весовые, стратегия +повт�
 })
 
 describe('recommendProgression — count-метрики', () => {
-  it('повторы: всё выполнено → +1 повтор', () => {
+  it('повторы: все выполнено → +1 повтор', () => {
     const r = recommendProgression({ metric: 'reps', lastSets: [s(0, 12), s(0, 12)], settings: resolveProgSettings(null, 'e', 'reps') })
     expect(r.kind).toBe('up')
     expect(r.sets).toEqual([s(0, 13), s(0, 13)])
@@ -187,7 +187,7 @@ describe('recommendProgression — count-метрики', () => {
     expect(r.sets).toEqual([s(0, 60), s(0, 60)])
   })
 
-  it('время: всё выполнено → +5 секунд', () => {
+  it('время: все выполнено → +5 секунд', () => {
     const r = recommendProgression({ metric: 'time', lastSets: [s(0, 60), s(0, 60)], settings: resolveProgSettings(null, 'e', 'time') })
     expect(r.kind).toBe('up')
     expect(r.sets).toEqual([s(0, 65), s(0, 65)])
@@ -309,7 +309,7 @@ describe('recommendProgression + RPE, стратегия «+вес»', () => {
     })
     expect(r.kind).toBe('up')
     expect(r.sets).toEqual([s(82.5, 10), s(82.5, 10)])
-    expect(r.reasonText).toBe('Всё выполнено → +2.5 кг')
+    expect(r.reasonText).toBe('Все выполнено → +2.5 кг')
   })
 
   it('три раза подряд «легко» → та же ветка вверх, но причина по факту', () => {
@@ -322,15 +322,15 @@ describe('recommendProgression + RPE, стратегия «+вес»', () => {
     expect(r.reasonText).toBe('3 раза подряд «легко» → +2.5 кг')
   })
 
-  it('двух «легко» мало — причина остаётся расчётной', () => {
+  it('двух «легко» мало — причина остается расчетной', () => {
     const r = recommendProgression({
       metric: 'weight', lastSets: done, settings: wcfg,
       recentSessions: [fsess(done, 'easy'), fsess(done, 'easy')],
     })
-    expect(r.reasonText).toBe('Всё выполнено → +2.5 кг')
+    expect(r.reasonText).toBe('Все выполнено → +2.5 кг')
   })
 
-  it('лёгкий недобор + два «тяжело» подряд → снижаем, хотя числа дали бы «тот же вес»', () => {
+  it('легкий недобор + два «тяжело» подряд → снижаем, хотя числа дали бы «тот же вес»', () => {
     const short = [s(80, 10), s(80, 9)] // недобор 1 — сильным не считается
     const byNumbers = recommendProgression({ metric: 'weight', lastSets: short, settings: wcfg })
     expect(byNumbers.kind).toBe('same')
@@ -344,7 +344,7 @@ describe('recommendProgression + RPE, стратегия «+вес»', () => {
     expect(byFeel.reasonText).toBe('2 раза подряд «тяжело» → −2.5 кг, закрепимся')
   })
 
-  it('одного «тяжело» при лёгком недоборе мало', () => {
+  it('одного «тяжело» при легком недоборе мало', () => {
     const short = [s(80, 10), s(80, 9)]
     const r = recommendProgression({
       metric: 'weight', lastSets: short, settings: wcfg,
@@ -353,7 +353,7 @@ describe('recommendProgression + RPE, стратегия «+вес»', () => {
     expect(r.kind).toBe('same')
   })
 
-  it('сильный недобор без оценок по-прежнему даёт down с прежним текстом', () => {
+  it('сильный недобор без оценок по-прежнему дает down с прежним текстом', () => {
     const bad = [s(80, 10), s(80, 6), s(80, 5)]
     const r = recommendProgression({ metric: 'weight', lastSets: bad, settings: wcfg })
     expect(r.kind).toBe('down')
@@ -425,7 +425,7 @@ describe('RPE не ломает прежние вызовы', () => {
     const done = [s(80, 10), s(80, 10)]
     const r = recommendProgression({ metric: 'weight', lastSets: done, settings: wcfg })
     expect(r.kind).toBe('up')
-    expect(r.reasonText).toBe('Всё выполнено → +2.5 кг')
+    expect(r.reasonText).toBe('Все выполнено → +2.5 кг')
   })
 
   it('сессии без поля feel (история до Slice 4) → поведение прежнее', () => {
@@ -435,7 +435,7 @@ describe('RPE не ломает прежние вызовы', () => {
       recentSessions: [sess(done), sess(done), sess(done)],
     })
     expect(r.kind).toBe('up')
-    expect(r.reasonText).toBe('Всё выполнено → +2.5 кг')
+    expect(r.reasonText).toBe('Все выполнено → +2.5 кг')
   })
 
   it('смешанная история: свежая сессия без оценки не наследует старую', () => {
@@ -444,6 +444,6 @@ describe('RPE не ломает прежние вызовы', () => {
       metric: 'weight', lastSets: done, settings: wcfg,
       recentSessions: [fsess(done, null), fsess(done, 'hard'), fsess(done, 'hard')],
     })
-    expect(r.kind).toBe('up') // прошлый раз оценки не было → расчёт по числам
+    expect(r.kind).toBe('up') // прошлый раз оценки не было → расчет по числам
   })
 })

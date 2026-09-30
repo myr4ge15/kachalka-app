@@ -4,7 +4,7 @@ import { render, screen, fireEvent } from '@testing-library/react'
 import AddFab from './AddFab.jsx'
 
 describe('AddFab', () => {
-  it('доступен скринридеру и зовёт onClick', () => {
+  it('доступен скринридеру и зовет onClick', () => {
     const onClick = vi.fn()
     render(<AddFab onClick={onClick} />)
     const btn = screen.getByRole('button', { name: 'Записать тренировку' })

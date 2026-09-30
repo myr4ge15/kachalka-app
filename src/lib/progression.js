@@ -2,7 +2,7 @@
 // Автопрогрессия рабочих весов/повторов (PLAN-autoprogression) — чистая логика
 // БЕЗ Dexie/React/сети. Надстройка над автоподстановкой прошлого подхода
 // (lib/lastSets.js): вместо немой копии последней сессии предлагаем следующий
-// шаг с человеческой причиной. Всё считается из уже локальных `entries`; схему
+// шаг с человеческой причиной. Все считается из уже локальных `entries`; схему
 // Dexie и синк не трогаем (правило по умолчанию из AGENTS.md).
 //
 // Метрика упражнения (lib/metric.js) определяет, ЧЕМ прогрессируем:
@@ -11,8 +11,8 @@
 //   time   → СЕКУНДАМИ (планка/кардио), вес всегда 0.
 //
 // Ветки (kind): 'up' | 'same' | 'down' | 'nudge' | 'first'
-//   up    — выполнил цель прошлый раз → +шаг (зелёная);
-//   same  — не добил в пределах допуска → тот же ориентир, добей план (жёлтая);
+//   up    — выполнил цель прошлый раз → +шаг (зеленая);
+//   same  — не добил в пределах допуска → тот же ориентир, добей план (желтая);
 //   down  — сильно не добил → снизим, закрепимся (красная);
 //   nudge — стратегия '+повт.' и N сессий подряд закрыты на одном весе → пора +вес;
 //   first — упражнение впервые / нет валидной истории → панель не показываем.
@@ -52,8 +52,8 @@ function bigShortfall(metric) {
   return normMetric(metric) === 'time' ? 10 : 3
 }
 const EASY_STREAK_NEEDED = 3 // сколько сессий подряд «легко» (по числам) → нудж к +весу
-// Сколько сессий подряд с ЯВНОЙ оценкой нужно, чтобы она перебила расчёт.
-// «Легко» просим трижды (как и догадку — один лёгкий день ничего не значит),
+// Сколько сессий подряд с ЯВНОЙ оценкой нужно, чтобы она перебила расчет.
+// «Легко» просим трижды (как и догадку — один легкий день ничего не значит),
 // «тяжело» — дважды: снижать вес зря дешевле, чем упереться и получить травму.
 const EASY_FEEL_NEEDED = 3
 const HARD_FEEL_NEEDED = 2
@@ -91,14 +91,14 @@ export function resolveProgSettings(prog, exId, metric) {
 // Разбор прошлой сессии одного упражнения. Возвращает рабочий вес (макс. вес
 // среди подходов; у count-метрик 0), плановые повторы (override или первый
 // рабочий подход), худший недобор и число сильно-недоборных подходов, флаг
-// «всё выполнено». null, если валидных подходов нет.
+// «все выполнено». null, если валидных подходов нет.
 export function analyzeLast(lastSets, settings = {}, metric = 'weight') {
   const m = normMetric(metric)
   const sets = (lastSets ?? []).map(numSet).filter((s) => s.reps > 0)
   if (!sets.length) return null
 
   const count = isCountMetric(m)
-  // Рабочий вес — максимальный вес сессии; «рабочие подходы» — те, что на нём.
+  // Рабочий вес — максимальный вес сессии; «рабочие подходы» — те, что на нем.
   // У count-метрик веса нет: рабочие подходы = все подходы, значение = reps.
   const workWeight = count ? 0 : sets.reduce((mx, s) => Math.max(mx, s.weight), 0)
   const working = count ? sets : sets.filter((s) => s.weight === workWeight)
@@ -146,7 +146,7 @@ export function easyStreak(recentSessions, settings = {}, metric = 'weight') {
 // Сессия без оценки обрывает серию: отсутствие оценки — не «нормально», а
 // отсутствие свидетельства, и достраивать его догадкой значило бы вернуть ровно
 // ту неточность, ради которой оценка и вводилась.
-// recentSessions — новейшие сверху, элемент несёт поле `feel` (repo подмешивает
+// recentSessions — новейшие сверху, элемент несет поле `feel` (repo подмешивает
 // его из карты оценок, см. lib/rpe.js `withFeels`).
 export function feelStreak(recentSessions, feel) {
   const want = normFeel(feel)
@@ -219,7 +219,7 @@ export function recommendProgression({ metric, lastSets, recentSessions, setting
   const upReason = (unitText) =>
     feltEasy
       ? `${easyRun} ${plural(easyRun, 'раз', 'раза', 'раз')} подряд «легко» → ${unitText}`
-      : `Всё выполнено → ${unitText}`
+      : `Все выполнено → ${unitText}`
 
   // Ветка вниз — по числам ИЛИ по ощущениям: «не добрал чуть-чуть, но второй раз
   // подряд пишешь „тяжело"» это тот же сигнал, что и крупный недобор.
@@ -239,7 +239,7 @@ export function recommendProgression({ metric, lastSets, recentSessions, setting
       // ГЛАВНЫЙ случай ради которого вводилась оценка: план добит, числа требуют
       // «+вес», а человек написал «тяжело». Держим вес, пока не станет полегче.
       if (lastFeel === 'hard') {
-        return result('same', buildWeightSets(a.workWeight, R), 'Всё выполнено, но было тяжело → закрепим вес', prev)
+        return result('same', buildWeightSets(a.workWeight, R), 'Все выполнено, но было тяжело → закрепим вес', prev)
       }
       return result('up', buildWeightSets(a.workWeight + step, R), upReason(`+${fmtStep(step)} кг`), prev)
     }
@@ -264,7 +264,7 @@ export function recommendProgression({ metric, lastSets, recentSessions, setting
     // Оценка «тяжело» ВЕТИРУЕТ нудж к весу: догадка «закрываешь три раза подряд»
     // и есть то самое место, где числа расходятся с ощущениями.
     if (a.allDone && lastFeel === 'hard') {
-      return result('same', buildWeightSets(a.workWeight, R), 'Всё выполнено, но было тяжело → закрепим как есть', prev)
+      return result('same', buildWeightSets(a.workWeight, R), 'Все выполнено, но было тяжело → закрепим как есть', prev)
     }
     if (a.allDone && (feltEasy || streak >= EASY_STREAK_NEEDED)) {
       const n = feltEasy ? easyRun : streak
@@ -279,7 +279,7 @@ export function recommendProgression({ metric, lastSets, recentSessions, setting
         return result('up', buildWeightSets(a.workWeight + step, repFloor(ceiling)),
           `Потолок ${ceiling} повт. → +${fmtStep(step)} кг`, prev)
       }
-      return result('up', buildWeightSets(a.workWeight, R + 1), 'Всё выполнено → +1 повтор', prev)
+      return result('up', buildWeightSets(a.workWeight, R + 1), 'Все выполнено → +1 повтор', prev)
     }
     if (down) {
       const lead = feltHard
@@ -294,7 +294,7 @@ export function recommendProgression({ metric, lastSets, recentSessions, setting
   const unit = m === 'time' ? 'с' : 'повт.'
   if (a.allDone) {
     if (lastFeel === 'hard') {
-      return result('same', buildCountSets(R), 'Всё выполнено, но было тяжело → закрепим как есть', prev)
+      return result('same', buildCountSets(R), 'Все выполнено, но было тяжело → закрепим как есть', prev)
     }
     return result('up', buildCountSets(R + step), upReason(`+${fmtStep(step)} ${unit}`), prev)
   }
