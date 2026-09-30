@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest'
-import { fmtAgo, fmtDate, toDateInput, fromDateInput, fmtDayChip } from './dates.js'
+import { fmtAgo, fmtDate, toDateInput, fromDateInput, fmtDayChip, fmtCardDate } from './dates.js'
 
 describe('fmtDate', () => {
   it('формат дд.мм.гггг', () => {
@@ -64,5 +64,15 @@ describe('fmtDayChip', () => {
   it('пусто и мусор → пустая строка', () => {
     expect(fmtDayChip('', now)).toBe('')
     expect(fmtDayChip('nope', now)).toBe('')
+  })
+})
+
+describe('fmtCardDate', () => {
+  const now = new Date(2026, 8, 30, 12, 0)
+  it('сегодня/вчера как у чипа, иначе с днём недели', () => {
+    expect(fmtCardDate(new Date(2026, 8, 30, 9).toISOString(), now)).toBe('Сегодня, 30 сентября')
+    expect(fmtCardDate(new Date(2026, 8, 28, 9).toISOString(), now)).toBe('Пн, 28 сентября')
+    expect(fmtCardDate(new Date(2025, 11, 31, 9).toISOString(), now)).toBe('Ср, 31 декабря 2025')
+    expect(fmtCardDate('', now)).toBe('')
   })
 })

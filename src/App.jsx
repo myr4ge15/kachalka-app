@@ -12,6 +12,7 @@ import { emitReselect } from './lib/appEvents.js'
 import { markAppReady } from './lib/splash.js'
 import { fabState } from './lib/quickAdd.js'
 import { useTabDot } from './hooks/useTabDot.js'
+import { useAccentSync } from './hooks/useAccentSync.js'
 import LoginScreen from './screens/LoginScreen.jsx'
 import Toast from './components/Toast.jsx'
 import AddFab from './components/AddFab.jsx'
@@ -253,6 +254,8 @@ export default function App() {
   // Нижнее меню: переезжающая точка активной вкладки (hooks/useTabDot.js).
   const navRef = useRef(null)
   useTabDot(navRef, tab)
+  // Акцент учётки с других устройств (v6.2.0): применить и запомнить для сплэша.
+  useAccentSync(user?.id ?? null)
   // Сбрасываем позицию ПОСЛЕ React-commit нового экрана. requestAnimationFrame
   // из обработчика мог сработать ещё на длинном Профиле до commit вкладки, и
   // «Прогресс» наследовал нижнюю позицию скролла.
@@ -455,7 +458,7 @@ export default function App() {
                 <AchievementsScreen user={user} onBack={() => goTab('profile')} />
               )}
               {tab === 'appearance' && (
-                <AppearanceScreen onBack={() => goTab('profile')} />
+                <AppearanceScreen user={user} onBack={() => goTab('profile')} />
               )}
             </ErrorBoundary>
           </div>

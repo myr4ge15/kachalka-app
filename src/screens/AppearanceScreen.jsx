@@ -2,15 +2,18 @@ import { useState } from 'react'
 import {
   ACCENTS, CUSTOM, applyAccent, isRedZone, loadAccent, saveAccent,
 } from '../lib/accent.js'
+import BackButton from '../components/BackButton.jsx'
+import { setAccentPref } from '../db/repo.js'
 
 // Экран «Оформление» (Профиль → Настройки) — редизайн «Спорт-блоки», этап 1.
 // Семь готовых акцентов и «свой оттенок» (ползунок только по оттенку — светлота и
 // насыщенность фиксированы в lib/accent.js, поэтому интерфейс не ломается). Выбор
-// применяется сразу ко всему приложению и хранится на устройстве: сплэш рисуется
-// до входа (public/accent-boot.js). Синк между устройствами — отдельная задача.
+// применяется сразу ко всему приложению, хранится на устройстве (сплэш рисуется
+// до входа — public/accent-boot.js) и с v6.2.0 синкается между устройствами
+// учётки (род `accent` в user_meta; применение пришедшего — hooks/useAccentSync).
 //
-// Пропсы: onBack(), [storage], [root] — последние два для тестов.
-export default function AppearanceScreen({ onBack, storage, root }) {
+// Пропсы: onBack(), [user] — для синка, [storage], [root] — для тестов.
+export default function AppearanceScreen({ onBack, user, storage, root }) {
   const store = storage ?? (typeof localStorage !== 'undefined' ? localStorage : null)
   const docRoot = root ?? (typeof document !== 'undefined' ? document.documentElement : null)
   const [pref, setPref] = useState(() => loadAccent(store))
@@ -19,6 +22,7 @@ export default function AppearanceScreen({ onBack, storage, root }) {
     setPref(next)
     applyAccent(docRoot, next)
     saveAccent(store, next)
+    if (user?.id) setAccentPref(user.id, next).catch(() => {})
   }
 
   const isCustom = pref.id === CUSTOM
@@ -26,7 +30,7 @@ export default function AppearanceScreen({ onBack, storage, root }) {
   return (
     <div className="screen appearance-screen">
       <div className="admin-head">
-        <button className="admin-back" onClick={onBack}>‹ Назад</button>
+        <BackButton onClick={onBack} />
         <h2 className="admin-title">Оформление</h2>
       </div>
 
@@ -99,7 +103,7 @@ export default function AppearanceScreen({ onBack, storage, root }) {
           </div>
         </div>
         <p className="muted appearance-note">
-          Фон у всех одинаковый — ночной. Цвет только твой и хранится на этом устройстве.
+          Фон у всех одинаковый — ночной. Цвет только твой и сохраняется в учётке — будет таким же на всех твоих устройствах.
         </p>
       </section>
     </div>

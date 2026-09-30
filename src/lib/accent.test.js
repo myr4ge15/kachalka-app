@@ -114,3 +114,18 @@ describe('public/accent-boot.js совпадает с lib/accent.js', () => {
     })
   }
 })
+
+describe('accent: для синка', () => {
+  it('hasStoredAccent отличает явный выбор от дефолта', async () => {
+    const { hasStoredAccent } = await import('./accent.js')
+    expect(hasStoredAccent({ getItem: () => null })).toBe(false)
+    expect(hasStoredAccent({ getItem: () => '{"id":"teal"}' })).toBe(true)
+    expect(hasStoredAccent({ getItem: () => { throw new Error('x') } })).toBe(false)
+  })
+  it('sameAccent: у готовых важен id, у своего — ещё и оттенок', async () => {
+    const { sameAccent } = await import('./accent.js')
+    expect(sameAccent({ id: 'teal', hue: 1 }, { id: 'teal', hue: 99 })).toBe(true)
+    expect(sameAccent({ id: 'custom', hue: 1 }, { id: 'custom', hue: 99 })).toBe(false)
+    expect(sameAccent({ id: 'teal' }, { id: 'peach' })).toBe(false)
+  })
+})

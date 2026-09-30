@@ -4,6 +4,7 @@ import { getExercises, updateExercise } from '../db/repo.js'
 import { submusclesOf, secondaryOptionsFor, labelOf, majorOf, defaultSubmuscleFor } from '../lib/muscles.js'
 import { splitCatalog, canEditExercise } from '../lib/exerciseCatalog.js'
 import CardsSkeleton from '../components/CardsSkeleton.jsx'
+import BackButton from '../components/BackButton.jsx'
 
 // Экран «Каталог упражнений»: ВЕСЬ справочник тремя разделами — «Добавил я»,
 // «Добавили другие» (кастомные, по owner_id) и «Базовые» (глобальные, is_custom =
@@ -63,7 +64,7 @@ export default function MyExercisesScreen({ user, onBack }) {
   return (
     <div className="screen">
       <div className="admin-head">
-        <button className="admin-back" onClick={onBack}>‹ Назад</button>
+        <BackButton onClick={onBack} />
         <h2 className="admin-title">Каталог упражнений</h2>
       </div>
 
@@ -186,7 +187,7 @@ function EditForm({ ex, editorId, groups, onCancel, onSaved }) {
   return (
     <div className="screen">
       <div className="admin-head">
-        <button className="admin-back" onClick={onCancel}>‹ Назад</button>
+        <BackButton onClick={onCancel} />
         <h2 className="admin-title">Упражнение</h2>
       </div>
 

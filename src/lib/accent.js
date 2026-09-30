@@ -88,6 +88,21 @@ export function applyAccent(root, pref) {
   }
 }
 
+// Есть ли на устройстве ЯВНЫЙ выбор (ключ записан), а не просто дефолт. Нужно
+// синку (hooks/useAccentSync): выбор, сделанный до появления синка, заливаем на
+// сервер, а «дефолт по отсутствию» — нет, чтобы новое устройство не перетёрло
+// выбор с основного телефона вольтом.
+export function hasStoredAccent(storage) {
+  try { return storage?.getItem(ACCENT_KEY) != null } catch { return false }
+}
+
+// Равны ли два выбора (для «свой» важен оттенок, для готового — только id).
+export function sameAccent(a, b) {
+  const x = parseAccent(JSON.stringify(a ?? {}))
+  const y = parseAccent(JSON.stringify(b ?? {}))
+  return x.id === y.id && (x.id !== CUSTOM || x.hue === y.hue)
+}
+
 export function loadAccent(storage) {
   try { return parseAccent(storage?.getItem(ACCENT_KEY) ?? '') } catch { return parseAccent('') }
 }

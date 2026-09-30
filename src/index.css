@@ -196,7 +196,7 @@ input { font-family: inherit; }
 }
 .sync-badge .sync-ico { width: 15px; height: 15px; display: block; flex-shrink: 0; }
 .sync-badge-txt { font-weight: 600; }
-.sync-badge.ok      { color: #86efac; background: rgba(22,163,74,.12); border-color: var(--green); }
+.sync-badge.ok      { color: var(--green); background: color-mix(in srgb, var(--green) 12%, transparent); border-color: var(--green); }
 .sync-badge.busy    { color: #fcd34d; background: rgba(202,138,4,.14); border-color: #ca8a04; }
 .sync-badge.offline { color: #fca5a5; background: rgba(239,68,68,.10); border-color: var(--red); }
 /* Застрявшие изменения (dead-letter): отличаем от busy — «нужно действие» */
@@ -401,7 +401,7 @@ input { font-family: inherit; }
 }
 .spinner {
   width: 18px; height: 18px; border-radius: 50%;
-  border: 2px solid var(--border); border-top-color: var(--green);
+  border: 2px solid var(--border); border-top-color: var(--acc);
   animation: spin .7s linear infinite;
 }
 @keyframes spin { to { transform: rotate(360deg); } }
@@ -510,7 +510,7 @@ input { font-family: inherit; }
 /* Резерв, чтобы последний контент прокручивался выше плавающей кнопки. */
 .wk-save-spacer { height: 76px; }
 
-.link-btn { background: none; border: none; color: var(--green); font-size: 14px; padding: 4px; }
+.link-btn { background: none; border: none; color: var(--acc-2); font-size: 14px; padding: 4px; }
 .link-btn.danger { color: var(--red); }
 .link-btn.small { font-size: 16px; }
 /* «Удалить тренировку» — уводим от кнопки «Сохранить» отступом и разделителем. */
@@ -536,12 +536,7 @@ input { font-family: inherit; }
 
 /* Шапка: круглая «назад», заголовок, дата чипом, «Очистить» справа. */
 .wk-head { display: flex; align-items: flex-start; gap: 10px; margin-bottom: 14px; }
-.wk-back {
-  flex: none; width: 44px; height: 44px; border-radius: 12px; border: 0;
-  display: grid; place-items: center; background: var(--surface); color: var(--text); cursor: pointer;
-}
-.wk-back:active { background: var(--surface-2); }
-.wk-back:focus-visible, .wk-clear:focus-visible { outline: 2px solid var(--acc-2); outline-offset: 2px; }
+.wk-clear:focus-visible { outline: 2px solid var(--acc-2); outline-offset: 2px; }
 .wk-head-main { flex: 1; min-width: 0; }
 .wk-title.screen-title { margin: 3px 0 0; font-size: 25px; line-height: 1; }
 .wk-clear {
@@ -945,9 +940,15 @@ input { font-family: inherit; }
 .add-workout { margin-bottom: 16px; }
 
 /* Шапка экрана-детали: «← Назад» + заголовок */
-.detail-head { display: flex; align-items: center; gap: 8px; margin-bottom: 8px; }
-.back-link { font-size: 15px; padding: 8px 4px; min-height: 44px; }
+.detail-head { display: flex; align-items: center; gap: 10px; margin-bottom: 12px; }
 .detail-title { margin: 0; }
+/* Круглая «назад» (components/BackButton.jsx, v6.2.0) — одна на все вложенные экраны. */
+.back-btn {
+  flex: none; width: 44px; height: 44px; border-radius: 12px; border: 0;
+  display: grid; place-items: center; background: var(--surface); color: var(--text); cursor: pointer;
+}
+.back-btn:active { background: var(--surface-2); }
+.back-btn:focus-visible { outline: 2px solid var(--acc-2); outline-offset: 2px; }
 
 /* Поле даты в детали */
 .date-field { display: flex; flex-direction: column; gap: 6px; margin-bottom: 14px; }
@@ -957,14 +958,14 @@ input { font-family: inherit; }
 .date-picker {
   position: relative; display: flex; align-items: center; gap: 10px;
   min-height: 48px; padding: 12px 14px;
-  border-radius: 10px; border: 1px solid var(--green);
+  border-radius: 10px; border: 1px solid var(--acc);
   background: var(--surface-2); color: var(--text); cursor: pointer;
 }
 .date-picker:active { background: var(--surface); }
-.date-picker:focus-within { box-shadow: 0 0 0 2px rgba(22,163,74,.35); }
+.date-picker:focus-within { box-shadow: 0 0 0 2px color-mix(in srgb, var(--acc) 35%, transparent); }
 .date-picker__icon { font-size: 18px; line-height: 1; }
 .date-picker__value { flex: 1; font-size: 16px; font-weight: 600; }
-.date-picker__chevron { color: var(--green); font-size: 14px; line-height: 1; }
+.date-picker__chevron { color: var(--acc); font-size: 14px; line-height: 1; }
 .date-picker input {
   position: absolute; inset: 0; width: 100%; height: 100%;
   margin: 0; padding: 0; border: 0; opacity: 0; cursor: pointer;
@@ -972,14 +973,14 @@ input { font-family: inherit; }
 }
 
 /* ---------- history ---------- */
-.history-card { padding: 14px; }
+.history-card { padding: 14px; border-radius: 16px; }
 /* Карточка-кнопка (тап → деталь): сбрасываем стили button, тянем на всю ширину */
 .history-tap {
   display: block; text-align: left; cursor: pointer; color: inherit;
   font: inherit; -webkit-appearance: none; appearance: none;
 }
 .history-tap:active { background: var(--surface-2); }
-.history-chevron { flex-shrink: 0; color: var(--muted); font-size: 24px; line-height: 1; }
+.history-chevron { flex-shrink: 0; color: var(--muted); margin-top: 2px; }
 /* Экспорт: переключатель режима выбора + панель действий */
 .export-toggle { display: block; margin: -8px 0 16px; color: var(--muted); }
 .export-bar {
@@ -1009,13 +1010,13 @@ input { font-family: inherit; }
   border: 2px solid var(--border); display: flex; align-items: center;
   justify-content: center; color: var(--bg); font-size: 15px; line-height: 1;
 }
-.history-check.on { background: var(--green); border-color: var(--green); }
-.history-card.picked { border-color: var(--green); }
+.history-check.on { background: var(--acc); border-color: var(--acc); color: var(--on-acc); }
+.history-card.picked { border-color: var(--acc); }
 .history-head {
   display: flex; justify-content: space-between; align-items: flex-start; gap: 8px;
 }
-.history-date { font-weight: 600; font-size: 16px; }
-.history-sub { font-size: 13px; margin-top: 2px; }
+.history-date { font-weight: 800; font-size: 16px; }
+.history-sub { font-size: 12.5px; margin-top: 2px; font-weight: 600; }
 .history-actions { display: flex; gap: 4px; flex-shrink: 0; }
 
 .history-list { list-style: none; margin: 10px 0 0; padding: 0; }
@@ -1025,7 +1026,7 @@ input { font-family: inherit; }
   align-items: baseline;
 }
 .history-ex:first-child { border-top: none; }
-.history-ex-name { font-size: 15px; line-height: 1.35; min-width: 0; }
+.history-ex-name { font-size: 14.5px; font-weight: 600; line-height: 1.35; min-width: 0; }
 /* Подходы переносятся МЕЖДУ сетами (по пробелу после запятой), но сам токен —
    «14×12» / «1:00» — не рвём посимвольно (word-break:keep-all). Имя может ужиматься
    и переноситься по словам, оставляя колонке подходов ширину. Так длинные серии
@@ -1064,7 +1065,17 @@ input { font-family: inherit; }
 
 /* ---------- шаблоны ---------- */
 /* Вторичная кнопка «Шаблоны» под «+ Добавить тренировку» */
-.tpl-link { margin-top: -8px; margin-bottom: 16px; }
+/* v6.2.0: строка-кнопка «Шаблоны» (иконка · текст · шеврон), как пункты списка. */
+.tpl-link {
+  width: 100%; min-height: 52px; display: flex; align-items: center; gap: 12px;
+  margin-top: -8px; margin-bottom: 14px; padding: 0 14px; border-radius: 14px;
+  border: 0; background: var(--surface); color: var(--text); cursor: pointer;
+  font-size: 15px; font-weight: 700; text-align: left;
+}
+.tpl-link:active { background: var(--surface-2); }
+.tpl-link-ico { color: var(--acc); flex: none; }
+.tpl-link-txt { flex: 1; }
+.tpl-link-chev { color: var(--muted); flex: none; }
 /* На мобиле «+ Добавить тренировку» скрыта (её роль у плавающей «+», v5.4.1), и
    «Шаблоны» оказываются первыми под заголовком — отрицательный отступ, который
    поджимал их к кнопке, тут прилепил бы их к самому заголовку. */
@@ -1079,7 +1090,7 @@ input { font-family: inherit; }
   background: var(--surface); border: 1px solid var(--border);
   border-radius: 12px; padding: 8px 12px; margin-bottom: 10px;
 }
-.tpl-row.dragging { background: var(--surface-2); border-color: var(--green); opacity: .9; }
+.tpl-row.dragging { background: var(--surface-2); border-color: var(--acc); opacity: .9; }
 .tpl-handle {
   flex-shrink: 0; width: 44px; height: 44px; font-size: 20px;
   background: none; border: none; color: var(--muted);
@@ -1103,7 +1114,7 @@ input { font-family: inherit; }
   border: 1px solid var(--border); border-radius: 8px; font-size: 15px;
 }
 .tpl-target-x { color: var(--muted); }
-.tpl-pick-target { color: var(--green); }
+.tpl-pick-target { color: var(--acc-2); }
 
 /* Карточка шаблона в пикере: имя + «N упр.» + краткий состав */
 .tpl-pick { flex-wrap: wrap; }
@@ -1130,7 +1141,7 @@ input { font-family: inherit; }
 }
 /* Бейдж «общий» (🌐) у своих публичных шаблонов */
 .tpl-badge {
-  font-size: 12px; font-weight: 500; color: var(--green);
+  font-size: 12px; font-weight: 500; color: var(--acc-2);
   margin-left: 8px; vertical-align: middle; white-space: nowrap;
 }
 /* Пометка автора «от {Имя}» у чужих общих */
@@ -1142,14 +1153,14 @@ input { font-family: inherit; }
   min-height: 44px; margin: 4px 0 12px;
   font-size: 15px; cursor: pointer;
 }
-.tpl-toggle input { width: 22px; height: 22px; accent-color: var(--green); flex-shrink: 0; }
+.tpl-toggle input { width: 22px; height: 22px; accent-color: var(--acc); flex-shrink: 0; }
 
 /* Просмотр чужого общего шаблона (read-only) */
 .tpl-view-name { font-size: 18px; font-weight: 600; margin: 4px 0 2px; }
 
 /* ---------- banners / progress ---------- */
 .banner { padding: 12px 14px; border-radius: 10px; margin-bottom: 14px; font-size: 14px; }
-.banner.ok { background: rgba(22,163,74,.15); border: 1px solid var(--green); color: #86efac; }
+.banner.ok { background: color-mix(in srgb, var(--green) 14%, transparent); border: 1px solid var(--green); color: var(--green); }
 .banner.error { background: rgba(239,68,68,.12); border: 1px solid var(--red); color: #fca5a5; }
 .error { color: var(--red); font-size: 14px; text-align: center; margin-top: 10px; }
 
@@ -1169,22 +1180,22 @@ input { font-family: inherit; }
      с тем, что под ней. Берём тот же плотный тёмный слой, что у липких шапки/таббара,
      + размытие: плашка читается над любой подложкой. Свечение по контуру отделяет её
      от карточки даже там, где тень теряется на тёмном фоне. */
-  background: var(--surface-solid); border: 1px solid var(--green); color: var(--text);
+  background: var(--surface-solid); border: 1px solid var(--acc); color: var(--text);
   backdrop-filter: blur(20px); -webkit-backdrop-filter: blur(20px);
-  box-shadow: 0 10px 30px rgba(0, 0, 0, .55), 0 0 0 4px rgba(52, 211, 153, .12);
+  box-shadow: 0 10px 30px rgba(0, 0, 0, .55), 0 0 0 4px color-mix(in srgb, var(--acc) 12%, transparent);
 }
 .update-pill-dot {
   width: 8px; height: 8px; flex-shrink: 0; border-radius: 50%;
   /* Ореол — в тон мятному --green (#2ee6a0). Раньше тут был старый брендовый
      зелёный (22,163,74) — на новой палитре он читался грязным пятном. */
-  background: var(--green); box-shadow: 0 0 0 3px rgba(52, 211, 153, .22);
+  background: var(--acc); box-shadow: 0 0 0 3px color-mix(in srgb, var(--acc) 25%, transparent);
 }
 .update-pill-text { font-size: 14px; font-weight: 600; white-space: nowrap; }
 .update-pill-go {
   flex-shrink: 0; min-height: 34px; padding: 0 14px; border: none; border-radius: 999px;
-  background: var(--green); color: #08130b; font-size: 14px; font-weight: 600; cursor: pointer;
+  background: var(--acc); color: var(--on-acc); font-size: 14px; font-weight: 600; cursor: pointer;
 }
-.update-pill-go:active { background: var(--green-d); }
+.update-pill-go:active { filter: brightness(.9); }
 .update-pill-close {
   flex-shrink: 0; width: 34px; height: 34px; padding: 0; border: none; border-radius: 999px;
   background: none; color: var(--muted); font-size: 22px; line-height: 1; cursor: pointer;
@@ -1242,7 +1253,7 @@ input { font-family: inherit; }
   border-radius: 999px; border: 1px solid var(--border);
   background: var(--surface); color: var(--text); font-size: 14px; font-weight: 600;
 }
-.prog-chip.active { background: var(--green); border-color: var(--green); color: #08130b; }
+.prog-chip.active { background: var(--acc); border-color: var(--acc); color: var(--on-acc); }
 .prog-range { display: flex; flex-wrap: wrap; gap: 8px; margin-bottom: 14px; }
 .prog-range label { display: flex; flex-direction: column; gap: 4px; font-size: 12px; color: var(--muted); flex: 1; min-width: 120px; }
 .prog-range input {
@@ -1289,7 +1300,7 @@ input { font-family: inherit; }
   color: var(--muted); font-size: 17px; line-height: 1; pointer-events: none;
   will-change: transform, opacity;
 }
-.ptr.ready { color: var(--green); border-color: var(--green); }
+.ptr.ready { color: var(--acc); border-color: var(--acc); }
 .ptr-ico { display: inline-block; }
 .ptr.loading .ptr-ico { animation: spin .8s linear infinite; }
 @media (prefers-reduced-motion: reduce) {
@@ -1548,9 +1559,9 @@ img.avatar-lg.has-img {
   display: flex; align-items: center; gap: 12px; padding: 13px 14px; border-radius: 14px;
   /* Плавающий оверлей → ПЛОТНАЯ подложка, а не стеклянный `--surface-2` (он полупрозрачен
      и над карточкой сливался с ней — тот же дефект, что чинили у `.update-pill` в v5.6.1). */
-  background: var(--surface-solid); border: 1px solid var(--green); color: var(--text);
+  background: var(--surface-solid); border: 1px solid var(--acc); color: var(--text);
   backdrop-filter: blur(20px); -webkit-backdrop-filter: blur(20px);
-  box-shadow: 0 10px 30px rgba(0, 0, 0, .55), 0 0 0 4px rgba(52, 211, 153, .12);
+  box-shadow: 0 10px 30px rgba(0, 0, 0, .55), 0 0 0 4px color-mix(in srgb, var(--acc) 12%, transparent);
   transition: transform .35s cubic-bezier(.2,.8,.2,1), opacity .35s ease;
   /* Тост — фиксированная полоса поверх .content (единственного скроллера), но вне
      него. Делаем её pointer-transparent, иначе палец, попавший на тост, не мог
@@ -1571,16 +1582,17 @@ img.avatar-lg.has-img {
   pointer-events: auto; /* тост pointer-transparent для скролла — кнопка кликабельна */
   flex-shrink: 0; margin-left: auto;
   min-height: 44px; padding: 8px 14px; border-radius: 10px;
-  background: var(--green); color: white; border: none;
+  background: var(--acc); color: var(--on-acc); border: none;
   font-size: 14px; font-weight: 700;
 }
 .toast-action:active { filter: brightness(.9); }
 
 /* ---------- Профиль (ЛК, фаза 2a) ---------- */
 .profile .sec { margin-bottom: 16px; }
-.profile .sec-title {
-  font-size: 12px; font-weight: 700; color: var(--muted); text-transform: uppercase;
-  letter-spacing: .05em; margin: 0 0 9px 2px;
+/* Заголовок секции — единый на всех экранах (v6.2.0): display-шрифт капсом. */
+.sec-title {
+  font-family: var(--font-display); font-size: 16px; font-weight: 800; color: var(--text);
+  text-transform: uppercase; letter-spacing: .04em; margin: 0 0 8px 2px;
 }
 /* «Настройки» — раскрывающийся заголовок-кнопка (сворачивает длинный хвост
    профиля: смена PIN, админка, danger-zone). Оформлена как явная кнопка-строка
@@ -1628,12 +1640,12 @@ img.avatar-lg.has-img {
 .goal-top { display: flex; justify-content: space-between; align-items: baseline; gap: 10px; margin-bottom: 10px; font-size: 15px; }
 .goal-top .lbl b { font-weight: 800; }
 .goal-top .lbl b .u { font-size: 13px; color: var(--muted); font-weight: 600; }
-.goal-top .pct { color: var(--green); font-weight: 800; font-size: 16px; }
+.goal-top .pct { color: var(--acc); font-weight: 800; font-size: 16px; }
 .bar { height: 10px; border-radius: 999px; background: var(--surface-2); overflow: hidden; }
 .bar > i { display: block; height: 100%; border-radius: 999px; background: linear-gradient(90deg, var(--g1), var(--g2)); }
 .goal-sub { font-size: 12px; color: var(--muted); margin-top: 9px; }
 .goal-sub.achieved { color: #86efac; font-weight: 600; }
-.goal-edit { margin-top: 10px; background: none; border: none; color: var(--green); font-weight: 700; font-size: 13px; padding: 6px 0; min-height: 32px; }
+.goal-edit { margin-top: 10px; background: none; border: none; color: var(--acc-2); font-weight: 700; font-size: 13px; padding: 6px 0; min-height: 32px; }
 .goal-edit.set { margin-top: 0; }
 
 /* редактор цели */
@@ -1659,7 +1671,7 @@ img.avatar-lg.has-img {
   font-variant-numeric: tabular-nums; -moz-appearance: textfield;
 }
 .goal-stepper .val .val-field:focus { outline: none; }
-.goal-stepper .val:focus-within { border-color: var(--green); }
+.goal-stepper .val:focus-within { border-color: var(--acc); }
 .goal-editor-actions { display: flex; gap: 10px; margin-top: 6px; }
 .goal-editor-actions .btn { flex: 1; margin-top: 0; }
 
@@ -1681,7 +1693,7 @@ img.avatar-lg.has-img {
 }
 .goal-add {
   background: none; border: 1px dashed var(--border); border-radius: 14px;
-  color: var(--green); font-weight: 700; font-size: 14px; padding: 12px; min-height: 48px;
+  color: var(--acc-2); font-weight: 700; font-size: 14px; padding: 12px; min-height: 48px;
 }
 .goal-add:active { background: var(--surface-2); }
 .btn.danger-ghost {
@@ -1736,16 +1748,21 @@ img.avatar-lg.has-img {
 /* мостик к лидерборду */
 .leader-link {
   display: flex; align-items: center; justify-content: space-between; gap: 10px; width: 100%;
-  background: rgba(22,163,74,.07); border: 1px solid var(--green-d); border-radius: 16px;
+  background: var(--acc-soft); border: 1px solid color-mix(in srgb, var(--acc) 40%, transparent); border-radius: 16px;
   padding: 14px; color: var(--text); text-align: left;
 }
-.leader-link:active { background: rgba(52, 211, 153, .14); }
+.leader-link:active { background: color-mix(in srgb, var(--acc) 25%, transparent); }
 .leader-link .v { font-weight: 700; font-size: 15px; }
 .leader-link .k { color: var(--muted); font-size: 12px; margin-top: 3px; }
-.leader-link .go { color: var(--green); font-weight: 800; font-size: 14px; flex-shrink: 0; }
+.leader-link .go { color: var(--acc-2); font-weight: 800; font-size: 14px; flex-shrink: 0; }
 
 /* настройки / выход */
 .profile .actions { display: flex; flex-direction: column; gap: 10px; }
+/* Выбор своего пола (components/SexPicker.jsx, v6.2.0). */
+.sex-picker { background: var(--surface); border: 1px solid var(--border); border-radius: 14px; padding: 12px 14px; }
+.sex-picker-lab { font-weight: 700; font-size: 15px; margin-bottom: 8px; }
+.sex-picker-sub { color: var(--muted); font-size: 12px; line-height: 1.4; margin: 8px 0 0; }
+.sex-picker-err { color: var(--red); font-size: 12.5px; font-weight: 600; margin: 6px 0 0; }
 /* блоки .actions/danger-confirm под тогглом «Настройки» идут встык — разводим
    их вертикально, чтобы «Удалить мои данные» не наплывало на «Выйти». */
 .settings-toggle + .danger-confirm,
@@ -1785,7 +1802,7 @@ label.act.busy { opacity: .55; pointer-events: none; }
   border: 1px solid var(--border); border-radius: 10px; padding: 12px 14px;
   color: var(--text); font-size: 18px; letter-spacing: .3em; min-height: 48px;
 }
-.pin-input:focus { outline: none; border-color: var(--green); }
+.pin-input:focus { outline: none; border-color: var(--acc); }
 .pin-err { margin: 0; color: var(--red); font-size: 13px; font-weight: 600; }
 .pin-form-actions { display: flex; gap: 10px; margin-top: 2px; }
 .pin-form-actions .btn { flex: 1; margin-top: 0; }
@@ -1798,14 +1815,14 @@ label.act.busy { opacity: .55; pointer-events: none; }
   flex-shrink: 0; background: none; border: none; color: var(--muted);
   font-size: 16px; line-height: 1; padding: 4px; min-height: 32px; min-width: 32px;
 }
-.name-edit:active { color: var(--green); }
+.name-edit:active { color: var(--acc-2); }
 .name-editor { display: flex; flex-direction: column; gap: 8px; }
 .name-input {
   width: 100%; box-sizing: border-box; background: var(--bg);
   border: 1px solid var(--border); border-radius: 10px; padding: 10px 12px;
   color: var(--text); font-size: 18px; font-weight: 700; min-height: 44px;
 }
-.name-input:focus { outline: none; border-color: var(--green); }
+.name-input:focus { outline: none; border-color: var(--acc); }
 .name-err { margin: 0; color: var(--red); font-size: 13px; font-weight: 600; }
 .name-editor-actions { display: flex; gap: 10px; }
 .name-editor-actions .btn { flex: 1; margin-top: 0; }
@@ -1913,7 +1930,7 @@ label.act.busy { opacity: .55; pointer-events: none; }
     background: none; border: none; width: 100%;
     cursor: pointer; text-align: left; color: inherit;
   }
-  .side-brand:hover .side-brand-txt { color: var(--green); }
+  .side-brand:hover .side-brand-txt { color: var(--acc-2); }
   .side-logo {
     width: 34px; height: 34px; flex-shrink: 0; border-radius: 10px;
     display: flex; align-items: center; justify-content: center; font-size: 19px;
@@ -2033,7 +2050,7 @@ label.act.busy { opacity: .55; pointer-events: none; }
   }
   .md-detail-col .wk-save-spacer { display: none; }
   /* Открытая (просматриваемая) карточка в списке — зелёная рамка. */
-  .history-card.open { border-color: var(--green); background: rgba(22,163,74,.06); }
+  .history-card.open { border-color: var(--acc); background: var(--acc-soft); }
   /* Заглушка правой колонки, пока ничего не выбрано. */
   .md-empty {
     display: flex; flex-direction: column; align-items: center; justify-content: center;
@@ -2055,11 +2072,7 @@ label.act.busy { opacity: .55; pointer-events: none; }
 }
 
 /* ======================= Админка (PLAN-admin) ======================= */
-.admin-head { display: flex; align-items: center; gap: 10px; margin-bottom: 6px; }
-.admin-back {
-  background: var(--surface); border: 1px solid var(--border); border-radius: 10px;
-  color: var(--text); font-size: 14px; font-weight: 600; padding: 8px 12px; min-height: 40px;
-}
+.admin-head { display: flex; align-items: center; gap: 10px; margin-bottom: 12px; }
 .admin-title { margin: 0; font-family: var(--font-display); font-size: 26px; font-weight: 900; line-height: 1; text-transform: uppercase; letter-spacing: .01em; color: var(--text); }
 .admin-offline {
   margin: 0 0 10px; padding: 10px 12px; border-radius: 10px; font-size: 13px; font-weight: 600;
@@ -2074,9 +2087,9 @@ label.act.busy { opacity: .55; pointer-events: none; }
   background: var(--surface); border: 1px solid var(--border); border-radius: 12px;
   color: var(--text); font-size: 15px; font-weight: 700; padding: 13px 14px; min-height: 50px;
 }
-.admin-nav-btn.open { border-color: var(--green); }
+.admin-nav-btn.open { border-color: var(--acc); }
 .admin-nav-chev { flex: 0 0 auto; font-size: 18px; color: var(--muted); }
-.admin-nav-btn.open .admin-nav-chev { color: var(--green); }
+.admin-nav-btn.open .admin-nav-chev { color: var(--acc-2); }
 .admin-panel { padding: 2px 0 4px; }
 .admin-panel .sec { margin-bottom: 0; }
 
@@ -2085,7 +2098,7 @@ label.act.busy { opacity: .55; pointer-events: none; }
   border: 1px solid var(--border); border-radius: 10px; padding: 11px 13px;
   color: var(--text); font-size: 15px; min-height: 44px; margin-bottom: 10px;
 }
-.admin-search:focus { outline: none; border-color: var(--green); }
+.admin-search:focus { outline: none; border-color: var(--acc); }
 
 .admin-list { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 8px; }
 .admin-ex, .admin-user {
@@ -2110,7 +2123,7 @@ label.act.busy { opacity: .55; pointer-events: none; }
 }
 .admin-you {
   font-size: 10px; font-weight: 700; text-transform: uppercase; letter-spacing: .04em;
-  color: var(--green); border: 1px solid var(--green); border-radius: 999px; padding: 1px 6px; margin-left: 7px;
+  color: var(--acc-2); border: 1px solid var(--acc-2); border-radius: 999px; padding: 1px 6px; margin-left: 7px;
 }
 .admin-ex-btns { display: flex; gap: 6px; flex: 0 0 auto; }
 .admin-mini {
@@ -2127,9 +2140,9 @@ label.act.busy { opacity: .55; pointer-events: none; }
   border: 1px solid var(--border); border-radius: 10px; padding: 11px 13px;
   color: var(--text); font-size: 15px; min-height: 44px;
 }
-.admin-input:focus { outline: none; border-color: var(--green); }
+.admin-input:focus { outline: none; border-color: var(--acc); }
 .admin-check { display: flex; align-items: center; gap: 9px; font-size: 14px; color: var(--text); }
-.admin-check input { width: 20px; height: 20px; accent-color: var(--green); }
+.admin-check input { width: 20px; height: 20px; accent-color: var(--acc); }
 
 /* Единые поля админ-форм (правка/создание участника и упражнения): подпись над
    контролом с ровным отступом; селекты (Роль/Пол) той же высоты, паддинга и фона,
@@ -2178,7 +2191,7 @@ label.act.busy { opacity: .55; pointer-events: none; }
 .user-reorder .admin-ex-actions { margin-top: 16px; margin-bottom: 8px; }
 .admin-list.reorder { margin-top: 8px; gap: 10px; }
 .reorder-row { display: flex; align-items: center; gap: 12px; padding: 6px 13px; }
-.reorder-row.dragging { background: var(--surface); border-color: var(--green); opacity: .9; }
+.reorder-row.dragging { background: var(--surface); border-color: var(--acc); opacity: .9; }
 .user-drag-handle {
   display: inline-flex; align-items: center; justify-content: center;
   min-width: 44px; min-height: 44px; flex: 0 0 auto;
@@ -2191,10 +2204,6 @@ label.act.busy { opacity: .55; pointer-events: none; }
 /* Класс-имена sec/sec-title/stat-grid/goal/bar в index.css заскоуплены под .profile,
    поэтому на Главной повторяем нужные (значения те же — единая тёмная тема). */
 .home .sec { margin-bottom: 16px; }
-.home .sec-title {
-  font-family: var(--font-display); font-size: 16px; font-weight: 800; color: var(--text);
-  text-transform: uppercase; letter-spacing: .04em; margin: 0 0 8px 2px;
-}
 
 /* Главное действие (v6.0.3): крупная кнопка акцента, текст — --on-acc. */
 .home-go {
@@ -2310,7 +2319,7 @@ label.act.busy { opacity: .55; pointer-events: none; }
 .ins-card.ins-info { border-left-color: #185fa5; }
 .ins-card.action { width: 100%; color: var(--text); text-align: left; cursor: pointer; }
 .ins-card.action .ins-text { flex: 1; }
-.ins-card.action .go { color: var(--green); font-weight: 800; font-size: 20px; }
+.ins-card.action .go { color: var(--acc-2); font-weight: 800; font-size: 20px; }
 .ins-emoji { font-size: 20px; flex-shrink: 0; }
 .ins-text { font-size: 14px; line-height: 1.35; font-weight: 600; }
 
@@ -2324,7 +2333,7 @@ label.act.busy { opacity: .55; pointer-events: none; }
 .home-row-body { flex: 1; min-width: 0; }
 .home-row .v { font-weight: 700; font-size: 15px; }
 .home-row .k { color: var(--muted); font-size: 12px; margin-top: 2px; }
-.home-row .go { color: var(--green); font-weight: 700; font-size: 13px; flex-shrink: 0; }
+.home-row .go { color: var(--acc-2); font-weight: 700; font-size: 13px; flex-shrink: 0; }
 .home-row.static { cursor: default; }
 
 /* Карточка цели/бар на Главной (значения — как в профиле). */
@@ -2334,7 +2343,7 @@ label.act.busy { opacity: .55; pointer-events: none; }
 .home .goal-top { display: flex; align-items: center; justify-content: space-between; gap: 8px; margin-bottom: 9px; }
 .home .goal-top .lbl { font-size: 14px; }
 .home .goal-top .lbl b { font-weight: 800; }
-.home .goal-top .pct { color: var(--green); font-weight: 800; font-size: 16px; }
+.home .goal-top .pct { color: var(--acc); font-weight: 800; font-size: 16px; }
 .home .bar { height: 10px; border-radius: 999px; background: var(--surface-2); overflow: hidden; }
 .home .bar > i { display: block; height: 100%; border-radius: 999px; background: linear-gradient(90deg, var(--g1), var(--g2)); }
 .home .goal-sub { font-size: 12px; color: var(--muted); margin-top: 9px; }
@@ -2353,7 +2362,7 @@ label.act.busy { opacity: .55; pointer-events: none; }
 }
 .fr-teaser-head { display: flex; align-items: center; justify-content: space-between; gap: 8px; }
 .fr-teaser-lab { font-size: 13px; font-weight: 700; }
-.fr-teaser .go { color: var(--green); font-weight: 700; font-size: 13px; flex-shrink: 0; }
+.fr-teaser .go { color: var(--acc-2); font-weight: 700; font-size: 13px; flex-shrink: 0; }
 .fr-strip { display: flex; gap: 6px; }
 .fr-strip-cell { flex: 1; min-width: 0; text-align: center; }
 .fr-bar { display: block; height: 6px; border-radius: 3px; background: var(--muted); }

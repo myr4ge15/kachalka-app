@@ -21,7 +21,9 @@
 //   - rpe — оценки «как пошло» по тренировкам: ОБЪЕДИНЕНИЕ по (workoutId,
 //     exerciseId), LWW только на спорной паре. История дописывается, а не
 //     переписывается: оценка, поставленная офлайн на телефоне, не должна
-//     исчезать после синка с ноутбука (правило слияния — в lib/rpe.js).
+//     исчезать после синка с ноутбука (правило слияния — в lib/rpe.js);
+//   - accent — выбранный акцент {id, hue} (v6.2.0): связная настройка → LWW.
+//     Применение на устройстве (CSS + localStorage для сплэша) — hooks/useAccentSync.
 // ============================================================================
 import { cmpIsoAsc } from './cmp.js'
 import { mergeRpe } from './rpe.js'
@@ -30,7 +32,7 @@ import { mergeRpe } from './rpe.js'
 // `${kind}_${userId}`, серверный key — сам kind (владелец там колонкой).
 // ⚠️ Расширять ОДНОВРЕМЕННО с белым списком в upsert_user_meta (user-meta.sql),
 // иначе push упрётся в ошибку `unknown user_meta key`.
-export const SYNCED_KINDS = ['badges', 'prog', 'notif_seen_at', 'rpe']
+export const SYNCED_KINDS = ['badges', 'prog', 'notif_seen_at', 'rpe', 'accent']
 
 // Локальный ключ персональной meta по роду и пользователю.
 export const metaKeyFor = (kind, userId) => `${kind}_${userId}`

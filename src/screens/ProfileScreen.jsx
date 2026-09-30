@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
 import { useLiveQuery } from 'dexie-react-hooks'
 import {
-  getWorkouts, getCachedUser, setCachedAvatar, setCachedName, softDeleteMyWorkouts,
+  getWorkouts, getCachedUser, setCachedAvatar, setCachedName, setCachedSex, softDeleteMyWorkouts,
   deadLetterCount, retryDeadLetter, discardDeadLetter,
   getProgSettings, setProgEnabled,
 } from '../db/repo.js'
@@ -14,7 +14,8 @@ import { getMeta } from '../db/local.js'
 import { summarize } from '../lib/profileStats.js'
 import { currentValues, evaluateBadges, BADGES } from '../lib/badges.js'
 import { normMetric, parseTime, fmtTime } from '../lib/metric.js'
-import { setPin, setName, LoginError } from '../lib/auth.js'
+import { setPin, setName, setSex, LoginError } from '../lib/auth.js'
+import SexPicker from '../components/SexPicker.jsx'
 import { uploadMyAvatar } from '../lib/avatar.js'
 import { onlyDigits } from '../lib/text.js'
 import { showToast } from '../components/Toast.jsx'
@@ -167,6 +168,23 @@ export default function ProfileScreen({ user, onLogout, onOpenProgress, onOpenFe
   }
 
   // ── Смена имени (фаза 2c) ───────────────────────────────────────────────
+  // Свой пол (v6.2.0): оптимистично показываем выбор, откатываем при ошибке.
+  const [sexPending, setSexPending] = useState(undefined) // undefined — нет правки
+  const [sexErr, setSexErr] = useState('')
+  const sexValue = sexPending !== undefined ? sexPending : (myCached?.sex ?? null)
+  async function changeSex(next) {
+    setSexErr('')
+    setSexPending(next)
+    try {
+      const saved = await setSex(user.id, next)
+      await setCachedSex(user.id, saved)
+    } catch (e) {
+      if (aliveRef.current) setSexErr(e instanceof LoginError ? e.message : 'Не удалось сохранить.')
+    } finally {
+      if (aliveRef.current) setSexPending(undefined)
+    }
+  }
+
   const [nameEditing, setNameEditing] = useState(false)
   const [nameVal, setNameVal] = useState('')
   const [nameErr, setNameErr] = useState('')
@@ -678,6 +696,7 @@ export default function ProfileScreen({ user, onLogout, onOpenProgress, onOpenFe
               <span className="act-sub">акцентный цвет приложения</span>
             </span>
           </button>
+          <SexPicker value={sexValue} busy={sexPending !== undefined} error={sexErr} onChange={changeSex} />
           <button
             className="act toggle-act"
             role="switch"

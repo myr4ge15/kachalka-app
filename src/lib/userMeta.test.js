@@ -12,11 +12,11 @@ describe('metaKeyFor / SYNCED_KINDS', () => {
     expect(metaKeyFor('notif_seen_at', 'u1')).toBe('notif_seen_at_u1')
   })
 
-  it('синкаем ровно четыре рода ключей', () => {
+  it('синкаем ровно пять родов ключей (accent — с v6.2.0, user-meta-accent.sql)', () => {
     // ⚠️ Тест-страховка к инварианту AGENTS.md: список обязан совпадать с белым
     // списком в upsert_user_meta (supabase/user-meta.sql), иначе push упрётся в
     // `unknown user_meta key`. Меняешь здесь — меняй и там.
-    expect(SYNCED_KINDS).toEqual(['badges', 'prog', 'notif_seen_at', 'rpe'])
+    expect(SYNCED_KINDS).toEqual(['badges', 'prog', 'notif_seen_at', 'rpe', 'accent'])
   })
 })
 
@@ -185,5 +185,14 @@ describe('planMetaSync', () => {
       localAt: '2026-07-01', remoteAt: '2026-07-02', hasRemote: true, now: NOW,
     })
     expect(p).toMatchObject({ write: false, dirty: 0, at: '2026-07-02' })
+  })
+})
+
+describe('accent — last-write-wins', () => {
+  it('правка позже побеждает, при равенстве — локальная', () => {
+    const local = { id: 'teal', hue: 200 }
+    const remote = { id: 'peach', hue: 200 }
+    expect(mergeMetaValue({ kind: 'accent', local, remote, localAt: '2026-09-30T10:00:00Z', remoteAt: '2026-09-30T11:00:00Z' })).toEqual(remote)
+    expect(mergeMetaValue({ kind: 'accent', local, remote, localAt: '2026-09-30T11:00:00Z', remoteAt: '2026-09-30T11:00:00Z' })).toEqual(local)
   })
 })

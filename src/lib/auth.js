@@ -218,6 +218,28 @@ export async function setName(userId, name) {
   return clean
 }
 
+// Свой пол (v6.2.0): 'm' | 'f' | null («не указывать»). Нужен рейтингу: мужской
+// борд — жим, женский — ягодичный мостик. Пишем users.sex через SECURITY DEFINER
+// set_my_sex (supabase/set-my-sex.sql, владелец — app_uid()); админский
+// admin_set_sex остаётся для правки чужого. Только онлайн, как смена имени.
+// Возвращает сохранённое значение; ошибки — LoginError.
+export async function setSex(userId, sex) {
+  const v = sex === 'm' || sex === 'f' ? sex : null
+  if (!navigator.onLine) {
+    throw new LoginError('network', 'Изменить пол можно только онлайн.')
+  }
+  let res
+  try {
+    res = await withTimeout(supabase.rpc('set_my_sex', { p_sex: v }))
+  } catch {
+    throw new LoginError('network', 'Нет сети — попробуй позже.')
+  }
+  if (res.error) {
+    throw new LoginError('server', res.error.message ?? 'Не удалось сохранить.')
+  }
+  return v
+}
+
 // Офлайн-анлок открывает UI учётке B, а в хранилище может остаться сессия A
 // (общий телефон, выход не дождался signOut). Фоновый перевыпуск сессии B может не
 // пройти, и до тех пор всё сетевое шло бы под JWT A. Синк такую сессию уже не

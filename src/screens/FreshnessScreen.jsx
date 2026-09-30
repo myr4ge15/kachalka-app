@@ -6,6 +6,7 @@ import { fmtDaysAgo, fmtDays } from '../lib/homeSummary.js'
 import { labelOf, labelAccusativeOf } from '../lib/muscles.js'
 import MuscleMap, { regionOf } from '../components/MuscleMap.jsx'
 import CardsSkeleton from '../components/CardsSkeleton.jsx'
+import BackButton from '../components/BackButton.jsx'
 
 // Детальный экран «Свежесть по группам» (виш BACKLOG, слайсы 2–3). Три
 // представления над общим движком src/lib/freshness.js: heatmap-силуэт (MuscleMap,
@@ -42,7 +43,7 @@ export default function FreshnessScreen({ user, onBack }) {
   return (
     <div className="screen fresh-screen">
       <div className="admin-head">
-        <button className="admin-back" onClick={onBack}>‹ Назад</button>
+        <BackButton onClick={onBack} />
         <h2 className="admin-title">Готовность мышц</h2>
       </div>
 

@@ -45,7 +45,7 @@ describe('AppearanceScreen', () => {
     render(<AppearanceScreen onBack={onBack} storage={memStorage('{"id":"custom","hue":290}')} root={document.createElement('div')} />)
     expect(screen.getByRole('radio', { name: 'Свой' })).toHaveAttribute('aria-checked', 'true')
     expect(screen.getByLabelText('Оттенок своего цвета')).toHaveValue('290')
-    fireEvent.click(screen.getByText('‹ Назад'))
+    fireEvent.click(screen.getByRole('button', { name: 'Назад' }))
     expect(onBack).toHaveBeenCalled()
   })
 })

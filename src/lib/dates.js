@@ -53,6 +53,15 @@ export function fmtDayChip(iso, now = new Date()) {
   return base
 }
 
+// Дата на карточке тренировки (v6.2.0): «Сегодня, 30 сентября» / «Вчера, …» как у
+// чипа, иначе с днём недели — «Пн, 28 сентября» (другой год — с годом).
+const WEEKDAYS = ['Вс', 'Пн', 'Вт', 'Ср', 'Чт', 'Пт', 'Сб']
+export function fmtCardDate(iso, now = new Date()) {
+  const chip = fmtDayChip(iso, now)
+  if (!chip || /^(Сегодня|Вчера),/.test(chip)) return chip
+  return `${WEEKDAYS[new Date(iso).getDay()]}, ${chip}`
+}
+
 // ISO-дата (performed_at) → YYYY-MM-DD для <input type=date> в ЛОКАЛЬНОМ поясе
 // (сдвигаем на offset, иначе около полуночи UTC день «уезжает»).
 export function toDateInput(iso) {

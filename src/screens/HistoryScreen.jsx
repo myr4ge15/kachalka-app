@@ -15,13 +15,8 @@ import WorkoutFinishSheet from '../components/WorkoutFinishSheet.jsx'
 import { defaultTemplateName, templateExercisesFromWorkout } from '../lib/templateFromWorkout.js'
 import { HAPTIC, vibrate } from '../lib/haptics.js'
 import { onReselect } from '../lib/appEvents.js'
+import { fmtCardDate } from '../lib/dates.js'
 
-function fmtDate(iso) {
-  const d = new Date(iso)
-  return d.toLocaleDateString('ru-RU', {
-    day: '2-digit', month: '2-digit', year: 'numeric',
-  })
-}
 
 function summarize(w) {
   const entries = w.entries ?? []
@@ -183,8 +178,14 @@ export default function HistoryScreen({
           </button>
         )}
 
-        <button className="btn outline full tpl-link" onClick={() => setSelected('templates')}>
-          📋 Шаблоны
+        <button className="tpl-link" onClick={() => setSelected('templates')}>
+          <svg className="tpl-link-ico" viewBox="0 0 24 24" width="19" height="19" fill="none" stroke="currentColor"
+            strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+            <rect x="5" y="4" width="14" height="17" rx="2.5" /><path d="M9 4V3h6v1M9 10h6M9 14h6" />
+          </svg>
+          <span className="tpl-link-txt">Шаблоны</span>
+          <svg className="tpl-link-chev" viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor"
+            strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true"><path d="M9 6l6 6-6 6" /></svg>
         </button>
 
         {loading && <CardsSkeleton cards={4} />}
@@ -245,7 +246,7 @@ export default function HistoryScreen({
               <div className="history-head">
                 <div>
                   <div className="history-date">
-                    {fmtDate(w.performed_at)}
+                    {fmtCardDate(w.performed_at)}
                     {unsynced && <span className="dot-unsynced" title="Ждёт синхронизации">●</span>}
                   </div>
                   <div className="muted history-sub">
@@ -257,7 +258,10 @@ export default function HistoryScreen({
                     {picked.has(w.id) ? '✓' : ''}
                   </span>
                 ) : (
-                  <span className="history-chevron" aria-hidden="true">›</span>
+                  <svg className="history-chevron" viewBox="0 0 24 24" width="18" height="18" fill="none"
+                    stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+                    <path d="M9 6l6 6-6 6" />
+                  </svg>
                 )}
               </div>
 

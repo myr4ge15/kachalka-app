@@ -129,7 +129,7 @@
     `--surface-solid` (`rgba(17,24,39,.94)`, v6); в Aurora это был хардкод `rgba(20,16,40,.94)`.
 - **Навигация (`App.jsx`):** 4 вкладки — `home` (дефолт) / `history` / `feed` / `progress`; плюс
   вложенные ленивые роуты `notif`/`profile`/`admin`/`freshness`/`myex`/`achievements`/`appearance`
-  (в таббар не выносятся). Кнопка «+» (новая тренировка) с v6.0.1 — круг ПО ЦЕНТРУ таббара
+  (в таббар не выносятся); «назад» на всех вложенных экранах — общая круглая `components/BackButton.jsx`. Кнопка «+» (новая тренировка) с v6.0.1 — круг ПО ЦЕНТРУ таббара
   (`AddFab`), есть ВСЕГДА, включая вложенные роуты (v6.0.4); при занятом хабе (композер/экспорт) — утоплена и
   неактивна, состояние — чистая `lib/quickAdd.js` `fabState`; на десктопе скрыта. Точка активной вкладки — ОДНА общая `.tab-dot`, переезжает
   под нажатую вкладку (`hooks/useTabDot.js` пишет `--dot-x`); свою точку на `.tab.active` не рисовать. **`WorkoutScreen` своей вкладки НЕ имеет** — он смонтирован внутри `HistoryScreen`
@@ -145,8 +145,10 @@ RPE) — в `localStorage` под `gym_app_workout_{draft,feel}_new_${userId}` (
 ключ `…_done_new_…` убраны в v6.1.0: что в строках — то и записывается, лишний подход удаляется ✕)
 через `lib/draftStore.js` (память + диск, v5.15.1): переживает выгрузку PWA и перезагрузку, в синк
 не идёт — это незавершённое действие на одном устройстве. **Выбранный акцент** (v6) — `localStorage`
-`gym_app_accent` на УСТРОЙСТВО, а не на учётку: сплэш и первый кадр рисуются до входа. Синк между
-устройствами — задача в бэклоге (новый род `user_meta` + белый список `upsert_user_meta`).
+`gym_app_accent` на устройстве (сплэш и первый кадр рисуются до входа) И с v6.2.0 синкаемый род `accent`
+в `user_meta` (LWW): экран «Оформление» пишет `repo.setAccentPref`, `hooks/useAccentSync` применяет
+значение с другого устройства к `<html>` и кладёт в `localStorage`; явный выбор, сделанный до синка,
+заливается наверх, дефолт «по отсутствию ключа» — нет.
 
 ⚠️ **Метка инкрементального pull лежит там же, где её данные.** `wm_*`/`sig_*` — в персональной
 базе, но `sig_login_users` — в login-meta ОБЩЕЙ `loginDb` (`getLoginMeta`/`setLoginMeta`), потому
@@ -190,6 +192,10 @@ updated_at)` + `upsert_user_meta` (`supabase/user-meta.sql`, RLS «только 
   Trigger `tg_notify_record()` не должен содержать webhook-секрет в теле: брать его из
   `vault.decrypted_secrets` по имени `tg_record_webhook_secret`; канон и порядок ротации —
   `commercial-hardening-webhook-vault.sql` / `commercial-hardening-deploy.md`.
+- **`upsert_user_meta`** → канон `user-meta-accent.sql` (v6.2.0, белый список `badges/prog/notif_seen_at/
+  rpe/accent`; файл сверяет живое тело guard-блоком перед заменой). Не перезапускать тело из `user-meta.sql`.
+- **`set_my_sex`** (v6.2.0) → канон `set-my-sex.sql`: свой пол, владелец из `app_uid()`, холостой вызов не
+  двигает `users.updated_at`. Чужой пол — только `admin_set_sex`.
 - **`admin_list_users` / `login_users` / `admin_set_sex`** → канон `roster-contract.sql`. НЕ
   пересоздавать из `admin.sql` / `private-user.sql` / `user-order.sql` / `gender-leaderboard.sql`:
   `drop+create` там снимает `sex`/`sort_order` с контракта функции, админка показывает пол как «не

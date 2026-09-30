@@ -17,6 +17,7 @@ import { useExportSelection } from '../hooks/useExportSelection.js'
 import ExercisePicker from '../components/ExercisePicker.jsx'
 import CardsSkeleton from '../components/CardsSkeleton.jsx'
 import ExportBar from '../components/ExportBar.jsx'
+import BackButton from '../components/BackButton.jsx'
 
 // Дефолтный целевой план по типу упражнения: 3 подхода × 10 повторов (время —
 // 1:00 = 60 с), без целевого веса. Используется для новых и легаси-упражнений.
@@ -171,7 +172,7 @@ function TemplateList({ user, onBack, onOpen }) {
   return (
     <div className="screen">
       <div className="detail-head">
-        <button className="link-btn back-link" onClick={() => onBack?.()}>← Назад</button>
+        <BackButton onClick={() => onBack?.()} />
         <h2 className="screen-title detail-title">Шаблоны</h2>
       </div>
 
@@ -363,7 +364,7 @@ function TemplateEditor({ user, templateId, onBack }) {
   return (
     <div className="screen">
       <div className="detail-head">
-        <button className="link-btn back-link" onClick={() => onBack?.()}>← Назад</button>
+        <BackButton onClick={() => onBack?.()} />
         <h2 className="screen-title detail-title">
           {isNew ? 'Новый шаблон' : 'Шаблон'}
         </h2>

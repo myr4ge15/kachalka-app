@@ -254,6 +254,13 @@ export async function setCachedName(userId, name) {
   await loginDb.users.put(pickRosterShape({ ...(u ?? {}), id: userId, name }))
 }
 
+// Локально проставить свой пол сразу после сохранения (v6.2.0), чтобы рейтинг и
+// Профиль обновились до следующего pull. Мержим через белый список ростера.
+export async function setCachedSex(userId, sex) {
+  const u = await loginDb.users.get(userId)
+  await loginDb.users.put(pickRosterShape({ ...(u ?? {}), id: userId, sex: sex ?? null }))
+}
+
 // Тренировки пользователя (без удалённых), свежие сверху по ДАТЕ ТРЕНИРОВКИ.
 // Сортируем по performed_at (дата самой тренировки), а не по моменту добавления:
 // запись, внесённая задним числом, уходит на своё хронологическое место, а не
@@ -336,6 +343,17 @@ export async function getProgSettings(userId) {
 export async function setProgEnabled(userId, enabled) {
   const cur = await getProgSettings(userId)
   await writeSyncedMeta(userId, 'prog', { ...cur, enabled: !!enabled })
+}
+
+// Выбранный акцент (v6.2.0) — синкаемый род `accent` в user_meta (LWW). Экран
+// «Оформление» пишет сюда при выборе, hooks/useAccentSync применяет значение,
+// пришедшее с другого устройства. null — выбора на сервере/в meta ещё нет.
+export async function getAccentPref(userId) {
+  return (await getMeta(`accent_${userId}`)) ?? null
+}
+export async function setAccentPref(userId, pref) {
+  if (!userId || !pref) return
+  await writeSyncedMeta(userId, 'accent', { id: pref.id, hue: pref.hue })
 }
 
 // Пер-упражненческие настройки (шестерёнка в карточке): мержим patch поверх

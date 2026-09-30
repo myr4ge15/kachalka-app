@@ -4,6 +4,7 @@ import { getBadgesView, backfillBadges } from '../db/badges.js'
 import { fmtBadgeValue } from '../lib/badges.js'
 import { fmtWhen } from '../lib/dates.js'
 import CardsSkeleton from '../components/CardsSkeleton.jsx'
+import BackButton from '../components/BackButton.jsx'
 
 // Экран «Достижения» (PLAN-badges, Slice 1b). Сетка бейджей по категориям:
 // полученные — с датой, закрытые — с прогресс-баром до вехи. Всё считается на
@@ -23,7 +24,7 @@ export default function AchievementsScreen({ user, onBack }) {
   return (
     <div className="screen ach-screen">
       <div className="admin-head">
-        <button className="admin-back" onClick={onBack}>‹ Назад</button>
+        <BackButton onClick={onBack} />
         <h2 className="admin-title">Достижения</h2>
       </div>
 

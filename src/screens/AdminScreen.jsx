@@ -13,6 +13,7 @@ import { onlyDigits } from '../lib/text.js'
 import { submusclesOf, secondaryOptionsFor, labelOf, majorOf, defaultSubmuscleFor } from '../lib/muscles.js'
 import { showToast } from '../components/Toast.jsx'
 import CardsSkeleton from '../components/CardsSkeleton.jsx'
+import BackButton from '../components/BackButton.jsx'
 
 // Экран «Админка» (PLAN-admin). Виден только при role='admin' (вход из Профиля);
 // сервер всё равно перепроверяет роль в каждой операции. Все мутации требуют
@@ -32,7 +33,7 @@ export default function AdminScreen({ user, onBack }) {
   return (
     <div className="screen admin">
       <div className="admin-head">
-        <button className="admin-back" onClick={onBack} aria-label="Назад в профиль">‹ Профиль</button>
+        <BackButton onClick={onBack} label="Назад в профиль" />
         <h2 className="admin-title">Админка</h2>
       </div>
 
