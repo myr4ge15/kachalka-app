@@ -11,6 +11,7 @@ import { readStoredUserId, hydrateProfile } from './lib/sessionProfile.js'
 import { emitReselect } from './lib/appEvents.js'
 import { markAppReady } from './lib/splash.js'
 import { canShowFab } from './lib/quickAdd.js'
+import { useTabDot } from './hooks/useTabDot.js'
 import LoginScreen from './screens/LoginScreen.jsx'
 import Toast from './components/Toast.jsx'
 import AddFab from './components/AddFab.jsx'
@@ -249,6 +250,9 @@ export default function App() {
   // Тап по кнопке вкладки всегда возвращает её контент в самый верх — в т.ч.
   // повторный тап по уже активной вкладке (как «прокрутка наверх» в iOS).
   const contentRef = useRef(null)
+  // Нижнее меню: переезжающая точка активной вкладки (hooks/useTabDot.js).
+  const navRef = useRef(null)
+  useTabDot(navRef, tab)
   // Сбрасываем позицию ПОСЛЕ React-commit нового экрана. requestAnimationFrame
   // из обработчика мог сработать ещё на длинном Профиле до commit вкладки, и
   // «Прогресс» наследовал нижнюю позицию скролла.
@@ -459,7 +463,9 @@ export default function App() {
       </main>
 
 
-      <nav className="tabbar">
+      <nav className="tabbar" ref={navRef}>
+        {/* Общая точка активной вкладки — переезжает (hooks/useTabDot.js). */}
+        <span className="tab-dot" aria-hidden="true" />
         {/* Бренд-шапка сайдбара: видна только на десктопе (≥900px), где .tabbar
             превращается в левую колонку. На мобиле скрыта (display:none). Кликабельна
             — ведёт на Главную. */}

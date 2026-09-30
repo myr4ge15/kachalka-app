@@ -130,7 +130,8 @@
 - **Навигация (`App.jsx`):** 4 вкладки — `home` (дефолт) / `history` / `feed` / `progress`; плюс
   вложенные ленивые роуты `notif`/`profile`/`admin`/`freshness`/`myex`/`achievements`/`appearance`
   (в таббар не выносятся). Кнопка «+» (новая тренировка) с v6.0.1 — круг ПО ЦЕНТРУ таббара
-  (`AddFab`), видимость — чистая `lib/quickAdd.js` `canShowFab`; на десктопе скрыта. **`WorkoutScreen` своей вкладки НЕ имеет** — он смонтирован внутри `HistoryScreen`
+  (`AddFab`), видимость — чистая `lib/quickAdd.js` `canShowFab`; на десктопе скрыта. Точка активной вкладки — ОДНА общая `.tab-dot`, переезжает
+  под нажатую вкладку (`hooks/useTabDot.js` пишет `--dot-x`); свою точку на `.tab.active` не рисовать. **`WorkoutScreen` своей вкладки НЕ имеет** — он смонтирован внутри `HistoryScreen`
   (`selected === 'new' | <id>`; на десктопе — master-detail). Скроллится `.content`, не окно.
 
 ## Что лежит ТОЛЬКО локально (частая причина «данные пропали»)

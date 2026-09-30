@@ -62,12 +62,17 @@ describe('HomeScreen', () => {
     vi.mocked(useLiveQuery).mockReturnValue(readyHome)
     const onNavigate = vi.fn()
     const onOpenProgress = vi.fn()
-    render(<HomeScreen user={user} onNavigate={onNavigate} onOpenProgress={onOpenProgress} />)
+    const onNewWorkout = vi.fn()
+    render(<HomeScreen user={user} onNavigate={onNavigate} onOpenProgress={onOpenProgress} onNewWorkout={onNewWorkout} />)
+
+    fireEvent.click(screen.getByRole('button', { name: /Начать тренировку/ }))
+    expect(onNewWorkout).toHaveBeenCalledOnce()
+    expect(screen.getByText('эта')).toBeInTheDocument()
 
     fireEvent.click(screen.getByRole('button', { name: 'Жим лёжа: 70 → 85 кг при 6 повт. — +21% за год' }))
     expect(onOpenProgress).toHaveBeenCalledWith('bench')
-    fireEvent.click(screen.getByRole('button', { name: 'Прогресс' }))
-    expect(onNavigate).toHaveBeenCalledWith('progress')
+    // Быстрые кнопки «Прогресс/Лента» убраны в v6.0.3 — это есть в нижнем меню.
+    expect(screen.queryByRole('button', { name: 'Прогресс' })).toBeNull()
     const currentWeek = screen.getByRole('button', { name: /27 июл – 2 авг: 1 тренировка/ })
     fireEvent.click(currentWeek)
     expect(screen.getByText('29 июля')).toBeInTheDocument()

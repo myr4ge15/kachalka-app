@@ -263,12 +263,25 @@ input { font-family: inherit; }
 }
 .tab:active { transform: scale(var(--press-scale)); }
 .tab.active { color: var(--acc); }
-.tab.active::after {
-  content: ""; position: absolute; left: 50%; bottom: 4px;
-  width: 4px; height: 4px; margin-left: -2px; border-radius: 50%; background: var(--acc);
+/* Точка активной вкладки — ОДНА на всё меню и переезжает под нажатую вкладку
+   (v6.0.3, вариант A из prototypes/nav-animation.html). Позицию пишет
+   hooks/useTabDot.js в --dot-x; transition включается только после первой
+   расстановки (data-dot-ready), чтобы точка не выезжала из угла при загрузке.
+   Лёгкий «перелёт» кривой — это и есть плавность; под reduced-motion — короткий
+   линейный сдвиг без перелёта (движение 4px-точки, а не всего экрана). */
+.tab-dot {
+  position: absolute; left: 0; bottom: calc(4px + env(safe-area-inset-bottom));
+  width: 4px; height: 4px; border-radius: 50%; background: var(--acc);
+  transform: translateX(var(--dot-x, 0px));
+  pointer-events: none; opacity: 0;
+}
+.tabbar[data-dot="on"] .tab-dot { opacity: 1; }
+.tabbar[data-dot-ready] .tab-dot {
+  transition: transform 300ms cubic-bezier(.3, 1.25, .5, 1), opacity .15s ease;
 }
 @media (prefers-reduced-motion: reduce) {
   .tab { transition: none; }
+  .tabbar[data-dot-ready] .tab-dot { transition: transform 150ms linear, opacity .15s linear; }
 }
 /* Бренд-шапка сайдбара живёт в .tabbar, но нужна только на десктопе, где таббар
    становится левой колонкой (см. медиазапрос ≥900px внизу). На мобиле — скрыта.
@@ -1951,7 +1964,7 @@ label.act.busy { opacity: .55; pointer-events: none; }
     background: var(--acc-soft);
     border: 1px solid transparent;
   }
-  .tab.active::after { display: none; }
+  .tab-dot { display: none; }
   .tab.active .tab-ico { transform: none; }
 
   /* «+» меню — мобильный паттерн: на десктопе она дублировала бы явную кнопку
@@ -2168,93 +2181,110 @@ label.act.busy { opacity: .55; pointer-events: none; }
    поэтому на Главной повторяем нужные (значения те же — единая тёмная тема). */
 .home .sec { margin-bottom: 16px; }
 .home .sec-title {
-  font-size: 12px; font-weight: 700; color: var(--muted); text-transform: uppercase;
-  letter-spacing: .05em; margin: 0 0 9px 2px;
+  font-family: var(--font-display); font-size: 16px; font-weight: 800; color: var(--text);
+  text-transform: uppercase; letter-spacing: .04em; margin: 0 0 8px 2px;
 }
 
-/* Герой: когда была последняя тренировка + серия справа. */
-.home-hero {
-  display: flex; align-items: center; gap: 12px;
-  background: var(--surface); border: 1px solid var(--border); border-radius: 16px;
-  padding: 16px; margin-bottom: 16px;
+/* Главное действие (v6.0.3): крупная кнопка акцента, текст — --on-acc. */
+.home-go {
+  width: 100%; min-height: 64px; display: flex; align-items: center; gap: 12px;
+  padding: 14px 16px; margin-bottom: 10px; text-align: left;
+  background: var(--acc); color: var(--on-acc);
+  border: none; border-radius: 18px; cursor: pointer;
+  transition: transform var(--dur-fast) var(--ease-out);
 }
-.home-hero-main { flex: 1; min-width: 0; }
-.home-hero-k { font-size: 12px; color: var(--muted); }
-.home-hero-v { font-size: 22px; font-weight: 800; line-height: 1.1; margin-top: 3px; }
-.home-tags { display: flex; flex-wrap: wrap; align-items: center; gap: 6px; margin-top: 10px; }
+.home-go:active { transform: scale(var(--press-scale)); }
+.home-go:focus-visible { outline: 3px solid var(--acc-2); outline-offset: 2px; }
+.home-go-txt { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 2px; }
+.home-go-txt b {
+  font-family: var(--font-display); font-weight: 900; font-size: 22px;
+  letter-spacing: .01em; text-transform: uppercase; line-height: 1;
+}
+.home-go-txt span { font-size: 13px; font-weight: 600; opacity: .8; }
+.home-go-ico {
+  flex: 0 0 auto; width: 40px; height: 40px; border-radius: 50%;
+  display: grid; place-items: center; font-size: 26px; font-weight: 700; line-height: 1;
+  background: color-mix(in srgb, var(--on-acc) 14%, transparent);
+}
+.home-tags { display: flex; flex-wrap: wrap; align-items: center; gap: 6px; margin: 0 2px 14px; }
 .home-tags-lab { font-size: 12px; color: var(--muted); margin-right: 2px; }
-.home-streak {
-  flex: 0 0 auto; text-align: center; padding: 8px 12px; border-radius: 14px;
-  background: linear-gradient(135deg, rgba(250, 204, 21, .22), color-mix(in srgb, var(--acc) 18%, transparent));
-  border: 1px solid var(--stroke);
-}
-.home-streak-n {
-  font-size: 24px; font-weight: 800; line-height: 1;
-  background: linear-gradient(135deg, var(--g4), var(--g3));
-  -webkit-background-clip: text; background-clip: text; -webkit-text-fill-color: transparent; color: transparent;
-}
-.home-streak-n .u { font-size: 14px; -webkit-text-fill-color: var(--g4); color: var(--g4); }
-.home-streak-l { font-size: 10px; color: var(--muted); margin-top: 4px; line-height: 1.25; }
 
-/* Восемь календарных недель: крупные строки раскрывают точные даты и группы,
-   поэтому ритм одинаково читается мышью, клавиатурой и пальцем. */
+/* Два блока: серия и цифры месяца — крупные цифры display-шрифтом. */
+.home-blocks { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-bottom: 16px; }
+.home-block {
+  background: var(--surface); border: 1px solid var(--border); border-radius: 16px;
+  padding: 13px 14px; min-width: 0;
+}
+.home-block-k { font-size: 11px; font-weight: 700; color: var(--muted); text-transform: uppercase; letter-spacing: .05em; }
+.home-block-n {
+  font-family: var(--font-display); font-weight: 900; font-size: 34px; line-height: 1;
+  margin-top: 6px; color: var(--text);
+}
+.home-block:first-child .home-block-n { color: var(--acc); }
+.home-block-n .u { font-family: inherit; font-size: 15px; font-weight: 800; color: var(--muted); }
+.home-block-l { font-size: 11px; color: var(--muted); margin-top: 6px; line-height: 1.3; }
+.home .delta { font-weight: 700; }
+.home .delta.up { color: var(--green); }
+.home .delta.down { color: var(--red); }
+
+/* Ритм v2: столбики по неделям. Высота столбика и пунктира среднего — из чисел в
+   переменных (--rh-n на столбике, --rh-max/--rh-avg на графике). */
 .rhythm-card {
-  width: 100%; padding: 13px 14px; text-align: left;
+  width: 100%; padding: 14px; text-align: left;
   color: var(--text); background: var(--surface);
   border: 1px solid var(--border); border-radius: 16px;
 }
-.rhythm-head {
-  display: flex; align-items: baseline; justify-content: space-between; gap: 10px;
-  padding: 0 2px 10px; font-size: 13px;
+.rh-top { display: flex; align-items: center; gap: 10px; margin-bottom: 12px; }
+.rh-avg-n { font-family: var(--font-display); font-weight: 900; font-size: 40px; line-height: .9; color: var(--acc); }
+.rh-avg-l { font-size: 12px; color: var(--muted); line-height: 1.3; }
+.rh-chart {
+  --rh-h: 64px; --rh-num-h: 16px; --rh-date-h: 16px; --rh-gap: 4px;
+  position: relative; display: grid; grid-auto-flow: column; grid-auto-columns: 1fr; gap: 4px;
 }
-.rhythm-head b { font-size: 18px; }
-.rhythm-hint { color: var(--muted); font-size: 10px; text-align: right; }
-.rhythm-weeks { border-top: 1px solid var(--border); }
-.rhythm-week {
-  width: 100%; min-height: 48px; display: grid;
-  grid-template-columns: minmax(78px, 1fr) auto 18px;
-  align-items: center; gap: 8px; padding: 7px 2px;
-  color: var(--text); background: transparent; text-align: left;
-  border: 0; border-radius: 0;
-  border-bottom: 1px solid var(--border);
-  font: inherit; -webkit-appearance: none; appearance: none;
+.rh-avg-line {
+  position: absolute; left: 0; right: 0; height: 0; pointer-events: none; z-index: 1;
+  bottom: calc(var(--rh-date-h) + var(--rh-gap) + 6px + var(--rh-h) * var(--rh-avg) / var(--rh-max));
+  border-top: 1.5px dashed color-mix(in srgb, var(--text) 45%, transparent);
 }
-.rhythm-week:active { background: var(--surface-2); }
-.rhythm-week.current .rhythm-week-copy b { color: var(--g2); }
-.rhythm-week-copy { display: flex; flex-direction: column; gap: 2px; min-width: 0; }
-.rhythm-week-copy b { font-size: 12px; line-height: 1.2; white-space: nowrap; }
-.rhythm-week-copy span { color: var(--muted); font-size: 10px; white-space: nowrap; }
-.rhythm-days { display: grid; grid-template-columns: repeat(7, 20px); gap: 3px; }
-.rhythm-day {
-  width: 20px; height: 20px; display: grid; place-items: center;
-  color: var(--muted); background: var(--surface-2);
-  border: 1px solid rgba(255,255,255,.05); border-radius: 6px;
-  font-size: 9px; font-weight: 700;
+.rh-col {
+  display: flex; flex-direction: column; align-items: center; gap: var(--rh-gap);
+  min-width: 0; min-height: 44px; padding: 0 0 6px; background: none; border: none;
+  border-radius: 10px; color: var(--muted); cursor: pointer; font: inherit;
 }
-.rhythm-day.trained { color: #0b2018; background: var(--green); border-color: var(--green); }
-.rhythm-day.multi { box-shadow: inset 0 0 0 2px rgba(255,255,255,.45); }
-.rhythm-day.today { outline: 1px solid var(--g2); outline-offset: 1px; }
-.rhythm-day.future { opacity: .3; }
-.rhythm-chevron { color: var(--muted); font-size: 16px; text-align: center; }
+.rh-col:focus-visible { outline: 2px solid var(--acc-2); outline-offset: 1px; }
+.rh-num { height: var(--rh-num-h); font-family: var(--font-display); font-weight: 800; font-size: 15px; line-height: var(--rh-num-h); color: var(--text); }
+.rh-col.zero .rh-num { color: var(--muted); }
+.rh-plot { height: var(--rh-h); width: 100%; display: flex; align-items: flex-end; justify-content: center; }
+.rh-bar {
+  display: block; width: min(26px, 70%); min-height: 3px; border-radius: 6px 6px 3px 3px;
+  height: calc(var(--rh-h) * var(--rh-n) / var(--rh-max));
+  background: color-mix(in srgb, var(--acc) 55%, transparent);
+  transition: background .2s ease;
+}
+.rh-col.zero .rh-bar { background: var(--surface-2); }
+.rh-col.current .rh-bar { background: var(--acc); }
+.rh-col.on .rh-bar { background: var(--acc-2); }
+.rh-col.on .rh-num, .rh-col.on .rh-date { color: var(--acc-2); }
+.rh-date { height: var(--rh-date-h); font-size: 10px; font-weight: 600; line-height: var(--rh-date-h); white-space: nowrap; }
+.rh-col.current .rh-date { color: var(--acc); font-weight: 800; }
+.rh-note { font-size: 11px; color: var(--muted); line-height: 1.4; margin: 10px 2px 0; }
 .rhythm-detail {
   display: flex; flex-direction: column; gap: 8px;
-  padding: 10px 10px 12px; background: var(--surface-2);
-  border-bottom: 1px solid var(--border);
+  padding: 11px 12px; margin-top: 10px; background: var(--surface-2); border-radius: 12px;
 }
+.rhythm-detail-h { font-weight: 800; font-size: 13px; }
 .rhythm-session { display: flex; flex-direction: column; gap: 2px; font-size: 12px; }
 .rhythm-session > span:last-child, .rhythm-empty { color: var(--muted); font-size: 11px; }
 .rhythm-history {
   width: 100%; min-height: 44px; padding: 10px 2px 0;
-  color: var(--g2); background: transparent; border: 0; border-radius: 0;
+  color: var(--acc-2); background: transparent; border: 0; border-radius: 0;
   font-size: 12px; font-weight: 700; text-align: left;
   -webkit-appearance: none; appearance: none;
 }
 .rhythm-history span { float: right; font-size: 18px; line-height: 14px; }
-@media (max-width: 390px) {
-  .rhythm-card { padding-inline: 11px; }
-  .rhythm-week { grid-template-columns: minmax(72px, 1fr) auto 14px; gap: 5px; }
-  .rhythm-days { grid-template-columns: repeat(7, 18px); gap: 2px; }
-  .rhythm-day { width: 18px; height: 18px; border-radius: 5px; font-size: 8px; }
+@media (prefers-reduced-motion: reduce) {
+  .home-go { transition: none; }
+  .home-go:active { transform: none; }
 }
 
 /* Инсайты — карточки-выводы. */
@@ -2272,19 +2302,6 @@ label.act.busy { opacity: .55; pointer-events: none; }
 .ins-card.action .go { color: var(--green); font-weight: 800; font-size: 20px; }
 .ins-emoji { font-size: 20px; flex-shrink: 0; }
 .ins-text { font-size: 14px; line-height: 1.35; font-weight: 600; }
-
-/* Быстрые цифры месяца. */
-.home .stat-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-bottom: 16px; }
-.home .stat-cell {
-  background: var(--surface); border: 1px solid var(--border); border-radius: 14px;
-  padding: 14px 8px; text-align: center;
-}
-.home .stat-num { font-size: 25px; font-weight: 800; line-height: 1; }
-.home .stat-num .u { font-size: 13px; font-weight: 600; color: var(--muted); }
-.home .stat-lab { font-size: 11px; color: var(--muted); margin-top: 7px; line-height: 1.3; }
-.home .delta { font-weight: 700; }
-.home .delta.up { color: #86efac; }
-.home .delta.down { color: #fca5a5; }
 
 /* Строки «что дальше / последний рекорд». */
 .home-row {
@@ -2311,9 +2328,6 @@ label.act.busy { opacity: .55; pointer-events: none; }
 .home .bar > i { display: block; height: 100%; border-radius: 999px; background: linear-gradient(90deg, var(--g1), var(--g2)); }
 .home .goal-sub { font-size: 12px; color: var(--muted); margin-top: 9px; }
 
-/* Быстрые переходы внизу Главной. */
-.home-actions { display: flex; flex-wrap: wrap; gap: 10px; margin-top: 8px; }
-.home-actions .btn { flex: 1 1 auto; }
 .home-cta { margin-top: 14px; width: 100%; }
 
 /* ======================= Свежесть по группам (recovery / дисбаланс) =======================
