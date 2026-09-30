@@ -129,7 +129,8 @@
     `--surface-solid` (`rgba(17,24,39,.94)`, v6); в Aurora это был хардкод `rgba(20,16,40,.94)`.
 - **Навигация (`App.jsx`):** 4 вкладки — `home` (дефолт) / `history` / `feed` / `progress`; плюс
   вложенные ленивые роуты `notif`/`profile`/`admin`/`freshness`/`myex`/`achievements`/`appearance`
-  (в таббар не выносятся). **`WorkoutScreen` своей вкладки НЕ имеет** — он смонтирован внутри `HistoryScreen`
+  (в таббар не выносятся). Кнопка «+» (новая тренировка) с v6.0.1 — круг ПО ЦЕНТРУ таббара
+  (`AddFab`), видимость — чистая `lib/quickAdd.js` `canShowFab`; на десктопе скрыта. **`WorkoutScreen` своей вкладки НЕ имеет** — он смонтирован внутри `HistoryScreen`
   (`selected === 'new' | <id>`; на десктопе — master-detail). Скроллится `.content`, не окно.
 
 ## Что лежит ТОЛЬКО локально (частая причина «данные пропали»)

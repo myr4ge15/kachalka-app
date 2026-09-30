@@ -2,20 +2,15 @@ import { describe, it, expect } from 'vitest'
 import { canShowFab, FAB_TABS } from './quickAdd.js'
 
 describe('canShowFab', () => {
-  it('показывается на Главной и в хабе «Тренировки»', () => {
+  it('показывается на всех четырёх основных вкладках (v6: «+» внутри меню)', () => {
     for (const tab of FAB_TABS) {
       expect(canShowFab({ tab })).toBe(true)
     }
-    expect(FAB_TABS).toEqual(['home', 'history'])
-  })
-
-  it('скрыт на экранах чтения (Лента, Прогресс)', () => {
-    expect(canShowFab({ tab: 'feed' })).toBe(false)
-    expect(canShowFab({ tab: 'progress' })).toBe(false)
+    expect(FAB_TABS).toEqual(['home', 'history', 'feed', 'progress'])
   })
 
   it('скрыт на вложенных роутах', () => {
-    for (const tab of ['profile', 'notif', 'admin', 'freshness', 'myex', 'achievements']) {
+    for (const tab of ['profile', 'notif', 'admin', 'freshness', 'myex', 'achievements', 'appearance']) {
       expect(canShowFab({ tab })).toBe(false)
     }
   })

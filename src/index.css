@@ -171,19 +171,20 @@ input { font-family: inherit; }
   padding-right: calc(16px + env(safe-area-inset-right));
   border-bottom: 1px solid var(--stroke);
   position: sticky; top: 0; z-index: 5;
-  /* Стеклянная шапка — aurora просвечивает, залипает при скролле контента. */
-  background: rgba(17, 24, 39, .55);
+  /* Плотная ночная шапка (v6), залипает при скролле контента. */
+  background: var(--surface-solid);
   backdrop-filter: blur(24px); -webkit-backdrop-filter: blur(24px);
 }
 /* Имя в шапке — кнопка-вход в Профиль (зона тапа ≥44px) */
 .topbar-user {
   display: inline-flex; align-items: center; gap: 6px;
   font-weight: 600; font-size: 16px; margin-right: auto;
-  background: none; border: none; color: var(--green);
+  background: none; border: none; color: var(--text);
   padding: 8px 6px 8px 0; min-height: 44px; cursor: pointer;
 }
 .topbar-user .chev { font-size: 11px; opacity: .85; }
-.topbar-user.active { color: var(--green-d); }
+.topbar-user.active { color: var(--acc); }
+.topbar-user .chev { color: var(--muted); }
 .topbar-user:active { opacity: .7; }
 
 /* Индикатор синхронизации в шапке — иконка (всегда) + компактный текст (когда есть
@@ -239,56 +240,64 @@ input { font-family: inherit; }
   flex: 1; min-height: 0;
   overflow-y: auto; overscroll-behavior: contain;
   -webkit-overflow-scrolling: touch;
-  padding-bottom: calc(72px + env(safe-area-inset-bottom));
+  padding-bottom: calc(80px + env(safe-area-inset-bottom));
 }
 
 .tabbar {
   position: fixed; bottom: 0; left: 0; right: 0;
-  display: flex; border-top: 1px solid var(--stroke);
-  /* Стеклянный таббар: полупрозрачный тёмный слой с размытием — aurora-фон
-     мягко просвечивает сквозь него. */
-  background: rgba(17, 24, 39, .55);
-  backdrop-filter: blur(24px); -webkit-backdrop-filter: blur(24px);
+  display: flex; align-items: stretch; border-top: 1px solid var(--stroke);
+  /* Плотный ночной слой (редизайн v6): без aurora-фона просвечивать нечему,
+     размытие оставлено только чтобы контент под панелью не «резал» глаз. */
+  background: var(--surface-solid);
+  backdrop-filter: blur(16px); -webkit-backdrop-filter: blur(16px);
   padding-bottom: env(safe-area-inset-bottom);
 }
+/* Вкладка: иконка + подпись у ВСЕХ, активная — только цветом акцента и точкой под
+   подписью (макет концепта 7: сильное выделение «плашкой» отвергнуто). */
 .tab {
+  position: relative;
   flex: 1; display: flex; flex-direction: column; align-items: center; gap: 3px;
-  padding: 8px 4px; min-height: 44px; background: none; border: none;
+  padding: 8px 4px 12px; min-height: 56px; background: none; border: none;
   color: var(--muted); font-size: 11px; font-weight: 600;
-  transition: color .25s ease, transform var(--dur-fast) var(--ease-out);
+  transition: color .2s ease, transform var(--dur-fast) var(--ease-out);
 }
-.tab .tab-ico { transition: transform .25s ease; }
-.tab.active { color: var(--text); }
-.tab.active .tab-ico { transform: scale(1.12); filter: drop-shadow(0 0 10px color-mix(in srgb, var(--acc) 80%, transparent)); }
+.tab:active { transform: scale(var(--press-scale)); }
+.tab.active { color: var(--acc); }
+.tab.active::after {
+  content: ""; position: absolute; left: 50%; bottom: 4px;
+  width: 4px; height: 4px; margin-left: -2px; border-radius: 50%; background: var(--acc);
+}
 @media (prefers-reduced-motion: reduce) {
-  .tab, .tab .tab-ico { transition: none; }
-  .tab.active .tab-ico { transform: none; }
+  .tab { transition: none; }
 }
 /* Бренд-шапка сайдбара живёт в .tabbar, но нужна только на десктопе, где таббар
    становится левой колонкой (см. медиазапрос ≥900px внизу). На мобиле — скрыта.
    Профиль в подвале сайдбара (.side-foot) — тоже только для десктопа. */
 .side-brand, .side-foot { display: none; }
 
-/* Плавающая кнопка «+» (FAB, components/AddFab.jsx): запись тренировки в один тап
-   с Главной и из хаба «Тренировки». Висит над таббаром справа, вне скроллера .content.
-   z-index 6 — как у прочих плавающих панелей (save-bar/бар экспорта); пересечься
-   с ними она не может: в этих состояниях App её не рендерит (см. lib/quickAdd.js).
-   Оверлеи пикеров (z-index 100) перекрывают её штатно. */
-.fab {
-  position: fixed; z-index: 6;
-  right: calc(16px + env(safe-area-inset-right));
-  bottom: calc(84px + env(safe-area-inset-bottom));
-  width: 56px; height: 56px; border-radius: 50%;
-  display: flex; align-items: center; justify-content: center;
-  border: none; padding: 0; color: var(--on-acc); cursor: pointer;
-  background: linear-gradient(135deg, var(--g1), var(--g3));
-  box-shadow: 0 10px 28px color-mix(in srgb, var(--acc) 50%, transparent);
-  transition: transform var(--dur-fast) var(--ease-out), box-shadow var(--dur-fast) var(--ease-out);
+/* «+» по центру нижнего меню (components/AddFab.jsx, редизайн v6 этап 2): круг
+   акцента приподнят над панелью, обводка цветом фона «вырезает» его из меню.
+   Когда кнопка скрыта (занятый хаб, вложенный роут), на её месте пустышка той же
+   ширины (.tab-add--empty) — вкладки не прыгают. */
+.tab-add {
+  flex: 0 0 72px; display: flex; justify-content: center; align-items: flex-start;
+  padding: 0; background: none; border: none; cursor: pointer;
 }
-.fab:active { transform: scale(.92); box-shadow: 0 6px 16px color-mix(in srgb, var(--acc) 45%, transparent); }
+.tab-add-circle {
+  width: 58px; height: 58px; margin-top: -24px; border-radius: 50%;
+  display: flex; align-items: center; justify-content: center;
+  background: var(--acc); color: var(--on-acc);
+  border: 5px solid var(--bg);
+  box-shadow: 0 8px 20px color-mix(in srgb, var(--acc) 35%, transparent);
+  transition: transform var(--dur-fast) var(--ease-out);
+}
+.tab-add:active .tab-add-circle { transform: scale(.92); }
+.tab-add:focus-visible { outline: none; }
+.tab-add:focus-visible .tab-add-circle { outline: 3px solid var(--acc-2); outline-offset: 2px; }
+.tab-add--empty { pointer-events: none; }
 @media (prefers-reduced-motion: reduce) {
-  .fab { transition: none; }
-  .fab:active { transform: none; }
+  .tab-add-circle { transition: none; }
+  .tab-add:active .tab-add-circle { transform: none; }
 }
 
 .screen {
@@ -1868,8 +1877,8 @@ label.act.busy { opacity: .55; pointer-events: none; }
     padding: 16px 12px;
     border-top: none;
     border-right: 1px solid var(--stroke);
-    /* Стеклянный сайдбар в тон мобильному таббару. */
-    background: rgba(17, 24, 39, .55);
+    /* Сайдбар в тон мобильному меню. */
+    background: var(--surface-solid);
     backdrop-filter: blur(24px); -webkit-backdrop-filter: blur(24px);
   }
 
@@ -1923,7 +1932,7 @@ label.act.busy { opacity: .55; pointer-events: none; }
   .side-profile-name { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 
   /* Пункт навигации: иконка + подпись в строку, выравнивание по левому краю,
-     активный — зелёная «таблетка» вместо простой смены цвета. */
+     активный — «таблетка» в цвете акцента (на мобиле — только цвет и точка). */
   .tab {
     flex: 0 0 auto;
     flex-direction: row;
@@ -1938,16 +1947,16 @@ label.act.busy { opacity: .55; pointer-events: none; }
   .tab .tab-ico { width: 20px; height: 20px; }
   .tab:hover { color: var(--text); background: var(--surface); }
   .tab.active {
-    color: #86efac;
-    background: rgba(22,163,74,.12);
-    border: 1px solid var(--green-d);
+    color: var(--acc);
+    background: var(--acc-soft);
+    border: 1px solid transparent;
   }
+  .tab.active::after { display: none; }
   .tab.active .tab-ico { transform: none; }
 
-  /* Плавающая «+» — мобильный паттерн: она висела над таббаром, которого на
-     десктопе нет, и дублировала бы явную кнопку «+ Добавить тренировку» в хабе
-     (там master-detail и список всегда на виду). Скрываем. */
-  .fab { display: none; }
+  /* «+» меню — мобильный паттерн: на десктопе она дублировала бы явную кнопку
+     «+ Добавить тренировку» в хабе (там master-detail и список всегда на виду). */
+  .tab-add { display: none; }
 
   /* Контент шире и по центру своей колонки (внутренние раскладки экранов —
      в следующих слайсах). */

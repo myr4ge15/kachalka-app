@@ -458,12 +458,6 @@ export default function App() {
         </Suspense>
       </main>
 
-      {/* Плавающая «+»: запись тренировки в один тап. Вне <main>, чтобы не уезжала
-          со скроллом контента. Где показывать — решает чистая canShowFab
-          (lib/quickAdd.js): Главная и хаб «Тренировки», экраны чтения (Лента,
-          Прогресс) и вложенные роуты — без неё. На десктопе скрыта в CSS (там
-          таббара снизу нет, а в хабе есть явная кнопка «+ Добавить»). */}
-      {canShowFab({ tab, busy: historyBusy }) && <AddFab onClick={startNewWorkout} />}
 
       <nav className="tabbar">
         {/* Бренд-шапка сайдбара: видна только на десктопе (≥900px), где .tabbar
@@ -491,6 +485,13 @@ export default function App() {
           <TabIcon name="history" />
           <span>Тренировки</span>
         </button>
+        {/* «+» по центру меню (редизайн v6): запись тренировки в один тап. Где
+            показывать — чистая canShowFab (lib/quickAdd.js): на основных вкладках,
+            кроме занятого хаба (открыт композер / режим экспорта). Когда скрыта —
+            пустое место той же ширины, чтобы вкладки не прыгали. */}
+        {canShowFab({ tab, busy: historyBusy })
+          ? <AddFab onClick={startNewWorkout} />
+          : <span className="tab-add tab-add--empty" aria-hidden="true" />}
         <button
           className={tab === 'feed' ? 'tab active' : 'tab'}
           onClick={() => goTab('feed')}
