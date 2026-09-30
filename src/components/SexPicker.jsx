@@ -30,8 +30,8 @@ export default function SexPicker({ value = null, busy = false, error = '', onCh
         })}
       </div>
       <p className="sex-picker-sub">
-        Для рейтинга: парни соревнуются в жиме лежа, девушки — в ягодичном мостике.
-        «Не указывать» — рейтинг парней.
+        Чтобы приложение обращалось к тебе в правильном роде. Раздельный рейтинг
+        (девушки — ягодичный мостик) скоро.
       </p>
       {error && <p className="sex-picker-err" role="alert">{error}</p>}
     </div>
