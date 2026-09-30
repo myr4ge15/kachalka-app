@@ -169,14 +169,9 @@ export default function HistoryScreen({
   function renderList() {
     return (
       <>
-        {/* На мобиле кнопку заменила плавающая «+» (v5.4.1): она висела бы на одном
-            экране с FAB и при этом уезжала со скроллом. На десктопе FAB скрыт
-            (медиазапрос ≥900px) — там это ЕДИНСТВЕННЫЙ вход в композер, оставляем. */}
-        {isDesktop && (
-          <button className="btn primary full add-workout" onClick={() => setSelected('new')}>
-            + Добавить тренировку
-          </button>
-        )}
+        {/* Новая тренировка: на мобиле — «+» по центру меню, на десктопе (v6.2.3) —
+            «+ Новая тренировка» в боковой колонке (App.jsx). Своя кнопка хаба убрана,
+            чтобы не дублировать. */}
 
         <button className="tpl-link" onClick={() => setSelected('templates')}>
           <svg className="tpl-link-ico" viewBox="0 0 24 24" width="19" height="19" fill="none" stroke="currentColor"
@@ -352,9 +347,13 @@ export default function HistoryScreen({
         <div className="md-detail-col">
           {selected === null ? (
             <div className="md-empty">
-              <span className="md-empty-ico" aria-hidden="true">🏋️</span>
-              <p>Выбери тренировку слева, чтобы посмотреть и отредактировать её,
-                 или нажми «+ Добавить тренировку».</p>
+              <span className="md-empty-ico" aria-hidden="true">
+                <svg viewBox="0 0 24 24" width="30" height="30" fill="none" stroke="currentColor"
+                  strokeWidth="2" strokeLinecap="round"><rect x="2" y="8" width="4" height="8" rx="1.5" />
+                  <rect x="18" y="8" width="4" height="8" rx="1.5" /><path d="M6 12h12" /></svg>
+              </span>
+              <p>Выбери тренировку в списке, чтобы посмотреть и отредактировать её,
+                 или начни новую кнопкой «+ Новая тренировка» слева.</p>
             </div>
           ) : (
             <WorkoutScreen

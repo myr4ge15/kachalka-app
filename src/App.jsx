@@ -477,8 +477,23 @@ export default function App() {
           onClick={() => goTab('home')}
           aria-label="На главную"
         >
-          <span className="side-logo">🏋️</span>
-          <span className="side-brand-txt">kachalka-app</span>
+          <span className="side-logo" aria-hidden="true">
+            <svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor"
+              strokeWidth="2.2" strokeLinecap="round"><rect x="2" y="8" width="4" height="8" rx="1.5" />
+              <rect x="18" y="8" width="4" height="8" rx="1.5" /><path d="M6 12h12" /></svg>
+          </span>
+          <span className="side-brand-txt">Журнал тренировок</span>
+        </button>
+        {/* Десктоп (≥900px, v6.2.3): явная «+ Новая тренировка» — круглой «+» меню там
+            нет. На мобиле скрыта. Пока открыт композер/экспорт — неактивна, как «+». */}
+        <button
+          className="side-new"
+          onClick={startNewWorkout}
+          disabled={fabState({ busy: historyBusy }) === 'sunk'}
+        >
+          <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor"
+            strokeWidth="2.6" strokeLinecap="round" aria-hidden="true"><path d="M12 5v14M5 12h14" /></svg>
+          Новая тренировка
         </button>
         <button
           className={tab === 'home' ? 'tab active' : 'tab'}

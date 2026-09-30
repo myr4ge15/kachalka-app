@@ -286,7 +286,7 @@ input { font-family: inherit; }
 /* Бренд-шапка сайдбара живёт в .tabbar, но нужна только на десктопе, где таббар
    становится левой колонкой (см. медиазапрос ≥900px внизу). На мобиле — скрыта.
    Профиль в подвале сайдбара (.side-foot) — тоже только для десктопа. */
-.side-brand, .side-foot { display: none; }
+.side-brand, .side-foot, .side-new { display: none; }
 
 /* «+» по центру нижнего меню (components/AddFab.jsx, редизайн v6 этап 2): круг
    акцента приподнят над панелью, обводка цветом фона «вырезает» его из меню.
@@ -1995,12 +1995,24 @@ label.act.busy { opacity: .55; pointer-events: none; }
   }
   .side-brand:hover .side-brand-txt { color: var(--acc-2); }
   .side-logo {
-    width: 34px; height: 34px; flex-shrink: 0; border-radius: 10px;
-    display: flex; align-items: center; justify-content: center; font-size: 19px;
-    background: linear-gradient(135deg, var(--g1), var(--g3)); border: none;
-    box-shadow: 0 6px 18px color-mix(in srgb, var(--acc) 45%, transparent);
+    width: 36px; height: 36px; flex-shrink: 0; border-radius: 11px;
+    display: flex; align-items: center; justify-content: center;
+    background: var(--acc); color: var(--on-acc); border: none;
   }
-  .side-brand-txt { font-weight: 800; font-size: 16px; }
+  .side-brand-txt {
+    font-family: var(--font-display); font-weight: 900; font-size: 17px;
+    text-transform: uppercase; letter-spacing: .02em; line-height: 1.05;
+  }
+  /* «+ Новая тренировка» (v6.2.3) — главное действие ПК, под брендом. */
+  .side-new {
+    display: flex; align-items: center; justify-content: center; gap: 8px;
+    width: 100%; min-height: 48px; margin: 0 0 12px; border: 0; border-radius: 14px;
+    background: var(--acc); color: var(--on-acc); font-size: 15px; font-weight: 800; cursor: pointer;
+    transition: transform var(--dur-fast) var(--ease-out);
+  }
+  .side-new:active { transform: scale(var(--press-scale)); }
+  .side-new:focus-visible { outline: 3px solid var(--acc-2); outline-offset: 2px; }
+  .side-new:disabled { background: var(--surface-2); color: var(--muted); cursor: default; transform: none; }
 
   /* ЛК, статус синка и колокольчик уехали в сайдбар — шапка на десктопе не
      нужна, скрываем её целиком (место освобождается под контент). */
@@ -2030,9 +2042,7 @@ label.act.busy { opacity: .55; pointer-events: none; }
     background: none; color: var(--text); font-size: 14px; font-weight: 600; text-align: left;
   }
   .side-profile:hover { background: var(--surface); }
-  .side-profile.active {
-    color: #fff; background: color-mix(in srgb, var(--acc) 18%, transparent); border-color: var(--g1);
-  }
+  .side-profile.active { color: var(--acc); background: var(--acc-soft); border-color: transparent; }
   .side-profile-name { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 
   /* Пункт навигации: иконка + подпись в строку, выравнивание по левому краю,
@@ -2120,7 +2130,10 @@ label.act.busy { opacity: .55; pointer-events: none; }
     min-height: 320px; text-align: center; color: var(--muted); line-height: 1.5;
     border: 1px dashed var(--border); border-radius: 16px; padding: 32px;
   }
-  .md-empty-ico { font-size: 40px; margin-bottom: 12px; opacity: .8; }
+  .md-empty-ico {
+    width: 60px; height: 60px; margin-bottom: 12px; border-radius: 18px;
+    display: grid; place-items: center; background: var(--surface); color: var(--acc);
+  }
   .md-empty p { max-width: 320px; margin: 0; }
 
   /* Прогресс (слайс 4): слева контролы (выбор упражнения + период), справа —
