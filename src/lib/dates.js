@@ -34,6 +34,25 @@ export function fmtDate(iso) {
   })
 }
 
+// Дата тренировки для чипа в шапке композера (v6.1.0): «Сегодня, 30 сентября»,
+// «Вчера, 29 сентября», «27 сентября»; другой год — «27 сентября 2025». `now`
+// инъектируется в тестах. Пустой/невалидный вход → ''.
+export function fmtDayChip(iso, now = new Date()) {
+  if (!iso) return ''
+  const d = new Date(iso)
+  if (Number.isNaN(d.getTime())) return ''
+  const today = new Date(now)
+  const yesterday = new Date(now)
+  yesterday.setDate(today.getDate() - 1)
+  const opts = d.getFullYear() === today.getFullYear()
+    ? { day: 'numeric', month: 'long' }
+    : { day: 'numeric', month: 'long', year: 'numeric' }
+  const base = d.toLocaleDateString('ru-RU', opts).replace(/\s*г\.$/, '')
+  if (sameDay(d, today)) return `Сегодня, ${base}`
+  if (sameDay(d, yesterday)) return `Вчера, ${base}`
+  return base
+}
+
 // ISO-дата (performed_at) → YYYY-MM-DD для <input type=date> в ЛОКАЛЬНОМ поясе
 // (сдвигаем на offset, иначе около полуночи UTC день «уезжает»).
 export function toDateInput(iso) {

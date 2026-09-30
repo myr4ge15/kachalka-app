@@ -5,9 +5,7 @@ import {
   daysAgoLabel, progArrow, progTone, nextProgStep, fmtProgStep,
 } from '../lib/progressionCard.js'
 import { exerciseFocusSummary } from '../lib/workoutFocus.js'
-import { isSetDone } from '../lib/setCompletion.js'
 import { FEELS, FEEL_LABELS } from '../lib/rpe.js'
-import { plural, pluralize } from '../lib/plural.js'
 
 // Карточка одного упражнения в композере тренировки (шапка, панель автопрогрессии
 // .ap, таблица подходов, «+ подход»). Чисто презентационная: весь стейт и его
@@ -15,19 +13,14 @@ import { plural, pluralize } from '../lib/plural.js'
 // фокус-режима: активная карточка развёрнута, остальные сворачиваются в сводку.
 // `prog` — live-query настроек прогрессии (для resolveProgSettings в панели
 // настроек), `ei` — индекс записи (ключ существующих апдейтеров).
-// `doneKeys`/`onToggleSetDone` — явные отметки выполнения подходов (Slice 2):
-// транзиентное состояние экрана, в документ тренировки не попадает.
-// `dropUnchecked` — режим правки сохранённой тренировки: там карточка открыта
-// «всё выполнено», поэтому снятая отметка означает «подхода не было» и он не
-// попадёт в запись при сохранении. Строку помечаем ДО сохранения, чтобы
-// случайный тап не удалял данные молча.
+// Отметок «подход выполнен» нет с v6.1.0: что в строках — то и записывается,
+// подхода, которого не было, удаляется ✕. Слева в строке — просто номер подхода.
 // `feel`/`onSetFeel` — субъективная оценка «как пошло» (RPE, Slice 4). В отличие
-// от `doneKeys` она НЕ транзиентна: экран запишет её в meta после сохранения
+// от состава она живёт отдельно: экран запишет её в meta после сохранения
 // тренировки. Оценка необязательна, поэтому строка ничего не требует и не
 // блокирует, а повторный тап по выбранной кнопке снимает выбор.
 export default function ExerciseCard({
   entry, ei, prog, active = true, cardRef = null, onActivate = () => {},
-  doneKeys = null, onToggleSetDone = () => {}, dropUnchecked = false,
   feel = null, onSetFeel = () => {},
   onReplace, onRemove,
   onRevertProg, onApplyProg, onToggleProgSettings, onChangeProgSettings,
@@ -37,20 +30,15 @@ export default function ExerciseCard({
   const count = isCountMetric(metric) // своего веса / на время — без столбца «кг»
   const isTime = metric === 'time'
   const valLabel = isTime ? 'мин:сек' : 'повт.'
-  const summary = exerciseFocusSummary(entry, doneKeys)
-  // Сколько подходов выпадет из записи при сохранении (только режим правки).
-  const skipCount = dropUnchecked ? summary.setCount - summary.doneCount : 0
+  const summary = exerciseFocusSummary(entry)
 
-  // Свёрнутое упражнение доступно одной крупной кнопкой. Сводка отвечает на
-  // «выполнено или нет» ТОЛЬКО по явным отметкам: заполненные значения могли
-  // приехать из шаблона или автопрогрессии.
+  // Свёрнутое упражнение доступно одной крупной кнопкой со сводкой подходов.
   if (!active) {
     return (
       <div
-        className={`card exercise-card exercise-card--compact${count ? ' count' : ''}${summary.allDone ? ' exercise-card--done' : ''}`}
+        className={`card exercise-card exercise-card--compact${count ? ' count' : ''}`}
         data-exercise-id={entry.exercise.id}
         data-active="false"
-        data-done={summary.allDone ? 'true' : 'false'}
       >
         <button
           type="button"
@@ -61,9 +49,12 @@ export default function ExerciseCard({
         >
           <span className="exercise-compact-copy">
             <strong>{entry.exercise.name}</strong>
-            <span className={`muted${summary.allDone ? ' done' : ''}`}>{summary.text}</span>
+            <span className={`muted${summary.setCount === 0 ? ' warn' : ''}`}>{summary.text}</span>
           </span>
-          <span className="exercise-compact-chevron" aria-hidden="true">›</span>
+          <svg className="exercise-compact-chevron" viewBox="0 0 24 24" width="18" height="18" fill="none"
+            stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+            <path d="M9 6l6 6-6 6" />
+          </svg>
         </button>
       </div>
     )
@@ -81,7 +72,6 @@ export default function ExerciseCard({
       <div className="exercise-head">
         <span className="exercise-title">
           <span className="exercise-name">{entry.exercise.name}</span>
-          <span className="exercise-active-badge">сейчас</span>
         </span>
         <span className="exercise-actions">
           <button className="link-btn" onClick={() => onReplace(ei)}>заменить</button>
@@ -101,7 +91,7 @@ export default function ExerciseCard({
                 aria-label="Настройки прогрессии"
                 aria-expanded={entry.prog.settingsOpen}
                 onClick={() => onToggleProgSettings(ei)}
-              >⚙</button>
+              ><GearIcon /></button>
             </div>
           ) : (
             <>
@@ -132,7 +122,7 @@ export default function ExerciseCard({
                   aria-label="Настройки прогрессии"
                   aria-expanded={entry.prog.settingsOpen}
                   onClick={() => onToggleProgSettings(ei)}
-                >⚙</button>
+                ><GearIcon /></button>
               </div>
             </>
           )}
@@ -174,77 +164,54 @@ export default function ExerciseCard({
           : <><span>#</span><span>кг</span><span>повт.</span><span></span></>}
       </div>
 
-      {entry.sets.map((s, si) => {
-        const done = isSetDone(doneKeys, entry.exercise.id, s, si)
-        const skipped = dropUnchecked && !done
-        return (
-          <div
-            key={s._k ?? si}
-            className={`set-row${done ? ' set-row--done' : ''}${skipped ? ' set-row--skip' : ''}`}
-          >
-            {/* Номер подхода — он же отметка выполнения: зона тапа 44×44 без
-                отдельного столбца, поэтому степперы не теряют ширину. */}
-            <button
-              type="button"
-              className={`set-done${done ? ' on' : ''}`}
-              aria-pressed={done}
-              aria-label={done
-                ? `Подход ${si + 1} выполнен`
-                : skipped
-                  ? `Подход ${si + 1} не выполнен и не сохранится — отметить выполненным`
-                  : `Отметить подход ${si + 1} выполненным`}
-              onClick={() => onToggleSetDone(entry.exercise.id, s, si)}
-            >
-              <span aria-hidden="true">{done ? '✓' : si + 1}</span>
-            </button>
+      {entry.sets.map((s, si) => (
+        <div key={s._k ?? si} className="set-row">
+          {/* Номер подхода — просто подпись (v6.1.0): отметок выполнения больше
+              нет, колонка узкая, ширина уходит степперам. */}
+          <span className="set-no" aria-hidden="true">{si + 1}</span>
 
-            {!count && (
-              <div className="stepper">
-                <HoldButton onTrigger={() => onStep(ei, si, 'weight', -1.25)}>−</HoldButton>
-                <input
-                  type="text" inputMode="decimal" value={s.weight}
-                  onChange={(e) => onUpdateSet(ei, si, 'weight', e.target.value.replace(',', '.'))}
-                />
-                <HoldButton onTrigger={() => onStep(ei, si, 'weight', 1.25)}>+</HoldButton>
-              </div>
-            )}
+          {!count && (
+            <div className="stepper" role="group" aria-label={`Подход ${si + 1}, вес`}>
+              <HoldButton onTrigger={() => onStep(ei, si, 'weight', -1.25)}>−</HoldButton>
+              <input
+                type="text" inputMode="decimal" value={s.weight}
+                aria-label={`Вес, подход ${si + 1}`}
+                onChange={(e) => onUpdateSet(ei, si, 'weight', e.target.value.replace(',', '.'))}
+              />
+              <HoldButton onTrigger={() => onStep(ei, si, 'weight', 1.25)}>+</HoldButton>
+            </div>
+          )}
 
-            {isTime ? (
-              <div className="stepper">
-                <HoldButton onTrigger={() => onStep(ei, si, 'reps', -15)}>−</HoldButton>
-                <input
-                  type="text" inputMode="numeric" value={fmtTime(s.reps)}
-                  onChange={(e) => onUpdateSet(ei, si, 'reps', parseTime(e.target.value))}
-                />
-                <HoldButton onTrigger={() => onStep(ei, si, 'reps', 15)}>+</HoldButton>
-              </div>
-            ) : (
-              <div className="stepper">
-                <HoldButton onTrigger={() => onStep(ei, si, 'reps', -1)}>−</HoldButton>
-                <input
-                  type="number" inputMode="numeric" value={s.reps}
-                  onChange={(e) => onUpdateSet(ei, si, 'reps', e.target.value)}
-                />
-                <HoldButton onTrigger={() => onStep(ei, si, 'reps', 1)}>+</HoldButton>
-              </div>
-            )}
+          {isTime ? (
+            <div className="stepper" role="group" aria-label={`Подход ${si + 1}, время`}>
+              <HoldButton onTrigger={() => onStep(ei, si, 'reps', -15)}>−</HoldButton>
+              <input
+                type="text" inputMode="numeric" value={fmtTime(s.reps)}
+                aria-label={`Время, подход ${si + 1}`}
+                onChange={(e) => onUpdateSet(ei, si, 'reps', parseTime(e.target.value))}
+              />
+              <HoldButton onTrigger={() => onStep(ei, si, 'reps', 15)}>+</HoldButton>
+            </div>
+          ) : (
+            <div className="stepper" role="group" aria-label={`Подход ${si + 1}, повторы`}>
+              <HoldButton onTrigger={() => onStep(ei, si, 'reps', -1)}>−</HoldButton>
+              <input
+                type="number" inputMode="numeric" value={s.reps}
+                aria-label={`Повторы, подход ${si + 1}`}
+                onChange={(e) => onUpdateSet(ei, si, 'reps', e.target.value)}
+              />
+              <HoldButton onTrigger={() => onStep(ei, si, 'reps', 1)}>+</HoldButton>
+            </div>
+          )}
 
-            <button className="link-btn danger small" onClick={() => onRemoveSet(ei, si)}>✕</button>
-          </div>
-        )
-      })}
+          <button className="set-rm" onClick={() => onRemoveSet(ei, si)} aria-label={`Удалить подход ${si + 1}`}>
+            <svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor"
+              strokeWidth="2.4" strokeLinecap="round" aria-hidden="true"><path d="M6 6l12 12M18 6L6 18" /></svg>
+          </button>
+        </div>
+      ))}
 
-      {/* Явное предупреждение вместо молчаливой потери: в правке снятая отметка
-          выбрасывает подход из записи, а снятые у всех подходов — упражнение. */}
-      {skipCount > 0 && (
-        <p className="sets-skip-note" role="status">
-          {skipCount === entry.sets.length
-            ? 'Ни один подход не отмечен — упражнение не сохранится.'
-            : `${pluralize(skipCount, 'подход', 'подхода', 'подходов')} без отметки ${plural(skipCount, 'не сохранится', 'не сохранятся', 'не сохранятся')}.`}
-        </p>
-      )}
-
-      <button className="btn ghost full" onClick={() => onAddSet(ei)}>
+      <button className="set-add" onClick={() => onAddSet(ei)}>
         + подход (повтор предыдущего)
       </button>
 
@@ -267,5 +234,15 @@ export default function ExerciseCard({
         </div>
       </div>
     </div>
+  )
+}
+
+function GearIcon() {
+  return (
+    <svg viewBox="0 0 24 24" width="19" height="19" fill="none" stroke="currentColor" strokeWidth="2"
+      strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+      <circle cx="12" cy="12" r="3" />
+      <path d="M19.4 15a1.7 1.7 0 0 0 .3 1.8l.1.1a2 2 0 1 1-2.8 2.8l-.1-.1a1.7 1.7 0 0 0-1.8-.3 1.7 1.7 0 0 0-1 1.5V21a2 2 0 1 1-4 0v-.1a1.7 1.7 0 0 0-1.1-1.5 1.7 1.7 0 0 0-1.8.3l-.1.1a2 2 0 1 1-2.8-2.8l.1-.1a1.7 1.7 0 0 0 .3-1.8 1.7 1.7 0 0 0-1.5-1H3a2 2 0 1 1 0-4h.1a1.7 1.7 0 0 0 1.5-1.1 1.7 1.7 0 0 0-.3-1.8l-.1-.1a2 2 0 1 1 2.8-2.8l.1.1a1.7 1.7 0 0 0 1.8.3H9a1.7 1.7 0 0 0 1-1.5V3a2 2 0 1 1 4 0v.1a1.7 1.7 0 0 0 1 1.5 1.7 1.7 0 0 0 1.8-.3l.1-.1a2 2 0 1 1 2.8 2.8l-.1.1a1.7 1.7 0 0 0-.3 1.8V9a1.7 1.7 0 0 0 1.5 1H21a2 2 0 1 1 0 4h-.1a1.7 1.7 0 0 0-1.5 1z" />
+    </svg>
   )
 }

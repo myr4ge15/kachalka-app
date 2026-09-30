@@ -151,30 +151,19 @@ describe('WorkoutScreen', () => {
     })
   })
 
-  it('отмечает подход выполненным, и свёрнутая карточка показывает готовность', () => {
+  it('свёрнутая карточка показывает сводку подходов, отметок выполнения нет', () => {
     writeDraft(`workout_draft_new_${user.id}`, [...draft, secondEntry])
     render(<WorkoutScreen user={user} />)
 
-    fireEvent.click(screen.getByRole('button', { name: 'Отметить подход 1 выполненным' }))
-    expect(screen.getByRole('button', { name: 'Подход 1 выполнен' })).toBeInTheDocument()
-
-    // Уводим фокус на другое упражнение — статус читается уже в свёрнутом виде.
+    expect(screen.queryByRole('button', { name: /Отметить подход|выполнен/ })).toBeNull()
     fireEvent.click(screen.getByRole('button', { name: /Открыть Подтягивания/ }))
-    expect(screen.getByText('✓ выполнено · 1 подход · 60×8')).toBeInTheDocument()
-    expect(screen.getByRole('button', { name: /Открыть Жим лёжа/ }))
-      .toBeInTheDocument()
+    expect(screen.getByText('1 подход · 60×8')).toBeInTheDocument()
   })
 
-  it('отметки выполнения не попадают в сохраняемый состав', async () => {
-    writeDraft(`workout_draft_new_${user.id}`, draft)
+  it('чистит ключ отметок черновика из версий до 6.1.0', () => {
+    writeDraft(`workout_done_new_${user.id}`, ['bench::set-1'])
     render(<WorkoutScreen user={user} />)
-
-    fireEvent.click(screen.getByRole('button', { name: 'Отметить подход 1 выполненным' }))
-    fireEvent.click(screen.getByRole('button', { name: 'Сохранить (1)' }))
-
-    await waitFor(() => expect(saveWorkout).toHaveBeenCalledOnce())
-    const saved = vi.mocked(saveWorkout).mock.calls[0][0].entries
-    expect(saved[0].sets).toEqual([{ weight: 60, reps: 8, _k: 'set-1' }])
+    expect(readDraft(`workout_done_new_${user.id}`) ?? null).toBeNull()
   })
 
   it('оценка «как пошло» пишется ПОСЛЕ сохранения — с id, которого до него нет', async () => {
@@ -235,29 +224,7 @@ describe('WorkoutScreen', () => {
     )
   })
 
-  it('правка сохранённой тренировки открывается с отмеченными подходами', async () => {
-    vi.mocked(getWorkout).mockResolvedValue({
-      id: 'w1',
-      performed_at: '2026-07-30T12:00:00.000Z',
-      entries: [
-        { exercise_id: 'bench', exercise: draft[0].exercise, sets: [{ weight: 60, reps: 8 }] },
-        {
-          exercise_id: 'squat',
-          exercise: { id: 'squat', name: 'Присед', metric: 'weight' },
-          sets: [{ weight: 0, reps: 0 }],
-        },
-      ],
-    })
-    render(<WorkoutScreen user={user} workoutId="w1" />)
-
-    await screen.findByText('Присед')
-    // Записанная тренировка выполнена: свёрнутый жим не выглядит незавершённым,
-    // а активный присед показывает подход как выполненный.
-    expect(screen.getByText('✓ выполнено · 1 подход · 60×8')).toBeInTheDocument()
-    expect(screen.getByRole('button', { name: 'Подход 1 выполнен' })).toBeInTheDocument()
-  })
-
-  it('снятая при правке отметка выбрасывает подход из записи', async () => {
+  it('в правке подход, удалённый ✕, не сохраняется', async () => {
     vi.mocked(getWorkout).mockResolvedValue({
       id: 'w1',
       performed_at: '2026-07-30T12:00:00.000Z',
@@ -271,11 +238,7 @@ describe('WorkoutScreen', () => {
 
     await screen.findByText('Жим лёжа')
     expect(screen.getByRole('button', { name: 'Сохранить (2)' })).toBeInTheDocument()
-
-    fireEvent.click(screen.getByRole('button', { name: 'Подход 2 выполнен' }))
-
-    // Последствие видно ДО сохранения: счётчик и предупреждение в карточке.
-    expect(screen.getByText('1 подход без отметки не сохранится.')).toBeInTheDocument()
+    fireEvent.click(screen.getByRole('button', { name: 'Удалить подход 2' }))
     fireEvent.click(screen.getByRole('button', { name: 'Сохранить (1)' }))
 
     await waitFor(() => expect(saveWorkout).toHaveBeenCalledOnce())
@@ -283,7 +246,7 @@ describe('WorkoutScreen', () => {
       .toEqual([{ weight: 60, reps: 8, _k: expect.anything() }])
   })
 
-  it('добавленный при правке подход отмечен сразу и сохраняется', async () => {
+  it('в правке добавленный подход сохраняется', async () => {
     vi.mocked(getWorkout).mockResolvedValue({
       id: 'w1',
       performed_at: '2026-07-30T12:00:00.000Z',
@@ -293,9 +256,6 @@ describe('WorkoutScreen', () => {
 
     await screen.findByText('Жим лёжа')
     fireEvent.click(screen.getByRole('button', { name: '+ подход (повтор предыдущего)' }))
-
-    // В правке всё выполнено по умолчанию — иначе новый подход молча выпал бы.
-    expect(screen.getByRole('button', { name: 'Подход 2 выполнен' })).toBeInTheDocument()
     fireEvent.click(screen.getByRole('button', { name: 'Сохранить (2)' }))
 
     await waitFor(() => expect(saveWorkout).toHaveBeenCalledOnce())
@@ -343,7 +303,7 @@ describe('WorkoutScreen', () => {
 
   it('открывает пикер как диалог и закрывает его по Escape', () => {
     render(<WorkoutScreen user={user} />)
-    fireEvent.click(screen.getByRole('button', { name: '+ Добавить упражнение' }))
+    fireEvent.click(screen.getByRole('button', { name: 'Добавить упражнение' }))
 
     const dialog = screen.getByRole('dialog', { name: 'Упражнение' })
     fireEvent.keyDown(dialog, { key: 'Escape' })
@@ -360,7 +320,7 @@ describe('WorkoutScreen', () => {
     ))
 
     render(<WorkoutScreen user={user} />)
-    fireEvent.click(screen.getByRole('button', { name: '+ Добавить упражнение' }))
+    fireEvent.click(screen.getByRole('button', { name: 'Добавить упражнение' }))
     fireEvent.click(screen.getByRole('button', { name: /Жим лёжа/ }))
 
     // Пока строится локальная рекомендация, лист не исчезает и пустой экран

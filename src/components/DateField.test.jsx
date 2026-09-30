@@ -5,9 +5,10 @@ import DateField from './DateField.jsx'
 import { toDateInput } from '../lib/dates.js'
 
 describe('DateField', () => {
-  it('показывает отформатированную дату', () => {
+  it('показывает дату словами и подписанный инпут', () => {
     render(<DateField performedAt="2026-07-23T12:00:00.000Z" onChange={() => {}} />)
-    expect(screen.getByText(/^\d{2}\.\d{2}\.\d{4}$/)).toBeInTheDocument()
+    expect(screen.getByText(/23 июля/)).toBeInTheDocument()
+    expect(screen.getByLabelText('Дата тренировки')).toHaveAttribute('type', 'date')
   })
 
   it('выбор дня в инпуте → onChange с ISO этого дня (TZ-независимо)', () => {

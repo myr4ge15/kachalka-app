@@ -5,7 +5,7 @@ import WorkoutActions from './WorkoutActions.jsx'
 
 const base = (over = {}) => ({
   isNew: false, hasEntries: false, saving: false, tplBusy: false,
-  clearArm: false, onArmClear: vi.fn(), onCancelClear: vi.fn(), onClearDraft: vi.fn(),
+  clearArm: false, onCancelClear: vi.fn(), onClearDraft: vi.fn(),
   onExport: vi.fn(),
   tplArm: false, onOpenTpl: vi.fn(), onCancelTpl: vi.fn(), tplName: '', onTplName: vi.fn(), onMakeTemplate: vi.fn(),
   delArm: false, onArmDel: vi.fn(), onCancelDel: vi.fn(), onDelete: vi.fn(),
@@ -19,11 +19,11 @@ const renderA = (over) => {
 describe('WorkoutActions — существующая тренировка', () => {
   it('показывает экспорт / шаблон / удаление и дёргает колбэки', () => {
     const { props } = renderA({ isNew: false })
-    fireEvent.click(screen.getByText('⬇ Экспорт в JSON'))
+    fireEvent.click(screen.getByRole('button', { name: 'Экспорт в JSON' }))
     expect(props.onExport).toHaveBeenCalled()
-    fireEvent.click(screen.getByText('📋 Сделать шаблон из тренировки'))
+    fireEvent.click(screen.getByRole('button', { name: 'Сделать шаблон из тренировки' }))
     expect(props.onOpenTpl).toHaveBeenCalled()
-    fireEvent.click(screen.getByText('Удалить тренировку'))
+    fireEvent.click(screen.getByRole('button', { name: 'Удалить тренировку' }))
     expect(props.onArmDel).toHaveBeenCalled()
   })
 
@@ -46,12 +46,10 @@ describe('WorkoutActions — существующая тренировка', () 
 })
 
 describe('WorkoutActions — новая тренировка', () => {
-  it('с составом показывает «Очистить черновик», прячет экспорт/удаление', () => {
-    const { props } = renderA({ isNew: true, hasEntries: true })
-    expect(screen.queryByText('⬇ Экспорт в JSON')).toBeNull()
-    expect(screen.queryByText('Удалить тренировку')).toBeNull()
-    fireEvent.click(screen.getByText('Очистить черновик'))
-    expect(props.onArmClear).toHaveBeenCalled()
+  it('без раскрытого подтверждения ничего не рисует — кнопка «Очистить» живёт в шапке экрана', () => {
+    const { container } = renderA({ isNew: true, hasEntries: true })
+    expect(container).toBeEmptyDOMElement()
+    expect(screen.queryByText('Экспорт в JSON')).toBeNull()
   })
 
   it('clearArm → подтверждение: «Да, очистить»/«Отмена»', () => {

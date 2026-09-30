@@ -513,11 +513,6 @@ input { font-family: inherit; }
 .link-btn { background: none; border: none; color: var(--green); font-size: 14px; padding: 4px; }
 .link-btn.danger { color: var(--red); }
 .link-btn.small { font-size: 16px; }
-/* ✕ удаления подхода: приглушаем и сдвигаем к правому краю, подальше от «+»
-   степпера — чтобы не нажать случайно при добавлении подходов. Промах
-   подстрахован undo-тостом. */
-.set-row .link-btn.small { color: var(--muted); padding-left: 10px; justify-self: end; }
-.set-row .link-btn.small:active { color: var(--red); }
 /* «Удалить тренировку» — уводим от кнопки «Сохранить» отступом и разделителем. */
 .full-link.danger {
   margin-top: 24px; padding-top: 14px;
@@ -525,19 +520,9 @@ input { font-family: inherit; }
   color: var(--muted); font-size: 13px;
 }
 .full-link.danger:active { color: var(--red); }
-/* «Очистить черновик» — тот же селектор .full-link.danger, но живёт она НАВЕРХУ
-   композера (сразу под датой), а не над «Сохранить». Разделитель и отступ 24px там
-   не нужны, а асимметричные паддинги (14px сверху из правила выше и 4px снизу из
-   .link-btn) визуально сажали текст ниже центра своего бокса. Собственный бокс:
-   симметрично, по центру и с тач-зоной 44px, как у остальных кнопок. */
-.full-link.danger.clear-draft {
-  margin-top: 0; padding: 0 4px;
-  border-top: none;
-  min-height: 44px;
-  display: flex; align-items: center; justify-content: center;
-}
-
-/* ---------- workout ---------- */
+/* ---------- workout (редизайн «Спорт-блоки», этап 4, v6.1.0) ----------
+   Макет — prototypes/workout-card.html. Отметок «подход выполнен» нет: что в
+   строках, то и записывается; слева в строке — просто номер. */
 /* Долгое касание по подписям рядом со степперами открывало нативное выделение /
    callout и визуально «замораживало» вложенный скроллер. Поля ввода остаются
    выделяемыми для ручной правки значений. */
@@ -549,202 +534,206 @@ input { font-family: inherit; }
 }
 .workout-screen > .danger-confirm { margin-bottom: 12px; }
 
-.exercise-card { padding: 14px; }
+/* Шапка: круглая «назад», заголовок, дата чипом, «Очистить» справа. */
+.wk-head { display: flex; align-items: flex-start; gap: 10px; margin-bottom: 14px; }
+.wk-back {
+  flex: none; width: 44px; height: 44px; border-radius: 12px; border: 0;
+  display: grid; place-items: center; background: var(--surface); color: var(--text); cursor: pointer;
+}
+.wk-back:active { background: var(--surface-2); }
+.wk-back:focus-visible, .wk-clear:focus-visible { outline: 2px solid var(--acc-2); outline-offset: 2px; }
+.wk-head-main { flex: 1; min-width: 0; }
+.wk-title.screen-title { margin: 3px 0 0; font-size: 25px; line-height: 1; }
+.wk-clear {
+  flex: none; min-height: 44px; padding: 0 2px; border: 0; background: none;
+  color: var(--muted); font-size: 13px; font-weight: 600; cursor: pointer;
+}
+.wk-clear:active { color: var(--red); }
+.date-chip {
+  position: relative; display: inline-flex; align-items: center; gap: 6px;
+  min-height: 34px; padding: 0 11px; margin-top: 8px; border-radius: 10px;
+  background: var(--acc-soft); color: var(--acc-2);
+  font-size: 13px; font-weight: 700; cursor: pointer;
+}
+.date-chip:focus-within { outline: 2px solid var(--acc-2); outline-offset: 2px; }
+/* Нативный пикер поверх всего чипа: тап в любом месте открывает календарь. */
+.date-chip input {
+  position: absolute; inset: 0; width: 100%; height: 100%;
+  opacity: 0; border: 0; padding: 0; cursor: pointer;
+}
+
+/* Пустое состояние композера. */
+.wk-empty { text-align: center; color: var(--muted); font-size: 14px; line-height: 1.45; padding: 28px 10px 18px; }
+.wk-empty b { display: block; color: var(--text); font-size: 16px; margin-bottom: 4px; }
+.wk-empty-ico {
+  width: 56px; height: 56px; margin: 0 auto 12px; border-radius: 16px;
+  display: grid; place-items: center; background: var(--surface); color: var(--acc);
+}
+
+/* Карточка упражнения. */
+.exercise-card { padding: 12px; border-radius: 18px; }
 .exercise-card--active {
-  border-color: var(--g1);
-  box-shadow: inset 0 1px 0 rgba(255, 255, 255, .14), 0 0 0 1px color-mix(in srgb, var(--acc) 12%, transparent);
+  border-color: transparent;
+  box-shadow: inset 0 0 0 1.5px color-mix(in srgb, var(--acc) 55%, transparent);
 }
-.exercise-head { display: flex; justify-content: space-between; align-items: center; gap: 8px; margin-bottom: 10px; }
-.exercise-title {
-  min-width: 0; display: flex; align-items: center; gap: 7px;
-}
-.exercise-name { font-weight: 600; }
-.exercise-active-badge {
-  flex-shrink: 0; padding: 2px 7px; border-radius: 999px;
-  background: color-mix(in srgb, var(--acc) 18%, transparent); color: var(--g3);
-  font-size: 10px; font-weight: 700; text-transform: uppercase; letter-spacing: .04em;
-}
-.exercise-actions { display: flex; align-items: center; gap: 4px; flex-shrink: 0; }
-.exercise-card--compact { padding: 0; overflow: hidden; }
+.exercise-head { display: flex; justify-content: space-between; align-items: center; gap: 8px; }
+.exercise-title { min-width: 0; display: flex; align-items: center; gap: 7px; }
+.exercise-name { font-weight: 800; font-size: 17px; overflow-wrap: anywhere; }
+.exercise-actions { display: flex; align-items: center; gap: 6px; flex-shrink: 0; }
+.exercise-actions .link-btn { font-size: 13px; font-weight: 700; color: var(--acc-2); padding: 10px 2px; }
+.exercise-actions .link-btn.danger { color: var(--red); }
+
+/* Свёрнутое упражнение — одна строка-кнопка. */
+.exercise-card--compact { padding: 0; overflow: hidden; border-radius: 14px; }
 .exercise-compact-toggle {
-  width: 100%; min-height: 68px; padding: 11px 13px;
-  display: grid; grid-template-columns: minmax(0, 1fr) 18px;
-  align-items: center; gap: 10px;
-  border: 0; background: transparent; color: var(--text);
-  text-align: left; cursor: pointer;
+  width: 100%; min-height: 58px; display: flex; align-items: center; gap: 10px;
+  padding: 12px 14px; border: 0; background: none; color: var(--text); text-align: left; cursor: pointer;
 }
 .exercise-compact-toggle:active { background: var(--surface-2); }
-.exercise-compact-copy {
-  min-width: 0; display: flex; flex-direction: column; gap: 3px;
-}
-.exercise-compact-copy strong,
+.exercise-compact-copy { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 2px; }
+.exercise-compact-copy strong { font-size: 15px; font-weight: 700; }
 .exercise-compact-copy .muted {
-  overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+  font-size: 12.5px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
 }
-.exercise-compact-copy .muted { font-size: 11px; }
-/* Свёрнутое упражнение с явно отмеченными подходами: статус читается цветом,
-   не только текстом (сам текст сводки даёт «✓ выполнено · …»). */
-.exercise-compact-copy .muted.done { color: var(--green); }
-.exercise-card--done { border-color: rgba(52, 211, 153, .28); }
-.exercise-compact-chevron {
-  color: var(--muted); font-size: 22px; text-align: right;
-}
+.exercise-compact-copy .muted.warn { color: var(--yellow); }
+.exercise-compact-chevron { flex: none; color: var(--muted); }
 
+/* Строки подходов: узкий номер + 1–2 степпера + ✕. */
 .sets-head, .set-row {
-  display: grid; grid-template-columns: 26px 1fr 1fr 26px; gap: 6px; align-items: center;
+  display: grid; grid-template-columns: 18px minmax(0, 1fr) minmax(0, 1fr) 30px;
+  gap: 7px; align-items: center;
 }
-/* Упражнение без веса (своего веса / на время): один столбец значения */
 .exercise-card.count .sets-head, .exercise-card.count .set-row {
-  grid-template-columns: 26px 1fr 26px;
+  grid-template-columns: 18px minmax(0, 1fr) 30px;
 }
-.sets-head { color: var(--muted); font-size: 12px; margin-bottom: 6px; text-align: center; }
-.set-row { margin-bottom: 8px; }
-.set-num { text-align: center; color: var(--muted); }
-/* Отметка «подход выполнен» (PLAN-workout-focus, Slice 2). Номер подхода И есть
-   переключатель. Столбец держим узким (как был у .set-num): ширину строки
-   выкупают степперы — инпут рассчитан так, чтобы «112.5» влезало целиком, и на
-   узких телефонах лишние 20px превращали значение в обрезок. Зону тапа добираем
-   невидимым ::after — но ТОЛЬКО по горизонтали, в отступ карточки и в зазор до
-   степпера. Значения при отметке НЕ меняются. */
-.set-done {
-  position: relative;
-  width: 100%; height: 44px; padding: 0;
-  display: flex; align-items: center; justify-content: center;
-  border-radius: 12px; border: 1px solid var(--border);
-  background: var(--surface-2); color: var(--muted);
-  font-size: 15px; font-weight: 600;
-  user-select: none; -webkit-user-select: none; touch-action: manipulation;
-  transition: transform var(--dur-fast) var(--ease-out),
-              background var(--dur-fast) var(--ease-out), color var(--dur-fast) var(--ease-out);
+.sets-head {
+  margin: 12px 0 2px; color: var(--muted); text-align: center;
+  font-size: 10.5px; font-weight: 700; text-transform: uppercase; letter-spacing: .06em;
 }
-/* По вертикали зону НЕ растим: высота кнопки уже 44px, а межстрочные 8px —
-   не пустота, а спорная полоса. Растянутые на ±4px зоны смыкались встык и делили
-   зазор, из-за чего тап чуть выше отметки N снимал галочку с N−1 (молча и не там,
-   куда целились). Пусть промах остаётся промахом. Справа 4px < gap (5–6px) —
-   степпер цел; слева 10px уходят в padding карточки (12–14px). */
-.set-done::after { content: ''; position: absolute; inset: 0 -4px 0 -10px; }
-/* Короткий «snap» нажатия; под prefers-reduced-motion длительности занулены. */
-.set-done:active { transform: scale(.92); }
-.set-done.on {
-  border-color: var(--green); color: var(--green);
-  background: rgba(52, 211, 153, .14);
-  font-size: 18px;
-}
-/* Выполненный подход уходит на второй план: значения остаются читаемыми и
-   правятся как обычно, но взгляд ведёт к невыполненным строкам. */
-.set-row--done .stepper input { color: var(--muted); }
-/* Правка сохранённой тренировки: там карточка открыта «всё выполнено», поэтому
-   снятая отметка = «подхода не было» и он не попадёт в запись. Показываем это
-   ДО сохранения — зачёркнутым значением и пунктирной рамкой отметки, — чтобы
-   случайный тап не удалял подход молча. Значения остаются редактируемыми:
-   вернуть подход можно тем же тапом. */
-.set-row--skip .stepper input { color: var(--muted); text-decoration: line-through; }
-.set-row--skip .set-done { border-style: dashed; opacity: .6; }
-.sets-skip-note { margin: 0 0 10px; font-size: 11px; color: var(--muted); }
+.set-row { margin-top: 6px; }
+.set-no { color: var(--muted); font-size: 13px; font-weight: 700; text-align: center; }
 
-.stepper { display: flex; align-items: center; gap: 3px; }
+/* Степпер — одна «таблетка»: − значение +. */
+.stepper {
+  display: grid; grid-template-columns: 38px minmax(0, 1fr) 38px; align-items: center;
+  height: 44px; border-radius: 12px; background: var(--bg);
+  box-shadow: inset 0 0 0 1px var(--border);
+}
 .stepper button {
-  width: 34px; height: 44px; flex-shrink: 0; font-size: 20px;
-  border-radius: 10px; border: 1px solid var(--border);
-  background: var(--surface-2); color: var(--text);
-  /* long-press auto-repeat: без выделения/iOS-callout и без задержки тапа */
-  user-select: none; -webkit-user-select: none; -webkit-touch-callout: none;
-  touch-action: manipulation;
+  height: 44px; border: 0; border-radius: 12px; background: none;
+  color: var(--muted); font-size: 19px; font-weight: 600; cursor: pointer;
 }
-.stepper button:active { background: var(--border); }
-/* Инпут занимает весь остаток строки, чтобы крупные значения (напр. «112.5») влезали целиком */
+.stepper button:active { color: var(--acc-2); background: var(--acc-soft); }
 .stepper input {
-  width: 100%; min-width: 0; height: 44px; text-align: center; font-size: 17px;
-  padding: 0 2px; border-radius: 10px; border: 1px solid var(--border);
-  background: var(--bg); color: var(--text);
+  width: 100%; min-width: 0; height: 44px; padding: 0; border: 0; background: none;
+  color: var(--text); text-align: center; outline: none;
+  font-family: var(--font-display); font-weight: 900; font-size: 19px;
 }
-/* Поджимаем нативные стрелки number, чтобы не воровали ширину у цифр */
+.stepper input:focus { color: var(--acc-2); }
 .stepper input::-webkit-outer-spin-button,
 .stepper input::-webkit-inner-spin-button { -webkit-appearance: none; margin: 0; }
 .stepper input[type=number] { -moz-appearance: textfield; appearance: textfield; }
 
-/* ---------- автопрогрессия: панель «прошлая → рекомендуем» ---------- */
-.ap {
-  background: color-mix(in srgb, var(--acc-2) 10%, transparent); border: 1px solid color-mix(in srgb, var(--acc-2) 30%, transparent);
-  border-radius: 14px; padding: 11px 13px; margin-bottom: 12px;
+/* ✕ удаления подхода: приглушён и у правого края, подальше от «+» степпера;
+   промах подстрахован undo-тостом. Зона тапа — вся ячейка 30×44. */
+.set-rm {
+  width: 30px; height: 44px; border: 0; background: none; color: var(--muted);
+  display: grid; place-items: center; cursor: pointer;
 }
-.ap-row { display: flex; justify-content: space-between; align-items: baseline; margin-bottom: 6px; }
-.ap-lbl { color: var(--muted); font-size: 12px; }
-.ap-when { color: var(--muted); font-size: 11px; }
-.ap-prev { color: var(--muted); font-size: 13px; margin-bottom: 9px; }
-.ap-rec-lbl { font-size: 12px; font-weight: 600; display: flex; align-items: center; gap: 4px; margin-bottom: 6px; }
-.ap-rec-lbl.up { color: #86efac; }
-.ap-rec-lbl.same { color: var(--yellow); }
-.ap-rec-lbl.down { color: #fca5a5; }
-.ap-rec { font-size: 15px; font-weight: 600; margin-bottom: 10px; }
-.reason { font-size: 11px; padding: 5px 8px; border-radius: 6px; line-height: 1.35; display: inline-block; }
-.reason.up { background: rgba(22,163,74,.16); color: #86efac; }
-.reason.same { background: rgba(250,204,21,.14); color: #fde047; }
-.reason.down { background: rgba(239,68,68,.14); color: #fca5a5; }
-/* Компактная строка-заглушка, когда прогрессия на упражнении «ручной»/«выкл»:
-   рекомендации нет, но шестерёнка остаётся — стратегию можно вернуть. */
+.set-rm:active { color: var(--red); }
+
+.set-add {
+  width: 100%; min-height: 44px; margin-top: 9px; border: 0; border-radius: 12px; background: none;
+  box-shadow: inset 0 0 0 1.5px var(--border);
+  color: var(--acc-2); font-size: 13.5px; font-weight: 700; cursor: pointer;
+}
+.set-add:active { background: var(--surface-2); }
+
+/* Панель автопрогрессии: прошлая мелко, рекомендация крупно, причина строкой. */
+.ap { margin-top: 8px; padding: 10px 12px; border-radius: 13px; background: var(--bg); }
+.ap-row { display: flex; justify-content: space-between; align-items: baseline; }
+.ap-lbl, .ap-when { color: var(--muted); font-size: 12px; }
+.ap-prev { color: var(--muted); font-size: 13px; font-weight: 600; margin-top: 2px; font-variant-numeric: tabular-nums; }
+.ap-rec-lbl { font-size: 12px; font-weight: 800; display: flex; align-items: center; gap: 4px; margin-top: 8px; }
+.ap-rec-lbl.up { color: var(--acc-2); }
+.ap-rec-lbl.same { color: var(--muted); }
+.ap-rec-lbl.down { color: var(--red); }
+.ap-rec {
+  margin-top: 2px; font-family: var(--font-display); font-weight: 900; font-size: 20px;
+  letter-spacing: .01em; overflow-wrap: anywhere;
+}
+.reason { display: block; margin-top: 2px; color: var(--muted); font-size: 12px; line-height: 1.35; }
 .ap-muted { padding: 8px 10px; }
 .ap-muted-row { display: flex; align-items: center; justify-content: space-between; gap: 8px; }
-.ap-muted-lbl { color: var(--muted); font-size: 12px; }
-.ap-actions { display: flex; align-items: center; gap: 8px; margin-top: 10px; }
-.ap-actions .ap-revert { flex: 1; text-align: left; padding: 4px 0; }
+.ap-muted-lbl { color: var(--muted); font-size: 13px; }
+.ap-actions { display: flex; align-items: center; gap: 8px; margin-top: 8px; }
+.ap-actions .ap-revert { flex: 1; text-align: left; font-size: 13px; font-weight: 700; color: var(--acc-2); padding: 10px 0; }
 .btn-apply {
-  flex: 1; min-height: 40px; background: var(--green); color: #f0fdf4;
-  border: none; border-radius: 8px; font-size: 13px; font-weight: 600;
+  flex: 1; min-height: 42px; border: 0; border-radius: 11px;
+  background: var(--acc-soft); color: var(--acc-2); font-weight: 800; font-size: 13.5px; cursor: pointer;
 }
-.btn-apply:active { background: var(--green-d); }
+.btn-apply:active { background: color-mix(in srgb, var(--acc) 25%, transparent); }
 .btn-gear {
-  width: 40px; min-height: 40px; flex-shrink: 0; background: transparent;
-  color: var(--muted); border: 1px solid var(--border); border-radius: 8px; font-size: 16px;
+  flex: none; width: 42px; height: 42px; border: 0; border-radius: 11px;
+  display: grid; place-items: center; background: var(--surface-2); color: var(--muted); cursor: pointer;
 }
-.btn-gear.on { color: var(--text); border-color: var(--green); }
-/* Настройки прогрессии в карточке (шестерёнка) */
+.btn-gear.on { background: var(--acc-soft); color: var(--acc-2); }
 .ap-settings { margin-top: 10px; padding-top: 10px; border-top: 1px solid var(--border); }
-.seg {
-  display: flex; gap: 4px; background: var(--bg); border: 1px solid var(--border);
-  border-radius: 8px; padding: 3px; margin-bottom: 10px;
-}
+.seg { display: grid; grid-auto-flow: column; grid-auto-columns: 1fr; gap: 5px; }
 .seg-item {
-  flex: 1; min-height: 36px; text-align: center; font-size: 12px;
-  border: none; border-radius: 6px; background: transparent; color: var(--muted);
+  min-height: 40px; border: 0; border-radius: 10px; background: var(--surface-2);
+  color: var(--muted); font-size: 12.5px; font-weight: 700; cursor: pointer;
 }
-.seg-item.on { background: var(--green); color: #f0fdf4; font-weight: 600; }
-.ap-step-line { display: flex; justify-content: space-between; align-items: center; }
-.ap-step-line .lbl { color: var(--muted); font-size: 13px; }
-.ap-stepper { flex: 0 0 auto; }
+.seg-item.on { background: var(--acc); color: var(--on-acc); }
+.ap-step-line { display: flex; justify-content: space-between; align-items: center; gap: 10px; margin-top: 10px; }
+.ap-step-line .lbl { color: var(--muted); font-size: 13px; font-weight: 600; }
+.ap-stepper { flex: 0 0 160px; }
 .ap-stepper .ap-step-val {
-  min-width: 68px; height: 40px; display: inline-flex; align-items: center; justify-content: center;
-  font-size: 14px; border: 1px solid var(--border); border-radius: 10px;
-  background: var(--bg); color: var(--text);
+  text-align: center; font-family: var(--font-display); font-weight: 900; font-size: 17px; white-space: nowrap;
 }
-.ap-stepper button { height: 40px; }
 
-/* ---------- RPE: «Как пошло?» в карточке упражнения ---------- */
-/* Строка НЕ выделена подложкой: оценка необязательна, и панель вокруг неё читалась
-   бы как ещё одно обязательное поле. Отделяем только линией — как настройки
-   прогрессии внутри .ap. Кнопки бледные до выбора: невыбранное состояние не
-   должно спорить за внимание с невыполненными подходами выше. */
-.feel { display: flex; align-items: center; gap: 10px; margin-top: 12px; padding-top: 11px; border-top: 1px solid var(--border); }
-.feel-lbl { color: var(--muted); font-size: 12px; flex-shrink: 0; }
-.feel-btns { display: flex; gap: 6px; flex: 1; }
+/* «Как пошло?» — после подходов, по хронологии занятия. Цвет выбора смысловой:
+   легко — рост, нормально — акцент, тяжело — жёлтый. */
+.feel { display: flex; align-items: center; gap: 8px; margin-top: 12px; padding-top: 10px; border-top: 1px solid var(--border); }
+.feel-lbl { color: var(--muted); font-size: 12px; font-weight: 600; flex-shrink: 0; }
+.feel-btns { display: grid; grid-auto-flow: column; grid-auto-columns: 1fr; gap: 5px; flex: 1; }
 .feel-btn {
-  flex: 1; min-height: 44px; padding: 0 4px;
-  border: 1px solid var(--border); border-radius: 10px;
-  background: var(--surface-2); color: var(--muted);
-  font-size: 12px; line-height: 1.2;
-  touch-action: manipulation;
-  transition: transform var(--dur-fast) var(--ease-out),
-              background var(--dur-fast) var(--ease-out), color var(--dur-fast) var(--ease-out);
+  min-height: 40px; border: 0; border-radius: 10px; background: var(--surface-2);
+  color: var(--muted); font-size: 12.5px; font-weight: 700; cursor: pointer;
+  transition: transform var(--dur-fast) var(--ease-out);
 }
 .feel-btn:active { transform: scale(.94); }
-.feel-btn.on { font-weight: 600; }
-.feel-btn.feel-easy.on { border-color: var(--green); color: #86efac; background: rgba(22,163,74,.16); }
-.feel-btn.feel-ok.on { border-color: var(--yellow); color: #fde047; background: rgba(250,204,21,.14); }
-.feel-btn.feel-hard.on { border-color: var(--red); color: #fca5a5; background: rgba(239,68,68,.14); }
+.feel-btn.feel-easy.on { background: var(--green); color: #052014; }
+.feel-btn.feel-ok.on { background: var(--acc); color: var(--on-acc); }
+.feel-btn.feel-hard.on { background: var(--yellow); color: #2a2000; }
 /* Узкие экраны: подпись над кнопками, иначе на «нормально» не остаётся ширины. */
 @media (max-width: 360px) {
   .feel { flex-direction: column; align-items: stretch; gap: 7px; }
 }
+
+/* Добавить упражнение / шаблон — две кнопки в ряд (в правке — одна). */
+.wk-adds { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; margin-top: 4px; }
+.wk-adds.one { grid-template-columns: 1fr; }
+.wk-add {
+  min-height: 50px; border: 0; border-radius: 14px; background: none;
+  box-shadow: inset 0 0 0 1.5px var(--border);
+  display: flex; align-items: center; justify-content: center; gap: 7px;
+  color: var(--text); font-size: 14px; font-weight: 700; cursor: pointer;
+}
+.wk-add:active { background: var(--surface-2); }
+.wk-add-ico { color: var(--acc); }
+
+/* Действия сохранённой тренировки — список строк внизу, отделён линией. */
+.wk-acts { margin-top: 18px; padding-top: 6px; border-top: 1px solid var(--border); }
+.wk-act {
+  width: 100%; min-height: 50px; display: flex; align-items: center; gap: 12px;
+  padding: 0 2px; border: 0; background: none; color: var(--text);
+  font-size: 14.5px; font-weight: 600; text-align: left; cursor: pointer;
+}
+.wk-act-ico { color: var(--muted); flex: none; }
+.wk-act.danger, .wk-act.danger .wk-act-ico { color: var(--red); }
+.wk-act:disabled { opacity: .5; }
+.wk-acts .danger-confirm, .wk-acts .tpl-from-wk { margin: 6px 0; }
 
 /* Тумблер-строка в настройках Профиля (напр. «Рекомендации прогрессии») */
 .toggle-act { display: flex; align-items: center; justify-content: space-between; gap: 12px; text-align: left; }
@@ -790,13 +779,19 @@ input { font-family: inherit; }
     border: 1px solid var(--border);
   }
 }
-/* Шапка, поиск и чипы зафиксированы сверху и не сжимаются списком */
+/* Шапка, поиск и чипы зафиксированы сверху и не сжимаются списком.
+   Заголовок листа — display-шрифтом, как заголовки экранов (v6.1.0). */
 .sheet-head {
   display: flex; justify-content: space-between; align-items: center;
   margin-bottom: 12px; flex-shrink: 0;
 }
+.sheet-head > strong {
+  font-family: var(--font-display); font-weight: 900; font-size: 24px;
+  text-transform: uppercase; letter-spacing: .01em; line-height: 1;
+}
+.sheet-head .link-btn { color: var(--acc-2); font-weight: 700; min-height: 44px; }
 .search {
-  width: 100%; padding: 12px; font-size: 16px; border-radius: 10px;
+  width: 100%; padding: 12px; font-size: 16px; border-radius: 12px;
   border: 1px solid var(--border); background: var(--surface); color: var(--text);
   flex-shrink: 0;
 }
@@ -838,9 +833,9 @@ input { font-family: inherit; }
   padding: 20px 0 4px;
 }
 .workout-finish-mark {
-  width: 72px; height: 72px; border-radius: 50%;
+  width: 68px; height: 68px; border-radius: 22px;
   display: grid; place-items: center; align-self: center;
-  background: linear-gradient(135deg, var(--g1), var(--g2));
+  background: var(--acc);
   color: var(--on-acc); font-size: 36px; font-weight: 800;
   box-shadow: 0 16px 36px color-mix(in srgb, var(--acc) 24%, transparent);
 }
@@ -860,7 +855,7 @@ input { font-family: inherit; }
 .workout-finish-stats dt { color: var(--muted); font-size: 12px; }
 .workout-finish-stats dd {
   margin: 6px 0 0; color: var(--text);
-  font-size: 24px; line-height: 1; font-weight: 800;
+  font-family: var(--font-display); font-size: 28px; line-height: 1; font-weight: 900;
 }
 .workout-finish-stats dd span { color: var(--muted); font-size: 13px; font-weight: 600; }
 .workout-finish-event {
@@ -869,6 +864,7 @@ input { font-family: inherit; }
   border: 1px solid var(--border); border-radius: 16px;
   background: var(--surface-2);
 }
+.workout-finish-event.event-pr { background: var(--acc-soft); }
 .workout-finish-event.event-goal,
 .workout-finish-event.event-pr { border-color: color-mix(in srgb, var(--acc) 50%, transparent); }
 .workout-finish-event-emoji {
@@ -912,9 +908,10 @@ input { font-family: inherit; }
 }
 .picker-item {
   display: flex; justify-content: space-between; align-items: center;
-  padding: 14px 8px; background: none; border: none; border-bottom: 1px solid var(--border);
-  color: var(--text); font-size: 16px; text-align: left;
+  min-height: 56px; padding: 12px 8px; background: none; border: none; border-bottom: 1px solid var(--border);
+  color: var(--text); font-size: 16px; font-weight: 600; text-align: left;
 }
+.picker-item:active { background: var(--surface); }
 .picker-group { color: var(--muted); font-size: 12px; }
 /* Строка каталога, которую нельзя править (чужое упражнение): та же геометрия,
    но не кнопка — приглушаем, чтобы отсутствие реакции на тап было ожидаемым. */
@@ -922,7 +919,7 @@ input { font-family: inherit; }
 /* Пустой раздел каталога — компактнее общего .empty (их на экране два подряд). */
 .catalog-empty { padding: 10px 0 2px; font-size: 14px; }
 /* Предложение создать упражнение по введённому названию (нет в справочнике) */
-.create-suggest { color: var(--green); font-weight: 600; }
+.create-suggest { color: var(--acc-2); font-weight: 700; }
 
 /* кнопка «добавить своё» под списком + форма создания */
 .create-open { flex-shrink: 0; margin-top: 12px; margin-bottom: 0; }

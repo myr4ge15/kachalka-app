@@ -1,6 +1,5 @@
 import { exerciseMetric, fmtSet } from './metric.js'
 import { pluralize } from './plural.js'
-import { exerciseCompletion } from './setCompletion.js'
 
 // Сколько групп подходов помещается в однострочную сводку компактной карточки
 // (11px, `text-overflow: ellipsis` на 390px). Хвост длиннее — «…».
@@ -80,36 +79,24 @@ export function setsSummaryText(metric, sets) {
   return shown.join(' · ')
 }
 
-// Данные компактной карточки: нейтральная сводка введённых значений плюс — если
-// пользователь ЯВНО отмечал подходы — прогресс выполнения (Slice 2). Сама по себе
-// заполненность значений статусом не считается: подходы предзаполняют шаблон и
-// автопрогрессия. `doneKeys` — множество ключей из lib/setCompletion.js.
-export function exerciseFocusSummary(entry, doneKeys = null) {
+// Данные компактной карточки: число подходов и перечисление введённых значений.
+// (До v6.1.0 здесь был ещё прогресс явных отметок «подход выполнен» — отметки
+// убраны: что в строках, то и записывается.)
+export function exerciseFocusSummary(entry) {
   const sets = entry?.sets ?? []
   const metric = exerciseMetric(entry?.exercise)
+  // Упражнение без подходов не сохранится — говорим это прямо.
+  if (sets.length === 0) {
+    return { setCount: 0, sets: null, text: 'подходов нет — не сохранится' }
+  }
   const setLabel = pluralize(sets.length, 'подход', 'подхода', 'подходов')
-  // Ни одного заполненного подхода — перечислять нечего, остаётся прежняя
-  // нейтральная формулировка «значения не указаны».
+  // Ни одного заполненного подхода — перечислять нечего.
   const setsText = sets.some((set) => !unfilledSet(set))
     ? setsSummaryText(metric, sets)
     : null
-  const { doneCount, allDone } = exerciseCompletion(entry, doneKeys)
-
-  // Статус ведёт строку, значения идут после него: свёрнутая карточка должна
-  // отвечать на «сделано или нет» раньше, чем на «что было в подходах».
-  // Без единой отметки строка остаётся прежней нейтральной сводкой.
-  const parts = []
-  if (allDone) parts.push('✓ выполнено', setLabel)
-  else if (doneCount > 0) parts.push(`выполнено ${doneCount} из ${sets.length}`)
-  else parts.push(setLabel)
-  if (setsText) parts.push(setsText)
-  else if (doneCount === 0) parts.push('значения не указаны')
-
   return {
     setCount: sets.length,
-    doneCount,
-    allDone,
     sets: setsText,
-    text: parts.join(' · '),
+    text: [setLabel, setsText ?? 'значения не указаны'].join(' · '),
   }
 }

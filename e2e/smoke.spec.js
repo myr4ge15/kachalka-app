@@ -64,12 +64,12 @@ test('вход → запись тренировки → она в истори�
   // «+ Добавить тренировку» на мобиле скрыта.
   await page.getByRole('button', { name: 'Записать тренировку' }).click()
   
-  await page.getByRole('button', { name: '+ Добавить упражнение' }).click()
+  await page.getByRole('button', { name: 'Добавить упражнение' }).click()
   await page.locator('.picker-item').filter({ hasText: EXERCISE }).click()
 
   // Второе добавленное упражнение становится активным, первое компактно
   // сворачивается. Тап по сводке возвращает первое без потери значений/состава.
-  await page.getByRole('button', { name: '+ Добавить упражнение' }).click()
+  await page.getByRole('button', { name: 'Добавить упражнение' }).click()
   await page.locator('.picker-item').filter({ hasText: SECOND_EXERCISE }).click()
   await expect(page.locator('.exercise-card--active')).toContainText(SECOND_EXERCISE)
   await expect(page.locator('.exercise-card--compact')).toContainText(EXERCISE)
@@ -163,23 +163,22 @@ test('вход → запись тренировки → она в истори�
   await expect(page.getByRole('dialog', { name: 'Тренировка готова' })).toHaveCount(0)
   await expect(page.locator('.history-card').first()).toContainText('2 упр · 2 подх.')
 
-  // --- зоны тапа отметок выполнения (геометрия, юнитам не видна) -------------
-  // Отметки соседних подходов не имеют права делить межстрочный зазор: раздутая
-  // на ±4px невидимая зона смыкалась встык с соседней, и тап чуть выше отметки N
-  // снимал галочку с N−1 — молча и не там, куда целились. Ничего не сохраняем,
-  // это последний шаг сценария.
+  // --- зоны тапа ✕ удаления подхода (геометрия, юнитам не видна) -----------
+  // Отметок выполнения с v6.1.0 нет — подход, которого не было, удаляется ✕.
+  // Крестики соседних подходов не имеют права делить межстрочный зазор: тап чуть
+  // выше ✕ второго подхода не должен удалить первый. Ничего не сохраняем, это
+  // последний шаг сценария.
   await page.locator('.history-card').first().click()
   await page.getByRole('button', { name: '+ подход (повтор предыдущего)' }).click()
-  const marks = page.locator('.exercise-card--active .set-done')
-  await expect(marks).toHaveCount(2)
-  const hits = await marks.nth(1).evaluate((node) => {
+  const removes = page.locator('.exercise-card--active .set-rm')
+  await expect(removes).toHaveCount(2)
+  const hits = await removes.nth(1).evaluate((node) => {
     const rect = node.getBoundingClientRect()
     const at = (dy) => {
       const el = document.elementFromPoint(rect.x + rect.width / 2, rect.y + dy)
-      const mark = el?.closest?.('.set-done')
-      return mark ? [...document.querySelectorAll('.set-done')].indexOf(mark) : null
+      const rm = el?.closest?.('.set-rm')
+      return rm ? [...document.querySelectorAll('.set-rm')].indexOf(rm) : null
     }
-    // Над отметкой второго подхода — либо она сама, либо ничьё пространство.
     return [at(-6), at(-2), at(rect.height / 2)]
   })
   expect(hits).toEqual([null, null, 1])

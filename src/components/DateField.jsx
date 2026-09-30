@@ -1,23 +1,23 @@
-import { fmtDate, toDateInput, fromDateInput } from '../lib/dates.js'
+import { fmtDayChip, toDateInput, fromDateInput } from '../lib/dates.js'
 
-// Поле даты тренировки: подпись дд.мм.гггг + нативный <input type=date> (тап по
-// всей области открывает пикер). Презентационное — значение и onChange(nextIso)
-// приходят от WorkoutScreen. Дат-хелперы (формат/локальный день/сохранение
-// времени суток) — чистые в lib/dates.
+// Дата тренировки — чип под заголовком композера (v6.1.0, редизайн «Спорт-блоки»):
+// «Сегодня, 30 сентября» + нативный <input type=date> поверх (тап по чипу открывает
+// пикер). С него же начинается запись задним числом. Презентационное — значение и
+// onChange(nextIso) приходят от WorkoutScreen. Дат-хелперы — чистые в lib/dates.
 export default function DateField({ performedAt, onChange }) {
   return (
-    <label className="date-field">
-      <span className="muted">Дата</span>
-      <span className="date-picker">
-        <span className="date-picker__icon" aria-hidden="true">📅</span>
-        <span className="date-picker__value">{fmtDate(performedAt)}</span>
-        <span className="date-picker__chevron" aria-hidden="true">▾</span>
-        <input
-          type="date"
-          value={toDateInput(performedAt)}
-          onChange={(e) => onChange(fromDateInput(e.target.value, performedAt))}
-        />
-      </span>
+    <label className="date-chip">
+      <svg className="date-chip__ico" viewBox="0 0 24 24" width="15" height="15" fill="none"
+        stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+        <rect x="3" y="5" width="18" height="16" rx="3" /><path d="M3 10h18M8 3v4M16 3v4" />
+      </svg>
+      <span className="date-chip__value">{fmtDayChip(performedAt)}</span>
+      <input
+        type="date"
+        aria-label="Дата тренировки"
+        value={toDateInput(performedAt)}
+        onChange={(e) => e.target.value && onChange(fromDateInput(e.target.value, performedAt))}
+      />
     </label>
   )
 }

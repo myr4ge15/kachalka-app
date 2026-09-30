@@ -17,11 +17,8 @@ import {
 import { exportWorkouts } from '../lib/exportWorkout.js'
 import { templateExercisesFromWorkout, defaultTemplateName } from '../lib/templateFromWorkout.js'
 import { vibrate, HAPTIC } from '../lib/haptics.js'
-import { fmtDate } from '../lib/dates.js'
 import { exerciseUsageSections } from '../lib/exerciseUsage.js'
 import { useWorkoutFocus } from '../hooks/useWorkoutFocus.js'
-import { useSetCompletion } from '../hooks/useSetCompletion.js'
-import { keepDoneSets } from '../lib/setCompletion.js'
 import CardsSkeleton from '../components/CardsSkeleton.jsx'
 import ExercisePicker from '../components/ExercisePicker.jsx'
 import TemplatePicker from '../components/TemplatePicker.jsx'
@@ -60,12 +57,12 @@ export default function WorkoutScreen({ user, workoutId = null, onBack, onSaved 
   // lib/draftStore (память + localStorage): переживает и уход с экрана, и выгрузку
   // PWA в фоне / перезагрузку на обновление посреди занятия.
   const DRAFT_KEY = `workout_draft_new_${user.id}`
-  // Отметки выполнения живут рядом с черновиком: уход с экрана посреди занятия
-  // (Лента, Прогресс) не должен гасить галочки, как не гасит состав.
-  const DONE_KEY = `workout_done_new_${user.id}`
   // Оценки «как пошло» (RPE) до сохранения жить негде: id тренировки рождается
-  // только внутри saveWorkout. Поэтому они, как и отметки выполнения, ждут в
-  // стейте экрана и переживают уход с экрана в том же хранилище черновика.
+  // только внутри saveWorkout. Поэтому они ждут в стейте экрана и переживают уход
+  // с экрана в том же хранилище черновика.
+  // (Отметки «подход выполнен» убраны в v6.1.0: что в строках — то и записано,
+  // лишний подход удаляется ✕. Их прежний ключ черновика `workout_done_new_*`
+  // чистится один раз ниже, чтобы не висел в localStorage.)
   const FEEL_KEY = `workout_feel_new_${user.id}`
 
   const [entries, setEntries] = useState(() => (isNew ? readDraft(DRAFT_KEY) ?? [] : []))
@@ -74,9 +71,6 @@ export default function WorkoutScreen({ user, workoutId = null, onBack, onSaved 
   const { activeExerciseId, activeCardRef, activateExercise } = useWorkoutFocus(entries, {
     preferIncomplete: !isNew,
   })
-  const {
-    doneKeys, toggleSetDone, remapExercise, markEntriesDone, markNewSetsDone,
-  } = useSetCompletion({ cacheKey: isNew ? DONE_KEY : null })
   const [performedAt, setPerformedAt] = useState(() => new Date().toISOString())
   const [loading, setLoading] = useState(!isNew)
   const [pickerOpen, setPickerOpen] = useState(false)
@@ -101,14 +95,8 @@ export default function WorkoutScreen({ user, workoutId = null, onBack, onSaved 
     if (isNew) writeDraft(FEEL_KEY, feels)
   }, [isNew, FEEL_KEY, feels])
 
-  // Правка: в записи хранится только отмеченное (keepDoneSets), поэтому любой
-  // появившийся в составе подход отмечаем сразу — «+ подход», новое упражнение и
-  // «Применить рекомендацию» рождают свежие `_k`, и без этого добавленное молча
-  // не сохранилось бы. Единый эффект на состав вместо правки каждого действия:
-  // ни один путь добавления не может его обойти. Снятые вручную не воскресают.
-  useEffect(() => {
-    if (!isNew) markNewSetsDone(entries)
-  }, [isNew, entries, markNewSetsDone])
+  // Остаток отметок выполнения из версий до 6.1.0 — больше не читается.
+  useEffect(() => { dropDraft(`workout_done_new_${user.id}`) }, [user.id])
 
   // Undo-тост удаления привязан к ЭТОМУ экрану: его «Отменить» зовёт setEntries,
   // которого после ухода со страницы уже нет. Поэтому при размонтировании гасим
@@ -129,9 +117,6 @@ export default function WorkoutScreen({ user, workoutId = null, onBack, onSaved 
       if (w) {
         const loaded = toEntries(w)
         setEntries(loaded)
-        // Уже записанная тренировка выполнена целиком — открываем её с отметками,
-        // иначе свёрнутые карточки врали бы «не выполнено» по истории.
-        markEntriesDone(loaded)
         setPerformedAt(w.performed_at ?? new Date().toISOString())
       } else {
         setMessage({ type: 'error', text: 'Тренировка не найдена.' })
@@ -145,7 +130,7 @@ export default function WorkoutScreen({ user, workoutId = null, onBack, onSaved 
       setLoading(false)
     })
     return () => { alive = false }
-  }, [isNew, workoutId, user.id, markEntriesDone])
+  }, [isNew, workoutId, user.id])
 
   function openAddPicker() {
     setReplaceIdx(null)
@@ -270,9 +255,6 @@ export default function WorkoutScreen({ user, workoutId = null, onBack, onSaved 
       return
     }
     setEntries((prev) => replaceExerciseIn(prev, idx, ex))
-    // Подходы пережили замену — отметки выполнения тоже: ключ отметки завязан на
-    // exercise.id, и без переноса галочки пропали бы при сохранённых значениях.
-    remapExercise(cur.exercise.id, ex.id)
     // Оценка привязана к тому же id и переезжает вместе с подходами: усилие было
     // то же самое, поменялась только запись о том, каким упражнением оно названо.
     setFeels((prev) => {
@@ -372,11 +354,9 @@ export default function WorkoutScreen({ user, workoutId = null, onBack, onSaved 
     })
   }
 
-  // Правка сохранённой тренировки открывается «всё выполнено», поэтому снятая
-  // галочка здесь — единственное явное «этого подхода не было»: такой подход в
-  // запись не идёт (keepDoneSets). У новой тренировки отметок в начале нет
-  // вообще, их отсутствие ничего не значит — состав сохраняется целиком.
-  const entriesToSave = isNew ? entries : keepDoneSets(entries, doneKeys)
+  // Что в строках — то и записывается (и в новой, и в правке); подхода, которого
+  // не было, удаляется ✕ (с undo-тостом). Упражнение без подходов не сохраняется.
+  const entriesToSave = entries.filter((e) => e.sets.length > 0)
   const totalSets = entriesToSave.reduce((n, e) => n + e.sets.length, 0)
   const canSave = entriesToSave.length > 0 && totalSets > 0 && !saving
 
@@ -402,9 +382,8 @@ export default function WorkoutScreen({ user, workoutId = null, onBack, onSaved 
         entries: entriesToSave,
       }
       // Оценки пишем ПОСЛЕ сохранения — только здесь известен id тренировки.
-      // Пишем лишь по упражнениям, реально попавшим в запись: в правке снятые
-      // отметки выбрасывают упражнение целиком (keepDoneSets), и его оценка
-      // осталась бы висеть без хозяина. Неудача записи оценок не откатывает
+      // Пишем лишь по упражнениям, реально попавшим в запись: упражнение без
+      // подходов не сохраняется, и его оценка осталась бы висеть без хозяина. Неудача записи оценок не откатывает
       // успешно сохранённую тренировку — она необязательная надстройка.
       try {
         const saved = new Set(entriesToSave.map((e) => e.exercise.id))
@@ -413,7 +392,6 @@ export default function WorkoutScreen({ user, workoutId = null, onBack, onSaved 
       } catch { /* оценки необязательны, тренировка уже записана */ }
       if (isNew) {
         dropDraft(DRAFT_KEY)
-        dropDraft(DONE_KEY) // отметки — состояние этого занятия, следующему не наследуются
         dropDraft(FEEL_KEY) // оценки тоже: следующая тренировка начинается без них
       }
       // Тактильный отклик по итогу сохранения: рекорд/цель — «праздничный»
@@ -465,7 +443,6 @@ export default function WorkoutScreen({ user, workoutId = null, onBack, onSaved 
     dropDraft(DRAFT_KEY)
     dropDraft(FEEL_KEY)
     setEntries([])
-    markEntriesDone([]) // пустой состав → отметок выполнения тоже нет
     setFeels({})        // и оценок: отказ от черновика отменяет занятие целиком
     setClearArm(false)
   }
@@ -531,7 +508,6 @@ export default function WorkoutScreen({ user, workoutId = null, onBack, onSaved 
       saving={saving}
       tplBusy={tplBusy}
       clearArm={clearArm}
-      onArmClear={() => setClearArm(true)}
       onCancelClear={() => setClearArm(false)}
       onClearDraft={clearDraft}
       onExport={exportOne}
@@ -550,11 +526,25 @@ export default function WorkoutScreen({ user, workoutId = null, onBack, onSaved 
 
   return (
     <div className="screen workout-screen">
-      <div className="detail-head">
-        <button className="link-btn back-link" onClick={() => onBack?.()}>← Назад</button>
-        <h2 className="screen-title detail-title">
-          {isNew ? 'Новая тренировка' : fmtDate(performedAt)}
-        </h2>
+      {/* Шапка (v6.1.0): круглая «назад», заголовок, дата чипом под ним (тап —
+          пикер, так начинается запись задним числом), «Очистить» справа — только
+          у новой тренировки с составом; подтверждение раскрывается под шапкой. */}
+      <div className="wk-head">
+        <button className="wk-back" onClick={() => onBack?.()} aria-label="Назад">
+          <svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor"
+            strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+            <path d="M15 18l-6-6 6-6" />
+          </svg>
+        </button>
+        <div className="wk-head-main">
+          <h2 className="screen-title wk-title">{isNew ? 'Новая тренировка' : 'Тренировка'}</h2>
+          {!loading && <DateField performedAt={performedAt} onChange={setPerformedAt} />}
+        </div>
+        {isNew && entries.length > 0 && !clearArm && (
+          <button className="wk-clear" disabled={saving} onClick={() => setClearArm(true)}>
+            Очистить
+          </button>
+        )}
       </div>
 
       {message && (
@@ -567,15 +557,20 @@ export default function WorkoutScreen({ user, workoutId = null, onBack, onSaved 
         <CardsSkeleton cards={3} />
       ) : (
         <>
-          <DateField performedAt={performedAt} onChange={setPerformedAt} />
-
-          {/* Очистка новой тренировки нужна в начале композера: случайно
-              применённый шаблон можно сбросить без прокрутки длинного состава,
-              а подтверждение не оказывается под фиксированной save-панелью. */}
+          {/* Подтверждение очистки черновика — сразу под шапкой: не прячется под
+              липкой «Сохранить» и не требует прокрутки длинного состава. */}
           {isNew && workoutActions}
 
           {entries.length === 0 && (
-            <p className="muted empty">Добавь упражнение, чтобы начать.</p>
+            <div className="wk-empty">
+              <div className="wk-empty-ico" aria-hidden="true">
+                <svg viewBox="0 0 24 24" width="26" height="26" fill="none" stroke="currentColor"
+                  strokeWidth="2" strokeLinecap="round"><rect x="2" y="8" width="4" height="8" rx="1.5" />
+                  <rect x="18" y="8" width="4" height="8" rx="1.5" /><path d="M6 12h12" /></svg>
+              </div>
+              <b>Добавь упражнение, чтобы начать</b>
+              {isNew && <span>Или возьми шаблон — подходы и веса подставятся сами.</span>}
+            </div>
           )}
 
           {entries.map((entry, ei) => (
@@ -587,9 +582,6 @@ export default function WorkoutScreen({ user, workoutId = null, onBack, onSaved 
               active={entry.exercise.id === activeExerciseId}
               cardRef={entry.exercise.id === activeExerciseId ? activeCardRef : null}
               onActivate={activateExercise}
-              doneKeys={doneKeys}
-              onToggleSetDone={toggleSetDone}
-              dropUnchecked={!isNew}
               feel={feels[entry.exercise.id] ?? null}
               onSetFeel={setFeel}
               onReplace={openReplacePicker}
@@ -605,15 +597,16 @@ export default function WorkoutScreen({ user, workoutId = null, onBack, onSaved 
             />
           ))}
 
-          {isNew && (
-            <button className="btn outline full" onClick={() => setTplPickerOpen(true)}>
-              📋 Выбрать шаблон
+          <div className={`wk-adds${isNew ? '' : ' one'}`}>
+            <button className="wk-add" onClick={openAddPicker} aria-label="Добавить упражнение">
+              <PlusIcon />Упражнение
             </button>
-          )}
-
-          <button className="btn outline full" onClick={openAddPicker}>
-            + Добавить упражнение
-          </button>
+            {isNew && (
+              <button className="wk-add" onClick={() => setTplPickerOpen(true)} aria-label="Выбрать шаблон">
+                <TplIcon />Шаблон
+              </button>
+            )}
+          </div>
 
           {!isNew && workoutActions}
 
@@ -644,5 +637,23 @@ export default function WorkoutScreen({ user, workoutId = null, onBack, onSaved 
         />
       )}
     </div>
+  )
+}
+
+// Иконки кнопок добавления — инлайн-SVG (как TabIcon), красятся currentColor.
+function PlusIcon() {
+  return (
+    <svg className="wk-add-ico" viewBox="0 0 24 24" width="18" height="18" fill="none"
+      stroke="currentColor" strokeWidth="2.4" strokeLinecap="round" aria-hidden="true">
+      <path d="M12 5v14M5 12h14" />
+    </svg>
+  )
+}
+function TplIcon() {
+  return (
+    <svg className="wk-add-ico" viewBox="0 0 24 24" width="18" height="18" fill="none"
+      stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+      <rect x="5" y="4" width="14" height="17" rx="2.5" /><path d="M9 4V3h6v1M9 10h6M9 14h6" />
+    </svg>
   )
 }

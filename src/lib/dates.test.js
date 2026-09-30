@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest'
-import { fmtAgo, fmtDate, toDateInput, fromDateInput } from './dates.js'
+import { fmtAgo, fmtDate, toDateInput, fromDateInput, fmtDayChip } from './dates.js'
 
 describe('fmtDate', () => {
   it('формат дд.мм.гггг', () => {
@@ -50,5 +50,19 @@ describe('fmtAgo', () => {
     expect(fmtAgo(undefined, now)).toBe('')
     expect(fmtAgo(0, now)).toBe('')
     expect(fmtAgo(now + 10_000, now)).toBe('') // будущая метка → '' (не «только что»)
+  })
+})
+
+describe('fmtDayChip', () => {
+  const now = new Date(2026, 8, 30, 12, 0)
+  it('сегодня / вчера / другой день / другой год', () => {
+    expect(fmtDayChip(new Date(2026, 8, 30, 9).toISOString(), now)).toBe('Сегодня, 30 сентября')
+    expect(fmtDayChip(new Date(2026, 8, 29, 20).toISOString(), now)).toBe('Вчера, 29 сентября')
+    expect(fmtDayChip(new Date(2026, 8, 27, 20).toISOString(), now)).toBe('27 сентября')
+    expect(fmtDayChip(new Date(2025, 11, 31, 20).toISOString(), now)).toBe('31 декабря 2025')
+  })
+  it('пусто и мусор → пустая строка', () => {
+    expect(fmtDayChip('', now)).toBe('')
+    expect(fmtDayChip('nope', now)).toBe('')
   })
 })

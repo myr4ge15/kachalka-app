@@ -1,15 +1,16 @@
 import { useRevealFocus } from '../hooks/useRevealFocus.js'
 
-// Блок действий композера тренировки: «очистить черновик» (только новая,
-// когда есть состав; экран ставит блок сразу под датой), «⬇ экспорт в JSON»,
-// «📋 сделать шаблон из тренировки» и
-// «удалить тренировку» (только существующая) — каждый с in-app arm/confirm (единый
-// паттерн приложения, без нативного confirm). Презентационный: состояние arm
+// Блок действий композера тренировки: подтверждение «очистить черновик» (только
+// новая; сама кнопка «Очистить» с v6.1.0 — в шапке экрана, здесь только раскрытое
+// подтверждение, экран ставит блок сразу под шапкой), «Экспорт в JSON»,
+// «Сделать шаблон из тренировки» и «Удалить тренировку» (только существующая,
+// списком строк внизу) — каждый с in-app arm/confirm (единый паттерн приложения,
+// без нативного confirm). Презентационный: состояние arm
 // (clearArm/tplArm/delArm/tplName) и все эффекты (черновик/экспорт/шаблон/удаление)
 // живут в WorkoutScreen, сюда приходят пропсами/колбэками.
 export default function WorkoutActions({
   isNew, hasEntries, saving, tplBusy,
-  clearArm, onArmClear, onCancelClear, onClearDraft,
+  clearArm, onCancelClear, onClearDraft,
   onExport,
   tplArm, onOpenTpl, onCancelTpl, tplName, onTplName, onMakeTemplate,
   delArm, onArmDel, onCancelDel, onDelete,
@@ -23,74 +24,71 @@ export default function WorkoutActions({
   const armed = delArm ? 'del' : tplArm ? 'tpl' : clearArm ? 'clear' : null
   const armedRef = useRevealFocus(armed)
 
-  return (
-    <>
-      {isNew && hasEntries && (
-        clearArm ? (
-          <div className="danger-confirm" ref={armedRef}>
-            <p className="danger-text">Очистить черновик? Добавленные упражнения будут удалены.</p>
-            <div className="danger-actions">
-              <button className="btn ghost" onClick={onCancelClear} disabled={saving}>Отмена</button>
-              <button className="btn danger" onClick={onClearDraft} disabled={saving}>Да, очистить</button>
-            </div>
-          </div>
-        ) : (
-          <button className="link-btn danger full-link clear-draft" disabled={saving} onClick={onArmClear}>
-            Очистить черновик
-          </button>
-        )
-      )}
+  const confirm = (text, onCancel, onOk, okLabel, busy) => (
+    <div className="danger-confirm" ref={armedRef}>
+      <p className="danger-text">{text}</p>
+      <div className="danger-actions">
+        <button className="btn ghost" onClick={onCancel} disabled={busy}>Отмена</button>
+        <button className="btn danger" onClick={onOk} disabled={busy}>{okLabel}</button>
+      </div>
+    </div>
+  )
 
-      {!isNew && (
-        <button className="link-btn full-link" disabled={saving} onClick={onExport}>
-          ⬇ Экспорт в JSON
+  if (isNew) {
+    return hasEntries && clearArm
+      ? confirm('Очистить черновик? Добавленные упражнения будут удалены.', onCancelClear, onClearDraft, 'Да, очистить', saving)
+      : null
+  }
+
+  return (
+    <div className="wk-acts">
+      <button className="wk-act" disabled={saving} onClick={onExport}>
+        <ActIcon name="export" />Экспорт в JSON
+      </button>
+
+      {tplArm ? (
+        <div className="tpl-from-wk" ref={armedRef}>
+          <label className="tpl-name-field">
+            <span className="muted">Название шаблона</span>
+            <input
+              className="search"
+              value={tplName}
+              onChange={(e) => onTplName(e.target.value)}
+              placeholder="Название шаблона"
+              autoFocus
+            />
+          </label>
+          <div className="danger-actions">
+            <button className="btn ghost" onClick={onCancelTpl} disabled={tplBusy}>Отмена</button>
+            <button className="btn primary" onClick={onMakeTemplate} disabled={tplBusy || !tplName.trim()}>
+              {tplBusy ? 'Создаю…' : 'Создать шаблон'}
+            </button>
+          </div>
+        </div>
+      ) : (
+        <button className="wk-act" disabled={saving} onClick={onOpenTpl}>
+          <ActIcon name="template" />Сделать шаблон из тренировки
         </button>
       )}
 
-      {!isNew && (
-        tplArm ? (
-          <div className="tpl-from-wk" ref={armedRef}>
-            <label className="tpl-name-field">
-              <span className="muted">Название шаблона</span>
-              <input
-                className="search"
-                value={tplName}
-                onChange={(e) => onTplName(e.target.value)}
-                placeholder="Название шаблона"
-                autoFocus
-              />
-            </label>
-            <div className="danger-actions">
-              <button className="btn ghost" onClick={onCancelTpl} disabled={tplBusy}>Отмена</button>
-              <button className="btn primary" onClick={onMakeTemplate} disabled={tplBusy || !tplName.trim()}>
-                {tplBusy ? 'Создаю…' : 'Создать шаблон'}
-              </button>
-            </div>
-          </div>
-        ) : (
-          <button className="link-btn full-link" disabled={saving} onClick={onOpenTpl}>
-            📋 Сделать шаблон из тренировки
+      {delArm
+        ? confirm('Удалить эту тренировку? Действие необратимо.', onCancelDel, onDelete, saving ? 'Удаляю…' : 'Да, удалить', saving)
+        : (
+          <button className="wk-act danger" disabled={saving} onClick={onArmDel}>
+            <ActIcon name="trash" />Удалить тренировку
           </button>
-        )
-      )}
-
-      {!isNew && (
-        delArm ? (
-          <div className="danger-confirm" ref={armedRef}>
-            <p className="danger-text">Удалить эту тренировку? Действие необратимо.</p>
-            <div className="danger-actions">
-              <button className="btn ghost" onClick={onCancelDel} disabled={saving}>Отмена</button>
-              <button className="btn danger" onClick={onDelete} disabled={saving}>
-                {saving ? 'Удаляю…' : 'Да, удалить'}
-              </button>
-            </div>
-          </div>
-        ) : (
-          <button className="link-btn danger full-link" disabled={saving} onClick={onArmDel}>
-            Удалить тренировку
-          </button>
-        )
-      )}
-    </>
+        )}
+    </div>
   )
+}
+
+// Иконки строк действий — инлайн-SVG (как TabIcon), красятся currentColor.
+function ActIcon({ name }) {
+  const p = {
+    className: 'wk-act-ico', viewBox: '0 0 24 24', width: 19, height: 19, fill: 'none',
+    stroke: 'currentColor', strokeWidth: 2, strokeLinecap: 'round', strokeLinejoin: 'round', 'aria-hidden': true,
+  }
+  if (name === 'export') return <svg {...p}><path d="M12 3v12M7 8l5-5 5 5M5 21h14" /></svg>
+  if (name === 'template') return <svg {...p}><rect x="5" y="4" width="14" height="17" rx="2.5" /><path d="M9 4V3h6v1M9 10h6M9 14h6" /></svg>
+  return <svg {...p}><path d="M4 7h16M9 7V4h6v3M6 7l1 14h10l1-14" /></svg>
 }
