@@ -17,7 +17,7 @@ import { myBestByExercise, minePrs, computeBeaten, computeNewPrs, crossedGoal, g
 import { computeReactionNotifs } from '../lib/reactions.js'
 import { buildInsights } from '../lib/insights.js'
 import { BADGES } from '../lib/badges.js'
-import { getBadges } from './repo.js'
+import { getBadges, getCachedUser } from './repo.js'
 import { getCachedLeaderboard } from './leaderboard.js'
 import { normMetric } from '../lib/metric.js'
 import { unreadCount } from '../lib/notifFilter.js'
@@ -90,7 +90,9 @@ async function goalNotif(userId) {
 async function insightNotifs(userId, workouts) {
   let leaderboard = null
   try { leaderboard = await getCachedLeaderboard() } catch { /* необязательно */ }
-  return buildInsights({ workouts, leaderboard, userId, max: 3 })
+  let sex = null // род глаголов в текстах выводов (v6.2.5)
+  try { sex = (await getCachedUser(userId))?.sex ?? null } catch { /* необязательно */ }
+  return buildInsights({ workouts, leaderboard, userId, max: 3, sex })
     .filter((i) => i.kind !== 'pr')
     .map((i) => ({ id: `insight:${i.id}`, type: 'insight', emoji: i.emoji, tone: i.tone, text: i.text, at: i.at }))
 }

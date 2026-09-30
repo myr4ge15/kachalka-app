@@ -97,8 +97,8 @@ export default function AppearanceScreen({ onBack, user, storage, root }) {
         <div className="appearance-preview">
           <button type="button" className="btn primary" tabIndex={-1}>Начать тренировку</button>
           <div className="appearance-preview-row">
-            <span className="chip active">Все</span>
-            <span className="chip">Грудь</span>
+            <span className="chip active">все</span>
+            <span className="chip">грудь</span>
             <span className="appearance-num">7<small> нед.</small></span>
           </div>
         </div>

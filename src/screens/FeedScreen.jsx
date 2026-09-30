@@ -257,7 +257,7 @@ export default function FeedScreen({ user }) {
               <div className="feed-who">
                 <div className="feed-name">
                   {w.user_name}
-                  {isMe && <span className="feed-me">ты</span>}
+                  {isMe && <span className="feed-me">я</span>}
                 </div>
                 <div className="muted feed-when">{fmtWhen(w.performed_at)}</div>
               </div>
@@ -283,7 +283,7 @@ export default function FeedScreen({ user }) {
             </ul>
 
             <div className="muted feed-foot">
-              {w.exCount} упр · {w.setCount} подх. · {w.tonnage.toLocaleString('ru-RU')} кг тоннаж
+              {w.exCount} упр. · {w.setCount} подх. · {w.tonnage.toLocaleString('ru-RU')} кг тоннаж
             </div>
 
             {(() => {

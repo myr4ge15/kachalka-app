@@ -239,7 +239,7 @@ export function recommendProgression({ metric, lastSets, recentSessions, setting
       // ГЛАВНЫЙ случай ради которого вводилась оценка: план добит, числа требуют
       // «+вес», а человек написал «тяжело». Держим вес, пока не станет полегче.
       if (lastFeel === 'hard') {
-        return result('same', buildWeightSets(a.workWeight, R), 'Выполнил, но было тяжело → закрепим вес', prev)
+        return result('same', buildWeightSets(a.workWeight, R), 'Всё выполнено, но было тяжело → закрепим вес', prev)
       }
       return result('up', buildWeightSets(a.workWeight + step, R), upReason(`+${fmtStep(step)} кг`), prev)
     }
@@ -254,7 +254,7 @@ export function recommendProgression({ metric, lastSets, recentSessions, setting
         : `${lead} → тот же вес, закрепимся`
       return result('down', buildWeightSets(newWeight, R), text, prev)
     }
-    return result('same', buildWeightSets(a.workWeight, R), `Не добил повторы → тот же вес, добей ${a.workingCount}×${R}`, prev)
+    return result('same', buildWeightSets(a.workWeight, R), `Повторы не добраны → тот же вес, цель ${a.workingCount}×${R}`, prev)
   }
 
   // ---- Весовые упражнения, стратегия '+повторы' ---------------------------
@@ -264,7 +264,7 @@ export function recommendProgression({ metric, lastSets, recentSessions, setting
     // Оценка «тяжело» ВЕТИРУЕТ нудж к весу: догадка «закрываешь три раза подряд»
     // и есть то самое место, где числа расходятся с ощущениями.
     if (a.allDone && lastFeel === 'hard') {
-      return result('same', buildWeightSets(a.workWeight, R), 'Выполнил, но было тяжело → закрепим как есть', prev)
+      return result('same', buildWeightSets(a.workWeight, R), 'Всё выполнено, но было тяжело → закрепим как есть', prev)
     }
     if (a.allDone && (feltEasy || streak >= EASY_STREAK_NEEDED)) {
       const n = feltEasy ? easyRun : streak
@@ -287,14 +287,14 @@ export function recommendProgression({ metric, lastSets, recentSessions, setting
         : 'Тяжело далось'
       return result('down', buildWeightSets(a.workWeight, Math.max(1, R - 1)), `${lead} → меньше повторов, закрепимся`, prev)
     }
-    return result('same', buildWeightSets(a.workWeight, R), `Не добил → тот же вес, добей ${a.workingCount}×${R}`, prev)
+    return result('same', buildWeightSets(a.workWeight, R), `Не добрано → тот же вес, цель ${a.workingCount}×${R}`, prev)
   }
 
   // ---- Count-метрики (повторы / время): прогрессия по ведущему значению ----
   const unit = m === 'time' ? 'с' : 'повт.'
   if (a.allDone) {
     if (lastFeel === 'hard') {
-      return result('same', buildCountSets(R), 'Выполнил, но было тяжело → закрепим как есть', prev)
+      return result('same', buildCountSets(R), 'Всё выполнено, но было тяжело → закрепим как есть', prev)
     }
     return result('up', buildCountSets(R + step), upReason(`+${fmtStep(step)} ${unit}`), prev)
   }
@@ -304,5 +304,5 @@ export function recommendProgression({ metric, lastSets, recentSessions, setting
       : 'Тяжело далось'
     return result('down', buildCountSets(Math.max(1, R - step)), `${lead} → снизим, закрепимся`, prev)
   }
-  return result('same', buildCountSets(R), `Не добил → тот же ориентир, добей ${R}`, prev)
+  return result('same', buildCountSets(R), `Не добрано → тот же ориентир, цель ${R}`, prev)
 }

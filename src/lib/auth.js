@@ -14,7 +14,7 @@
 // не у других клиентов. PIN текущей сессии держим в памяти (не на диске) как
 // запасной путь молчаливого перевыпуска сессии.
 // ============================================================================
-import { supabase, isSessionOf } from '../db/supabase.js'
+import { supabase, isSessionOf, hasSession } from '../db/supabase.js'
 import { getLoginMeta, setLoginMeta } from '../db/local.js'
 import { verifyPin } from './hash.js'
 import { DB_TIMEOUT_MS, withTimeout } from './withTimeout.js'
@@ -51,7 +51,7 @@ export class LoginError extends Error {
   constructor(code, message, retryAfter = null) {
     super(message)
     this.name = 'LoginError'
-    this.code = code // 'network' | 'locked' | 'invalid' | 'server'
+    this.code = code // 'network' | 'locked' | 'invalid' | 'server' | 'session'
     this.retryAfter = retryAfter
   }
 }
@@ -201,6 +201,7 @@ export async function setName(userId, name) {
   if (!navigator.onLine) {
     throw new LoginError('network', 'Смена имени — только онлайн.')
   }
+  await ensureOwnSession(userId)
   let res
   try {
     res = await withTimeout(supabase.rpc('set_my_name', { p_name: clean }))
@@ -210,6 +211,7 @@ export async function setName(userId, name) {
   if (res.error) {
     // 42501 — нет сессии/не владелец; иначе общий серверный отказ (вкл. «RPC
     // ещё не задеплоен»: set_my_name не существует → message с 'function'/'schema').
+    if (isNoSessionError(res.error)) throw new LoginError('session', NO_SESSION_MSG)
     throw new LoginError('server', res.error.message ?? 'Не удалось сменить имя.')
   }
   // Обновляем имя в офлайн-кэше своего профиля (хэш/соль/роль сохраняем).
@@ -228,6 +230,7 @@ export async function setSex(userId, sex) {
   if (!navigator.onLine) {
     throw new LoginError('network', 'Изменить пол можно только онлайн.')
   }
+  await ensureOwnSession(userId)
   let res
   try {
     res = await withTimeout(supabase.rpc('set_my_sex', { p_sex: v }))
@@ -235,9 +238,26 @@ export async function setSex(userId, sex) {
     throw new LoginError('network', 'Нет сети — попробуй позже.')
   }
   if (res.error) {
+    if (isNoSessionError(res.error)) throw new LoginError('session', NO_SESSION_MSG)
     throw new LoginError('server', res.error.message ?? 'Не удалось сохранить.')
   }
   return v
+}
+
+// Серверные «мои» RPC (set_my_sex, set_my_name) выполняются только под настоящей
+// сессией ЭТОЙ учётки. После офлайн-входа сессии может не быть (или она чужая —
+// общий телефон), и запрос уходит анонимно: сервер отвечает «permission denied for
+// function …» (инцидент 30.09, у одного из друзей при выборе пола). Перед вызовом
+// пробуем тихо перевыпустить сессию по PIN из памяти; не вышло — понятная ошибка.
+const NO_SESSION_MSG = 'Нет связи с сервером под твоей учёткой. Выйди и зайди заново по PIN, пока есть интернет.'
+function isNoSessionError(err) {
+  const m = String(err?.message ?? '')
+  return err?.code === '42501' || /permission denied|not authenticated|JWT/i.test(m)
+}
+export async function ensureOwnSession(userId) {
+  if (await hasSession(userId)) return
+  if ((await refreshSessionSilently(userId)) && (await hasSession(userId))) return
+  throw new LoginError('session', NO_SESSION_MSG)
 }
 
 // Офлайн-анлок открывает UI учётке B, а в хранилище может остаться сессия A

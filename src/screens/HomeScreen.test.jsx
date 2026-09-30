@@ -2,6 +2,7 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 import { fireEvent, render, screen } from '@testing-library/react'
 import { useLiveQuery } from 'dexie-react-hooks'
+import { fmtHomeTitle } from '../lib/dates.js'
 import HomeScreen from './HomeScreen.jsx'
 
 vi.mock('dexie-react-hooks', () => ({ useLiveQuery: vi.fn() }))
@@ -86,8 +87,21 @@ describe('HomeScreen', () => {
       block: 'center',
       inline: 'nearest',
     })
-    fireEvent.click(screen.getByRole('button', { name: 'Открыть всю историю' }))
+    fireEvent.click(screen.getByRole('button', { name: 'Открыть в календаре' }))
     expect(onNavigate).toHaveBeenCalledWith('history')
+  })
+
+  it('заголовок — сегодняшняя дата, а не приветствие; «Открыть в календаре» передаёт день недели', () => {
+    vi.mocked(useLiveQuery).mockReturnValue(readyHome)
+    const onOpenCalendar = vi.fn()
+    render(<HomeScreen user={user} onOpenCalendar={onOpenCalendar} />)
+    expect(screen.queryByText(/Привет/)).not.toBeInTheDocument()
+    expect(screen.getByRole('heading', { level: 2, name: fmtHomeTitle() })).toBeInTheDocument()
+    fireEvent.click(screen.getByRole('button', { name: 'Открыть в календаре' }))
+    expect(onOpenCalendar).toHaveBeenLastCalledWith(null)
+    fireEvent.click(screen.getByRole('button', { name: /27 июл – 2 авг: 1 тренировка/ }))
+    fireEvent.click(screen.getByRole('button', { name: 'Открыть в календаре' }))
+    expect(onOpenCalendar).toHaveBeenLastCalledWith('2026-07-29')
   })
 
   it('в пустом состоянии даёт прямой вход в новую тренировку', () => {

@@ -98,6 +98,7 @@ export function computeReactionNotifs(items, myUserId) {
     type: 'reaction',
     workoutId: g.workoutId,
     who: g.who,
+    whoId: g.reactorId, // для рода глагола по полу («оценил/оценила», v6.2.5)
     emojis: [...g.kinds]
       .sort((a, b) => (KIND_ORDER.get(a) ?? 0) - (KIND_ORDER.get(b) ?? 0))
       .map((k) => emojiForKind(k)),

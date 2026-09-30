@@ -1,30 +1,32 @@
 // ============================================================================
 // MuscleMap — анатомический heatmap-силуэт свежести (PLAN-muscle-detail, слайс 3c).
 // Реалистичная фигура (спереди/сзади): контур тела + зоны мышц раскрашиваются по
-// давности тренировки. Геометрия путей — из react-native-body-highlighter (MIT,
+// ГОТОВНОСТИ (v6.2.5; до этого — по давности, и цвет карты спорил с подписями):
+// можно / отдыхает / давно / ни разу — та же ось, что у экрана (lib/freshness.js
+// readinessView). Геометрия путей — из react-native-body-highlighter (MIT,
 // (c) 2022 ELABBASSI Hicham), см. src/components/muscleBodyPaths.js.
 //
 // Гранулярность источника — анатомическая ЗОНА (грудь, дельты, ягодичные…), чуть
-// крупнее наших подмышц; поэтому зона красится по «самой пора» из своих подмышц
-// (REGION_SUBS), а клик по зоне подсвечивает ВСЕ её строки в recovery-списке
-// (regionOf). Полная детализация по подмышцам живёт в списке, карта — обзорная.
+// крупнее наших подмышц; поэтому зона красится по «самому строгому» статусу своих
+// подмышц (REGION_SUBS: отдыхает > можно > давно > ни разу — если хоть одна часть
+// зоны отдыхает, зона красная), а клик по зоне подсвечивает её мышцы (regionOf). Полная детализация по подмышцам живёт в списке, карта — обзорная.
 //
 // Зона БЕЗ данных (ни разу не логировал эту мышцу — напр. трапеция, если не делал
 // шраги) красится не мёртвым серым, а осмысленной ДИАГОНАЛЬНОЙ ШТРИХОВКОЙ
 // «не тренировал» (pattern mm-untracked-*): пустая зона читается намеренно, а не
 // как сломанная заливка. Легенду «нет данных» держит FreshnessScreen.
 //
-// Пропсы: bySub ({submuscle→bucket}), selected (region|null), onSelect(region).
+// Пропсы: bySub ({submuscle→status}), selected (region|null), onSelect(region).
 // ============================================================================
 import { BODY_OUTLINE, NEUTRAL_PARTS, FRONT_REGIONS, BACK_REGIONS } from './muscleBodyPaths.js'
 
 // Цвета — токены --fr-*/--mm-* из index.css (красная линия «никакого хардкода в
 // JSX»). В SVG-атрибут fill var() не подставить, поэтому зона получает КЛАСС
-// бакета, а заливку ему задаёт CSS. Неизвестный бакет → «мышца без данных».
-const BUCKETS = new Set(['fresh', 'recent', 'due', 'overdue', 'never'])
+// статуса, а заливку ему задаёт CSS. Неизвестный статус → «мышца без данных».
+const STATUSES = new Set(['ready', 'resting', 'stale', 'never'])
 
-export function bucketClass(bucket) {
-  return BUCKETS.has(bucket) ? `mm-b-${bucket}` : 'mm-muscle'
+export function bucketClass(status) {
+  return STATUSES.has(status) ? `mm-s-${status}` : 'mm-muscle'
 }
 
 // Анатомическая зона → наши подмышцы. Цвет зоны = «самая пора» из них.
@@ -51,7 +53,7 @@ const REGION_LABEL = {
   'upper-back': 'широчайшие', 'lower-back': 'поясница', gluteal: 'ягодичные',
   quadriceps: 'квадрицепс', adductors: 'приводящие', hamstring: 'бицепс бедра', calves: 'икры',
 }
-const BUCKET_RANK = { overdue: 4, due: 3, recent: 2, fresh: 1, never: 0 }
+const BUCKET_RANK = { resting: 4, ready: 3, stale: 2, never: 1 }
 
 // Обратная карта подмышца → зона (для подсветки строки списка по клику на зоне).
 const SUB_REGION = {}
@@ -60,7 +62,7 @@ export function regionOf(submuscle) {
   return SUB_REGION[submuscle] ?? null
 }
 
-// Бакет зоны = максимальный по «пора» среди её подмышц, что есть в данных.
+// Статус зоны = самый строгий среди её подмышц, что есть в данных.
 function regionBucket(region, bySub) {
   let best = null
   for (const s of REGION_SUBS[region] ?? []) {

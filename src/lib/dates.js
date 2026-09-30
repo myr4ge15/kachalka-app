@@ -95,3 +95,11 @@ export function fmtAgo(updatedMs, now = Date.now()) {
   if (hr < 24) return `${hr} ч назад`
   return `${Math.round(hr / 24)} дн назад`
 }
+
+// Заголовок Главной (v6.3.0): вместо «Привет, имя!» при каждом открытии — сегодняшний
+// день недели и дата («Среда, 30 сентября»). Меняется каждый день и несёт смысл.
+const HOME_TITLE = new Intl.DateTimeFormat('ru-RU', { weekday: 'long', day: 'numeric', month: 'long' })
+export function fmtHomeTitle(now = new Date()) {
+  const s = HOME_TITLE.format(now)
+  return s.charAt(0).toUpperCase() + s.slice(1)
+}

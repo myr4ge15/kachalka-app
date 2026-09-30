@@ -2,7 +2,8 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest'
 
 const rpc = vi.fn()
-vi.mock('../db/supabase.js', () => ({ supabase: { rpc: (...a) => rpc(...a) }, isSessionOf: () => true }))
+const hasSession = vi.fn(async () => true)
+vi.mock('../db/supabase.js', () => ({ supabase: { rpc: (...a) => rpc(...a) }, isSessionOf: () => true, hasSession: (...a) => hasSession(...a) }))
 vi.mock('../db/local.js', () => ({ getLoginMeta: vi.fn(), setLoginMeta: vi.fn() }))
 
 const { setSex, LoginError } = await import('./auth.js')
@@ -28,6 +29,17 @@ describe('setSex (свой пол, v6.2.0)', () => {
     online.mockReturnValue(false)
     await expect(setSex('u1', 'm')).rejects.toBeInstanceOf(LoginError)
     expect(rpc).not.toHaveBeenCalled()
+  })
+
+  it('нет своей сессии (офлайн-вход) — понятная ошибка, без анонимного запроса', async () => {
+    hasSession.mockResolvedValueOnce(false).mockResolvedValueOnce(false)
+    await expect(setSex('u1', 'f')).rejects.toMatchObject({ code: 'session' })
+    expect(rpc).not.toHaveBeenCalled()
+  })
+
+  it('«permission denied for function» от сервера — та же понятная ошибка', async () => {
+    rpc.mockResolvedValue({ data: null, error: { message: 'permission denied for function set_my_sex', code: '42501' } })
+    await expect(setSex('u1', 'f')).rejects.toMatchObject({ code: 'session' })
   })
 
   it('ошибка сервера (например, RPC ещё не задеплоен) — LoginError server', async () => {

@@ -137,7 +137,7 @@ function BoardCard({ title, rows, user, avatarById }) {
               <Avatar name={row.user_name} url={avatarById.get(row.user_id)} className="avatar-sm" />
               <span className="lb-who">
                 <span className="lb-name">{row.user_name}</span>
-                {isMe && <span className="feed-me">ты</span>}
+                {isMe && <span className="feed-me">я</span>}
               </span>
               <span className="lb-fact">
                 <span className="lb-weight">{row.weight} кг</span>

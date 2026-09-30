@@ -1,4 +1,5 @@
 import { useState } from 'react'
+import { fmtHomeTitle } from '../lib/dates.js'
 import { useLiveQuery } from 'dexie-react-hooks'
 import { getHomeData } from '../db/insights.js'
 import { fmtDaysAgo, fmtDays } from '../lib/homeSummary.js'
@@ -8,6 +9,7 @@ import { plural } from '../lib/plural.js'
 import { tagSlug, groupAccusative, GROUP_ORDER } from '../lib/dayTags.js'
 import { recoveryLead } from '../lib/freshness.js'
 import { labelOf, majorOf } from '../lib/muscles.js'
+import { byGender } from '../lib/gender.js'
 import { rhythmChart, fmtAvg, avgWord, mondayLabel } from '../lib/rhythmChart.js'
 import { useRevealFocus } from '../hooks/useRevealFocus.js'
 import CardsSkeleton from '../components/CardsSkeleton.jsx'
@@ -49,7 +51,7 @@ const dayLabel = (ymd) => localDate(ymd).toLocaleDateString('ru-RU', { day: 'num
 //
 // Пропсы: user, onNavigate(tab), onNewWorkout() — прямой вход в композер новой
 // тренировки (минуя список хаба), общий с «+» в нижнем меню.
-export default function HomeScreen({ user, onNavigate, onNewWorkout, onOpenProgress }) {
+export default function HomeScreen({ user, onNavigate, onNewWorkout, onOpenProgress, onOpenCalendar }) {
   const [openWeek, setOpenWeek] = useState(null)
   const openWeekRef = useRevealFocus(openWeek)
   // Одно чтение истории на все три блока Главной (сводка/инсайты/свежесть): раньше
@@ -63,7 +65,7 @@ export default function HomeScreen({ user, onNavigate, onNewWorkout, onOpenProgr
   if (loading) {
     return (
       <div className="screen home">
-        <h2 className="screen-title">Привет, {user.name}!</h2>
+        <h2 className="screen-title">{fmtHomeTitle()}</h2>
         <CardsSkeleton cards={3} />
       </div>
     )
@@ -72,7 +74,7 @@ export default function HomeScreen({ user, onNavigate, onNewWorkout, onOpenProgr
   if (!summary.hasData) {
     return (
       <div className="screen home">
-        <h2 className="screen-title">Привет, {user.name}!</h2>
+        <h2 className="screen-title">{fmtHomeTitle()}</h2>
         <p className="muted empty">
           Здесь будет твоя сводка: последняя тренировка, серия, рекорды и авто-выводы.
           Запиши первую тренировку 💪
@@ -104,7 +106,7 @@ export default function HomeScreen({ user, onNavigate, onNewWorkout, onOpenProgr
   // готовность мышц и ближайшая цель ВВЕРХУ → ритм → наблюдения → рекорд.
   return (
     <div className="screen home">
-      <h2 className="screen-title">Привет, {user.name}!</h2>
+      <h2 className="screen-title">{fmtHomeTitle()}</h2>
 
       {/* Главное действие. Дублирует «+» меню намеренно: на Главной это первое, что
           ищет глаз, и сразу видно, как давно была прошлая тренировка. */}
@@ -171,7 +173,7 @@ export default function HomeScreen({ user, onNavigate, onNewWorkout, onOpenProgr
                 <span className="em" aria-hidden="true">🎯</span>
                 <div className="fr-lead-body">
                   <div className="v">Пора проработать {groupAccusative(lead.item.group)}</div>
-                  <div className="k">не тренировал уже {fmtDays(lead.item.daysSince)}</div>
+                  <div className="k">не {byGender(home?.sex, 'тренировал', 'тренировала')} уже {fmtDays(lead.item.daysSince)}</div>
                 </div>
               </div>
             ) : lead?.kind === 'resting' ? (
@@ -204,7 +206,7 @@ export default function HomeScreen({ user, onNavigate, onNewWorkout, onOpenProgr
           <div className="goal">
             <div className="goal-top">
               <span className="lbl">
-                {summary.nearestGoal.name}{' '}
+                {summary.nearestGoal.name}:{' '}
                 <b>
                   {fmtMetricValue(summary.nearestGoal.metric, summary.nearestGoal.target)}
                   {summary.nearestGoal.reps ? ` × ${summary.nearestGoal.reps}` : ''}
@@ -236,7 +238,7 @@ export default function HomeScreen({ user, onNavigate, onNewWorkout, onOpenProgr
                   <span className="rh-avg-n">{fmtAvg(chart.avg)}</span>
                   <span className="rh-avg-l">
                     {avgWord(chart.avg)} в неделю
-                    <br />в среднем за {chart.weeks} {weeksWord(chart.weeks)}
+                    <br />в среднем
                   </span>
                 </>
               ) : (
@@ -271,7 +273,7 @@ export default function HomeScreen({ user, onNavigate, onNewWorkout, onOpenProgr
                     aria-controls={`rhythm-detail-${week.key}`}
                     aria-label={`${weekRange(week)}: ${workoutCount(week.count)}`}
                   >
-                    <span className="rh-num" aria-hidden="true">{week.count}</span>
+                    <span className="rh-num" aria-hidden="true">{week.count > 0 ? week.count : ''}</span>
                     <span className="rh-plot" aria-hidden="true"><span className="rh-bar" /></span>
                     <span className="rh-date" aria-hidden="true">{mondayLabel(week)}</span>
                   </button>
@@ -301,11 +303,16 @@ export default function HomeScreen({ user, onNavigate, onNewWorkout, onOpenProgr
             )}
             <p className="rh-note">
               Один столбик — одна неделя: сверху число тренировок, снизу дата, с которой неделя
-              началась. Яркий столбик — эта неделя.{chart.mode === 'avg' ? ' Пунктир — твоё среднее.' : ''} Нажми
+              началась.{chart.mode === 'avg' ? ' Пунктир — твоё среднее.' : ''} Нажми
               на столбик, чтобы увидеть дни и мышцы.
             </p>
-            <button className="rhythm-history" onClick={() => onNavigate?.('history')}>
-              Открыть всю историю <span aria-hidden="true">›</span>
+            {/* v6.3.0: ведёт в календарь «Моих тренировок». Открыта неделя с
+                тренировками — календарь сразу показывает её последний день. */}
+            <button
+              className="rhythm-history"
+              onClick={() => (onOpenCalendar ? onOpenCalendar(openDays.at(-1)?.day ?? null) : onNavigate?.('history'))}
+            >
+              Открыть в календаре <span aria-hidden="true">›</span>
             </button>
           </div>
         </section>

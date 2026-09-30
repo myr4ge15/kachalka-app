@@ -1,5 +1,7 @@
 import { describe, it, expect } from 'vitest'
 import {
+  readinessView,
+  fmtHoursLeft,
   recoveryLead,
   recoveryHoursFor,
   DEFAULT_RECOVERY_HOURS,
@@ -320,5 +322,45 @@ describe('recoveryLead (тизер Главной — одна ось с под�
   it('пусто → null', () => {
     expect(recoveryLead([])).toBeNull()
     expect(recoveryLead(undefined)).toBeNull()
+  })
+})
+
+describe('readinessView (экран «Готовность мышц», v6.2.5)', () => {
+  const rec = [
+    { submuscle: 'traps', major: 'трапеции', daysSince: 20, hoursSince: 480, recoveryHours: 48, state: 'ready' },
+    { submuscle: 'quads', major: 'ноги', daysSince: 4, hoursSince: 97, recoveryHours: 72, state: 'ready' },
+    { submuscle: 'lats', major: 'спина', daysSince: 2, hoursSince: 60, recoveryHours: 72, state: 'almost' },
+    { submuscle: 'chest_upper', major: 'грудь', daysSince: 1, hoursSince: 25, recoveryHours: 48, state: 'resting' },
+  ]
+  const imb = [
+    { submuscle: 'traps', major: 'трапеции', kind: 'stale', daysSince: 20 },
+    { submuscle: 'forearms', major: 'бицепс', kind: 'stale', daysSince: 30 },
+    { submuscle: 'chest_lower', major: 'грудь', kind: 'never', daysSince: null },
+  ]
+  it('раскладывает по корзинам: давно не попадает в «можно», дисбаланс — в old', () => {
+    const v = readinessView(rec, imb)
+    expect(v.ready.map((x) => x.submuscle)).toEqual(['quads'])
+    expect(v.resting.map((x) => x.submuscle)).toEqual(['lats', 'chest_upper'])
+    expect(v.old.map((x) => [x.submuscle, x.status])).toEqual([
+      ['forearms', 'stale'], ['traps', 'stale'], ['chest_lower', 'never'],
+    ])
+  })
+  it('отдыхающим считает остаток часов и помечает «почти»', () => {
+    const v = readinessView(rec, imb)
+    expect(v.resting[0]).toMatchObject({ submuscle: 'lats', almost: true, hoursLeft: 12 })
+    expect(v.resting[1]).toMatchObject({ submuscle: 'chest_upper', almost: false, hoursLeft: 23 })
+  })
+  it('статусы для карты', () => {
+    expect(readinessView(rec, imb).bySub).toEqual({
+      traps: 'stale', quads: 'ready', lats: 'resting', chest_upper: 'resting', forearms: 'stale', chest_lower: 'never',
+    })
+  })
+  it('пустые входы', () => {
+    expect(readinessView(undefined, null)).toEqual({ ready: [], resting: [], old: [], bySub: {} })
+  })
+  it('fmtHoursLeft', () => {
+    expect(fmtHoursLeft(0)).toBe('уже почти')
+    expect(fmtHoursLeft(5)).toBe('через ~5 ч')
+    expect(fmtHoursLeft(30)).toBe('через ~2 дн')
   })
 })

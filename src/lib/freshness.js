@@ -355,3 +355,66 @@ export function mostNeglectedSubmuscle(workouts, now = new Date()) {
 }
 
 export { GROUP_ORDER }
+
+// ============================================================================
+// Экран «Готовность мышц» v6.2.5 — одна ось ГОТОВНОСТИ вместо длинного списка.
+// Раскладывает подмышцы на три корзины экрана + статус для раскраски карты:
+//   ready   — восстановилась, можно тренировать;
+//   resting — отдыхает (state resting/almost), hoursLeft — сколько до готовности;
+//   old     — «давно» (stale: дольше windowDays) или «ни разу» (never) —
+//             бывший отдельный блок «Дисбаланс».
+// bySub: { submuscle → 'ready'|'resting'|'stale'|'never' } — для MuscleMap.
+// Чистая функция; входы — submuscleFreshness / submuscleImbalance.
+// ============================================================================
+export function readinessView(recoverySub, imbalanceSub) {
+  const stale = new Map()
+  const never = []
+  for (const x of imbalanceSub ?? []) {
+    if (!x?.submuscle) continue
+    if (x.kind === 'never') never.push(x)
+    else stale.set(x.submuscle, x)
+  }
+  const ready = []
+  const resting = []
+  const old = []
+  const bySub = {}
+  const seen = new Set()
+  for (const f of recoverySub ?? []) {
+    if (!f?.submuscle) continue
+    seen.add(f.submuscle)
+    const base = { submuscle: f.submuscle, major: f.major, daysSince: f.daysSince }
+    if (stale.has(f.submuscle)) {
+      old.push({ ...base, status: 'stale' })
+      bySub[f.submuscle] = 'stale'
+    } else if (f.state === 'ready') {
+      ready.push({ ...base, status: 'ready' })
+      bySub[f.submuscle] = 'ready'
+    } else {
+      const hoursLeft = Math.max(0, Math.ceil((f.recoveryHours ?? 0) - (f.hoursSince ?? 0)))
+      resting.push({ ...base, status: 'resting', almost: f.state === 'almost', hoursLeft })
+      bySub[f.submuscle] = 'resting'
+    }
+  }
+  // «Давно» только по вторичной нагрузке (в recovery-списке её нет) — тоже в old.
+  for (const [sub, x] of stale) {
+    if (seen.has(sub)) continue
+    old.push({ submuscle: sub, major: x.major, daysSince: x.daysSince, status: 'stale' })
+    bySub[sub] = 'stale'
+  }
+  for (const x of never) {
+    old.push({ submuscle: x.submuscle, major: x.major, daysSince: null, status: 'never' })
+    bySub[x.submuscle] = 'never'
+  }
+  ready.sort((a, b) => b.daysSince - a.daysSince || a.submuscle.localeCompare(b.submuscle))
+  resting.sort((a, b) => a.hoursLeft - b.hoursLeft || a.submuscle.localeCompare(b.submuscle))
+  old.sort((a, b) => (a.status === b.status ? (b.daysSince ?? 0) - (a.daysSince ?? 0) : a.status === 'stale' ? -1 : 1))
+  return { ready, resting, old, bySub }
+}
+
+// «через ~N ч» / «через ~N дн» для оставшегося отдыха.
+export function fmtHoursLeft(h) {
+  const v = Math.max(0, Math.round(Number(h) || 0))
+  if (v <= 0) return 'уже почти'
+  if (v < 24) return `через ~${v} ч`
+  return `через ~${Math.ceil(v / 24)} дн`
+}

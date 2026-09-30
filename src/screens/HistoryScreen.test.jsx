@@ -158,4 +158,36 @@ describe('HistoryScreen', () => {
     }))
     expect(await screen.findByRole('status')).toHaveTextContent('Шаблон «Тренировка 29.07» создан')
   })
+
+  it('иконка календаря открывает лист и закрывает его', () => {
+    render(<HistoryScreen user={user} />)
+    fireEvent.click(screen.getByRole('button', { name: 'Календарь тренировок' }))
+    expect(screen.getByRole('dialog')).toHaveTextContent('Календарь')
+    fireEvent.click(screen.getByRole('button', { name: 'закрыть' }))
+    expect(screen.queryByRole('dialog')).not.toBeInTheDocument()
+  })
+
+  it('интент openCalendar открывает календарь сразу на нужном дне', () => {
+    const onOpenCalendarConsumed = vi.fn()
+    render(<HistoryScreen user={user} openCalendar="2026-07-29" onOpenCalendarConsumed={onOpenCalendarConsumed} />)
+    expect(onOpenCalendarConsumed).toHaveBeenCalled()
+    const dialog = screen.getByRole('dialog')
+    expect(dialog).toHaveTextContent('Июль 2026')
+    expect(dialog).toHaveTextContent('1 тренировка')
+    expect(screen.getByRole('button', { name: '29, 1 тренировка' })).toHaveAttribute('aria-pressed', 'true')
+    expect(dialog).toHaveTextContent('Жим лёжа')
+    expect(dialog).toHaveTextContent('80')
+    fireEvent.click(screen.getByRole('button', { name: 'Открыть тренировку' }))
+    expect(screen.queryByRole('dialog')).not.toBeInTheDocument()
+    expect(screen.getByTestId('workout-screen')).toHaveTextContent('w1')
+  })
+
+  it('пустой день в календаре честно говорит, что тренировок не было', () => {
+    render(<HistoryScreen user={user} openCalendar="2026-07-29" />)
+    fireEvent.click(screen.getByRole('button', { name: '28' }))
+    expect(screen.getByRole('dialog')).toHaveTextContent('В этот день тренировок не было.')
+    fireEvent.click(screen.getByRole('button', { name: 'Предыдущий месяц' }))
+    expect(screen.getByRole('dialog')).toHaveTextContent('Июнь 2026')
+    expect(screen.getByRole('dialog')).toHaveTextContent('без тренировок')
+  })
 })

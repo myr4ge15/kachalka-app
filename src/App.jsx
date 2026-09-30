@@ -188,6 +188,10 @@ export default function App() {
   // так запись начинается в ОДИН тап, минуя список.
   const [openNewWorkout, setOpenNewWorkout] = useState(false)
 
+  // Интент «открой календарь тренировок» (v6.3.0, ссылка из Ритма Главной).
+  // false — нет интента; null — календарь на сегодня; 'YYYY-MM-DD' — сразу этот день.
+  const [calendarIntent, setCalendarIntent] = useState(false)
+
   // Хаб «Тренировки» ушёл в свой под-вид (композер/деталь/шаблоны или режим
   // выбора для экспорта) — тогда FAB прячем: он там либо не нужен, либо налезает
   // на нижнюю панель («Сохранить» / бар экспорта). Хаб сообщает об этом сам.
@@ -291,6 +295,11 @@ export default function App() {
   // goTab: тот на повторном тапе шлёт `reselect`, а хаб теперь понимает его как
   // «вернись к списку» и погасил бы только что взведённый интент. Прокрутку
   // наверх делаем сами — смены вкладки, а значит и layout-эффекта, не будет.
+  function openCalendarAt(day) {
+    setCalendarIntent(day ?? null)
+    goTab('history')
+  }
+
   function startNewWorkout() {
     setOpenNewWorkout(true)
     if (tab === 'history') {
@@ -411,6 +420,7 @@ export default function App() {
                   onNavigate={goTab}
                   onNewWorkout={startNewWorkout}
                   onOpenProgress={openProgressFor}
+                  onOpenCalendar={openCalendarAt}
                 />
               )}
               {tab === 'history' && (
@@ -418,6 +428,8 @@ export default function App() {
                   user={user}
                   openNew={openNewWorkout}
                   onOpenNewConsumed={() => setOpenNewWorkout(false)}
+                  openCalendar={calendarIntent}
+                  onOpenCalendarConsumed={() => setCalendarIntent(false)}
                   onBusyChange={setHistoryBusy}
                   onOpenProgress={openProgressFor}
                 />

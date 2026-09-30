@@ -232,6 +232,11 @@ function TemplateEditor({ user, templateId, onBack }) {
   const [pickerOpen, setPickerOpen] = useState(false)
   const [saving, setSaving] = useState(false)
   const [message, setMessage] = useState(null)
+  useEffect(() => {
+    if (!message?.transient) return
+    const t = setTimeout(() => setMessage((m) => (m === message ? null : m)), 2500)
+    return () => clearTimeout(t)
+  }, [message])
   const [delArm, setDelArm] = useState(false) // in-app подтверждение удаления (единый паттерн)
 
   // Загрузка существующего шаблона на маунте.
@@ -258,9 +263,12 @@ function TemplateEditor({ user, templateId, onBack }) {
   function addExercise(ex) {
     setPickerOpen(false)
     if (items.some((it) => it.exercise.id === ex.id)) {
-      setMessage({ type: 'error', text: 'Это упражнение уже в шаблоне.' })
+      // Короткая подсказка, а не «ошибка навсегда» (v6.3.0): гаснет сама через
+      // пару секунд и при следующем удачном добавлении.
+      setMessage({ type: 'error', text: 'Это упражнение уже в шаблоне', transient: true })
       return
     }
+    setMessage((m) => (m?.transient ? null : m))
     setItems([...items, { exercise: ex, ...defaultTarget(exerciseMetric(ex)) }])
   }
 
@@ -325,6 +333,7 @@ function TemplateEditor({ user, templateId, onBack }) {
   }
 
   const canSave = name.trim().length > 0 && items.length > 0 && !saving
+  const needName = !name.trim() && items.length > 0
 
   async function save() {
     setSaving(true)
@@ -399,15 +408,21 @@ function TemplateEditor({ user, templateId, onBack }) {
         </>
       ) : (
         <>
+          {/* Без названия шаблон не сохранить (кнопка выключена). Когда упражнения
+              уже есть и не хватает только названия — подсвечиваем поле и говорим
+              почему, иначе выключенная «Сохранить» выглядит сломанной (v6.3.0). */}
           <label className="date-field">
             <span className="muted">Название</span>
             <input
-              className="search"
+              className={'search' + (needName ? ' field-need' : '')}
               type="text"
               placeholder="Напр. «Понедельник: спина»"
               value={name}
+              aria-invalid={needName || undefined}
+              aria-describedby={needName ? 'tpl-name-need' : undefined}
               onChange={(e) => setName(e.target.value)}
             />
+            {needName && <span id="tpl-name-need" className="field-need-hint">Без названия шаблон не сохранится</span>}
           </label>
 
           <label className="tpl-toggle">
@@ -420,7 +435,7 @@ function TemplateEditor({ user, templateId, onBack }) {
           </label>
 
           {items.length === 0 && (
-            <p className="muted empty">Добавь упражнения в шаблон.</p>
+            <p className="muted empty">В шаблоне пока нет упражнений</p>
           )}
 
           {items.map((it, idx) => {

@@ -26,6 +26,7 @@ import { currentStreak } from './profileStats.js'
 import { cmpIsoDesc } from './cmp.js'
 import { entryExId, entryMetric, sortDesc } from './entries.js'
 import { plural } from './plural.js'
+import { byGender } from './gender.js'
 
 const entryName = (e) => e.name ?? e.exercise?.name ?? '—'
 const groupOf = (e) => e?.muscle_group ?? e?.exercise?.muscle_group ?? null
@@ -141,7 +142,7 @@ function rNewPr(sorted, ctx) {
 
 // R2. Обгон друга по жиму: новый жимовой рекорд контекстной тренировки перешагнул
 // вес соперника в лидерборде, которого раньше не доставал. Нужен снимок борда.
-function rOvertook(sorted, ctx, leaderboard, userId) {
+function rOvertook(sorted, ctx, leaderboard, userId, sex = null) {
   if (!ctx || !leaderboard) return null
   const others = myBestByExercise(sorted.filter((w) => w.id !== ctx.id))
   let benchExId = null
@@ -171,7 +172,7 @@ function rOvertook(sorted, ctx, leaderboard, userId) {
     tone: 'good',
     priority: 90,
     at: ctx.performed_at,
-    text: `Обошёл ${top.user_name ?? 'друга'} по жиму!`,
+    text: `${byGender(sex, 'Обошёл', 'Обошла')} ${top.user_name ?? 'друга'} по жиму!`,
   }
 }
 
@@ -243,7 +244,7 @@ function rPlateau(sorted, anchor) {
 // R5. Забытая мышца: какая-то тренированная ранее ПОДМЫШЦА (по основной работе)
 // не прорабатывалась ≥ threshold дней (по самой «просроченной»). Слайс 3c: уровень
 // подмышцы вместо крупной группы (кардио пропускаем).
-function rGroupNeglected(sorted, now, anchor, { threshold = 8 } = {}) {
+function rGroupNeglected(sorted, now, anchor, { threshold = 8, sex = null } = {}) {
   const lastDay = lastTrainedBySubmuscle(sorted) // submuscle → {day,at}
   const today = dayIndex(now)
   let worst = null
@@ -263,7 +264,7 @@ function rGroupNeglected(sorted, now, anchor, { threshold = 8 } = {}) {
     tone: 'info',
     priority: 70,
     at: anchor,
-    text: `${cap(labelAccusativeOf(worst.s))} не тренировал ${plDays(worst.days)} — пора`,
+    text: `${cap(labelAccusativeOf(worst.s))} не ${byGender(sex, 'тренировал', 'тренировала')} ${plDays(worst.days)} — пора`,
   }
 }
 
@@ -407,6 +408,7 @@ export function buildInsights({
   contextWorkoutId = null,
   now = new Date(),
   max = 3,
+  sex = null, // пол пользователя — род глаголов в текстах («не тренировала»), v6.2.5
 } = {}) {
   const sorted = sortDesc(workouts)
   if (!sorted.length) return []
@@ -417,10 +419,10 @@ export function buildInsights({
   const push = (x) => { if (x) out.push(x) }
 
   push(rNewPr(sorted, ctx))
-  push(rOvertook(sorted, ctx, leaderboard, userId))
+  push(rOvertook(sorted, ctx, leaderboard, userId, sex))
   push(rBiggestSession(sorted, ctx))
   push(rPlateau(sorted, anchor))
-  push(rGroupNeglected(sorted, now, anchor))
+  push(rGroupNeglected(sorted, now, anchor, { sex }))
   push(rTonnageTrend(sorted, now, anchor))
   push(pastSelfInsight(sorted, ctx))
   push(rStreak(sorted, now, anchor))

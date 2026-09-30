@@ -12,6 +12,7 @@ import TemplatesScreen from './TemplatesScreen.jsx'
 import CardsSkeleton from '../components/CardsSkeleton.jsx'
 import ExportBar from '../components/ExportBar.jsx'
 import WorkoutFinishSheet from '../components/WorkoutFinishSheet.jsx'
+import WorkoutCalendar from '../components/WorkoutCalendar.jsx'
 import { defaultTemplateName, templateExercisesFromWorkout } from '../lib/templateFromWorkout.js'
 import { HAPTIC, vibrate } from '../lib/haptics.js'
 import { onReselect } from '../lib/appEvents.js'
@@ -53,10 +54,14 @@ function useMediaQuery(query) {
 //                        onOpenNewConsumed, чтобы не переоткрывать композер.
 //   onBusyChange(bool) — хаб ушёл в под-вид (композер/деталь/шаблоны) или включил
 //                        режим выбора для экспорта: App прячет плавающую «+».
+//   openCalendar       — одноразовый интент «открой календарь» (v6.3.0): false —
+//                        нет; null — на сегодня; 'YYYY-MM-DD' — сразу этот день.
 export default function HistoryScreen({
   user,
   openNew = false,
   onOpenNewConsumed,
+  openCalendar = false,
+  onOpenCalendarConsumed,
   onBusyChange,
   onOpenProgress,
 }) {
@@ -76,6 +81,8 @@ export default function HistoryScreen({
   // Фильтр по группе мышц (null = «Все»). Чипы строим только из реально
   // встречающихся групп, чтобы не показывать пустые.
   const [filter, setFilter] = useState(null)
+  // Календарь (v6.3.0): false — закрыт, иначе { date } — с какого дня открыть.
+  const [calendar, setCalendar] = useState(false)
   const groups = useMemo(() => availableGroups(list), [list])
   const shown = useMemo(
     () => list.filter((w) => matchesGroup(w.entries, filter)),
@@ -87,6 +94,14 @@ export default function HistoryScreen({
   // — из полного list.
   const { selectMode, picked, toggleSelectMode, togglePick, pickAll, exportPicked } =
     useExportSelection(exportWorkouts)
+
+  // Интент «открой календарь» из App (ссылка Ритма на Главной): считываем и гасим.
+  useEffect(() => {
+    if (openCalendar === false) return
+    setSelected(null)
+    setCalendar({ date: openCalendar })
+    onOpenCalendarConsumed?.()
+  }, [openCalendar, onOpenCalendarConsumed])
 
   // Интент «сразу новая тренировка» из App (плавающая «+» / кнопки Главной).
   // Считываем и тут же гасим у родителя: иначе повторный рендер снова уводил бы
@@ -166,6 +181,40 @@ export default function HistoryScreen({
 
   // Список тренировок + управление (кнопки, фильтр, экспорт). Переиспользуется
   // и на мобиле (одна колонка), и на десктопе (левая колонка master-detail).
+  // Заголовок хаба + иконка календаря справа (как «поиск по дате» в мессенджерах).
+  function renderHead() {
+    return (
+      <div className="screen-head">
+        <h2 className="screen-title">Мои тренировки</h2>
+        {list.length > 0 && (
+          <button className="back-btn" aria-label="Календарь тренировок" onClick={() => setCalendar({ date: null })}>
+            <svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" strokeWidth="2"
+              strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+              <rect x="3.5" y="5" width="17" height="15.5" rx="3" /><path d="M3.5 10h17M8 3v4M16 3v4" />
+              <circle cx="12" cy="15" r="1.6" fill="currentColor" stroke="none" />
+            </svg>
+          </button>
+        )}
+      </div>
+    )
+  }
+
+  function renderCalendar() {
+    if (!calendar) return null
+    return (
+      <WorkoutCalendar
+        workouts={shown}
+        filter={filter}
+        initialDate={calendar.date}
+        onDismiss={() => setCalendar(false)}
+        onOpen={(id) => {
+          setCalendar(false)
+          setSelected(id)
+        }}
+      />
+    )
+  }
+
   function renderList() {
     return (
       <>
@@ -205,7 +254,7 @@ export default function HistoryScreen({
               className={filter === null ? 'chip active' : 'chip'}
               onClick={() => setFilter(null)}
             >
-              Все
+              все
             </button>
             {groups.map((g) => (
               <button
@@ -245,7 +294,7 @@ export default function HistoryScreen({
                     {unsynced && <span className="dot-unsynced" title="Ждёт синхронизации">●</span>}
                   </div>
                   <div className="muted history-sub">
-                    {exCount} упр · {setCount} подх.
+                    {exCount} упр. · {setCount} подх.
                   </div>
                 </div>
                 {selectMode ? (
@@ -318,9 +367,10 @@ export default function HistoryScreen({
     return (
       <>
         <div className="screen">
-          <h2 className="screen-title">Мои тренировки</h2>
+          {renderHead()}
           {renderList()}
         </div>
+        {renderCalendar()}
         {finishResult && (
           <WorkoutFinishSheet
             workout={finishResult.workout}
@@ -341,8 +391,9 @@ export default function HistoryScreen({
     <div className="md-screen">
       <div className="md-layout">
         <div className="md-list-col">
-          <h2 className="screen-title">Мои тренировки</h2>
+          {renderHead()}
           {renderList()}
+          {renderCalendar()}
         </div>
         <div className="md-detail-col">
           {selected === null ? (

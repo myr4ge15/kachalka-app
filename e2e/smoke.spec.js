@@ -118,7 +118,7 @@ test('вход → запись тренировки → она в истори�
   await expect(afterReload).toContainText(EXERCISE)
   await expect(afterReload).toContainText('60×8')
   await expect(afterReload).toContainText(SECOND_EXERCISE)
-  await expect(afterReload).toContainText('2 упр · 2 подх.')
+  await expect(afterReload).toContainText('2 упр. · 2 подх.')
 
   // Переход из длинного Профиля по личному рекорду открывает выбранное
   // упражнение и после commit ставит общий .content в начало, а не наследует
@@ -161,7 +161,7 @@ test('вход → запись тренировки → она в истори�
   // шит принадлежит завершению занятия, а не правке старой записи (v5.12.3).
   await page.locator('.save-btn').click()
   await expect(page.getByRole('dialog', { name: 'Тренировка готова' })).toHaveCount(0)
-  await expect(page.locator('.history-card').first()).toContainText('2 упр · 2 подх.')
+  await expect(page.locator('.history-card').first()).toContainText('2 упр. · 2 подх.')
 
   // --- зоны тапа ✕ удаления подхода (геометрия, юнитам не видна) -----------
   // Отметок выполнения с v6.1.0 нет — подход, которого не было, удаляется ✕.

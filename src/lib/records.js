@@ -146,6 +146,7 @@ export function computeBeaten(feedItems, userId, myBest) {
           exId,
           name: entryName(e) ?? mine.name ?? '—',
           who: it.user_name ?? 'Друг',
+          whoId: it.user_id, // для рода глагола по полу (v6.2.5)
           metric,
           value,
           myValue: mine.value,

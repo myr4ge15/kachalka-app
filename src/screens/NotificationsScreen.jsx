@@ -5,11 +5,17 @@ import { cmpIsoAsc } from '../lib/cmp.js'
 import { fmtWhen } from '../lib/dates.js'
 import { fmtMetricValue } from '../lib/metric.js'
 import CardsSkeleton from '../components/CardsSkeleton.jsx'
+import { getUsers } from '../db/repo.js'
+import { byGender } from '../lib/gender.js'
 import { filterNotifs, activeCategories } from '../lib/notifFilter.js'
 
 // Экран «Уведомления»: личные рекорды и кто обходит тебя в кругу (ТЗ §4.5, MVP).
 export default function NotificationsScreen({ user }) {
   const list = useLiveQuery(() => getNotifications(user.id), [user.id], undefined)
+  // Пол участников из ростера — род глаголов («оценила», «обошла», «дотянула»), v6.2.5.
+  const roster = useLiveQuery(() => getUsers(), [], [])
+  const sexOf = (id) => (roster ?? []).find((u) => u.id === id)?.sex ?? null
+  const mySexNow = sexOf(user.id)
   const loading = list === undefined
   // useMemo, а не голое `list ?? []`: при загрузке (list===undefined) `?? []` давал
   // бы НОВЫЙ [] на каждый рендер → deps эффекта «пометить прочитанным» менялись бы
@@ -115,7 +121,7 @@ export default function NotificationsScreen({ user }) {
                     Цель достигнута · <span className="hl">{n.name}</span>
                   </div>
                   <div className="n-text">
-                    Ты дотянул до цели: <b>{fmtMetricValue(n.metric, n.value)}</b>
+                    Ты {byGender(mySexNow, 'дотянул', 'дотянула')} до цели: <b>{fmtMetricValue(n.metric, n.value)}</b>
                   </div>
                 </>
               )}
@@ -125,7 +131,7 @@ export default function NotificationsScreen({ user }) {
                     Реакция на тренировку · <span className="hl">{n.who}</span>
                   </div>
                   <div className="n-text">
-                    Оценил твою тренировку: <b>{(n.emojis ?? []).join(' ')}</b>
+                    {byGender(sexOf(n.whoId), 'Оценил', 'Оценила')} твою тренировку: <b>{(n.emojis ?? []).join(' ')}</b>
                   </div>
                 </>
               )}
@@ -147,7 +153,7 @@ export default function NotificationsScreen({ user }) {
                 <>
                   <div className="n-title">Твой рекорд побит</div>
                   <div className="n-text">
-                    <b>{n.who}</b> обошёл тебя в «{n.name}»: <b>{fmtMetricValue(n.metric, n.value)}</b>
+                    <b>{n.who}</b> {byGender(sexOf(n.whoId), 'обошёл', 'обошла')} тебя в «{n.name}»: <b>{fmtMetricValue(n.metric, n.value)}</b>
                     {` (твой ${fmtMetricValue(n.metric, n.myValue)})`}
                   </div>
                 </>

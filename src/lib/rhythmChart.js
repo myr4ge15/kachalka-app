@@ -7,8 +7,10 @@
 //  • недели ДО первой тренировки (beforeFirst) — не пропуски, а «ещё не пользовался»
 //    (иначе новичок с одной тренировкой видел «0,1 тренировки в неделю за 7 недель»).
 // Если среднее меньше одной тренировки в неделю, дробь не показываем — вместо неё
-// честный итог «N тренировок за M недель» (mode: 'total'). Если завершённых недель
-// с начала ещё нет (первая тренировка — на этой неделе), итог — «на этой неделе».
+// честный итог «N тренировок за M недель» (mode: 'total'). Итог — по ВСЕМ столбикам
+// графика, включая текущую неделю: «за 7 недель» при 8 столбиках читалось как ошибка
+// (отзыв, v6.3.0). Если завершённых недель с начала ещё нет (первая тренировка —
+// на этой неделе), итог — «на этой неделе».
 import { plural } from './plural.js'
 
 const fmt1 = new Intl.NumberFormat('ru-RU', { maximumFractionDigits: 1 })
@@ -19,11 +21,14 @@ export function rhythmChart(weeks) {
   const done = list.filter((w) => !w.current && !w.beforeFirst)
   const onlyCurrent = done.length === 0
   const base = onlyCurrent ? list.filter((w) => w.current) : done
-  const total = base.reduce((n, w) => n + num(w), 0)
-  const avg = base.length > 0 ? Math.round((total / base.length) * 10) / 10 : 0
+  const baseTotal = base.reduce((n, w) => n + num(w), 0)
+  const avg = base.length > 0 ? Math.round((baseTotal / base.length) * 10) / 10 : 0
   const mode = !onlyCurrent && avg >= 1 ? 'avg' : 'total'
   const max = Math.max(1, mode === 'avg' ? avg : 0, ...list.map(num))
-  return { mode, avg, total, max, weeks: base.length, onlyCurrent }
+  // avg: total/weeks — база среднего (завершённые недели); total: весь график.
+  const whole = mode === 'total' && !onlyCurrent
+  const total = whole ? list.reduce((n, w) => n + num(w), 0) : baseTotal
+  return { mode, avg, total, max, weeks: whole ? list.length : base.length, onlyCurrent }
 }
 
 // «2,4» — с запятой и не больше одного знака.

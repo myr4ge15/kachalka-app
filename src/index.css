@@ -214,10 +214,10 @@ input { font-family: inherit; }
    -webkit-appearance) рендерит текст кнопки по baseline-метрикам эмодзи — 🔔 визуально
    съезжал вниз/вбок внутри квадрата. */
 .bell {
-  position: relative; width: 40px; height: 40px; flex-shrink: 0;
+  position: relative; width: 44px; height: 44px; flex-shrink: 0;
   display: inline-flex; align-items: center; justify-content: center; padding: 0;
   margin-right: 8px; border-radius: 12px; border: 1px solid var(--stroke);
-  background: var(--glass); color: var(--muted); line-height: 1;
+  background: var(--surface); color: var(--text); line-height: 1;
   backdrop-filter: blur(20px); -webkit-backdrop-filter: blur(20px);
 }
 .bell-ico { width: 22px; height: 22px; display: block; }
@@ -306,7 +306,7 @@ input { font-family: inherit; }
   border: 5px solid var(--bg);
   box-shadow: 0 8px 20px color-mix(in srgb, var(--acc) 35%, transparent);
   transition:
-    margin-top 320ms var(--add-ease), width 320ms var(--add-ease), height 320ms var(--add-ease),
+    margin-top 320ms var(--add-ease), width 320ms var(--add-ease), height 320ms var(--add-ease), border-radius 320ms var(--add-ease),
     background-color .25s ease, color .25s ease, border-color .25s ease, box-shadow .25s ease,
     transform var(--dur-fast) var(--ease-out);
 }
@@ -316,11 +316,14 @@ input { font-family: inherit; }
 .tab-add:focus-visible .tab-add-circle { outline: 3px solid var(--acc-2); outline-offset: 2px; }
 .tab-add--sunk { cursor: default; }
 .tab-add--sunk .tab-add-circle {
-  width: 40px; height: 40px; margin-top: 8px;
-  background: var(--surface-2); color: var(--muted);
-  border-color: transparent; box-shadow: none;
+  /* Тот же квадрат 44×44 со скруглением 12, что у «назад» и колокольчика. */
+  width: 44px; height: 44px; margin-top: 6px; border-radius: 12px;
+  background: var(--surface); color: color-mix(in srgb, var(--text) 45%, transparent);
+  /* v6.2.5: как «назад» и колокольчик (и свёрнутое упражнение) — подложка и тонкая
+     обводка: та же кнопка, просто сейчас выключена. */
+  border: 1px solid var(--stroke); box-shadow: none;
 }
-.tab-add--sunk .tab-add-circle .fab-ico { width: 20px; height: 20px; }
+.tab-add--sunk .tab-add-circle .fab-ico { width: 22px; height: 22px; }
 .tab-add--sunk:active .tab-add-circle { transform: none; }
 @media (prefers-reduced-motion: reduce) {
   .tab-add-circle, .tab-add-circle .fab-ico { transition: background-color .15s linear, color .15s linear; }
@@ -976,8 +979,10 @@ input { font-family: inherit; }
 .detail-head { display: flex; align-items: center; gap: 10px; margin-bottom: 12px; }
 .detail-title { margin: 0; }
 /* Круглая «назад» (components/BackButton.jsx, v6.2.0) — одна на все вложенные экраны. */
+/* Одна «семья» иконок-кнопок (v6.2.5): «назад», колокольчик и выключенная «+» —
+   подложка --surface + тонкая обводка --stroke. */
 .back-btn {
-  flex: none; width: 44px; height: 44px; border-radius: 12px; border: 0;
+  flex: none; width: 44px; height: 44px; border-radius: 12px; border: 1px solid var(--stroke);
   display: grid; place-items: center; background: var(--surface); color: var(--text); cursor: pointer;
 }
 .back-btn:active { background: var(--surface-2); }
@@ -1195,6 +1200,8 @@ input { font-family: inherit; }
 /* Плашки (v6.2.1): мягкая подложка смыслового цвета, без жирной рамки. */
 .banner { padding: 12px 14px; border-radius: 14px; margin-bottom: 14px; font-size: 14px; font-weight: 600; line-height: 1.4; }
 .banner.ok { background: color-mix(in srgb, var(--green) 12%, transparent); border: 1px solid color-mix(in srgb, var(--green) 35%, transparent); color: var(--green); }
+.field-need { border-color: color-mix(in srgb, var(--yellow) 70%, transparent); }
+.field-need-hint { font-size: 13px; color: var(--yellow); }
 .banner.error { background: color-mix(in srgb, var(--red) 12%, transparent); border: 1px solid color-mix(in srgb, var(--red) 35%, transparent); color: #fca5a5; }
 .error { color: var(--red); font-size: 14px; text-align: center; margin-top: 10px; }
 
@@ -1358,7 +1365,7 @@ input { font-family: inherit; }
 /* «Обновить» — круглая кнопка-иконка 44 px (v6.2.2); свежесть — в подзаголовке. */
 .feed-refresh {
   flex: none; width: 44px; height: 44px; display: grid; place-items: center;
-  border: 0; border-radius: 12px; background: var(--surface); color: var(--muted); cursor: pointer;
+  border: 1px solid var(--stroke); border-radius: 12px; background: var(--surface); color: var(--muted); cursor: pointer;
 }
 .feed-refresh:disabled { cursor: default; }
 .feed-fresh { white-space: nowrap; }
@@ -2356,8 +2363,11 @@ label.act.busy { opacity: .55; pointer-events: none; }
   border-radius: 10px; color: var(--muted); cursor: pointer; font: inherit;
 }
 .rh-col:focus-visible { outline: 2px solid var(--acc-2); outline-offset: 1px; }
-.rh-num { height: var(--rh-num-h); font-family: var(--font-display); font-weight: 800; font-size: 15px; line-height: var(--rh-num-h); color: var(--text); }
-.rh-col.zero .rh-num { color: var(--muted); }
+/* Числа над столбиками — обычным шрифтом и мельче: крупный display-шрифт у Ритма
+   один — итог слева. Нули не пишем: пустая неделя и так видна по плоской чёрточке
+   (отзыв, v6.3.0). */
+.rh-num { height: var(--rh-num-h); font-size: 13px; font-weight: 600; line-height: var(--rh-num-h); color: var(--muted); font-variant-numeric: tabular-nums; }
+.rh-col.current .rh-num { color: var(--acc); }
 .rh-plot { height: var(--rh-h); width: 100%; display: flex; align-items: flex-end; justify-content: center; }
 .rh-bar {
   display: block; width: min(26px, 70%); min-height: 3px; border-radius: 6px 6px 3px 3px;
@@ -2517,11 +2527,11 @@ label.act.busy { opacity: .55; pointer-events: none; }
 .mm-body { fill: var(--mm-body); stroke: var(--mm-stroke); }
 .mm-muscle { fill: var(--mm-muscle); stroke: var(--mm-stroke); }
 .mm-part { stroke: var(--mm-stroke); }
-.mm-b-fresh { fill: var(--fr-fresh); }
-.mm-b-recent { fill: var(--fr-recent); }
-.mm-b-due { fill: var(--fr-due); }
-.mm-b-overdue { fill: var(--fr-overdue); }
-.mm-b-never { fill: var(--fr-never); }
+/* Статусы готовности (v6.2.5): можно / отдыхает / давно / ни разу. */
+.mm-s-ready { fill: var(--fr-due); }
+.mm-s-resting { fill: var(--fr-fresh); }
+.mm-s-stale { fill: var(--fr-overdue); }
+.mm-s-never { fill: var(--fr-never); }
 .mm-hatch-1 { fill: var(--mm-hatch-1); }
 .mm-hatch-2 { fill: var(--mm-hatch-2); }
 
@@ -2537,6 +2547,51 @@ label.act.busy { opacity: .55; pointer-events: none; }
 .fr-sw.fr-due     { background: var(--fr-due); }
 .fr-sw.fr-overdue { background: var(--fr-overdue); }
 .fr-sw.fr-never   { background: var(--fr-never); }
+.fr-sw.st-ready   { background: var(--fr-due); }
+.fr-sw.st-resting { background: var(--fr-fresh); }
+.fr-sw.st-stale   { background: var(--fr-overdue); }
+.fr-sw.st-never   { background: var(--fr-never); }
+
+/* ---- «Готовность мышц» v6.2.5: всё на одном экране, без длинного списка ---- */
+.fr-tip {
+  display: flex; align-items: center; gap: 10px; margin-bottom: 10px;
+  padding: 11px 13px; border-radius: 14px; background: var(--acc-soft);
+}
+.fr-tip .em { font-size: 18px; flex: none; }
+.fr-tip p { margin: 0; font-size: 13.5px; line-height: 1.4; }
+.fr-tip b { color: var(--acc-2); }
+/* Карта компактнее: фигуры по высоте ~200 px, легенда в одну-две строки. */
+.fr-map .mm { padding: 8px; }
+.fr-map .mm svg { max-width: none; width: auto; height: 200px; }
+.fr-map .mm-cap { display: none; }
+.fr-map .fr-legend { margin-top: 8px; }
+.fr-tabs {
+  display: grid; grid-template-columns: repeat(3, 1fr); gap: 3px;
+  margin-top: 12px; padding: 3px; border-radius: 13px; background: var(--surface);
+}
+.fr-tab {
+  min-height: 44px; border: 0; border-radius: 10px; background: none; cursor: pointer;
+  display: flex; align-items: center; justify-content: center; gap: 6px;
+  color: var(--muted); font-size: 13px; font-weight: 700;
+}
+.fr-tab b { font-family: var(--font-display); font-size: 20px; font-weight: 900; line-height: 1; }
+.fr-tab--ready b   { color: var(--fr-due); }
+.fr-tab--resting b { color: var(--fr-fresh); }
+.fr-tab--old b     { color: var(--fr-overdue); }
+.fr-tab.on { background: var(--surface-2); color: var(--text); }
+.fr-chips { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 10px; }
+.fr-chip {
+  display: inline-flex; align-items: center; gap: 7px; min-height: 36px; padding: 6px 12px;
+  border: 0; border-radius: 999px; background: var(--surface); cursor: pointer;
+  color: var(--text); font-size: 13px; font-weight: 700;
+}
+.fr-chip .fr-sw { width: 8px; height: 8px; border-radius: 50%; }
+.fr-chip.hl { box-shadow: inset 0 0 0 1.5px color-mix(in srgb, var(--acc) 50%, transparent); }
+.fr-chip.on { background: var(--acc-soft); box-shadow: inset 0 0 0 1.5px var(--acc); }
+.fr-chip:focus-visible, .fr-tab:focus-visible { outline: 2px solid var(--acc-2); outline-offset: 2px; }
+.fr-detail { margin: 10px 2px 0; min-height: 38px; font-size: 13px; line-height: 1.45; color: var(--muted); }
+.fr-detail b { color: var(--text); }
+.fr-none { margin: 12px 2px 0; font-size: 13px; }
 /* «нет данных» на карте — диагональная штриховка (paritет с pattern mm-untracked). */
 .fr-sw.fr-untracked {
   background: repeating-linear-gradient(45deg, var(--mm-hatch-1), var(--mm-hatch-1) 3px, var(--mm-hatch-2) 3px, var(--mm-hatch-2) 6px);
@@ -2749,3 +2804,47 @@ label.act.busy { opacity: .55; pointer-events: none; }
 .appearance-num { margin-left: auto; font-family: var(--font-display); font-weight: 900; font-size: 34px; line-height: 1; color: var(--acc); }
 .appearance-num small { font-size: 14px; color: var(--muted); font-weight: 800; }
 .appearance-note { font-size: 13px; margin: 10px 2px 0; }
+
+/* ---------- календарь тренировок (v6.3.0) ----------
+   «Поиск по дате» в «Моих тренировках». Дни с тренировкой — залитый акцентом круг,
+   сегодня — обводка, 2+ тренировки — маленький счётчик. Только акцент и нейтральные
+   токены: экран не должен читаться как «женский» трекер. */
+.screen-head { display: flex; align-items: center; justify-content: space-between; gap: 12px; margin: 4px 0 12px; }
+.screen-head .screen-title { margin: 0; }
+.cal { display: flex; flex-direction: column; gap: 14px; }
+.cal-nav { display: flex; align-items: center; gap: 10px; }
+.cal-nav .back-btn:disabled { opacity: .35; cursor: default; }
+.cal-title { flex: 1; display: flex; flex-direction: column; align-items: center; gap: 2px; text-align: center; }
+.cal-title strong {
+  font-family: var(--font-display); font-weight: 800; font-size: 22px; text-transform: uppercase; line-height: 1;
+}
+.cal-title .muted { font-size: 13px; }
+.cal-grid { display: flex; flex-direction: column; gap: 4px; touch-action: pan-y; }
+.cal-row { display: grid; grid-template-columns: repeat(7, 1fr); gap: 4px; }
+.cal-wd span { text-align: center; font-size: 12px; color: var(--muted); padding: 2px 0 4px; }
+.cal-cell { display: grid; place-items: center; min-height: 44px; }
+.cal-day {
+  position: relative; width: 42px; height: 42px; border-radius: 50%;
+  display: grid; place-items: center; border: 1px solid transparent; background: none;
+  color: var(--text); font-size: 15px; font-variant-numeric: tabular-nums; cursor: pointer;
+}
+.cal-day:not(.trained):not(:disabled) { color: var(--muted); }
+.cal-day.trained { background: var(--acc); color: var(--on-acc); font-weight: 800; }
+.cal-day.today { border-color: var(--acc-2); }
+.cal-day.trained.today { box-shadow: 0 0 0 2px var(--bg), 0 0 0 4px var(--acc-2); }
+.cal-day.picked:not(.trained) { background: var(--surface-2); color: var(--text); }
+.cal-day.trained.picked { box-shadow: 0 0 0 2px var(--bg), 0 0 0 4px var(--text); }
+.cal-day.future { opacity: .35; cursor: default; }
+.cal-day:focus-visible { outline: 2px solid var(--acc-2); outline-offset: 2px; }
+.cal-multi {
+  position: absolute; top: -3px; right: -3px; min-width: 17px; height: 17px; padding: 0 4px;
+  border-radius: 999px; font-size: 11px; font-weight: 800; line-height: 17px;
+  background: var(--surface-solid); color: var(--text); border: 1px solid var(--stroke);
+}
+.cal-summary { display: flex; flex-direction: column; gap: 10px; padding-top: 12px; border-top: 1px solid var(--border); }
+.cal-hint { margin: 0; font-size: 14px; }
+.cal-day-title { margin: 0; font-size: 16px; font-weight: 700; }
+.cal-day-title::first-letter { text-transform: uppercase; }
+.cal-workout { display: flex; flex-direction: column; gap: 10px; }
+.cal-workout .history-list { margin: 0; }
+.cal-open { background: var(--surface-2); border-color: var(--stroke); color: var(--acc-2); min-height: 44px; padding: 10px; }

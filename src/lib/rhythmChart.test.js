@@ -12,9 +12,13 @@ describe('rhythmChart', () => {
     const r = rhythmChart([wk(0, { beforeFirst: true }), wk(0, { beforeFirst: true }), wk(2), wk(3), wk(1, { current: true })])
     expect(r).toMatchObject({ mode: 'avg', avg: 2.5, weeks: 2 })
   })
-  it('меньше одной в неделю — не дробь, а итог за период', () => {
-    const r = rhythmChart([wk(1), wk(0), wk(0), wk(0), wk(0), wk(0), wk(0), wk(0, { current: true })])
-    expect(r).toMatchObject({ mode: 'total', total: 1, weeks: 7, onlyCurrent: false })
+  it('меньше одной в неделю — не дробь, а итог по всем столбикам (с текущей неделей)', () => {
+    const r = rhythmChart([wk(1), wk(0), wk(0), wk(0), wk(0), wk(0), wk(0), wk(1, { current: true })])
+    expect(r).toMatchObject({ mode: 'total', total: 2, weeks: 8, onlyCurrent: false })
+  })
+  it('8 пустых недель — «0 за 8 недель», а не «за 7»', () => {
+    const r = rhythmChart([...Array(7)].map(() => wk(0)).concat(wk(0, { current: true })))
+    expect(r).toMatchObject({ mode: 'total', total: 0, weeks: 8 })
   })
   it('первая тренировка на этой неделе — итог «на этой неделе»', () => {
     const r = rhythmChart([wk(0, { beforeFirst: true }), wk(2, { current: true })])
