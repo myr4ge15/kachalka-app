@@ -199,16 +199,19 @@ export default function FeedScreen({ user }) {
       )}
       <div className="feed-head">
         <h2 className="screen-title">Лента</h2>
-        <button className="feed-refresh" onClick={refresh} disabled={refreshing} title="Обновить">
-          <svg className={refreshing ? 'feed-refresh-ico spin' : 'feed-refresh-ico'} viewBox="0 0 24 24" width="15" height="15"
+        {/* v6.2.2: только иконка — большая «таблетка» с текстом спорила с заголовком.
+            Свежесть («обновлено 5 мин назад») переехала в подзаголовок. */}
+        <button
+          className="feed-refresh"
+          onClick={refresh}
+          disabled={refreshing}
+          aria-label={refreshing ? 'Обновляется' : 'Обновить ленту'}
+          title="Обновить ленту"
+        >
+          <svg className={refreshing ? 'feed-refresh-ico spin' : 'feed-refresh-ico'} viewBox="0 0 24 24" width="20" height="20"
             fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
             <path d="M20 11a8 8 0 1 0-2.3 5.7" /><path d="M20 4v7h-7" />
           </svg>
-          {refreshing
-            ? 'обновление…'
-            : updatedAt
-              ? `обновлено ${fmtAgo(updatedAt, nowTick)}`
-              : 'обновить'}
         </button>
       </div>
       {/* Приватному про ограниченный круг говорим РОВНО ОДИН раз — в подзаголовке.
@@ -219,6 +222,11 @@ export default function FeedScreen({ user }) {
         {myPrivate
           ? 'Приватный режим — видны только те, кому админ открыл взаимный доступ'
           : 'Последние тренировки друзей'}
+        {(refreshing || updatedAt) && (
+          <span className="feed-fresh">
+            {' · '}{refreshing ? 'обновляется…' : `обновлено ${fmtAgo(updatedAt, nowTick)}`}
+          </span>
+        )}
       </p>
 
       {/* Десктоп (≥900px) раскладывает это в две колонки: посты слева, рейтинг

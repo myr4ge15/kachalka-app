@@ -150,16 +150,16 @@ export default function ProgressScreen({
   }, [data, goalGuide, weighted])
 
   const c = useMemo(() => ({
-    grid: cssVar('--surface', '#1e293b'),
+    grid: cssVar('--border', '#1e293b'),
     axis: cssVar('--muted', '#94a3b8'),
     line: cssVar('--green', '#16a34a'),
     down: cssVar('--red', '#ef4444'),
     flat: cssVar('--muted', '#94a3b8'),
-    pr: cssVar('--yellow', '#facc15'),
+    pr: cssVar('--g4', '#facc15'), // цвет рекордов (v6.2.2): как 🏆 и звёзды Профиля
     bg: cssVar('--bg', '#0f172a'),
     border: cssVar('--border', '#334155'),
     text: cssVar('--text', '#e2e8f0'),
-    goal: cssVar('--g2', '#49d6c8'),
+    goal: cssVar('--acc', '#C8F135'), // цель — выбранный акцент
   }), [])
 
   // Цвет точки по смыслу: рекорд > спад/рост. Жёлтый — новый максимум,
@@ -266,7 +266,7 @@ export default function ProgressScreen({
                 <div className="card stat-duo">
                   <div className="stat-duo-row">
                     <div className="stat-cell">
-                      <span className="stat-cell-label">🏆 Рекорд</span>
+                      <span className="stat-cell-label">Рекорд</span>
                       <span className="stat-num gold">{allBest} кг</span>
                       <span className="muted stat-sub">за всё время</span>
                     </div>
@@ -385,10 +385,11 @@ export default function ProgressScreen({
                     />
                   </LineChart>
                 </ResponsiveContainer>
+                {/* Легенда — классы с токенами (v6.2.2), без инлайн-цвета. */}
                 <p className="muted legend">
-                  <span style={{ color: c.line }}>●</span> зелёный — рост ·{' '}
-                  <span style={{ color: c.down }}>●</span> красный — спад ·{' '}
-                  <span style={{ color: c.pr }}>●</span> жёлтый — новый рекорд
+                  <span className="lg lg-up"><i aria-hidden="true" />рост</span>
+                  <span className="lg lg-down"><i aria-hidden="true" />спад</span>
+                  <span className="lg lg-pr"><i aria-hidden="true" />рекорд</span>
                 </p>
               </div>
 

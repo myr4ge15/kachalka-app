@@ -1239,22 +1239,25 @@ input { font-family: inherit; }
 .stat-sub { font-size: 12px; }
 
 /* Шапка весовых упражнений: рекорд (всех времён) + форма сейчас (N недель). */
-.stat-duo { padding: 14px; }
+.stat-duo { padding: 14px; border-radius: 16px; }
 .stat-duo-row { display: grid; grid-template-columns: 1fr 1fr; }
 .stat-cell { display: flex; flex-direction: column; gap: 2px; }
 .stat-cell-right { border-left: 1px solid var(--border); padding-left: 12px; }
-.stat-cell-label { font-size: 12px; color: var(--muted); }
-.stat-duo .stat-num { font-size: 26px; }
-.stat-num.gold {
-  background: linear-gradient(135deg, var(--g4), var(--g3));
-  -webkit-background-clip: text; background-clip: text; -webkit-text-fill-color: transparent; color: transparent;
-}
+.stat-cell-label { font-size: 11px; font-weight: 700; color: var(--muted); text-transform: uppercase; letter-spacing: .05em; }
+.stat-duo .stat-num { font-size: 32px; margin-top: 4px; }
+/* Рекорд — сплошное золото рекордов (v6.2.2; был градиент с акцентом). */
+.stat-num.gold { color: var(--g4); }
 .stat-orm-note {
   margin-top: 10px; padding-top: 8px; border-top: 1px solid var(--border);
   font-size: 11px; line-height: 1.4;
 }
-.chart-card { padding: 12px; }
-.legend { text-align: center; margin: 8px 0 0; }
+.chart-card { padding: 12px; border-radius: 16px; }
+.legend { display: flex; justify-content: center; gap: 14px; margin: 8px 0 0; font-size: 12px; }
+.lg { display: inline-flex; align-items: center; gap: 5px; }
+.lg i { width: 8px; height: 8px; border-radius: 50%; display: inline-block; }
+.lg-up i { background: var(--green); }
+.lg-down i { background: var(--red); }
+.lg-pr i { background: var(--g4); }
 .prog-goal-guide {
   width: 100%; min-height: 52px; margin-bottom: 6px; padding: 9px 10px;
   display: flex; align-items: center; gap: 9px; text-align: left;
@@ -1266,24 +1269,28 @@ input { font-family: inherit; }
 .prog-goal-copy { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 2px; }
 .prog-goal-title { font-size: 13px; font-weight: 800; }
 .prog-goal-sub { color: var(--muted); font-size: 11px; line-height: 1.3; }
-.prog-goal-go { flex: 0 0 auto; color: var(--g2); font-size: 22px; font-weight: 800; }
+.prog-goal-go { flex: 0 0 auto; color: var(--acc-2); font-size: 22px; font-weight: 800; }
 
 /* выбор упражнения над графиком прогресса */
 .prog-pick { display: flex; flex-direction: column; gap: 6px; margin-bottom: 14px; }
 .prog-pick > .muted { font-size: 13px; }
 .prog-select {
-  width: 100%; padding: 12px; font-size: 16px; border-radius: 10px;
+  width: 100%; min-height: 50px; padding: 12px 14px; font-size: 16px; font-weight: 700; border-radius: 14px;
   border: 1px solid var(--border); background: var(--surface); color: var(--text);
   appearance: none; -webkit-appearance: none;
 }
 
-/* переключатель периода графика (неделя / месяц / всё / диапазон) */
-.prog-periods { display: flex; flex-wrap: wrap; gap: 8px; margin-bottom: 12px; }
+/* переключатель периода графика (неделя / месяц / всё / диапазон) — сегменты
+   в одной подложке (v6.2.2), как «Стратегия прогрессии». */
+.prog-periods {
+  display: grid; grid-auto-flow: column; grid-auto-columns: 1fr; gap: 3px;
+  padding: 3px; margin-bottom: 12px; border-radius: 14px; background: var(--surface);
+}
 .prog-chip {
-  flex: 0 0 auto; min-height: 44px; padding: 0 16px;
-  display: inline-flex; align-items: center; line-height: 1.2;
-  border-radius: 999px; border: 1px solid var(--border);
-  background: var(--surface); color: var(--text); font-size: 14px; font-weight: 600;
+  min-height: 42px; padding: 0 6px;
+  display: inline-flex; align-items: center; justify-content: center; line-height: 1.2;
+  border-radius: 11px; border: 1px solid transparent;
+  background: none; color: var(--muted); font-size: 14px; font-weight: 700; cursor: pointer;
 }
 .prog-chip.active { background: var(--acc); border-color: var(--acc); color: var(--on-acc); }
 .prog-range { display: flex; flex-wrap: wrap; gap: 8px; margin-bottom: 14px; }
@@ -1294,21 +1301,25 @@ input { font-family: inherit; }
 }
 
 /* таблица «по дням»: дата · подходы · метрика */
-.prog-card { padding: 14px; }
-.prog-table-title { margin: 0 0 10px; font-size: 16px; }
+.prog-card { padding: 14px; border-radius: 16px; }
+.prog-table-title {
+  margin: 0 0 8px; font-family: var(--font-display); font-weight: 800; font-size: 16px;
+  text-transform: uppercase; letter-spacing: .04em;
+}
 .prog-table { display: flex; flex-direction: column; }
 .prog-row {
   display: grid; grid-template-columns: 56px 1fr auto; gap: 8px; align-items: center;
-  padding: 8px 0; border-bottom: 1px solid var(--border);
+  min-height: 48px; padding: 8px 0; border-bottom: 1px solid var(--border);
 }
 /* Шапку таблицы («Дата · Подходы · вес») центрировать не нужно — она однострочная;
    но при желании остаётся выровненной по центру вместе со всеми. */
 .prog-row:last-child { border-bottom: none; }
 .prog-row-head { color: var(--muted); font-size: 12px; padding-top: 0; }
 .prog-sets { font-size: 14px; line-height: 1.4; word-break: break-word; }
-.prog-val { text-align: right; font-weight: 600; white-space: nowrap; }
-.prog-orm { display: block; font-size: 11px; font-weight: 400; color: var(--muted); }
-.prog-row.pr .prog-val { color: var(--yellow); }
+.prog-val { text-align: right; font-family: var(--font-display); font-size: 18px; font-weight: 900; white-space: nowrap; }
+.prog-row-head .prog-val { font-family: Onest, sans-serif; font-size: 12px; font-weight: 600; }
+.prog-orm { display: block; font-family: Onest, sans-serif; font-size: 11px; font-weight: 400; color: var(--muted); }
+.prog-row.pr .prog-val { color: var(--g4); }
 .prog-row.pr .prog-orm { color: var(--muted); }
 
 /* ---------- feed (общая лента) ---------- */
@@ -1342,13 +1353,13 @@ input { font-family: inherit; }
 .feed-layout { display: flex; flex-direction: column; }
 .feed-rail { order: -1; }
 .feed-head { display: flex; align-items: center; justify-content: space-between; gap: 10px; }
-/* Метка свежести ленты (кликабельна = обновить) — тихая «таблетка» с иконкой
-   (v6.2.1): несёт в первую очередь информацию «обновлено N назад». */
+/* «Обновить» — круглая кнопка-иконка 44 px (v6.2.2); свежесть — в подзаголовке. */
 .feed-refresh {
-  display: inline-flex; align-items: center; gap: 6px; min-height: 36px; padding: 0 12px;
-  border: 0; border-radius: 999px; background: var(--surface); cursor: pointer;
-  color: var(--muted); font-size: 12px; font-weight: 600; white-space: nowrap;
+  flex: none; width: 44px; height: 44px; display: grid; place-items: center;
+  border: 0; border-radius: 12px; background: var(--surface); color: var(--muted); cursor: pointer;
 }
+.feed-refresh:disabled { cursor: default; }
+.feed-fresh { white-space: nowrap; }
 .feed-refresh:active { background: var(--surface-2); }
 .feed-refresh-ico.spin { animation: spin .8s linear infinite; }
 @media (prefers-reduced-motion: reduce) { .feed-refresh-ico.spin { animation-duration: 2.4s; } }
@@ -2127,8 +2138,9 @@ label.act.busy { opacity: .55; pointer-events: none; }
 .admin-head { display: flex; align-items: center; gap: 10px; margin-bottom: 12px; }
 .admin-title { margin: 0; font-family: var(--font-display); font-size: 26px; font-weight: 900; line-height: 1; text-transform: uppercase; letter-spacing: .01em; color: var(--text); }
 .admin-offline {
-  margin: 0 0 10px; padding: 10px 12px; border-radius: 10px; font-size: 13px; font-weight: 600;
-  color: #fcd34d; background: rgba(250,204,21,.10); border: 1px solid rgba(250,204,21,.35);
+  margin: 0 0 10px; padding: 11px 13px; border-radius: 14px; font-size: 13px; font-weight: 600;
+  color: var(--yellow); background: color-mix(in srgb, var(--yellow) 10%, transparent);
+  border: 1px solid color-mix(in srgb, var(--yellow) 32%, transparent);
 }
 
 /* Навигация по разделам админки — аккордеон (свёрнуты по умолчанию). */
@@ -2136,10 +2148,11 @@ label.act.busy { opacity: .55; pointer-events: none; }
 .admin-nav-btn {
   display: flex; align-items: center; justify-content: space-between; gap: 10px;
   width: 100%; box-sizing: border-box; text-align: left;
-  background: var(--surface); border: 1px solid var(--border); border-radius: 12px;
-  color: var(--text); font-size: 15px; font-weight: 700; padding: 13px 14px; min-height: 50px;
+  background: var(--surface); border: 1px solid var(--border); border-radius: 14px;
+  color: var(--text); font-size: 15px; font-weight: 700; padding: 13px 14px; min-height: 54px; cursor: pointer;
 }
-.admin-nav-btn.open { border-color: var(--acc); }
+.admin-nav-btn:active { background: var(--surface-2); }
+.admin-nav-btn.open { border-color: color-mix(in srgb, var(--acc) 55%, transparent); background: var(--acc-soft); }
 .admin-nav-chev { flex: 0 0 auto; font-size: 18px; color: var(--muted); }
 .admin-nav-btn.open .admin-nav-chev { color: var(--acc-2); }
 .admin-panel { padding: 2px 0 4px; }
@@ -2147,14 +2160,14 @@ label.act.busy { opacity: .55; pointer-events: none; }
 
 .admin-search {
   width: 100%; box-sizing: border-box; background: var(--bg);
-  border: 1px solid var(--border); border-radius: 10px; padding: 11px 13px;
-  color: var(--text); font-size: 15px; min-height: 44px; margin-bottom: 10px;
+  border: 1px solid var(--border); border-radius: 12px; padding: 11px 13px;
+  color: var(--text); font-size: 15px; min-height: 46px; margin-bottom: 10px;
 }
 .admin-search:focus { outline: none; border-color: var(--acc); }
 
 .admin-list { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 8px; }
 .admin-ex, .admin-user {
-  background: var(--surface); border: 1px solid var(--border); border-radius: 12px; padding: 11px 13px;
+  background: var(--surface); border: 1px solid var(--border); border-radius: 14px; padding: 11px 13px;
 }
 .admin-ex.hidden { opacity: .6; }
 .admin-ex-row, .admin-user-row { display: flex; align-items: center; gap: 10px; }
@@ -2179,9 +2192,10 @@ label.act.busy { opacity: .55; pointer-events: none; }
 }
 .admin-ex-btns { display: flex; gap: 6px; flex: 0 0 auto; }
 .admin-mini {
-  min-width: 40px; min-height: 40px; display: inline-flex; align-items: center; justify-content: center;
-  background: var(--bg); border: 1px solid var(--border); border-radius: 10px; color: var(--text); font-size: 16px;
+  min-width: 42px; min-height: 42px; display: inline-flex; align-items: center; justify-content: center;
+  background: var(--surface-2); border: 0; border-radius: 11px; color: var(--text); font-size: 16px; cursor: pointer;
 }
+.admin-mini:active { background: var(--acc-soft); color: var(--acc-2); }
 .admin-mini:disabled { opacity: .4; }
 
 .admin-ex-edit, .admin-user-edit, .admin-merge, .admin-add {
@@ -2189,8 +2203,8 @@ label.act.busy { opacity: .55; pointer-events: none; }
 }
 .admin-input {
   width: 100%; box-sizing: border-box; background: var(--bg);
-  border: 1px solid var(--border); border-radius: 10px; padding: 11px 13px;
-  color: var(--text); font-size: 15px; min-height: 44px;
+  border: 1px solid var(--border); border-radius: 12px; padding: 11px 13px;
+  color: var(--text); font-size: 15px; min-height: 46px;
 }
 .admin-input:focus { outline: none; border-color: var(--acc); }
 .admin-check { display: flex; align-items: center; gap: 9px; font-size: 14px; color: var(--text); }
@@ -2212,7 +2226,7 @@ label.act.busy { opacity: .55; pointer-events: none; }
 .admin-user-edit .prog-select,
 .admin-ex-edit .prog-select,
 .admin-add .prog-select {
-  padding: 11px 13px; font-size: 15px; min-height: 44px;
+  padding: 11px 13px; font-size: 15px; font-weight: 600; min-height: 46px; border-radius: 12px;
   background: var(--bg);
 }
 .admin-ex-actions { display: flex; gap: 10px; }
@@ -2220,7 +2234,7 @@ label.act.busy { opacity: .55; pointer-events: none; }
 
 .admin-pin-shown {
   margin-top: 9px; padding: 9px 11px; border-radius: 10px; font-size: 14px;
-  color: var(--text); background: rgba(22,163,74,.12); border: 1px solid rgba(22,163,74,.4);
+  color: var(--text); background: color-mix(in srgb, var(--green) 12%, transparent); border: 1px solid color-mix(in srgb, var(--green) 38%, transparent);
   display: flex; align-items: center; gap: 8px;
 }
 .admin-pin-shown b { font-size: 18px; letter-spacing: .2em; }
@@ -2228,13 +2242,16 @@ label.act.busy { opacity: .55; pointer-events: none; }
 
 .admin-merge, .admin-add {
   margin-top: 10px; background: var(--surface); border: 1px solid var(--border);
-  border-radius: 12px; padding: 13px;
+  border-radius: 14px; padding: 14px;
 }
-.admin-merge-title { margin: 0; font-size: 15px; font-weight: 700; color: var(--text); }
+.admin-merge-title {
+  margin: 0; font-family: var(--font-display); font-size: 17px; font-weight: 900;
+  text-transform: uppercase; letter-spacing: .02em; color: var(--text);
+}
 .admin-hint { margin: 0; font-size: 12px; color: var(--muted); line-height: 1.4; }
 .admin-add-link {
-  margin-top: 10px; width: 100%; background: transparent; border: 1px dashed var(--border);
-  border-radius: 12px; color: var(--muted); font-size: 14px; font-weight: 600; padding: 12px; min-height: 46px;
+  margin-top: 10px; width: 100%; background: transparent; border: 1.5px dashed var(--border);
+  border-radius: 14px; color: var(--acc-2); font-size: 14px; font-weight: 700; padding: 12px; min-height: 50px; cursor: pointer;
 }
 .admin-add-link:disabled { opacity: .45; }
 
