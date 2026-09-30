@@ -11,8 +11,11 @@ import CardsSkeleton from '../components/CardsSkeleton.jsx'
 import RivalryCard from '../components/RivalryCard.jsx'
 
 // Медаль для тройки призёров, дальше — номер места.
-function place(i) {
-  return ['🥇', '🥈', '🥉'][i] ?? `${i + 1}`
+// Место — крупной цифрой; тройка лидеров — в кружке золота/серебра/бронзы (v6.2.1,
+// вместо эмодзи-медалей: цифры читаются одинаково на всех устройствах).
+const PODIUM = ['gold', 'silver', 'bronze']
+function Place({ i }) {
+  return <span className={`lb-place${PODIUM[i] ? ` lb-place--${PODIUM[i]}` : ''}`}>{i + 1}</span>
 }
 
 // Лидерборд (ТЗ §4.3, §8.3) — борд по полу зрителя (v1.13.1).
@@ -80,8 +83,8 @@ export default function Leaderboard({ user }) {
   const isFemaleViewer = viewerBoard(meRow?.sex) === 'f'
   const rows = (isFemaleViewer ? board.female : board.male) ?? []
   const title = isFemaleViewer
-    ? `🍑 Лидерборд · ${names?.female ?? 'ягодичный мостик'}`
-    : `🏋️ Лидерборд · ${names?.male ?? 'жим лёжа'}`
+    ? `Рейтинг · ${names?.female ?? 'ягодичный мостик'}`
+    : `Рейтинг · ${names?.male ?? 'жим лёжа'}`
   const rivalry = findNearestRival(rows, user.id)
 
   // Нет данных в своём борде — компактная карточка-заглушка (видимое состояние
@@ -123,14 +126,14 @@ function BoardCard({ title, rows, user, avatarById }) {
     <div className="card lb-card">
       <div className="lb-head">
         <h3 className="lb-title">{title}</h3>
-        <span className="muted lb-metric">1ПМ</span>
+        <span className="muted lb-metric">факт, кг</span>
       </div>
       <ol className="lb-list">
         {rows.map((row, i) => {
           const isMe = row.user_id === user.id
           return (
             <li key={row.user_id} className={isMe ? 'lb-row me' : 'lb-row'}>
-              <span className="lb-place">{place(i)}</span>
+              <Place i={i} />
               <Avatar name={row.user_name} url={avatarById.get(row.user_id)} className="avatar-sm" />
               <span className="lb-who">
                 <span className="lb-name">{row.user_name}</span>

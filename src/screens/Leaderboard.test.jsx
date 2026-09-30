@@ -45,7 +45,7 @@ describe('Leaderboard rivalry', () => {
 
     expect(screen.getByRole('region', { name: 'Ближайший ориентир' })).toBeInTheDocument()
     expect(screen.getByText('До Дима — 5 кг')).toBeInTheDocument()
-    expect(screen.getByText('🏋️ Лидерборд · жим лёжа')).toBeInTheDocument()
+    expect(screen.getByText('Рейтинг · жим лёжа')).toBeInTheDocument()
   })
 
   it('не показывает ни рейтинг, ни ориентир приватному пользователю', () => {
@@ -53,7 +53,7 @@ describe('Leaderboard rivalry', () => {
     render(<Leaderboard user={user} />)
 
     expect(screen.queryByLabelText('Ближайший ориентир')).not.toBeInTheDocument()
-    expect(screen.queryByText(/Лидерборд/)).not.toBeInTheDocument()
+    expect(screen.queryByText(/Рейтинг ·/)).not.toBeInTheDocument()
   })
 
   it('не добавляет карточку, если пользователя нет в устаревшем кэше', () => {
@@ -61,6 +61,6 @@ describe('Leaderboard rivalry', () => {
     render(<Leaderboard user={user} />)
 
     expect(screen.queryByLabelText('Ближайший ориентир')).not.toBeInTheDocument()
-    expect(screen.getByText('🏋️ Лидерборд · жим лёжа')).toBeInTheDocument()
+    expect(screen.getByText('Рейтинг · жим лёжа')).toBeInTheDocument()
   })
 })

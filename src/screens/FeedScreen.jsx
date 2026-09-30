@@ -199,12 +199,16 @@ export default function FeedScreen({ user }) {
       )}
       <div className="feed-head">
         <h2 className="screen-title">Лента</h2>
-        <button className="link-btn feed-refresh" onClick={refresh} disabled={refreshing} title="Обновить">
+        <button className="feed-refresh" onClick={refresh} disabled={refreshing} title="Обновить">
+          <svg className={refreshing ? 'feed-refresh-ico spin' : 'feed-refresh-ico'} viewBox="0 0 24 24" width="15" height="15"
+            fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+            <path d="M20 11a8 8 0 1 0-2.3 5.7" /><path d="M20 4v7h-7" />
+          </svg>
           {refreshing
-            ? '↻ обновление…'
+            ? 'обновление…'
             : updatedAt
-              ? `↻ обновлено ${fmtAgo(updatedAt, nowTick)}`
-              : '↻ обновить'}
+              ? `обновлено ${fmtAgo(updatedAt, nowTick)}`
+              : 'обновить'}
         </button>
       </div>
       {/* Приватному про ограниченный круг говорим РОВНО ОДИН раз — в подзаголовке.

@@ -116,11 +116,11 @@ export default function MyExercisesScreen({ user, onBack }) {
 function Section({ title, list, userId, onEdit, empty }) {
   return (
     <>
-      <div className="create-label">{title} <span className="muted">· {list.length}</span></div>
+      <p className="sec-title catalog-title">{title} <span className="catalog-count">{list.length}</span></p>
       {list.length === 0 ? (
         <p className="muted catalog-empty">{empty}</p>
       ) : (
-        <div className="picker-list">
+        <div className="picker-list catalog-list">
           {list.map((e) => {
             const editable = canEditExercise(e, userId)
             const body = (

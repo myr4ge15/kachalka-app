@@ -300,8 +300,9 @@ export default function HomeScreen({ user, onNavigate, onNewWorkout, onOpenProgr
               </div>
             )}
             <p className="rh-note">
-              Столбик — тренировки за неделю, под ним — её понедельник, яркий — текущая неделя.
-              {chart.mode === 'avg' ? ' Пунктир — твоё среднее.' : ''} Нажми на неделю — покажу даты.
+              Один столбик — одна неделя: сверху число тренировок, снизу дата, с которой неделя
+              началась. Яркий столбик — эта неделя.{chart.mode === 'avg' ? ' Пунктир — твоё среднее.' : ''} Нажми
+              на столбик, чтобы увидеть дни и мышцы.
             </p>
             <button className="rhythm-history" onClick={() => onNavigate?.('history')}>
               Открыть всю историю <span aria-hidden="true">›</span>

@@ -4,6 +4,8 @@ import { getUsers, cacheUsers } from '../db/repo.js'
 import { migrateLoginZone } from '../db/local.js'
 import { login as authLogin, verifyPinOffline, dropForeignSession, LoginError } from '../lib/auth.js'
 import { withTimeout } from '../lib/withTimeout.js'
+import Avatar from '../components/Avatar.jsx'
+import BackButton from '../components/BackButton.jsx'
 
 export default function LoginScreen({ onLogin }) {
   const [users, setUsers] = useState([])
@@ -157,13 +159,25 @@ export default function LoginScreen({ onLogin }) {
   if (!selected) {
     return (
       <div className="screen center">
-        <div className="card">
+        <div className="card login-card">
+          {/* Знак приложения + заголовок (v6.2.1, редизайн «Спорт-блоки»). */}
+          <div className="login-mark" aria-hidden="true">
+            <svg viewBox="0 0 24 24" width="30" height="30" fill="none" stroke="currentColor"
+              strokeWidth="2.2" strokeLinecap="round"><rect x="2" y="8" width="4" height="8" rx="1.5" />
+              <rect x="18" y="8" width="4" height="8" rx="1.5" /><path d="M6 12h12" /></svg>
+          </div>
           <h1 className="title">Журнал тренировок</h1>
-          <p className="muted">Выбери себя</p>
+          <p className="muted login-sub">Выбери себя</p>
           <div className="user-list">
             {users.map((u) => (
               <button key={u.id} className="user-btn" onClick={() => pickUser(u)}>
-                {u.name}
+                <span className="user-btn-ava" aria-hidden="true">
+                  <Avatar name={u.name} url={u.avatar_url} className="avatar" />
+                </span>
+                <span className="user-btn-name">{u.name}</span>
+                <svg className="user-btn-chev" viewBox="0 0 24 24" width="18" height="18" fill="none"
+                  stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round"
+                  aria-hidden="true"><path d="M9 6l6 6-6 6" /></svg>
               </button>
             ))}
             {users.length === 0 && (
@@ -178,10 +192,15 @@ export default function LoginScreen({ onLogin }) {
 
   return (
     <div className="screen center">
-      <div className="card">
-        <button className="link-btn back" onClick={() => setSelected(null)}>← назад</button>
+      <div className="card login-card">
+        <div className="login-pin-head">
+          <BackButton onClick={() => setSelected(null)} label="Выбрать другого" />
+        </div>
+        <span className="login-avatar" aria-hidden="true">
+          <Avatar name={selected.name} url={selected.avatar_url} className="avatar-lg" />
+        </span>
         <h2 className="title">{selected.name}</h2>
-        <p className="muted">Введи PIN (4 цифры)</p>
+        <p className="muted login-sub">Введи PIN — 4 цифры</p>
 
         <div className="pin-dots">
           {[0, 1, 2, 3].map((i) => (
