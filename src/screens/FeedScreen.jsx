@@ -201,6 +201,14 @@ export default function FeedScreen({ user }) {
         <h2 className="screen-title">Лента</h2>
         {/* v6.2.2: только иконка — большая «таблетка» с текстом спорила с заголовком.
             Свежесть («обновлено 5 мин назад») переехала в подзаголовок. */}
+        {/* Свежесть — рядом с кнопкой, а не в подзаголовке (v6.3.3): при смене
+            «обновляется…» ↔ «обновлено только что» текст подзаголовка перескакивал.
+            Здесь он прижат вправо к кнопке и меняется на месте. */}
+        {(refreshing || updatedAt) && (
+          <span className="feed-fresh" aria-live="polite">
+            {refreshing ? 'обновляется…' : `обновлено ${fmtAgo(updatedAt, nowTick)}`}
+          </span>
+        )}
         <button
           className="feed-refresh"
           onClick={refresh}
@@ -222,11 +230,6 @@ export default function FeedScreen({ user }) {
         {myPrivate
           ? 'Приватный режим — видны только те, кому админ открыл взаимный доступ'
           : 'Последние тренировки друзей'}
-        {(refreshing || updatedAt) && (
-          <span className="feed-fresh">
-            {' · '}{refreshing ? 'обновляется…' : `обновлено ${fmtAgo(updatedAt, nowTick)}`}
-          </span>
-        )}
       </p>
 
       {/* Десктоп (≥900px) раскладывает это в две колонки: посты слева, рейтинг

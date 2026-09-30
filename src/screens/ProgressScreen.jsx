@@ -99,6 +99,7 @@ export default function ProgressScreen({
   // PR и направление считаем по ВСЕЙ истории (рекорд — личный за все время),
   // а период лишь сужает отображаемые точки. Поэтому строим ряд целиком и
   // фильтруем результат, а не входные тренировки.
+  const [ormInfo, setOrmInfo] = useState(false)
   const [period, setPeriod] = useState('all')
   const [from, setFrom] = useState('')
   const [to, setTo] = useState('')
@@ -193,11 +194,28 @@ export default function ProgressScreen({
       <h2 className="screen-title">Прогресс</h2>
       <p className="muted sub">
         {weighted
-          ? <>По дням — максимальный поднятый вес.<br />1ПМ (расчетный) — справочно</>
+          ? <>
+              По дням — максимальный поднятый вес.<br />
+              {/* v6.3.3: формула Эпли — по нажатию прямо здесь, а не сноской внизу. */}
+              <button
+                type="button" className="orm-info-link"
+                aria-expanded={ormInfo} onClick={() => setOrmInfo((v) => !v)}
+              >
+                1ПМ (расчетный) — справочно <span className="orm-info-ico" aria-hidden="true">ⓘ</span>
+              </button>
+            </>
           : metric === 'time'
             ? 'Упражнение на время — динамика по лучшему подходу (мин:сек)'
             : 'Упражнение без веса — динамика по лучшему подходу (повт.)'}
       </p>
+      {weighted && ormInfo && (
+        <p className="formula-note">
+          1ПМ считается по формуле Эпли:{' '}
+          <code>вес × (1 + повторы ÷ 30)</code>. Это расчетная оценка
+          максимума «на раз», а не результат реального теста — чем больше
+          повторов в подходе, тем выше погрешность.
+        </p>
+      )}
 
       {loading && <CardsSkeleton cards={3} />}
 
@@ -416,14 +434,6 @@ export default function ProgressScreen({
                 </div>
               </div>
 
-              {weighted && (
-                <p className="formula-note">
-                  1ПМ считается по формуле Эпли:{' '}
-                  <code>вес × (1 + повторы ÷ 30)</code>. Это расчетная оценка
-                  максимума «на раз», а не результат реального теста — чем больше
-                  повторов в подходе, тем выше погрешность.
-                </p>
-              )}
             </>
           )}
           </div>

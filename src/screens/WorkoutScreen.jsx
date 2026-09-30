@@ -79,7 +79,14 @@ export default function WorkoutScreen({ user, workoutId = null, onBack, onSaved 
   const [replaceIdx, setReplaceIdx] = useState(null)
   const [tplPickerOpen, setTplPickerOpen] = useState(false)
   const [saving, setSaving] = useState(false)
-  const [message, setMessage] = useState(null) // {type, text}
+  const [message, setMessage] = useState(null) // {type, text, transient?}
+  // Короткие подсказки («уже добавлено») гаснут сами через 2,5 с и при следующем
+  // удачном добавлении — раньше висели до выхода из тренировки (v6.3.3).
+  useEffect(() => {
+    if (!message?.transient) return
+    const t = setTimeout(() => setMessage((m) => (m === message ? null : m)), 2500)
+    return () => clearTimeout(t)
+  }, [message])
   const [delArm, setDelArm] = useState(false)   // in-app подтверждение удаления (как везде)
   const [clearArm, setClearArm] = useState(false) // подтверждение отказа от черновика новой
   // «Сделать шаблон из тренировки»: раскрытая форма с именем + занятость.
@@ -157,9 +164,10 @@ export default function WorkoutScreen({ user, workoutId = null, onBack, onSaved 
   async function addExercise(ex) {
     if (entries.some((e) => e.exercise.id === ex.id)) {
       setPickerOpen(false)
-      setMessage({ type: 'error', text: 'Это упражнение уже добавлено.' })
+      setMessage({ type: 'error', text: 'Это упражнение уже добавлено', transient: true })
       return
     }
+    setMessage((m) => (m?.transient ? null : m))
     // Автопрогрессия (PLAN-autoprogression): вместо немой копии прошлого подхода
     // предзаполняем РЕКОМЕНДАЦИЕЙ («+вес/тот же/−вес») и показываем панель с
     // причиной и откатом. Нет истории/выключено/ручной → копия или дефолт. Данные
@@ -252,9 +260,10 @@ export default function WorkoutScreen({ user, workoutId = null, onBack, onSaved 
     const cur = entries[idx]
     if (!cur || cur.exercise.id === ex.id) return
     if (entries.some((e, i) => i !== idx && e.exercise.id === ex.id)) {
-      setMessage({ type: 'error', text: 'Это упражнение уже добавлено.' })
+      setMessage({ type: 'error', text: 'Это упражнение уже добавлено', transient: true })
       return
     }
+    setMessage((m) => (m?.transient ? null : m))
     setEntries((prev) => replaceExerciseIn(prev, idx, ex))
     // Оценка привязана к тому же id и переезжает вместе с подходами: усилие было
     // то же самое, поменялась только запись о том, каким упражнением оно названо.

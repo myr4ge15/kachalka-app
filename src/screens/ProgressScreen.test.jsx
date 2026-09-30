@@ -56,6 +56,10 @@ describe('ProgressScreen — ориентир цели', () => {
     expect(screen.getByText('осталось: 10 кг')).toBeInTheDocument()
     fireEvent.click(screen.getByRole('button', { name: 'Открыть цель Жим лежа' }))
     expect(onOpenGoals).toHaveBeenCalledOnce()
+    // Формула Эпли — по нажатию на «1ПМ (расчетный)» под заголовком, а не внизу.
+    expect(screen.queryByText(/формуле Эпли/)).not.toBeInTheDocument()
+    fireEvent.click(screen.getByRole('button', { name: /1ПМ \(расчетный\)/ }))
+    expect(screen.getByText(/формуле Эпли/)).toBeInTheDocument()
   })
 })
 

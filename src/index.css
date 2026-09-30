@@ -63,6 +63,10 @@
      Две жирности обычного шрифта: 600 — у всего, что НАЗЫВАЕТ (заголовок раздела и
      карточки, подпись поля, ссылка, кнопка), 400 — у содержимого. Крупный сжатый
      --font-display — только заголовки экранов и большие цифры. КАПС — только у них. */
+  /* Заливка акцентом (v6.3.3): тот же градиент, что у прогресс-бара цели, — на всех
+     крупных залитых элементах (главные кнопки, «+», активные чипы/сегменты, полосы
+     прогресса). Мелкие точки, аватары и дни календаря остаются плоскими. */
+  --acc-fill: linear-gradient(90deg, var(--acc), var(--acc-2));
   --fw-strong: 600;
   --fs-title: 16px;   /* заголовок раздела = заголовок карточки */
   --fs-body: 15px;    /* текст, названия в списках, значения подходов */
@@ -1372,7 +1376,7 @@ input { font-family: inherit; }
 /* Заголовок и кнопка в одной строке, подзаголовок — ПОД строкой целиком: у .sub
    отрицательный отступ, и двухстрочный текст приватного режима заезжал под
    кнопку «обновить» (v6.3.1). Цвет кнопки — как у колокольчика и «назад». */
-.feed-head .screen-title { margin: 0; }
+.feed-head .screen-title { margin: 0; flex: none; }
 .feed-head + .sub { margin-top: 0; }
 /* «Обновить» — круглая кнопка-иконка 44 px (v6.2.2); свежесть — в подзаголовке. */
 .feed-refresh {
@@ -1380,7 +1384,7 @@ input { font-family: inherit; }
   border: 1px solid var(--stroke); border-radius: 12px; background: var(--surface); color: var(--text); cursor: pointer;
 }
 .feed-refresh:disabled { cursor: default; }
-.feed-fresh { white-space: nowrap; }
+.feed-fresh { white-space: nowrap; margin-left: auto; font-size: var(--fs-meta); color: var(--muted); text-align: right; }
 .feed-refresh:active { background: var(--surface-2); }
 .feed-refresh-ico.spin { animation: spin .8s linear infinite; }
 @media (prefers-reduced-motion: reduce) { .feed-refresh-ico.spin { animation-duration: 2.4s; } }
@@ -1573,6 +1577,11 @@ img.avatar-lg.has-img {
 }
 
 /* Сноска с формулой под графиком прогресса */
+.orm-info-link {
+  background: none; border: 0; padding: 2px 0; color: inherit; font: inherit;
+  text-decoration: underline dotted; text-underline-offset: 3px; cursor: pointer;
+}
+.orm-info-ico { color: var(--acc-2); text-decoration: none; display: inline-block; margin-left: 2px; }
 .formula-note {
   margin-top: 10px; padding: 10px 12px; font-size: 12px; line-height: 1.5;
   color: var(--muted); background: var(--surface);
@@ -1690,7 +1699,7 @@ img.avatar-lg.has-img {
   display: inline-flex; align-items: center; gap: 9px;
   font-size: 15px; font-weight: 600; color: var(--text);
 }
-.settings-chev { font-size: 12px; color: var(--muted); }
+.settings-chev { font-size: 20px; line-height: 1; color: var(--muted); }
 
 /* шапка профиля */
 .prof-head { display: flex; align-items: center; gap: 14px; margin-bottom: 16px; }
@@ -2895,3 +2904,10 @@ label > span.muted:first-child, .date-field > .muted, .create-label, .field-lab,
   background: var(--surface); color: var(--muted); border-color: var(--stroke); box-shadow: none;
 }
 .btn.outline { border-style: solid; background: var(--surface); color: var(--text); }
+
+/* ================= Градиент акцента на заливках (v6.3.3) ================= */
+.home-go, .tab-add-circle, .btn.primary:not(:disabled), .side-new, .update-pill-go, .toast-action,
+.chip.active, .seg-item.on, .prog-chip.active, .toggle-pill.on,
+.bar > i, .home .bar > i, .rival-progress {
+  background: var(--acc-fill);
+}

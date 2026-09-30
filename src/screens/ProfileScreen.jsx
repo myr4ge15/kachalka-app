@@ -26,6 +26,7 @@ import StatGrid from '../components/StatGrid.jsx'
 import PersonalRecords from '../components/PersonalRecords.jsx'
 import GoalsList from '../components/GoalsList.jsx'
 import PencilIcon from '../components/PencilIcon.jsx'
+import BackButton from '../components/BackButton.jsx'
 
 // Экран «Профиль» (ЛК). Все про самого пользователя; пер-упражненческую
 // аналитику не дублируем — рекорды уводят в «Прогресс». Считаем на клиенте из
@@ -110,8 +111,9 @@ export default function ProfileScreen({ user, onLogout, onOpenProgress, onOpenFe
     if (editing) editorRef.current?.scrollIntoView({ behavior: 'smooth', block: 'center' })
   }, [editing])
 
-  // Блок «Настройки» свернут по умолчанию: экран профиля длинный (статы + цели +
-  // рекорды + настройки + danger-zone), редко используемые действия прячем.
+  // «Настройки» — отдельный под-экран Профиля (v6.3.3): список сразу сверху, со
+  // стрелкой «назад». Состояние (PIN-форма, пол, бэкап) живет здесь же, поэтому это
+  // вид внутри ProfileScreen, а не отдельный роут App.
   const [settingsOpen, setSettingsOpen] = useState(false)
 
   // ── Смена PIN (фаза 2c) ─────────────────────────────────────────────────
@@ -429,6 +431,166 @@ export default function ProfileScreen({ user, onLogout, onOpenProgress, onOpenFe
     if (navigator.onLine) syncNow(user.id)
   }
 
+  function openSettings() {
+    setSettingsOpen(true)
+    document.querySelector('.content')?.scrollTo({ top: 0 })
+  }
+  function closeSettings() {
+    setSettingsOpen(false)
+    setPinOpen(false)
+    setDelArm(false)
+    document.querySelector('.content')?.scrollTo({ top: 0 })
+  }
+
+  if (settingsOpen) {
+    return (
+      <div className="screen profile settings-screen">
+        <div className="detail-head">
+          <BackButton onClick={closeSettings} />
+          <h2 className="screen-title detail-title">Настройки</h2>
+        </div>
+        {/* Проблема с отправкой — важный алерт: виден всегда, даже когда свернуто. */}
+        {deadCount > 0 && (
+          <div className="danger-confirm">
+            <p className="danger-text">
+              ⚠️ Не удалось отправить изменений: {deadCount}. Обычно помогает повторить
+              (например, после восстановления связи).
+            </p>
+            {dlArm ? (
+              <div className="danger-actions">
+                <button className="btn ghost" onClick={() => setDlArm(false)} disabled={dlBusy}>Отмена</button>
+                <button className="btn danger" onClick={discardDead} disabled={dlBusy}>
+                  {dlBusy ? 'Отклоняю…' : 'Да, отклонить (потерять правки)'}
+                </button>
+              </div>
+            ) : (
+              <div className="danger-actions">
+                <button className="btn primary" onClick={retryDead} disabled={dlBusy}>
+                  {dlBusy ? 'Отправляю…' : '🔄 Повторить отправку'}
+                </button>
+                <button className="btn ghost" onClick={() => setDlArm(true)} disabled={dlBusy}>Отклонить</button>
+              </div>
+            )}
+          </div>
+        )}
+
+          <div className="actions">
+            <button className="act" onClick={() => onOpenAppearance?.()}>
+              <span className="act-txt">
+                🎨 Оформление
+                <span className="act-sub">акцентный цвет приложения</span>
+              </span>
+            </button>
+            <SexPicker value={sexValue} busy={sexPending !== undefined} error={sexErr} onChange={changeSex} />
+            <button
+              className="act toggle-act"
+              role="switch"
+              aria-checked={progEnabled}
+              onClick={() => setProgEnabled(user.id, !progEnabled)}
+            >
+              <span className="toggle-act-txt">
+                📈 Рекомендации прогрессии
+                <span className="toggle-act-sub">подсказка веса/повторов при добавлении упражнения</span>
+              </span>
+              <span className={'toggle-pill' + (progEnabled ? ' on' : '')} aria-hidden="true">
+                <span className="toggle-knob" />
+              </span>
+            </button>
+            {pinOpen ? (
+              <div className="pin-form">
+                <p className="pin-form-title">Смена PIN</p>
+                <label className="field">
+                  <span className="field-lab">Текущий PIN</span>
+                  <input
+                    className="pin-input" type="password" inputMode="numeric"
+                    autoComplete="off" name="cur-code" data-lpignore="true" data-1p-ignore
+                    placeholder="••••"
+                    value={curPin} onChange={(e) => setCurPin(onlyDigits(e.target.value))}
+                  />
+                </label>
+                <label className="field">
+                  <span className="field-lab">Новый PIN</span>
+                  <input
+                    className="pin-input" type="password" inputMode="numeric"
+                    autoComplete="off" name="new-code" data-lpignore="true" data-1p-ignore
+                    placeholder="4 цифры"
+                    value={newPin} onChange={(e) => setNewPin(onlyDigits(e.target.value))}
+                  />
+                </label>
+                <label className="field">
+                  <span className="field-lab">Повтор нового PIN</span>
+                  <input
+                    className="pin-input" type="password" inputMode="numeric"
+                    autoComplete="off" name="rpt-code" data-lpignore="true" data-1p-ignore
+                    placeholder="еще раз"
+                    value={rptPin} onChange={(e) => setRptPin(onlyDigits(e.target.value))}
+                  />
+                </label>
+                {pinErr && <p className="pin-err" role="alert">{pinErr}</p>}
+                <div className="pin-form-actions">
+                  <button className="btn ghost" onClick={closePinForm} disabled={pinBusy}>Отмена</button>
+                  <button className="btn primary" onClick={submitPin} disabled={pinBusy}>
+                    {pinBusy ? 'Сохраняю…' : 'Сменить PIN'}
+                  </button>
+                </div>
+              </div>
+            ) : (
+              <button className="act" onClick={() => setPinOpen(true)}>🔑 Сменить PIN</button>
+            )}
+            {user.role !== 'admin' && (
+              <button className="act" onClick={() => onOpenMyExercises?.()}>🏋 Каталог упражнений</button>
+            )}
+            <button className="act" onClick={doExportAll} disabled={bkBusy}>
+              <span className="act-txt">
+                💾 Скачать все мои данные
+                <span className="act-sub">один JSON: тренировки, цели, достижения, настройки</span>
+              </span>
+            </button>
+            {/* Восстановление — <label> вместо <button>: нативный выбор файла, как
+                у смены аватара выше. Стиль .act работает и на label. */}
+            <label className={'act' + (bkBusy ? ' busy' : '')}>
+              <span className="act-txt">
+                📥 Восстановить из файла
+                <span className="act-sub">добавит только то, чего сейчас нет</span>
+              </span>
+              <input
+                type="file"
+                accept="application/json,.json"
+                onChange={onPickBackup}
+                disabled={bkBusy}
+                hidden
+              />
+            </label>
+            {user.role === 'admin' && (
+              <button className="act" onClick={() => onOpenAdmin?.()}>🛠 Админка</button>
+            )}
+            {delArm ? (
+              <div className="danger-confirm">
+                <p className="danger-text">
+                  Удалить все свои тренировки? Отменить это нельзя — если не уверен,
+                  сначала нажми «Скачать все мои данные». Учетная запись, цель и шаблоны останутся.
+                </p>
+                <div className="danger-actions">
+                  <button className="btn ghost" onClick={() => setDelArm(false)} disabled={delBusy}>Отмена</button>
+                  <button className="btn danger" onClick={confirmDelete} disabled={delBusy}>
+                    {delBusy ? 'Удаляю…' : 'Да, удалить'}
+                  </button>
+                </div>
+              </div>
+            ) : (
+              <button className="act danger" onClick={() => setDelArm(true)}>🗑 Удалить мои данные</button>
+            )}
+          </div>
+        <p className="app-version">
+          <a className="repo-link" href="https://github.com/myr4ge15/kachalka-app" target="_blank" rel="noopener noreferrer">
+            kachalka-app
+          </a>
+          {' · '}v{APP_VERSION}
+        </p>
+      </div>
+    )
+  }
+
   return (
     <div className="screen profile">
       {/* шапка профиля */}
@@ -653,17 +815,10 @@ export default function ProfileScreen({ user, onLogout, onOpenProgress, onOpenFe
         </>
       )}
 
-      {/* настройки и выход — свернуто по умолчанию, чтобы длинный экран не пух */}
+      {/* Настройки — отдельный экран (v6.3.3): раньше это был свернутый блок в самом
+          низу, и после «раскрыть» список оставался за краем — на экране висело
+          «Любимое». Выход — на виду в Профиле, как раньше. */}
       <section className="sec settings-sec">
-        <button
-          className="settings-toggle"
-          onClick={() => setSettingsOpen((o) => !o)}
-          aria-expanded={settingsOpen}
-        >
-          <span className="settings-title"><span aria-hidden="true">⚙️</span> Настройки</span>
-          <span className="settings-chev" aria-hidden="true">{settingsOpen ? '▾' : '▸'}</span>
-        </button>
-
         {/* Проблема с отправкой — важный алерт: виден всегда, даже когда свернуто. */}
         {deadCount > 0 && (
           <div className="danger-confirm">
@@ -689,117 +844,10 @@ export default function ProfileScreen({ user, onLogout, onOpenProgress, onOpenFe
           </div>
         )}
 
-        {settingsOpen && (
-        <div className="actions">
-          <button className="act" onClick={() => onOpenAppearance?.()}>
-            <span className="act-txt">
-              🎨 Оформление
-              <span className="act-sub">акцентный цвет приложения</span>
-            </span>
-          </button>
-          <SexPicker value={sexValue} busy={sexPending !== undefined} error={sexErr} onChange={changeSex} />
-          <button
-            className="act toggle-act"
-            role="switch"
-            aria-checked={progEnabled}
-            onClick={() => setProgEnabled(user.id, !progEnabled)}
-          >
-            <span className="toggle-act-txt">
-              📈 Рекомендации прогрессии
-              <span className="toggle-act-sub">подсказка веса/повторов при добавлении упражнения</span>
-            </span>
-            <span className={'toggle-pill' + (progEnabled ? ' on' : '')} aria-hidden="true">
-              <span className="toggle-knob" />
-            </span>
-          </button>
-          {pinOpen ? (
-            <div className="pin-form">
-              <p className="pin-form-title">Смена PIN</p>
-              <label className="field">
-                <span className="field-lab">Текущий PIN</span>
-                <input
-                  className="pin-input" type="password" inputMode="numeric"
-                  autoComplete="off" name="cur-code" data-lpignore="true" data-1p-ignore
-                  placeholder="••••"
-                  value={curPin} onChange={(e) => setCurPin(onlyDigits(e.target.value))}
-                />
-              </label>
-              <label className="field">
-                <span className="field-lab">Новый PIN</span>
-                <input
-                  className="pin-input" type="password" inputMode="numeric"
-                  autoComplete="off" name="new-code" data-lpignore="true" data-1p-ignore
-                  placeholder="4 цифры"
-                  value={newPin} onChange={(e) => setNewPin(onlyDigits(e.target.value))}
-                />
-              </label>
-              <label className="field">
-                <span className="field-lab">Повтор нового PIN</span>
-                <input
-                  className="pin-input" type="password" inputMode="numeric"
-                  autoComplete="off" name="rpt-code" data-lpignore="true" data-1p-ignore
-                  placeholder="еще раз"
-                  value={rptPin} onChange={(e) => setRptPin(onlyDigits(e.target.value))}
-                />
-              </label>
-              {pinErr && <p className="pin-err" role="alert">{pinErr}</p>}
-              <div className="pin-form-actions">
-                <button className="btn ghost" onClick={closePinForm} disabled={pinBusy}>Отмена</button>
-                <button className="btn primary" onClick={submitPin} disabled={pinBusy}>
-                  {pinBusy ? 'Сохраняю…' : 'Сменить PIN'}
-                </button>
-              </div>
-            </div>
-          ) : (
-            <button className="act" onClick={() => setPinOpen(true)}>🔑 Сменить PIN</button>
-          )}
-          {user.role !== 'admin' && (
-            <button className="act" onClick={() => onOpenMyExercises?.()}>🏋 Каталог упражнений</button>
-          )}
-          <button className="act" onClick={doExportAll} disabled={bkBusy}>
-            <span className="act-txt">
-              💾 Скачать все мои данные
-              <span className="act-sub">один JSON: тренировки, цели, достижения, настройки</span>
-            </span>
-          </button>
-          {/* Восстановление — <label> вместо <button>: нативный выбор файла, как
-              у смены аватара выше. Стиль .act работает и на label. */}
-          <label className={'act' + (bkBusy ? ' busy' : '')}>
-            <span className="act-txt">
-              📥 Восстановить из файла
-              <span className="act-sub">добавит только то, чего сейчас нет</span>
-            </span>
-            <input
-              type="file"
-              accept="application/json,.json"
-              onChange={onPickBackup}
-              disabled={bkBusy}
-              hidden
-            />
-          </label>
-          {user.role === 'admin' && (
-            <button className="act" onClick={() => onOpenAdmin?.()}>🛠 Админка</button>
-          )}
-          {delArm ? (
-            <div className="danger-confirm">
-              <p className="danger-text">
-                Удалить все свои тренировки? Отменить это нельзя — если не уверен,
-                сначала нажми «Скачать все мои данные». Учетная запись, цель и шаблоны останутся.
-              </p>
-              <div className="danger-actions">
-                <button className="btn ghost" onClick={() => setDelArm(false)} disabled={delBusy}>Отмена</button>
-                <button className="btn danger" onClick={confirmDelete} disabled={delBusy}>
-                  {delBusy ? 'Удаляю…' : 'Да, удалить'}
-                </button>
-              </div>
-            </div>
-          ) : (
-            <button className="act danger" onClick={() => setDelArm(true)}>🗑 Удалить мои данные</button>
-          )}
-        </div>
-        )}
-
-        {/* Выход — частое действие, держим на виду всегда (вне сворачивания). */}
+        <button className="settings-toggle" onClick={openSettings}>
+          <span className="settings-title"><span aria-hidden="true">⚙️</span> Настройки</span>
+          <span className="settings-chev" aria-hidden="true">›</span>
+        </button>
         <div className="actions">
           <button className="act logout" onClick={onLogout}>Выйти</button>
         </div>

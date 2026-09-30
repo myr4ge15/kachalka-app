@@ -184,13 +184,13 @@ export default function ExerciseCard({
 
           {isTime ? (
             <div className="stepper" role="group" aria-label={`Подход ${si + 1}, время`}>
-              <HoldButton onTrigger={() => onStep(ei, si, 'reps', -15)}>−</HoldButton>
+              <HoldButton onTrigger={() => onStep(ei, si, 'reps', -5)}>−</HoldButton>
               <input
                 type="text" inputMode="numeric" value={fmtTime(s.reps)}
                 aria-label={`Время, подход ${si + 1}`}
                 onChange={(e) => onUpdateSet(ei, si, 'reps', parseTime(e.target.value))}
               />
-              <HoldButton onTrigger={() => onStep(ei, si, 'reps', 15)}>+</HoldButton>
+              <HoldButton onTrigger={() => onStep(ei, si, 'reps', 5)}>+</HoldButton>
             </div>
           ) : (
             <div className="stepper" role="group" aria-label={`Подход ${si + 1}, повторы`}>
