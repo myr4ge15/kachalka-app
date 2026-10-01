@@ -139,6 +139,17 @@ export function groupFreshness(workouts, { now = new Date() } = {}) {
 //   { kind:'resting', items } — все в окне, но часть еще не восстановилась;
 //   { kind:'ready' }          — все тренированные группы восстановились;
 //   null                      — нет данных.
+// Единая шкала цвета Главной и экрана «Восстановление» (v6.3.6): одна и та же группа/
+// мышца красится одинаково. Давность ≥ STALE_DAYS (то же окно, что у дисбаланса)
+// важнее восстановления — заброшенная группа «давно», а не просто «можно».
+//   'resting' 🔴 · 'almost' 🟡 · 'ready' 🟢 · 'stale' 🔵 (· 'never' ⚪ — только на экране)
+export const STALE_DAYS = 14
+export function readinessStatus(f) {
+  if (!f) return null
+  if (f.daysSince != null && f.daysSince >= STALE_DAYS) return 'stale'
+  return f.state ?? null
+}
+
 export function recoveryLead(recovery) {
   const rec = recovery ?? []
   if (rec.length === 0) return null
@@ -392,7 +403,8 @@ export function readinessView(recoverySub, imbalanceSub) {
     } else {
       const hoursLeft = Math.max(0, Math.ceil((f.recoveryHours ?? 0) - (f.hoursSince ?? 0)))
       resting.push({ ...base, status: 'resting', almost: f.state === 'almost', hoursLeft })
-      bySub[f.submuscle] = 'resting'
+      // Цвет «почти» — свой (желтый, как на Главной), корзина та же — «отдыхают».
+      bySub[f.submuscle] = f.state === 'almost' ? 'almost' : 'resting'
     }
   }
   // «Давно» только по вторичной нагрузке (в recovery-списке ее нет) — тоже в old.

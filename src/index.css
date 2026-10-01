@@ -2499,12 +2499,14 @@ label.act.busy { opacity: .55; pointer-events: none; }
 .fr-lead .v { font-weight: 600; font-size: 14px; }
 .fr-lead .k { color: var(--muted); font-size: 12px; margin-top: 1px; }
 
-/* Полоса тизера — ось ВОССТАНОВЛЕНИЯ (state), одна ось с подписью карточки:
-   красный «дай отдых» → желтый «почти» → бирюзовый «можно». Бакеты давности
-   (fr-fresh/recent/due/overdue) живут на детальном экране, где есть легенда. */
+/* Полоса тизера — та же шкала, что на экране «Восстановление» (v6.3.6,
+   lib/freshness.js readinessStatus): красный «отдыхает» → желтый «почти» →
+   бирюзовый «можно», синий «давно» (≥ 14 дней). Раньше заброшенная группа здесь
+   была бирюзовой, а на экране синей, «почти» — желтым здесь и красным там. */
 .fr-bar.st-resting { background: var(--fr-fresh); }
 .fr-bar.st-almost  { background: var(--fr-recent); }
 .fr-bar.st-ready   { background: var(--fr-due); }
+.fr-bar.st-stale   { background: var(--fr-overdue); }
 
 /* Детальный экран: recovery-список. */
 .fr-list { display: flex; flex-direction: column; gap: 8px; }
@@ -2559,6 +2561,7 @@ label.act.busy { opacity: .55; pointer-events: none; }
 /* Статусы готовности (v6.2.5): можно / отдыхает / давно / ни разу. */
 .mm-s-ready { fill: var(--fr-due); }
 .mm-s-resting { fill: var(--fr-fresh); }
+.mm-s-almost { fill: var(--fr-recent); }
 .mm-s-stale { fill: var(--fr-overdue); }
 .mm-s-never { fill: var(--fr-never); }
 .mm-hatch-1 { fill: var(--mm-hatch-1); }
@@ -2578,6 +2581,7 @@ label.act.busy { opacity: .55; pointer-events: none; }
 .fr-sw.fr-never   { background: var(--fr-never); }
 .fr-sw.st-ready   { background: var(--fr-due); }
 .fr-sw.st-resting { background: var(--fr-fresh); }
+.fr-sw.st-almost  { background: var(--fr-recent); }
 .fr-sw.st-stale   { background: var(--fr-overdue); }
 .fr-sw.st-never   { background: var(--fr-never); }
 
@@ -2934,4 +2938,72 @@ label > span.muted:first-child, .date-field > .muted, .create-label, .field-lab,
   /* Градиент от внешнего края, а не от padding-box: иначе под прозрачной рамкой в 1px повторялся
   противоположный конец градиента — светлая полоска слева у «все» и «Сохранить» (v6.3.5). */
   background-origin: border-box;
+}
+/* ================= Телефон лежа: меню — узкой колонкой слева (v6.3.6) =================
+   Отзыв 01.10 (iPhone 15 Pro, 852×393): в горизонтали шапка и нижнее меню съедали
+   почти треть высоты, а контент стоял узкой полоской по центру. Здесь — тот же
+   принцип, что на ПК (меню колонкой слева, шапки нет), но колонка-«рельса»
+   узкая: иконки с подписями, «+», внизу синк, колокольчик и аватар. Условие —
+   низкий альбомный экран; планшеты и ПК (высота > 520px) живут по своим правилам.
+   Блок стоит ПОСЛЕ десктопного и перебивает его, если оба совпали (Pro Max 932×430). */
+@media (orientation: landscape) and (max-height: 520px) {
+  :root { --rail-w: calc(76px + env(safe-area-inset-left)); }
+  .app {
+    display: grid;
+    grid-template-columns: var(--rail-w) minmax(0, 1fr);
+    grid-template-rows: minmax(0, 1fr);
+    grid-template-areas: "side main";
+  }
+  .topbar { display: none; }
+  .content {
+    grid-area: main;
+    padding-bottom: calc(24px + env(safe-area-inset-bottom));
+  }
+
+  .tabbar {
+    grid-area: side; position: static;
+    flex-direction: column; justify-content: flex-start; align-items: stretch; gap: 2px;
+    padding: calc(6px + env(safe-area-inset-top)) 6px calc(6px + env(safe-area-inset-bottom))
+             calc(6px + env(safe-area-inset-left));
+    border-top: none; border-right: 1px solid var(--stroke);
+    overflow-y: auto; overscroll-behavior: contain;
+  }
+  .side-brand, .side-new { display: none; }
+  .tab {
+    flex: 0 0 auto; min-height: 44px; padding: 5px 2px; gap: 2px;
+    font-size: 10px; border-radius: 11px;
+  }
+  .tab .tab-ico { width: 20px; height: 20px; }
+  .tab.active { background: var(--acc-soft); }
+  .tab-dot { display: none; }
+
+  .tab-add { flex: 0 0 auto; display: flex; padding: 3px 0; }
+  .tab-add-circle { width: 46px; height: 46px; margin-top: 0; border-width: 3px; }
+  .tab-add-circle .fab-ico { width: 24px; height: 24px; }
+  .tab-add--sunk .tab-add-circle { width: 44px; height: 44px; margin-top: 0; }
+
+  .side-foot {
+    display: flex; flex-direction: column; align-items: center; gap: 6px;
+    margin-top: auto; padding-top: 8px; border-top: 1px solid var(--border);
+  }
+  .side-tools { display: flex; align-items: center; justify-content: center; gap: 4px; }
+  .side-tools .sync-badge { margin-right: 0; padding: 5px; }
+  .side-tools .sync-badge-txt { display: none; }
+  .side-tools .bell { margin-right: 0; width: 36px; height: 36px; border-radius: 10px; }
+  .side-tools .bell-count { top: -5px; right: -5px; min-width: 17px; height: 17px; font-size: 10px; }
+  .side-profile {
+    display: flex; align-items: center; justify-content: center;
+    width: 100%; min-height: 44px; padding: 4px;
+    border: 1px solid transparent; border-radius: 11px; background: none;
+  }
+  .side-profile.active { background: var(--acc-soft); }
+  .side-profile-name { display: none; }
+
+  /* Плавающие панели — по центру контента, а не всего экрана, и у нижнего края
+     (снизу меню больше нет). */
+  .wk-save-bar, .export-bar--fixed, .toast, .update-pill {
+    left: calc(var(--rail-w) + (100vw - var(--rail-w)) / 2);
+    bottom: calc(12px + env(safe-area-inset-bottom));
+  }
+  .toast.raised { bottom: calc(80px + env(safe-area-inset-bottom)); }
 }

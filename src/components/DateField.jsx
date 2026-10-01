@@ -5,6 +5,14 @@ import { fmtDayChip, toDateInput, fromDateInput } from '../lib/dates.js'
 // пикер). С него же начинается запись задним числом. Презентационное — значение и
 // onChange(nextIso) приходят от WorkoutScreen. Дат-хелперы — чистые в lib/dates.
 export default function DateField({ performedAt, onChange }) {
+  const current = toDateInput(performedAt)
+  // Пусто (сброс) → сегодня. Ту же дату повторно не шлем: blur после обычного выбора
+  // не должен дергать onChange второй раз.
+  function apply(raw) {
+    const day = raw || toDateInput()
+    if (day === current) return
+    onChange(fromDateInput(day, performedAt))
+  }
   return (
     <label className="date-chip">
       <svg className="date-chip__ico" viewBox="0 0 24 24" width="15" height="15" fill="none"
@@ -15,10 +23,13 @@ export default function DateField({ performedAt, onChange }) {
       <input
         type="date"
         aria-label="Дата тренировки"
-        value={toDateInput(performedAt)}
-        // «Сбросить» в пикере iOS присылает пустое значение — а колесо уже стоит на сегодня.
-        // Раньше пустое игнорировали и дата не менялась (v6.3.5): теперь сброс = сегодня.
-        onChange={(e) => onChange(fromDateInput(e.target.value || toDateInput(), performedAt))}
+        value={current}
+        // «Сбросить» в пикере iOS очищает значение — а кружок уже стоит на сегодня.
+        // v6.3.5: пустое значение в change → сегодня. v6.3.6: iOS не всегда шлет change
+        // на сброс (кружок вернулся, а чип остался на старой дате) — поэтому еще
+        // сверка при закрытии пикера (blur): что в поле, то и в дате.
+        onChange={(e) => apply(e.target.value)}
+        onBlur={(e) => apply(e.target.value)}
       />
     </label>
   )

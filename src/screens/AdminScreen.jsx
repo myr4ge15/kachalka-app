@@ -11,6 +11,7 @@ import {
 import { connectedIdsFor } from '../lib/connections.js'
 import { onlyDigits } from '../lib/text.js'
 import { submusclesOf, secondaryOptionsFor, labelOf, majorOf, defaultSubmuscleFor } from '../lib/muscles.js'
+import { normMetric } from '../lib/metric.js'
 import { showToast } from '../components/Toast.jsx'
 import CardsSkeleton from '../components/CardsSkeleton.jsx'
 import BackButton from '../components/BackButton.jsx'
@@ -209,10 +210,18 @@ function AccessSection({ meId, online, errMsg }) {
 }
 
 // ─────────────────────────── Упражнения ───────────────────────────────────
+// Тип упражнения (v6.3.6): у админа «Каталога» нет, поэтому меняем здесь.
+const METRIC_OPTIONS = [
+  { id: 'weight', label: 'Вес и повторения', meta: null },
+  { id: 'reps', label: 'Только повторения', meta: 'повторения' },
+  { id: 'time', label: 'На время', meta: 'на время' },
+]
 function ExercisesSection({ exercises, online, errMsg }) {
   const [query, setQuery] = useState('')
   const [edId, setEdId] = useState(null)
-  const [form, setForm] = useState({ name: '', muscle_group: '', submuscle: '', secondary: [], is_bench_lift: false, is_female_lift: false, is_hidden: false })
+  const [form, setForm] = useState({ name: '', muscle_group: '', submuscle: '', secondary: [], is_bench_lift: false, is_female_lift: false, is_hidden: false, metric: 'weight' })
+  // Тип на момент открытия формы: p_metric шлем только при реальной смене (см. save).
+  const [metricInit, setMetricInit] = useState('weight')
   const [busy, setBusy] = useState(false)
 
   // Слияние дублей
@@ -242,7 +251,9 @@ function ExercisesSection({ exercises, online, errMsg }) {
       is_bench_lift: Boolean(ex.is_bench_lift),
       is_female_lift: Boolean(ex.is_female_lift),
       is_hidden: Boolean(ex.is_hidden),
+      metric: normMetric(ex.metric),
     })
+    setMetricInit(normMetric(ex.metric))
   }
   function closeEdit() { setEdId(null); setBusy(false) }
 
@@ -250,7 +261,9 @@ function ExercisesSection({ exercises, online, errMsg }) {
     if (!online) { showToast({ emoji: '📡', title: 'Нужна сеть' }); return }
     setBusy(true)
     try {
-      await adminUpdateExercise({ id: edId, ...form })
+      // Тип отправляем, только если его поменяли: так обычная правка работает и до
+      // накатки admin-exercise-metric.sql (старая функция не знает p_metric).
+      await adminUpdateExercise({ id: edId, ...form, metric: form.metric !== metricInit ? form.metric : undefined })
       showToast({ emoji: '✅', title: 'Упражнение обновлено' })
       if (alive.current) closeEdit()
     } catch (e) {
@@ -386,6 +399,27 @@ function ExercisesSection({ exercises, online, errMsg }) {
                   </div>
                 )}
 
+                <div className="field">
+                  <span className="field-lab">Тип</span>
+                  <div className="chips wrap" role="radiogroup" aria-label="Тип упражнения">
+                    {METRIC_OPTIONS.map((m) => (
+                      <button
+                        type="button" key={m.id} role="radio" aria-checked={form.metric === m.id}
+                        className={form.metric === m.id ? 'chip active' : 'chip'}
+                        onClick={() => setForm((f) => ({ ...f, metric: m.id }))}
+                      >
+                        {m.label}
+                      </button>
+                    ))}
+                  </div>
+                  {form.metric !== metricInit && (
+                    <p className="muted admin-hint">
+                      Уже записанные подходы не пересчитываются: число в них прочитается по-новому
+                      (например, 60 повторений станут 1:00).
+                    </p>
+                  )}
+                </div>
+
                 <label className="admin-check">
                   <input type="checkbox" checked={form.is_bench_lift}
                     onChange={(e) => setForm((f) => ({ ...f, is_bench_lift: e.target.checked }))} />
@@ -420,6 +454,7 @@ function ExercisesSection({ exercises, online, errMsg }) {
                     {ex.muscle_group || '—'}
                     {ex.submuscle ? ' · ' + labelOf(ex.submuscle) : ''}
                     {Array.isArray(ex.secondary) && ex.secondary.length ? ` +${ex.secondary.length}` : ''}
+                    {METRIC_OPTIONS.find((m) => m.id === normMetric(ex.metric))?.meta ? ` · ${METRIC_OPTIONS.find((m) => m.id === normMetric(ex.metric)).meta}` : ''}
                     {ex.is_custom ? ' · свое' : ''}
                     {ex.is_hidden ? ' · скрыто' : ''}
                   </span>

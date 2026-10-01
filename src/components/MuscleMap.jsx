@@ -23,7 +23,7 @@ import { BODY_OUTLINE, NEUTRAL_PARTS, FRONT_REGIONS, BACK_REGIONS } from './musc
 // Цвета — токены --fr-*/--mm-* из index.css (красная линия «никакого хардкода в
 // JSX»). В SVG-атрибут fill var() не подставить, поэтому зона получает КЛАСС
 // статуса, а заливку ему задает CSS. Неизвестный статус → «мышца без данных».
-const STATUSES = new Set(['ready', 'resting', 'stale', 'never'])
+const STATUSES = new Set(['ready', 'almost', 'resting', 'stale', 'never'])
 
 export function bucketClass(status) {
   return STATUSES.has(status) ? `mm-s-${status}` : 'mm-muscle'
@@ -53,7 +53,7 @@ const REGION_LABEL = {
   'upper-back': 'широчайшие', 'lower-back': 'поясница', gluteal: 'ягодичные',
   quadriceps: 'квадрицепс', adductors: 'приводящие', hamstring: 'бицепс бедра', calves: 'икры',
 }
-const BUCKET_RANK = { resting: 4, ready: 3, stale: 2, never: 1 }
+const BUCKET_RANK = { resting: 5, almost: 4, ready: 3, stale: 2, never: 1 }
 
 // Обратная карта подмышца → зона (для подсветки строки списка по клику на зоне).
 const SUB_REGION = {}

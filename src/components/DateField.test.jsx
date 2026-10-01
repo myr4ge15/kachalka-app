@@ -23,6 +23,27 @@ describe('DateField', () => {
     expect(toDateInput(onChange.mock.calls[0][0])).toBe('2026-08-01')
   })
 
+  it('сброс без change (iOS): пустое поле при закрытии пикера → сегодня', () => {
+    const onChange = vi.fn()
+    const { container } = render(
+      <DateField performedAt="2026-07-23T12:00:00.000Z" onChange={onChange} />
+    )
+    const input = container.querySelector('input[type="date"]')
+    input.value = ''
+    fireEvent.blur(input)
+    expect(onChange).toHaveBeenCalledTimes(1)
+    expect(toDateInput(onChange.mock.calls[0][0])).toBe(toDateInput())
+  })
+
+  it('закрытие пикера без изменений не вызывает onChange', () => {
+    const onChange = vi.fn()
+    const { container } = render(
+      <DateField performedAt="2026-07-23T12:00:00.000Z" onChange={onChange} />
+    )
+    fireEvent.blur(container.querySelector('input[type="date"]'))
+    expect(onChange).not.toHaveBeenCalled()
+  })
+
   it('«Сбросить» в пикере (пустое значение) → сегодняшняя дата', () => {
     const onChange = vi.fn()
     const { container } = render(

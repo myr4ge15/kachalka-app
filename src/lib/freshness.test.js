@@ -1,6 +1,8 @@
 import { describe, it, expect } from 'vitest'
 import {
   readinessView,
+  readinessStatus,
+  STALE_DAYS,
   fmtHoursLeft,
   recoveryLead,
   recoveryHoursFor,
@@ -352,7 +354,7 @@ describe('readinessView (экран «Готовность мышц», v6.2.5)',
   })
   it('статусы для карты', () => {
     expect(readinessView(rec, imb).bySub).toEqual({
-      traps: 'stale', quads: 'ready', lats: 'resting', chest_upper: 'resting', forearms: 'stale', chest_lower: 'never',
+      traps: 'stale', quads: 'ready', lats: 'almost', chest_upper: 'resting', forearms: 'stale', chest_lower: 'never',
     })
   })
   it('пустые входы', () => {
@@ -362,5 +364,20 @@ describe('readinessView (экран «Готовность мышц», v6.2.5)',
     expect(fmtHoursLeft(0)).toBe('уже почти')
     expect(fmtHoursLeft(5)).toBe('через ~5 ч')
     expect(fmtHoursLeft(30)).toBe('через ~2 дн')
+  })
+})
+
+describe('readinessStatus — единая шкала Главной и экрана (v6.3.6)', () => {
+  it('восстановление, пока группа в окне', () => {
+    expect(readinessStatus({ state: 'resting', daysSince: 1 })).toBe('resting')
+    expect(readinessStatus({ state: 'almost', daysSince: 2 })).toBe('almost')
+    expect(readinessStatus({ state: 'ready', daysSince: 5 })).toBe('ready')
+  })
+  it('давность ≥ окна важнее восстановления — «давно», как на экране', () => {
+    expect(readinessStatus({ state: 'ready', daysSince: STALE_DAYS })).toBe('stale')
+    expect(readinessStatus({ state: 'ready', daysSince: 63 })).toBe('stale')
+  })
+  it('пусто → null', () => {
+    expect(readinessStatus(null)).toBeNull()
   })
 })

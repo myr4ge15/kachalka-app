@@ -16,6 +16,7 @@ import { applyExerciseEditLocal, applyExerciseMergeLocal } from '../db/repo.js'
 import { DB_TIMEOUT_MS, withTimeout } from './withTimeout.js'
 import { defaultSubmuscleFor, cleanSecondary } from './muscles.js'
 import { humanRpc } from './adminMessages.js'
+import { normMetric } from './metric.js'
 
 const RESET_PIN_URL = (import.meta.env.VITE_SUPABASE_URL ?? '') + '/functions/v1/admin-reset-pin'
 const CREATE_USER_URL = (import.meta.env.VITE_SUPABASE_URL ?? '') + '/functions/v1/admin-create-user'
@@ -199,7 +200,9 @@ export async function adminSetConnection(a, b, connected) {
 // Правка карточки упражнения + soft-hide. После успеха зеркалим в локальный
 // кэш (мгновенный UI). Жим и женское упражнение — каждое единственное: при
 // установке флага локально снимаем его с остальных (сервер делает то же).
-export async function adminUpdateExercise({ id, name, muscle_group, submuscle, secondary, is_bench_lift, is_female_lift, is_hidden }) {
+// metric (v6.3.6) — необязательный: undefined → тип не трогаем и p_metric не шлем
+// (совместимо с сервером без admin-exercise-metric.sql).
+export async function adminUpdateExercise({ id, name, muscle_group, submuscle, secondary, is_bench_lift, is_female_lift, is_hidden, metric }) {
   const clean = String(name ?? '').trim()
   if (clean.length < 1 || clean.length > 60) throw new AdminError('Название — от 1 до 60 символов.')
   const bench = Boolean(is_bench_lift)
@@ -209,6 +212,7 @@ export async function adminUpdateExercise({ id, name, muscle_group, submuscle, s
   // вторичные. Пустая подмышца → дефолт по группе; вторичные санитайзятся.
   const sub = submuscle ? String(submuscle).trim() : defaultSubmuscleFor(group)
   const sec = cleanSecondary(secondary, sub)
+  const mtr = metric === undefined ? null : normMetric(metric)
   const res = await withTimeout(
     supabase.rpc('admin_update_exercise', {
       p_id: id,
@@ -219,6 +223,7 @@ export async function adminUpdateExercise({ id, name, muscle_group, submuscle, s
       p_hidden: Boolean(is_hidden),
       p_submuscle: sub,
       p_secondary: sec,
+      ...(mtr ? { p_metric: mtr } : {}),
     })
   )
   if (res.error) throw new AdminError(humanRpc(res.error.message))
@@ -241,6 +246,7 @@ export async function adminUpdateExercise({ id, name, muscle_group, submuscle, s
     is_bench_lift: bench,
     is_female_lift: female,
     is_hidden: Boolean(is_hidden),
+    ...(mtr ? { metric: mtr } : {}),
   })
   return { id, name: clean, muscle_group: group, submuscle: sub, secondary: sec, is_bench_lift: bench, is_female_lift: female, is_hidden: Boolean(is_hidden) }
 }

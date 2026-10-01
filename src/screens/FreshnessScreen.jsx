@@ -110,6 +110,7 @@ export default function FreshnessScreen({ user, onBack }) {
             <div className="fr-legend">
               <span><i className="fr-sw st-ready" />можно</span>
               <span><i className="fr-sw st-resting" />отдыхает</span>
+              <span><i className="fr-sw st-almost" />почти</span>
               <span><i className="fr-sw st-stale" />давно</span>
               <span><i className="fr-sw st-never" />ни разу</span>
               <span><i className="fr-sw fr-untracked" />нет данных</span>
@@ -147,7 +148,7 @@ export default function FreshnessScreen({ user, onBack }) {
                     aria-pressed={sel === x.submuscle}
                     onClick={() => pickSub(x.submuscle)}
                   >
-                    <i className={`fr-sw st-${x.status}`} aria-hidden="true" />
+                    <i className={`fr-sw st-${x.almost ? 'almost' : x.status}`} aria-hidden="true" />
                     {labelOf(x.submuscle)}
                   </button>
                 )

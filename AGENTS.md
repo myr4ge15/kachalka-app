@@ -186,8 +186,9 @@ updated_at)` + `upsert_user_meta` (`supabase/user-meta.sql`, RLS «только 
   `security definer` + `set search_path = public` + проверка владельца, плюс ранний выход без
   записи, если состав и `performed_at` не изменились (иначе холостой сдвиг `updated_at` даёт ложные
   конфликты merge-часов). Без хардненинга — `permission denied for table`, push ломается.
-- **`admin_update_exercise`** → канон `muscle-detail.sql` (с `p_submuscle`/`p_secondary`), НЕ тело
-  из `gender-leaderboard.sql`.
+- **`admin_update_exercise`** → канон `admin-exercise-metric.sql` (v6.3.6: `p_submuscle`/`p_secondary` +
+  `p_metric`, 9 аргументов), НЕ тела из `muscle-detail.sql` / `gender-leaderboard.sql`. Клиент шлет `p_metric`
+  только при смене типа — обычная правка совместима с сервером без этого файла.
 - **`new_prs_for_workout` / `tg_digest_window`** → канон `telegram.sql`: ведущая метрика
   (`weight`/`reps`/`time`) + контракт `metric/value` + фильтр приватности. После изменения SQL
   зафиксировать в результате задачи необходимость передеплоя `tg-record` И `tg-digest` с

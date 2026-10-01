@@ -7,7 +7,7 @@ import { fmtTonnage, goalProgress } from '../lib/profileStats.js'
 import { fmtMetricValue } from '../lib/metric.js'
 import { plural } from '../lib/plural.js'
 import { tagSlug, groupAccusative, GROUP_ORDER } from '../lib/dayTags.js'
-import { recoveryLead } from '../lib/freshness.js'
+import { recoveryLead, readinessStatus } from '../lib/freshness.js'
 import { labelOf, majorOf } from '../lib/muscles.js'
 import { byGender } from '../lib/gender.js'
 import { rhythmChart, fmtAvg, avgWord, mondayLabel } from '../lib/rhythmChart.js'
@@ -22,7 +22,7 @@ const canonIdx = (g) => {
 }
 
 // Подсказка к цвету полоски (ось восстановления, та же, что у подписи).
-const STATE_HINT = { ready: 'можно тренировать', almost: 'почти восстановилась', resting: 'дай отдых' }
+const STATE_HINT = { ready: 'можно тренировать', almost: 'почти восстановилась', resting: 'дай отдых', stale: 'давно не тренировал(а)' }
 
 const localDate = (ymd) => new Date(`${ymd}T12:00:00`)
 const shortMonth = (date) => new Intl.DateTimeFormat('ru-RU', {
@@ -169,9 +169,9 @@ export default function HomeScreen({ user, onNavigate, onNewWorkout, onOpenProgr
               {strip.map((f) => (
                 <div className="fr-strip-cell" key={f.group}>
                   <span
-                    className={`fr-bar st-${f.state}`}
+                    className={`fr-bar st-${readinessStatus(f)}`}
                     aria-hidden="true"
-                    title={STATE_HINT[f.state]}
+                    title={STATE_HINT[readinessStatus(f)]}
                   />
                   <span className="fr-strip-lab">{f.group}</span>
                 </div>

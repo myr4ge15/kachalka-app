@@ -7,7 +7,8 @@ import { beforeEach, describe, expect, it, vi } from 'vitest'
 import { render, screen, waitFor } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import AdminScreen from './AdminScreen.jsx'
-import { adminListUsers, adminSetUser, adminSetPrivate, adminSetSex } from '../lib/admin.js'
+import { useLiveQuery } from 'dexie-react-hooks'
+import { adminListUsers, adminSetUser, adminSetPrivate, adminSetSex, adminUpdateExercise } from '../lib/admin.js'
 
 vi.mock('dexie-react-hooks', () => ({ useLiveQuery: vi.fn(() => []) }))
 vi.mock('../db/repo.js', () => ({ getAllExercisesForAdmin: vi.fn(() => Promise.resolve([])) }))
@@ -107,5 +108,40 @@ describe('AdminScreen: правка участника', () => {
     await user.click(save)
 
     await waitFor(() => expect(adminSetSex).toHaveBeenCalledWith('u1', null))
+  })
+})
+
+// v6.3.6: тип упражнения меняет админ. p_metric уходит ТОЛЬКО при реальной смене —
+// иначе обычная правка падала бы на сервере без admin-exercise-metric.sql.
+describe('AdminScreen: тип упражнения', () => {
+  const LEG = { id: 'e1', name: 'Подъем ног', muscle_group: 'пресс', submuscle: 'hip_flexors', secondary: [], metric: 'reps' }
+
+  async function openLegEdit(user) {
+    vi.mocked(useLiveQuery).mockReturnValue([LEG])
+    render(<AdminScreen user={ME} onBack={() => {}} />)
+    await user.click(screen.getByRole('button', { name: /Справочник упражнений/ }))
+    expect(screen.getByText(/повторения/)).toBeInTheDocument() // тип виден в строке списка
+    await user.click(screen.getByRole('button', { name: 'Изменить' }))
+  }
+
+  beforeEach(() => vi.mocked(adminUpdateExercise).mockReset().mockResolvedValue({}))
+
+  it('смена типа → adminUpdateExercise с metric', async () => {
+    const user = userEvent.setup()
+    await openLegEdit(user)
+    expect(screen.getByRole('radio', { name: 'Только повторения' })).toHaveAttribute('aria-checked', 'true')
+    await user.click(screen.getByRole('radio', { name: 'На время' }))
+    expect(screen.getByText(/не пересчитываются/)).toBeInTheDocument()
+    await user.click(screen.getByRole('button', { name: 'Сохранить' }))
+    await waitFor(() => expect(adminUpdateExercise).toHaveBeenCalledTimes(1))
+    expect(vi.mocked(adminUpdateExercise).mock.calls[0][0]).toMatchObject({ id: 'e1', metric: 'time' })
+  })
+
+  it('без смены типа metric не отправляется', async () => {
+    const user = userEvent.setup()
+    await openLegEdit(user)
+    await user.click(screen.getByRole('button', { name: 'Сохранить' }))
+    await waitFor(() => expect(adminUpdateExercise).toHaveBeenCalledTimes(1))
+    expect(vi.mocked(adminUpdateExercise).mock.calls[0][0].metric).toBeUndefined()
   })
 })
