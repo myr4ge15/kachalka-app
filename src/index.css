@@ -3008,5 +3008,20 @@ label > span.muted:first-child, .date-field > .muted, .create-label, .field-lab,
     left: calc(var(--rail-w) + (100vw - var(--rail-w)) / 2);
     bottom: calc(12px + env(safe-area-inset-bottom));
   }
-  .toast.raised { bottom: calc(80px + env(safe-area-inset-bottom)); }
+  /* Композер (v6.3.8, отзыв: пустая тренировка не влезала, «Сохранить» наезжала на
+     кнопки). Масштаб не трогаем — зоны тапа остаются ≥44px; ужимаем только
+     вертикальные отступы и прячем декоративную иконку пустого состояния.
+     «Сохранить» — не плавает поверх, а липнет к низу (sticky): короткая тренировка —
+     кнопка сразу под содержимым, длинная — прилипает к краю, как раньше. */
+  .screen { padding-top: 10px; }
+  .detail-head { margin-bottom: 6px; }
+  .wk-empty { padding: 8px 10px 10px; }
+  .wk-empty-ico { display: none; }
+  .wk-save-spacer { display: none; }
+  .wk-save-bar {
+    position: sticky; left: auto; transform: none;
+    bottom: calc(8px + env(safe-area-inset-bottom));
+    width: 100%; max-width: none; margin-top: 10px;
+  }
+  .toast.raised { bottom: calc(72px + env(safe-area-inset-bottom)); }
 }

@@ -9,6 +9,8 @@ describe('DateField', () => {
     render(<DateField performedAt="2026-07-23T12:00:00.000Z" onChange={() => {}} />)
     expect(screen.getByText(/23 июля/)).toBeInTheDocument()
     expect(screen.getByLabelText('Дата тренировки')).toHaveAttribute('type', 'date')
+    // без кнопки «Сбросить» в пикере iOS
+    expect(screen.getByLabelText('Дата тренировки')).toBeRequired()
   })
 
   it('выбор дня в инпуте → onChange с ISO этого дня (TZ-независимо)', () => {
