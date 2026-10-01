@@ -604,10 +604,7 @@ export default function ProfileScreen({ user, onLogout, onOpenProgress, onOpenFe
           <a className="repo-link" href="https://github.com/myr4ge15/kachalka-app" target="_blank" rel="noopener noreferrer">
             kachalka-app
           </a>
-          {' · '}
-          <button type="button" className="link-btn app-version-link" onClick={() => onOpenWhatsNew?.()}>
-            v{APP_VERSION} · что нового ›
-          </button>
+          {' · '}v{APP_VERSION}
         </p>
       </div>
     )

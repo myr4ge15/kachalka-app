@@ -2999,13 +2999,12 @@ label > span.muted:first-child, .date-field > .muted, .create-label, .field-lab,
 .wn-rel-sub { margin: 0 0 10px; color: var(--muted); font-size: var(--fs-meta); }
 .wn-older { text-align: center; font-size: var(--fs-meta); margin: 6px 0 12px; }
 
-/* Строка «Что нового» в Настройках и ссылка-версия внизу. */
+/* Строка «Что нового» в Настройках — единственный вход в историю (ссылку на версии внизу убрали, 01.10). */
 .act-new { border-color: color-mix(in srgb, var(--acc) 45%, transparent); }
 .act-badge {
   margin-left: auto; flex: none; padding: 3px 8px; border-radius: 999px;
   background: var(--acc); color: var(--on-acc); font-size: 11px; font-weight: 700;
 }
-.app-version-link { font-size: inherit; color: var(--acc-2); padding: 6px 2px; min-height: 32px; }
 
 /* ================= Градиент акцента на заливках (v6.3.3) ================= */
 .home-go, .tab-add-circle, .btn.primary:not(:disabled), .side-new, .update-banner-go, .toast-action,
