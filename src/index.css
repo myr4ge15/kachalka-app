@@ -948,6 +948,16 @@ input { font-family: inherit; }
    составом) сплющивались до 56 px и наезжали друг на друга. */
 .picker-list > * { flex-shrink: 0; }
 .picker-group { color: var(--muted); font-size: 12px; }
+/* ⭐ Избранные (v6.5.0): строка = кнопка упражнения + отдельная звезда справа.
+   Разделитель переезжает на обертку, чтобы линия шла под звездой тоже. */
+.picker-row { display: flex; align-items: stretch; border-bottom: 1px solid var(--border); }
+.picker-row > .picker-item { flex: 1; min-width: 0; border-bottom: 0; }
+.picker-star {
+  flex: none; width: 44px; display: grid; place-items: center;
+  background: none; border: 0; padding: 0; color: var(--muted); cursor: pointer;
+}
+.picker-star.on { color: var(--acc); }
+.picker-star:active { background: var(--surface); }
 /* Строка каталога, которую нельзя править (чужое упражнение): та же геометрия,
    но не кнопка — приглушаем, чтобы отсутствие реакции на тап было ожидаемым. */
 .picker-item.is-static { width: 100%; opacity: .6; cursor: default; }
@@ -1267,6 +1277,7 @@ html[data-update]:not([data-composer]) .content { padding-top: 64px; }
 /* Шапка весовых упражнений: рекорд (всех времен) + форма сейчас (N недель). */
 .stat-duo { padding: 14px; border-radius: 16px; }
 .stat-duo-row { display: grid; grid-template-columns: 1fr 1fr; }
+.stat-duo-row.one { grid-template-columns: 1fr; }
 .stat-cell { display: flex; flex-direction: column; gap: 2px; }
 .stat-cell-right { border-left: 1px solid var(--border); padding-left: 12px; }
 .stat-cell-label { font-size: 12px; font-weight: 600; color: var(--muted); }
@@ -2417,7 +2428,13 @@ label.act.busy { opacity: .55; pointer-events: none; }
 .rh-col.on .rh-num, .rh-col.on .rh-date { color: var(--acc-2); }
 .rh-date { height: var(--rh-date-h); font-size: 10px; font-weight: 600; line-height: var(--rh-date-h); white-space: nowrap; }
 .rh-col.current .rh-date { color: var(--acc); font-weight: 600; }
-.rh-note { font-size: 11px; color: var(--muted); line-height: 1.4; margin: 10px 2px 0; }
+.rh-note { font-size: 11px; color: var(--muted); line-height: 1.4; margin: 4px 2px 0; }
+/* «ⓘ Как читать график» (v6.5.1): пояснение Ритма по запросу. Зона тапа 44px. */
+.rh-help {
+  display: inline-flex; align-items: center; gap: 6px; min-height: 44px; margin-top: 4px; padding: 0 2px;
+  background: none; border: 0; color: var(--muted); font-size: 12px; font-weight: 600; cursor: pointer;
+}
+.rh-help[aria-expanded="true"] { color: var(--text); }
 .rhythm-detail {
   display: flex; flex-direction: column; gap: 8px;
   padding: 11px 12px; margin-top: 10px; background: var(--surface-2); border-radius: 12px;
@@ -2640,6 +2657,26 @@ label.act.busy { opacity: .55; pointer-events: none; }
 .fr-detail { margin: 10px 2px 0; min-height: 38px; font-size: 13px; line-height: 1.45; color: var(--muted); }
 .fr-detail b { color: var(--text); }
 .fr-none { margin: 12px 2px 0; font-size: 13px; }
+/* Объем по группам (v6.5.0): строка — имя · столбики недель · подходов/нед · тренд. */
+.gv { margin-top: 18px; }
+.gv-title { margin-bottom: 2px; }
+.gv-sub { margin: 0 2px 8px; font-size: 12px; }
+.gv-list { list-style: none; margin: 0; padding: 4px 12px; border-radius: 16px; background: var(--surface); }
+.gv-row {
+  display: grid; grid-template-columns: minmax(0, 1fr) 40px auto 72px; align-items: center; gap: 10px;
+  min-height: 44px; border-bottom: 1px solid var(--border); font-size: 14px;
+}
+.gv-row:last-child { border-bottom: 0; }
+.gv-name { font-weight: 600; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.gv-bars { display: flex; align-items: flex-end; gap: 3px; height: 22px; }
+.gv-bars i { flex: 1; border-radius: 2px; background: var(--muted); }
+.gv-bars i.now { background: var(--acc); }
+.gv-num { color: var(--muted); font-size: 12px; white-space: nowrap; }
+.gv-num b { color: var(--text); font-family: var(--font-display); font-size: 17px; font-weight: 800; }
+.gv-trend { justify-self: end; font-size: 12px; font-weight: 700; white-space: nowrap; color: var(--muted); }
+.gv-trend--up { color: var(--green); }
+.gv-trend--down { color: var(--yellow); }
+.gv-trend--new { color: var(--acc-2); }
 /* «нет данных» на карте — диагональная штриховка (paritет с pattern mm-untracked). */
 .fr-sw.fr-untracked {
   background: repeating-linear-gradient(45deg, var(--mm-hatch-1), var(--mm-hatch-1) 3px, var(--mm-hatch-2) 3px, var(--mm-hatch-2) 6px);

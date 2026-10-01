@@ -42,7 +42,8 @@ export function daysAgoLabel(iso) {
 export function progArrow(kind) {
   if (kind === 'up' || kind === 'nudge') return '↗'
   if (kind === 'down') return '↘'
-  return '='
+  // v6.5.1: было «=» — в строке «= Рекомендуем сегодня» читалось как опечатка.
+  return '→'
 }
 // Тон чипа причины (цвет): вверх/нудж — зеленый, тот же — желтый, вниз — красный.
 export function progTone(kind) {

@@ -28,7 +28,8 @@ export default function PersonalRecords({ records, onOpenProgress }) {
             <button className="pr-row" onClick={() => onOpenProgress?.(r.exId)}>
               <span className="pr-name">
                 <span className="star-slot" aria-hidden="true">
-                  {r.isBench && <span className="star">★</span>}
+                  {/* 🏅 = упражнение рейтинга. ★/⭐ с v6.5.0 значит «избранное» в пикере. */}
+                  {r.isBench && <span className="star" title="Упражнение рейтинга">🏅</span>}
                 </span>
                 <span className="txt">{r.name}</span>
               </span>

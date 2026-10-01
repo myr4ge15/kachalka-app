@@ -1,4 +1,4 @@
-import { useState, useMemo, useDeferredValue } from 'react'
+import { Fragment, useState, useMemo, useDeferredValue } from 'react'
 import { findSimilar, findExactDuplicate } from '../lib/similar.js'
 import { searchExercises } from '../lib/exerciseSearch.js'
 import { submusclesOf, secondaryOptionsFor, labelOf, majorOf, defaultSubmuscleFor } from '../lib/muscles.js'
@@ -12,9 +12,16 @@ const BASE_GROUPS = ['грудь', 'спина', 'ноги', 'плечи', 'би
 // Если нужного упражнения нет — «+ добавить свое» (ТЗ 3.2 / 4.4): задаем
 // название и группу, упражнение сохраняется в общий справочник (onCreate) и
 // сразу добавляется в тренировку.
+//
+// Избранные (v6.5.0): favorites — массив id (свежие сверху), onToggleFavorite(id)
+// — переключить звезду. Без onToggleFavorite звезд нет (пикер остается простым
+// списком). Звезда — ОТДЕЛЬНАЯ кнопка рядом со строкой, а не внутри нее: вложенные
+// кнопки невалидны, и тап по звезде не должен добавлять упражнение.
 export default function ExercisePicker({
   exercises,
   usage = { recent: [], frequent: [] },
+  favorites = [],
+  onToggleFavorite,
   onPick,
   onClose,
   onCreate,
@@ -74,16 +81,53 @@ export default function ExercisePicker({
   const browsingByMuscle = filtered.length === 0 && byMuscle.length > 0
   const suggestCreate = !!onCreate && !!qTrim && !hasExact && !browsingByMuscle
 
+  // Быстрые блоки: ⭐ Избранные → Недавние → Частые. Упражнение показываем один
+  // раз — в самом верхнем блоке, где оно есть (избранное не дублируется в недавних).
+  const favSet = useMemo(() => new Set((favorites ?? []).map(String)), [favorites])
   const shortcuts = useMemo(() => {
-    const byId = new Map(exercises.map((e) => [e.id, e]))
-    const resolve = (ids) => (ids ?? []).map((id) => byId.get(id)).filter(Boolean)
-    return { recent: resolve(usage.recent), frequent: resolve(usage.frequent) }
-  }, [exercises, usage])
+    const byId = new Map(exercises.map((e) => [String(e.id), e]))
+    const resolve = (ids) => (ids ?? []).map((id) => byId.get(String(id))).filter(Boolean)
+    const notFav = (e) => !favSet.has(String(e.id))
+    return {
+      fav: resolve(favorites),
+      recent: resolve(usage.recent).filter(notFav),
+      frequent: resolve(usage.frequent).filter(notFav),
+    }
+  }, [exercises, usage, favorites, favSet])
   const showShortcuts = !qTrim && group === 'все'
   const shortcutIds = useMemo(
-    () => new Set([...shortcuts.recent, ...shortcuts.frequent].map((e) => e.id)),
+    () => new Set([...shortcuts.fav, ...shortcuts.recent, ...shortcuts.frequent].map((e) => e.id)),
     [shortcuts]
   )
+
+  // Строка списка: упражнение + (если включено избранное) звезда справа.
+  function row(e, keyPrefix = '') {
+    const item = (
+      <button className="picker-item" onClick={() => onPick(e)}>
+        <span>{e.name}</span>
+        <span className="picker-group">{e.muscle_group}</span>
+      </button>
+    )
+    if (!onToggleFavorite) return <Fragment key={keyPrefix + e.id}>{item}</Fragment>
+    const on = favSet.has(String(e.id))
+    return (
+      <div key={keyPrefix + e.id} className="picker-row">
+        {item}
+        <button
+          type="button"
+          className={'picker-star' + (on ? ' on' : '')}
+          aria-pressed={on}
+          aria-label={on ? 'Убрать из избранного' : 'В избранное'}
+          title={on ? 'Убрать из избранного' : 'В избранное'}
+          onClick={() => onToggleFavorite(e.id)}
+        >
+          <svg viewBox="0 0 24 24" width="20" height="20" aria-hidden="true"
+            fill={on ? 'currentColor' : 'none'} stroke="currentColor" strokeWidth="2"
+            strokeLinejoin="round"><path d="M12 3.5l2.6 5.3 5.9.9-4.3 4.1 1 5.8L12 16.9l-5.2 2.7 1-5.8-4.3-4.1 5.9-.9z" /></svg>
+        </button>
+      </div>
+    )
+  }
   const mainList = showShortcuts ? filtered.filter((e) => !shortcutIds.has(e.id)) : filtered
 
   // Похожие по названию — чтобы не плодить дубли (ТЗ 3.2 / 4.4). Нечеткое
@@ -290,44 +334,30 @@ export default function ExercisePicker({
         </div>
 
         <div className="picker-list">
+          {showShortcuts && shortcuts.fav.length > 0 && (
+            <>
+              <div className="group-title">Избранные</div>
+              {shortcuts.fav.map((e) => row(e, 'fav:'))}
+            </>
+          )}
           {showShortcuts && shortcuts.recent.length > 0 && (
             <>
               <div className="group-title">Недавние</div>
-              {shortcuts.recent.map((e) => (
-                <button key={`recent:${e.id}`} className="picker-item" onClick={() => onPick(e)}>
-                  <span>{e.name}</span>
-                  <span className="picker-group">{e.muscle_group}</span>
-                </button>
-              ))}
+              {shortcuts.recent.map((e) => row(e, 'recent:'))}
             </>
           )}
           {showShortcuts && shortcuts.frequent.length > 0 && (
             <>
               <div className="group-title">Частые</div>
-              {shortcuts.frequent.map((e) => (
-                <button key={`frequent:${e.id}`} className="picker-item" onClick={() => onPick(e)}>
-                  <span>{e.name}</span>
-                  <span className="picker-group">{e.muscle_group}</span>
-                </button>
-              ))}
+              {shortcuts.frequent.map((e) => row(e, 'frequent:'))}
             </>
           )}
           {showShortcuts && shortcutIds.size > 0 && <div className="group-title">Все упражнения</div>}
-          {mainList.map((e) => (
-            <button key={e.id} className="picker-item" onClick={() => onPick(e)}>
-              <span>{e.name}</span>
-              <span className="picker-group">{e.muscle_group}</span>
-            </button>
-          ))}
+          {mainList.map((e) => row(e))}
           {byMuscle.length > 0 && (
             <>
               <div className="group-title">По мышцам</div>
-              {byMuscle.map((e) => (
-                <button key={`muscle:${e.id}`} className="picker-item" onClick={() => onPick(e)}>
-                  <span>{e.name}</span>
-                  <span className="picker-group">{e.muscle_group}</span>
-                </button>
-              ))}
+              {byMuscle.map((e) => row(e, 'muscle:'))}
             </>
           )}
           {mainList.length === 0 && byMuscle.length === 0 && shortcutIds.size === 0 && !suggestCreate && (

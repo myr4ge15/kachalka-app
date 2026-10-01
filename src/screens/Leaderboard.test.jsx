@@ -64,3 +64,22 @@ describe('Leaderboard rivalry', () => {
     expect(screen.getByText('Рейтинг · жим лежа')).toBeInTheDocument()
   })
 })
+
+describe('Leaderboard — пустой борд офлайн (v6.5.1)', () => {
+  beforeEach(() => vi.mocked(useLiveQuery).mockReset())
+
+  it('офлайн и пустой кэш — «обновится, когда появится сеть», а не «запиши подход»', () => {
+    const online = vi.spyOn(window.navigator, 'onLine', 'get').mockReturnValue(false)
+    readyQueries({ rows: [] })
+    render(<Leaderboard user={user} />)
+    expect(screen.getByText('Рейтинг обновится, когда появится сеть.')).toBeInTheDocument()
+    expect(screen.queryByText(/запиши подход/)).toBeNull()
+    online.mockRestore()
+  })
+
+  it('онлайн и пустой свой борд — по-прежнему «запиши подход»', () => {
+    readyQueries({ rows: [] })
+    render(<Leaderboard user={user} />)
+    expect(screen.getByText(/Пока нет данных — запиши подход в жиме лежа/)).toBeInTheDocument()
+  })
+})

@@ -423,7 +423,7 @@ function ExercisesSection({ exercises, online, errMsg }) {
                 <label className="admin-check">
                   <input type="checkbox" checked={form.is_bench_lift}
                     onChange={(e) => setForm((f) => ({ ...f, is_bench_lift: e.target.checked }))} />
-                  <span>Жим лежа — мужской лидерборд ⭐</span>
+                  <span>Жим лежа — мужской лидерборд 🏅</span>
                 </label>
                 <label className="admin-check">
                   <input type="checkbox" checked={form.is_female_lift}
@@ -446,7 +446,7 @@ function ExercisesSection({ exercises, online, errMsg }) {
               <div className="admin-ex-row">
                 <div className="admin-ex-main">
                   <span className="admin-ex-name">
-                    {ex.is_bench_lift && <span className="admin-star" title="Жим — мужской лидерборд">⭐</span>}
+                    {ex.is_bench_lift && <span className="admin-star" title="Жим — мужской лидерборд">🏅</span>}
                     {ex.is_female_lift && <span className="admin-star" title="Женский лидерборд">🍑</span>}
                     {ex.name}
                   </span>

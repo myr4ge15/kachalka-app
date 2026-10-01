@@ -690,7 +690,7 @@ export default function ProfileScreen({ user, onLogout, onOpenProgress, onOpenFe
                       >
                         {addOptions.map((r) => (
                           <option key={r.exId} value={String(r.exId)}>
-                            {r.name}{r.isBench ? ' ⭐' : ''}
+                            {r.name}{r.isBench ? ' 🏅' : ''}
                           </option>
                         ))}
                       </select>

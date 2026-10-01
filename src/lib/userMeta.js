@@ -24,15 +24,19 @@
 //     исчезать после синка с ноутбука (правило слияния — в lib/rpe.js);
 //   - accent — выбранный акцент {id, hue} (v6.2.0): связная настройка → LWW.
 //     Применение на устройстве (CSS + localStorage для сплэша) — hooks/useAccentSync.
+//   - fav — избранные упражнения, массив id (v6.5.0, lib/favorites.js): LWW.
+//     Объединение «воскрешало» бы звезду, снятую на другом устройстве.
 // ============================================================================
 import { cmpIsoAsc } from './cmp.js'
 import { mergeRpe } from './rpe.js'
 
 // Синкаемые ключи. Значение — «род» ключа: локальный ключ в Dexie-meta это
 // `${kind}_${userId}`, серверный key — сам kind (владелец там колонкой).
-// ⚠️ Расширять ОДНОВРЕМЕННО с белым списком в upsert_user_meta (user-meta.sql),
-// иначе push упрется в ошибку `unknown user_meta key`.
-export const SYNCED_KINDS = ['badges', 'prog', 'notif_seen_at', 'rpe', 'accent']
+// ⚠️ Расширять ОДНОВРЕМЕННО с белым списком в upsert_user_meta (канон —
+// supabase/user-meta-fav.sql), иначе push упрется в `unknown user_meta key`.
+// Новый род — В КОНЕЦ: push идет по порядку, и не накатанный на сервер род
+// падает последним, не мешая уже известным.
+export const SYNCED_KINDS = ['badges', 'prog', 'notif_seen_at', 'rpe', 'accent', 'fav']
 
 // Локальный ключ персональной meta по роду и пользователю.
 export const metaKeyFor = (kind, userId) => `${kind}_${userId}`

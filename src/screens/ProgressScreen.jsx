@@ -240,7 +240,7 @@ export default function ProgressScreen({
             >
               {list.map((x) => (
                 <option key={x.id} value={String(x.id)}>
-                  {x.name}{x.is_bench_lift ? ' ⭐' : ''}
+                  {x.name}{x.is_bench_lift ? ' 🏅' : ''}
                 </option>
               ))}
             </select>
@@ -283,6 +283,17 @@ export default function ProgressScreen({
             <>
               {weighted ? (
                 <div className="card stat-duo">
+                  {formBest > 0 && formBest === allBest ? (
+                    // v6.5.1: рекорд поставлен в окне формы — две плитки с одним числом
+                    // говорили одно и то же. Одна плитка, вторая подпись — о свежести.
+                    <div className="stat-duo-row one">
+                      <div className="stat-cell">
+                        <span className="stat-cell-label">Рекорд — и это твоя форма сейчас</span>
+                        <span className="stat-num gold">{allBest} кг</span>
+                        <span className="muted stat-sub">поставлен за последние {FORM_WEEKS} нед.</span>
+                      </div>
+                    </div>
+                  ) : (
                   <div className="stat-duo-row">
                     <div className="stat-cell">
                       <span className="stat-cell-label">Рекорд</span>
@@ -295,9 +306,10 @@ export default function ProgressScreen({
                       <span className="muted stat-sub">лучшее за {FORM_WEEKS} нед.</span>
                     </div>
                   </div>
+                  )}
                   <div className="muted stat-orm-note">
                     в теории (1ПМ): рекорд ~{allBestOrm}
-                    {formBestOrm > 0 ? ` · сейчас ~${formBestOrm}` : ''} кг
+                    {formBestOrm > 0 && formBestOrm !== allBestOrm ? ` · сейчас ~${formBestOrm}` : ''} кг
                   </div>
                 </div>
               ) : (

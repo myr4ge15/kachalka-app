@@ -40,7 +40,7 @@ describe('форматтеры панели', () => {
     expect(progArrow('up')).toBe('↗')
     expect(progArrow('nudge')).toBe('↗')
     expect(progArrow('down')).toBe('↘')
-    expect(progArrow('same')).toBe('=')
+    expect(progArrow('same')).toBe('→')
     expect(progTone('up')).toBe('up')
     expect(progTone('nudge')).toBe('up')
     expect(progTone('down')).toBe('down')

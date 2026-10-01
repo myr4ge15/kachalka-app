@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react'
 import { useLiveQuery } from 'dexie-react-hooks'
-import { getExercises, getWorkout, getWorkouts, saveWorkout, createExercise, deleteWorkout as repoDelete, getRecentSessionsForExercise, getProgSettings, setProgForExercise, saveTemplate, getWorkoutFeels, setWorkoutFeels } from '../db/repo.js'
+import { getExercises, getWorkout, getWorkouts, saveWorkout, createExercise, deleteWorkout as repoDelete, getRecentSessionsForExercise, getProgSettings, setProgForExercise, saveTemplate, getWorkoutFeels, setWorkoutFeels, getFavorites, toggleFavorite } from '../db/repo.js'
 import { detectNewPrsOnSave, detectGoalReachedOnSave } from '../db/notifications.js'
 import { detectInsightsOnSave } from '../db/insights.js'
 import { detectBadgesOnSave } from '../db/badges.js'
@@ -53,6 +53,8 @@ export default function WorkoutScreen({ user, workoutId = null, onBack, onSaved 
   // Настройки автопрогрессии (глобальный тумблер + пер-упражнение). Дефолт до
   // загрузки — включено (как и первый резолв в repo.getProgSettings).
   const prog = useLiveQuery(() => getProgSettings(user.id), [user.id], { enabled: true, byExercise: {} })
+  // ⭐ Избранные упражнения (v6.5.0) — блок сверху пикера, синкаются через user_meta.
+  const favorites = useLiveQuery(() => getFavorites(user.id), [user.id], [])
 
   // Черновик — только для новой тренировки (ключ привязан к пользователю). Лежит в
   // lib/draftStore (память + localStorage): переживает и уход с экрана, и выгрузку
@@ -626,6 +628,8 @@ export default function WorkoutScreen({ user, workoutId = null, onBack, onSaved 
         <ExercisePicker
           exercises={exercises}
           usage={exerciseUsage}
+          favorites={favorites}
+          onToggleFavorite={(id) => toggleFavorite(user.id, id)}
           title={replaceIdx != null ? 'Заменить упражнение' : 'Упражнение'}
           onPick={handlePick}
           onCreate={(p) => createExercise({ ...p, owner_id: user.id })}

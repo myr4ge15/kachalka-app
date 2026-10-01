@@ -7,7 +7,7 @@
 // Ничего не считает заново, если это уже есть в profileStats/insights: серию и
 // «за месяц» берем из profileStats, тоннаж-окна и день/группы — из insights.
 // ============================================================================
-import { currentStreak, workoutsThisMonth, currentBestValue, goalProgress } from './profileStats.js'
+import { currentStreak, currentBestValue, goalProgress } from './profileStats.js'
 import { dayIndex, tonnageInWindow } from './insights.js'
 import { mostNeglectedGroup } from './freshness.js'
 import { daySubTags } from './dayTags.js'
@@ -142,7 +142,7 @@ export function buildHomeSummary({ workouts, goals, now = new Date() } = {}) {
       lastWorkout: null,
       nextFocus: null,
       streak: 0,
-      workoutsThisMonth: 0,
+      workouts30: 0,
       tonnage: { month: 0, prevMonth: 0, pct: 0 },
       latestPr: null,
       nearestGoal: null,
@@ -159,6 +159,9 @@ export function buildHomeSummary({ workouts, goals, now = new Date() } = {}) {
   }
 
   const month = tonnageInWindow(sorted, now, 30, 0)
+  // Тренировок в ТОМ ЖЕ окне 30 дней, что и тоннаж (v6.5.1). Было «в этом месяце»:
+  // 1-го числа плитка писала «0 трен.» рядом с тоннажем за 30 дней — читалось как ошибка.
+  const workouts30 = sorted.filter((w) => w.performed_at && today - dayIndex(new Date(w.performed_at)) < 30).length
   const prevMonth = tonnageInWindow(sorted, now, 60, 30)
   const pct = prevMonth > 0 ? Math.round(((month - prevMonth) / prevMonth) * 100) : 0
 
@@ -167,7 +170,7 @@ export function buildHomeSummary({ workouts, goals, now = new Date() } = {}) {
     lastWorkout,
     nextFocus: mostNeglectedGroup(sorted, now),
     streak: currentStreak(sorted, now),
-    workoutsThisMonth: workoutsThisMonth(sorted),
+    workouts30,
     tonnage: { month, prevMonth, pct },
     latestPr: latestPr(sorted),
     nearestGoal: nearestGoal(goals, sorted),

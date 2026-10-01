@@ -57,6 +57,8 @@ describe('buildHomeSummary', () => {
     expect(s.tonnage.month).toBe(1000)
     expect(s.tonnage.prevMonth).toBe(800)
     expect(s.tonnage.pct).toBe(25)
+    // тренировки — в том же окне 30 дней, что и тоннаж (не «календарный месяц»)
+    expect(s.workouts30).toBe(1)
   })
 
   it('последний рекорд — самый свежий момент превышения', () => {

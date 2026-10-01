@@ -12,11 +12,11 @@ describe('metaKeyFor / SYNCED_KINDS', () => {
     expect(metaKeyFor('notif_seen_at', 'u1')).toBe('notif_seen_at_u1')
   })
 
-  it('синкаем ровно пять родов ключей (accent — с v6.2.0, user-meta-accent.sql)', () => {
+  it('синкаем ровно шесть родов ключей (fav — с v6.5.0, user-meta-fav.sql)', () => {
     // ⚠️ Тест-страховка к инварианту AGENTS.md: список обязан совпадать с белым
-    // списком в upsert_user_meta (supabase/user-meta.sql), иначе push упрется в
+    // списком в upsert_user_meta (supabase/user-meta-fav.sql), иначе push упрется в
     // `unknown user_meta key`. Меняешь здесь — меняй и там.
-    expect(SYNCED_KINDS).toEqual(['badges', 'prog', 'notif_seen_at', 'rpe', 'accent'])
+    expect(SYNCED_KINDS).toEqual(['badges', 'prog', 'notif_seen_at', 'rpe', 'accent', 'fav'])
   })
 })
 

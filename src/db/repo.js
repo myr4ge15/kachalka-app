@@ -18,6 +18,7 @@
 // ============================================================================
 import { db, loginDb, newId, nowIso, getMeta } from './local.js'
 import { writeSyncedMeta } from './userMeta.js'
+import { normalizeFavs, toggleFav } from '../lib/favorites.js'
 import { normalizeName } from '../lib/similar.js'
 import { cmpIsoDesc } from '../lib/cmp.js'
 import { sortUsersByOrder } from '../lib/userOrder.js'
@@ -356,6 +357,21 @@ export async function getAccentPref(userId) {
 export async function setAccentPref(userId, pref) {
   if (!userId || !pref) return
   await writeSyncedMeta(userId, 'accent', { id: pref.id, hue: pref.hue, by: String(userId) })
+}
+
+// Избранные упражнения (v6.5.0) — синкаемый род `fav` в user_meta (LWW).
+// Значение — массив id, свежие сверху; правила — чистый lib/favorites.js.
+export const favKey = (userId) => `fav_${userId}`
+
+export async function getFavorites(userId) {
+  if (!userId) return []
+  return normalizeFavs(await getMeta(favKey(userId)))
+}
+
+export async function toggleFavorite(userId, exerciseId) {
+  if (!userId || !exerciseId) return
+  const cur = await getMeta(favKey(userId))
+  await writeSyncedMeta(userId, 'fav', toggleFav(cur, exerciseId))
 }
 
 // Пер-упражненческие настройки (шестеренка в карточке): мержим patch поверх

@@ -77,3 +77,40 @@ describe('ExercisePicker — умный поиск', () => {
     expect(onPick).toHaveBeenCalledWith(CATALOG[2])
   })
 })
+
+describe('ExercisePicker — ⭐ избранные (v6.5.0)', () => {
+  it('без onToggleFavorite звезд нет', () => {
+    renderPicker()
+    expect(screen.queryByRole('button', { name: 'В избранное' })).not.toBeInTheDocument()
+  })
+
+  it('избранное — первым блоком и не дублируется в «Недавних»', () => {
+    renderPicker({
+      favorites: ['pulldown'],
+      onToggleFavorite: vi.fn(),
+      usage: { recent: ['pulldown', 'bench'], frequent: [] },
+    })
+    const titles = screen.getAllByText(/^(Избранные|Недавние|Все упражнения)$/).map((n) => n.textContent)
+    expect(titles).toEqual(['Избранные', 'Недавние', 'Все упражнения'])
+    // Тяга — только в избранном, жим — только в недавних, в «Все» — остаток.
+    expect(screen.getAllByText('Тяга верхнего блока')).toHaveLength(1)
+    expect(screen.getAllByText('Жим лежа')).toHaveLength(1)
+    expect(screen.getByRole('button', { name: 'Убрать из избранного' })).toHaveAttribute('aria-pressed', 'true')
+  })
+
+  it('тап по звезде переключает избранное и НЕ добавляет упражнение', () => {
+    const onToggleFavorite = vi.fn()
+    const { onPick } = renderPicker({ onToggleFavorite })
+    fireEvent.click(screen.getAllByRole('button', { name: 'В избранное' })[0])
+    expect(onToggleFavorite).toHaveBeenCalledWith('bench')
+    expect(onPick).not.toHaveBeenCalled()
+  })
+
+  it('при поиске блок избранного прячется, звезды в результатах остаются', async () => {
+    const { search } = renderPicker({ favorites: ['bench'], onToggleFavorite: vi.fn() })
+    type(search, 'жим')
+    expect(await screen.findByText('Жим гантелей сидя')).toBeInTheDocument()
+    expect(screen.queryByText('Избранные')).not.toBeInTheDocument()
+    expect(screen.getByRole('button', { name: 'Убрать из избранного' })).toBeInTheDocument()
+  })
+})

@@ -7,6 +7,8 @@ import {
   saveTemplate,
   deleteTemplate,
   createExercise,
+  getFavorites,
+  toggleFavorite,
 } from '../db/repo.js'
 import { syncNow } from '../db/sync.js'
 import {
@@ -220,6 +222,7 @@ function TemplateList({ user, onBack, onOpen }) {
 function TemplateEditor({ user, templateId, onBack }) {
   const isNew = templateId == null
   const exercises = useLiveQuery(() => getExercises(), [], [])
+  const favorites = useLiveQuery(() => getFavorites(user.id), [user.id], [])
 
   const [name, setName] = useState('')
   const [items, setItems] = useState([])
@@ -542,6 +545,8 @@ function TemplateEditor({ user, templateId, onBack }) {
       {pickerOpen && (
         <ExercisePicker
           exercises={exercises}
+          favorites={favorites}
+          onToggleFavorite={(id) => toggleFavorite(user.id, id)}
           onPick={addExercise}
           onCreate={(p) => createExercise({ ...p, owner_id: user.id })}
           onClose={() => setPickerOpen(false)}

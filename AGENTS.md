@@ -197,8 +197,9 @@ updated_at)` + `upsert_user_meta` (`supabase/user-meta.sql`, RLS «только 
   Trigger `tg_notify_record()` не должен содержать webhook-секрет в теле: брать его из
   `vault.decrypted_secrets` по имени `tg_record_webhook_secret`; канон и порядок ротации —
   `commercial-hardening-webhook-vault.sql` / `commercial-hardening-deploy.md`.
-- **`upsert_user_meta`** → канон `user-meta-accent.sql` (v6.2.0, белый список `badges/prog/notif_seen_at/
-  rpe/accent`; файл сверяет живое тело guard-блоком перед заменой). Не перезапускать тело из `user-meta.sql`.
+- **`upsert_user_meta`** → канон `user-meta-fav.sql` (v6.5.0, белый список `badges/prog/notif_seen_at/
+  rpe/accent/fav`; поверх `user-meta-accent.sql`, файл сверяет живое тело guard-блоком перед заменой). Не
+  перезапускать тело из `user-meta.sql` / `user-meta-accent.sql`. Новый род в `SYNCED_KINDS` — В КОНЕЦ списка.
 - **`set_my_sex`** (v6.2.0) → канон `set-my-sex.sql`: свой пол, владелец из `app_uid()`, холостой вызов не
   двигает `users.updated_at`. Чужой пол — только `admin_set_sex`.
 - **`admin_list_users` / `login_users` / `admin_set_sex`** → канон `roster-contract.sql`. НЕ

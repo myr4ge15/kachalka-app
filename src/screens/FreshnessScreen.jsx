@@ -1,6 +1,9 @@
 import { useState } from 'react'
 import { useLiveQuery } from 'dexie-react-hooks'
 import { getFreshness } from '../db/insights.js'
+import { getWorkouts } from '../db/repo.js'
+import { groupVolumeTrend, trendLabel, WEEKS } from '../lib/groupVolume.js'
+import { plural } from '../lib/plural.js'
 import { readinessView, recoveryLead, fmtHoursLeft } from '../lib/freshness.js'
 import { fmtDaysAgo, fmtDays } from '../lib/homeSummary.js'
 import { labelOf } from '../lib/muscles.js'
@@ -61,8 +64,39 @@ function detailText(item, sex) {
   return [major, ago, when].filter(Boolean).join(' · ')
 }
 
+// Динамика объема по группам (v6.5.0): строка = группа · мини-столбики по неделям ·
+// подходов в неделю · тренд «последние 2 недели против 2 предыдущих». Не новый
+// экран, а разрез под картой готовности (BACKLOG «Прогресс… и динамика по группам»).
+function GroupVolume({ rows }) {
+  if (!rows?.length) return null
+  const max = Math.max(1, ...rows.flatMap((r) => r.weeks))
+  return (
+    <section className="gv" aria-labelledby="gv-title">
+      <h3 className="sec-title gv-title" id="gv-title">Объём по группам</h3>
+      <p className="gv-sub muted">Рабочие подходы за {WEEKS} недели; тренд — две последние против двух прошлых.</p>
+      <ul className="gv-list">
+        {rows.map((r) => (
+          <li key={r.group} className="gv-row">
+            <span className="gv-name">{cap(r.group)}</span>
+            <span className="gv-bars" aria-hidden="true">
+              {r.weeks.map((n, i) => (
+                <i key={i} className={i === r.weeks.length - 1 ? 'now' : ''} style={{ height: `${Math.max(8, (n / max) * 100)}%`, opacity: n ? 1 : 0.35 }} />
+              ))}
+            </span>
+            <span className="gv-num">
+              <b>{String(r.perWeek).replace('.', ',')}</b> {plural(Math.ceil(r.perWeek), 'подход', 'подхода', 'подходов')}/нед.
+            </span>
+            <span className={`gv-trend gv-trend--${r.trend}`}>{trendLabel(r)}</span>
+          </li>
+        ))}
+      </ul>
+    </section>
+  )
+}
+
 export default function FreshnessScreen({ user, onBack }) {
   const data = useLiveQuery(() => getFreshness(user.id), [user.id])
+  const volume = useLiveQuery(() => getWorkouts(user.id).then((w) => groupVolumeTrend(w, Date.now())), [user.id], [])
   const loading = data === undefined
   const view = readinessView(data?.recoverySub, data?.imbalanceSub)
   const lead = recoveryLead(data?.recovery ?? [])
@@ -161,6 +195,8 @@ export default function FreshnessScreen({ user, onBack }) {
               ? <><b>{cap(labelOf(selected.submuscle))}</b> · {detailText(selected, data?.sex)}</>
               : `Нажми на мышцу — покажу, когда ${byGender(data?.sex, 'тренировал', 'тренировала')} и когда снова можно.`}
           </p>
+
+          <GroupVolume rows={volume} />
         </>
       )}
     </div>

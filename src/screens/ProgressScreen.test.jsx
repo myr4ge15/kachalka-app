@@ -65,3 +65,26 @@ describe('ProgressScreen — ориентир цели', () => {
   })
 })
 
+describe('ProgressScreen — рекорд и форма (v6.5.1)', () => {
+  beforeEach(() => vi.mocked(useLiveQuery).mockReset())
+  const at = (daysAgo, weight) => ({
+    ...workout,
+    id: `w${daysAgo}`,
+    performed_at: new Date(Date.now() - daysAgo * 864e5).toISOString(),
+    entries: [{ ...workout.entries[0], sets: [{ weight, reps: 5 }] }],
+  })
+
+  it('рекорд поставлен недавно — одна плитка вместо двух с одним числом', () => {
+    vi.mocked(useLiveQuery).mockReturnValueOnce([at(3, 95), at(100, 90)]).mockReturnValueOnce([])
+    render(<ProgressScreen user={{ id: 'u1' }} />)
+    expect(screen.getByText('Рекорд — и это твоя форма сейчас')).toBeInTheDocument()
+    expect(screen.queryByText('Форма сейчас')).toBeNull()
+  })
+
+  it('форма ниже рекорда — две плитки, как раньше', () => {
+    vi.mocked(useLiveQuery).mockReturnValueOnce([at(3, 85), at(100, 95)]).mockReturnValueOnce([])
+    render(<ProgressScreen user={{ id: 'u1' }} />)
+    expect(screen.getByText('Форма сейчас')).toBeInTheDocument()
+    expect(screen.getByText('Рекорд')).toBeInTheDocument()
+  })
+})

@@ -100,7 +100,11 @@ export default function Leaderboard({ user }) {
           <h3 className="lb-title">{title}</h3>
           <span className="muted lb-metric">факт, кг</span>
         </div>
-        {error && nothingLoaded ? (
+        {nothingLoaded && !navigator.onLine ? (
+          // v6.5.1: офлайн и в кэше ничего — «запиши подход» вводило в заблуждение
+          // человека, у которого подходы есть: рейтинг просто еще не скачан.
+          <p className="muted lb-empty">Рейтинг обновится, когда появится сеть.</p>
+        ) : error && nothingLoaded ? (
           <p className="muted lb-empty">Не удалось загрузить рейтинг. Проверь соединение и попробуй позже.</p>
         ) : (
           <p className="muted lb-empty">

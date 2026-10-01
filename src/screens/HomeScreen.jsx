@@ -53,6 +53,7 @@ const dayLabel = (ymd) => localDate(ymd).toLocaleDateString('ru-RU', { day: 'num
 // тренировки (минуя список хаба), общий с «+» в нижнем меню.
 export default function HomeScreen({ user, onNavigate, onNewWorkout, onOpenProgress, onOpenCalendar, focusRhythm = false, onFocusRhythmConsumed }) {
   const [openWeek, setOpenWeek] = useState(null)
+  const [rhHelp, setRhHelp] = useState(false) // пояснение к Ритму свернуто (v6.5.1)
   const openWeekRef = useRevealFocus(openWeek)
   // Одно чтение истории на все три блока Главной (сводка/инсайты/свежесть): раньше
   // было три отдельных useLiveQuery, каждый сканировал всю историю заново.
@@ -151,7 +152,7 @@ export default function HomeScreen({ user, onNavigate, onNewWorkout, onOpenProgr
                 {pct > 0 ? `▲ +${pct}%` : `▼ ${pct}%`}{' · '}
               </span>
             )}
-            {summary.workoutsThisMonth} трен. в этом месяце
+            {summary.workouts30} трен. за 30 дн.
           </div>
         </div>
       </div>
@@ -310,11 +311,23 @@ export default function HomeScreen({ user, onNavigate, onNewWorkout, onOpenProgr
                 )}
               </div>
             )}
-            <p className="rh-note">
-              Один столбик — одна неделя: сверху число тренировок, снизу дата, с которой неделя
-              началась.{chart.mode === 'avg' ? ' Пунктир — твое среднее.' : ''} Нажми
-              на столбик, чтобы увидеть дни и мышцы.
-            </p>
+            {/* v6.5.1: пояснение свернуто — его читают один раз, а не каждый заход. */}
+            <button
+              type="button"
+              className="rh-help"
+              aria-expanded={rhHelp}
+              aria-controls="rh-note"
+              onClick={() => setRhHelp((v) => !v)}
+            >
+              <span aria-hidden="true">ⓘ</span> Как читать график
+            </button>
+            {rhHelp && (
+              <p className="rh-note" id="rh-note">
+                Один столбик — одна неделя: сверху число тренировок, снизу дата, с которой неделя
+                началась.{chart.mode === 'avg' ? ' Пунктир — твое среднее.' : ''} Нажми
+                на столбик, чтобы увидеть дни и мышцы.
+              </p>
+            )}
             {/* v6.3.0: ведет в календарь «Моих тренировок». Открыта неделя с
                 тренировками — календарь сразу показывает ее последний день. */}
             <button
@@ -356,8 +369,9 @@ export default function HomeScreen({ user, onNavigate, onNewWorkout, onOpenProgr
         </section>
       )}
 
-      {/* последний рекорд */}
-      {summary.latestPr && (
+      {/* последний рекорд — только если его еще нет в «Наблюдениях» (v6.5.1):
+          свежий рекорд там уже есть строкой «Новый рекорд: …», карточка повторяла его. */}
+      {summary.latestPr && !insights.some((i) => i.kind === 'pr') && (
         <section className="sec">
           <p className="sec-title">Последний рекорд</p>
           <div className="home-row static">

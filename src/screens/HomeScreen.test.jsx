@@ -16,7 +16,7 @@ const readyHome = {
     tonnage: { month: 1000, pct: 10 },
     lastWorkout: { daysAgo: 1, tags: [] },
     streak: 2,
-    workoutsThisMonth: 3,
+    workouts30: 3,
     latestPr: null,
     nearestGoal: null,
     rhythm: Array.from({ length: 8 }, (_, i) => ({
@@ -102,6 +102,29 @@ describe('HomeScreen', () => {
     fireEvent.click(screen.getByRole('button', { name: /27 июл – 2 авг: 1 тренировка/ }))
     fireEvent.click(screen.getByRole('button', { name: 'Открыть в календаре' }))
     expect(onOpenCalendar).toHaveBeenLastCalledWith('2026-07-29')
+  })
+
+  it('v6.5.1: тренировки в плитке — за 30 дней; пояснение Ритма по кнопке «Как читать график»', () => {
+    vi.mocked(useLiveQuery).mockReturnValue(readyHome)
+    render(<HomeScreen user={user} onNavigate={vi.fn()} />)
+    expect(screen.getByText(/3 трен\. за 30 дн\./)).toBeInTheDocument()
+    expect(screen.queryByText(/Один столбик — одна неделя/)).toBeNull()
+    const help = screen.getByRole('button', { name: /Как читать график/ })
+    expect(help).toHaveAttribute('aria-expanded', 'false')
+    fireEvent.click(help)
+    expect(screen.getByText(/Один столбик — одна неделя/)).toBeInTheDocument()
+  })
+
+  it('v6.5.1: «Последний рекорд» не дублирует рекорд из «Наблюдений»', () => {
+    const latestPr = { name: 'Жим стоя', metric: 'weight', value: 69 }
+    const prInsight = { id: 'pr', kind: 'pr', emoji: '🏆', tone: 'good', text: 'Новый рекорд: Жим стоя — 69 кг (было 55 кг)' }
+    vi.mocked(useLiveQuery).mockReturnValue({ ...readyHome, summary: { ...readyHome.summary, latestPr }, insights: [prInsight] })
+    const { unmount } = render(<HomeScreen user={user} onNavigate={vi.fn()} />)
+    expect(screen.queryByText('Последний рекорд')).toBeNull()
+    unmount()
+    vi.mocked(useLiveQuery).mockReturnValue({ ...readyHome, summary: { ...readyHome.summary, latestPr } })
+    render(<HomeScreen user={user} onNavigate={vi.fn()} />)
+    expect(screen.getByText('Последний рекорд')).toBeInTheDocument()
   })
 
   it('в пустом состоянии дает прямой вход в новую тренировку', () => {

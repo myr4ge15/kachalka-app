@@ -40,7 +40,7 @@ describe('PersonalRecords', () => {
   it('показывает звезду только у жима', () => {
     const { container } = render(<PersonalRecords records={recs()} onOpenProgress={() => {}} />)
     expect(container.querySelectorAll('.star')).toHaveLength(1)
-    expect(container.querySelector('.star')).toHaveTextContent('★')
+    expect(container.querySelector('.star')).toHaveTextContent('🏅')
   })
 
   it('длинный список свернут до пяти записей и показывает общее число', () => {
