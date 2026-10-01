@@ -101,3 +101,17 @@ jobs:
     steps:
       - id: deployment
         uses: actions/deploy-pages@v5
+
+      # Пуш «вышла новая версия» (v6.7.0, supabase/push-deploy.md). Функция сама читает
+      # version.json с сайта и объявляет каждую версию один раз; откат молчит. Сбой
+      # рассылки не должен валить деплой — continue-on-error. Секрет PUSH_WEBHOOK_SECRET
+      # в Actions = Edge secret PUSH_WEBHOOK_SECRET. Нет секрета — шаг просто пропускается.
+      - name: Пуш «вышла новая версия»
+        if: success()
+        continue-on-error: true
+        env:
+          PUSH_WEBHOOK_SECRET: ${{ secrets.PUSH_WEBHOOK_SECRET }}
+        run: |
+          if [ -z "$PUSH_WEBHOOK_SECRET" ]; then echo "PUSH_WEBHOOK_SECRET не задан — рассылки нет"; exit 0; fi
+          curl -fsS -X POST -H "x-webhook-secret: $PUSH_WEBHOOK_SECRET" \
+            https://lkrrbpbytinrdpfmhxep.functions.supabase.co/push-update
