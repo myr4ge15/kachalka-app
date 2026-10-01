@@ -1880,6 +1880,12 @@ img.avatar-lg.has-img {
 .sex-picker-lab { font-weight: 600; font-size: 15px; margin-bottom: 8px; }
 .sex-picker-sub { color: var(--muted); font-size: 12px; line-height: 1.4; margin: 8px 0 0; }
 .sex-picker-err { color: var(--red); font-size: 13px; font-weight: 600; margin: 6px 0 0; }
+/* Пуш-уведомления (components/PushToggle.jsx, v6.6.0). Без переключателя — строка-подсказка
+   (iPhone вне экрана «Домой», запрет в браузере): не кнопка, курсор и нажатие не нужны. */
+.push-act-info { cursor: default; }
+.push-act-info:active { background: var(--surface); }
+.toggle-act.busy { opacity: .6; }
+.push-err { color: var(--red); font-size: 13px; font-weight: 600; margin: -4px 2px 0; }
 /* блоки .actions/danger-confirm под тогглом «Настройки» идут встык — разводим
    их вертикально, чтобы «Удалить мои данные» не наплывало на «Выйти». */
 .settings-toggle + .danger-confirm,

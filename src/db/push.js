@@ -1,0 +1,149 @@
+// ============================================================================
+// Веб-пуши (v6.6.0): подписка ЭТОГО браузера на уведомления и её привязка к
+// учетке на сервере. Чистая логика — в lib/pushSupport.js; сервер —
+// supabase/push.sql (push_subscribe/push_unsubscribe, владелец — app_uid()).
+//
+// Почему не через очереди sync.js: подписка — свойство устройства, а не данные
+// пользователя. Без сети ее не получить вовсе (браузер регистрирует ее у
+// push-сервиса онлайн), так что офлайн-очередь здесь ничего не дает. Это
+// прямой RPC, как смена имени/пола в lib/auth.js, только онлайн.
+//
+// Пуши ловит тот же service worker, что и обновления (Workbox + public/push-sw.js
+// через importScripts в vite.config.js).
+// ============================================================================
+import { supabase, hasSession } from './supabase.js'
+import { ensureOwnSession } from '../lib/auth.js'
+import { withTimeout } from '../lib/withTimeout.js'
+import { pushAvailability, isIOSDevice, urlB64ToUint8Array, subscriptionArgs } from '../lib/pushSupport.js'
+
+const VAPID_PUBLIC_KEY = import.meta.env.VITE_VAPID_PUBLIC_KEY ?? ''
+
+export class PushError extends Error {
+  constructor(message) {
+    super(message)
+    this.name = 'PushError'
+  }
+}
+
+function browserFacts() {
+  const nav = typeof navigator !== 'undefined' ? navigator : {}
+  const win = typeof window !== 'undefined' ? window : {}
+  const supported =
+    'serviceWorker' in nav && 'PushManager' in win && 'Notification' in win
+  const standalone =
+    (typeof win.matchMedia === 'function' && win.matchMedia('(display-mode: standalone)').matches) ||
+    nav.standalone === true
+  return {
+    configured: Boolean(VAPID_PUBLIC_KEY),
+    supported,
+    isIOS: isIOSDevice(nav),
+    standalone,
+    permission: supported ? win.Notification.permission : 'default',
+  }
+}
+
+// Регистрация service worker без ожидания `ready`: в dev-режиме (vite без SW)
+// `ready` не наступает никогда, и экран висел бы. Нет регистрации — нет пушей.
+async function registration() {
+  try {
+    return (await navigator.serviceWorker.getRegistration()) ?? null
+  } catch {
+    return null
+  }
+}
+
+async function currentSubscription() {
+  const reg = await registration()
+  if (!reg?.pushManager) return { reg, sub: null }
+  try {
+    return { reg, sub: await reg.pushManager.getSubscription() }
+  } catch {
+    return { reg, sub: null }
+  }
+}
+
+async function saveOnServer(sub) {
+  const args = subscriptionArgs(sub?.toJSON?.(), navigator.userAgent)
+  if (!args) throw new PushError('Браузер выдал неполную подписку — попробуй еще раз.')
+  let res
+  try {
+    res = await withTimeout(supabase.rpc('push_subscribe', args))
+  } catch {
+    throw new PushError('Нет сети — попробуй позже.')
+  }
+  if (res.error) throw new PushError('Сервер не сохранил подписку. Попробуй позже.')
+}
+
+// Состояние для Настроек: { availability, enabled }. enabled — у браузера есть
+// подписка и разрешение. Если подписка есть, тихо подтверждаем ее на сервере
+// (холостой повтор ничего не пишет): так сервер догоняет браузер, если подписку
+// перехватила другая учетка на общем телефоне или ее вычистили.
+export async function getPushState(userId) {
+  const facts = browserFacts()
+  const availability = pushAvailability(facts)
+  if (availability !== 'ok') return { availability, enabled: false }
+  const { reg, sub } = await currentSubscription()
+  if (!reg) return { availability: 'unsupported', enabled: false }
+  const enabled = Boolean(sub) && facts.permission === 'granted'
+  if (enabled && navigator.onLine && (await hasSession(userId))) {
+    saveOnServer(sub).catch(() => { /* не критично: повторим при следующем открытии */ })
+  }
+  return { availability, enabled }
+}
+
+// Включить: разрешение → подписка браузера → привязка на сервере. Разрешение
+// спрашиваем ПЕРВЫМ делом — Safari показывает запрос только в ответ на нажатие,
+// а после долгих await жест считается «остывшим».
+export async function enablePush(userId) {
+  const permission = await Notification.requestPermission()
+  if (permission !== 'granted') {
+    throw new PushError(permission === 'denied'
+      ? 'Уведомления запрещены — разреши их в настройках браузера или телефона.'
+      : 'Разрешение не выдано.')
+  }
+  if (!navigator.onLine) throw new PushError('Включить уведомления можно только онлайн.')
+  const reg = await registration()
+  if (!reg?.pushManager) throw new PushError('Этот браузер не умеет пуш-уведомления.')
+
+  let sub
+  try {
+    sub = (await reg.pushManager.getSubscription()) ??
+      (await reg.pushManager.subscribe({
+        userVisibleOnly: true,
+        applicationServerKey: urlB64ToUint8Array(VAPID_PUBLIC_KEY),
+      }))
+  } catch {
+    throw new PushError('Браузер не дал подписаться на уведомления. Попробуй еще раз.')
+  }
+
+  try {
+    await ensureOwnSession(userId)
+    await saveOnServer(sub)
+  } catch (e) {
+    // Сервер о подписке не знает — не оставляем браузер «включенным» впустую.
+    await sub.unsubscribe().catch(() => {})
+    throw e instanceof PushError ? e : new PushError(e?.message || 'Не удалось включить уведомления.')
+  }
+}
+
+// Выключить: сначала снимаем подписку в браузере (работает и офлайн — дальше
+// push-сервис ответит серверу «подписки нет», и та сотрется сама), затем
+// по возможности убираем ее на сервере.
+export async function disablePush(userId) {
+  const { sub } = await currentSubscription()
+  if (!sub) return
+  const endpoint = sub.endpoint
+  await sub.unsubscribe().catch(() => {})
+  if (!navigator.onLine || !(await hasSession(userId))) return
+  try {
+    await withTimeout(supabase.rpc('push_unsubscribe', { p_endpoint: endpoint }), 5000)
+  } catch { /* сервер дочистит по ответу push-сервиса */ }
+}
+
+// Выход из учетки: уведомления этого человека больше не должны приходить на
+// устройство (общий телефон). Никогда не бросает и не задерживает выход надолго.
+export async function releasePushOnLogout(userId) {
+  try {
+    await withTimeout(disablePush(userId), 4000)
+  } catch { /* выход важнее */ }
+}

@@ -16,6 +16,8 @@ import { currentValues, evaluateBadges, BADGES } from '../lib/badges.js'
 import { normMetric, parseTime, fmtTime } from '../lib/metric.js'
 import { setPin, setName, setSex, LoginError } from '../lib/auth.js'
 import SexPicker from '../components/SexPicker.jsx'
+import PushToggle from '../components/PushToggle.jsx'
+import { usePushToggle } from '../hooks/usePushToggle.js'
 import { uploadMyAvatar } from '../lib/avatar.js'
 import { onlyDigits } from '../lib/text.js'
 import { showToast } from '../components/Toast.jsx'
@@ -55,6 +57,8 @@ export default function ProfileScreen({ user, onLogout, onOpenProgress, onOpenFe
   const myCached = useLiveQuery(() => getCachedUser(user.id), [user.id])
   // Тумблер автопрогрессии (рекомендации весов/повторов в тренировке).
   const progEnabled = useLiveQuery(() => getProgSettings(user.id).then((p) => p.enabled), [user.id], true)
+  // Пуш-уведомления этого браузера (v6.6.0): состояние, переключение, ошибка.
+  const push = usePushToggle(user.id)
   const loading = workouts === undefined
 
   // Гард от setState после размонтирования. Экран профиля уходит при смене нижней
@@ -515,6 +519,13 @@ export default function ProfileScreen({ user, onLogout, onOpenProgress, onOpenFe
                 <span className="toggle-knob" />
               </span>
             </button>
+            <PushToggle
+              availability={push.availability}
+              enabled={push.enabled}
+              busy={push.busy}
+              error={push.error}
+              onToggle={push.toggle}
+            />
             {pinOpen ? (
               <div className="pin-form" ref={pinFormRef}>
                 <p className="pin-form-title">Смена PIN</p>

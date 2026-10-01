@@ -2,6 +2,7 @@ import { useState, useEffect, useLayoutEffect, useRef, Suspense } from 'react'
 import { useLiveQuery } from 'dexie-react-hooks'
 import { isConfigured, warmup, supabase } from './db/supabase.js'
 import { logout as authLogout, getCachedProfile } from './lib/auth.js'
+import { releasePushOnLogout } from './db/push.js'
 import { startSync, useSyncStatus } from './db/sync.js'
 import { countUnread } from './db/notifications.js'
 import { getCachedUser } from './db/repo.js'
@@ -417,6 +418,9 @@ export default function App() {
   }
 
   async function handleLogout() {
+    // Пуши этой учетки на устройство больше не нужны (общий телефон). Пока сессия
+    // жива — снимаем подписку и на сервере; никогда не бросает, ждет не дольше 4 с.
+    if (user?.id) await releasePushOnLogout(user.id)
     await authLogout()
     localStorage.removeItem(SESSION_KEY)
     setUser(null)      // сначала размонтируем экраны и их live-queries…
