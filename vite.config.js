@@ -2,12 +2,18 @@ import { defineConfig } from 'vite'
 import react from '@vitejs/plugin-react'
 import { VitePWA } from 'vite-plugin-pwa'
 import { readFileSync } from 'node:fs'
+import { WHATS_NEW } from './src/content/whatsNew.js'
+import { updateHeadline } from './src/lib/whatsNew.js'
 
 // Версия приложения — единый источник правды package.json; показывается внизу
 // «Профиля» (см. ProfileScreen). Подставляется на сборке в __APP_VERSION__,
 // рантайма не трогает. Читаем через fs, а не `import … assert { type: 'json' }`:
 // import-assertion удалён в Node 22+/24 и даёт deprecation-предупреждение.
 const pkg = JSON.parse(readFileSync(new URL('./package.json', import.meta.url), 'utf-8'))
+
+// «Что нового» (v6.4.0): главное из свежей записи уходит в version.json — строка новой
+// версии показывает его ДО обновления. Запись не про эту версию → без заголовка.
+const latestNews = WHATS_NEW[0]?.version === pkg.version ? WHATS_NEW[0] : null
 
 // Версия, лежащая на сервере ПРЯМО СЕЙЧАС, отдельным крошечным файлом. Нужна
 // плашке обновления: она сверяет её с зашитой в сборку __APP_VERSION__ и не
@@ -21,7 +27,7 @@ const versionJson = () => ({
     this.emitFile({
       type: 'asset',
       fileName: 'version.json',
-      source: JSON.stringify({ version: pkg.version }),
+      source: JSON.stringify({ version: pkg.version, headline: updateHeadline(latestNews) }),
     })
   },
 })

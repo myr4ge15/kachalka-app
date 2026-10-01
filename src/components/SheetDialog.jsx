@@ -18,6 +18,7 @@ export default function SheetDialog({
   actionLabel = 'закрыть',
   onDismiss,
   dismissDisabled = false,
+  className = '',
   children,
 }) {
   const titleId = useId()
@@ -72,7 +73,7 @@ export default function SheetDialog({
     <div className="overlay" onClick={dismiss} onKeyDown={onKeyDown}>
       <div
         ref={sheetRef}
-        className="sheet"
+        className={className ? `sheet ${className}` : 'sheet'}
         role="dialog"
         aria-modal="true"
         aria-labelledby={titleId}

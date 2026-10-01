@@ -28,6 +28,8 @@ import GoalsList from '../components/GoalsList.jsx'
 import PencilIcon from '../components/PencilIcon.jsx'
 import BackButton from '../components/BackButton.jsx'
 import { useRevealFocus } from '../hooks/useRevealFocus.js'
+import { WHATS_NEW } from '../content/whatsNew.js'
+import { hasUnopened, readMark, fmtWhatsNewDate, OPENED_KEY } from '../lib/whatsNew.js'
 
 // Экран «Профиль» (ЛК). Все про самого пользователя; пер-упражненческую
 // аналитику не дублируем — рекорды уводят в «Прогресс». Считаем на клиенте из
@@ -47,7 +49,7 @@ function GoalStepper({ onDec, onInc, children }) {
 }
 
 // Пропсы: user, onLogout, onOpenProgress(exerciseId), onOpenFeed().
-export default function ProfileScreen({ user, onLogout, onOpenProgress, onOpenFeed, onRenamed, onOpenAdmin, onOpenMyExercises, onOpenAchievements, onOpenAppearance, startInSettings = false, onStartInSettingsConsumed }) {
+export default function ProfileScreen({ user, onLogout, onOpenProgress, onOpenFeed, onRenamed, onOpenAdmin, onOpenMyExercises, onOpenAchievements, onOpenAppearance, onOpenWhatsNew, startInSettings = false, onStartInSettingsConsumed }) {
   const workouts = useLiveQuery(() => getWorkouts(user.id), [user.id])
   const goals = useLiveQuery(() => readGoals(user.id), [user.id])
   const myCached = useLiveQuery(() => getCachedUser(user.id), [user.id])
@@ -118,6 +120,7 @@ export default function ProfileScreen({ user, onLogout, onOpenProgress, onOpenFe
   // startInSettings — возврат из под-экрана Настроек (Оформление/Каталог/Админка): сразу
   // показываем список Настроек, а не корень Профиля (v6.3.5), и гасим интент у App.
   const [settingsOpen, setSettingsOpen] = useState(startInSettings)
+  const wnUnopened = hasUnopened(WHATS_NEW, readMark(OPENED_KEY))
   useEffect(() => {
     if (startInSettings) onStartInSettingsConsumed?.()
   }, [startInSettings, onStartInSettingsConsumed])
@@ -483,6 +486,14 @@ export default function ProfileScreen({ user, onLogout, onOpenProgress, onOpenFe
         )}
 
           <div className="actions">
+            {/* «Что нового» (v6.4.0) — история обновлений; «новое», пока свежая запись не открыта. */}
+            <button className={'act' + (wnUnopened ? ' act-new' : '')} onClick={() => onOpenWhatsNew?.()}>
+              <span className="act-txt">
+                🆕 Что нового
+                <span className="act-sub">v{WHATS_NEW[0]?.version} · {fmtWhatsNewDate(WHATS_NEW[0]?.date)}</span>
+              </span>
+              {wnUnopened && <span className="act-badge">новое</span>}
+            </button>
             <button className="act" onClick={() => onOpenAppearance?.()}>
               <span className="act-txt">
                 🎨 Оформление
@@ -593,7 +604,10 @@ export default function ProfileScreen({ user, onLogout, onOpenProgress, onOpenFe
           <a className="repo-link" href="https://github.com/myr4ge15/kachalka-app" target="_blank" rel="noopener noreferrer">
             kachalka-app
           </a>
-          {' · '}v{APP_VERSION}
+          {' · '}
+          <button type="button" className="link-btn app-version-link" onClick={() => onOpenWhatsNew?.()}>
+            v{APP_VERSION} · что нового ›
+          </button>
         </p>
       </div>
     )

@@ -21,6 +21,9 @@ import ScreenSkeleton from './components/ScreenSkeleton.jsx'
 import ErrorBoundary from './components/ErrorBoundary.jsx'
 import { lazyScreen } from './components/lazyScreen.jsx'
 import { useSpinPhase } from './hooks/useSpinPhase.js'
+import WhatsNewSheet from './components/WhatsNewSheet.jsx'
+import { WHATS_NEW } from './content/whatsNew.js'
+import { pendingWhatsNew, mergeForSheet, readMark, writeMark, SEEN_KEY } from './lib/whatsNew.js'
 
 // Экраны-вкладки грузим лениво: код активной вкладки подтягивается по требованию.
 // Главный выигрыш — «Прогресс» тянет тяжелый recharts, который теперь не попадает
@@ -40,6 +43,7 @@ const FreshnessScreen = lazyScreen(() => import('./screens/FreshnessScreen.jsx')
 const MyExercisesScreen = lazyScreen(() => import('./screens/MyExercisesScreen.jsx'))
 const AchievementsScreen = lazyScreen(() => import('./screens/AchievementsScreen.jsx'))
 const AppearanceScreen = lazyScreen(() => import('./screens/AppearanceScreen.jsx'))
+const WhatsNewScreen = lazyScreen(() => import('./screens/WhatsNewScreen.jsx'))
 
 // Иконка состояния синхронизации — инлайн-SVG (без зависимостей), как TabIcon.
 // Красится через currentColor (цвет задает класс .sync-badge.<cls>), спиннер
@@ -205,6 +209,34 @@ export default function App() {
   // выбора для экспорта) — тогда FAB прячем: он там либо не нужен, либо налезает
   // на нижнюю панель («Сохранить» / бар экспорта). Хаб сообщает об этом сам.
   const [historyBusy, setHistoryBusy] = useState(false)
+
+  // «Что нового» (v6.4.0): лист один раз после обновления. knownDevice — сессия
+  // была ДО запуска (тут уже входили): тогда при пустой отметке покажем свежую
+  // запись, а новичку/новому телефону — молча запомним версию (lib/whatsNew.js).
+  const knownDeviceRef = useRef(null)
+  if (knownDeviceRef.current === null) {
+    try { knownDeviceRef.current = Boolean(readStoredUserId(localStorage.getItem(SESSION_KEY))) } catch { knownDeviceRef.current = false }
+  }
+  const [whatsNew, setWhatsNew] = useState(null)
+  useEffect(() => {
+    if (!user?.id) return
+    const { show, markSeen } = pendingWhatsNew(WHATS_NEW, readMark(SEEN_KEY), __APP_VERSION__, {
+      knownDevice: knownDeviceRef.current,
+    })
+    if (markSeen) writeMark(SEEN_KEY, markSeen)
+    setWhatsNew(mergeForSheet(show))
+  }, [user?.id])
+  function closeWhatsNew() {
+    writeMark(SEEN_KEY, __APP_VERSION__)
+    setWhatsNew(null)
+  }
+  // Строка новой версии (UpdatePrompt, вне App) не показывается посреди записи
+  // тренировки — сообщаем ей через атрибут на <html> (CSS прячет).
+  useEffect(() => {
+    const root = document.documentElement
+    if (historyBusy) root.dataset.composer = '1'
+    else delete root.dataset.composer
+  }, [historyBusy])
 
   // Счетчик непрочитанных рекордов-уведомлений (для бейджа на колокольчике).
   // Живо пересчитывается при изменении своих тренировок, ленты и метки просмотра.
@@ -477,6 +509,7 @@ export default function App() {
                   onOpenMyExercises={() => goTab('myex')}
                   onOpenAchievements={() => goTab('achievements')}
                   onOpenAppearance={() => goTab('appearance')}
+                  onOpenWhatsNew={() => goTab('whatsnew')}
                   startInSettings={openSettings}
                   onStartInSettingsConsumed={() => setOpenSettings(false)}
                 />
@@ -492,6 +525,9 @@ export default function App() {
               )}
               {tab === 'achievements' && (
                 <AchievementsScreen user={user} onBack={() => goTab('profile')} />
+              )}
+              {tab === 'whatsnew' && (
+                <WhatsNewScreen onBack={backToSettings} />
               )}
               {tab === 'appearance' && (
                 <AppearanceScreen user={user} onBack={backToSettings} />
@@ -584,6 +620,14 @@ export default function App() {
       </nav>
 
       <Toast />
+      {/* «Что нового» — не поверх записи тренировки: дождемся выхода из композера. */}
+      {whatsNew && !historyBusy && (
+        <WhatsNewSheet
+          release={whatsNew}
+          onDone={closeWhatsNew}
+          onOpenAll={() => { closeWhatsNew(); goTab('whatsnew') }}
+        />
+      )}
     </div>
   )
 }

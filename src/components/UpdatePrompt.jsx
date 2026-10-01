@@ -31,7 +31,8 @@ async function fetchServerVersion() {
     })
     if (!res.ok) return null
     const data = await res.json()
-    return data?.version ?? null
+    // headline (v6.4.0) — главное из новой версии для строки; старые деплои без него.
+    return data?.version ? { version: data.version, headline: data.headline ?? null } : null
   } catch {
     return null // офлайн / таймаут / старый деплой без version.json
   } finally {
@@ -56,6 +57,7 @@ export default function UpdatePrompt() {
   const snoozedAtRef = useRef(0)
   // Версия, на которую зовем обновиться (null — не узнали, показываем без номера).
   const [nextVersion, setNextVersion] = useState(null)
+  const [nextHeadline, setNextHeadline] = useState(null)
   // Сверка с сервером завершена. До нее плашку не рисуем: иначе ложная «Новая
   // версия» успевала мигнуть и только потом гаснуть.
   const [versionChecked, setVersionChecked] = useState(false)
@@ -99,20 +101,22 @@ export default function UpdatePrompt() {
   useEffect(() => {
     if (!needRefresh) {
       setNextVersion(null)
+      setNextHeadline(null)
       setVersionChecked(false)
       return
     }
     let alive = true
     fetchServerVersion().then((server) => {
       if (!alive) return
-      if (!isRealUpdate(__APP_VERSION__, server)) {
+      if (!isRealUpdate(__APP_VERSION__, server?.version)) {
         // Ждущий SW несет ту же версию — обновляться не на что, молча прячем.
         // Применить его сами не пытаемся: активация перезагрузит приложение
         // без спроса, а выигрыша нет.
         setNeedRefresh(false)
         return
       }
-      setNextVersion(server)
+      setNextVersion(server?.version ?? null)
+      setNextHeadline(server?.headline ?? null)
       setVersionChecked(true)
     })
     return () => { alive = false }
@@ -135,18 +139,29 @@ export default function UpdatePrompt() {
     updateServiceWorker(true)
   }
 
-  if (!needRefresh || !versionChecked) return null
+  // Строка висит поверх верха контента — пока она видна, контент сдвигаем вниз
+  // (CSS по html[data-update]), иначе она закрывала заголовок экрана.
+  const visible = needRefresh && versionChecked
+  useEffect(() => {
+    const root = document.documentElement
+    if (visible) root.dataset.update = '1'
+    else delete root.dataset.update
+    return () => { delete root.dataset.update }
+  }, [visible])
+
+  if (!visible) return null
 
   return (
-    <div className="update-pill" role="alert">
-      <span className="update-pill-dot" aria-hidden="true" />
-      <span className="update-pill-text">
-        Новая версия{nextVersion ? ` ${nextVersion}` : ''}
-      </span>
-      <button className="update-pill-go" onClick={applyUpdate}>
+    <div className="update-banner" role="alert">
+      <span className="update-banner-dot" aria-hidden="true" />
+      <div className="update-banner-txt">
+        <b>{nextVersion ? `Обновление ${nextVersion}` : 'Новая версия'}</b>
+        {nextHeadline && <small>{nextHeadline}</small>}
+      </div>
+      <button className="update-banner-go" onClick={applyUpdate}>
         Обновить
       </button>
-      <button className="update-pill-close" onClick={snooze} aria-label="Позже">
+      <button className="update-banner-close" onClick={snooze} aria-label="Позже">
         &times;
       </button>
     </div>
