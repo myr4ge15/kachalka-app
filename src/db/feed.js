@@ -83,7 +83,7 @@ export function rowToItem(w) {
 // Догрузить реакции для окна ленты и приклеить к элементам. Отдельным запросом
 // (а не вложенным select) — проще и не зависит от RLS-join. Таблицы reactions
 // может еще не быть на сервере (поэтапная раскатка) → тихо оставляем пусто.
-async function attachReactions(items) {
+export async function attachReactions(items) {
   if (items.length === 0) return
   const ids = items.map((i) => i.id)
   try {

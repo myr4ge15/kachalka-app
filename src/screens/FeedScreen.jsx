@@ -7,13 +7,13 @@ import { syncNow } from '../db/sync.js'
 import { onOnline, onResume, onReselect } from '../lib/appEvents.js'
 import { fmtWhen, fmtAgo } from '../lib/dates.js'
 import { fmtSet } from '../lib/metric.js'
-import { summarizeReactions, reactorLine } from '../lib/reactions.js'
 import { vibrate, HAPTIC } from '../lib/haptics.js'
 import { pullDistance, shouldTriggerRefresh, PULL_THRESHOLD } from '../lib/pullRefresh.js'
 import Leaderboard from './Leaderboard.jsx'
 import Avatar from '../components/Avatar.jsx'
 import CardsSkeleton from '../components/CardsSkeleton.jsx'
 import FeedPrBadge from '../components/FeedPrBadge.jsx'
+import ReactionBar from '../components/ReactionBar.jsx'
 import { useSpinPhase } from '../hooks/useSpinPhase.js'
 
 export default function FeedScreen({ user, onOpenMember }) {
@@ -261,7 +261,8 @@ export default function FeedScreen({ user, onOpenMember }) {
             <button
               type="button"
               className="feed-card-head feed-card-head-btn"
-              onClick={() => onOpenMember?.(w.user_id)}
+              data-anchor={`feed-${w.id}`}
+              onClick={() => onOpenMember?.(w.user_id, `feed-${w.id}`)}
               aria-label={isMe ? 'Открыть мой профиль' : `Открыть профиль: ${w.user_name}`}
             >
               <Avatar name={w.user_name} url={avatarById.get(w.user_id)} className="avatar" />
@@ -272,6 +273,13 @@ export default function FeedScreen({ user, onOpenMember }) {
                 </div>
                 <div className="muted feed-when">{fmtWhen(w.performed_at)}</div>
               </div>
+              {/* Шеврон — подсказка, что шапка ведет в профиль (v6.7.1). */}
+              {onOpenMember && (
+                <svg className="go-chev" viewBox="0 0 24 24" width="20" height="20" fill="none"
+                  stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+                  <path d="M9 6l6 6-6 6" />
+                </svg>
+              )}
             </button>
 
             {w.prs?.length > 0 && (
@@ -297,48 +305,12 @@ export default function FeedScreen({ user, onOpenMember }) {
               {w.exCount} упр. · {w.setCount} подх. · {w.tonnage.toLocaleString('ru-RU')} кг тоннаж
             </div>
 
-            {(() => {
-              const { kinds, names, total } = summarizeReactions(w.reactions, user.id)
-              const line = reactorLine(names)
-              // Своя тренировка — самолайк запрещен: показываем только СВОДКУ
-              // реакций других (статичные чипы + имена), без кнопок. Нет реакций
-              // — не рендерим блок вовсе.
-              if (isMe) {
-                if (total === 0) return null
-                return (
-                  <div className="reactions">
-                    <div className="reaction-btns">
-                      {kinds.filter((k) => k.count > 0).map((k) => (
-                        <span key={k.kind} className="reaction-btn static">
-                          <span className="reaction-emoji">{k.emoji}</span>
-                          <span className="reaction-count">{k.count}</span>
-                        </span>
-                      ))}
-                    </div>
-                    {line && <div className="muted reaction-who">{line}</div>}
-                  </div>
-                )
-              }
-              return (
-                <div className="reactions">
-                  <div className="reaction-btns">
-                    {kinds.map((k) => (
-                      <button
-                        key={k.kind}
-                        className={`reaction-btn${k.mine ? ' mine' : ''}`}
-                        onClick={() => onReact(w.id, k.kind, k.mine)}
-                        aria-pressed={k.mine}
-                        title={k.mine ? 'Убрать реакцию' : 'Поставить реакцию'}
-                      >
-                        <span className="reaction-emoji">{k.emoji}</span>
-                        {k.count > 0 && <span className="reaction-count">{k.count}</span>}
-                      </button>
-                    ))}
-                  </div>
-                  {line && <div className="muted reaction-who">{line}</div>}
-                </div>
-              )
-            })()}
+            <ReactionBar
+              reactions={w.reactions}
+              myId={user.id}
+              isMe={isMe}
+              onReact={(kind, mine) => onReact(w.id, kind, mine)}
+            />
           </div>
         )
           })}

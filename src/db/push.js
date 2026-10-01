@@ -129,16 +129,21 @@ export async function enablePush(userId) {
 
 // Выключить: сначала снимаем подписку в браузере (работает и офлайн — дальше
 // push-сервис ответит серверу «подписки нет», и та сотрется сама), затем
-// по возможности убираем ее на сервере.
-export async function disablePush(userId) {
+// по возможности убираем ее на сервере. background: true (тумблер в Настройках,
+// v6.7.1) — серверную чистку не ждем: пуши на устройство уже не придут, а ждать
+// просыпающийся сервер до 5 с незачем. Выход из учетки ждет (сессия вот-вот уйдет).
+export async function disablePush(userId, { background = false } = {}) {
   const { sub } = await currentSubscription()
   if (!sub) return
   const endpoint = sub.endpoint
   await sub.unsubscribe().catch(() => {})
-  if (!navigator.onLine || !(await hasSession(userId))) return
-  try {
-    await withTimeout(supabase.rpc('push_unsubscribe', { p_endpoint: endpoint }), 5000)
-  } catch { /* сервер дочистит по ответу push-сервиса */ }
+  const cleanup = (async () => {
+    if (!navigator.onLine || !(await hasSession(userId))) return
+    try {
+      await withTimeout(supabase.rpc('push_unsubscribe', { p_endpoint: endpoint }), 5000)
+    } catch { /* сервер дочистит по ответу push-сервиса */ }
+  })()
+  if (!background) await cleanup
 }
 
 // Выход из учетки: уведомления этого человека больше не должны приходить на

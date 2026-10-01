@@ -45,7 +45,7 @@ describe('Leaderboard — переход в профиль участника (v
     readyQueries()
     render(<Leaderboard user={user} onOpenMember={onOpenMember} />)
     fireEvent.click(screen.getByRole('button', { name: 'Открыть профиль: Дима' }))
-    expect(onOpenMember).toHaveBeenCalledWith('dima')
+    expect(onOpenMember).toHaveBeenCalledWith('dima', 'lb-dima')
   })
 
   it('Enter на строке тоже открывает профиль', () => {
@@ -53,7 +53,7 @@ describe('Leaderboard — переход в профиль участника (v
     readyQueries()
     render(<Leaderboard user={user} onOpenMember={onOpenMember} />)
     fireEvent.keyDown(screen.getByRole('button', { name: 'Открыть мой профиль' }), { key: 'Enter' })
-    expect(onOpenMember).toHaveBeenCalledWith('me')
+    expect(onOpenMember).toHaveBeenCalledWith('me', 'lb-me')
   })
 
   it('без обработчика строки не притворяются кнопками', () => {

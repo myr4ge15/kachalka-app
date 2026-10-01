@@ -144,9 +144,10 @@ function BoardCard({ title, rows, user, avatarById, onOpenMember }) {
               role={onOpenMember ? 'button' : undefined}
               tabIndex={onOpenMember ? 0 : undefined}
               aria-label={onOpenMember ? (isMe ? 'Открыть мой профиль' : `Открыть профиль: ${row.user_name}`) : undefined}
-              onClick={onOpenMember ? () => onOpenMember(row.user_id) : undefined}
+              data-anchor={`lb-${row.user_id}`}
+              onClick={onOpenMember ? () => onOpenMember(row.user_id, `lb-${row.user_id}`) : undefined}
               onKeyDown={onOpenMember ? (e) => {
-                if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); onOpenMember(row.user_id) }
+                if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); onOpenMember(row.user_id, `lb-${row.user_id}`) }
               } : undefined}
             >
               <Place i={i} />
@@ -159,6 +160,12 @@ function BoardCard({ title, rows, user, avatarById, onOpenMember }) {
                 <span className="lb-weight">{row.weight} кг</span>
                 <span className="lb-sub muted">{row.reps} повт. · 1ПМ ~{row.orm}</span>
               </span>
+              {onOpenMember && (
+                <svg className="go-chev" viewBox="0 0 24 24" width="20" height="20" fill="none"
+                  stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+                  <path d="M9 6l6 6-6 6" />
+                </svg>
+              )}
             </li>
           )
         })}

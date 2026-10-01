@@ -8,7 +8,9 @@ export default function PushTypes({ prefs = null, busyType = null, error = '', o
   return (
     <div className="push-types" role="group" aria-label="Какие уведомления присылать">
       {PUSH_TYPES.map((t) => {
-        const on = !loading && isPushTypeOn(prefs, t.type)
+        // Пока настройки грузятся — показываем умолчание («включено», как на
+        // сервере), а не «выключено»: иначе тумблеры мигали выкл → вкл (v6.7.1).
+        const on = isPushTypeOn(prefs, t.type)
         return (
           <button
             key={t.type}

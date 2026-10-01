@@ -33,16 +33,28 @@ export function usePushToggle(userId) {
     }
   }, [refresh])
 
+  // v6.7.1: тумблер переключается СРАЗУ (оптимистично), при ошибке — откат и
+  // перечитывание реального состояния. После успеха браузер заново НЕ спрашиваем:
+  // свежая подписка видна getSubscription() не мгновенно (iPhone), и перечитывание
+  // откатывало тумблер в «выкл» — включалось только со второго тапа.
+  const busyRef = useRef(false)
   const toggle = useCallback(async (next) => {
+    if (busyRef.current) return
+    busyRef.current = true
     setBusy(true)
     setError('')
+    setState((s) => ({ ...s, enabled: next }))
     try {
       if (next) await enablePush(userId)
-      else await disablePush(userId)
+      else await disablePush(userId, { background: true })
     } catch (e) {
-      if (aliveRef.current) setError(e?.message || 'Не получилось. Попробуй еще раз.')
-    } finally {
+      if (aliveRef.current) {
+        setState((s) => ({ ...s, enabled: !next }))
+        setError(e?.message || 'Не получилось. Попробуй еще раз.')
+      }
       await refresh()
+    } finally {
+      busyRef.current = false
       if (aliveRef.current) setBusy(false)
     }
   }, [userId, refresh])

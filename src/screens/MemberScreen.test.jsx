@@ -3,13 +3,15 @@ import { beforeEach, describe, expect, it, vi } from 'vitest'
 import { render, screen, fireEvent } from '@testing-library/react'
 import { useLiveQuery } from 'dexie-react-hooks'
 import MemberScreen from './MemberScreen.jsx'
-import { fetchMember } from '../db/memberProfile.js'
+import { fetchMember, toggleMemberReaction } from '../db/memberProfile.js'
 
 vi.mock('dexie-react-hooks', () => ({ useLiveQuery: vi.fn() }))
 vi.mock('../db/memberProfile.js', () => ({
   getCachedMember: vi.fn(),
   fetchMember: vi.fn(() => Promise.resolve(true)),
+  toggleMemberReaction: vi.fn(() => Promise.resolve()),
 }))
+vi.mock('../db/sync.js', () => ({ syncNow: vi.fn(() => Promise.resolve()) }))
 vi.mock('../db/repo.js', () => ({ getCachedUser: vi.fn() }))
 vi.mock('../lib/appEvents.js', () => ({
   onOnline: vi.fn(() => () => {}),
@@ -60,6 +62,24 @@ describe('MemberScreen', () => {
     const { container } = render(<MemberScreen user={viewer} memberId="dima" onBack={() => {}} />)
     expect(container.querySelector('.stat-num').textContent).toBe('1+')
     expect(screen.getByText(/полный профиль подтянется/)).toBeTruthy()
+  })
+
+  it('реакции: счетчик на карточке и тап по своей реакции', () => {
+    const items = [workout('w1', new Date().toISOString(), [bench(70, 5)], {
+      reactions: [
+        { user_id: 'kate', name: 'Катя', kind: 'fire' },
+        { user_id: 'me', name: 'Саня', kind: 'fire' },
+      ],
+    })]
+    mockQueries({ at: 1, total: 1, items, source: 'cache' })
+    render(<MemberScreen user={viewer} memberId="dima" onBack={() => {}} />)
+    const fire = screen.getByRole('button', { name: /🔥/ })
+    expect(fire.getAttribute('aria-pressed')).toBe('true')
+    expect(fire.textContent).toContain('2')
+    fireEvent.click(fire)
+    expect(toggleMemberReaction).toHaveBeenCalledWith({
+      userId: 'me', userName: 'Саня', memberId: 'dima', workoutId: 'w1', kind: 'fire', mine: true,
+    })
   })
 
   it('назад зовет onBack', () => {

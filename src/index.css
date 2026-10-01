@@ -1427,6 +1427,9 @@ html[data-update]:not([data-composer]) .content { padding-top: 64px; }
   font: inherit; text-align: left; cursor: pointer; border-radius: 12px;
 }
 .feed-card-head-btn:active .feed-name { color: var(--acc-2); }
+/* v6.7.1: шеврон «откроется профиль» — справа в шапке карточки и в строке рейтинга. */
+.go-chev { flex-shrink: 0; margin-left: auto; color: var(--muted); }
+.lb-row .go-chev { margin-left: -2px; margin-right: -4px; width: 18px; height: 18px; }
 .avatar {
   width: 40px; height: 40px; flex-shrink: 0; border-radius: 50%;
   display: flex; align-items: center; justify-content: center;
@@ -1904,6 +1907,10 @@ img.avatar-lg.has-img {
 .push-act-info { cursor: default; }
 .push-act-info:active { background: var(--surface); }
 .toggle-act.busy { opacity: .6; }
+/* v6.7.1: статус переключения — в той же строке, слева от тумблера (высота не прыгает). */
+.toggle-act-end { display: flex; align-items: center; gap: 8px; flex-shrink: 0; }
+.toggle-act-status { color: var(--muted); font-size: 12px; font-weight: 400; }
+.toggle-pill.pending { opacity: .7; }
 .push-err { color: var(--red); font-size: 13px; font-weight: 600; margin: -4px 2px 0; }
 /* Типы пушей (components/PushTypes.jsx, v6.7.0): вложенный список под главным тумблером. */
 .push-types { display: flex; flex-direction: column; gap: 6px; padding-left: 14px; border-left: 2px solid var(--border); margin-left: 6px; }

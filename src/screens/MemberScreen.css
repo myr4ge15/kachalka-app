@@ -11,3 +11,18 @@
 @media (max-width: 380px) {
   .member .member-stats .stat-num { font-size: 26px; }
 }
+/* v6.7.1: «наверх» — плавающая круглая кнопка справа над нижним меню. Плотная
+   подложка, как у прочих оверлеев (AGENTS: не стекло поверх карточек). */
+.member-top {
+  position: fixed; right: 16px; bottom: calc(96px + env(safe-area-inset-bottom)); z-index: 30;
+  width: 44px; height: 44px; border-radius: 50%;
+  display: grid; place-items: center;
+  background: var(--surface-solid); color: var(--text);
+  border: 1px solid var(--stroke, var(--border));
+  box-shadow: 0 8px 24px rgba(0, 0, 0, .35);
+  cursor: pointer;
+}
+.member-top:active { color: var(--acc-2); }
+@media (min-width: 900px) {
+  .member-top { bottom: 24px; right: 24px; }
+}

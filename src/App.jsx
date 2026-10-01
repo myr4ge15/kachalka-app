@@ -15,6 +15,7 @@ import { emitReselect } from './lib/appEvents.js'
 import { markAppReady } from './lib/splash.js'
 import { fabState } from './lib/quickAdd.js'
 import { useTabDot } from './hooks/useTabDot.js'
+import { captureAnchor, useScrollAnchorRestore } from './hooks/useScrollAnchor.js'
 import { useAccentSync } from './hooks/useAccentSync.js'
 import LoginScreen from './screens/LoginScreen.jsx'
 import Toast, { showToast } from './components/Toast.jsx'
@@ -191,6 +192,10 @@ export default function App() {
 
   // Чей профиль открыт на вложенном роуте 'member' (v6.7.0, тап по участнику в Ленте/рейтинге).
   const [memberId, setMemberId] = useState(null)
+  // Откуда ушли в профиль (v6.7.1): якорь прокрутки Ленты — «Назад» возвращает к той
+  // же карточке/строке рейтинга, а не в начало Ленты.
+  const feedAnchorRef = useRef(null)
+  const [feedRestore, setFeedRestore] = useState(null)
 
   // Упражнение, с которым открыть «Прогресс» (проброс из ЛК по тапу на рекорд).
   const [progressExId, setProgressExId] = useState(null)
@@ -337,6 +342,8 @@ export default function App() {
   useLayoutEffect(() => {
     contentRef.current?.scrollTo({ top: 0 })
   }, [tab])
+  // …кроме возврата из профиля участника: Лента встает туда, откуда ушли.
+  useScrollAnchorRestore(contentRef, tab === 'feed' ? feedRestore : null, () => setFeedRestore(null))
 
   function goTab(next) {
     // Повторный тап по уже открытой вкладке — контент не меняется: плавно
@@ -372,11 +379,17 @@ export default function App() {
   }
 
   // Профиль участника из Ленты/рейтинга. Свой — это обычный «Профиль».
-  function openMember(id) {
+  function openMember(id, anchor) {
     if (!id) return
     if (id === user?.id) { goTab('profile'); return }
+    feedAnchorRef.current = tab === 'feed' ? captureAnchor(contentRef.current, anchor) : null
     setMemberId(id)
     goTab('member')
+  }
+
+  function backFromMember() {
+    setFeedRestore(feedAnchorRef.current)
+    goTab('feed')
   }
 
   function backToRhythm() {
@@ -531,7 +544,7 @@ export default function App() {
               )}
               {tab === 'feed' && <FeedScreen user={user} onOpenMember={openMember} />}
               {tab === 'member' && memberId && (
-                <MemberScreen user={user} memberId={memberId} onBack={() => goTab('feed')} />
+                <MemberScreen user={user} memberId={memberId} onBack={backFromMember} />
               )}
               {tab === 'progress' && (
                 <ProgressScreen

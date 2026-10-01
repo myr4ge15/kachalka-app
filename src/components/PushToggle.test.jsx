@@ -27,7 +27,8 @@ describe('PushToggle', () => {
   })
 
   it('во время переключения кнопка занята, ошибка видна', () => {
-    render(<PushToggle availability="ok" enabled={false} busy error="Нет сети — попробуй позже." onToggle={() => {}} />)
+    // Тумблер уже в новом положении (оптимистично, v6.7.1) — статус по нему.
+    render(<PushToggle availability="ok" enabled busy error="Нет сети — попробуй позже." onToggle={() => {}} />)
     expect(screen.getByRole('switch')).toBeDisabled()
     expect(screen.getByText('Включаю…')).toBeInTheDocument()
     expect(screen.getByRole('alert')).toHaveTextContent('Нет сети')
