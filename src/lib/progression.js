@@ -254,7 +254,7 @@ export function recommendProgression({ metric, lastSets, recentSessions, setting
         : `${lead} → тот же вес, закрепимся`
       return result('down', buildWeightSets(newWeight, R), text, prev)
     }
-    return result('same', buildWeightSets(a.workWeight, R), `Повторы не добраны → тот же вес, цель ${a.workingCount}×${R}`, prev)
+    return result('same', buildWeightSets(a.workWeight, R), `Повторения не добраны → тот же вес, цель ${a.workingCount}×${R}`, prev)
   }
 
   // ---- Весовые упражнения, стратегия '+повторы' ---------------------------
@@ -279,13 +279,13 @@ export function recommendProgression({ metric, lastSets, recentSessions, setting
         return result('up', buildWeightSets(a.workWeight + step, repFloor(ceiling)),
           `Потолок ${ceiling} повт. → +${fmtStep(step)} кг`, prev)
       }
-      return result('up', buildWeightSets(a.workWeight, R + 1), 'Все выполнено → +1 повтор', prev)
+      return result('up', buildWeightSets(a.workWeight, R + 1), 'Все выполнено → +1 повторение', prev)
     }
     if (down) {
       const lead = feltHard
         ? `${hardRun} ${plural(hardRun, 'раз', 'раза', 'раз')} подряд «тяжело»`
         : 'Тяжело далось'
-      return result('down', buildWeightSets(a.workWeight, Math.max(1, R - 1)), `${lead} → меньше повторов, закрепимся`, prev)
+      return result('down', buildWeightSets(a.workWeight, Math.max(1, R - 1)), `${lead} → меньше повторений, закрепимся`, prev)
     }
     return result('same', buildWeightSets(a.workWeight, R), `Не добрано → тот же вес, цель ${a.workingCount}×${R}`, prev)
   }

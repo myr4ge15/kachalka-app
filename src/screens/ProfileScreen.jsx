@@ -27,6 +27,7 @@ import PersonalRecords from '../components/PersonalRecords.jsx'
 import GoalsList from '../components/GoalsList.jsx'
 import PencilIcon from '../components/PencilIcon.jsx'
 import BackButton from '../components/BackButton.jsx'
+import { useRevealFocus } from '../hooks/useRevealFocus.js'
 
 // Экран «Профиль» (ЛК). Все про самого пользователя; пер-упражненческую
 // аналитику не дублируем — рекорды уводят в «Прогресс». Считаем на клиенте из
@@ -46,7 +47,7 @@ function GoalStepper({ onDec, onInc, children }) {
 }
 
 // Пропсы: user, onLogout, onOpenProgress(exerciseId), onOpenFeed().
-export default function ProfileScreen({ user, onLogout, onOpenProgress, onOpenFeed, onRenamed, onOpenAdmin, onOpenMyExercises, onOpenAchievements, onOpenAppearance }) {
+export default function ProfileScreen({ user, onLogout, onOpenProgress, onOpenFeed, onRenamed, onOpenAdmin, onOpenMyExercises, onOpenAchievements, onOpenAppearance, startInSettings = false, onStartInSettingsConsumed }) {
   const workouts = useLiveQuery(() => getWorkouts(user.id), [user.id])
   const goals = useLiveQuery(() => readGoals(user.id), [user.id])
   const myCached = useLiveQuery(() => getCachedUser(user.id), [user.id])
@@ -114,10 +115,17 @@ export default function ProfileScreen({ user, onLogout, onOpenProgress, onOpenFe
   // «Настройки» — отдельный под-экран Профиля (v6.3.3): список сразу сверху, со
   // стрелкой «назад». Состояние (PIN-форма, пол, бэкап) живет здесь же, поэтому это
   // вид внутри ProfileScreen, а не отдельный роут App.
-  const [settingsOpen, setSettingsOpen] = useState(false)
+  // startInSettings — возврат из под-экрана Настроек (Оформление/Каталог/Админка): сразу
+  // показываем список Настроек, а не корень Профиля (v6.3.5), и гасим интент у App.
+  const [settingsOpen, setSettingsOpen] = useState(startInSettings)
+  useEffect(() => {
+    if (startInSettings) onStartInSettingsConsumed?.()
+  }, [startInSettings, onStartInSettingsConsumed])
 
   // ── Смена PIN (фаза 2c) ─────────────────────────────────────────────────
   const [pinOpen, setPinOpen] = useState(false)
+  // Раскрытая форма смены PIN — в центр экрана (v6.3.5), иначе поля уезжают под клавиатуру/меню.
+  const pinFormRef = useRevealFocus(pinOpen)
   const [curPin, setCurPin] = useState('')
   const [newPin, setNewPin] = useState('')
   const [rptPin, setRptPin] = useState('')
@@ -490,14 +498,14 @@ export default function ProfileScreen({ user, onLogout, onOpenProgress, onOpenFe
             >
               <span className="toggle-act-txt">
                 📈 Рекомендации прогрессии
-                <span className="toggle-act-sub">подсказка веса/повторов при добавлении упражнения</span>
+                <span className="toggle-act-sub">подсказка веса/повторений при добавлении упражнения</span>
               </span>
               <span className={'toggle-pill' + (progEnabled ? ' on' : '')} aria-hidden="true">
                 <span className="toggle-knob" />
               </span>
             </button>
             {pinOpen ? (
-              <div className="pin-form">
+              <div className="pin-form" ref={pinFormRef}>
                 <p className="pin-form-title">Смена PIN</p>
                 <label className="field">
                   <span className="field-lab">Текущий PIN</span>
@@ -684,7 +692,7 @@ export default function ProfileScreen({ user, onLogout, onOpenProgress, onOpenFe
                   )}
                   <label className="field">
                     <span className="field-lab">
-                      {edMetric === 'time' ? 'Цель (время)' : edMetric === 'reps' ? 'Цель (повторы)' : 'Целевой вес'}
+                      {edMetric === 'time' ? 'Цель (время)' : edMetric === 'reps' ? 'Цель (повторения)' : 'Целевой вес'}
                     </span>
                     {edMetric === 'weight' ? (
                       <GoalStepper
@@ -721,7 +729,7 @@ export default function ProfileScreen({ user, onLogout, onOpenProgress, onOpenFe
                           value={edVal}
                           onChange={(e) => setEdVal(e.target.value.replace(/[^\d]/g, ''))}
                           onBlur={() => setEdVal((v) => Math.max(1, Math.round(Number(v) || 0)))}
-                          aria-label="Целевое число повторов"
+                          aria-label="Целевое число повторений"
                         />
                         <span className="u">повт.</span>
                       </GoalStepper>
@@ -745,7 +753,7 @@ export default function ProfileScreen({ user, onLogout, onOpenProgress, onOpenFe
                   </label>
                   {edMetric === 'weight' && (
                     <label className="field">
-                      <span className="field-lab">Повторы при этом весе <span className="muted">(необязательно)</span></span>
+                      <span className="field-lab">Повторения при этом весе <span className="muted">(необязательно)</span></span>
                       <GoalStepper
                         onDec={() => setEdReps((v) => Math.max(0, Math.round(Number(v) || 0) - 1))}
                         onInc={() => setEdReps((v) => Math.round(Number(v) || 0) + 1)}
@@ -758,7 +766,7 @@ export default function ProfileScreen({ user, onLogout, onOpenProgress, onOpenFe
                           placeholder="—"
                           onChange={(e) => setEdReps(e.target.value.replace(/[^\d]/g, ''))}
                           onBlur={() => setEdReps((v) => Math.max(0, Math.round(Number(v) || 0)))}
-                          aria-label="Повторы при целевом весе (необязательно)"
+                          aria-label="Повторения при целевом весе (необязательно)"
                         />
                         <span className="u">повт.</span>
                       </GoalStepper>

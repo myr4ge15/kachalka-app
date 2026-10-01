@@ -56,12 +56,15 @@ function useMediaQuery(query) {
 //                        режим выбора для экспорта: App прячет плавающую «+».
 //   openCalendar       — одноразовый интент «открой календарь» (v6.3.0): false —
 //                        нет; null — на сегодня; 'YYYY-MM-DD' — сразу этот день.
+//   onReturn()         — календарь открыт из Ритма Главной: закрытие календаря или
+//                        «назад» из открытой в нем тренировки возвращают в Ритм (v6.3.5).
 export default function HistoryScreen({
   user,
   openNew = false,
   onOpenNewConsumed,
   openCalendar = false,
   onOpenCalendarConsumed,
+  onReturn,
   onBusyChange,
   onOpenProgress,
 }) {
@@ -83,6 +86,8 @@ export default function HistoryScreen({
   const [filter, setFilter] = useState(null)
   // Календарь (v6.3.0): false — закрыт, иначе { date } — с какого дня открыть.
   const [calendar, setCalendar] = useState(false)
+  // Пришли из Ритма (интент календаря) — выход из этой «вылазки» ведет обратно на Главную.
+  const [fromRhythm, setFromRhythm] = useState(false)
   const groups = useMemo(() => availableGroups(list), [list])
   const shown = useMemo(
     () => list.filter((w) => matchesGroup(w.entries, filter)),
@@ -100,8 +105,22 @@ export default function HistoryScreen({
     if (openCalendar === false) return
     setSelected(null)
     setCalendar({ date: openCalendar })
+    setFromRhythm(Boolean(onReturn))
     onOpenCalendarConsumed?.()
-  }, [openCalendar, onOpenCalendarConsumed])
+  }, [openCalendar, onOpenCalendarConsumed, onReturn])
+
+  // Закрыть календарь / тренировку: из Ритма — назад в Ритм, иначе — к списку.
+  function backFromRhythmOr(fallback) {
+    if (fromRhythm) {
+      setFromRhythm(false)
+      onReturn?.()
+      return
+    }
+    fallback()
+  }
+  function closeSelected() {
+    backFromRhythmOr(() => setSelected(null))
+  }
 
   // Интент «сразу новая тренировка» из App (плавающая «+» / кнопки Главной).
   // Считываем и тут же гасим у родителя: иначе повторный рендер снова уводил бы
@@ -109,6 +128,7 @@ export default function HistoryScreen({
   useEffect(() => {
     if (!openNew) return
     setSelected('new')
+    setFromRhythm(false)
     onOpenNewConsumed?.()
   }, [openNew, onOpenNewConsumed])
 
@@ -123,6 +143,7 @@ export default function HistoryScreen({
   useEffect(() => onReselect((t) => {
     if (t !== 'history') return
     setSelected(null)
+    setFromRhythm(false)
     setFinishResult(null)
   }), [])
 
@@ -136,6 +157,7 @@ export default function HistoryScreen({
 
   function handleSaved(result) {
     setSelected(null)
+    setFromRhythm(false)
     setFinishResult(result)
     setFinishTemplate({ status: 'idle', message: null })
   }
@@ -206,7 +228,10 @@ export default function HistoryScreen({
         workouts={shown}
         filter={filter}
         initialDate={calendar.date}
-        onDismiss={() => setCalendar(false)}
+        onDismiss={() => {
+          setCalendar(false)
+          backFromRhythmOr(() => {})
+        }}
         onOpen={(id) => {
           setCalendar(false)
           setSelected(id)
@@ -359,7 +384,7 @@ export default function HistoryScreen({
         <WorkoutScreen
           user={user}
           workoutId={selected === 'new' ? null : selected}
-          onBack={() => setSelected(null)}
+          onBack={closeSelected}
           onSaved={handleSaved}
         />
       )
@@ -410,7 +435,7 @@ export default function HistoryScreen({
               key={selected}
               user={user}
               workoutId={selected === 'new' ? null : selected}
-              onBack={() => setSelected(null)}
+              onBack={closeSelected}
               onSaved={handleSaved}
             />
           )}

@@ -28,7 +28,7 @@ import PencilIcon from '../components/PencilIcon.jsx'
 // Пропсы: user (нужен для owner_id), onBack().
 
 const BASE_GROUPS = ['грудь', 'спина', 'ноги', 'плечи', 'бицепс', 'трицепс', 'пресс', 'кардио']
-const METRIC_LABEL = { weight: 'вес и повторы', reps: 'только повторы', time: 'на время' }
+const METRIC_LABEL = { weight: 'вес и повторения', reps: 'только повторения', time: 'на время' }
 
 export default function MyExercisesScreen({ user, onBack }) {
   // Весь справочник без скрытых админкой — тот же источник, что у пикера.
@@ -84,14 +84,14 @@ export default function MyExercisesScreen({ user, onBack }) {
           </p>
 
           <Section
-            title="Добавил я"
+            title="Добавлено мной"
             list={mine}
             userId={user?.id}
             onEdit={setEditing}
             empty="Ты пока не добавлял своих упражнений."
           />
           <Section
-            title="Добавили другие"
+            title="Добавлено другими"
             list={others}
             userId={user?.id}
             onEdit={setEditing}
@@ -128,7 +128,7 @@ function Section({ title, list, userId, onEdit, empty }) {
               <span>
                 {e.name}
                 <span className="picker-group" style={{ display: 'block' }}>
-                  {METRIC_LABEL[e.metric] ?? 'вес и повторы'}
+                  {METRIC_LABEL[e.metric] ?? 'вес и повторения'}
                 </span>
               </span>
             )
@@ -202,8 +202,8 @@ function EditForm({ ex, editorId, groups, onCancel, onSaved }) {
 
       <div className="create-label">Тип</div>
       <div className="chips">
-        <button className={metric === 'weight' ? 'chip active' : 'chip'} onClick={() => setMetric('weight')}>Вес и повторы</button>
-        <button className={metric === 'reps' ? 'chip active' : 'chip'} onClick={() => setMetric('reps')}>Только повторы</button>
+        <button className={metric === 'weight' ? 'chip active' : 'chip'} onClick={() => setMetric('weight')}>Вес и повторения</button>
+        <button className={metric === 'reps' ? 'chip active' : 'chip'} onClick={() => setMetric('reps')}>Только повторения</button>
         <button className={metric === 'time' ? 'chip active' : 'chip'} onClick={() => setMetric('time')}>На время</button>
       </div>
 

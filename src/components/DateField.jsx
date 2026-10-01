@@ -16,7 +16,9 @@ export default function DateField({ performedAt, onChange }) {
         type="date"
         aria-label="Дата тренировки"
         value={toDateInput(performedAt)}
-        onChange={(e) => e.target.value && onChange(fromDateInput(e.target.value, performedAt))}
+        // «Сбросить» в пикере iOS присылает пустое значение — а колесо уже стоит на сегодня.
+        // Раньше пустое игнорировали и дата не менялась (v6.3.5): теперь сброс = сегодня.
+        onChange={(e) => onChange(fromDateInput(e.target.value || toDateInput(), performedAt))}
       />
     </label>
   )

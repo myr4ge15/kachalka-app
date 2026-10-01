@@ -190,6 +190,14 @@ export default function App() {
   // false — нет интента; null — календарь на сегодня; 'YYYY-MM-DD' — сразу этот день.
   const [calendarIntent, setCalendarIntent] = useState(false)
 
+  // Вернуться из календаря/тренировки обратно к Ритму Главной (v6.3.5): Главная
+  // докручивает до блока «Ритм» и гасит флаг.
+  const [focusRhythm, setFocusRhythm] = useState(false)
+
+  // Под-экраны Настроек (Оформление, Каталог, Админка) возвращают к списку Настроек,
+  // а не в корень Профиля (v6.3.5). Одноразовый интент, Профиль его гасит.
+  const [openSettings, setOpenSettings] = useState(false)
+
   // Хаб «Тренировки» ушел в свой под-вид (композер/деталь/шаблоны или режим
   // выбора для экспорта) — тогда FAB прячем: он там либо не нужен, либо налезает
   // на нижнюю панель («Сохранить» / бар экспорта). Хаб сообщает об этом сам.
@@ -296,6 +304,16 @@ export default function App() {
   function openCalendarAt(day) {
     setCalendarIntent(day ?? null)
     goTab('history')
+  }
+
+  function backToRhythm() {
+    setFocusRhythm(true)
+    goTab('home')
+  }
+
+  function backToSettings() {
+    setOpenSettings(true)
+    goTab('profile')
   }
 
   function startNewWorkout() {
@@ -419,6 +437,8 @@ export default function App() {
                   onNewWorkout={startNewWorkout}
                   onOpenProgress={openProgressFor}
                   onOpenCalendar={openCalendarAt}
+                  focusRhythm={focusRhythm}
+                  onFocusRhythmConsumed={() => setFocusRhythm(false)}
                 />
               )}
               {tab === 'history' && (
@@ -428,6 +448,7 @@ export default function App() {
                   onOpenNewConsumed={() => setOpenNewWorkout(false)}
                   openCalendar={calendarIntent}
                   onOpenCalendarConsumed={() => setCalendarIntent(false)}
+                  onReturn={backToRhythm}
                   onBusyChange={setHistoryBusy}
                   onOpenProgress={openProgressFor}
                 />
@@ -453,22 +474,24 @@ export default function App() {
                   onOpenMyExercises={() => goTab('myex')}
                   onOpenAchievements={() => goTab('achievements')}
                   onOpenAppearance={() => goTab('appearance')}
+                  startInSettings={openSettings}
+                  onStartInSettingsConsumed={() => setOpenSettings(false)}
                 />
               )}
               {tab === 'admin' && user.role === 'admin' && (
-                <AdminScreen user={user} onBack={() => goTab('profile')} />
+                <AdminScreen user={user} onBack={backToSettings} />
               )}
               {tab === 'freshness' && (
                 <FreshnessScreen user={user} onBack={() => goTab('home')} />
               )}
               {tab === 'myex' && (
-                <MyExercisesScreen user={user} onBack={() => goTab('profile')} />
+                <MyExercisesScreen user={user} onBack={backToSettings} />
               )}
               {tab === 'achievements' && (
                 <AchievementsScreen user={user} onBack={() => goTab('profile')} />
               )}
               {tab === 'appearance' && (
-                <AppearanceScreen user={user} onBack={() => goTab('profile')} />
+                <AppearanceScreen user={user} onBack={backToSettings} />
               )}
             </ErrorBoundary>
           </div>

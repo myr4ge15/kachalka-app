@@ -1334,11 +1334,15 @@ input { font-family: inherit; }
 /* Шапку таблицы («Дата · Подходы · вес») центрировать не нужно — она однострочная;
    но при желании остается выровненной по центру вместе со всеми. */
 .prog-row:last-child { border-bottom: none; }
-.prog-row-head { color: var(--muted); font-size: 12px; padding-top: 0; }
-.prog-sets { font-size: 14px; line-height: 1.4; word-break: break-word; }
-.prog-val { text-align: right; font-family: var(--font-display); font-size: 18px; font-weight: 900; white-space: nowrap; }
-.prog-row-head .prog-val { font-family: Onest, sans-serif; font-size: 12px; font-weight: 600; }
-.prog-orm { display: block; font-family: Onest, sans-serif; font-size: 11px; font-weight: 400; color: var(--muted); }
+/* Таблица — одним шрифтом (Onest) в двух начертаниях (v6.3.5, отзыв «6 разных шрифтов»):
+   шапка 600 · 13 · серый, строки 400 · 15, итог дня 600 · 15, 1ПМ — мета 400 · 13. */
+.prog-row { font-size: var(--fs-body); font-weight: 400; }
+.prog-row-head, .prog-row-head .prog-val {
+  color: var(--muted); font-family: inherit; font-size: var(--fs-meta); font-weight: var(--fw-strong); padding-top: 0;
+}
+.prog-sets { line-height: 1.4; word-break: break-word; }
+.prog-val { text-align: right; font-weight: var(--fw-strong); white-space: nowrap; font-variant-numeric: tabular-nums; }
+.prog-orm { display: block; font-size: var(--fs-meta); font-weight: 400; color: var(--muted); }
 .prog-row.pr .prog-val { color: var(--g4); }
 .prog-row.pr .prog-orm { color: var(--muted); }
 
@@ -1413,12 +1417,14 @@ img.avatar-lg.has-img {
   object-fit: cover; padding: 0;
 }
 .feed-who { display: flex; flex-direction: column; }
-.feed-name { font-weight: 600; font-size: 16px; }
+.feed-name { font-weight: 600; font-size: 16px; display: flex; align-items: center; min-width: 0; }
 .feed-me {
   margin-left: 6px; font-size: 10px; font-weight: 600; color: var(--muted);
   background: var(--surface-2); border: 1px solid var(--border);
-  border-radius: 999px; padding: 1px 5px; vertical-align: middle;
-  flex-shrink: 0; line-height: 1.3; letter-spacing: 0.02em;
+  border-radius: 999px; padding: 0 5px; vertical-align: middle;
+  flex-shrink: 0; letter-spacing: 0.02em;
+  /* Буква — строго по центру плашки, плашка — по центру строки имени (v6.3.5). */
+  display: inline-flex; align-items: center; justify-content: center; height: 16px; line-height: 1;
 }
 .feed-when { font-size: 13px; margin-top: 1px; }
 
@@ -1503,7 +1509,8 @@ img.avatar-lg.has-img {
   min-width: 0; font-weight: 600;
   overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
 }
-.lb-who .feed-me { margin-left: 0; font-size: 11px; padding: 2px 7px; }
+/* «я» — та же маленькая плашка, что в Ленте (v6.3.5: была крупнее имени по ощущению). */
+.lb-who .feed-me { margin-left: 0; }
 /* Правая колонка: фактический вес (крупно) + сноска «N повт · 1ПМ ~X». */
 .lb-fact {
   flex-shrink: 0; display: flex; flex-direction: column;
@@ -1759,8 +1766,11 @@ img.avatar-lg.has-img {
 /* Поле ручного ввода целевого веса (кнопки ±1.5 остаются для подстройки). */
 .goal-stepper .val .val-field {
   width: 4ch; min-width: 0; padding: 0; border: none; background: none;
-  color: var(--text); font-size: 20px; font-weight: 400; text-align: right;
+  color: var(--text); font-size: 20px; font-weight: 400; text-align: center;
   font-variant-numeric: tabular-nums; -moz-appearance: textfield;
+  /* Ширина по содержимому — число с единицей стоит ровно по центру ячейки (v6.3.5);
+     где field-sizing нет, остается 4ch с текстом по центру. */
+  field-sizing: content; min-width: 1ch; max-width: 6ch;
 }
 .goal-stepper .val .val-field:focus { outline: none; }
 .goal-stepper .val:focus-within { border-color: var(--acc); }
@@ -2579,6 +2589,14 @@ label.act.busy { opacity: .55; pointer-events: none; }
 .fr-tip .em { font-size: 18px; flex: none; }
 .fr-tip p { margin: 0; font-size: 13px; line-height: 1.4; }
 .fr-tip b { color: var(--acc-2); }
+/* Группа-цель в подсказке — кнопка-ссылка: подсвечивает свои мышцы (v6.3.5). */
+.fr-tip-target {
+  background: none; border: none; padding: 0; font: inherit; font-weight: var(--fw-strong);
+  color: var(--acc-2); text-decoration: underline dotted; text-underline-offset: 3px; cursor: pointer;
+}
+.fr-chip.hl { animation: fr-pulse 1.6s var(--ease-out) 2; }
+@keyframes fr-pulse { 50% { box-shadow: inset 0 0 0 1.5px var(--acc); } }
+@media (prefers-reduced-motion: reduce) { .fr-chip.hl { animation: none; } }
 /* Карта компактнее: фигуры по высоте ~200 px, легенда в одну-две строки. */
 .fr-map .mm { padding: 8px; }
 .fr-map .mm svg { max-width: none; width: auto; height: 200px; }
@@ -2885,7 +2903,10 @@ b, strong { font-weight: var(--fw-strong); }
 label > span.muted:first-child, .date-field > .muted, .create-label, .field-lab, .sex-picker-lab {
   font-size: var(--fs-label); font-weight: var(--fw-strong); color: var(--text);
 }
-.field-lab .muted { font-weight: 400; color: var(--muted); }
+/* «(необязательно)» — тем же шрифтом, что подпись, отличается только цветом (v6.3.5). */
+.field-lab .muted { font-size: inherit; font-weight: inherit; color: var(--muted); }
+/* Значение поля (выбранное упражнение) — обычным начертанием, чтобы не сливаться с подписью. */
+.goal-editor-ex { font-size: var(--fs-body); font-weight: 400; }
 /* Подписи-«ярлыки» у крупных цифр и групп — называют: 600 · 13 · серый, без капса. */
 .home-block-k, .stat-cell-label, .goals-group-title, .group-title, .rival-kicker { font-size: var(--fs-meta); font-weight: var(--fw-strong); color: var(--muted); }
 /* Переходы на другой экран — 600 · 15 · акцент, с большой буквы. */
@@ -2910,4 +2931,7 @@ label > span.muted:first-child, .date-field > .muted, .create-label, .field-lab,
 .chip.active, .seg-item.on, .prog-chip.active, .toggle-pill.on,
 .bar > i, .home .bar > i, .rival-progress {
   background: var(--acc-fill);
+  /* Градиент от внешнего края, а не от padding-box: иначе под прозрачной рамкой в 1px повторялся
+  противоположный конец градиента — светлая полоска слева у «все» и «Сохранить» (v6.3.5). */
+  background-origin: border-box;
 }

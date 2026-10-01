@@ -169,7 +169,7 @@ describe('ExerciseCard — строки подходов (v6.1.0, без отм�
     expect(screen.queryByRole('button', { name: /Отметить подход|выполнен/ })).toBeNull()
     expect(screen.queryByText('сейчас')).toBeNull()
     expect(screen.getByLabelText('Вес, подход 2')).toHaveValue('60')
-    expect(screen.getByLabelText('Повторы, подход 2')).toHaveValue(9)
+    expect(screen.getByLabelText('Повторения, подход 2')).toHaveValue(9)
   })
 })
 

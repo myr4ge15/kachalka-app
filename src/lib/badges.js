@@ -55,7 +55,7 @@ export const BADGES = [
   { id: 'reg_100', cat: 'regularity', valueKey: 'count', threshold: 100, icon: '🎖️', name: 'Железная сотня', desc: 'Сто тренировок за плечами' },
   // Серии недель подряд (по макс. за историю)
   { id: 'streak_3', cat: 'streak', valueKey: 'maxStreakWeeks', threshold: 3, icon: '🔥', name: '3 недели подряд', desc: 'Три недели без пропусков' },
-  { id: 'streak_7', cat: 'streak', valueKey: 'maxStreakWeeks', threshold: 7, icon: '⚡', name: 'Consistency', desc: 'Семь недель подряд — режим' },
+  { id: 'streak_7', cat: 'streak', valueKey: 'maxStreakWeeks', threshold: 7, icon: '⚡', name: 'Постоянный', desc: 'Семь недель подряд — режим' },
   { id: 'streak_30', cat: 'streak', valueKey: 'maxStreakWeeks', threshold: 30, icon: '🌟', name: 'Несокрушимый', desc: 'Тридцать недель без срывов' },
   // Объем (суммарный тоннаж, порог в кг)
   { id: 'vol_10', cat: 'volume', valueKey: 'tonnage', threshold: 10_000, icon: '🪨', name: '10 тонн', desc: 'Суммарно поднято 10 тонн' },
@@ -64,7 +64,7 @@ export const BADGES = [
   // Рекорды (число личных рекордов)
   { id: 'pr_1', cat: 'records', valueKey: 'prCount', threshold: 1, icon: '🥉', name: 'Первый рекорд', desc: 'Побит первый личный рекорд' },
   { id: 'pr_10', cat: 'records', valueKey: 'prCount', threshold: 10, icon: '🥈', name: '10 рекордов', desc: 'Десять личных рекордов' },
-  { id: 'pr_50', cat: 'records', valueKey: 'prCount', threshold: 50, icon: '👑', name: 'Bench Monster', desc: 'Полсотни личных рекордов' },
+  { id: 'pr_50', cat: 'records', valueKey: 'prCount', threshold: 50, icon: '🤖', name: 'Терминатор', desc: 'Полсотни личных рекордов' },
 ]
 
 // Порядок категорий для экрана + подписи.

@@ -180,13 +180,13 @@ export default function ExercisePicker({
               className={newMetric === 'weight' ? 'chip active' : 'chip'}
               onClick={() => setNewMetric('weight')}
             >
-              Вес и повторы
+              Вес и повторения
             </button>
             <button
               className={newMetric === 'reps' ? 'chip active' : 'chip'}
               onClick={() => setNewMetric('reps')}
             >
-              Только повторы
+              Только повторения
             </button>
             <button
               className={newMetric === 'time' ? 'chip active' : 'chip'}

@@ -113,7 +113,8 @@ export default function ProgressScreen({
   const rows = useMemo(() => [...data].reverse(), [data])
 
   const unit = weighted ? 'кг' : metric === 'time' ? 'мин:сек' : 'повт.'
-  const metricLabel = weighted ? 'вес' : metric === 'time' ? 'время' : 'повт.'
+  // С большой буквы — как «Дата» и «Подходы» в шапке таблицы и «Вес: 80 кг» в подсказке графика (v6.3.5).
+  const metricLabel = weighted ? 'Вес' : metric === 'time' ? 'Время' : 'Повт.'
   // Для упражнений без веса — лучший подход за выбранный период.
   const best = data.reduce((m, p) => Math.max(m, p.value), 0)
 
@@ -211,9 +212,9 @@ export default function ProgressScreen({
       {weighted && ormInfo && (
         <p className="formula-note">
           1ПМ считается по формуле Эпли:{' '}
-          <code>вес × (1 + повторы ÷ 30)</code>. Это расчетная оценка
+          <code>вес × (1 + повторения ÷ 30)</code>. Это расчетная оценка
           максимума «на раз», а не результат реального теста — чем больше
-          повторов в подходе, тем выше погрешность.
+          повторений в подходе, тем выше погрешность.
         </p>
       )}
 
@@ -372,6 +373,7 @@ export default function ProgressScreen({
                     )}
                     <Tooltip
                       labelFormatter={(v) => fmtDate(v)}
+                      separator=": "
                       formatter={(v) => [metric === 'time' ? fmtTime(v) : `${v} ${unit}`, metricLabel]}
                       contentStyle={{ background: c.bg, border: `1px solid ${c.border}`, borderRadius: 8 }}
                       labelStyle={{ color: c.text }}

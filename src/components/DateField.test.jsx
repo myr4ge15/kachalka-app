@@ -22,4 +22,14 @@ describe('DateField', () => {
     // round-trip через toDateInput устойчив к часовому поясу (обе стороны локальны)
     expect(toDateInput(onChange.mock.calls[0][0])).toBe('2026-08-01')
   })
+
+  it('«Сбросить» в пикере (пустое значение) → сегодняшняя дата', () => {
+    const onChange = vi.fn()
+    const { container } = render(
+      <DateField performedAt="2026-07-23T12:00:00.000Z" onChange={onChange} />
+    )
+    fireEvent.change(container.querySelector('input[type="date"]'), { target: { value: '' } })
+    expect(onChange).toHaveBeenCalledTimes(1)
+    expect(toDateInput(onChange.mock.calls[0][0])).toBe(toDateInput())
+  })
 })

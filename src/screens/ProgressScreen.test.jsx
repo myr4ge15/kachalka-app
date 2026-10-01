@@ -9,7 +9,9 @@ vi.mock('../db/repo.js', () => ({ getWorkouts: vi.fn() }))
 vi.mock('../db/notifications.js', () => ({ readGoals: vi.fn() }))
 vi.mock('recharts', () => ({
   ResponsiveContainer: ({ children }) => <div>{children}</div>,
-  LineChart: ({ children }) => <div>{children}</div>,
+  // <svg>, а не <div>: внутри графика рендерятся <defs>/<linearGradient> — вне svg jsdom
+  // сыпал предупреждениями «unrecognized tag» в stderr.
+  LineChart: ({ children }) => <svg>{children}</svg>,
   Line: () => null,
   XAxis: () => null,
   YAxis: () => null,

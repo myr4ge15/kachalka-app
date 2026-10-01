@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import { fmtHomeTitle } from '../lib/dates.js'
 import { useLiveQuery } from 'dexie-react-hooks'
 import { getHomeData } from '../db/insights.js'
@@ -51,7 +51,7 @@ const dayLabel = (ymd) => localDate(ymd).toLocaleDateString('ru-RU', { day: 'num
 //
 // Пропсы: user, onNavigate(tab), onNewWorkout() — прямой вход в композер новой
 // тренировки (минуя список хаба), общий с «+» в нижнем меню.
-export default function HomeScreen({ user, onNavigate, onNewWorkout, onOpenProgress, onOpenCalendar }) {
+export default function HomeScreen({ user, onNavigate, onNewWorkout, onOpenProgress, onOpenCalendar, focusRhythm = false, onFocusRhythmConsumed }) {
   const [openWeek, setOpenWeek] = useState(null)
   const openWeekRef = useRevealFocus(openWeek)
   // Одно чтение истории на все три блока Главной (сводка/инсайты/свежесть): раньше
@@ -61,6 +61,15 @@ export default function HomeScreen({ user, onNavigate, onNewWorkout, onOpenProgr
   const summary = home?.summary
   const insights = home?.insights ?? []
   const freshness = home?.freshness
+
+  // Вернулись из календаря/тренировки, открытых из Ритма (v6.3.5): докручиваем к Ритму.
+  // Ждем загрузки данных — до нее блока нет; после прокрутки гасим интент у App.
+  const rhythmRef = useRef(null)
+  useEffect(() => {
+    if (!focusRhythm || loading) return
+    rhythmRef.current?.scrollIntoView?.({ block: 'start' })
+    onFocusRhythmConsumed?.()
+  }, [focusRhythm, loading, onFocusRhythmConsumed])
 
   if (loading) {
     return (
@@ -150,10 +159,10 @@ export default function HomeScreen({ user, onNavigate, onNewWorkout, onOpenProgr
       {/* готовность мышц — тизер, разворачивается в детальный экран */}
       {strip.length > 0 && (
         <section className="sec">
-          <p className="sec-title">Готовность мышц</p>
+          <p className="sec-title">Восстановление</p>
           <button className="fr-teaser" onClick={() => onNavigate?.('freshness')}>
             <div className="fr-teaser-head">
-              <span className="fr-teaser-lab">Что уже восстановилось</span>
+              <span className="fr-teaser-lab">Готовы к нагрузке</span>
               <span className="go">Подробнее ›</span>
             </div>
             <div className="fr-strip">
@@ -227,7 +236,7 @@ export default function HomeScreen({ user, onNavigate, onNewWorkout, onOpenProgr
           даты и группы этой недели под графиком. Высоты — CSS из чисел в переменных
           (--rh-n / --rh-max / --rh-avg), цвета — только токены. */}
       {rhythm.length > 0 && (
-        <section className="sec">
+        <section className="sec" ref={rhythmRef}>
           <p className="sec-title">Ритм</p>
           <div className="rhythm-card">
             {/* Шапка: среднее в неделю, а если оно меньше одной или считать еще не

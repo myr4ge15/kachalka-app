@@ -141,7 +141,7 @@ function BoardCard({ title, rows, user, avatarById }) {
               </span>
               <span className="lb-fact">
                 <span className="lb-weight">{row.weight} кг</span>
-                <span className="lb-sub muted">{row.reps} повт · 1ПМ ~{row.orm}</span>
+                <span className="lb-sub muted">{row.reps} повт. · 1ПМ ~{row.orm}</span>
               </span>
             </li>
           )

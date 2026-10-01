@@ -48,7 +48,7 @@ export async function getBadgesView(userId) {
       // Подпись «макс. серия за историю» у секции серий (Slice 2) — та самая
       // величина, что засчитывает вехи серий.
       note: c.cat === 'streak' && values.maxStreakWeeks > 0
-        ? `макс. серия: ${values.maxStreakWeeks} нед`
+        ? `макс. серия: ${values.maxStreakWeeks} нед.`
         : null,
     }
   })

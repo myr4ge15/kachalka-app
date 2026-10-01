@@ -193,11 +193,11 @@ export default function ExerciseCard({
               <HoldButton onTrigger={() => onStep(ei, si, 'reps', 5)}>+</HoldButton>
             </div>
           ) : (
-            <div className="stepper" role="group" aria-label={`Подход ${si + 1}, повторы`}>
+            <div className="stepper" role="group" aria-label={`Подход ${si + 1}, повторения`}>
               <HoldButton onTrigger={() => onStep(ei, si, 'reps', -1)}>−</HoldButton>
               <input
                 type="number" inputMode="numeric" value={s.reps}
-                aria-label={`Повторы, подход ${si + 1}`}
+                aria-label={`Повторения, подход ${si + 1}`}
                 onChange={(e) => onUpdateSet(ei, si, 'reps', e.target.value)}
               />
               <HoldButton onTrigger={() => onStep(ei, si, 'reps', 1)}>+</HoldButton>
