@@ -49,8 +49,9 @@ export function subscriptionArgs(json, userAgent = '') {
   }
 }
 
-// Подпись под строкой «Пуш-уведомления» для каждого состояния.
-export function pushSubtitle(availability, enabled) {
+// Подпись под строкой «Пуш-уведомления» — только когда включить отсюда нельзя
+// и надо объяснить, что сделать. В обычном состоянии строка без подписи (v6.6.1).
+export function pushSubtitle(availability) {
   switch (availability) {
     case 'ios-install':
       return 'На iPhone — только из приложения на экране «Домой»: «Поделиться» → «На экран „Домой“», потом открой с иконки'
@@ -59,8 +60,33 @@ export function pushSubtitle(availability, enabled) {
     case 'denied':
       return 'Запрещены в настройках браузера или телефона — разреши там и вернись сюда'
     default:
-      return enabled
-        ? 'Придут, даже когда приложение закрыто: реакции на твои тренировки'
-        : 'Реакции на твои тренировки — даже когда приложение закрыто'
+      return ''
   }
+}
+
+// Разовый вопрос «Включить уведомления?» после входа (v6.6.1). Спрашиваем, только
+// если включить реально можно одним нажатием и человек еще не отвечал: браузер ни
+// разу не спрашивал разрешение (permission 'default'), подписки нет, а на этом
+// устройстве этой учетке мы вопрос еще не показывали. Запрос разрешения браузера
+// сам по себе без нажатия не работает (Safari) или прячется (Chrome), поэтому
+// сначала наш лист с кнопкой, а уже по ней — системный запрос.
+export function shouldAskPush({ availability, permission, enabled, asked }) {
+  return availability === 'ok' && permission === 'default' && !enabled && !asked
+}
+
+// Типы пуш-уведомлений (v6.7.0) — ключи настроек на сервере (push_prefs,
+// supabase/push-types.sql) и тип в Edge Functions (_shared/webpush.ts PushType).
+// Порядок = порядок тумблеров в Настройках.
+export const PUSH_TYPES = [
+  { type: 'reaction', emoji: '💬', label: 'Реакции на мои тренировки' },
+  { type: 'record', emoji: '🏆', label: 'Побили мой рекорд' },
+  { type: 'overtake', emoji: '🥇', label: 'Обогнали в рейтинге' },
+  { type: 'reminder', emoji: '⏰', label: 'Напоминание о тренировке', sub: 'если 3 дня без зала — в 18:00' },
+  { type: 'update', emoji: '📲', label: 'Новая версия приложения' },
+]
+
+// Включен ли тип. На сервере хранятся только явно заданные значения: нет ключа —
+// включено (по умолчанию все включено, решение 01.10).
+export function isPushTypeOn(prefs, type) {
+  return prefs?.[type] !== false
 }

@@ -7,7 +7,7 @@ vi.mock('./supabase.js', () => ({ supabase: { rpc: (...a) => rpc(...a) }, hasSes
 const ensureOwnSession = vi.fn()
 vi.mock('../lib/auth.js', () => ({ ensureOwnSession: (...a) => ensureOwnSession(...a) }))
 
-const { enablePush, disablePush, releasePushOnLogout, PushError } = await import('./push.js')
+const { enablePush, disablePush, releasePushOnLogout, PushError, getPushPrefs, setPushPref } = await import('./push.js')
 
 function fakeSub(endpoint = 'https://push.example/abc') {
   return {
@@ -94,5 +94,26 @@ describe('disablePush / releasePushOnLogout', () => {
     setup({ existing: fakeSub() })
     rpc.mockRejectedValue(new Error('offline'))
     await expect(releasePushOnLogout('u1')).resolves.toBeUndefined()
+  })
+})
+
+describe('настройки типов (v6.7.0)', () => {
+  it('читает и пишет через RPC', async () => {
+    setup()
+    rpc.mockResolvedValueOnce({ data: { reminder: false }, error: null })
+    expect(await getPushPrefs('u1')).toEqual({ reminder: false })
+    expect(rpc).toHaveBeenCalledWith('get_push_prefs')
+    rpc.mockResolvedValueOnce({ data: { reminder: true }, error: null })
+    expect(await setPushPref('u1', 'reminder', true)).toEqual({ reminder: true })
+    expect(rpc).toHaveBeenLastCalledWith('set_push_pref', { p_type: 'reminder', p_on: true })
+  })
+
+  it('без своей сессии и офлайн — понятная ошибка, без запроса', async () => {
+    setup()
+    hasSession.mockResolvedValue(false)
+    await expect(getPushPrefs('u1')).rejects.toBeInstanceOf(PushError)
+    Object.defineProperty(navigator, 'onLine', { configurable: true, get: () => false })
+    await expect(setPushPref('u1', 'record', false)).rejects.toThrow(/Нет сети/)
+    expect(rpc).not.toHaveBeenCalled()
   })
 })

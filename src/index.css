@@ -1407,9 +1407,26 @@ html[data-update]:not([data-composer]) .content { padding-top: 64px; }
 .feed-refresh:disabled { cursor: default; }
 .feed-fresh { white-space: nowrap; margin-left: auto; font-size: var(--fs-meta); color: var(--muted); text-align: right; }
 .feed-refresh:active { background: var(--surface-2); }
+/* v6.7.0: три способа обновить Ленту — много. На телефоне остаются свайп вниз и
+   повторный тап по вкладке (плюс авто-обновление), кнопку прячем. На компьютере
+   свайпа нет — там она остается, но тихой иконкой без рамки и подложки. */
+@media (hover: none) and (pointer: coarse) {
+  .feed-refresh { display: none; }
+}
+@media (hover: hover) {
+  .feed-refresh { width: 36px; height: 36px; border-color: transparent; background: none; color: var(--muted); }
+  .feed-refresh:hover:not(:disabled) { color: var(--text); background: var(--surface); }
+  .feed-refresh-ico { width: 18px; height: 18px; }
+}
 .feed-refresh-ico.spin { animation: spin var(--spin-dur) linear infinite; animation-delay: var(--spin-phase, 0s); }
 .feed-card { padding: 14px; border-radius: 16px; }
 .feed-card-head { display: flex; align-items: center; gap: 12px; margin-bottom: 10px; }
+/* v6.7.0: шапка карточки — кнопка в профиль автора; сброс кнопочных стилей. */
+.feed-card-head-btn {
+  width: 100%; padding: 0; border: 0; background: none; color: inherit;
+  font: inherit; text-align: left; cursor: pointer; border-radius: 12px;
+}
+.feed-card-head-btn:active .feed-name { color: var(--acc-2); }
 .avatar {
   width: 40px; height: 40px; flex-shrink: 0; border-radius: 50%;
   display: flex; align-items: center; justify-content: center;
@@ -1505,6 +1522,8 @@ img.avatar-lg.has-img {
   min-height: 52px; padding: 8px 8px; border-radius: 12px;
 }
 .lb-row + .lb-row { border-top: 1px solid var(--border); }
+.lb-row-link { cursor: pointer; }
+.lb-row-link:active { background: var(--surface-2); }
 .lb-row.me { background: var(--acc-soft); box-shadow: inset 0 0 0 1.5px color-mix(in srgb, var(--acc) 55%, transparent); }
 .lb-row.me + .lb-row, .lb-row + .lb-row.me { border-top-color: transparent; }
 /* Место — крупная цифра; тройка — кружок золото/серебро/бронза (текст темный). */
@@ -1886,6 +1905,10 @@ img.avatar-lg.has-img {
 .push-act-info:active { background: var(--surface); }
 .toggle-act.busy { opacity: .6; }
 .push-err { color: var(--red); font-size: 13px; font-weight: 600; margin: -4px 2px 0; }
+/* Типы пушей (components/PushTypes.jsx, v6.7.0): вложенный список под главным тумблером. */
+.push-types { display: flex; flex-direction: column; gap: 6px; padding-left: 14px; border-left: 2px solid var(--border); margin-left: 6px; }
+.push-type { min-height: 48px; padding: 10px 12px; font-size: 14px; }
+.push-type:disabled { opacity: .6; }
 /* блоки .actions/danger-confirm под тогглом «Настройки» идут встык — разводим
    их вертикально, чтобы «Удалить мои данные» не наплывало на «Выйти». */
 .settings-toggle + .danger-confirm,
@@ -3020,6 +3043,11 @@ label > span.muted:first-child, .date-field > .muted, .create-label, .field-lab,
 .wn-more-go { color: var(--acc-2); font-weight: var(--fw-strong); }
 .wn-ok { margin-top: 14px; flex-shrink: 0; }
 .wn-all { align-self: center; margin-top: 6px; min-height: 44px; font-weight: var(--fw-strong); flex-shrink: 0; }
+/* Разовый вопрос про пуши (components/PushAskSheet.jsx, v6.6.1) — в той же сетке, что «Что нового». */
+.push-ask-text { font-size: 15px; line-height: 1.45; margin: 4px 0 14px; }
+.push-ask-later { align-self: center; margin-top: 6px; min-height: 44px; font-weight: var(--fw-strong); flex-shrink: 0; }
+.push-ask-hint { color: var(--muted); font-size: 12px; text-align: center; margin: 2px 0 0; }
+.sheet .push-err { margin: 0 0 10px; }
 
 /* Экран «Обновления». */
 .wn-rel {

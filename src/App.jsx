@@ -2,7 +2,9 @@ import { useState, useEffect, useLayoutEffect, useRef, Suspense } from 'react'
 import { useLiveQuery } from 'dexie-react-hooks'
 import { isConfigured, warmup, supabase } from './db/supabase.js'
 import { logout as authLogout, getCachedProfile } from './lib/auth.js'
-import { releasePushOnLogout } from './db/push.js'
+import { releasePushOnLogout, getPushState, enablePush, wasPushAsked, markPushAsked } from './db/push.js'
+import { shouldAskPush } from './lib/pushSupport.js'
+import PushAskSheet from './components/PushAskSheet.jsx'
 import { startSync, useSyncStatus } from './db/sync.js'
 import { countUnread } from './db/notifications.js'
 import { getCachedUser } from './db/repo.js'
@@ -15,7 +17,7 @@ import { fabState } from './lib/quickAdd.js'
 import { useTabDot } from './hooks/useTabDot.js'
 import { useAccentSync } from './hooks/useAccentSync.js'
 import LoginScreen from './screens/LoginScreen.jsx'
-import Toast from './components/Toast.jsx'
+import Toast, { showToast } from './components/Toast.jsx'
 import AddFab from './components/AddFab.jsx'
 import Avatar from './components/Avatar.jsx'
 import ScreenSkeleton from './components/ScreenSkeleton.jsx'
@@ -45,6 +47,7 @@ const MyExercisesScreen = lazyScreen(() => import('./screens/MyExercisesScreen.j
 const AchievementsScreen = lazyScreen(() => import('./screens/AchievementsScreen.jsx'))
 const AppearanceScreen = lazyScreen(() => import('./screens/AppearanceScreen.jsx'))
 const WhatsNewScreen = lazyScreen(() => import('./screens/WhatsNewScreen.jsx'))
+const MemberScreen = lazyScreen(() => import('./screens/MemberScreen.jsx'))
 
 // Иконка состояния синхронизации — инлайн-SVG (без зависимостей), как TabIcon.
 // Красится через currentColor (цвет задает класс .sync-badge.<cls>), спиннер
@@ -182,8 +185,12 @@ export default function App() {
   // проваливается в дефолт.
   const [tab, setTab] = useState(() => {
     const saved = sessionStorage.getItem(TAB_KEY)
+    if (saved === 'member') return 'feed' // id участника не переживает F5 → назад в Ленту
     return saved && saved !== 'workout' ? saved : 'home'
   }) // 'home' | 'history' | 'feed' | 'progress' | 'notif' | 'profile' | 'admin' | 'freshness' | 'myex' | 'achievements' | 'appearance'
+
+  // Чей профиль открыт на вложенном роуте 'member' (v6.7.0, тап по участнику в Ленте/рейтинге).
+  const [memberId, setMemberId] = useState(null)
 
   // Упражнение, с которым открыть «Прогресс» (проброс из ЛК по тапу на рекорд).
   const [progressExId, setProgressExId] = useState(null)
@@ -230,6 +237,27 @@ export default function App() {
   function closeWhatsNew() {
     writeMark(SEEN_KEY, __APP_VERSION__)
     setWhatsNew(null)
+  }
+  // Разовый вопрос «Включить уведомления?» (v6.6.1): после входа/обновления, когда
+  // лист «Что нового» уже закрыт и человек не пишет тренировку. Один раз на учетку
+  // на этом устройстве; «Не сейчас» — больше не спрашиваем (есть тумблер в Настройках).
+  const [pushAsk, setPushAsk] = useState(false)
+  useEffect(() => {
+    if (!user?.id || whatsNew || historyBusy || pushAsk) return
+    if (wasPushAsked(user.id)) return
+    let alive = true
+    const t = setTimeout(async () => {
+      try {
+        const s = await getPushState(user.id)
+        if (alive && shouldAskPush({ ...s, asked: wasPushAsked(user.id) })) setPushAsk(true)
+      } catch { /* не спросим сейчас — спросим при следующем запуске */ }
+    }, 1200)
+    return () => { alive = false; clearTimeout(t) }
+  }, [user?.id, whatsNew, historyBusy, pushAsk])
+  function closePushAsk(enabled) {
+    if (user?.id) markPushAsked(user.id)
+    setPushAsk(false)
+    if (enabled) showToast({ emoji: '🔔', title: 'Уведомления включены' })
   }
   // Строка новой версии (UpdatePrompt, вне App) не показывается посреди записи
   // тренировки — сообщаем ей через атрибут на <html> (CSS прячет).
@@ -281,7 +309,8 @@ export default function App() {
   useEffect(() => {
     if (!user?.id) return
     const screens = [HomeScreen, HistoryScreen, FeedScreen, ProgressScreen, FreshnessScreen,
-      NotificationsScreen, ProfileScreen, MyExercisesScreen, AchievementsScreen, AppearanceScreen]
+      NotificationsScreen, ProfileScreen, MyExercisesScreen, AchievementsScreen, AppearanceScreen,
+      MemberScreen]
     if (user.role === 'admin') screens.push(AdminScreen)
     const prefetch = () => { for (const s of screens) s.preload().catch(() => {}) }
     const ric = window.requestIdleCallback
@@ -340,6 +369,14 @@ export default function App() {
   function openCalendarAt(day) {
     setCalendarIntent(day ?? null)
     goTab('history')
+  }
+
+  // Профиль участника из Ленты/рейтинга. Свой — это обычный «Профиль».
+  function openMember(id) {
+    if (!id) return
+    if (id === user?.id) { goTab('profile'); return }
+    setMemberId(id)
+    goTab('member')
   }
 
   function backToRhythm() {
@@ -492,7 +529,10 @@ export default function App() {
                   onOpenProgress={openProgressFor}
                 />
               )}
-              {tab === 'feed' && <FeedScreen user={user} />}
+              {tab === 'feed' && <FeedScreen user={user} onOpenMember={openMember} />}
+              {tab === 'member' && memberId && (
+                <MemberScreen user={user} memberId={memberId} onBack={() => goTab('feed')} />
+              )}
               {tab === 'progress' && (
                 <ProgressScreen
                   user={user}
@@ -589,7 +629,7 @@ export default function App() {
             экспорт) — утоплен и неактивен, см. lib/quickAdd.js fabState. */}
         <AddFab onClick={startNewWorkout} sunk={fabState({ busy: historyBusy }) === 'sunk'} />
         <button
-          className={tab === 'feed' ? 'tab active' : 'tab'}
+          className={tab === 'feed' || tab === 'member' ? 'tab active' : 'tab'}
           onClick={() => goTab('feed')}
         >
           <TabIcon name="feed" />
@@ -631,6 +671,9 @@ export default function App() {
           onDone={closeWhatsNew}
           onOpenAll={() => { closeWhatsNew(); goTab('whatsnew') }}
         />
+      )}
+      {pushAsk && !whatsNew && !historyBusy && (
+        <PushAskSheet onEnable={() => enablePush(user.id)} onClose={closePushAsk} />
       )}
     </div>
   )

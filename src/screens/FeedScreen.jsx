@@ -16,7 +16,7 @@ import CardsSkeleton from '../components/CardsSkeleton.jsx'
 import FeedPrBadge from '../components/FeedPrBadge.jsx'
 import { useSpinPhase } from '../hooks/useSpinPhase.js'
 
-export default function FeedScreen({ user }) {
+export default function FeedScreen({ user, onOpenMember }) {
   // Кэш ленты (офлайн-доступен, обновляется мгновенно при фоновой подтяжке).
   const feed = useLiveQuery(() => getCachedFeed(), [], undefined)
 
@@ -257,7 +257,13 @@ export default function FeedScreen({ user }) {
         const isMe = w.user_id === user.id
         return (
           <div key={w.id} className="card feed-card">
-            <div className="feed-card-head">
+            {/* Тап по автору — его профиль (v6.7.0; свой — обычный Профиль). */}
+            <button
+              type="button"
+              className="feed-card-head feed-card-head-btn"
+              onClick={() => onOpenMember?.(w.user_id)}
+              aria-label={isMe ? 'Открыть мой профиль' : `Открыть профиль: ${w.user_name}`}
+            >
               <Avatar name={w.user_name} url={avatarById.get(w.user_id)} className="avatar" />
               <div className="feed-who">
                 <div className="feed-name">
@@ -266,7 +272,7 @@ export default function FeedScreen({ user }) {
                 </div>
                 <div className="muted feed-when">{fmtWhen(w.performed_at)}</div>
               </div>
-            </div>
+            </button>
 
             {w.prs?.length > 0 && (
               <div className="feed-prs">
@@ -341,7 +347,7 @@ export default function FeedScreen({ user }) {
         {/* Лидерборд приватному не показываем: в общий рейтинг он не входит. */}
         {!myPrivate && (
           <aside className="feed-rail">
-            <Leaderboard user={user} />
+            <Leaderboard user={user} onOpenMember={onOpenMember} />
           </aside>
         )}
       </div>

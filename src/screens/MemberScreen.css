@@ -1,0 +1,13 @@
+/* Профиль участника (v6.7.0). Основа — классы своего Профиля (.profile …),
+   здесь только отличия. Файл грузится вместе с ленивым чанком экрана. */
+.member .member-sub { margin-top: 6px; font-size: var(--fs-meta, 13px); color: var(--muted); }
+.member .member-stats { grid-template-columns: repeat(3, 1fr); }
+.member .member-stats .stat-num { font-family: var(--font-display); font-weight: 900; }
+/* Строка рекорда без перехода в «Прогресс» — не кнопка, без нажатия. */
+.member .member-pr:active { background: none; }
+.member .member-list { display: flex; flex-direction: column; gap: 10px; }
+.member .member-card-when { font-weight: 600; font-size: 15px; margin-bottom: 6px; }
+.member .member-more { width: 100%; margin-top: 10px; }
+@media (max-width: 380px) {
+  .member .member-stats .stat-num { font-size: 26px; }
+}

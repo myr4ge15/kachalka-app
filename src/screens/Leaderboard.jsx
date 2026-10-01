@@ -24,7 +24,7 @@ function Place({ i }) {
 // полу) — мужской, женщинам — женский (чужой борд не показываем). Место — по
 // ФАКТИЧЕСКОМУ макс. весу, расчетный 1ПМ (Эпли) — сноской. Самодостаточен: сам
 // тянет и кэширует данные. Пол зрителя — users.sex из кэша (getCachedUser).
-export default function Leaderboard({ user }) {
+export default function Leaderboard({ user, onOpenMember }) {
   // Приватный пользователь не участвует в рейтинге — блок прячем целиком (флаг
   // кэшируется на pull в meta `priv_${id}`, см. sync.js / my_is_private).
   const myPrivate = useLiveQuery(() => getMeta(`priv_${user.id}`), [user.id], false)
@@ -118,14 +118,14 @@ export default function Leaderboard({ user }) {
   return (
     <>
       <RivalryCard rivalry={rivalry} avatarById={avatarById} />
-      <BoardCard title={title} rows={rows} user={user} avatarById={avatarById} />
+      <BoardCard title={title} rows={rows} user={user} avatarById={avatarById} onOpenMember={onOpenMember} />
     </>
   )
 }
 
 // Одна карточка рейтинга (мужской или женский борд). Разметка/классы — как были,
 // чтобы стили (index.css .lb-*) переиспользовались без правок.
-function BoardCard({ title, rows, user, avatarById }) {
+function BoardCard({ title, rows, user, avatarById, onOpenMember }) {
   return (
     <div className="card lb-card">
       <div className="lb-head">
@@ -136,7 +136,19 @@ function BoardCard({ title, rows, user, avatarById }) {
         {rows.map((row, i) => {
           const isMe = row.user_id === user.id
           return (
-            <li key={row.user_id} className={isMe ? 'lb-row me' : 'lb-row'}>
+            <li
+              key={row.user_id}
+              className={(isMe ? 'lb-row me' : 'lb-row') + (onOpenMember ? ' lb-row-link' : '')}
+              // Тап по строке — профиль участника (v6.7.0). li, а не button: разметка
+              // и стили строки остаются как были.
+              role={onOpenMember ? 'button' : undefined}
+              tabIndex={onOpenMember ? 0 : undefined}
+              aria-label={onOpenMember ? (isMe ? 'Открыть мой профиль' : `Открыть профиль: ${row.user_name}`) : undefined}
+              onClick={onOpenMember ? () => onOpenMember(row.user_id) : undefined}
+              onKeyDown={onOpenMember ? (e) => {
+                if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); onOpenMember(row.user_id) }
+              } : undefined}
+            >
               <Place i={i} />
               <Avatar name={row.user_name} url={avatarById.get(row.user_id)} className="avatar-sm" />
               <span className="lb-who">

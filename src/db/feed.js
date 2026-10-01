@@ -30,7 +30,7 @@ const FEED_SIG = 'sig_feed'
 // (ссылается и на workouts, и на users) у PostgREST стало ДВА пути workouts↔users
 // (прямой + через reactions), и неявный `users(...)` падает с «more than one
 // relationship was found». Явный `!fk` снимает неоднозначность.
-const SELECT_FEED =
+export const SELECT_FEED =
   'id, performed_at, user_id, ' +
   'user:users!workouts_user_id_fkey(id, name), ' +
   'workout_exercises(id, position, exercise_id, ' +

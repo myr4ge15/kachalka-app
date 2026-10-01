@@ -1,8 +1,10 @@
 // Состояние строки «Пуш-уведомления» в Настройках (v6.6.0): что умеет этот
 // браузер, включены ли уведомления, идет ли переключение, текст ошибки.
-// Работа с браузером и сервером — в db/push.js; отрисовка — components/PushToggle.jsx.
+// v6.7.0: плюс настройки по типам (prefs) — грузим, когда пуши включены.
+// Работа с браузером и сервером — в db/push.js; отрисовка — components/PushToggle.jsx
+// и components/PushTypes.jsx.
 import { useCallback, useEffect, useRef, useState } from 'react'
-import { getPushState, enablePush, disablePush } from '../db/push.js'
+import { getPushState, enablePush, disablePush, getPushPrefs, setPushPref } from '../db/push.js'
 
 export function usePushToggle(userId) {
   const [state, setState] = useState({ availability: null, enabled: false })
@@ -45,5 +47,38 @@ export function usePushToggle(userId) {
     }
   }, [userId, refresh])
 
-  return { ...state, busy, error, toggle }
+  // Настройки по типам: null — еще не загрузили; prefsError — почему не загрузили.
+  const [prefs, setPrefs] = useState(null)
+  const [prefsError, setPrefsError] = useState('')
+  const [prefsBusy, setPrefsBusy] = useState(null) // тип, который сейчас сохраняется
+  const enabled = state.enabled
+  useEffect(() => {
+    if (!enabled) return
+    let alive = true
+    getPushPrefs(userId)
+      .then((p) => { if (alive) { setPrefs(p); setPrefsError('') } })
+      .catch((e) => { if (alive) setPrefsError(e?.message || 'Не удалось загрузить настройки.') })
+    return () => { alive = false }
+  }, [enabled, userId])
+
+  // Оптимистично: тумблер переключается сразу, при ошибке — откат и текст ошибки.
+  const setType = useCallback(async (type, on) => {
+    const before = prefs
+    setPrefs((p) => ({ ...(p ?? {}), [type]: on }))
+    setPrefsBusy(type)
+    setPrefsError('')
+    try {
+      const saved = await setPushPref(userId, type, on)
+      if (aliveRef.current) setPrefs(saved)
+    } catch (e) {
+      if (aliveRef.current) {
+        setPrefs(before)
+        setPrefsError(e?.message || 'Не удалось сохранить.')
+      }
+    } finally {
+      if (aliveRef.current) setPrefsBusy(null)
+    }
+  }, [prefs, userId])
+
+  return { ...state, busy, error, toggle, prefs, prefsError, prefsBusy, setType }
 }

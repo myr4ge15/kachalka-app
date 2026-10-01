@@ -5,6 +5,9 @@ import {
   urlB64ToUint8Array,
   subscriptionArgs,
   pushSubtitle,
+  shouldAskPush,
+  PUSH_TYPES,
+  isPushTypeOn,
 } from './pushSupport.js'
 
 const base = { configured: true, supported: true, isIOS: false, standalone: false, permission: 'default' }
@@ -78,11 +81,42 @@ describe('subscriptionArgs', () => {
 })
 
 describe('pushSubtitle', () => {
-  it('у каждого состояния своя подсказка', () => {
+  it('подсказка — только когда включить отсюда нельзя', () => {
     expect(pushSubtitle('ios-install')).toMatch(/экране «Домой»/)
     expect(pushSubtitle('unsupported')).toMatch(/не умеет/)
     expect(pushSubtitle('denied')).toMatch(/Запрещены/)
-    expect(pushSubtitle('ok', false)).toMatch(/Реакции/)
-    expect(pushSubtitle('ok', true)).toMatch(/Придут/)
+    expect(pushSubtitle('ok')).toBe('')
+  })
+})
+
+describe('shouldAskPush', () => {
+  const ask = { availability: 'ok', permission: 'default', enabled: false, asked: false }
+  it('спрашиваем, если можно включить одним нажатием и еще не спрашивали', () => {
+    expect(shouldAskPush(ask)).toBe(true)
+  })
+  it('не спрашиваем повторно и не спрашиваем, когда уже включено', () => {
+    expect(shouldAskPush({ ...ask, asked: true })).toBe(false)
+    expect(shouldAskPush({ ...ask, enabled: true })).toBe(false)
+  })
+  it('браузер уже отвечал (разрешил или запретил) — не пристаем', () => {
+    expect(shouldAskPush({ ...ask, permission: 'granted' })).toBe(false)
+    expect(shouldAskPush({ ...ask, permission: 'denied' })).toBe(false)
+  })
+  it('iPhone вне экрана «Домой», без ключа или без поддержки — не спрашиваем', () => {
+    for (const availability of ['ios-install', 'off', 'unsupported', 'denied', null]) {
+      expect(shouldAskPush({ ...ask, availability })).toBe(false)
+    }
+  })
+})
+
+describe('типы пушей', () => {
+  it('пять типов, ключи совпадают с белым списком set_push_pref', () => {
+    expect(PUSH_TYPES.map((t) => t.type)).toEqual(['reaction', 'record', 'overtake', 'reminder', 'update'])
+  })
+  it('по умолчанию все включено, выключено — только явным false', () => {
+    expect(isPushTypeOn({}, 'reminder')).toBe(true)
+    expect(isPushTypeOn(null, 'update')).toBe(true)
+    expect(isPushTypeOn({ reminder: false }, 'reminder')).toBe(false)
+    expect(isPushTypeOn({ reminder: true }, 'reminder')).toBe(true)
   })
 })

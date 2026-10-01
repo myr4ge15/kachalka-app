@@ -16,6 +16,8 @@ describe('PushToggle', () => {
     const { rerender } = render(<PushToggle availability="ok" enabled={false} onToggle={onToggle} />)
     const sw = screen.getByRole('switch', { name: /Пуш-уведомления/ })
     expect(sw).toHaveAttribute('aria-checked', 'false')
+    // Без пояснения под заголовком (v6.6.1): название говорит само за себя.
+    expect(sw).toHaveTextContent(/^🔔 Пуш-уведомления$/)
     fireEvent.click(sw)
     expect(onToggle).toHaveBeenCalledWith(true)
 

@@ -6,7 +6,7 @@ import { pushSubtitle } from '../lib/pushSupport.js'
 
 export default function PushToggle({ availability = null, enabled = false, busy = false, error = '', onToggle }) {
   if (!availability || availability === 'off') return null
-  const sub = pushSubtitle(availability, enabled)
+  const sub = pushSubtitle(availability)
 
   if (availability !== 'ok') {
     // Включить отсюда нельзя — только объясняем, что сделать.
@@ -32,7 +32,7 @@ export default function PushToggle({ availability = null, enabled = false, busy 
       >
         <span className="toggle-act-txt">
           🔔 Пуш-уведомления
-          <span className="toggle-act-sub">{busy ? (enabled ? 'Выключаю…' : 'Включаю…') : sub}</span>
+          {busy && <span className="toggle-act-sub">{enabled ? 'Выключаю…' : 'Включаю…'}</span>}
         </span>
         <span className={'toggle-pill' + (enabled ? ' on' : '')} aria-hidden="true">
           <span className="toggle-knob" />

@@ -17,6 +17,7 @@ import { normMetric, parseTime, fmtTime } from '../lib/metric.js'
 import { setPin, setName, setSex, LoginError } from '../lib/auth.js'
 import SexPicker from '../components/SexPicker.jsx'
 import PushToggle from '../components/PushToggle.jsx'
+import PushTypes from '../components/PushTypes.jsx'
 import { usePushToggle } from '../hooks/usePushToggle.js'
 import { uploadMyAvatar } from '../lib/avatar.js'
 import { onlyDigits } from '../lib/text.js'
@@ -526,6 +527,14 @@ export default function ProfileScreen({ user, onLogout, onOpenProgress, onOpenFe
               error={push.error}
               onToggle={push.toggle}
             />
+            {push.availability === 'ok' && push.enabled && (
+              <PushTypes
+                prefs={push.prefs}
+                busyType={push.prefsBusy}
+                error={push.prefsError}
+                onChange={push.setType}
+              />
+            )}
             {pinOpen ? (
               <div className="pin-form" ref={pinFormRef}>
                 <p className="pin-form-title">Смена PIN</p>

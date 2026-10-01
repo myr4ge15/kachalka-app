@@ -74,21 +74,22 @@ async function saveOnServer(sub) {
   if (res.error) throw new PushError('Сервер не сохранил подписку. Попробуй позже.')
 }
 
-// Состояние для Настроек: { availability, enabled }. enabled — у браузера есть
+// Состояние для Настроек: { availability, enabled, permission }. enabled — у браузера есть
 // подписка и разрешение. Если подписка есть, тихо подтверждаем ее на сервере
 // (холостой повтор ничего не пишет): так сервер догоняет браузер, если подписку
 // перехватила другая учетка на общем телефоне или ее вычистили.
 export async function getPushState(userId) {
   const facts = browserFacts()
+  const { permission } = facts
   const availability = pushAvailability(facts)
-  if (availability !== 'ok') return { availability, enabled: false }
+  if (availability !== 'ok') return { availability, enabled: false, permission }
   const { reg, sub } = await currentSubscription()
-  if (!reg) return { availability: 'unsupported', enabled: false }
+  if (!reg) return { availability: 'unsupported', enabled: false, permission }
   const enabled = Boolean(sub) && facts.permission === 'granted'
   if (enabled && navigator.onLine && (await hasSession(userId))) {
     saveOnServer(sub).catch(() => { /* не критично: повторим при следующем открытии */ })
   }
-  return { availability, enabled }
+  return { availability, enabled, permission }
 }
 
 // Включить: разрешение → подписка браузера → привязка на сервере. Разрешение
@@ -146,4 +147,46 @@ export async function releasePushOnLogout(userId) {
   try {
     await withTimeout(disablePush(userId), 4000)
   } catch { /* выход важнее */ }
+}
+
+// Разовый вопрос «Включить уведомления?» (v6.6.1): отметка «уже спрашивали» —
+// на устройство и учетку, в localStorage. Это не данные человека, а факт про этот
+// браузер (разрешение тоже живет в браузере), поэтому в синк не идет.
+const askedKey = (userId) => `gym_app_push_asked_${userId}`
+
+export function wasPushAsked(userId) {
+  try { return localStorage.getItem(askedKey(userId)) === '1' } catch { return true }
+}
+
+export function markPushAsked(userId) {
+  try { localStorage.setItem(askedKey(userId), '1') } catch { /* приватный режим — спросим еще раз */ }
+}
+
+// Настройки «какие пуши присылать» (v6.7.0) — на сервере, потому что фильтрует
+// их отправитель. get_push_prefs/set_push_pref (supabase/push-types.sql),
+// владелец — app_uid(). Только онлайн и под своей сессией, как смена имени.
+export async function getPushPrefs(userId) {
+  if (!navigator.onLine) throw new PushError('Настройки загрузятся, когда появится сеть.')
+  if (!(await hasSession(userId))) throw new PushError('Нет связи с сервером под твоей учеткой.')
+  let res
+  try {
+    res = await withTimeout(supabase.rpc('get_push_prefs'), 10000)
+  } catch {
+    throw new PushError('Настройки загрузятся, когда появится сеть.')
+  }
+  if (res.error) throw new PushError('Не удалось загрузить настройки уведомлений.')
+  return res.data ?? {}
+}
+
+export async function setPushPref(userId, type, on) {
+  if (!navigator.onLine) throw new PushError('Нет сети — попробуй позже.')
+  await ensureOwnSession(userId)
+  let res
+  try {
+    res = await withTimeout(supabase.rpc('set_push_pref', { p_type: type, p_on: Boolean(on) }))
+  } catch {
+    throw new PushError('Нет сети — попробуй позже.')
+  }
+  if (res.error) throw new PushError('Не удалось сохранить. Попробуй позже.')
+  return res.data ?? {}
 }
