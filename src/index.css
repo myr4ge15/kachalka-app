@@ -68,6 +68,10 @@
      прогресса). Мелкие точки, аватары и дни календаря остаются плоскими. */
   --acc-fill: linear-gradient(90deg, var(--acc), var(--acc-2));
   --fw-strong: 600;
+  /* Один оборот всех крутилок (синк в шапке, обновление Ленты, вход) — v6.3.6:
+     раньше 1s / .8s / .7s, рядом стоящие стрелки крутились вразнобой. Фазу
+     выравнивает --spin-phase (lib/spinPhase.js) — общий таймлайн документа. */
+  --spin-dur: 1s;
   --fs-title: 16px;   /* заголовок раздела = заголовок карточки */
   --fs-body: 15px;    /* текст, названия в списках, значения подходов */
   --fs-label: 14px;   /* подпись поля, короткое действие */
@@ -216,8 +220,7 @@ input { font-family: inherit; }
 .sync-badge.warn    { color: #fdba74; background: rgba(234,88,12,.14); border-color: #ea580c; }
 /* Крутящийся кружок на время синхронизации */
 @keyframes sync-spin { to { transform: rotate(360deg); } }
-.sync-ico.spin { transform-origin: center; animation: sync-spin 1s linear infinite; }
-@media (prefers-reduced-motion: reduce) { .sync-ico.spin { animation-duration: 2.4s; } }
+.sync-ico.spin { transform-origin: center; animation: sync-spin var(--spin-dur) linear infinite; animation-delay: var(--spin-phase, 0s); }
 
 /* Метка несинхронизированной тренировки в Истории */
 .dot-unsynced { color: #fcd34d; font-size: 10px; margin-left: 6px; vertical-align: middle; }
@@ -435,8 +438,9 @@ input { font-family: inherit; }
 .spinner {
   width: 18px; height: 18px; border-radius: 50%;
   border: 2px solid var(--border); border-top-color: var(--acc);
-  animation: spin .7s linear infinite;
+  animation: spin var(--spin-dur) linear infinite;
 }
+@media (prefers-reduced-motion: reduce) { :root { --spin-dur: 2.4s; } }
 @keyframes spin { to { transform: rotate(360deg); } }
 
 /* ---------- skeleton (каркас загрузки) ----------
@@ -1390,8 +1394,7 @@ input { font-family: inherit; }
 .feed-refresh:disabled { cursor: default; }
 .feed-fresh { white-space: nowrap; margin-left: auto; font-size: var(--fs-meta); color: var(--muted); text-align: right; }
 .feed-refresh:active { background: var(--surface-2); }
-.feed-refresh-ico.spin { animation: spin .8s linear infinite; }
-@media (prefers-reduced-motion: reduce) { .feed-refresh-ico.spin { animation-duration: 2.4s; } }
+.feed-refresh-ico.spin { animation: spin var(--spin-dur) linear infinite; animation-delay: var(--spin-phase, 0s); }
 .feed-card { padding: 14px; border-radius: 16px; }
 .feed-card-head { display: flex; align-items: center; gap: 12px; margin-bottom: 10px; }
 .avatar {

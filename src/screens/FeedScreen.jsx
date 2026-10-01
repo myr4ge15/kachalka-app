@@ -14,6 +14,7 @@ import Leaderboard from './Leaderboard.jsx'
 import Avatar from '../components/Avatar.jsx'
 import CardsSkeleton from '../components/CardsSkeleton.jsx'
 import FeedPrBadge from '../components/FeedPrBadge.jsx'
+import { useSpinPhase } from '../hooks/useSpinPhase.js'
 
 export default function FeedScreen({ user }) {
   // Кэш ленты (офлайн-доступен, обновляется мгновенно при фоновой подтяжке).
@@ -32,6 +33,7 @@ export default function FeedScreen({ user }) {
     [users, user.id, user.name]
   )
   const [refreshing, setRefreshing] = useState(false)
+  const spinStyle = useSpinPhase(refreshing) // стрелка в такт синку в шапке (v6.3.6)
   const [error, setError] = useState(null)
   // Когда лента последний раз успешно обновлялась (мс) + тикающее «сейчас», чтобы
   // метка «обновлено N назад» освежалась без действий пользователя.
@@ -216,7 +218,7 @@ export default function FeedScreen({ user }) {
           aria-label={refreshing ? 'Обновляется' : 'Обновить ленту'}
           title="Обновить ленту"
         >
-          <svg className={refreshing ? 'feed-refresh-ico spin' : 'feed-refresh-ico'} viewBox="0 0 24 24" width="20" height="20"
+          <svg className={refreshing ? 'feed-refresh-ico spin' : 'feed-refresh-ico'} style={spinStyle} viewBox="0 0 24 24" width="20" height="20"
             fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
             <path d="M20 11a8 8 0 1 0-2.3 5.7" /><path d="M20 4v7h-7" />
           </svg>

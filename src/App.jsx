@@ -20,6 +20,7 @@ import Avatar from './components/Avatar.jsx'
 import ScreenSkeleton from './components/ScreenSkeleton.jsx'
 import ErrorBoundary from './components/ErrorBoundary.jsx'
 import { lazyScreen } from './components/lazyScreen.jsx'
+import { useSpinPhase } from './hooks/useSpinPhase.js'
 
 // Экраны-вкладки грузим лениво: код активной вкладки подтягивается по требованию.
 // Главный выигрыш — «Прогресс» тянет тяжелый recharts, который теперь не попадает
@@ -44,8 +45,10 @@ const AppearanceScreen = lazyScreen(() => import('./screens/AppearanceScreen.jsx
 // Красится через currentColor (цвет задает класс .sync-badge.<cls>), спиннер
 // крутит CSS (.sync-ico.spin).
 function SyncIcon({ name }) {
+  const spinStyle = useSpinPhase(name === 'syncing')
   const p = {
     className: name === 'syncing' ? 'sync-ico spin' : 'sync-ico',
+    style: spinStyle,
     viewBox: '0 0 24 24', fill: 'none', stroke: 'currentColor', strokeWidth: 2.2,
     strokeLinecap: 'round', strokeLinejoin: 'round', 'aria-hidden': true,
   }
