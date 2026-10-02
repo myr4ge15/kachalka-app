@@ -8,7 +8,10 @@ import { render, screen, waitFor } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import AdminScreen from './AdminScreen.jsx'
 import { useLiveQuery } from 'dexie-react-hooks'
-import { adminListUsers, adminSetUser, adminSetPrivate, adminSetSex, adminUpdateExercise } from '../lib/admin.js'
+import {
+  adminListUsers, adminSetUser, adminSetPrivate, adminSetSex, adminUpdateExercise,
+  adminCreateInvite, adminListInvites, adminRevokeInvite,
+} from '../lib/admin.js'
 
 vi.mock('dexie-react-hooks', () => ({ useLiveQuery: vi.fn(() => []) }))
 vi.mock('../db/repo.js', () => ({ getAllExercisesForAdmin: vi.fn(() => Promise.resolve([])) }))
@@ -27,6 +30,9 @@ vi.mock('../lib/admin.js', () => ({
   adminMergeExercise: vi.fn(),
   adminListConnections: vi.fn(() => Promise.resolve([])),
   adminSetConnection: vi.fn(),
+  adminCreateInvite: vi.fn(),
+  adminListInvites: vi.fn(() => Promise.resolve([])),
+  adminRevokeInvite: vi.fn(() => Promise.resolve(true)),
 }))
 
 const ME = { id: 'me', name: 'Саня', role: 'admin' }
@@ -143,5 +149,47 @@ describe('AdminScreen: тип упражнения', () => {
     await user.click(screen.getByRole('button', { name: 'Сохранить' }))
     await waitFor(() => expect(adminUpdateExercise).toHaveBeenCalledTimes(1))
     expect(vi.mocked(adminUpdateExercise).mock.calls[0][0].metric).toBeUndefined()
+  })
+})
+
+// v6.8.0: приглашения. Ссылка показывается один раз — сразу после создания.
+describe('AdminScreen: приглашения', () => {
+  const TOKEN = 'a_tiNNP3RyzFJHQdG_xlbBkLpflaqExEUJzq2xU0eXo'
+  const OPEN = { id: 'i1', note: 'Саша', status: 'ok', expires_at: new Date(Date.now() + 3 * 86400000).toISOString() }
+  const USED = { id: 'i2', note: null, status: 'used', used_by_name: 'Маша', used_at: '2026-10-01T10:00:00Z' }
+
+  beforeEach(() => {
+    vi.mocked(adminListInvites).mockReset().mockResolvedValue([OPEN, USED])
+    vi.mocked(adminCreateInvite).mockReset().mockResolvedValue({ id: 'i3', token: TOKEN, expires_at: '2026-10-09T00:00:00Z' })
+    vi.mocked(adminRevokeInvite).mockClear()
+  })
+
+  async function openInvites(user) {
+    render(<AdminScreen user={ME} onBack={() => {}} />)
+    await user.click(screen.getByRole('button', { name: /Приглашения/ }))
+    expect(await screen.findByText('Саша')).toBeInTheDocument()
+  }
+
+  it('список со статусами; отозвать можно только живую', async () => {
+    const user = userEvent.setup()
+    await openInvites(user)
+    expect(screen.getByText(/ждет/)).toBeInTheDocument()
+    expect(screen.getByText(/Маша/)).toBeInTheDocument()
+    const revoke = screen.getAllByRole('button', { name: 'Отозвать ссылку' })
+    expect(revoke).toHaveLength(1)
+    await user.click(revoke[0])
+    await waitFor(() => expect(adminRevokeInvite).toHaveBeenCalledWith('i1'))
+  })
+
+  it('создание показывает полную ссылку с токеном', async () => {
+    const user = userEvent.setup()
+    await openInvites(user)
+    await user.type(screen.getByLabelText(/Для кого/), 'Петя')
+    await user.click(screen.getByRole('button', { name: 'Создать ссылку' }))
+    await waitFor(() => expect(adminCreateInvite).toHaveBeenCalledWith('Петя'))
+    const link = await screen.findByLabelText('Ссылка-приглашение')
+    expect(link.value).toMatch(new RegExp(`#invite=${TOKEN}$`))
+    await user.click(screen.getByRole('button', { name: 'Готово' }))
+    expect(screen.queryByLabelText('Ссылка-приглашение')).toBeNull()
   })
 })

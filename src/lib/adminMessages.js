@@ -5,6 +5,11 @@ export function humanRpc(message) {
   const m = String(message ?? '')
   if (m.includes('admin only') || m.includes('42501')) return 'Нужны права админа.'
   if (m.includes('last admin')) return 'Нельзя снять роль с последнего админа.'
+  // Уникальный индекс имен (invites.sql, v6.8.0): регистр, ё/е, латинские двойники.
+  if (m.includes('users_name_key') || m.includes('duplicate key')) return 'Это имя уже занято.'
+  if (m.includes('rate limited')) return 'Слишком много операций подряд — подожди немного.'
+  if (m.includes('invite already used')) return 'Ссылкой уже воспользовались — отозвать нельзя.'
+  if (m.includes('0..60')) return 'Пометка — до 60 символов.'
   if (m.includes('not found')) return 'Запись не найдена.'
   if (m.includes('1..60')) return 'Название — от 1 до 60 символов.'
   if (m.includes('1..40')) return 'Имя — от 1 до 40 символов.'

@@ -171,6 +171,33 @@ export async function adminCreateUser(name, role, pin) {
   return payload.user
 }
 
+// ----------------------------- Приглашения (v6.8.0) ------------------------
+// Одноразовая ссылка на регистрацию (supabase/invites.sql). Сырой токен сервер
+// отдает ОДИН раз — при создании; в базе только его хэш, повторно ссылку не
+// показать (только создать новую).
+
+export async function adminCreateInvite(note = '') {
+  const clean = String(note ?? '').trim()
+  if (clean.length > 60) throw new AdminError('Пометка — до 60 символов.')
+  const res = await withTimeout(supabase.rpc('admin_create_invite', { p_note: clean || null }))
+  if (res.error) throw new AdminError(humanRpc(res.error.message))
+  const row = Array.isArray(res.data) ? res.data[0] : res.data
+  if (!row?.token) throw new AdminError('Сервер не вернул ссылку.')
+  return { id: row.id, token: row.token, expires_at: row.expires_at }
+}
+
+export async function adminListInvites() {
+  const res = await withTimeout(supabase.rpc('admin_list_invites'))
+  if (res.error) throw new AdminError(humanRpc(res.error.message))
+  return res.data ?? []
+}
+
+export async function adminRevokeInvite(id) {
+  const res = await withTimeout(supabase.rpc('admin_revoke_invite', { p_id: id }))
+  if (res.error) throw new AdminError(humanRpc(res.error.message))
+  return true
+}
+
 // ----------------------------- Связи (доступ) ------------------------------
 
 // Все связи «избранного круга» (пары low_id/high_id). RPC с гейтом is_admin().

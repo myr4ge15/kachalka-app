@@ -19,6 +19,8 @@ import { useTabDot } from './hooks/useTabDot.js'
 import { captureAnchor, useScrollAnchorRestore } from './hooks/useScrollAnchor.js'
 import { useAccentSync } from './hooks/useAccentSync.js'
 import LoginScreen from './screens/LoginScreen.jsx'
+import InviteScreen from './screens/InviteScreen.jsx'
+import { inviteFromUrl, stripInvite } from './lib/invite.js'
 import Toast, { showToast } from './components/Toast.jsx'
 import AddFab from './components/AddFab.jsx'
 import Avatar from './components/Avatar.jsx'
@@ -206,6 +208,10 @@ export default function App() {
   // или, если оно уже открыто, присылает сообщение. Намерение ждет входа и
   // применяется один раз (см. эффект ниже); до входа просто лежит.
   const [pushIntent, setPushIntent] = useState(() => pushIntentFromUrl(window.location.href))
+  // Ссылка-приглашение (v6.8.0): токен из #invite=… живет только в памяти —
+  // из адреса стираем сразу (эффект ниже), чтобы он не остался в истории и закладках.
+  // Пока токен есть, вместо входа показываем регистрацию.
+  const [inviteToken, setInviteToken] = useState(() => inviteFromUrl(window.location.href))
   // Активная вкладка переживает F5 (sessionStorage). Дефолт — 'home' (Главная,
   // «5 секунд после открытия»). Старое значение 'workout' (вкладки больше нет)
   // проваливается в дефолт.
@@ -250,6 +256,19 @@ export default function App() {
   useEffect(() => {
     const clean = stripPushParam(window.location.href)
     if (clean) window.history.replaceState(window.history.state, '', clean)
+    const noInvite = stripInvite(window.location.href)
+    if (noInvite) window.history.replaceState(window.history.state, '', noInvite)
+    // Ссылку открыли во вкладке, где приложение уже загружено: меняется только
+    // фрагмент, страница не перезагружается — подхватываем токен здесь.
+    const onHash = () => {
+      const t = inviteFromUrl(window.location.href)
+      if (!t) return
+      setInviteToken(t)
+      const clean = stripInvite(window.location.href)
+      if (clean) window.history.replaceState(window.history.state, '', clean)
+    }
+    window.addEventListener('hashchange', onHash)
+    return () => window.removeEventListener('hashchange', onHash)
   }, [])
 
   // Уже открытое приложение: адрес не меняется, service worker шлет сообщение.
@@ -589,6 +608,18 @@ export default function App() {
           </p>
         </div>
       </div>
+    )
+  }
+
+  if (inviteToken) {
+    return (
+      <InviteScreen
+        token={inviteToken}
+        signedInAs={user ? (user.name || 'без имени') : null}
+        onRegistered={async (u) => { await handleLogin(u); setInviteToken(null) }}
+        onCancel={() => setInviteToken(null)}
+        onSignOut={handleLogout}
+      />
     )
   }
 

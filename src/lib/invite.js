@@ -1,0 +1,91 @@
+// ============================================================================
+// Ссылка-приглашение (v6.8.0, supabase/invites.sql) — чистая логика без сети.
+//
+// Токен живет во ФРАГМЕНТЕ адреса: https://…/kachalka-app/#invite=<токен>.
+// Фрагмент не уходит на сервер (GitHub Pages его не видит, в логах и Referer его
+// нет), а приложению не нужен роутер: App читает его при старте и сразу стирает.
+// ============================================================================
+
+export const INVITE_TOKEN_RE = /^[A-Za-z0-9_-]{43}$/
+
+// Токен из адреса или null.
+export function inviteFromUrl(href) {
+  try {
+    const hash = new URL(String(href)).hash.replace(/^#/, '')
+    const token = new URLSearchParams(hash).get('invite')
+    return token && INVITE_TOKEN_RE.test(token) ? token : null
+  } catch {
+    return null
+  }
+}
+
+// Адрес без фрагмента-приглашения или null, если стирать нечего.
+export function stripInvite(href) {
+  try {
+    const url = new URL(String(href))
+    if (!new URLSearchParams(url.hash.replace(/^#/, '')).has('invite')) return null
+    url.hash = ''
+    return url.toString()
+  } catch {
+    return null
+  }
+}
+
+// Ссылка для отправки человеку. base — import.meta.env.BASE_URL ('/kachalka-app/').
+export function inviteUrl(token, origin, base = '/') {
+  const b = base.endsWith('/') ? base : base + '/'
+  return `${origin}${b}#invite=${token}`
+}
+
+// Проверка формы до запроса. Пустая строка — все в порядке.
+export function validateRegistration({ name, pin, pin2 }) {
+  const n = String(name ?? '').trim()
+  if (n.length < 1) return 'Напиши, как тебя зовут.'
+  if (n.length > 40) return 'Имя — до 40 символов.'
+  if (!/^\d{4}$/.test(String(pin ?? ''))) return 'PIN — ровно 4 цифры.'
+  if (pin !== pin2) return 'PIN-коды не совпадают.'
+  return ''
+}
+
+// Почему ссылка не работает — для экрана приглашения.
+export function inviteDeadText(status) {
+  switch (status) {
+    case 'used': return 'По этой ссылке уже зарегистрировались. Она одноразовая — попроси у админа новую.'
+    case 'expired': return 'Срок ссылки истек. Попроси у админа новую.'
+    case 'revoked': return 'Админ отозвал эту ссылку. Попроси новую.'
+    default: return 'Ссылка недействительна. Проверь, что скопировал ее целиком, или попроси новую.'
+  }
+}
+
+export const DEAD_STATUSES = new Set(['used', 'expired', 'revoked', 'invalid'])
+
+// Текст ошибки регистрации по коду LoginError.code.
+export function inviteErrorText(code) {
+  if (DEAD_STATUSES.has(code)) return inviteDeadText(code)
+  switch (code) {
+    case 'name_taken': return 'Это имя уже занято — добавь фамилию или инициал.'
+    case 'bad_name': return 'Имя — от 1 до 40 символов.'
+    case 'bad_pin': return 'PIN — ровно 4 цифры.'
+    case 'network': return 'Нет сети — попробуй позже.'
+    case 'registered_login_failed': return 'Учетка создана, но войти сразу не получилось. Вернись к входу и войди по своему PIN.'
+    default: return 'Не получилось зарегистрироваться. Попробуй еще раз чуть позже.'
+  }
+}
+
+// Строка статуса в списке приглашений админки.
+export function inviteListLabel(inv, now = new Date()) {
+  const d = (iso) => {
+    const x = new Date(iso)
+    return `${String(x.getDate()).padStart(2, '0')}.${String(x.getMonth() + 1).padStart(2, '0')}`
+  }
+  switch (inv?.status) {
+    case 'used': return `✅ ${inv.used_by_name ?? 'участник удален'} · ${d(inv.used_at)}`
+    case 'revoked': return '⛔ отозвана'
+    case 'expired': return '⌛ истекла'
+    case 'ok': {
+      const days = Math.max(0, Math.ceil((new Date(inv.expires_at) - now) / 86400000))
+      return `⏳ ждет · еще ${days} дн.`
+    }
+    default: return inv?.status ?? ''
+  }
+}

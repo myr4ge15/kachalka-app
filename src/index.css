@@ -443,6 +443,21 @@ input { font-family: inherit; }
 @media (prefers-reduced-motion: reduce) { :root { --spin-dur: 2.4s; } }
 @keyframes spin { to { transform: rotate(360deg); } }
 
+/* регистрация по ссылке-приглашению (v6.8.0) */
+.invite-lead { margin: 12px 0 4px; line-height: 1.45; }
+.invite-note { font-size: 13px; line-height: 1.4; margin: 0; }
+.invite-form { display: flex; flex-direction: column; gap: 12px; margin-top: 8px; text-align: left; }
+.invite-form .invite-lead { text-align: center; margin-top: 4px; }
+.invite-form .invite-note { text-align: center; }
+.invite-form .field { display: block; }
+.invite-form .field-lab { display: block; font-size: 12px; color: var(--muted); margin-bottom: 6px; }
+.invite-form .btn { width: 100%; }
+.invite-form .error { margin-top: 0; }
+.invite-actions { display: flex; gap: 10px; margin-top: 14px; }
+.invite-actions .btn { flex: 1; }
+/* ссылка в админке: длинная — мельче и без переноса */
+.invite-url { font-size: 13px; }
+
 /* ---------- skeleton (каркас загрузки) ----------
    Примитив «мгновенности»: серая плашка формы будущего контента вместо строки
    «Загрузка…» или пустого экрана. Рендерится компонентом <Skeleton> (в разметке —

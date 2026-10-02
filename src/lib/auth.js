@@ -35,6 +35,7 @@ async function fetchWithTimeout(url, opts, ms = DB_TIMEOUT_MS) {
 
 const FN_URL = (import.meta.env.VITE_SUPABASE_URL ?? '') + '/functions/v1/auth-login'
 const SET_PIN_URL = (import.meta.env.VITE_SUPABASE_URL ?? '') + '/functions/v1/auth-set-pin'
+const INVITE_URL = (import.meta.env.VITE_SUPABASE_URL ?? '') + '/functions/v1/invite-redeem'
 const ANON = import.meta.env.VITE_SUPABASE_KEY ?? ''
 
 // Ключ локального кэша офлайн-разблокировки (свои хэш+соль+имя+роль).
@@ -119,6 +120,12 @@ async function doLogin(userId, pin) {
   if (!res.ok || !body?.session) {
     throw new LoginError('server', body?.error ?? 'Не удалось войти.')
   }
+  return adoptSession(body, userId, pin, stale)
+}
+
+// Ответ сервера вида { session, user, pin_hash, pin_salt } (auth-login и
+// invite-redeem) → поднять сессию, закэшировать свой хэш для офлайн-входа, PIN в память.
+async function adoptSession(body, userId, pin, stale) {
   // Пока ждали ответ, человек вышел (или вошел другой): сессию не поднимаем.
   if (stale()) throw new LoginError('cancelled', 'Вход отменен.')
 
@@ -142,6 +149,50 @@ async function doLogin(userId, pin) {
   rememberPin(userId, pin)
   lastLoginFailure = null
   return { id: body.user.id, name: body.user.name, role: body.user.role }
+}
+
+// ----------------------- Регистрация по приглашению (v6.8.0) -----------------------
+// Edge Function invite-redeem (supabase/invites.sql). Ссылку открывает человек без
+// учетки, поэтому — anon-ключ, как у auth-login; защита — одноразовый токен.
+
+async function callInvite(payload) {
+  let res
+  try {
+    res = await fetchWithTimeout(INVITE_URL, {
+      method: 'POST',
+      headers: { 'content-type': 'application/json', apikey: ANON, authorization: `Bearer ${ANON}` },
+      body: JSON.stringify(payload),
+    })
+  } catch {
+    throw new LoginError('network', 'Нет сети — попробуй позже.')
+  }
+  let body = null
+  try { body = await res.json() } catch { /* нестандартное тело */ }
+  return { res, body }
+}
+
+// Жива ли ссылка: 'ok' | 'used' | 'revoked' | 'expired' | 'invalid'. Сбой — LoginError.
+export async function checkInvite(token) {
+  const { res, body } = await callInvite({ action: 'check', token })
+  if (!res.ok || !body?.status) throw new LoginError('server', 'Не удалось проверить ссылку.')
+  return body.status
+}
+
+// Зарегистрироваться и сразу войти. Возвращает { id, name, role }. Ошибка —
+// LoginError с code = код сервера ('name_taken', 'used', 'expired', …) или
+// 'network' / 'server'; текст для экрана — inviteErrorText (lib/invite.js).
+export async function registerByInvite(token, { name, pin, sex = null }) {
+  const generation = authGeneration
+  const stale = () => generation !== authGeneration
+  const { res, body } = await callInvite({ action: 'redeem', token, name, pin, sex })
+  if (!res.ok || !body?.session) {
+    const code = body?.error ?? 'server'
+    const err = new LoginError(code, code)
+    if (body?.user?.id) err.userId = body.user.id
+    throw err
+  }
+  lastLoginUserId = body.user.id
+  return adoptSession(body, body.user.id, pin, stale)
 }
 
 // Офлайн-проверка PIN по локальному кэшу. Возвращает:
@@ -299,6 +350,10 @@ const NO_SESSION_MSG = 'Нет связи с сервером под твоей 
 function rpcError(err, fn, fallback) {
   const m = String(err?.message ?? '')
   if (/JWT|not authenticated/i.test(m)) return new LoginError('session', NO_SESSION_MSG)
+  // Уникальный индекс имен users_name_key_uidx (invites.sql, v6.8.0).
+  if (err?.code === '23505' || /users_name_key/.test(m)) {
+    return new LoginError('invalid', 'Это имя уже занято — добавь фамилию или инициал.')
+  }
   if (err?.code === '42501' || /permission denied/i.test(m)) {
     return new LoginError('server', `Сервер не дал прав на ${fn} — напиши админу. (${m || err?.code})`)
   }

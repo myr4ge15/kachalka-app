@@ -7,7 +7,9 @@ import {
   adminListUsers, adminSetUser, adminSetPrivate, adminSetSex, adminResetPin, adminCreateUser,
   adminSetUserOrder, adminUpdateExercise, adminMergeExercise, AdminError,
   adminListConnections, adminSetConnection,
+  adminCreateInvite, adminListInvites, adminRevokeInvite,
 } from '../lib/admin.js'
+import { inviteUrl, inviteListLabel } from '../lib/invite.js'
 import { connectedIdsFor } from '../lib/connections.js'
 import { onlyDigits } from '../lib/text.js'
 import { submusclesOf, secondaryOptionsFor, labelOf, majorOf, defaultSubmuscleFor } from '../lib/muscles.js'
@@ -27,7 +29,7 @@ export default function AdminScreen({ user, onBack }) {
   const exercises = useLiveQuery(() => getAllExercisesForAdmin(), [], [])
 
   // Разделы свернуты по умолчанию; раскрывается тот, что админ сам открыл (аккордеон).
-  const [open, setOpen] = useState(null) // null | 'exercises' | 'users' | 'access'
+  const [open, setOpen] = useState(null) // null | 'exercises' | 'users' | 'invites' | 'access'
   const toggle = (key) => setOpen((cur) => (cur === key ? null : key))
 
   const errMsg = (e) => (e instanceof AdminError ? e.message : String(e?.message ?? e))
@@ -83,6 +85,20 @@ export default function AdminScreen({ user, onBack }) {
         )}
 
         <button
+          className={'admin-nav-btn' + (open === 'invites' ? ' open' : '')}
+          onClick={() => toggle('invites')}
+          aria-expanded={open === 'invites'}
+        >
+          <span className="admin-nav-name">Приглашения</span>
+          <span className="admin-nav-chev" aria-hidden="true">{open === 'invites' ? '⌄' : '›'}</span>
+        </button>
+        {open === 'invites' && (
+          <div className="admin-panel">
+            <InvitesSection online={online} errMsg={errMsg} />
+          </div>
+        )}
+
+        <button
           className={'admin-nav-btn' + (open === 'access' ? ' open' : '')}
           onClick={() => toggle('access')}
           aria-expanded={open === 'access'}
@@ -97,6 +113,137 @@ export default function AdminScreen({ user, onBack }) {
         )}
       </div>
     </div>
+  )
+}
+
+// ─────────────────────── Приглашения (v6.8.0) ──────────────────────────────
+// Одноразовые ссылки на регистрацию (supabase/invites.sql). Человек по ссылке сам
+// вводит имя и PIN — заводить его руками не нужно. Сырую ссылку сервер отдает один
+// раз, при создании; в списке — только статусы.
+function InvitesSection({ online, errMsg }) {
+  const [list, setList] = useState(null)
+  const [loadErr, setLoadErr] = useState('')
+  const [note, setNote] = useState('')
+  const [busy, setBusy] = useState(false)
+  const [fresh, setFresh] = useState(null) // { id, url, note }
+  const [revId, setRevId] = useState(null)
+  const alive = useRef(true)
+  useEffect(() => { alive.current = true; return () => { alive.current = false } }, [])
+
+  async function reload() {
+    setLoadErr('')
+    try {
+      const rows = await adminListInvites()
+      if (alive.current) setList(rows)
+    } catch (e) {
+      if (!alive.current) return
+      setLoadErr(errMsg(e))
+      setList([])
+    }
+  }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  useEffect(() => { if (online) reload(); else setList([]) }, [online])
+
+  async function create() {
+    setBusy(true)
+    try {
+      const inv = await adminCreateInvite(note)
+      const url = inviteUrl(inv.token, window.location.origin, import.meta.env.BASE_URL)
+      if (alive.current) { setFresh({ id: inv.id, url, note: note.trim() }); setNote('') }
+      reload()
+    } catch (e) {
+      showToast({ emoji: '⚠️', title: 'Не удалось', sub: errMsg(e) })
+    } finally {
+      if (alive.current) setBusy(false)
+    }
+  }
+
+  async function copy() {
+    try {
+      await navigator.clipboard.writeText(fresh.url)
+      showToast({ emoji: '📋', title: 'Ссылка скопирована' })
+    } catch {
+      showToast({ emoji: '⚠️', title: 'Не скопировалось', sub: 'Выдели ссылку и скопируй вручную.' })
+    }
+  }
+
+  async function share() {
+    try {
+      await navigator.share({ title: 'Журнал тренировок', text: 'Приглашение в журнал тренировок', url: fresh.url })
+    } catch { /* закрыли меню «Поделиться» — ничего не делаем */ }
+  }
+
+  async function revoke(inv) {
+    setRevId(inv.id)
+    try {
+      await adminRevokeInvite(inv.id)
+      if (alive.current && fresh?.id === inv.id) setFresh(null)
+      showToast({ emoji: '⛔', title: 'Ссылка отозвана' })
+      reload()
+    } catch (e) {
+      showToast({ emoji: '⚠️', title: 'Не удалось', sub: errMsg(e) })
+    } finally {
+      if (alive.current) setRevId(null)
+    }
+  }
+
+  const canShare = typeof navigator !== 'undefined' && typeof navigator.share === 'function'
+
+  return (
+    <section className="sec">
+      <p className="admin-hint">
+        Ссылка одноразовая и живет 7 дней. Человек откроет ее, сам придумает имя и PIN и сразу
+        окажется в журнале — его увидят все, как и других участников.
+      </p>
+
+      {fresh ? (
+        <div className="admin-add invite-fresh">
+          <p className="admin-merge-title">Ссылка{fresh.note ? ` · ${fresh.note}` : ''}</p>
+          <input className="admin-input invite-url" type="text" readOnly value={fresh.url}
+            aria-label="Ссылка-приглашение" onFocus={(e) => e.target.select()} />
+          <p className="admin-hint">Ссылка видна только сейчас. Потеряешь — отзови и создай новую.</p>
+          <div className="admin-ex-actions">
+            <button className="btn ghost" onClick={() => setFresh(null)}>Готово</button>
+            {canShare && <button className="btn ghost" onClick={share}>Поделиться</button>}
+            <button className="btn primary" onClick={copy}>Скопировать</button>
+          </div>
+        </div>
+      ) : (
+        <div className="admin-add">
+          <label className="field">
+            <span className="field-lab">Для кого (видишь только ты, необязательно)</span>
+            <input className="admin-input" type="text" maxLength={60} placeholder="напр. Саша с работы"
+              value={note} onChange={(e) => setNote(e.target.value)} disabled={busy} />
+          </label>
+          <button className="btn primary" onClick={create} disabled={busy || !online}>
+            {busy ? 'Создаю…' : 'Создать ссылку'}
+          </button>
+        </div>
+      )}
+
+      {loadErr && <p className="admin-offline" role="alert">{loadErr}</p>}
+      {list === null && <CardsSkeleton cards={2} />}
+      {list?.length > 0 && (
+        <ul className="admin-list">
+          {list.map((inv) => (
+            <li key={inv.id} className="admin-user">
+              <div className="admin-user-row">
+                <div className="admin-ex-main">
+                  <span className="admin-ex-name">{inv.note || 'Без пометки'}</span>
+                  <span className="admin-ex-meta">{inviteListLabel(inv)}</span>
+                </div>
+                {inv.status === 'ok' && (
+                  <div className="admin-ex-btns">
+                    <button className="admin-mini" onClick={() => revoke(inv)}
+                      disabled={!online || revId === inv.id} aria-label="Отозвать ссылку">⛔</button>
+                  </div>
+                )}
+              </div>
+            </li>
+          ))}
+        </ul>
+      )}
+    </section>
   )
 }
 

@@ -258,6 +258,11 @@ updated_at)` + `upsert_user_meta` (`supabase/user-meta.sql`, RLS «только 
   `updated_at` не двигают — иначе анонимный `login_users.updated_at` выдает время каждого входа. Служебные
   таблицы `auth_attempts`/`audit_log`/`admin_rate`/`tg_announced` — без прав у anon/authenticated (только
   service_role и DEFINER-функции). Политики чтения `users`/`exercises` — `app_uid() is not null`, не `true`.
+- **Приглашения и уникальность имен (v6.8.0)** → канон `invites.sql`. Имена участников уникальны индексом
+  `users_name_key_uidx` по `user_name_key(name)` — новый путь создания/переименования не проверяет тезок сам,
+  а ловит `23505` (клиент: «Это имя уже занято»). Регистр в ключе сворачивается `translate` по кириллице, а не
+  только `lower()`: при collation `C` `lower()` кириллицу не трогает. Регистрация — только через `invite_redeem`
+  (service_role, Edge `invite-redeem` с `--no-verify-jwt`); сырой токен в базу и логи не пишем — только SHA-256.
 - **Смена упражнения в админке → снимки в тренировках (v6.7.6).** Сервер `workouts.updated_at` НЕ двигает (на
   workouts триггеры Telegram и пушей — старые рекорды объявились бы заново); клиент сам перечитывает по id
   свои чистые тренировки с изменившимися упражнениями (`db/sync/pull.js refreshWorkoutsForExercises`).
