@@ -157,3 +157,27 @@ describe('buildTrainingRhythm', () => {
     expect(rhythm.every((w) => w.count === 0 && w.beforeFirst)).toBe(true)
   })
 })
+
+// РЕВЬЮ-КОДА-2026-10-02, п. 17: снимок упражнения в старых тренировках не
+// обновляется после смены типа — единицы не должны смешиваться в «последнем рекорде».
+describe('latestPr после смены типа упражнения', () => {
+  it('weight→reps: первые повторы после кг — не рекорд «12 (было 10)»', () => {
+    const list = [
+      wk({ id: 'n2', at: daysAgo(1), entries: [{ exId: 'pu', name: 'Отжимания', metric: 'reps', sets: [S(0, 11)] }] }),
+      wk({ id: 'n1', at: daysAgo(5), entries: [{ exId: 'pu', name: 'Отжимания', metric: 'reps', sets: [S(0, 12)] }] }),
+      wk({ id: 'o', at: daysAgo(10), entries: [{ exId: 'pu', name: 'Отжимания с весом', sets: [S(10, 8)] }] }),
+    ]
+    expect(buildHomeSummary({ workouts: list, goals: [], now: NOW }).latestPr).toBeNull()
+  })
+
+  it('reps→weight: рекорд по весу виден сразу, имя — из свежего снимка', () => {
+    const list = [
+      wk({ id: 'c', at: daysAgo(1), entries: [{ exId: 'dip', name: 'Брусья с весом', sets: [S(12.5, 8)] }] }),
+      wk({ id: 'b', at: daysAgo(5), entries: [{ exId: 'dip', name: 'Брусья с весом', sets: [S(10, 8)] }] }),
+      wk({ id: 'a', at: daysAgo(10), entries: [{ exId: 'dip', name: 'Брусья', metric: 'reps', sets: [S(0, 20)] }] }),
+    ]
+    expect(buildHomeSummary({ workouts: list, goals: [], now: NOW }).latestPr).toMatchObject({
+      name: 'Брусья с весом', metric: 'weight', value: 12.5,
+    })
+  })
+})

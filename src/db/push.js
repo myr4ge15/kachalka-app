@@ -14,7 +14,7 @@
 import { supabase, hasSession } from './supabase.js'
 import { ensureOwnSession } from '../lib/auth.js'
 import { withTimeout } from '../lib/withTimeout.js'
-import { pushAvailability, isIOSDevice, urlB64ToUint8Array, subscriptionArgs } from '../lib/pushSupport.js'
+import { pushAvailability, isIOSDevice, urlB64ToUint8Array, subscriptionArgs, isStaleServerKey } from '../lib/pushSupport.js'
 
 const VAPID_PUBLIC_KEY = import.meta.env.VITE_VAPID_PUBLIC_KEY ?? ''
 
@@ -94,6 +94,18 @@ function setWanted(userId, on) {
   } catch { /* приватный режим */ }
 }
 
+// Подписка под старый VAPID-ключ (ключ сборки сменили) — снимаем, чтобы вызывающий
+// подписался заново под текущий: push-сервис такую отвергает, пуши не доходят.
+// Ключ подписки неизвестен (старый браузер) — оставляем как есть (см. isStaleServerKey).
+async function dropIfStaleKey(sub) {
+  if (!sub || !VAPID_PUBLIC_KEY) return sub
+  let expected
+  try { expected = urlB64ToUint8Array(VAPID_PUBLIC_KEY) } catch { return sub }
+  if (!isStaleServerKey(sub.options?.applicationServerKey, expected)) return sub
+  await sub.unsubscribe().catch(() => {})
+  return null
+}
+
 async function saveOnServer(sub) {
   const args = subscriptionArgs(sub?.toJSON?.(), navigator.userAgent)
   if (!args) throw new PushError('Браузер выдал неполную подписку — попробуй еще раз.')
@@ -145,7 +157,7 @@ export async function enablePush(userId) {
 
   let sub
   try {
-    sub = (await reg.pushManager.getSubscription()) ??
+    sub = (await dropIfStaleKey(await reg.pushManager.getSubscription())) ??
       (await reg.pushManager.subscribe({
         userVisibleOnly: true,
         applicationServerKey: urlB64ToUint8Array(VAPID_PUBLIC_KEY),
@@ -223,13 +235,20 @@ export async function reconcilePushOwner(userId) {
       sub = null
     }
     if (!navigator.onLine || !(await hasSession(userId))) return
+    // Своя подписка под старый VAPID-ключ — снимаем и подписываемся заново ниже:
+    // раз подписка была, пуши человек хотел (флага wanted у подписок до v6.7.5 нет).
+    let resubscribe = false
+    if (sub && facts.permission === 'granted' && facts.configured) {
+      const kept = await dropIfStaleKey(sub)
+      if (!kept) { sub = null; resubscribe = true }
+    }
     if (sub) {
       if (facts.permission !== 'granted') return
       await saveOnServer(sub)
       setOwner(userId)
       return
     }
-    if (!isWanted(userId) || facts.permission !== 'granted' || !facts.configured) return
+    if (!(resubscribe || isWanted(userId)) || facts.permission !== 'granted' || !facts.configured) return
     const fresh = await reg.pushManager.subscribe({
       userVisibleOnly: true,
       applicationServerKey: urlB64ToUint8Array(VAPID_PUBLIC_KEY),

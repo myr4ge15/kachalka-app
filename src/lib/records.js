@@ -12,8 +12,8 @@
 // computePrs в db/feed.js).
 // ============================================================================
 import { cmpIsoAsc } from './cmp.js'
-import { leadingValue } from './metric.js'
-import { entryExId, entryMetric } from './entries.js'
+import { leadingValue, normMetric } from './metric.js'
+import { entryExId, entryMetric, currentExerciseShapes, entryUnitMetric, isCurrentUnit } from './entries.js'
 
 // Максимальный фактический вес среди подходов [{weight, reps}]. Оставлен для
 // весо-специфичных мест (цели в кг — profileStats.currentBest).
@@ -26,18 +26,24 @@ const entryName = (e) => e.name ?? e.exercise?.name ?? null
 
 // Лучший ведущий показатель по каждому упражнению за переданную историю.
 // Возвращает Map(exercise_id → { value, metric, name }).
+// Метрика и имя — из САМОГО СВЕЖЕГО снимка упражнения, в максимум идут только
+// подходы в этой же единице (РЕВЬЮ-КОДА-2026-10-02, п. 17: после смены типа
+// старые килограммы иначе становились «рекордом» в повторах).
 export function myBestByExercise(workouts) {
+  const shapes = currentExerciseShapes(workouts)
   const best = new Map()
   for (const w of workouts ?? []) {
     for (const e of w.entries ?? []) {
       const exId = entryExId(e)
       if (!exId) continue
-      const metric = entryMetric(e)
+      const shape = shapes.get(exId)
+      if (!isCurrentUnit(e, shape)) continue
+      const metric = shape?.metric ?? entryMetric(e)
       const value = leadingValue(metric, e.sets)
       if (value <= 0) continue
       const prev = best.get(exId)
       if (!prev || value > prev.value) {
-        best.set(exId, { value, metric, name: entryName(e) ?? prev?.name ?? '—' })
+        best.set(exId, { value, metric, name: shape?.name ?? entryName(e) ?? prev?.name ?? '—' })
       }
     }
   }
@@ -47,8 +53,13 @@ export function myBestByExercise(workouts) {
 // «У тебя новый рекорд»: идем по своим тренировкам в хронологическом порядке и
 // для каждого упражнения ловим момент, когда ведущий показатель превысил прежний
 // максимум. Возвращает [{ id, type:'mine', exId, name, metric, value, prev, at }].
+// Максимум ведем ОТДЕЛЬНО по каждой единице (exId + метрика записи): рекорд в кг,
+// поставленный до смены типа, остается настоящим событием истории, но 12 повторов
+// не «бьют» старые 10 кг, а первый вес после reps→weight — не рекорд, а первый
+// замер (РЕВЬЮ-КОДА-2026-10-02, п. 17). Имя — из свежего снимка (переименование).
 export function minePrs(workouts) {
-  const best = new Map() // exId → value
+  const shapes = currentExerciseShapes(workouts)
+  const best = new Map() // `${exId}:${metric}` → value
   const out = []
   // Тай-брейк: при равных performed_at (импорт, два сохранения в одну секунду)
   // порядок массива недетерминирован → PR/prev мог приписаться не той тренировке.
@@ -63,24 +74,26 @@ export function minePrs(workouts) {
     for (const e of w.entries ?? []) {
       const exId = entryExId(e)
       if (!exId) continue
-      const metric = entryMetric(e)
+      const shape = shapes.get(exId)
+      const metric = entryUnitMetric(e, shape?.metric)
       const value = leadingValue(metric, e.sets)
       if (value <= 0) continue
-      const prev = best.get(exId) ?? 0
+      const key = `${exId}:${metric}`
+      const prev = best.get(key) ?? 0
       if (value > prev) {
         if (prev > 0) {
           out.push({
             id: `mine:${w.id}:${exId}`,
             type: 'mine',
             exId,
-            name: entryName(e) ?? '—',
+            name: shape?.name ?? entryName(e) ?? '—',
             metric,
             value,
             prev,
             at: w.performed_at,
           })
         }
-        best.set(exId, value)
+        best.set(key, value)
       }
     }
   }
@@ -126,6 +139,9 @@ export function computeBeaten(feedItems, userId, myBest) {
       const mine = myBest.get(exId)
       if (!mine || mine.value <= 0) continue // нет своего рекорда — нечего бить
       const metric = mine.metric // сравниваем по метрике упражнения (одна на всех)
+      // Запись друга в другой единице (кэш ленты со старым снимком после смены
+      // типа) с моим рекордом несравнима (РЕВЬЮ-КОДА-2026-10-02, п. 17).
+      if (entryUnitMetric(e, metric) !== metric) continue
       const value = leadingValue(metric, e.sets)
       if (value <= 0) continue
       const key = `${it.user_id}:${exId}`
@@ -206,7 +222,11 @@ export function computeNewPrs(savedEntries, othersBest) {
     const metric = entryMetric(e)
     const value = leadingValue(metric, e.sets)
     if (value <= 0) continue
-    const prev = othersBest.get(exId)?.value ?? 0
+    // Прежний максимум в ДРУГОЙ единице (тип упражнения сменили) — не база для
+    // рекорда: первая тренировка в новой единице — первый замер, а не «12 повт.
+    // (было 10 кг)» (РЕВЬЮ-КОДА-2026-10-02, п. 17).
+    const other = othersBest.get(exId)
+    const prev = other && normMetric(other.metric) === metric ? other.value ?? 0 : 0
     if (prev > 0 && value > prev) {
       out.push({ exerciseId: exId, name: entryName(e) ?? '—', metric, value, prev })
     }

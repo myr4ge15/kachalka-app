@@ -15,7 +15,13 @@ import './index.css'
 // ВАЖНО: в localStorage лежит НЕ голый id, а JSON {id} (см. App.SESSION_KEY),
 // поэтому парсим тем же readStoredUserId — иначе openUserDb получал бы строку
 // '{"id":"…"}' и открывал мусорную базу gym_app_{"id":…}.
-const storedUserId = readStoredUserId(localStorage.getItem('gym_app_user'))
+// Чтение — через try/catch (РЕВЬЮ-КОДА-2026-10-02): в Safari с блокировкой cookie
+// само обращение к localStorage бросает SecurityError, и исключение на верхнем
+// уровне модуля обрывало старт — React не монтировался, заставка висела.
+function readLocal(key) {
+  try { return window.localStorage?.getItem(key) ?? null } catch { return null }
+}
+const storedUserId = readStoredUserId(readLocal('gym_app_user'))
 
 if (storedUserId) {
   // 1. Открываем персональную БД параллельно с загрузкой React.

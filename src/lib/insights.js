@@ -24,7 +24,7 @@ import { myBestByExercise } from './records.js'
 import { detectPlateau } from './progression.js'
 import { currentStreak } from './profileStats.js'
 import { cmpIsoDesc } from './cmp.js'
-import { entryExId, entryMetric, sortDesc } from './entries.js'
+import { entryExId, entryMetric, sortDesc, entryUnitMetric } from './entries.js'
 import { plural } from './plural.js'
 import { byGender } from './gender.js'
 
@@ -118,7 +118,10 @@ function rNewPr(sorted, ctx) {
     const m = entryMetric(e)
     const value = leadingValue(m, e.sets)
     if (value <= 0) continue
-    const prev = others.get(exId)?.value ?? 0
+    // Прежний максимум в другой единице (сменили тип упражнения) — не база для
+    // рекорда (РЕВЬЮ-КОДА-2026-10-02, п. 17).
+    const other = others.get(exId)
+    const prev = other && other.metric === m ? other.value ?? 0 : 0
     if (prev > 0 && value > prev) {
       // «Лучший из» рекордов выбираем по ОТНОСИТЕЛЬНОМУ приросту, а не по сырому
       // value: единицы метрик несравнимы (кг / повторы / секунды), иначе планка
@@ -218,7 +221,9 @@ function rPlateau(sorted, anchor) {
   const recent = []
   for (const w of sorted) {
     const e = (w.entries ?? []).find((x) => entryExId(x) === bench.exId)
-    if (e) recent.push({ sets: e.sets ?? [] })
+    // Сессии в другой единице (до смены типа) в окно плато не берем: их
+    // leadingValue несравним с текущим (РЕВЬЮ-КОДА-2026-10-02, п. 17).
+    if (e && entryUnitMetric(e, bench.metric) === bench.metric) recent.push({ sets: e.sets ?? [] })
   }
   if (recent.length < W) return null
   if (!detectPlateau(recent, bench.metric, { window: W })) return null
@@ -324,7 +329,10 @@ export function pastSelfInsight(sorted, ctx, { minGainPct = 5 } = {}) {
         .filter((w) => w.id !== ctx.id && w.performed_at)
         .map((w) => {
           const elapsed = ctxDay - dayIndex(new Date(w.performed_at))
-          const entry = (w.entries ?? []).find((e) => entryExId(e) === exId)
+          // Запись в другой единице (тип упражнения сменили) несравнима:
+          // «10 кг → 12 повт.» не прогресс (РЕВЬЮ-КОДА-2026-10-02, п. 17).
+          const found = (w.entries ?? []).find((e) => entryExId(e) === exId)
+          const entry = found && entryUnitMetric(found, metric) === metric ? found : null
           return { w, entry, distance: Math.abs(elapsed - period.days), elapsed }
         })
         .filter((x) => x.entry && x.elapsed > 0 && x.distance <= period.tolerance)

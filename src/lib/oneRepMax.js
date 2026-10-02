@@ -1,13 +1,26 @@
 // Расчет предполагаемого максимума «на раз» (1ПМ).
 
+// Потолок повторов для расчетного 1ПМ. Эпли (как и прочие формулы) годится для
+// малых повторений; на многоповторке он улетает: 60 кг × 50 давало «1ПМ» 160 —
+// выше реального тяжелого сингла. Выше потолка 1ПМ не считаем, возвращаем 0 —
+// то же «нет значения», что и для подхода без веса (вызывающие уже понимают 0:
+// Math.max-агрегаты, `orm > rec.orm` в лидерборде). РЕВЬЮ-КОДА-2026-10-02.
+export const ORM_MAX_REPS = 12
+
 // Формула Эпли: 1ПМ = вес * (1 + повторы / 30)
+// Аргументы приводим через Number(): из формы/кэша приходят строки, и
+// '100' + '1' раньше проходили мимо `reps === 1` → 103.5 вместо 100.
 export function epley(weight, reps) {
-  if (reps <= 0 || weight <= 0) return 0
-  if (reps === 1) return weight
-  return weight * (1 + reps / 30)
+  const w = Number(weight)
+  const r = Number(reps)
+  if (!(w > 0) || !(r > 0)) return 0
+  if (r > ORM_MAX_REPS) return 0
+  if (r === 1) return w
+  return w * (1 + r / 30)
 }
 
-// 1ПМ подхода, округленный до 0.5 кг
+// 1ПМ подхода, округленный до 0.5 кг. 0 — расчет не имеет смысла (нет веса/
+// повторов или повторов больше ORM_MAX_REPS).
 export function setOneRepMax(weight, reps) {
   return Math.round(epley(weight, reps) * 2) / 2
 }
@@ -19,5 +32,5 @@ export function setOneRepMax(weight, reps) {
 // (так и сделано в ProgressScreen: orm = weighted ? bestOneRepMax(...) : 0).
 // guard (sets ?? []) — как у прочих хелперов: запись без sets не должна падать.
 export function bestOneRepMax(sets) {
-  return (sets ?? []).reduce((max, s) => Math.max(max, setOneRepMax(s.weight, s.reps)), 0)
+  return (sets ?? []).reduce((max, s) => Math.max(max, setOneRepMax(s?.weight, s?.reps)), 0)
 }

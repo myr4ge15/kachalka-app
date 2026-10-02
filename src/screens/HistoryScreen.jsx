@@ -88,6 +88,10 @@ export default function HistoryScreen({
   const [calendar, setCalendar] = useState(false)
   // Пришли из Ритма (интент календаря) — выход из этой «вылазки» ведет обратно на Главную.
   const [fromRhythm, setFromRhythm] = useState(false)
+  // Тренировку открыли из календаря: { date } — день, на котором он стоял.
+  // «Назад» из нее возвращает календарь на тот же месяц и день, а не в список
+  // (РЕВЬЮ-КОДА-2026-10-02). null — открыли из списка/интента.
+  const [calendarReturn, setCalendarReturn] = useState(null)
   const groups = useMemo(() => availableGroups(list), [list])
   const shown = useMemo(
     () => list.filter((w) => matchesGroup(w.entries, filter)),
@@ -104,6 +108,7 @@ export default function HistoryScreen({
   useEffect(() => {
     if (openCalendar === false) return
     setSelected(null)
+    setCalendarReturn(null)
     setCalendar({ date: openCalendar })
     setFromRhythm(Boolean(onReturn))
     onOpenCalendarConsumed?.()
@@ -119,6 +124,14 @@ export default function HistoryScreen({
     fallback()
   }
   function closeSelected() {
+    if (calendarReturn) {
+      // Вернулись туда, откуда пришли, — в календарь. Флаг Ритма не трогаем:
+      // закрытие календаря после этого по-прежнему ведет в Ритм (v6.3.5).
+      setSelected(null)
+      setCalendar(calendarReturn)
+      setCalendarReturn(null)
+      return
+    }
     backFromRhythmOr(() => setSelected(null))
   }
 
@@ -129,6 +142,7 @@ export default function HistoryScreen({
     if (!openNew) return
     setSelected('new')
     setFromRhythm(false)
+    setCalendarReturn(null)
     onOpenNewConsumed?.()
   }, [openNew, onOpenNewConsumed])
 
@@ -144,6 +158,7 @@ export default function HistoryScreen({
     if (t !== 'history') return
     setSelected(null)
     setFromRhythm(false)
+    setCalendarReturn(null)
     setFinishResult(null)
   }), [])
 
@@ -158,6 +173,7 @@ export default function HistoryScreen({
   function handleSaved(result) {
     setSelected(null)
     setFromRhythm(false)
+    setCalendarReturn(null)
     setFinishResult(result)
     setFinishTemplate({ status: 'idle', message: null })
   }
@@ -232,8 +248,9 @@ export default function HistoryScreen({
           setCalendar(false)
           backFromRhythmOr(() => {})
         }}
-        onOpen={(id) => {
+        onOpen={(id, day) => {
           setCalendar(false)
+          setCalendarReturn({ date: day ?? calendar.date })
           setSelected(id)
         }}
       />

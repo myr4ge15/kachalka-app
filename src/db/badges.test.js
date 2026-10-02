@@ -9,6 +9,7 @@ import { openUserDb, closeUserDb } from './local.js'
 import { uniqueUserId } from '../test/idbHarness.js'
 import { saveWorkout, getBadges } from './repo.js'
 import { getBadgesView, backfillBadges, detectBadgesOnSave } from './badges.js'
+import { updateSyncedMeta, getUserMetaState } from './userMeta.js'
 import { BADGES } from '../lib/badges.js'
 
 const bench = { id: 'ex_bench', name: 'Жим лежа', muscle_group: 'грудь', is_bench_lift: true, metric: 'weight' }
@@ -80,5 +81,27 @@ describe('detectBadgesOnSave', () => {
     expect(toasts.map((d) => d.id)).toContain('reg_10')
     const map = await getBadges(userId)
     expect(map.reg_10.backfilled).toBe(false) // живое получение, не бэкфилл
+  })
+})
+
+// РЕВЬЮ-КОДА-2026-10-02, мелочи: карта бейджей читалась до долгого getWorkouts и
+// писалась после — бейдж, принятый за это время (pull с другого устройства),
+// молча перетирался.
+describe('бейджи: запись не теряет параллельную правку', () => {
+  it('backfill и параллельно пришедший бейдж — оба в карте', async () => {
+    await wk(userId)
+    const remote = { at: '2026-01-01T00:00:00.000Z', backfilled: false }
+    await Promise.all([
+      backfillBadges(userId),
+      updateSyncedMeta(userId, 'badges', (cur) => ({ ...(cur ?? {}), remote_badge: remote })),
+    ])
+    const map = await getBadges(userId)
+    expect(map.remote_badge).toEqual(remote)
+    expect(map.reg_1).toMatchObject({ backfilled: true })
+  })
+
+  it('detectBadgesOnSave без новых вех не пишет и не ставит dirty', async () => {
+    expect(await detectBadgesOnSave(userId)).toEqual([])
+    expect((await getUserMetaState()).badges.dirty).toBe(0)
   })
 })

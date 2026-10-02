@@ -3,6 +3,7 @@
 // Пикер — единственная точка, где умный поиск встречается с фильтром по группе
 // и с предложением «+ Создать». Чистая шкала ранжирования покрыта в
 // lib/exerciseSearch.test.js; здесь — только эта склейка.
+import { useState } from 'react'
 import { describe, it, expect, vi } from 'vitest'
 import { render, screen, fireEvent } from '@testing-library/react'
 import ExercisePicker from './ExercisePicker.jsx'
@@ -112,5 +113,46 @@ describe('ExercisePicker — ⭐ избранные (v6.5.0)', () => {
     expect(await screen.findByText('Жим гантелей сидя')).toBeInTheDocument()
     expect(screen.queryByText('Избранные')).not.toBeInTheDocument()
     expect(screen.getByRole('button', { name: 'Убрать из избранного' })).toBeInTheDocument()
+  })
+
+  // РЕВЬЮ-КОДА-2026-10-02: снятие звезды в «Избранных» уводило строку из-под пальца.
+  it('снятая в «Избранных» звезда оставляет строку на месте до смены запроса', async () => {
+    function Host() {
+      const [favs, setFavs] = useState(['pulldown', 'bench'])
+      const toggle = (id) => setFavs((f) => (f.includes(id) ? f.filter((x) => x !== id) : [id, ...f]))
+      return (
+        <ExercisePicker exercises={CATALOG} favorites={favs} onToggleFavorite={toggle}
+          onPick={vi.fn()} onClose={vi.fn()} usage={{ recent: ['bench'], frequent: [] }} />
+      )
+    }
+    render(<Host />)
+    const favBlock = () => {
+      const rows = []
+      let el = screen.getByText('Избранные').nextElementSibling
+      while (el && !el.classList.contains('group-title')) { rows.push(el); el = el.nextElementSibling }
+      return rows.map((r) => r.textContent)
+    }
+    expect(favBlock()).toEqual(['Тяга верхнего блокаспина', 'Жим лежагрудь'])
+
+    // Снимаем звезду с первой строки — она на месте, звезда пустая, жим не съехал.
+    fireEvent.click(screen.getAllByRole('button', { name: 'Убрать из избранного' })[0])
+    expect(favBlock()).toEqual(['Тяга верхнего блокаспина', 'Жим лежагрудь'])
+    const firstStar = () => screen.getByText('Избранные').nextElementSibling.querySelector('.picker-star')
+    expect(firstStar()).toHaveAttribute('aria-pressed', 'false')
+    // И не задваивается в «Недавних»/«Все».
+    expect(screen.getAllByText('Тяга верхнего блока')).toHaveLength(1)
+
+    // Вернули звезду — строка все там же, а не наверху «свежих».
+    fireEvent.click(firstStar())
+    expect(firstStar()).toHaveAttribute('aria-pressed', 'true')
+    expect(favBlock()).toEqual(['Тяга верхнего блокаспина', 'Жим лежагрудь'])
+
+    // Сняли снова и сменили запрос — блок пересобирается по факту.
+    fireEvent.click(screen.getAllByRole('button', { name: 'Убрать из избранного' })[0])
+    const search = screen.getByPlaceholderText('Поиск по названию…')
+    type(search, 'x')
+    type(search, '')
+    expect(await screen.findByText('Избранные')).toBeInTheDocument()
+    expect(favBlock()).toEqual(['Жим лежагрудь'])
   })
 })

@@ -185,3 +185,27 @@ describe('goalProgress', () => {
     expect(goalProgress(50, undefined)).toBe(0)
   })
 })
+
+// РЕВЬЮ-КОДА-2026-10-02, п. 17: старые тренировки хранят старый снимок упражнения.
+describe('после смены типа / переименования упражнения', () => {
+  const list = [
+    wk('w2', '2026-01-10T10:00:00Z', [{ exercise_id: 'pu', exercise: { id: 'pu', name: 'Отжимания', metric: 'reps' }, sets: [{ weight: 0, reps: 12 }] }]),
+    wk('w1', '2026-01-05T10:00:00Z', [{ exercise_id: 'pu', exercise: { id: 'pu', name: 'Отжимания с весом', metric: 'weight' }, sets: [{ weight: 10, reps: 15 }, { weight: 10, reps: 15 }] }]),
+  ]
+  it('currentBestValue: «10 кг × 15» не дает 15 повторов к цели на повторы', () => {
+    expect(currentBestValue(list, 'pu', 'reps')).toBe(12)
+  })
+  it('currentBest (кг): подходы reps-эпохи не учитываются', () => {
+    const rev = [
+      wk('a', '2026-01-01T10:00:00Z', [{ exercise_id: 'x', exercise: { id: 'x', metric: 'reps' }, sets: [{ weight: 50, reps: 10 }] }]),
+      wk('b', '2026-01-05T10:00:00Z', [{ exercise_id: 'x', exercise: { id: 'x', metric: 'weight' }, sets: [{ weight: 20, reps: 10 }] }]),
+    ]
+    expect(currentBest(rev, 'x')).toBe(20)
+  })
+  it('favExercise и personalRecords: имя — из свежего снимка', () => {
+    expect(favExercise(list).name).toBe('Отжимания')
+    expect(personalRecords(list)).toEqual([
+      expect.objectContaining({ exId: 'pu', name: 'Отжимания', metric: 'reps', value: 12 }),
+    ])
+  })
+})

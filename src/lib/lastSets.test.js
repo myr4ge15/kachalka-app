@@ -65,3 +65,19 @@ describe('pickLastSets', () => {
     expect(pickLastSets([wk('w', '2026-01-01', [])], '')).toBe(null)
   })
 })
+
+// РЕВЬЮ-КОДА-2026-10-02, п. 17: после смены типа старый снимок «10 кг × 8» не
+// должен предзаполнять форму упражнения на повторы.
+describe('pickLastSets с текущей метрикой', () => {
+  const list = [
+    wk('new', '2026-01-10T10:00:00Z', [{ exercise_id: 'pu', exercise: { id: 'pu', metric: 'weight' }, sets: [{ weight: 10, reps: 8 }] }]),
+    wk('old', '2026-01-05T10:00:00Z', [{ exercise_id: 'pu', exercise: { id: 'pu', metric: 'reps' }, sets: [{ weight: 0, reps: 15 }] }]),
+  ]
+  it('metric задан → записи в другой единице пропускаются', () => {
+    expect(pickLastSets(list, 'pu', 'reps')).toEqual([{ weight: 0, reps: 15 }])
+    expect(pickLastSets(list.slice(0, 1), 'pu', 'reps')).toBeNull()
+  })
+  it('без metric — старое поведение (самая свежая)', () => {
+    expect(pickLastSets(list, 'pu')).toEqual([{ weight: 10, reps: 8 }])
+  })
+})

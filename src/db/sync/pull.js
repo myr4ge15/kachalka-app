@@ -147,8 +147,9 @@ export async function pull(userId, justPushed = new Set(), d = db, opts = {}) {
   // реджектила Promise.all — иначе оставшиеся in-flight подтяжки после первого
   // реджекта дали бы unhandled rejection. Разбираем результат сами ниже.
   const wrap = (p) => p.then((w) => ({ ok: true, w })).catch((e) => ({ ok: false, e }))
+  const changedExerciseIds = new Set()
   const [ex, ros, , wk, tpl] = await Promise.all([
-    wrap(pullExercises(d)),
+    wrap(pullExercises(d, changedExerciseIds)),
     wrap(pullRoster()), // ростер и его сигнатура — в общей loginDb, `d` не нужен
     wrap(pullPrivacyFlag(userId, d)), // best-effort, warnings не копит
     wrap(pullWorkouts(userId, justPushed, d, opts)),
@@ -167,11 +168,57 @@ export async function pull(userId, justPushed = new Set(), d = db, opts = {}) {
     if (r.ok) warnings.push(...(r.w ?? []))
     else warnings.push(String(r.e?.message ?? r.e))
   }
+  if (changedExerciseIds.size) {
+    try {
+      warnings.push(...await refreshWorkoutsForExercises(userId, changedExerciseIds, d))
+    } catch (e) {
+      warnings.push('история не обновлена после правки упражнения: ' + String(e?.message ?? e))
+    }
+  }
+  return warnings
+}
+
+// Тренировки хранят СНИМОК упражнения (имя, тип, мышцы) внутри документа, а pull
+// тренировок инкрементальный по их собственному updated_at. Слияние дублей,
+// переименование и смена типа в админке тренировки не трогают — и уже скачанные
+// документы жили со старым снимком бессрочно: рекорды расщеплялись на два id,
+// правка такой тренировки отправляла скрытый дубль обратно и откатывала слияние
+// (РЕВЬЮ-КОДА-2026-10-02, п. 17). Сдвигать updated_at тренировок на сервере нельзя —
+// на workouts висят триггеры Telegram и пушей (старые рекорды объявились бы заново).
+// Поэтому клиент сам перечитывает по id свои чистые тренировки с изменившимися
+// упражнениями. Грязные (правка ждет отправки) не трогаем — их снимок обновит
+// ближайший pull после push.
+async function refreshWorkoutsForExercises(userId, exerciseIds, d = db) {
+  const warnings = []
+  const affected = await d.workouts
+    .where('user_id').equals(userId)
+    .filter((w) => !w._dirty && !w._deleted && (w.entries ?? []).some((e) => exerciseIds.has(e.exercise_id ?? e.exercise?.id)))
+    .toArray()
+  const seen = new Map(affected.map((w) => [w.id, w.updated_at]))
+  const ids = [...seen.keys()]
+  for (let i = 0; i < ids.length; i += HEAL_CHUNK) {
+    const chunk = ids.slice(i, i + HEAL_CHUNK)
+    const res = await withTimeout(
+      supabase.from('workouts').select(SELECT_WORKOUT).eq('user_id', userId).in('id', chunk)
+    )
+    if (res.error) {
+      warnings.push('история не обновлена после правки упражнения: ' + (res.error.message ?? res.error))
+      break
+    }
+    await d.transaction('rw', d.workouts, async () => {
+      for (const row of res.data ?? []) {
+        const cur = await d.workouts.get(row.id)
+        // Пока шел запрос, тренировку правили локально — оставляем правку.
+        if (!cur || cur._dirty || cur._deleted || cur.updated_at !== seen.get(row.id)) continue
+        await d.workouts.put(rowToDoc(row))
+      }
+    })
+  }
   return warnings
 }
 
 // --------------------------- pull: справочник ------------------------------
-async function pullExercises(d = db) {
+async function pullExercises(d = db, changedExerciseIds = new Set()) {
   const warnings = []
   // справочник упражнений. Инкрементально: сперва дешевая проба самого свежего
   // updated_at (1 строка). Не вырос с прошлого раза → пропускаем целиком (ни
@@ -188,7 +235,8 @@ async function pullExercises(d = db) {
       .order('updated_at', { ascending: false, nullsFirst: false }).limit(1)
   )
   const exServerMax = exProbe.error ? null : (exProbe.data?.[0]?.updated_at ?? null)
-  const exChanged = exProbe.error ? true : changedSince(exServerMax, await getMeta(WM_EXERCISES, d))
+  const prevWm = await getMeta(WM_EXERCISES, d)
+  const exChanged = exProbe.error ? true : changedSince(exServerMax, prevWm)
   if (exChanged) {
     // НЕ затираем локально созданные упражнения, которые еще не доехали до сервера
     // (_dirty=1) — иначе свое упражнение пропадет из пикера до завершения синка.
@@ -217,6 +265,13 @@ async function pullExercises(d = db) {
           if (serverExIds.has(e.id) && !keep.has(e.id))
             for (const o of ops) if (o.exerciseId === e.id) await d.ex_outbox.delete(o.seq)
       })
+      // Какие упражнения изменились на сервере с прошлого прогона (переименование,
+      // смена типа, слияние дубля — у скрытого дубля is_hidden тоже двигает
+      // updated_at). Первый прогон (метки нет) — не считаем: тренировки и так
+      // приедут целиком со свежими снимками.
+      if (prevWm) {
+        for (const e of ex.data) if (e.updated_at && changedSince(e.updated_at, prevWm)) changedExerciseIds.add(e.id)
+      }
       // watermark = max по фактически принятым строкам (safe против лага реплики:
       // если проба видела свежее, чем refetch, следующий прогон дотянет).
       await setMeta(WM_EXERCISES, maxUpdatedAt(ex.data) ?? exServerMax, d)

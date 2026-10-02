@@ -613,8 +613,14 @@ input { font-family: inherit; }
 .exercise-head { display: flex; justify-content: space-between; align-items: center; gap: 8px; }
 .exercise-title { min-width: 0; display: flex; align-items: center; gap: 7px; }
 .exercise-name { font-weight: 600; font-size: 16px; overflow-wrap: anywhere; }
-.exercise-actions { display: flex; align-items: center; gap: 6px; flex-shrink: 0; }
-.exercise-actions .link-btn { font-size: 13px; font-weight: 600; color: var(--acc-2); padding: 10px 2px; }
+.exercise-actions { display: flex; align-items: center; gap: 12px; flex-shrink: 0; }
+/* Зона тапа 44px (РЕВЬЮ-КОДА-2026-10-02): было ~36, а «убрать» — разрушительное
+   действие вплотную к «заменить». Высоту добираем отрицательным margin-block,
+   чтобы шапка карточки не выросла; зазор между кнопками увеличен до 12px. */
+.exercise-actions .link-btn {
+  font-size: 13px; font-weight: 600; color: var(--acc-2);
+  min-height: 44px; margin-block: -4px; padding: 0 4px;
+}
 .exercise-actions .link-btn.danger { color: var(--red); }
 
 /* Свернутое упражнение — одна строка-кнопка. */
@@ -657,6 +663,14 @@ input { font-family: inherit; }
   color: var(--muted); font-size: 19px; font-weight: 600; cursor: pointer;
 }
 .stepper button:active { color: var(--acc-2); background: var(--acc-soft); }
+/* Зона тапа «−/+» добрана до 44px невидимо (РЕВЬЮ-КОДА-2026-10-02): на 2px наружу
+   (половина зазора до соседа) и на 4px внутрь — на край поля ввода, где цифр нет.
+   Видимая раскладка степпера не меняется. position:relative поднимает кнопку
+   над полем ввода, поэтому край поля отдается кнопке. */
+.stepper button { position: relative; }
+.stepper button::before { content: ''; position: absolute; top: 0; bottom: 0; }
+.stepper button:first-child::before { left: -2px; right: -4px; }
+.stepper button:last-child::before { left: -4px; right: -2px; }
 .stepper input {
   width: 100%; min-width: 0; height: 44px; padding: 0; border: 0; background: none;
   color: var(--text); text-align: center; outline: none;
@@ -668,11 +682,16 @@ input { font-family: inherit; }
 .stepper input[type=number] { -moz-appearance: textfield; appearance: textfield; }
 
 /* ✕ удаления подхода: приглушен и у правого края, подальше от «+» степпера;
-   промах подстрахован undo-тостом. Зона тапа — вся ячейка 30×44. */
+   промах подстрахован undo-тостом. Видимая ячейка 30×44, а зона тапа добрана
+   до 44×44 невидимым ::before вправо — в поле карточки (РЕВЬЮ-КОДА-2026-10-02).
+   По вертикали НЕ расширяем: соседние ✕ не должны делить межстрочный зазор
+   (это проверяет e2e smoke), влево — почти не лезем: там «+» степпера. */
 .set-rm {
+  position: relative;
   width: 30px; height: 44px; border: 0; background: none; color: var(--muted);
   display: grid; place-items: center; cursor: pointer;
 }
+.set-rm::before { content: ''; position: absolute; top: 0; bottom: 0; left: -2px; right: -12px; }
 .set-rm:active { color: var(--red); }
 
 .set-add {
@@ -736,6 +755,9 @@ input { font-family: inherit; }
   transition: transform var(--dur-fast) var(--ease-out);
 }
 .feel-btn:active { transform: scale(.94); }
+/* Зона тапа 44px без роста кнопки (РЕВЬЮ-КОДА-2026-10-02). */
+.feel-btn { position: relative; }
+.feel-btn::before { content: ''; position: absolute; inset: -2px 0; }
 .feel-btn.feel-easy.on { background: var(--green); color: #052014; }
 .feel-btn.feel-ok.on { background: var(--acc); color: var(--on-acc); }
 .feel-btn.feel-hard.on { background: var(--yellow); color: #2a2000; }
@@ -839,6 +861,13 @@ input { font-family: inherit; }
   border: 1px solid var(--border); background: var(--surface); color: var(--muted); font-size: 14px;
 }
 .chip.active { background: linear-gradient(135deg, var(--g1), var(--g2)); color: var(--on-acc); border-color: transparent; }
+/* Видимая высота чипа 36px, зона тапа — 44px (РЕВЬЮ-КОДА-2026-10-02): по 5px
+   вверх/вниз (от паддинг-бокса 34px) в паддинг .chips (12px) — в пределах
+   прокрутки, не обрезается. В .chips.wrap зазор рядов 8px — по 4px, чтобы
+   соседние ряды не делили зону (там выходит 42px — компромисс). */
+.chip { position: relative; }
+.chip::before { content: ''; position: absolute; inset: -5px 0; }
+.chips.wrap .chip::before { inset: -4px 0; }
 /* Многострочный ряд чипов (для длинных списков — напр. вторичные мышцы) */
 .chips.wrap { flex-wrap: wrap; overflow: visible; }
 /* Приглушенная приписка группы у чипа вторичной мышцы (напр. «трицепс · трицепс») */
@@ -1274,7 +1303,8 @@ html[data-update]:not([data-composer]) .content { padding-top: 64px; }
 }
 .update-banner-go:active { filter: brightness(.9); }
 .update-banner-close {
-  flex-shrink: 0; width: 36px; height: 36px; padding: 0; border: none; border-radius: 999px;
+  /* 44px зона тапа (РЕВЬЮ-КОДА-2026-10-02); -4px поля — плашка не растет. */
+  flex-shrink: 0; width: 44px; height: 44px; margin: -4px; padding: 0; border: none; border-radius: 999px;
   background: none; color: var(--muted); font-size: 22px; line-height: 1; cursor: pointer;
 }
 .update-banner-close:active { background: var(--border); }
@@ -1520,6 +1550,9 @@ img.avatar-lg.has-img {
   color: var(--text); font-size: 15px; line-height: 1; cursor: pointer;
 }
 .reaction-btn:active { background: var(--border); }
+/* Зона тапа ≥44px без роста «таблетки» (РЕВЬЮ-КОДА-2026-10-02): по 3px из 8px зазора. */
+.reaction-btn { position: relative; }
+.reaction-btn::before { content: ''; position: absolute; inset: -3px 0; }
 .reaction-btn.static { cursor: default; }
 .reaction-btn.static:active { background: var(--surface-2); }
 .reaction-btn.mine { border-color: color-mix(in srgb, var(--acc) 60%, transparent); background: var(--acc-soft); }
@@ -1545,7 +1578,15 @@ img.avatar-lg.has-img {
   min-height: 52px; padding: 8px 8px; border-radius: 12px;
 }
 .lb-row + .lb-row { border-top: 1px solid var(--border); }
-.lb-row-link { cursor: pointer; }
+/* Строка-ссылка: раскладку держит кнопка внутри li (РЕВЬЮ-КОДА-2026-10-02),
+   li остается носителем фона/рамки/«меня». */
+.lb-row-link { padding: 0; }
+.lb-row-hit {
+  flex: 1; min-width: 0; display: flex; align-items: center; gap: 10px;
+  min-height: 52px; padding: 8px 8px; border: 0; border-radius: inherit;
+  background: none; color: inherit; font: inherit; text-align: left; cursor: pointer;
+}
+.lb-row-hit:focus-visible { outline: 2px solid var(--acc-2); outline-offset: -2px; }
 .lb-row-link:active { background: var(--surface-2); }
 .lb-row.me { background: var(--acc-soft); box-shadow: inset 0 0 0 1.5px color-mix(in srgb, var(--acc) 55%, transparent); }
 .lb-row.me + .lb-row, .lb-row + .lb-row.me { border-top-color: transparent; }
@@ -1804,6 +1845,10 @@ img.avatar-lg.has-img {
 .goal-sub.achieved { color: var(--green); font-weight: 600; }
 .goal-edit { margin-top: 10px; background: none; border: none; color: var(--acc-2); font-weight: 600; font-size: 13px; padding: 6px 0; min-height: 32px; }
 .goal-edit.set { margin-top: 0; }
+/* Зона тапа 44px (РЕВЬЮ-КОДА-2026-10-02): +6px сверху и снизу съедаем полями,
+   чтобы карточка цели не выросла. */
+.goal-edit { min-height: 44px; margin-top: 4px; margin-bottom: -6px; }
+.goal-edit.set { margin-top: -6px; }
 
 /* редактор цели */
 .goal-editor .field { display: block; margin-bottom: 13px; }
@@ -1962,6 +2007,8 @@ label.act.busy { opacity: .55; pointer-events: none; }
   justify-content: center; font-weight: 600;
 }
 .act.logout:active { background: color-mix(in srgb, var(--red) 12%, transparent); }
+/* Идет выход (до ~7 с) — видно, что нажатие принято (РЕВЬЮ-КОДА-2026-10-02). */
+.act.logout:disabled { opacity: .6; cursor: progress; }
 
 /* форма смены PIN (фаза 2c) */
 .pin-form {
@@ -1987,7 +2034,9 @@ label.act.busy { opacity: .55; pointer-events: none; }
 .prof-name .txt { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .name-edit {
   flex-shrink: 0; background: none; border: none; color: var(--muted);
-  font-size: 16px; line-height: 1; padding: 4px; min-height: 32px; min-width: 32px;
+  font-size: 16px; line-height: 1; padding: 4px; min-height: 44px; min-width: 44px;
+  /* 44px зона тапа (РЕВЬЮ-КОДА-2026-10-02); -6px поля — строка имени не растет. */
+  margin: -6px;
 }
 .name-edit:active { color: var(--acc-2); }
 .name-editor { display: flex; flex-direction: column; gap: 8px; }
@@ -2045,11 +2094,14 @@ label.act.busy { opacity: .55; pointer-events: none; }
   .card { padding: 14px; }
   .exercise-card, .history-card, .feed-card { padding: 12px; }
   /* еще сильнее поджимаем степперы, чтобы цифры влезали на маленьких телефонах.
-     Столбец отметки выполнения жмем вместе со всеми — зона тапа держится на
-     ::after (высота кнопки 44px тут не меняется). */
+     Столбец ✕ жмем вместе со всеми — зона тапа держится на ::before (вправо до
+     поля карточки, та же ширина 30+2+12=44; высота 44px тут не меняется). */
   .sets-head, .set-row { grid-template-columns: 24px 1fr 1fr 24px; gap: 5px; }
   .exercise-card.count .sets-head, .exercise-card.count .set-row { grid-template-columns: 24px 1fr 24px; }
-  .stepper button { width: 30px; font-size: 18px; }
+  /* Кнопка «−/+» занимает весь столбец степпера (38px): прежние width:30px
+     оставляли в столбце мертвую полосу 8px, и с ::before зона была бы <44
+     (РЕВЬЮ-КОДА-2026-10-02). */
+  .stepper button { font-size: 18px; }
   .profile .stat-num { font-size: 22px; }
 }
 
@@ -2976,6 +3028,7 @@ label.act.busy { opacity: .55; pointer-events: none; }
 .cal-day.picked:not(.trained) { background: var(--surface-2); color: var(--text); }
 .cal-day.trained.picked { box-shadow: 0 0 0 2px var(--bg), 0 0 0 3px var(--muted); }
 .cal-day.future { opacity: .35; cursor: default; }
+.cal-day::before { content: ''; position: absolute; inset: -2px; border-radius: 50%; } /* 44px зона тапа (РЕВЬЮ-КОДА-2026-10-02) */
 .cal-day:focus-visible { outline: 2px solid var(--acc-2); outline-offset: 2px; }
 .cal-multi {
   position: absolute; top: -3px; right: -3px; min-width: 17px; height: 17px; padding: 0 4px;

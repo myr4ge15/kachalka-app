@@ -56,9 +56,12 @@ function subscribe(l) {
   return () => listeners.delete(l)
 }
 const getSnapshot = () => state
+// Снимок состояния вне React (тесты; UI читает через useSyncStatus).
+export const getSyncState = getSnapshot
 
 // --------------------------- оркестрация -----------------------------------
 let running = false
+let runningFor = null // учетка идущего прогона (для заказа повтора)
 
 // Тихий перевыпуск сессии из syncNow — не чаще раза в REVIVE_EVERY_MS.
 const REVIVE_EVERY_MS = 60000
@@ -77,14 +80,59 @@ async function reviveSession(userId) {
   return hasSession(userId)
 }
 
+// Повторный прогон (РЕВЬЮ-КОДА-2026-10-02, мелочи): вызов syncNow во время уже
+// идущего прогона раньше молча отбрасывался — сохранение тренировки или реакция,
+// сделанные, пока шел прогон (а он идет секунды), ждали следующего поллинга 20–60 с.
+// Теперь такой вызов запоминается: по завершении текущего прогона делаем РОВНО ОДИН
+// еще (флаг, а не очередь — один прогон забирает все, что накопилось). Только для
+// той же учетки: вызов от другой учетки (смена посреди прогона) не наследуется —
+// ее startSync сам запустит свой первый прогон.
+let rerunFor = null
+
+// Поколение состояния синка. startSync (новый вход/смена учетки) сбрасывает
+// lastError/netError/lastSyncAt и увеличивает поколение; прогон прежнего поколения,
+// досиживающий свой сетевой await, не должен вернуть в шапку ошибку старой учетки.
+let epoch = 0
+
 // Полный цикл: сначала отдаем локальные изменения, затем забираем серверные.
 // Возвращает: true — прогон прошел (для сброса backoff поллинга), false — сбой
 // (для роста интервала), undefined — прогон пропущен (офлайн/нет сессии/уже идет).
 export async function syncNow(userId) {
-  if (!isConfigured || !navigator.onLine || running || !userId) return
+  if (!isConfigured || !navigator.onLine || !userId) return
+  if (running) {
+    // Прогон уже идет: этот вызов ответа не ждет (undefined, как раньше), но
+    // заказывает еще один прогон сразу после текущего — см. rerunFor.
+    if (userId === runningFor) rerunFor = userId
+    return
+  }
   // Персональная база еще не открыта (или уже закрыта после выхода) — синкать
   // некуда. Страховка от запоздалого таймера/события после logout.
   if (!db) return
+  // Гард `running` ставим СИНХРОННО, до первого await: раньше между проверкой и
+  // `running = true` стоял `await hasSession()`, и два вызова подряд (startSync
+  // зовет syncNow сразу и еще раз по INITIAL_SESSION) оба проходили гард — два
+  // параллельных прогона слали каждую операцию дважды и вдвое быстрее доводили ее
+  // до dead-letter (РЕВЬЮ-КОДА-2026-10-02, п. 7).
+  running = true
+  runningFor = userId
+  rerunFor = null
+  try {
+    let res = await runOnce(userId)
+    // Повтор — только после УСПЕШНОГО прогона: после сбоя сети/без сессии новый
+    // прогон тут же упадет так же, его забота — поллинг с backoff.
+    while (res === true && rerunFor === userId && db && navigator.onLine) {
+      rerunFor = null
+      res = await runOnce(userId)
+    }
+    return res
+  } finally {
+    running = false
+    runningFor = null
+    rerunFor = null
+  }
+}
+
+async function runOnce(userId) {
   // ЗАХВАТ инстанса персональной базы на входе. Модульная привязка `db` — живая:
   // если пользователь сменит учетку посреди сетевого await (push/pull делают
   // supabase.rpc между записями), `db` укажет на базу другой учетки, и записи A
@@ -93,18 +141,15 @@ export async function syncNow(userId) {
   // (старый инстанс) уже закрыт → запись бросит DatabaseClosedError, прогон
   // аборнется в catch, чужая база не тронута.
   const d = db
+  if (!d) return
+  // Ошибки/метки этого прогона пишем, только пока не сменилось поколение (см. epoch).
+  const myEpoch = epoch
+  const put = (patch) => { if (myEpoch === epoch) setState(patch) }
   // Не синкаем, пока не поднята настоящая сессия: pull/push защищенных таблиц
   // ролью `anon` ловят «permission denied» (баг ленты при первом входе). Как
   // только сессия появится, прогон вызовет ре-триггер по onAuthStateChange.
   // Сессия ДРУГОЙ учетки (см. hasSession) — тоже «нет сессии»: иначе личные
   // данные этого пользователя уехали бы под чужим JWT.
-  //
-  // Гард `running` ставим СИНХРОННО, до первого await: раньше между проверкой и
-  // `running = true` стоял `await hasSession()`, и два вызова подряд (startSync
-  // зовет syncNow сразу и еще раз по INITIAL_SESSION) оба проходили гард — два
-  // параллельных прогона слали каждую операцию дважды и вдвое быстрее доводили ее
-  // до dead-letter (РЕВЬЮ-КОДА-2026-10-02, п. 7).
-  running = true
   let started = false
   try {
     if (!(await hasSession(userId))) {
@@ -122,7 +167,7 @@ export async function syncNow(userId) {
     // останутся в персональной базе и уедут после входа.
     const who = await serverIdentity()
     if (who.known && who.id !== String(userId)) {
-      setState({ lastError: 'Сессия завершена на сервере — войди заново', netError: true })
+      put({ lastError: 'Сессия завершена на сервере — войди заново', netError: true })
       try { await supabase.auth.signOut({ scope: 'local' }) } catch { /* уже вышли */ }
       return false
     }
@@ -172,18 +217,18 @@ export async function syncNow(userId) {
       ...(metaWarn ? [metaWarn] : []),
     ]
     // Прогон дошел до конца (частичные warning'и — не сбой) → netError сброшен.
-    setState({ lastError: allWarn.length ? allWarn.join('; ') : null, lastSyncAt: at, netError: false })
+    put({ lastError: allWarn.length ? allWarn.join('; ') : null, lastSyncAt: at, netError: false })
     // Прогон дошел до конца (частичные warning'и — не сбой, lastSyncAt обновлен):
     // возвращаем true, чтобы backoff поллинга сбросился в базовый интервал.
     return true
   } catch (err) {
     // Прогон упал целиком (push/pull бросили) → netError=true: шапка покажет
     // предупреждение вместо ложной галочки «синхронизировано».
-    setState({ lastError: String(err?.message ?? err), netError: true })
+    put({ lastError: String(err?.message ?? err), netError: true })
     // Сбой прогона → false: поллинг растянет интервал (см. lib/backoff.js).
     return false
   } finally {
-    running = false
+    // syncing снимаем всегда (и для прогона прежнего поколения), иначе индикатор залипнет.
     if (started) setState({ syncing: false, online: navigator.onLine })
   }
 }
@@ -198,6 +243,11 @@ export function startSync(getUserId) {
   // а подряд идущие ошибки синка растягивают его до потолка; первый успех сбрасывает
   // к базовому. Поэтому таймер — самоперепланируемый setTimeout, а не фиксированный
   // setInterval: интервал следующего прогона зависит и от статуса, и от числа сбоев.
+  // Новый вход (в т.ч. другой учетки): состояние прошлой сессии синка — не наше.
+  // Раньше учетка B до своего первого прогона видела в шапке ошибку/метку учетки A
+  // (РЕВЬЮ-КОДА-2026-10-02, мелочи). Прогоны прежнего поколения его уже не тронут.
+  epoch++
+  setState({ lastError: null, netError: false, lastSyncAt: null })
   let timer = null
   let baseMs = pollIntervalFor(false)
   let failures = 0

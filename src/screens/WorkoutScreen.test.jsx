@@ -8,6 +8,7 @@ import { detectInsightsOnSave } from '../db/insights.js'
 import { detectBadgesOnSave } from '../db/badges.js'
 import { readDraft, resetDraftMemory, writeDraft } from '../lib/draftStore.js'
 import WorkoutScreen from './WorkoutScreen.jsx'
+import Toast from '../components/Toast.jsx'
 
 vi.mock('dexie-react-hooks', () => ({
   useLiveQuery: vi.fn((_query, _deps, fallback) => fallback),
@@ -265,6 +266,39 @@ describe('WorkoutScreen', () => {
     await waitFor(() => expect(saveWorkout).toHaveBeenCalledOnce())
     expect(vi.mocked(saveWorkout).mock.calls[0][0].entries[0].sets)
       .toEqual([{ weight: 60, reps: 8, _k: expect.anything() }])
+  })
+
+  // РЕВЬЮ-КОДА-2026-10-02: у тоста один слот — раньше «Отменить» возвращало только
+  // последний из удаленных подряд подходов.
+  it('«Отменить» возвращает все подходы, удаленные подряд, на исходные места', async () => {
+    writeDraft(`workout_draft_new_${user.id}`, [{
+      ...draft[0],
+      sets: [
+        { weight: 60, reps: 8, _k: 'a' },
+        { weight: 65, reps: 6, _k: 'b' },
+        { weight: 70, reps: 4, _k: 'c' },
+      ],
+    }])
+    render(<><WorkoutScreen user={user} /><Toast /></>)
+    const reps = () => screen.getAllByRole('spinbutton')
+      .map((el) => el.value).filter((v) => ['8', '6', '4'].includes(v))
+
+    expect(reps()).toEqual(['8', '6', '4'])
+    fireEvent.click(screen.getByRole('button', { name: 'Удалить подход 2' }))
+    expect(screen.getByText('Подход удален')).toBeInTheDocument()
+    fireEvent.click(screen.getByRole('button', { name: 'Удалить подход 1' }))
+    expect(screen.getByText('Подходов удалено: 2')).toBeInTheDocument()
+    expect(reps()).toEqual(['4'])
+
+    fireEvent.click(screen.getByRole('button', { name: 'Отменить' }))
+    expect(reps()).toEqual(['8', '6', '4'])
+    expect(screen.queryByText(/Подходов удалено/)).toBeNull()
+
+    // Серия закрыта вместе с тостом: новое удаление начинает ее заново.
+    fireEvent.click(screen.getByRole('button', { name: 'Удалить подход 3' }))
+    expect(screen.getByText('Подход удален')).toBeInTheDocument()
+    fireEvent.click(screen.getByRole('button', { name: 'Отменить' }))
+    expect(reps()).toEqual(['8', '6', '4'])
   })
 
   it('в правке добавленный подход сохраняется', async () => {

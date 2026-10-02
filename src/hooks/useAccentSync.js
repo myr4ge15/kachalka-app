@@ -16,8 +16,15 @@ import {
 //  • Своего значения нет, а на устройстве лежит цвет чужой учетки (или «ничей»
 //    из старой версии) — возвращаем вольт, а не показываем чужой цвет.
 // Примененное кладем в localStorage с владельцем — сплэш следующего запуска.
+// Safari с блокировкой cookie бросает SecurityError уже на ОБРАЩЕНИЕ к
+// localStorage (даже под typeof) — а хук зовется в каждом рендере App, и без
+// try/catch падал весь интерфейс (РЕВЬЮ-КОДА-2026-10-02). Нет хранилища — null.
+function defaultStorage() {
+  try { return typeof localStorage !== 'undefined' ? localStorage : null } catch { return null }
+}
+
 export function useAccentSync(userId, {
-  storage = typeof localStorage !== 'undefined' ? localStorage : null,
+  storage = defaultStorage(),
   root = typeof document !== 'undefined' ? document.documentElement : null,
 } = {}) {
   const remote = useLiveQuery(() => (userId ? getAccentPref(userId) : null), [userId], undefined)

@@ -10,6 +10,29 @@ const FOCUSABLE = [
   '[tabindex]:not([tabindex="-1"])',
 ].join(',')
 
+// Стек открытых листов: Escape закрывает только верхний (лист поверх листа —
+// например, подтверждение поверх пикера), а не все разом.
+const openStack = []
+// Узлы, которым inert поставили МЫ: снимаем только их, чужой inert не трогаем.
+const frozenByUs = new Set()
+
+// Фон под листом — inert (РЕВЬЮ-КОДА-2026-10-02): aria-modal сам по себе не мешает
+// скринридеру и Tab-у уйти в приложение под затемнением. Замораживаем всех соседей
+// ВЕРХНЕГО листа в body (включая нижние листы) и пересчитываем при каждом
+// открытии/закрытии — так два листа, смонтированные одним коммитом, не
+// замораживают друг друга.
+function syncInert() {
+  frozenByUs.forEach((el) => el.removeAttribute('inert'))
+  frozenByUs.clear()
+  const top = openStack[openStack.length - 1]?.overlay
+  if (!top?.parentNode) return
+  for (const el of top.parentNode.children) {
+    if (el === top || el.hasAttribute('inert')) continue
+    el.setAttribute('inert', '')
+    frozenByUs.add(el)
+  }
+}
+
 // Общая семантика нижнего листа: modal dialog, Escape, удержание фокуса и
 // возврат на кнопку-источник после закрытия. Визуальная геометрия остается у
 // существующих .overlay/.sheet в index.css.
@@ -27,30 +50,50 @@ export default function SheetDialog({
   // поля раньше useEffect, и чтение activeElement внутри эффекта уже вернуло бы
   // само поле диалога вместо кнопки, которая его открыла.
   const returnToRef = useRef(typeof document !== 'undefined' ? document.activeElement : null)
+  const overlayRef = useRef(null)
+
+  function dismiss() {
+    if (!dismissDisabled) onDismiss?.()
+  }
+  // Последняя версия dismiss для слушателя на document: он вешается один раз,
+  // а onDismiss/dismissDisabled меняются между рендерами.
+  const dismissRef = useRef(dismiss)
+  useEffect(() => { dismissRef.current = dismiss })
 
   useEffect(() => {
     const returnTo = returnToRef.current
     const sheet = sheetRef.current
+    const overlay = overlayRef.current
     const initial = sheet?.querySelector('[data-autofocus]') ?? sheet?.querySelector(FOCUSABLE)
     // React уже применяет autoFocus дочернего поля во время commit. Не фокусируем
     // его повторно из эффекта: в iOS PWA второй программный focus может оставить
     // вложенный scroll-контейнер листа без touch-scroll до реального тапа по полю.
     if (!sheet?.contains(document.activeElement)) initial?.focus()
+
+    // Escape — на document, а не на оверлее (РЕВЬЮ-КОДА-2026-10-02): если фокус
+    // потерялся (тап по пустому месту листа, body после удаления узла), keydown
+    // до оверлея не доходил и лист не закрывался.
+    const token = { overlay }
+    openStack.push(token)
+    syncInert()
+    function onDocKeyDown(event) {
+      if (event.key !== 'Escape' || openStack[openStack.length - 1] !== token) return
+      event.preventDefault()
+      dismissRef.current()
+    }
+    document.addEventListener('keydown', onDocKeyDown)
+
     return () => {
+      document.removeEventListener('keydown', onDocKeyDown)
+      const at = openStack.indexOf(token)
+      if (at !== -1) openStack.splice(at, 1)
+      // Сначала снимаем inert: в inert-поддереве фокус не ставится.
+      syncInert()
       if (returnTo instanceof HTMLElement && returnTo.isConnected) returnTo.focus()
     }
   }, [])
 
-  function dismiss() {
-    if (!dismissDisabled) onDismiss?.()
-  }
-
   function onKeyDown(event) {
-    if (event.key === 'Escape') {
-      event.preventDefault()
-      dismiss()
-      return
-    }
     if (event.key !== 'Tab') return
     const focusable = [...(sheetRef.current?.querySelectorAll(FOCUSABLE) ?? [])]
     if (!focusable.length) {
@@ -70,7 +113,7 @@ export default function SheetDialog({
   }
 
   return createPortal(
-    <div className="overlay" onClick={dismiss} onKeyDown={onKeyDown}>
+    <div ref={overlayRef} className="overlay" onClick={dismiss} onKeyDown={onKeyDown}>
       <div
         ref={sheetRef}
         className={className ? `sheet ${className}` : 'sheet'}

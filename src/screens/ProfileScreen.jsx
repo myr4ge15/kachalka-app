@@ -4,18 +4,17 @@ import { useLiveQuery } from 'dexie-react-hooks'
 import {
   getWorkouts, getCachedUser, setCachedAvatar, setCachedName, setCachedSex, softDeleteMyWorkouts,
   deadLetterCount, retryDeadLetter, discardDeadLetter,
-  getProgSettings, setProgEnabled,
-} from '../db/repo.js'
+  getProgSettings, setProgEnabled, getPrivacyFlag } from '../db/repo.js'
 import { readGoals, writeGoals } from '../db/notifications.js'
 import { exportAllMyData, importAllMyData } from '../db/backup.js'
 import { describeImport, BackupError } from '../lib/backup.js'
 import { syncNow } from '../db/sync.js'
 import { getCachedLeaderboard } from '../db/leaderboard.js'
-import { getMeta } from '../db/local.js'
 import { summarize } from '../lib/profileStats.js'
 import { currentValues, evaluateBadges, BADGES } from '../lib/badges.js'
 import { normMetric, parseTime, fmtTime } from '../lib/metric.js'
 import { setPin, setName, setSex, LoginError } from '../lib/auth.js'
+import LogoutButton from '../components/LogoutButton.jsx'
 import SexPicker from '../components/SexPicker.jsx'
 import PushToggle from '../components/PushToggle.jsx'
 import PushTypes from '../components/PushTypes.jsx'
@@ -88,7 +87,7 @@ export default function ProfileScreen({ user, onLogout, onOpenProgress, onOpenFe
   // Приватный в рейтинге не участвует — место не показываем.
   const place = useLiveQuery(async () => {
     try {
-      if (await getMeta(`priv_${user.id}`)) return null
+      if (await getPrivacyFlag(user.id)) return null
       const board = await getCachedLeaderboard()
       const inF = (board.female ?? []).findIndex((r) => r.user_id === user.id)
       if (inF >= 0) return { n: inF + 1, board: 'f' }
@@ -889,7 +888,8 @@ export default function ProfileScreen({ user, onLogout, onOpenProgress, onOpenFe
           <span className="settings-chev" aria-hidden="true">›</span>
         </button>
         <div className="actions">
-          <button className="act logout" onClick={onLogout}>Выйти</button>
+          {/* Занятость и защита от двойного тапа — в LogoutButton (РЕВЬЮ-КОДА-2026-10-02). */}
+          <LogoutButton onLogout={onLogout} />
         </div>
       </section>
 

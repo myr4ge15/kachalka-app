@@ -125,6 +125,12 @@ export default function WorkoutScreen({ user, workoutId = null, onBack, onSaved 
   // его (kind:'undo') — смена вкладки/возврат к списку убирают зависший тост.
   useEffect(() => () => hideToast('undo'), [])
 
+  // Серия подходов, удаленных подряд под одним undo-тостом (РЕВЬЮ-КОДА-2026-10-02):
+  // у тоста один слот, и раньше «Отменить» возвращало только последний подход.
+  // Копим [{ exId, si, set }] в ref, пока тост висит; сбрасываем в его onClose
+  // (таймер, «Отменить», замена другим тостом, уход с экрана).
+  const removedSetsRef = useRef(null)
+
   // Несохраненные правки СУЩЕСТВУЮЩЕЙ тренировки (РЕВЬЮ-КОДА-2026-10-02, п. 15).
   // Раньше их не держало ничего: «Назад», другая вкладка, колокольчик, поворот
   // планшета через 900 px (мобильная и десктопная раскладки монтируют экран в разных
@@ -422,19 +428,26 @@ export default function WorkoutScreen({ user, workoutId = null, onBack, onSaved 
     const removed = entry?.sets[si]
     setEntries((prev) => removeSetIn(prev, ei, si))
     if (!removed) return
-    const exId = entry.exercise.id
     // Точечная отмена: ищем упражнение по id (индекс мог сдвинуться) и
-    // возвращаем подход на прежнее место.
+    // возвращаем подход на прежнее место. Серия — новый массив: onClose
+    // вытесненного тоста сравнивает ref со СВОЕЙ серией и не сотрет эту.
+    const series = [...(removedSetsRef.current ?? []), { exId: entry.exercise.id, si, set: removed, name: entry.exercise?.name }]
+    const names = [...new Set(series.map((r) => r.name).filter(Boolean))]
     showToast({
       emoji: '🗑',
       kind: 'undo', // привязан к экрану — гасится при размонтировании WorkoutScreen
-      title: 'Подход удален',
-      sub: entry.exercise?.name,
+      title: series.length > 1 ? `Подходов удалено: ${series.length}` : 'Подход удален',
+      sub: names.join(', ') || undefined,
       actionLabel: 'Отменить',
       duration: 4000, // дольше дефолтных 3 c (нужно окно отмены), но не 6 — «висел»
       raised: true, // выше липкой кнопки «Сохранить» — чтобы не перекрывала ее
-      onAction: () => setEntries((prev) => insertSetIn(prev, exId, si, removed)),
+      // Возвращаем в обратном порядке: каждый si записан для состояния ПОСЛЕ
+      // предыдущих удалений, так что откат с конца восстанавливает исходные места.
+      onAction: () => setEntries((prev) => series.reduceRight(
+        (acc, r) => insertSetIn(acc, r.exId, r.si, r.set), prev)),
+      onClose: () => { if (removedSetsRef.current === series) removedSetsRef.current = null },
     })
+    removedSetsRef.current = series
   }
 
   // Что в строках — то и записывается (и в новой, и в правке); подхода, которого

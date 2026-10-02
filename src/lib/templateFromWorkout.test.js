@@ -54,7 +54,8 @@ describe('templateExercisesFromWorkout', () => {
 
 describe('defaultTemplateName', () => {
   it('форматирует «Тренировка ДД.ММ» от даты', () => {
-    expect(defaultTemplateName('2026-07-14T10:00:00.000Z')).toBe('Тренировка 14.07')
+    // Местный полдень, а не '…T10:00Z': в UTC+14 это уже 15-е (РЕВЬЮ-КОДА-2026-10-02).
+    expect(defaultTemplateName(new Date(2026, 6, 14, 12).toISOString())).toBe('Тренировка 14.07')
   })
   it('битая/пустая дата → сегодня (без падения)', () => {
     expect(defaultTemplateName('не-дата')).toMatch(/^Тренировка \d{2}\.\d{2}$/)

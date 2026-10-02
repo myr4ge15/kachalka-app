@@ -29,6 +29,14 @@ export default function ExercisePicker({
 }) {
   const [query, setQuery] = useState('')
   const [group, setGroup] = useState('все')
+  // Строки блока «Избранные», звезду которых тронули в этом открытии:
+  // [{ id, at }] — at — позиция строки в блоке в момент тапа. Пока пикер открыт
+  // и запрос/группа не менялись, строка стоит на месте (со снятой звездой), а не
+  // уезжает из-под пальца (РЕВЬЮ-КОДА-2026-10-02): следующий тап иначе попадал в
+  // соседнюю строку. Сбрасывается сменой запроса/группы и закрытием.
+  const [pinnedFav, setPinnedFav] = useState([])
+  const changeQuery = (v) => { setQuery(v); setPinnedFav([]) }
+  const changeGroup = (g) => { setGroup(g); setPinnedFav([]) }
 
   // Режим создания своего упражнения.
   const [creating, setCreating] = useState(false)
@@ -87,21 +95,38 @@ export default function ExercisePicker({
   const shortcuts = useMemo(() => {
     const byId = new Map(exercises.map((e) => [String(e.id), e]))
     const resolve = (ids) => (ids ?? []).map((id) => byId.get(String(id))).filter(Boolean)
-    const notFav = (e) => !favSet.has(String(e.id))
+    // Блок избранного: актуальные звезды + «приколотые» строки на своих местах
+    // (вставляем по возрастанию позиции — так восстанавливается порядок серии тапов).
+    const pinnedIds = new Set(pinnedFav.map((p) => p.id))
+    const favIds = (favorites ?? []).map(String).filter((id) => !pinnedIds.has(id))
+    for (const p of [...pinnedFav].sort((a, b) => a.at - b.at)) {
+      favIds.splice(Math.min(p.at, favIds.length), 0, p.id)
+    }
+    const fav = resolve(favIds)
+    const inFavBlock = new Set(fav.map((e) => String(e.id)))
+    const notFav = (e) => !inFavBlock.has(String(e.id))
     return {
-      fav: resolve(favorites),
+      fav,
       recent: resolve(usage.recent).filter(notFav),
       frequent: resolve(usage.frequent).filter(notFav),
     }
-  }, [exercises, usage, favorites, favSet])
+  }, [exercises, usage, favorites, pinnedFav])
   const showShortcuts = !qTrim && group === 'все'
   const shortcutIds = useMemo(
     () => new Set([...shortcuts.fav, ...shortcuts.recent, ...shortcuts.frequent].map((e) => e.id)),
     [shortcuts]
   )
 
+  // Тап по звезде в блоке «Избранные» — прикалываем строку к ее месту.
+  function toggleFavInBlock(e, at) {
+    const id = String(e.id)
+    setPinnedFav((prev) => (prev.some((p) => p.id === id) ? prev : [...prev, { id, at }]))
+    onToggleFavorite(e.id)
+  }
+
   // Строка списка: упражнение + (если включено избранное) звезда справа.
-  function row(e, keyPrefix = '') {
+  // onStar — свой обработчик звезды (блок избранного), иначе просто переключение.
+  function row(e, keyPrefix = '', onStar = null) {
     const item = (
       <button className="picker-item" onClick={() => onPick(e)}>
         <span>{e.name}</span>
@@ -119,7 +144,7 @@ export default function ExercisePicker({
           aria-pressed={on}
           aria-label={on ? 'Убрать из избранного' : 'В избранное'}
           title={on ? 'Убрать из избранного' : 'В избранное'}
-          onClick={() => onToggleFavorite(e.id)}
+          onClick={() => (onStar ? onStar() : onToggleFavorite(e.id))}
         >
           <svg viewBox="0 0 24 24" width="20" height="20" aria-hidden="true"
             fill={on ? 'currentColor' : 'none'} stroke="currentColor" strokeWidth="2"
@@ -317,7 +342,7 @@ export default function ExercisePicker({
           data-autofocus
           placeholder="Поиск по названию…"
           value={query}
-          onChange={(e) => setQuery(e.target.value)}
+          onChange={(e) => changeQuery(e.target.value)}
           autoFocus
         />
 
@@ -326,7 +351,7 @@ export default function ExercisePicker({
             <button
               key={g}
               className={g === group ? 'chip active' : 'chip'}
-              onClick={() => setGroup(g)}
+              onClick={() => changeGroup(g)}
             >
               {g}
             </button>
@@ -337,7 +362,7 @@ export default function ExercisePicker({
           {showShortcuts && shortcuts.fav.length > 0 && (
             <>
               <div className="group-title">Избранные</div>
-              {shortcuts.fav.map((e) => row(e, 'fav:'))}
+              {shortcuts.fav.map((e, i) => row(e, 'fav:', () => toggleFavInBlock(e, i)))}
             </>
           )}
           {showShortcuts && shortcuts.recent.length > 0 && (

@@ -3,6 +3,7 @@ import {
   pushAvailability,
   isIOSDevice,
   urlB64ToUint8Array,
+  isStaleServerKey,
   subscriptionArgs,
   pushSubtitle,
   shouldAskPush,
@@ -118,5 +119,29 @@ describe('типы пушей', () => {
     expect(isPushTypeOn(null, 'update')).toBe(true)
     expect(isPushTypeOn({ reminder: false }, 'reminder')).toBe(false)
     expect(isPushTypeOn({ reminder: true }, 'reminder')).toBe(true)
+  })
+})
+
+// РЕВЬЮ-КОДА-2026-10-02, мелочи: после смены VAPID-ключа старая подписка
+// переиспользовалась вечно.
+describe('isStaleServerKey', () => {
+  const key = new Uint8Array([4, 1, 2, 3])
+  it('тот же ключ (ArrayBuffer из подписки) — не устарел', () => {
+    expect(isStaleServerKey(new Uint8Array([4, 1, 2, 3]).buffer, key)).toBe(false)
+  })
+  it('другие байты или длина — устарел', () => {
+    expect(isStaleServerKey(new Uint8Array([4, 1, 2, 9]).buffer, key)).toBe(true)
+    expect(isStaleServerKey(new Uint8Array([4, 1, 2]).buffer, key)).toBe(true)
+  })
+  it('ключ подписки неизвестен (нет options / null) — не пересоздаем вслепую', () => {
+    expect(isStaleServerKey(undefined, key)).toBe(false)
+    expect(isStaleServerKey(null, key)).toBe(false)
+  })
+  it('ключ сборки пуст — сравнивать не с чем', () => {
+    expect(isStaleServerKey(new Uint8Array([1]).buffer, new Uint8Array(0))).toBe(false)
+  })
+  it('принимает и типизированные массивы-срезы', () => {
+    const big = new Uint8Array([9, 4, 1, 2, 3])
+    expect(isStaleServerKey(big.subarray(1), key)).toBe(false)
   })
 })

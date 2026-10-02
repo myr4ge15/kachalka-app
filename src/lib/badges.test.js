@@ -10,7 +10,15 @@ import {
   badgeEarnedDates,
 } from './badges.js'
 
-const wk = (id, performed_at, entries = []) => ({ id, performed_at, entries })
+// Дата 'YYYY-MM-DD' в фикстурах — МЕСТНЫЙ день (полдень), как его выбирает
+// пользователь. Голая '2026-01-05' — полночь UTC, то есть воскресенье 4-го в
+// Лос-Анджелесе: неделя «съезжала», и тест падал под TZ=America/Los_Angeles
+// (РЕВЬЮ-КОДА-2026-10-02). Полдень дает тот же день в любом поясе.
+const localDay = (v) => {
+  const m = /^(\d{4})-(\d{2})-(\d{2})$/.exec(v ?? '')
+  return m ? new Date(+m[1], +m[2] - 1, +m[3], 12).toISOString() : v
+}
+const wk = (id, performed_at, entries = []) => ({ id, performed_at: localDay(performed_at), entries })
 const setW = (weight, reps) => ({ weight, reps })
 // упражнение с весом
 const exW = (exId, sets) => ({ exercise_id: exId, exercise: { id: exId, name: exId }, sets })
@@ -116,7 +124,7 @@ describe('badgeEarnedDates', () => {
       wk('b', '2026-01-12'),
     ]
     const d = badgeEarnedDates(workouts)
-    expect(d.reg_1).toBe('2026-01-05') // 1-я по хронологии
+    expect(d.reg_1).toBe(localDay('2026-01-05')) // 1-я по хронологии
     expect(d.reg_10).toBeUndefined() // порог не достигнут
   })
   it('объем — момент пересечения порога накопленным тоннажем', () => {
@@ -126,7 +134,7 @@ describe('badgeEarnedDates', () => {
       wk('b', '2026-01-08', [exW('sq', [setW(100, 60)])]), // +6000 = 11000 ≥ 10000
     ]
     const d = badgeEarnedDates(workouts)
-    expect(d.vol_10).toBe('2026-01-08')
+    expect(d.vol_10).toBe(localDay('2026-01-08'))
   })
   it('рекорды — дата N-го личного рекорда', () => {
     const workouts = [
@@ -135,7 +143,7 @@ describe('badgeEarnedDates', () => {
       wk('w3', '2026-01-15', [exW('b', [setW(70, 5)])]), // 2-й PR
     ]
     const d = badgeEarnedDates(workouts)
-    expect(d.pr_1).toBe('2026-01-08')
+    expect(d.pr_1).toBe(localDay('2026-01-08'))
   })
   it('серии — дата тренировки, завершившей серию нужной длины', () => {
     const workouts = [
@@ -144,7 +152,7 @@ describe('badgeEarnedDates', () => {
       wk('c', '2026-01-19'), // N+2 → серия достигла 3
     ]
     const d = badgeEarnedDates(workouts)
-    expect(d.streak_3).toBe('2026-01-19')
+    expect(d.streak_3).toBe(localDay('2026-01-19'))
     expect(d.streak_7).toBeUndefined()
   })
   it('пустая история → пусто', () => {

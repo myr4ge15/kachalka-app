@@ -67,4 +67,60 @@ describe('SheetDialog', () => {
     fireEvent.keyDown(first, { key: 'Escape' })
     expect(opener).toHaveFocus()
   })
+
+  // РЕВЬЮ-КОДА-2026-10-02: Escape работает и без фокуса внутри листа, фон — inert.
+  it('Escape закрывает лист, даже когда фокус вне листа', () => {
+    const onDismiss = vi.fn()
+    render(
+      <SheetDialog title="Лист" onDismiss={onDismiss}>
+        <button>Первый</button>
+      </SheetDialog>
+    )
+    document.body.focus()
+    fireEvent.keyDown(document.body, { key: 'Escape' })
+    expect(onDismiss).toHaveBeenCalledOnce()
+  })
+
+  it('Escape закрывает только верхний из двух листов', () => {
+    const outer = vi.fn()
+    const inner = vi.fn()
+    render(
+      <>
+        <SheetDialog title="Внешний" onDismiss={outer}><button>A</button></SheetDialog>
+        <SheetDialog title="Внутренний" onDismiss={inner}><button>B</button></SheetDialog>
+      </>
+    )
+    // Верхний лист живой, нижний — под ним и заморожен вместе с фоном.
+    expect(screen.getByRole('dialog', { name: 'Внутренний' }).closest('[inert]')).toBeNull()
+    expect(screen.getByText('A').closest('[inert]')).not.toBeNull()
+    fireEvent.keyDown(document, { key: 'Escape' })
+    expect(inner).toHaveBeenCalledOnce()
+    expect(outer).not.toHaveBeenCalled()
+  })
+
+  it('делает фон inert на время листа и снимает пометку при закрытии', () => {
+    function Host() {
+      const [open, setOpen] = useState(false)
+      return (
+        <>
+          <button onClick={() => setOpen(true)}>Открыть</button>
+          {open && (
+            <SheetDialog title="Лист" onDismiss={() => setOpen(false)}>
+              <button>Внутри</button>
+            </SheetDialog>
+          )}
+        </>
+      )
+    }
+    const { container } = render(<Host />)
+    const opener = screen.getByRole('button', { name: 'Открыть' })
+    opener.focus()
+    fireEvent.click(opener)
+    expect(container).toHaveAttribute('inert')
+    expect(screen.getByRole('dialog').closest('[inert]')).toBeNull()
+
+    fireEvent.keyDown(document, { key: 'Escape' })
+    expect(container).not.toHaveAttribute('inert')
+    expect(opener).toHaveFocus()
+  })
 })

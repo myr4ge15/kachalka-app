@@ -15,7 +15,7 @@
 // ============================================================================
 import { myBestByExercise, bestWeight } from './records.js'
 import { isCountMetric, leadingValue, normMetric } from './metric.js'
-import { entryExId } from './entries.js'
+import { entryExId, currentExerciseShapes, entryUnitMetric } from './entries.js'
 
 // Число тренировок в текущем КАЛЕНДАРНОМ месяце (по дате тренировки).
 // TZ — намеренно ЛОКАЛЬНАЯ: дата выбирается пользователем как локальный день
@@ -130,6 +130,9 @@ export function fmtTonnage(kg) {
 // Любимое упражнение = с наибольшим числом подходов за всю историю.
 // { exId, name, sets } или null, если подходов нет.
 export function favExercise(workouts) {
+  // Имя — из свежего снимка: переименованное упражнение в старых тренировках
+  // хранит старое имя (РЕВЬЮ-КОДА-2026-10-02, п. 17).
+  const shapes = currentExerciseShapes(workouts)
   const byId = new Map() // exId → { exId, name, sets }
   for (const w of workouts ?? []) {
     for (const e of w.entries ?? []) {
@@ -140,6 +143,7 @@ export function favExercise(workouts) {
       const rec = byId.get(exId) ?? { exId, name: e.exercise?.name ?? '—', sets: 0 }
       rec.sets += cnt
       if (e.exercise?.name) rec.name = e.exercise.name
+      if (shapes.get(exId)?.name) rec.name = shapes.get(exId).name
       byId.set(exId, rec)
     }
   }
@@ -171,6 +175,8 @@ export function currentBest(workouts, exerciseId) {
   for (const w of workouts ?? []) {
     for (const e of w.entries ?? []) {
       if (entryExId(e) !== exerciseId) continue
+      // Подходы, записанные, когда упражнение было на повторы/время, — не кг.
+      if (entryUnitMetric(e, 'weight') !== 'weight') continue
       best = Math.max(best, bestWeight(e.sets))
     }
   }
@@ -180,6 +186,9 @@ export function currentBest(workouts, exerciseId) {
 // Текущий лучший ВЕДУЩИЙ показатель по метрике упражнения (для прогресс-бара
 // цели любой метрики): weight → макс. вес, reps → макс. повторов, time → макс.
 // секунд. 0, если упражнения/подходов в истории нет.
+// Учитываем только записи В ЕДИНИЦЕ ЦЕЛИ: после смены типа упражнения старые
+// снимки в тренировках не обновляются, и leadingValue('reps') от «10 кг × 8»
+// подмешивал бы 8 повторов к цели на повторы (РЕВЬЮ-КОДА-2026-10-02, п. 17).
 export function currentBestValue(workouts, exerciseId, metric) {
   if (!exerciseId) return 0
   const m = normMetric(metric)
@@ -187,6 +196,7 @@ export function currentBestValue(workouts, exerciseId, metric) {
   for (const w of workouts ?? []) {
     for (const e of w.entries ?? []) {
       if (entryExId(e) !== exerciseId) continue
+      if (entryUnitMetric(e, m) !== m) continue
       best = Math.max(best, leadingValue(m, e.sets))
     }
   }

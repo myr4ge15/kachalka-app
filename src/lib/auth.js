@@ -225,6 +225,15 @@ export async function setPin(userId, currentPin, newPin) {
     pin_hash: body.pin_hash,
     pin_salt: body.pin_salt ?? null,
   })
+  // Сервер отозвал все прежние сессии (v6.8.0) и выдал свежую — поднимаем ее, иначе
+  // текущая сессия этого устройства уже мертва и синк попросил бы войти заново.
+  if (body.session?.access_token && body.session?.refresh_token) {
+    const { error } = await supabase.auth.setSession({
+      access_token: body.session.access_token,
+      refresh_token: body.session.refresh_token,
+    })
+    if (error) throw new LoginError('session', 'PIN сменен. Войди заново с новым PIN.')
+  }
   rememberPin(userId, newPin)
   return true
 }

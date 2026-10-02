@@ -63,7 +63,8 @@ export async function fetchLeaderboard({ force = false } = {}) {
     board: r.board === 'f' ? 'f' : 'm',
     user_id: r.user_id,
     user_name: r.user_name ?? 'Кто-то',
-    orm: Number(r.orm),
+    // null с сервера (у всех подходов > 12 повторов 1ПМ не считается) → 0 = «нет».
+    orm: Number(r.orm) || 0,
     weight: Number(r.weight),
     reps: Number(r.reps),
     performed_at: r.performed_at ?? null,

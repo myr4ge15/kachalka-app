@@ -1,8 +1,14 @@
 import { describe, it, expect } from 'vitest'
 import { cleanWorkoutForExport, buildExport, exportFilename } from './exportWorkout.js'
 
+// Поясонезависимые фикстуры (РЕВЬЮ-КОДА-2026-10-02): имя файла берет МЕСТНЫЙ
+// день, а '2026-01-10' — это полночь UTC, то есть 9-е в Лос-Анджелесе. Полдень
+// местного времени дает тот же день в любом поясе от −12 до +14.
+const localNoon = (y, m, d) => new Date(y, m - 1, d, 12)
+const W1_AT = localNoon(2026, 1, 10).toISOString()
+
 const w1 = {
-  id: 'w1', user_id: 'u1', performed_at: '2026-01-10', created_at: '2026-01-09',
+  id: 'w1', user_id: 'u1', performed_at: W1_AT, created_at: '2026-01-09',
   updated_at: '2026-01-11', _dirty: 1, _deleted: 0,
   entries: [
     { exercise: { id: 'ex1', name: 'Жим', muscle_group: 'грудь', metric: 'weight' }, sets: [{ weight: 100, reps: 5 }] },
@@ -14,7 +20,7 @@ describe('cleanWorkoutForExport', () => {
   it('оставляет только публичные поля, режет служебные флаги синка', () => {
     const c = cleanWorkoutForExport(w1)
     expect(c).toEqual({
-      id: 'w1', performed_at: '2026-01-10', created_at: '2026-01-09',
+      id: 'w1', performed_at: W1_AT, created_at: '2026-01-09',
       entries: [
         { exercise: { id: 'ex1', name: 'Жим', muscle_group: 'грудь', metric: 'weight' }, sets: [{ weight: 100, reps: 5 }] },
         { exercise: { id: 'ex2', name: 'Планка', muscle_group: 'пресс', metric: 'time' }, sets: [{ weight: 0, reps: 60 }] },
@@ -76,12 +82,12 @@ describe('exportFilename', () => {
   })
 
   it('несколько → workouts-N-<дата выгрузки>.json', () => {
-    const now = new Date('2026-02-01T00:00:00.000Z')
+    const now = localNoon(2026, 2, 1)
     expect(exportFilename([w1, w1], now)).toBe('workouts-2-2026-02-01.json')
   })
 
   it('невалидная дата тренировки → фолбэк на дату выгрузки', () => {
-    const now = new Date('2026-02-01T00:00:00.000Z')
+    const now = localNoon(2026, 2, 1)
     expect(exportFilename([{ performed_at: 'мусор' }], now)).toBe('workout-2026-02-01.json')
   })
 

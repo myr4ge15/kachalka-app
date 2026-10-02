@@ -58,3 +58,64 @@ export function pickExerciseShape(ex) {
     metric: normMetric(ex.metric),
   }
 }
+
+// ── Текущая форма упражнения (РЕВЬЮ-КОДА-2026-10-02, п. 17) ──────────────────
+// Почему: тренировка хранит СНИМОК упражнения на момент сохранения, а серверные
+// admin_update_exercise/admin_merge_exercise не двигают workouts.updated_at, и
+// инкрементальный pull уже скачанные документы не перетягивает. После смены типа
+// (weight↔reps↔time) или переименования старые записи бессрочно несут старые
+// metric/name. Если брать метрику из снимка каждой записи, значения в разных
+// единицах попадают в один максимум: старое 10 кг×8 и новые 12 повторов давали
+// «рекорд 12 (было 10)», где 10 — килограммы. Правило: актуальна форма из САМОГО
+// СВЕЖЕГО по performed_at снимка упражнения (тай-брейк created_at, затем id — как
+// в sortDesc), а подходы в другой единице с ней не сравниваются.
+
+const rawMetricOf = (e) => {
+  const raw = e?.metric ?? e?.exercise?.metric
+  return raw == null || raw === '' ? null : raw
+}
+
+// Карта id упражнения → { id, name, metric, legacy, is_bench_lift, at } по
+// самому свежему снимку. metric нормализован; legacy=true — у свежего снимка нет
+// явного metric (легаси-запись до PLAN-metrics), вызывающий может сохранить свой
+// фолбэк (напр. «Прогресс» решает тип по наличию веса в подходах). Удаленные
+// тренировки не учитываются. Работает и с элементами ленты (плоские поля).
+export function currentExerciseShapes(workouts) {
+  const out = new Map()
+  for (const w of sortDesc(workouts)) {
+    for (const e of w.entries ?? []) {
+      const id = entryExId(e)
+      if (!id || out.has(id)) continue
+      const raw = rawMetricOf(e)
+      out.set(id, {
+        id,
+        name: e.name ?? e.exercise?.name ?? null,
+        metric: normMetric(raw),
+        legacy: raw == null,
+        is_bench_lift: Boolean(e.is_bench_lift ?? e.exercise?.is_bench_lift),
+        at: w.performed_at ?? null,
+      })
+    }
+  }
+  return out
+}
+
+// В какой единице записаны подходы записи. Явный metric снимка — как есть. У
+// легаси-записи без metric (до PLAN-metrics всё писалось как «вес») единицу
+// угадываем: если текущий тип упражнения count (reps/time), а внешнего веса в
+// подходах нет, это те же повторы/секунды — записи из эпохи «подтягивания с
+// weight:0» не выпадают из рекордов и графика. Иначе — 'weight'.
+export function entryUnitMetric(e, currentMetric) {
+  const raw = rawMetricOf(e)
+  if (raw != null) return normMetric(raw)
+  const cur = currentMetric == null ? null : normMetric(currentMetric)
+  if (cur && cur !== 'weight' && !(e?.sets ?? []).some((s) => Number(s?.weight) > 0)) return cur
+  return 'weight'
+}
+
+// Сравнима ли запись с текущей формой упражнения (та же единица). Нет формы →
+// сравнивать не с чем, считаем сравнимой (старое поведение).
+export function isCurrentUnit(e, shape) {
+  if (!shape) return true
+  return entryUnitMetric(e, shape.metric) === shape.metric
+}

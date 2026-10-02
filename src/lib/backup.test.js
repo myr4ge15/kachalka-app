@@ -24,7 +24,7 @@ const snap = () =>
   buildBackup(
     { userId: 'u1', userName: 'Андрей', workouts, goals, badges, prog: { enabled: false, byExercise: { ex1: { step: 2.5 } } }, priv: true },
     '5.1.0',
-    new Date('2026-07-24T10:00:00.000Z')
+    new Date(2026, 6, 24, 12)
   )
 
 describe('buildBackup', () => {
@@ -32,7 +32,7 @@ describe('buildBackup', () => {
     const b = snap()
     expect(b.schema).toBe(BACKUP_SCHEMA)
     expect(b.app_version).toBe('5.1.0')
-    expect(b.exported_at).toBe('2026-07-24T10:00:00.000Z')
+    expect(b.exported_at).toBe(new Date(2026, 6, 24, 12).toISOString())
     expect(b.user).toEqual({ id: 'u1', name: 'Андрей' })
     expect(b.counts).toEqual({ workouts: 1, goals: 1, badges: 1 })
   })
@@ -68,7 +68,7 @@ describe('buildBackup', () => {
 
 describe('backupFilename', () => {
   it('backup-YYYY-MM-DD.json', () => {
-    expect(backupFilename(new Date('2026-07-24T10:00:00.000Z'))).toBe('backup-2026-07-24.json')
+    expect(backupFilename(new Date(2026, 6, 24, 12))).toBe('backup-2026-07-24.json')
     expect(backupFilename(new Date('нет'))).toBe('backup-export.json')
   })
 })
@@ -106,7 +106,7 @@ describe('planImport', () => {
 
   it('пустая база: добавляет все, упражнение берет из локального справочника', () => {
     const p = planImport(snap(), { workoutIds: [], goals: [], badges: {}, prog: undefined, exercises })
-    expect(p.counts).toEqual({ workouts: 1, workoutsSkipped: 0, goals: 1, badges: 1, prog: 1, rpe: 0 })
+    expect(p.counts).toEqual({ workouts: 1, workoutsSkipped: 0, goals: 1, badges: 1, prog: 1, rpe: 0, fav: 0, accent: 0 })
     // полная форма из справочника, а не усеченная из файла
     expect(p.workouts[0].entries[0].exercise.is_bench_lift).toBe(true)
     expect(p.workouts[0].entries[0].exercise.secondary).toEqual(['трицепс'])
@@ -119,7 +119,7 @@ describe('planImport', () => {
     const b = snap()
     const cur = { workoutIds: ['w1'], goals, badges, prog: { enabled: false, byExercise: { ex1: { step: 2.5 } } }, exercises }
     const p = planImport(b, cur)
-    expect(p.counts).toEqual({ workouts: 0, workoutsSkipped: 0, goals: 0, badges: 0, prog: 0, rpe: 0 })
+    expect(p.counts).toEqual({ workouts: 0, workoutsSkipped: 0, goals: 0, badges: 0, prog: 0, rpe: 0, fav: 0, accent: 0 })
     expect(p.goals).toBe(null)
     expect(p.badges).toBe(null)
     expect(p.prog).toBe(null)
@@ -200,7 +200,7 @@ describe('planImport', () => {
 
   it('пустой current и пустой снимок не роняют план', () => {
     const p = planImport({ workouts: [], goals: [], badges: {} }, {})
-    expect(p.counts).toEqual({ workouts: 0, workoutsSkipped: 0, goals: 0, badges: 0, prog: 0, rpe: 0 })
+    expect(p.counts).toEqual({ workouts: 0, workoutsSkipped: 0, goals: 0, badges: 0, prog: 0, rpe: 0, fav: 0, accent: 0 })
     expect(planImport(undefined, undefined).workouts).toEqual([])
   })
 
@@ -250,4 +250,50 @@ describe('оценки «как пошло» (RPE) в бэкапе', () => {
   it('describeImport упоминает оценки', () => {
     expect(describeImport({ rpe: 3 })).toBe('Добавлено — оценок «как пошло»: 3.')
   })
-})
+})
+// РЕВЬЮ-КОДА-2026-10-02, мелочи: бэкап не содержал новых родов fav и accent.
+describe('избранное и акцент в бэкапе', () => {
+  const mine = { id: 'custom', hue: 120, by: 'u1' }
+
+  it('buildBackup кладет избранное и СВОЙ акцент; чужой/«ничей» акцент — нет', () => {
+    const b = buildBackup({ userId: 'u1', fav: ['ex2', 'ex1', 'ex2'], accent: mine })
+    expect(b.settings.favorites).toEqual(['ex2', 'ex1'])
+    expect(b.settings.accent).toEqual(mine)
+    expect(buildBackup({ userId: 'u1', accent: { id: 'ice', hue: 200, by: 'u2' } }).settings.accent).toBe(null)
+    expect(buildBackup({ userId: 'u1', accent: { id: 'ice', hue: 200 } }).settings.accent).toBe(null)
+    expect(buildBackup({ userId: 'u1' }).settings.favorites).toEqual([])
+  })
+
+  it('старый файл без избранного и акцента импортируется как раньше', () => {
+    const old = { schema: BACKUP_SCHEMA, user: { id: 'u1' }, settings: { progression: null } }
+    const p = planImport(old, { userId: 'u1', fav: ['ex1'], accent: null })
+    expect(p.fav).toBe(null)
+    expect(p.accent).toBe(null)
+    expect(p.counts).toMatchObject({ fav: 0, accent: 0 })
+  })
+
+  it('избранное: текущий порядок сохраняется, из файла дописываются только отсутствующие', () => {
+    const p = planImport({ settings: { favorites: ['ex3', 'ex1'] } }, { userId: 'u1', fav: ['ex1', 'ex2'] })
+    expect(p.fav).toEqual(['ex1', 'ex2', 'ex3'])
+    expect(p.counts.fav).toBe(1)
+    expect(planImport({ settings: { favorites: ['ex1'] } }, { fav: ['ex1'] }).fav).toBe(null)
+  })
+
+  it('акцент: восстанавливается в учетку без своего выбора, свой текущий не перетирается', () => {
+    const snapA = { settings: { accent: mine } }
+    expect(planImport(snapA, { userId: 'u1', accent: null }).accent).toEqual(mine)
+    expect(planImport(snapA, { userId: 'u1', accent: { id: 'ice', hue: 200, by: 'u1' } }).accent).toBe(null)
+    // в учетке лежит «ничей» цвет (v6.2.0) — его заменяем своим из файла
+    expect(planImport(snapA, { userId: 'u1', accent: { id: 'ice', hue: 200 } }).accent).toEqual(mine)
+  })
+
+  it('акцент: значение без by из файла получает by владельца, чужой by пропускается', () => {
+    expect(planImport({ settings: { accent: { id: 'custom', hue: 30 } } }, { userId: 'u1' }).accent)
+      .toEqual({ id: 'custom', hue: 30, by: 'u1' })
+    expect(planImport({ settings: { accent: { id: 'custom', hue: 30, by: 'u2' } } }, { userId: 'u1' }).accent).toBe(null)
+  })
+
+  it('describeImport упоминает избранное и цвет', () => {
+    expect(describeImport({ fav: 2, accent: 1 })).toBe('Добавлено — избранных упражнений: 2, цвет оформления.')
+  })
+})

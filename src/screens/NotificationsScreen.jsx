@@ -5,12 +5,15 @@ import { cmpIsoAsc } from '../lib/cmp.js'
 import { fmtWhen } from '../lib/dates.js'
 import { fmtMetricValue } from '../lib/metric.js'
 import CardsSkeleton from '../components/CardsSkeleton.jsx'
+import BackButton from '../components/BackButton.jsx'
 import { getUsers } from '../db/repo.js'
 import { byGender } from '../lib/gender.js'
 import { filterNotifs, activeCategories } from '../lib/notifFilter.js'
 
 // Экран «Уведомления»: личные рекорды и кто обходит тебя в кругу (ТЗ §4.5, MVP).
-export default function NotificationsScreen({ user }) {
+// Вложенный роут — шапка с общей круглой BackButton, как у остальных вложенных
+// экранов (РЕВЬЮ-КОДА-2026-10-02). onBack — вернуться туда, откуда открыли.
+export default function NotificationsScreen({ user, onBack }) {
   const list = useLiveQuery(() => getNotifications(user.id), [user.id], undefined)
   // Пол участников из ростера — род глаголов («оценила», «обошла», «дотянула»), v6.2.5.
   const roster = useLiveQuery(() => getUsers(), [], [])
@@ -58,7 +61,10 @@ export default function NotificationsScreen({ user }) {
 
   return (
     <div className="screen">
-      <h2 className="screen-title">Уведомления</h2>
+      <div className="admin-head">
+        <BackButton onClick={onBack} />
+        <h2 className="admin-title">Уведомления</h2>
+      </div>
       <p className="muted sub">Твои рекорды, реакции друзей и кто обходит тебя в кругу</p>
 
       {loading && <CardsSkeleton cards={4} />}

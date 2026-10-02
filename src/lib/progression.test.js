@@ -447,3 +447,51 @@ describe('RPE не ломает прежние вызовы', () => {
     expect(r.kind).toBe('up') // прошлый раз оценки не было → расчет по числам
   })
 })
+
+// РЕВЬЮ-КОДА-2026-10-02, «Тексты и расчеты».
+describe('count-метрики: возрастающие подходы и шаг после смены типа', () => {
+  it('«вверх» при 30, 45, 60 с прибавляет шаг к каждому подходу, а не «35, 35, 35»', () => {
+    const r = recommendProgression({
+      metric: 'time', lastSets: [s(0, 30), s(0, 45), s(0, 60)], settings: resolveProgSettings(null, 'e', 'time'),
+    })
+    expect(r.kind).toBe('up')
+    expect(r.sets.map((x) => x.reps)).toEqual([35, 50, 65])
+  })
+
+  it('«вверх» у повторов: 10, 12, 15 → 11, 13, 16 (ни один подход не ниже сделанного)', () => {
+    const r = recommendProgression({
+      metric: 'reps', lastSets: [s(0, 10), s(0, 12), s(0, 15)], settings: resolveProgSettings(null, 'e', 'reps'),
+    })
+    expect(r.sets.map((x) => x.reps)).toEqual([11, 13, 16])
+  })
+
+  it('«тяжело» при добитом плане закрепляет подходы как есть', () => {
+    const r = recommendProgression({
+      metric: 'time',
+      lastSets: [s(0, 30), s(0, 45)],
+      recentSessions: [{ sets: [s(0, 30), s(0, 45)], feel: 'hard' }],
+      settings: resolveProgSettings(null, 'e', 'time'),
+    })
+    expect(r.kind).toBe('same')
+    expect(r.sets.map((x) => x.reps)).toEqual([30, 45])
+  })
+
+  it('шаг 2.5, оставшийся от весового типа, у повторов округляется до целого', () => {
+    const prog = { byExercise: { e1: { step: 2.5 } } }
+    expect(resolveProgSettings(prog, 'e1', 'reps').step).toBe(3)
+    expect(resolveProgSettings({ byExercise: { e1: { step: 0.4 } } }, 'e1', 'reps').step).toBe(1)
+    expect(resolveProgSettings(prog, 'e1', 'weight').step).toBe(2.5)
+    const r = recommendProgression({
+      metric: 'reps', lastSets: [s(0, 10)], settings: resolveProgSettings(prog, 'e1', 'reps'),
+    })
+    expect(Number.isInteger(r.sets[0].reps)).toBe(true)
+    expect(r.reasonText).not.toContain('2.5')
+  })
+
+  it('дробный шаг мимо resolveProgSettings тоже не дает «12.5 повт.»', () => {
+    const r = recommendProgression({
+      metric: 'reps', lastSets: [s(0, 10)], settings: { strategy: 'reps', step: 2.5, targetReps: null, repCeiling: null },
+    })
+    expect(r.sets[0].reps).toBe(13)
+  })
+})

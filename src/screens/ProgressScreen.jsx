@@ -17,10 +17,19 @@ function fmtDate(iso) {
   return d.toLocaleDateString('ru-RU', { day: '2-digit', month: '2-digit' })
 }
 
-function cssVar(name, fallback) {
-  if (typeof window === 'undefined') return fallback
-  const v = getComputedStyle(document.documentElement).getPropertyValue(name).trim()
-  return v || fallback
+// Цвет графика из токенов :root (Recharts нужна строка, var() в его пропсы не
+// пробросить). Берем первый непустой из имен, иначе — ключевое слово CSS.
+// Без hex-фолбэков (РЕВЬЮ-КОДА-2026-10-02): палитра живет только в index.css,
+// а захардкоженный «ночной» цвет при смене палитры молча расходился бы с ней.
+// currentColor/Canvas — системные значения, они хотя бы следуют теме страницы.
+function cssVar(names, keyword = 'currentColor') {
+  if (typeof window === 'undefined') return keyword
+  const style = getComputedStyle(document.documentElement)
+  for (const name of [].concat(names)) {
+    const v = style.getPropertyValue(name).trim()
+    if (v) return v
+  }
+  return keyword
 }
 
 const PERIODS = [
@@ -153,16 +162,16 @@ export default function ProgressScreen({
   }, [data, goalGuide, weighted])
 
   const c = useMemo(() => ({
-    grid: cssVar('--border', '#1e293b'),
-    axis: cssVar('--muted', '#94a3b8'),
-    line: cssVar('--green', '#16a34a'),
-    down: cssVar('--red', '#ef4444'),
-    flat: cssVar('--muted', '#94a3b8'),
-    pr: cssVar('--g4', '#facc15'), // цвет рекордов (v6.2.2): как 🏆 и звезды Профиля
-    bg: cssVar('--bg', '#0f172a'),
-    border: cssVar('--border', '#334155'),
-    text: cssVar('--text', '#e2e8f0'),
-    goal: cssVar('--acc', '#C8F135'), // цель — выбранный акцент
+    grid: cssVar(['--border', '--stroke']),
+    axis: cssVar(['--muted', '--text']),
+    line: cssVar(['--green', '--acc']),
+    down: cssVar(['--red']),
+    flat: cssVar(['--muted', '--text']),
+    pr: cssVar(['--g4', '--yellow']), // цвет рекордов (v6.2.2): как 🏆 и звезды Профиля
+    bg: cssVar(['--bg', '--surface-solid'], 'Canvas'),
+    border: cssVar(['--border', '--stroke']),
+    text: cssVar(['--text'], 'CanvasText'),
+    goal: cssVar(['--acc', '--g1']), // цель — выбранный акцент
   }), [])
 
   // Цвет точки по смыслу: рекорд > спад/рост. Желтый — новый максимум,
@@ -308,10 +317,13 @@ export default function ProgressScreen({
                     </div>
                   </div>
                   )}
-                  <div className="muted stat-orm-note">
-                    в теории (1ПМ): рекорд ~{allBestOrm}
-                    {formBestOrm > 0 && formBestOrm !== allBestOrm ? ` · сейчас ~${formBestOrm}` : ''} кг
-                  </div>
+                  {/* 1ПМ не считается для подходов > 12 повторов — нечего показывать. */}
+                  {allBestOrm > 0 && (
+                    <div className="muted stat-orm-note">
+                      в теории (1ПМ): рекорд ~{allBestOrm}
+                      {formBestOrm > 0 && formBestOrm !== allBestOrm ? ` · сейчас ~${formBestOrm}` : ''} кг
+                    </div>
+                  )}
                 </div>
               ) : (
                 <div className="card stat">
@@ -442,7 +454,7 @@ export default function ProgressScreen({
                       </span>
                       <span className="prog-val">
                         {metric === 'time' ? fmtTime(r.value) : r.value}{r.isPr ? ' 🏆' : ''}
-                        {weighted && <span className="prog-orm">1ПМ {r.orm}</span>}
+                        {weighted && r.orm > 0 && <span className="prog-orm">1ПМ {r.orm}</span>}
                       </span>
                     </div>
                   ))}

@@ -228,7 +228,11 @@ updated_at)` + `upsert_user_meta` (`supabase/user-meta.sql`, RLS «только 
   29.07.2026; устаревшие блоки в старых файлах закомментированы с маркером). `login_users` менять
   только через `create or replace` **без `drop view`** — `drop` снимает grant для `anon`, а вью
   читает пикер входа ДО авторизации; колонки можно только дописывать в конец.
-- **`leaderboard_bench`** → канон `leaderboard-actual-weight.sql`: строка участника выбирается по
+- **`leaderboard_bench`** → канон `server-hardening-2026-10.sql` (v6.7.6: SECURITY DEFINER + видимость
+  `can_see_user` + Эпли только до 12 повторов; собран поверх живого тела из `leaderboard-actual-weight.sql`).
+  После него `is_private_user`/`are_connected` у `authenticated` ОТОЗВАНЫ: новая функция, доступная клиенту
+  и зовущая их, обязана быть DEFINER (иначе permission denied), политики — только через `can_see_user()`.
+  Дальше — история прежнего канона: строка участника выбирается по
   САМОМУ ТЯЖЁЛОМУ подходу, `orm` — отдельный максимум по всем его подходам (сноска в UI). НЕ
   пересоздавать из `leaderboard_bench.sql` / `leaderboard-bench-fix.sql` / `gender-leaderboard.sql`:
   там отбор `order by orm desc`, и борд показывает подход с лучшим расчётным 1ПМ вместо фактического
@@ -245,6 +249,15 @@ updated_at)` + `upsert_user_meta` (`supabase/user-meta.sql`, RLS «только 
 - **`goal_reached_for_workout`** → канон `goal-reached-private.sql` (v6.7.5: фильтр приватности +
   `search_path`). НЕ перезапускать тело из `goals.sql` / `goals-metric.sql` / `goals-reps.sql`: там
   фильтра нет, и в общий чат уходит «Имя достиг цели» приватного участника (было на проде до 02.10).
+- **`push_subscribe` / `set_my_avatar_url` / триггер `trg_touch_users`** → канон `server-hardening-2026-10.sql`
+  (v6.7.6): endpoint только FCM/Apple/Mozilla/Windows и ≤10 подписок на человека; аватар — только своя
+  папка `avatars/<app_uid>/`; служебные колонки users (`last_login_at`, PIN, `session_epoch`, `auth_uid`)
+  `updated_at` не двигают — иначе анонимный `login_users.updated_at` выдает время каждого входа. Служебные
+  таблицы `auth_attempts`/`audit_log`/`admin_rate`/`tg_announced` — без прав у anon/authenticated (только
+  service_role и DEFINER-функции). Политики чтения `users`/`exercises` — `app_uid() is not null`, не `true`.
+- **Смена упражнения в админке → снимки в тренировках (v6.7.6).** Сервер `workouts.updated_at` НЕ двигает (на
+  workouts триггеры Telegram и пушей — старые рекорды объявились бы заново); клиент сам перечитывает по id
+  свои чистые тренировки с изменившимися упражнениями (`db/sync/pull.js refreshWorkoutsForExercises`).
 - **Лимит попыток PIN** → канон `auth-rate-claim.sql` (v6.7.5): попытка ЗАНИМАЕТСЯ `auth_rate_claim`
   до проверки PIN, под блокировкой строки; лок растет 15 мин → 1 ч → 4 ч. Не возвращать в Edge
   Functions схему «`auth_rate_guard` → проверка → `auth_rate_fail`»: параллельные запросы обходят

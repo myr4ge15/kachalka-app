@@ -44,15 +44,24 @@ describe('putWorkoutFeels', () => {
     expect(putWorkoutFeels({}, 'w1', '2026-01-01', { e1: 'мусор' })).toEqual({})
   })
 
-  it('перезапись тренировки снимает прежние оценки (правка состава)', () => {
+  it('перезапись тренировки снимает прежние оценки (правка состава) — надгробием null', () => {
     const map = { w1: rec('2026-01-01', { e1: 'easy', e2: 'hard' }) }
     const out = putWorkoutFeels(map, 'w1', '2026-01-01', { e1: 'ok' })
-    expect(out.w1.ex).toEqual({ e1: 'ok' })
+    expect(out.w1.ex).toEqual({ e1: 'ok', e2: null })
+    expect(feelsForWorkout(out, 'w1')).toEqual({ e1: 'ok' })
   })
 
-  it('очистка всех оценок удаляет запись целиком', () => {
+  it('очистка всех оценок оставляет надгробия (снятие должно доехать до других устройств)', () => {
     const map = { w1: rec('2026-01-01', { e1: 'easy' }) }
-    expect(putWorkoutFeels(map, 'w1', '2026-01-01', {})).toEqual({})
+    const out = putWorkoutFeels(map, 'w1', '2026-01-01', {})
+    expect(out).toEqual({ w1: rec('2026-01-01', { e1: null }) })
+    expect(feelsForWorkout(out, 'w1')).toEqual({})
+    expect(feelFor(out, 'w1', 'e1')).toBe(null)
+  })
+
+  it('повторная оценка поверх надгробия его заменяет', () => {
+    const map = { w1: rec('2026-01-01', { e1: null }) }
+    expect(putWorkoutFeels(map, 'w1', '2026-01-01', { e1: 'hard' }).w1.ex).toEqual({ e1: 'hard' })
   })
 
   it('без workoutId возвращает карту как есть', () => {
@@ -172,6 +181,34 @@ describe('mergeRpe', () => {
     for (let i = 0; i < RPE_KEEP; i++) a[`a${i}`] = rec(`2026-01-01T00:00:${String(i % 60).padStart(2, '0')}.000Z`, { e: 'ok' })
     for (let i = 0; i < RPE_KEEP; i++) b[`b${i}`] = rec(`2026-02-01T00:00:${String(i % 60).padStart(2, '0')}.000Z`, { e: 'ok' })
     expect(Object.keys(mergeRpe(a, b)).length).toBe(RPE_KEEP)
+  })
+})
+
+// РЕВЬЮ-КОДА-2026-10-02, мелочи: снятая оценка «воскресала» при слиянии с
+// устройством, у которого она еще была.
+describe('mergeRpe: снятая оценка (надгробие)', () => {
+  it('снятие на одном устройстве не воскрешается вторым, у которого оценка осталась', () => {
+    const before = { w1: rec('2026-01-01', { a: 'hard' }) }
+    // устройство A сняло оценку и отправило карту на сервер
+    const server = putWorkoutFeels(before, 'w1', '2026-01-01', {})
+    // устройство B (чистое, сервер новее) сливает свою старую карту с серверной
+    const onB = mergeRpe(before, server, false)
+    expect(feelFor(onB, 'w1', 'a')).toBe(null)
+    // сценарий из ревью: у A локально уже «нет», сервер еще с оценкой — A побеждает
+    const onA = mergeRpe(server, before, true)
+    expect(feelFor(onA, 'w1', 'a')).toBe(null)
+  })
+
+  it('более поздняя оценка побеждает надгробие (то же правило LWW)', () => {
+    const tomb = { w1: rec('2026-01-01', { a: null }) }
+    const rated = { w1: rec('2026-01-01', { a: 'easy' }) }
+    expect(feelFor(mergeRpe(rated, tomb, true), 'w1', 'a')).toBe('easy')
+    expect(feelFor(mergeRpe(tomb, rated, false), 'w1', 'a')).toBe('easy')
+  })
+
+  it('withFeels не показывает надгробие', () => {
+    const map = { w1: rec('2026-01-01', { a: null }) }
+    expect(withFeels([{ id: 'w1' }], map, 'a')[0].feel).toBe(null)
   })
 })
 

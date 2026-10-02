@@ -17,6 +17,23 @@ const SNOOZE_MS = 4 * 60 * 60 * 1000 // 4 часа
 // подвисшая сеть не должна прятать настоящее обновление дольше пары секунд.
 const VERSION_TIMEOUT_MS = 3000
 
+// Не чаще, чем раз в столько, перепроверяем version.json, пока новый sw.js уже
+// ждет, а сверка сказала «та же версия» (РЕВЬЮ-КОДА-2026-10-02): CDN мог
+// отдать старый version.json, пока sw.js уже новый. Без повторной сверки плашка
+// гасла до следующего запуска; частые возвраты на вкладку не должны долбить сеть.
+export const RECHECK_MIN_MS = 2 * 60 * 1000 // 2 минуты
+
+// Пора ли повторно сверить версию ждущего SW. Чистая функция — в компоненте, а не
+// в lib/pwaUpdate.js: там правила показа, а это — расписание опроса плашки.
+//  hasWaiting — новый SW скачан и ждет;
+//  hidden     — плашка сейчас не показана (needRefresh=false);
+//  quiet      — ее спрятала сверка «версия та же» (а не «Позже» и не применение);
+//  lastAt     — когда сверяли в последний раз (мс), now — текущее время.
+export function shouldRecheckWaiting({ hasWaiting, hidden, quiet, lastAt, now, minGap = RECHECK_MIN_MS }) {
+  if (!hasWaiting || !hidden || !quiet) return false
+  return now - (lastAt || 0) >= minGap
+}
+
 // Какая версия лежит на сервере прямо сейчас (файл кладет сборка, см.
 // vite.config.js). `no-store` обязателен: и HTTP-кэш, и service worker иначе
 // отдадут копию установленной сборки, и сверка ничего не покажет. Любая
@@ -55,6 +72,11 @@ export default function UpdatePrompt() {
   // Время нажатия «Позже» (0 — не откладывали). Хранится в ref, чтобы таймер и
   // слушатели видели актуальное значение без перевешивания эффекта.
   const snoozedAtRef = useRef(0)
+  // Плашку спрятала сверка «та же версия» при ждущем SW — и когда это было.
+  // См. shouldRecheckWaiting: пока так, периодически сверяем заново.
+  const quietRef = useRef(false)
+  const lastVersionCheckRef = useRef(0)
+  const needRefreshRef = useRef(false)
   // Версия, на которую зовем обновиться (null — не узнали, показываем без номера).
   const [nextVersion, setNextVersion] = useState(null)
   const [nextHeadline, setNextHeadline] = useState(null)
@@ -70,6 +92,7 @@ export default function UpdatePrompt() {
       regRef.current = registration ?? null
     },
   })
+  needRefreshRef.current = needRefresh
 
   useEffect(() => {
     const check = () => {
@@ -83,6 +106,20 @@ export default function UpdatePrompt() {
         ttl: SNOOZE_MS,
       })) {
         snoozedAtRef.current = 0
+        setNeedRefresh(true)
+        return
+      }
+      // sw.js уже новый, а version.json с CDN был старый — сверяем еще раз:
+      // поднятый needRefresh заново запустит сверку ниже, и плашка появится,
+      // как только CDN догонит (или снова молча спрячется).
+      if (shouldRecheckWaiting({
+        hasWaiting: !!r.waiting,
+        hidden: !needRefreshRef.current,
+        quiet: quietRef.current,
+        lastAt: lastVersionCheckRef.current,
+        now: Date.now(),
+      })) {
+        quietRef.current = false
         setNeedRefresh(true)
         return
       }
@@ -106,15 +143,19 @@ export default function UpdatePrompt() {
       return
     }
     let alive = true
+    lastVersionCheckRef.current = Date.now()
     fetchServerVersion().then((server) => {
       if (!alive) return
       if (!isRealUpdate(__APP_VERSION__, server?.version)) {
         // Ждущий SW несет ту же версию — обновляться не на что, молча прячем.
         // Применить его сами не пытаемся: активация перезагрузит приложение
-        // без спроса, а выигрыша нет.
+        // без спроса, а выигрыша нет. Но запоминаем, что спрятали «по версии»:
+        // это может быть отстающий CDN — check() перепроверит позже.
+        quietRef.current = true
         setNeedRefresh(false)
         return
       }
+      quietRef.current = false
       setNextVersion(server?.version ?? null)
       setNextHeadline(server?.headline ?? null)
       setVersionChecked(true)

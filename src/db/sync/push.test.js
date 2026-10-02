@@ -438,6 +438,47 @@ describe('pushGoal / pushUserMeta — частичный commit', () => {
     expect(goals[1]).toMatchObject({ exerciseId: 'ex2', _dirty: 1 })
   })
 
+  // РЕВЬЮ-КОДА-2026-10-02, мелочи: цель с постоянной ошибкой блокировала все остальные.
+  it('цель с постоянной ошибкой не блокирует отправку следующих; ошибка бросается в конце', async () => {
+    await writeGoals(userId, [
+      { exerciseId: 'bad', exerciseName: 'X', metric: 'weight', targetWeight: 50, achievedAt: null, _dirty: 1 },
+      { exerciseId: 'ok', exerciseName: 'Жим', metric: 'weight', targetWeight: 100, achievedAt: null, _dirty: 1 },
+    ], db)
+    server.rpc = (name, args) => {
+      if (name === 'upsert_goal' && args.p_exercise_id === 'bad') return { data: null, error: { message: 'bad goal' } }
+      return { data: null, error: null }
+    }
+
+    await expect(pushGoal(userId, db)).rejects.toMatchObject({ message: 'bad goal' })
+
+    const goals = await readGoals(userId, db)
+    expect(goals.find((g) => g.exerciseId === 'bad')._dirty).toBe(1)
+    expect(goals.find((g) => g.exerciseId === 'ok')._dirty).toBe(0)
+    expect(server.calls.filter((c) => c.name === 'upsert_goal').map((c) => c.args.p_exercise_id)).toEqual(['bad', 'ok'])
+  })
+
+  it('несколько сбойных целей: ошибки собираются в одну', async () => {
+    await writeGoals(userId, [
+      { exerciseId: 'a', metric: 'weight', targetWeight: 50, _dirty: 1 },
+      { exerciseId: 'b', metric: 'weight', targetWeight: 60, _deleted: 1, _dirty: 1 },
+    ], db)
+    server.rpc = (name) => ({ data: null, error: { message: name + ' failed' } })
+
+    await expect(pushGoal(userId, db)).rejects.toThrow('upsert_goal failed; delete_my_goal failed')
+  })
+
+  it('невалидная грязная цель (значение не > 0) снимает _dirty без отправки', async () => {
+    await writeGoals(userId, [
+      { exerciseId: 'z', metric: 'weight', targetWeight: 0, _dirty: 1 },
+      { exerciseId: 'n', metric: 'weight', targetWeight: undefined, _dirty: 1 },
+    ], db)
+
+    await pushGoal(userId, db)
+
+    expect(server.calls.filter((c) => c.kind === 'rpc')).toEqual([])
+    expect((await readGoals(userId, db)).map((g) => g._dirty)).toEqual([0, 0])
+  })
+
   it('фиксирует первый ключ user_meta до ошибки следующего', async () => {
     await writeSyncedMeta(userId, 'badges', { first: { at: '2026-07-01' } }, db)
     await writeSyncedMeta(userId, 'prog', { ex1: { strategy: 'weight' } }, db)

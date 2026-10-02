@@ -201,8 +201,11 @@ export async function detectGoalReachedOnSave(userId, workoutId) {
       crossed = !prevMet && curMet
     } else {
       // reps/time: ведущая метрика одна (повторы/секунды) — старый расчет по максимуму.
-      const cur = bestAll.get(g.exerciseId)?.value ?? 0
-      const prev = bestPrev.get(g.exerciseId)?.value ?? 0
+      // Только в единице цели: если тип упражнения сменили этой же тренировкой,
+      // прежний максимум в другой единице (кг) с повторами не сравним.
+      const inUnit = (b) => (b && normMetric(b.metric) === m ? b.value : 0)
+      const cur = inUnit(bestAll.get(g.exerciseId))
+      const prev = inUnit(bestPrev.get(g.exerciseId))
       crossed = crossedGoal(prev, cur, g.targetWeight)
     }
     if (!crossed) return g

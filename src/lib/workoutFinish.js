@@ -1,5 +1,5 @@
 import { totalTonnage } from './profileStats.js'
-import { fmtMetricValue } from './metric.js'
+import { fmtMetricValue, normMetric } from './metric.js'
 
 function explicitDurationSeconds(workout) {
   const raw = workout?.duration_seconds ?? workout?.durationSeconds
@@ -30,6 +30,39 @@ export function formatWorkoutDuration(seconds) {
   return rest ? `${hours} ч ${rest} мин` : `${hours} ч`
 }
 
+// Порядок метрик для фолбэка выбора «главного» (вес — основной лифт).
+const METRIC_RANK = { weight: 0, reps: 1, time: 2 }
+
+// Выбрать «главный» рекорд/цель среди событий в РАЗНЫХ метриках. Раньше брали
+// максимум сырого value, и единицы смешивались: планка +5 с (120 с) побеждала
+// жим +20 кг (100 кг) — РЕВЬЮ-КОДА-2026-10-02, «Тексты и расчеты». Теперь, как в
+// insights.rNewPr, сравниваем ОТНОСИТЕЛЬНЫЙ прирост (value − prev) / prev.
+// Фолбэк без prev (у целей его нет, prev=0 у «первого замера»): событие с
+// приростом выше события без него; дальше — весовые раньше count-метрик, внутри
+// одной метрики — больший value; при полном равенстве — порядок списка.
+function pickTop(list) {
+  const scored = list.map((x, i) => {
+    const value = Number(x?.value) || 0
+    const prev = Number(x?.prev) || 0
+    return {
+      x,
+      i,
+      value,
+      gain: prev > 0 ? (value - prev) / prev : null,
+      rank: METRIC_RANK[normMetric(x?.metric)] ?? 0,
+    }
+  })
+  scored.sort(
+    (a, b) =>
+      Number(b.gain != null) - Number(a.gain != null) ||
+      (a.gain != null && b.gain != null ? b.gain - a.gain : 0) ||
+      a.rank - b.rank ||
+      b.value - a.value ||
+      a.i - b.i
+  )
+  return scored[0].x
+}
+
 // Из результатов уже выполненных локальных детекторов собираем до трех событий
 // итогового экрана. Первое — крупный акцент, остальные — компактные строки.
 // Побочные эффекты (цель achievedAt, даты бейджей, уведомления) остаются в
@@ -43,7 +76,7 @@ export function workoutFinishEvents({
   const events = []
 
   if (reached.length) {
-    const top = reached.reduce((a, b) => (Number(b.value) > Number(a.value) ? b : a), reached[0])
+    const top = pickTop(reached)
     const extra = reached.length > 1 ? ` +${reached.length - 1}` : ''
     const reps = top.metric === 'weight' && Number(top.reps) > 0
       ? ` × ${Math.round(Number(top.reps))}`
@@ -59,7 +92,7 @@ export function workoutFinishEvents({
   }
 
   if (prs.length) {
-    const top = prs.reduce((a, b) => (Number(b.value) > Number(a.value) ? b : a), prs[0])
+    const top = pickTop(prs)
     const extra = prs.length > 1 ? ` +${prs.length - 1}` : ''
     events.push({
       kind: 'pr',

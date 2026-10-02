@@ -10,9 +10,10 @@ vi.mock('dexie-react-hooks', () => ({ useLiveQuery: vi.fn() }))
 vi.mock('../db/repo.js', () => ({ getWorkouts: vi.fn(), saveTemplate: vi.fn() }))
 vi.mock('../db/sync.js', () => ({ syncNow: vi.fn() }))
 vi.mock('./WorkoutScreen.jsx', () => ({
-  default: ({ workoutId, onSaved }) => (
+  default: ({ workoutId, onSaved, onBack }) => (
     <div data-testid="workout-screen">
       {workoutId ?? 'new'}
+      <button onClick={() => onBack?.()}>Назад из тренировки</button>
       <button onClick={() => onSaved?.({ workout, events: [] })}>Сохранить тестовую</button>
       <button onClick={() => onSaved?.({
         workout,
@@ -189,5 +190,49 @@ describe('HistoryScreen', () => {
     fireEvent.click(screen.getByRole('button', { name: 'Предыдущий месяц' }))
     expect(screen.getByRole('dialog')).toHaveTextContent('Июнь 2026')
     expect(screen.getByRole('dialog')).toHaveTextContent('без тренировок')
+  })
+
+  // РЕВЬЮ-КОДА-2026-10-02: «Назад» из тренировки, открытой в календаре, вел в список.
+  it('«Назад» из тренировки, открытой в календаре, возвращает календарь на тот же день', () => {
+    render(<HistoryScreen user={user} />)
+    fireEvent.click(screen.getByRole('button', { name: 'Календарь тренировок' }))
+    // Листаем назад к июлю 2026 от «сегодня» — проще открыть нужный день интентом,
+    // но здесь важно, что календарь открыт изнутри экрана (без Ритма).
+    let guard = 0
+    while (!screen.getByRole('dialog').textContent.includes('Июль 2026') && guard++ < 60) {
+      fireEvent.click(screen.getByRole('button', { name: 'Предыдущий месяц' }))
+    }
+    fireEvent.click(screen.getByRole('button', { name: '29, 1 тренировка' }))
+    fireEvent.click(screen.getByRole('button', { name: 'Открыть тренировку' }))
+    expect(screen.getByTestId('workout-screen')).toHaveTextContent('w1')
+
+    fireEvent.click(screen.getByRole('button', { name: 'Назад из тренировки' }))
+    const dialog = screen.getByRole('dialog')
+    expect(dialog).toHaveTextContent('Июль 2026')
+    expect(screen.getByRole('button', { name: '29, 1 тренировка' })).toHaveAttribute('aria-pressed', 'true')
+
+    // Повторный «назад» уже не нужен: закрытие календаря — обычный выход к списку.
+    fireEvent.click(screen.getByRole('button', { name: 'закрыть' }))
+    expect(screen.queryByRole('dialog')).not.toBeInTheDocument()
+    expect(screen.getByText('Мои тренировки')).toBeInTheDocument()
+  })
+
+  it('из календаря, открытого Ритмом: «Назад» — в календарь, закрытие — в Ритм', () => {
+    const onReturn = vi.fn()
+    render(<HistoryScreen user={user} openCalendar="2026-07-29" onReturn={onReturn} />)
+    fireEvent.click(screen.getByRole('button', { name: 'Открыть тренировку' }))
+    fireEvent.click(screen.getByRole('button', { name: 'Назад из тренировки' }))
+    expect(onReturn).not.toHaveBeenCalled()
+    expect(screen.getByRole('dialog')).toHaveTextContent('Июль 2026')
+    fireEvent.click(screen.getByRole('button', { name: 'закрыть' }))
+    expect(onReturn).toHaveBeenCalledOnce()
+  })
+
+  it('тренировка из списка по «Назад» возвращает в список, без календаря', () => {
+    render(<HistoryScreen user={user} />)
+    fireEvent.click(screen.getByText('Жим лежа').closest('button'))
+    fireEvent.click(screen.getByRole('button', { name: 'Назад из тренировки' }))
+    expect(screen.queryByRole('dialog')).not.toBeInTheDocument()
+    expect(screen.getByText('Мои тренировки')).toBeInTheDocument()
   })
 })

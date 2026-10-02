@@ -14,6 +14,12 @@
 //    WorkoutScreen при размонтировании гасит СВОЙ undo-тост (он привязан к экрану:
 //    после ухода со страницы его «Отменить» уже мертв), но НЕ трогает поздравление
 //    о рекорде/цели, которое по замыслу должно пережить onBack.
+//  - onClose (необязательно) зовется РОВНО один раз, когда тост ушел с экрана по
+//    любой причине: таймер, действие, hideToast или замена следующим тостом
+//    (синхронно внутри showToast, до показа нового). Нужен владельцу, который
+//    копит состояние на время жизни тоста — серия удаленных подходов для общего
+//    «Отменить» (РЕВЬЮ-КОДА-2026-10-02: раньше слот один, и вернуть можно было
+//    только последний подход).
 //
 // ВАЖНО (скролл): тост — фиксированная полоса у нижнего края, поверх .content
 // (единственная прокручиваемая область), но ВНЕ ее. Раньше он ловил pointer-события
@@ -29,7 +35,7 @@ import { useEffect, useRef, useState } from 'react'
 const subs = new Set()
 const hideSubs = new Set()
 
-// Показать тост. payload: { title, sub?, emoji?, actionLabel?, onAction?, duration?, raised?, kind? }.
+// Показать тост. payload: { title, sub?, emoji?, actionLabel?, onAction?, onClose?, duration?, raised?, kind? }.
 // Если задан actionLabel+onAction — рисуется кнопка действия (напр. «Отменить»).
 // raised:true поднимает тост выше липкой кнопки «Сохранить» композера тренировки
 // (иначе undo-тост удаления перекрывает ее, пока висит окно отмены).
@@ -51,24 +57,38 @@ export function hideToast(kind) {
 export default function Toast() {
   const [toast, setToast] = useState(null)
   const timer = useRef(null)               // авто-скрытие по duration
-  const toastRef = useRef(null)            // актуальный toast для hide-подписки
-  toastRef.current = toast
+  // Актуальный тост для hide/замены. Обновляется синхронно в show/close, а не
+  // при рендере: два showToast подряд до перерисовки должны видеть друг друга,
+  // иначе onClose первого потерялся бы.
+  const toastRef = useRef(null)
+  const closeRef = useRef(null)            // закрыть текущий (для кнопки действия)
 
   useEffect(() => {
-    const show = (payload) => {
+    const close = () => {
+      const cur = toastRef.current
       clearTimeout(timer.current)
+      toastRef.current = null
+      setToast(null)
+      try { cur?.onClose?.() } catch { /* ignore */ }
+    }
+    closeRef.current = close
+    const show = (payload) => {
+      const prev = toastRef.current
+      clearTimeout(timer.current)
+      toastRef.current = payload
+      // Прежний тост вытеснен — сообщаем владельцу ДО показа нового.
+      try { prev?.onClose?.() } catch { /* ignore */ }
       setToast(payload)
       // 3 c: тост нельзя закрыть касанием (тело pointer-transparent, см. ниже), а
       // прежние 4.5 c на телефоне читались как «висит и мешает». Тостам с окном
       // отмены экран передает duration подольше — но тоже не «навсегда».
-      timer.current = setTimeout(() => setToast(null), payload?.duration ?? 3000)
+      timer.current = setTimeout(close, payload?.duration ?? 3000)
     }
     const hide = (kind) => {
       const cur = toastRef.current
       if (!cur) return
       if (kind && cur.kind !== kind) return
-      clearTimeout(timer.current)
-      setToast(null)
+      close()
     }
     subs.add(show)
     hideSubs.add(hide)
@@ -81,7 +101,7 @@ export default function Toast() {
 
   if (!toast) return null
 
-  const dismiss = () => { clearTimeout(timer.current); setToast(null) }
+  const dismiss = () => closeRef.current?.()
   const hasAction = toast.actionLabel && toast.onAction
 
   return (

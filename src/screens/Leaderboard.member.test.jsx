@@ -2,6 +2,7 @@
 // Отдельный файл, чтобы не трогать Leaderboard.test.jsx (параллельная работа).
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 import { render, screen, fireEvent } from '@testing-library/react'
+import userEvent from '@testing-library/user-event'
 import { useLiveQuery } from 'dexie-react-hooks'
 import Leaderboard from './Leaderboard.jsx'
 
@@ -48,12 +49,23 @@ describe('Leaderboard — переход в профиль участника (v
     expect(onOpenMember).toHaveBeenCalledWith('dima', 'lb-dima')
   })
 
-  it('Enter на строке тоже открывает профиль', () => {
+  it('Enter на строке тоже открывает профиль', async () => {
     const onOpenMember = vi.fn()
     readyQueries()
     render(<Leaderboard user={user} onOpenMember={onOpenMember} />)
-    fireEvent.keyDown(screen.getByRole('button', { name: 'Открыть мой профиль' }), { key: 'Enter' })
+    screen.getByRole('button', { name: 'Открыть мой профиль' }).focus()
+    await userEvent.keyboard('{Enter}')
     expect(onOpenMember).toHaveBeenCalledWith('me', 'lb-me')
+  })
+
+  // РЕВЬЮ-КОДА-2026-10-02: кнопка — внутри пункта списка, а не сам li с role=button,
+  // иначе <ol> теряет семантику «пункт N из M».
+  it('строки остаются пунктами списка, кнопка — внутри', () => {
+    readyQueries()
+    render(<Leaderboard user={user} onOpenMember={vi.fn()} />)
+    const items = screen.getAllByRole('listitem')
+    expect(items).toHaveLength(2)
+    expect(items[0].querySelector('button')).toHaveAccessibleName('Открыть профиль: Дима')
   })
 
   it('без обработчика строки не притворяются кнопками', () => {

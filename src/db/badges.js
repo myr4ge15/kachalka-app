@@ -10,7 +10,8 @@
 // (backfilled:true) — без тоста и без записи на «Колокольчик». Тост/колокольчик —
 // только за живое получение на сохранении тренировки.
 // ============================================================================
-import { getWorkouts, getBadges, writeBadges } from './repo.js'
+import { getWorkouts, getBadges } from './repo.js'
+import { updateSyncedMeta } from './userMeta.js'
 import { nowIso } from './local.js'
 import {
   BADGES,
@@ -65,20 +66,33 @@ export async function getBadgesView(userId) {
 // Тихая разметка исторических вех (первый заход на экран). Проставляет дату всем
 // закрытым, но еще не отмеченным бейджам как backfilled — чтобы у полученных была
 // дата и держалась необратимость. Идемпотентно; не создает тостов/уведомлений.
+//
+// Карту бейджей читаем и пишем ОДНОЙ транзакцией (updateSyncedMeta): раньше между
+// getBadges и writeBadges мог вклиниться pullUserMeta (бейджи с другого
+// устройства) или параллельный detectBadgesOnSave — и их запись молча
+// перетиралась картой, собранной из старого (РЕВЬЮ-КОДА-2026-10-02, мелочи).
 export async function backfillBadges(userId) {
-  const [workouts, earnedMap] = await Promise.all([getWorkouts(userId), getBadges(userId)])
+  const workouts = await getWorkouts(userId)
   const values = currentValues(workouts)
   const dates = badgeEarnedDates(workouts) // точные исторические даты (Slice 2)
-  const next = { ...earnedMap }
-  let changed = false
   const now = nowIso()
-  for (const def of BADGES) {
-    if (!next[def.id] && badgeProgress(def, values).done) {
-      next[def.id] = { at: dates[def.id] ?? now, backfilled: true }
-      changed = true
+  await updateSyncedMeta(userId, 'badges', (cur) => {
+    const earnedMap = asBadgeMap(cur)
+    const next = { ...earnedMap }
+    let changed = false
+    for (const def of BADGES) {
+      if (!next[def.id] && badgeProgress(def, values).done) {
+        next[def.id] = { at: dates[def.id] ?? now, backfilled: true }
+        changed = true
+      }
     }
-  }
-  if (changed) await writeBadges(userId, next)
+    return changed ? next : cur // без изменений — не пишем и не ставим dirty
+  })
+}
+
+// Сырое значение badges_ из meta → карта (как repo.getBadges).
+function asBadgeMap(v) {
+  return v && typeof v === 'object' ? v : {}
 }
 
 // Новые бейджи, закрытые ИМЕННО этим сохранением (для тоста после тренировки).
@@ -87,19 +101,26 @@ export async function backfillBadges(userId) {
 // бэкфиллом: даты проставляем, но тост НЕ показываем и на «Колокольчик» не шлем
 // (не спамим десятком исторических вех). Дальше — уже живое получение с тостом.
 export async function detectBadgesOnSave(userId) {
-  const [workouts, earnedMap] = await Promise.all([getWorkouts(userId), getBadges(userId)])
-  const firstPass = Object.keys(earnedMap).length === 0
+  const workouts = await getWorkouts(userId)
   const values = currentValues(workouts)
-  const { newlyEarned } = evaluateBadges(values, earnedMap)
-  if (!newlyEarned.length) return []
   const now = nowIso()
-  // Первый проход (бэкфилл истории) — исторические даты; живое получение — сейчас.
-  const dates = firstPass ? badgeEarnedDates(workouts) : null
-  const next = { ...earnedMap }
-  for (const id of newlyEarned) {
-    next[id] = { at: firstPass ? (dates[id] ?? now) : now, backfilled: firstPass }
-  }
-  await writeBadges(userId, next)
-  if (firstPass) return []
+  // Решение (что нового, первый ли проход) принимаем по карте, прочитанной ВНУТРИ
+  // транзакции записи — см. комментарий у backfillBadges.
+  let newlyEarned = []
+  let firstPass = false
+  await updateSyncedMeta(userId, 'badges', (cur) => {
+    const earnedMap = asBadgeMap(cur)
+    firstPass = Object.keys(earnedMap).length === 0
+    newlyEarned = evaluateBadges(values, earnedMap).newlyEarned
+    if (!newlyEarned.length) return cur
+    // Первый проход (бэкфилл истории) — исторические даты; живое получение — сейчас.
+    const dates = firstPass ? badgeEarnedDates(workouts) : null
+    const next = { ...earnedMap }
+    for (const id of newlyEarned) {
+      next[id] = { at: firstPass ? (dates[id] ?? now) : now, backfilled: firstPass }
+    }
+    return next
+  })
+  if (!newlyEarned.length || firstPass) return []
   return newlyEarned.map((id) => BADGE_BY_ID[id]).filter(Boolean)
 }

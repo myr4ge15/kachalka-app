@@ -23,6 +23,14 @@
 //   { [workoutId]: { at: ISO, ex: { [exerciseId]: 'easy'|'ok'|'hard' } } }
 // `at` дублирует `performed_at` намеренно: без него карту нечем обрезать, а она
 // растет вечно и целиком уезжает в jsonb при каждом push.
+//
+// СНЯТАЯ ОЦЕНКА — НАДГРОБИЕ `null` (РЕВЬЮ-КОДА-2026-10-02, мелочи). Слияние карт
+// при синке — объединение, и раньше снятая оценка просто исчезала из карты: второе
+// устройство, у которого она еще была, при ближайшем pull объединяло «нет» со
+// своим «тяжело» и отправляло оценку обратно — снять ее было невозможно. Теперь
+// снятие пишет `ex[exerciseId] = null`; на спорной паре null побеждает или
+// проигрывает по тому же правилу LWW (preferLocal), что и обычная оценка, а все
+// читатели (feelsForWorkout/feelFor/withFeels) null не показывают.
 // ============================================================================
 
 import { cmpIsoDesc } from './cmp.js'
@@ -56,13 +64,15 @@ function normMap(map) {
   return map && typeof map === 'object' && !Array.isArray(map) ? map : {}
 }
 
-// Запись одной тренировки в нормальной форме: { at, ex:{...} }.
-function normRec(rec) {
+// Запись одной тренировки в нормальной форме: { at, ex:{...} }. keepTombs —
+// сохранить надгробия (null) снятых оценок: нужно слиянию и записи, читателям — нет.
+function normRec(rec, keepTombs = false) {
   if (!rec || typeof rec !== 'object') return null
   const ex = {}
   for (const [exId, feel] of Object.entries(rec.ex ?? {})) {
     const f = normFeel(feel)
     if (f) ex[exId] = f
+    else if (keepTombs && feel === null) ex[exId] = null
   }
   return { at: typeof rec.at === 'string' ? rec.at : '', ex }
 }
@@ -89,11 +99,17 @@ export function putWorkoutFeels(map, workoutId, at, feels) {
     const f = normFeel(feel)
     if (f) ex[exId] = f
   }
+  // Оценки, которые у тренировки БЫЛИ (или уже лежат надгробием), а в новом наборе
+  // их нет, — снятые: оставляем null, иначе слияние с другим устройством вернет их.
+  const prev = normRec(out[workoutId], true)
+  for (const exId of Object.keys(prev?.ex ?? {})) {
+    if (!(exId in ex)) ex[exId] = null
+  }
   if (Object.keys(ex).length === 0) {
     delete out[workoutId]
     return out
   }
-  out[workoutId] = { at: typeof at === 'string' ? at : '', ex }
+  out[workoutId] = { at: typeof at === 'string' ? at : (prev?.at ?? ''), ex }
   return out
 }
 
@@ -130,8 +146,8 @@ export function mergeRpe(local, remote, preferLocal = true) {
   const b = normMap(remote)
   const out = {}
   for (const id of new Set([...Object.keys(a), ...Object.keys(b)])) {
-    const x = normRec(a[id])
-    const y = normRec(b[id])
+    const x = normRec(a[id], true)
+    const y = normRec(b[id], true)
     if (!x || Object.keys(x.ex).length === 0) { if (y) out[id] = y; continue }
     if (!y || Object.keys(y.ex).length === 0) { out[id] = x; continue }
     out[id] = {

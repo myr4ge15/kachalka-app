@@ -10,8 +10,9 @@
 //
 // ЧТО ВНУТРИ: тренировки (тем же чистильщиком, что и обычный экспорт истории —
 // cleanWorkoutForExport), цели, бейджи, настройки автопрогрессии, оценки «как пошло»
-// (RPE, lib/rpe.js) + флаг
-// приватности (справочно). Шаблоны и упражнения — НЕ здесь: у шаблонов свой
+// (RPE, lib/rpe.js), избранные упражнения и выбранный акцент (с v6.7.x — до этого
+// новые роды fav/accent в файл не попадали, РЕВЬЮ-КОДА-2026-10-02) + флаг
+// приватности (справочно). Старые файлы без этих полей импортируются как раньше. Шаблоны и упражнения — НЕ здесь: у шаблонов свой
 // экспорт (exportTemplate.js), а упражнения общие для всех, их импорт плодил бы
 // дубли на весь круг.
 //
@@ -27,6 +28,8 @@ import { localYmd } from './calendar.js'
 import { cleanWorkoutForExport, downloadJson } from './exportWorkout.js'
 import { normMetric } from './metric.js'
 import { mergeRpe } from './rpe.js'
+import { normalizeFavs } from './favorites.js'
+import { parseAccent } from './accent.js'
 
 export const BACKUP_SCHEMA = 'full-backup/v1'
 
@@ -41,7 +44,7 @@ export class BackupError extends Error {
 // ------------------------------- сборка ------------------------------------
 
 // Снимок для выгрузки. `data` — уже собранное состояние из Dexie:
-//   { userId, userName, workouts, goals, badges, prog, rpe, priv }
+//   { userId, userName, workouts, goals, badges, prog, rpe, fav, accent, priv }
 export function buildBackup(data, appVersion = 'dev', now = new Date()) {
   const at = now instanceof Date ? now : new Date(now)
   const d = data ?? {}
@@ -77,10 +80,21 @@ export function buildBackup(data, appVersion = 'dev', now = new Date()) {
     rpe: d.rpe ?? {},
     settings: {
       progression: d.prog ?? null,
+      // Избранные упражнения (род fav): массив id, свежие сверху.
+      favorites: normalizeFavs(d.fav),
+      // Выбранный акцент (род accent): { id, hue, by }. Только СВОЙ (by === владелец
+      // снимка) — чужой/«ничей» цвет в файл не кладем (см. hooks/useAccentSync).
+      accent: ownAccent(d.accent, d.userId),
       // Справочно, при импорте игнорируется (см. шапку файла).
       is_private: d.priv == null ? null : Boolean(d.priv),
     },
   }
+}
+
+function ownAccent(v, userId) {
+  if (!v || typeof v !== 'object' || userId == null) return null
+  if (String(v.by) !== String(userId)) return null
+  return { id: v.id, hue: v.hue ?? null, by: String(userId) }
 }
 
 // YYYY-MM-DD из даты/ISO ('' если не распарсилось). Копия из exportWorkout.js —
@@ -169,7 +183,7 @@ function importEntry(e, exercises) {
 //
 // snapshot — результат parseBackup; current — текущее состояние:
 //   { workoutIds: Set|Array, goals: [], badges: {}, prog: undefined|obj,
-//     rpe: {}, exercises: Map|obj }
+//     rpe: {}, fav: [], accent: obj|null, userId, exercises: Map|obj }
 //
 // Возвращает готовые к записи куски (null — «менять нечего») и счетчики для
 // тоста. `workouts` идут в repo.saveWorkout КАК ЕСТЬ, с исходным id — поэтому
@@ -212,34 +226,16 @@ export function planImport(snapshot, current = {}) {
     }))
 
   // ── бейджи ───────────────────────────────────────────────────────────────
-  const curBadges = current.badges ?? {}
-  const addBadges = {}
-  for (const [id, rec] of Object.entries(snapshot?.badges ?? {})) {
-    if (!rec || typeof rec !== 'object' || !rec.at) continue
-    if (curBadges[id]) continue
-    // backfilled:true — восстановленная веха историческая: не должна всплывать
-    // непрочитанным на колокольчике и праздничным тостом (см. db/badges.js).
-    addBadges[id] = { at: rec.at, backfilled: true }
-  }
-  const badgesCount = Object.keys(addBadges).length
+  const badges = mergeBadgesForImport(current.badges, snapshot?.badges)
+  const badgesCount = badges ? Object.keys(badges).length - Object.keys(current.badges ?? {}).length : 0
 
   // ── настройки автопрогрессии ─────────────────────────────────────────────
-  const snapProg = snapshot?.settings?.progression
-  const curProg = current.prog
-  let prog = null
-  if (snapProg && typeof snapProg === 'object') {
-    const byExercise = { ...(curProg?.byExercise ?? {}) }
-    let added = 0
-    for (const [exId, cfg] of Object.entries(snapProg.byExercise ?? {})) {
-      if (byExercise[exId] || !cfg || typeof cfg !== 'object') continue
-      byExercise[exId] = cfg
-      added++
-    }
-    // Глобальный тумблер восстанавливаем ТОЛЬКО если настроек еще не было
-    // вообще — иначе перетерли бы текущий выбор пользователя.
-    const enabled = curProg ? curProg.enabled !== false : snapProg.enabled !== false
-    if (added > 0 || !curProg) prog = { enabled, byExercise }
-  }
+  const prog = mergeProgForImport(current.prog, snapshot?.settings?.progression)
+
+  // ── избранное и акцент (могут отсутствовать в старых файлах) ─────────────
+  const fav = mergeFavsForImport(current.fav, snapshot?.settings?.favorites)
+  const favCount = fav ? fav.length - normalizeFavs(current.fav).length : 0
+  const accent = accentForImport(current.accent, snapshot?.settings?.accent, current.userId ?? snapshot?.user?.id)
 
   // ── оценки «как пошло» ───────────────────────────────────────────────────
   // Объединение с приоритетом ТЕКУЩИХ оценок (mergeRpe, preferLocal): добавляем
@@ -252,9 +248,11 @@ export function planImport(snapshot, current = {}) {
   return {
     workouts,
     goals: addGoals.length ? [...curGoals, ...addGoals] : null,
-    badges: badgesCount ? { ...curBadges, ...addBadges } : null,
+    badges,
     prog,
     rpe,
+    fav,
+    accent,
     counts: {
       workouts: workouts.length,
       workoutsSkipped,
@@ -262,14 +260,76 @@ export function planImport(snapshot, current = {}) {
       badges: badgesCount,
       prog: prog ? 1 : 0,
       rpe: Math.max(0, rpeCount),
+      fav: Math.max(0, favCount),
+      accent: accent ? 1 : 0,
     },
   }
+}
+
+// Слияния «только добавить недостающее» по отдельным родам. Экспортируются, чтобы
+// DB-слой мог повторить слияние по СВЕЖЕМУ значению внутри транзакции записи
+// (updateSyncedMeta), а не писать результат, посчитанный по снимку до await.
+// null — менять нечего.
+
+// Бейджи: добавляем только отсутствующие вехи.
+export function mergeBadgesForImport(curBadges, snapBadges) {
+  const cur = curBadges && typeof curBadges === 'object' ? curBadges : {}
+  const add = {}
+  for (const [id, rec] of Object.entries(snapBadges ?? {})) {
+    if (!rec || typeof rec !== 'object' || !rec.at) continue
+    if (cur[id]) continue
+    // backfilled:true — восстановленная веха историческая: не должна всплывать
+    // непрочитанным на колокольчике и праздничным тостом (см. db/badges.js).
+    add[id] = { at: rec.at, backfilled: true }
+  }
+  return Object.keys(add).length ? { ...cur, ...add } : null
+}
+
+// Настройки автопрогрессии: добавляем упражнения, которых нет в текущих.
+export function mergeProgForImport(curProg, snapProg) {
+  if (!snapProg || typeof snapProg !== 'object') return null
+  const cur = curProg && typeof curProg === 'object' ? curProg : null
+  const byExercise = { ...(cur?.byExercise ?? {}) }
+  let added = 0
+  for (const [exId, cfg] of Object.entries(snapProg.byExercise ?? {})) {
+    if (byExercise[exId] || !cfg || typeof cfg !== 'object') continue
+    byExercise[exId] = cfg
+    added++
+  }
+  // Глобальный тумблер восстанавливаем ТОЛЬКО если настроек еще не было
+  // вообще — иначе перетерли бы текущий выбор пользователя.
+  const enabled = cur ? cur.enabled !== false : snapProg.enabled !== false
+  return added > 0 || !cur ? { enabled, byExercise } : null
+}
+
+// Избранное: текущий список остается как есть (порядок — выбор человека), из файла
+// дописываются в конец только отсутствующие id (в пределах FAV_LIMIT).
+export function mergeFavsForImport(curFav, snapFav) {
+  const cur = normalizeFavs(curFav)
+  const next = normalizeFavs([...cur, ...normalizeFavs(snapFav)])
+  return next.length > cur.length ? next : null
+}
+
+// Акцент: восстанавливаем, только если своего выбора в учетке еще нет (не
+// перетираем текущий) и значение в файле — свое (by === userId) или «ничье»
+// (файл старой версии без by — тогда ставим by: userId, файл-то наш: владельца
+// проверил assertSameOwner). Чужой by — пропускаем: useAccentSync его все равно
+// не применит, а в учетке он был бы мусором.
+export function accentForImport(curAccent, snapAccent, userId) {
+  if (userId == null || !snapAccent || typeof snapAccent !== 'object') return null
+  if (snapAccent.by != null && String(snapAccent.by) !== String(userId)) return null
+  if (curAccent && typeof curAccent === 'object' && String(curAccent.by) === String(userId)) return null
+  const p = parseAccent(JSON.stringify(snapAccent))
+  return { id: p.id, hue: p.hue, by: String(userId) }
 }
 
 // Сколько оценок (пар тренировка × упражнение) в карте RPE.
 function countFeels(map) {
   let n = 0
-  for (const rec of Object.values(map ?? {})) n += Object.keys(rec?.ex ?? {}).length
+  // Надгробия снятых оценок (null, см. lib/rpe.js) оценками не считаем.
+  for (const rec of Object.values(map ?? {})) {
+    n += Object.values(rec?.ex ?? {}).filter((f) => f != null).length
+  }
   return n
 }
 
@@ -281,7 +341,9 @@ export function describeImport(counts) {
   if (c.goals) parts.push(`целей: ${c.goals}`)
   if (c.badges) parts.push(`достижений: ${c.badges}`)
   if (c.rpe) parts.push(`оценок «как пошло»: ${c.rpe}`)
+  if (c.fav) parts.push(`избранных упражнений: ${c.fav}`)
   if (c.prog) parts.push('настройки прогрессии')
+  if (c.accent) parts.push('цвет оформления')
   if (parts.length === 0) return 'Все из файла уже было в приложении.'
   return `Добавлено — ${parts.join(', ')}.`
 }

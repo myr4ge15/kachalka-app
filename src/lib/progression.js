@@ -85,6 +85,10 @@ export function resolveProgSettings(prog, exId, metric) {
     repCeiling: Number(ov.repCeiling) > 0 ? Math.round(Number(ov.repCeiling)) : base.repCeiling,
   }
   if (m !== 'weight' && out.strategy === 'weight') out.strategy = 'reps'
+  // У count-метрик шаг — целые повторы/секунды. Override 2.5, оставшийся от
+  // весового типа после смены weight→reps, давал «12.5 повт.»
+  // (РЕВЬЮ-КОДА-2026-10-02, «Тексты и расчеты»).
+  if (m !== 'weight') out.step = Math.max(1, Math.round(out.step))
   return out
 }
 
@@ -203,7 +207,9 @@ export function recommendProgression({ metric, lastSets, recentSessions, setting
   const a = analyzeLast(prev, cfg, m)
   if (!a) return { kind: 'first', sets: null, reasonText: '', changed: false }
 
-  const step = Number(cfg.step) > 0 ? Number(cfg.step) : DEFAULTS[m].step
+  const rawStep = Number(cfg.step) > 0 ? Number(cfg.step) : DEFAULTS[m].step
+  // Целый шаг у count-метрик — и для настроек, пришедших мимо resolveProgSettings.
+  const step = isCountMetric(m) ? Math.max(1, Math.round(rawStep)) : rawStep
   const R = a.targetReps
 
   // ---- Субъективная оценка прошлых сессий (RPE, PLAN §7) -------------------
@@ -232,6 +238,11 @@ export function recommendProgression({ metric, lastSets, recentSessions, setting
       s.weight === a.workWeight ? { weight: roundW(newWeight), reps: newReps } : { weight: s.weight, reps: s.reps }
     )
   const buildCountSets = (val) => prev.map(() => ({ weight: 0, reps: Math.max(1, val) }))
+  // Ветка «вверх» у count-метрик: шаг прибавляем к КАЖДОМУ подходу (не ниже плана
+  // R). Раньше все подходы выравнивались по первому: 30, 45, 60 с → «35, 35, 35»,
+  // то есть ниже уже сделанного (РЕВЬЮ-КОДА-2026-10-02, «Тексты и расчеты»).
+  const buildCountSetsUp = (add) =>
+    prev.map((s) => ({ weight: 0, reps: Math.max(1, Math.max(s.reps, R) + add) }))
 
   // ---- Весовые упражнения, стратегия '+вес' -------------------------------
   if (m === 'weight' && cfg.strategy === 'weight') {
@@ -294,9 +305,10 @@ export function recommendProgression({ metric, lastSets, recentSessions, setting
   const unit = m === 'time' ? 'с' : 'повт.'
   if (a.allDone) {
     if (lastFeel === 'hard') {
-      return result('same', buildCountSets(R), 'Все выполнено, но было тяжело → закрепим как есть', prev)
+      // «Закрепим как есть» — именно как есть, без выравнивания по первому подходу.
+      return result('same', buildCountSetsUp(0), 'Все выполнено, но было тяжело → закрепим как есть', prev)
     }
-    return result('up', buildCountSets(R + step), upReason(`+${fmtStep(step)} ${unit}`), prev)
+    return result('up', buildCountSetsUp(step), upReason(`+${fmtStep(step)} ${unit}`), prev)
   }
   if (down) {
     const lead = feltHard

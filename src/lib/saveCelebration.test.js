@@ -22,9 +22,11 @@ describe('pickSaveCelebration', () => {
     expect(toast.sub).toBe('Жим — 100 кг (было 90 кг)')
   })
 
-  it('рекорд: несколько → суффикс +N по самому большому value', () => {
-    const { toast } = pickSaveCelebration({ prs: [pr({ value: 100 }), pr({ name: 'Тяга', value: 150, prev: 140 })] })
-    expect(toast.sub).toBe('Тяга — 150 кг (было 140 кг) +1')
+  it('рекорд: несколько → суффикс +N по самому большому ОТНОСИТЕЛЬНОМУ приросту', () => {
+    // РЕВЬЮ-КОДА-2026-10-02: главный рекорд — по (value − prev) / prev, а не по
+    // сырому value: Тяга +20% (125 → 150) важнее жима +11% (90 → 100).
+    const { toast } = pickSaveCelebration({ prs: [pr({ value: 100, prev: 90 }), pr({ name: 'Тяга', value: 150, prev: 125 })] })
+    expect(toast.sub).toBe('Тяга — 150 кг (было 125 кг) +1')
   })
 
   it('цель ПЕРЕБИВАЕТ рекорд (даже если оба сработали)', () => {

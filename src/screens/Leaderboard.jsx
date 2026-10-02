@@ -1,8 +1,7 @@
 import { useEffect, useMemo, useState } from 'react'
 import { useLiveQuery } from 'dexie-react-hooks'
 import { getCachedLeaderboard, fetchLeaderboard, getLeadExerciseNames, viewerBoard } from '../db/leaderboard.js'
-import { getUsers, getCachedUser } from '../db/repo.js'
-import { getMeta } from '../db/local.js'
+import { getUsers, getCachedUser, getPrivacyFlag } from '../db/repo.js'
 import { onOnline, onResume } from '../lib/appEvents.js'
 import { findNearestRival } from '../lib/rivalry.js'
 import Avatar from './../components/Avatar.jsx'
@@ -27,7 +26,7 @@ function Place({ i }) {
 export default function Leaderboard({ user, onOpenMember }) {
   // Приватный пользователь не участвует в рейтинге — блок прячем целиком (флаг
   // кэшируется на pull в meta `priv_${id}`, см. sync.js / my_is_private).
-  const myPrivate = useLiveQuery(() => getMeta(`priv_${user.id}`), [user.id], false)
+  const myPrivate = useLiveQuery(() => getPrivacyFlag(user.id), [user.id], false)
   const board = useLiveQuery(() => getCachedLeaderboard(), [], undefined)
   const names = useLiveQuery(() => getLeadExerciseNames(), [], null)
   const users = useLiveQuery(() => getUsers(), [], [])
@@ -135,21 +134,8 @@ function BoardCard({ title, rows, user, avatarById, onOpenMember }) {
       <ol className="lb-list">
         {rows.map((row, i) => {
           const isMe = row.user_id === user.id
-          return (
-            <li
-              key={row.user_id}
-              className={(isMe ? 'lb-row me' : 'lb-row') + (onOpenMember ? ' lb-row-link' : '')}
-              // Тап по строке — профиль участника (v6.7.0). li, а не button: разметка
-              // и стили строки остаются как были.
-              role={onOpenMember ? 'button' : undefined}
-              tabIndex={onOpenMember ? 0 : undefined}
-              aria-label={onOpenMember ? (isMe ? 'Открыть мой профиль' : `Открыть профиль: ${row.user_name}`) : undefined}
-              data-anchor={`lb-${row.user_id}`}
-              onClick={onOpenMember ? () => onOpenMember(row.user_id, `lb-${row.user_id}`) : undefined}
-              onKeyDown={onOpenMember ? (e) => {
-                if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); onOpenMember(row.user_id, `lb-${row.user_id}`) }
-              } : undefined}
-            >
+          const body = (
+            <>
               <Place i={i} />
               <Avatar name={row.user_name} url={avatarById.get(row.user_id)} className="avatar-sm" />
               <span className="lb-who">
@@ -158,7 +144,7 @@ function BoardCard({ title, rows, user, avatarById, onOpenMember }) {
               </span>
               <span className="lb-fact">
                 <span className="lb-weight">{row.weight} кг</span>
-                <span className="lb-sub muted">{row.reps} повт. · 1ПМ ~{row.orm}</span>
+                <span className="lb-sub muted">{row.reps} повт.{row.orm > 0 ? ` · 1ПМ ~${row.orm}` : ''}</span>
               </span>
               {onOpenMember && (
                 <svg className="go-chev" viewBox="0 0 24 24" width="20" height="20" fill="none"
@@ -166,6 +152,28 @@ function BoardCard({ title, rows, user, avatarById, onOpenMember }) {
                   <path d="M9 6l6 6-6 6" />
                 </svg>
               )}
+            </>
+          )
+          return (
+            <li
+              key={row.user_id}
+              className={(isMe ? 'lb-row me' : 'lb-row') + (onOpenMember ? ' lb-row-link' : '')}
+              data-anchor={`lb-${row.user_id}`}
+            >
+              {/* Тап по строке — профиль участника (v6.7.0). Настоящая <button> ВНУТРИ li
+                  (РЕВЬЮ-КОДА-2026-10-02): прежний <li role="button"> ломал семантику списка
+                  <ol> — скринридер терял «пункт N из M». Enter/Space кнопка обрабатывает
+                  сама. Раскладку строки держит .lb-row-hit, фон/рамку — по-прежнему li. */}
+              {onOpenMember ? (
+                <button
+                  type="button"
+                  className="lb-row-hit"
+                  aria-label={isMe ? 'Открыть мой профиль' : `Открыть профиль: ${row.user_name}`}
+                  onClick={() => onOpenMember(row.user_id, `lb-${row.user_id}`)}
+                >
+                  {body}
+                </button>
+              ) : body}
             </li>
           )
         })}

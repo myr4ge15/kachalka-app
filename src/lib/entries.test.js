@@ -1,5 +1,13 @@
 import { describe, it, expect } from 'vitest'
-import { entryExId, entryMetric, sortDesc, pickExerciseShape } from './entries.js'
+import {
+  entryExId,
+  entryMetric,
+  sortDesc,
+  pickExerciseShape,
+  currentExerciseShapes,
+  entryUnitMetric,
+  isCurrentUnit,
+} from './entries.js'
 
 describe('entryExId', () => {
   it('плоский exercise_id (лента) и вложенный exercise.id (документ)', () => {
@@ -83,5 +91,47 @@ describe('pickExerciseShape', () => {
     expect(Object.keys(pickExerciseShape({ id: 'e5', name: 'X' })).sort()).toEqual(
       ['id', 'is_bench_lift', 'metric', 'muscle_group', 'name', 'secondary', 'submuscle']
     )
+  })
+})
+
+// РЕВЬЮ-КОДА-2026-10-02, п. 17: текущая форма упражнения — по свежему снимку.
+describe('currentExerciseShapes', () => {
+  const doc = (id, at, ex, extra = {}) => ({ id, performed_at: at, entries: [{ exercise_id: ex.id, exercise: ex, sets: [{ weight: 0, reps: 5 }] }], ...extra })
+  it('берет имя/метрику из самого свежего по performed_at, порядок входа не важен', () => {
+    const list = [
+      doc('a', '2026-01-01T10:00:00Z', { id: 'x', name: 'Старое', metric: 'weight' }),
+      doc('b', '2026-02-01T10:00:00Z', { id: 'x', name: 'Новое', metric: 'reps', is_bench_lift: true }),
+    ]
+    for (const l of [list, [...list].reverse()]) {
+      expect(currentExerciseShapes(l).get('x')).toMatchObject({ name: 'Новое', metric: 'reps', legacy: false, is_bench_lift: true })
+    }
+  })
+  it('удаленные тренировки не задают форму; легаси без metric → legacy:true, weight', () => {
+    const list = [
+      doc('a', '2026-01-01T10:00:00Z', { id: 'x', name: 'Легаси' }),
+      doc('b', '2026-02-01T10:00:00Z', { id: 'x', name: 'Удалена', metric: 'time' }, { _deleted: 1 }),
+    ]
+    expect(currentExerciseShapes(list).get('x')).toMatchObject({ name: 'Легаси', metric: 'weight', legacy: true })
+  })
+  it('элементы ленты (плоские поля) тоже понимает', () => {
+    const feed = [{ id: 'f', performed_at: '2026-01-01', entries: [{ exercise_id: 'x', name: 'Планка', metric: 'time', sets: [] }] }]
+    expect(currentExerciseShapes(feed).get('x')).toMatchObject({ name: 'Планка', metric: 'time' })
+  })
+})
+
+describe('entryUnitMetric / isCurrentUnit', () => {
+  it('явный metric снимка — как есть', () => {
+    expect(entryUnitMetric({ exercise: { metric: 'time' } }, 'weight')).toBe('time')
+    expect(entryUnitMetric({ metric: 'reps' }, null)).toBe('reps')
+  })
+  it('легаси без metric: без веса у count-упражнения — его единица, иначе weight', () => {
+    expect(entryUnitMetric({ sets: [{ weight: 0, reps: 10 }] }, 'reps')).toBe('reps')
+    expect(entryUnitMetric({ sets: [{ weight: 10, reps: 10 }] }, 'reps')).toBe('weight')
+    expect(entryUnitMetric({ sets: [{ weight: 0, reps: 10 }] }, 'weight')).toBe('weight')
+    expect(entryUnitMetric({ sets: [] })).toBe('weight')
+  })
+  it('isCurrentUnit: без формы — сравнимо (старое поведение)', () => {
+    expect(isCurrentUnit({ exercise: { metric: 'reps' } }, undefined)).toBe(true)
+    expect(isCurrentUnit({ exercise: { metric: 'reps' } }, { metric: 'weight' })).toBe(false)
   })
 })

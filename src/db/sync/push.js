@@ -291,59 +291,86 @@ export async function pushGoal(userId, d = db) {
       const next = patch(cur, cur.find((x) => x.exerciseId === exerciseId))
       if (next !== cur) await writeGoals(userId, next, d)
     })
+  // Ошибка одной цели не останавливает остальные (РЕВЬЮ-КОДА-2026-10-02, мелочи):
+  // раньше цель с постоянной ошибкой (сервер ее отвергает) бросала на первой же
+  // итерации — все цели после нее не уходили НИКОГДА. Теперь ошибки копим и бросаем
+  // в конце: остальные цели отправлены, а syncNow все равно покажет предупреждение.
+  const errors = []
   for (const g of goals) {
-    // Удаление цели (tombstone): шлем delete_my_goal и выкидываем из массива.
-    if (g._deleted && g._dirty) {
-      const res = await withTimeout(
-        supabase.rpc('delete_my_goal', { p_exercise_id: g.exerciseId })
-      )
-      if (res.error) throw res.error
-      // Цель могли завести заново, пока шел delete: тогда это уже не tombstone —
-      // оставляем, ее upsert уйдет следующим прогоном.
-      await commit(g.exerciseId, (cur, fresh) =>
-        fresh && fresh._deleted
-          ? cur.filter((x) => x.exerciseId !== g.exerciseId)
-          : cur
-      )
-      continue
-    }
-    // Поставлена/изменена цель: апсерт по составному ключу.
-    if (g._dirty && g.exerciseId && Number(g.targetWeight) > 0) {
-      // p_target_weight несет целевое ведущее значение в единицах метрики
-      // (кг / повторы / секунды); p_metric говорит серверу/боту, как трактовать.
-      // p_target_reps (PLAN-goal-reps) — необязательные повторы при целевом весе
-      // (только у весовой цели); null → требования по повторам нет.
-      const reps = Number(g.targetReps)
-      const res = await withTimeout(
-        supabase.rpc('upsert_goal', {
-          p_user_id: userId,
-          p_exercise_id: g.exerciseId,
-          p_target_weight: Number(g.targetWeight),
-          p_metric: normMetric(g.metric),
-          p_target_reps: reps > 0 ? Math.round(reps) : null,
-        })
-      )
-      if (res.error) throw res.error
-      const row = Array.isArray(res.data) ? res.data[0] : res.data
-      await commit(g.exerciseId, (cur, fresh) =>
-        fresh && sameGoalTarget(fresh, g)
-          ? cur.map((x) =>
-              x === fresh
-                ? { ...x, _dirty: 0, achievedAt: row?.achieved_at ?? x.achievedAt ?? null }
-                : x
-            )
-          : cur // правили во время запроса — остается dirty, дошлем свежую версию
-      )
-      continue
+    if (!g._dirty) continue
+    try {
+      await pushOneGoal(userId, g, d, commit)
+    } catch (e) {
+      errors.push(e)
     }
   }
+  if (errors.length === 1) throw errors[0]
+  if (errors.length > 1) {
+    throw new Error(errors.map((e) => String(e?.message ?? e)).join('; '))
+  }
+}
+
+async function pushOneGoal(userId, g, d, commit) {
+  // Удаление цели (tombstone): шлем delete_my_goal и выкидываем из массива.
+  if (g._deleted) {
+    const res = await withTimeout(
+      supabase.rpc('delete_my_goal', { p_exercise_id: g.exerciseId })
+    )
+    if (res.error) throw res.error
+    // Цель могли завести заново, пока шел delete: тогда это уже не tombstone —
+    // оставляем, ее upsert уйдет следующим прогоном.
+    await commit(g.exerciseId, (cur, fresh) =>
+      fresh && fresh._deleted
+        ? cur.filter((x) => x.exerciseId !== g.exerciseId)
+        : cur
+    )
+    return
+  }
+  // Невалидная грязная цель (нет упражнения или значение не число > 0) на сервер
+  // не уйдет никогда, а с _dirty оставалась «на отправку» навсегда — снимаем флаг
+  // без отправки (если за это время ее не поправили на валидную).
+  if (!g.exerciseId || !(Number(g.targetWeight) > 0)) {
+    await commit(g.exerciseId, (cur, fresh) =>
+      fresh && sameGoalTarget(fresh, g)
+        ? cur.map((x) => (x === fresh ? { ...x, _dirty: 0 } : x))
+        : cur
+    )
+    return
+  }
+  // Поставлена/изменена цель: апсерт по составному ключу.
+  // p_target_weight несет целевое ведущее значение в единицах метрики
+  // (кг / повторы / секунды); p_metric говорит серверу/боту, как трактовать.
+  // p_target_reps (PLAN-goal-reps) — необязательные повторы при целевом весе
+  // (только у весовой цели); null → требования по повторам нет.
+  const reps = Number(g.targetReps)
+  const res = await withTimeout(
+    supabase.rpc('upsert_goal', {
+      p_user_id: userId,
+      p_exercise_id: g.exerciseId,
+      p_target_weight: Number(g.targetWeight),
+      p_metric: normMetric(g.metric),
+      p_target_reps: reps > 0 ? Math.round(reps) : null,
+    })
+  )
+  if (res.error) throw res.error
+  const row = Array.isArray(res.data) ? res.data[0] : res.data
+  await commit(g.exerciseId, (cur, fresh) =>
+    fresh && sameGoalTarget(fresh, g)
+      ? cur.map((x) =>
+          x === fresh
+            ? { ...x, _dirty: 0, achievedAt: row?.achieved_at ?? x.achievedAt ?? null }
+            : x
+        )
+      : cur // правили во время запроса — остается dirty, дошлем свежую версию
+  )
 }
 
 // Та же ли цель, что ушла на сервер (значение, повторы, метрика, не удалена).
 function sameGoalTarget(a, b) {
   return (
     !a._deleted &&
-    Number(a.targetWeight) === Number(b.targetWeight) &&
+    // Object.is: у невалидной цели значение может быть NaN (NaN !== NaN)
+    Object.is(Number(a.targetWeight), Number(b.targetWeight)) &&
     (Number(a.targetReps) || 0) === (Number(b.targetReps) || 0) &&
     normMetric(a.metric) === normMetric(b.metric)
   )

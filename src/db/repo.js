@@ -17,7 +17,7 @@
 //   }
 // ============================================================================
 import { db, loginDb, newId, nowIso, getMeta } from './local.js'
-import { writeSyncedMeta } from './userMeta.js'
+import { writeSyncedMeta, updateSyncedMeta } from './userMeta.js'
 import { normalizeFavs, toggleFav } from '../lib/favorites.js'
 import { normalizeName } from '../lib/similar.js'
 import { cmpIsoDesc } from '../lib/cmp.js'
@@ -28,7 +28,7 @@ import { canEditExercise } from '../lib/exerciseCatalog.js'
 import { pickLastSets } from '../lib/lastSets.js'
 import { isReactionKind } from '../lib/reactions.js'
 import { defaultSubmuscleFor, cleanSecondary } from '../lib/muscles.js'
-import { pickExerciseShape } from '../lib/entries.js'
+import { pickExerciseShape, entryUnitMetric } from '../lib/entries.js'
 import { putWorkoutFeels, pruneRpe, withFeels, feelsForWorkout } from '../lib/rpe.js'
 import { planRosterWrite, pickRosterShape } from '../lib/roster.js'
 
@@ -284,7 +284,10 @@ export async function getWorkouts(userId) {
 export async function getLastSetsForExercise(userId, exerciseId) {
   if (!userId || !exerciseId) return null
   const list = await db.workouts.where('user_id').equals(userId).toArray()
-  return pickLastSets(list, exerciseId)
+  // Метрика из справочника: после смены типа упражнения подходы в старой единице
+  // (кг вместо повторов) в автоподстановку не берем (РЕВЬЮ-КОДА-2026-10-02, п. 17).
+  const ex = await db.exercises.get(exerciseId)
+  return pickLastSets(list, exerciseId, ex?.metric)
 }
 
 // Недавние сессии по упражнению (для автопрогрессии, PLAN-autoprogression).
@@ -299,6 +302,7 @@ export async function getLastSetsForExercise(userId, exerciseId) {
 export async function getRecentSessionsForExercise(userId, exerciseId, n = 5) {
   if (!userId || !exerciseId) return []
   const list = await db.workouts.where('user_id').equals(userId).toArray()
+  const catalogMetric = (await db.exercises.get(exerciseId))?.metric
   const sorted = list
     .filter((w) => !w._deleted)
     .sort(
@@ -316,7 +320,9 @@ export async function getRecentSessionsForExercise(userId, exerciseId, n = 5) {
       .map((s) => ({ weight: Number(s.weight), reps: Number(s.reps) }))
       .filter((s) => Number.isFinite(s.weight) && Number.isFinite(s.reps))
     if (!sets.length) continue
-    out.push({ id: w.id, performed_at: w.performed_at, created_at: w.created_at, sets })
+    // metric — единица ЭТОЙ записи: buildRecommendation отбросит сессии в старой
+    // единице после смены типа упражнения (п. 17).
+    out.push({ id: w.id, performed_at: w.performed_at, created_at: w.created_at, sets, metric: entryUnitMetric(entry, catalogMetric) })
     if (out.length >= n) break
   }
   return withFeels(out, await getRpe(userId), exerciseId)
@@ -331,7 +337,12 @@ export async function getRecentSessionsForExercise(userId, exerciseId, n = 5) {
 export const progKey = (userId) => `prog_${userId}`
 
 export async function getProgSettings(userId) {
-  const v = await getMeta(progKey(userId))
+  return progFromMeta(await getMeta(progKey(userId)))
+}
+
+// Сырое значение prog_ из meta → нормализованные настройки (общая форма для
+// чтения и для read-modify-write внутри транзакции updateSyncedMeta).
+function progFromMeta(v) {
   if (v && typeof v === 'object') {
     return { enabled: v.enabled !== false, byExercise: v.byExercise ?? {} }
   }
@@ -339,11 +350,12 @@ export async function getProgSettings(userId) {
 }
 
 // Глобальный тумблер «Рекомендации прогрессии» (Профиль).
-// Пишем через writeSyncedMeta: настройки уезжают в серверный user_meta, иначе
-// теряются при смене устройства (см. src/db/userMeta.js).
+// Пишем через updateSyncedMeta: настройки уезжают в серверный user_meta, иначе
+// теряются при смене устройства (см. src/db/userMeta.js). Чтение текущего — в той
+// же транзакции, что и запись: pull, вклинившийся между ними, не перетирается
+// (РЕВЬЮ-КОДА-2026-10-02, мелочи).
 export async function setProgEnabled(userId, enabled) {
-  const cur = await getProgSettings(userId)
-  await writeSyncedMeta(userId, 'prog', { ...cur, enabled: !!enabled })
+  await updateSyncedMeta(userId, 'prog', (v) => ({ ...progFromMeta(v), enabled: !!enabled }))
 }
 
 // Выбранный акцент (v6.2.0) — синкаемый род `accent` в user_meta (LWW). Экран
@@ -370,19 +382,22 @@ export async function getFavorites(userId) {
 
 export async function toggleFavorite(userId, exerciseId) {
   if (!userId || !exerciseId) return
-  const cur = await getMeta(favKey(userId))
-  await writeSyncedMeta(userId, 'fav', toggleFav(cur, exerciseId))
+  // Чтение и запись — одной транзакцией: два быстрых тапа по звездам (или pull
+  // между чтением и записью) раньше теряли одну из правок (РЕВЬЮ-КОДА-2026-10-02).
+  await updateSyncedMeta(userId, 'fav', (cur) => toggleFav(cur, exerciseId))
 }
 
 // Пер-упражненческие настройки (шестеренка в карточке): мержим patch поверх
 // текущих настроек упражнения, не трогая остальные.
 export async function setProgForExercise(userId, exerciseId, patch) {
-  const cur = await getProgSettings(userId)
-  const byExercise = {
-    ...cur.byExercise,
-    [exerciseId]: { ...(cur.byExercise[exerciseId] ?? {}), ...patch },
-  }
-  await writeSyncedMeta(userId, 'prog', { ...cur, byExercise })
+  await updateSyncedMeta(userId, 'prog', (v) => {
+    const cur = progFromMeta(v)
+    const byExercise = {
+      ...cur.byExercise,
+      [exerciseId]: { ...(cur.byExercise[exerciseId] ?? {}), ...patch },
+    }
+    return { ...cur, byExercise }
+  })
 }
 
 // ------------------- Оценки «как пошло» / RPE (meta) -----------------------
@@ -411,9 +426,10 @@ export async function getWorkoutFeels(userId, workoutId) {
 // Пустой набор удаляет запись — пропуск оценки не должен копить мусор в карте.
 export async function setWorkoutFeels(userId, workoutId, performedAt, feels) {
   if (!userId || !workoutId) return
-  const cur = await getRpe(userId)
-  const next = pruneRpe(putWorkoutFeels(cur, workoutId, performedAt, feels))
-  await writeSyncedMeta(userId, 'rpe', next)
+  // Чтение карты и запись — одной транзакцией (см. updateSyncedMeta).
+  await updateSyncedMeta(userId, 'rpe', (v) =>
+    pruneRpe(putWorkoutFeels(v && typeof v === 'object' ? v : {}, workoutId, performedAt, feels))
+  )
 }
 
 // ------------------- Достижения / бейджи (meta) ---------------------------
@@ -812,4 +828,12 @@ export async function discardDeadLetter() {
     }
   )
   return n
+}
+
+// Флаг приватности учетки (зеркало серверного my_is_private, НЕ синкается через
+// user_meta — его переписывает pull). Экраны читали его getMeta из db/local.js
+// напрямую в обход repo (РЕВЬЮ-КОДА-2026-10-02, мелочи: инвариант «экраны ходят
+// в данные только через repo»).
+export async function getPrivacyFlag(userId) {
+  return Boolean(await getMeta(`priv_${userId}`))
 }

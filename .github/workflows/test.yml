@@ -40,6 +40,13 @@ jobs:
       - name: Unit tests (Vitest)
         run: npm test
 
+      # Второй прогон под чужим поясом (UTC−8/−7): раннер CI живет в UTC, и
+      # поясные регрессии (день по UTC вместо местного, фикстуры с голой датой)
+      # иначе не ловятся — РЕВЬЮ-КОДА-2026-10-02, п. 12 и «Мелочи». Node берет
+      # tz-данные из своего ICU, системный tzdata в образе не нужен.
+      - name: Unit tests (Vitest, TZ=America/Los_Angeles)
+        run: TZ=America/Los_Angeles npx vitest run
+
       - name: Smoke build
         run: npx vite build
 

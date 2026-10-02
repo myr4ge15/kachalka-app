@@ -2,7 +2,7 @@
 // упражнения в WorkoutScreen + чистые форматтеры панели. Без React/Dexie/сети —
 // покрыто progressionCard.test.js. Вынесено из WorkoutScreen.jsx (техдолг: разбить
 // экран на 800+ строк), сам экран остается оркестратором стейта.
-import { exerciseMetric } from './metric.js'
+import { exerciseMetric, normMetric } from './metric.js'
 import { recommendProgression, resolveProgSettings } from './progression.js'
 import { plural } from './plural.js'
 
@@ -77,8 +77,14 @@ export function fmtProgStep(step, metric) {
 // Собрать предзаполнение подходов + метаданные панели по недавним сессиям и
 // настройкам. Нет истории/выключено/ручной/выкл → sets = копия прошлого или
 // дефолт, meta = null (панель не показываем). Иначе — рекомендация + панель.
-export function buildRecommendation(ex, sessions, progState) {
+//
+// Сессии с полем `metric` в другой единице отбрасываем: после смены типа
+// упражнения старый снимок в тренировке остается прежним, и «10 кг × 8» иначе
+// читался бы как 8 повторов/секунд (РЕВЬЮ-КОДА-2026-10-02, п. 17). Сессии без
+// `metric` (старый вызывающий код) берем как есть.
+export function buildRecommendation(ex, allSessions, progState) {
   const metric = exerciseMetric(ex)
+  const sessions = (allSessions ?? []).filter((s) => s?.metric == null || normMetric(s.metric) === metric)
   const last = sessions[0]?.sets ?? null
   const copyOrDefault = () =>
     last?.length ? last.map((s) => ({ weight: Number(s.weight), reps: Number(s.reps), _k: sk() })) : [defaultSet(ex)]

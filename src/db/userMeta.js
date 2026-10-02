@@ -59,8 +59,36 @@ export async function readSyncedMeta(userId, kind, d = db) {
 export async function writeSyncedMeta(userId, kind, value, d = db) {
   if (!d) return
   await d.transaction('rw', d.meta, async () => {
-    await setMeta(metaKeyFor(kind, userId), value, d)
-    await setUserMetaState(kind, { at: nowIso(), dirty: 1 }, d)
+    await putSyncedMeta(userId, kind, value, d)
+  })
+}
+
+// Общая запись для writeSyncedMeta/updateSyncedMeta (зовется ВНУТРИ транзакции):
+// значение + at=сейчас + dirty=1. base не трогаем — он про последнюю виденную
+// серверную версию, а не про локальную правку.
+async function putSyncedMeta(userId, kind, value, d) {
+  await setMeta(metaKeyFor(kind, userId), value, d)
+  await setUserMetaState(kind, { at: nowIso(), dirty: 1 }, d)
+}
+
+// ПОЛЬЗОВАТЕЛЬСКИЙ read-modify-write синкаемого рода: текущее значение читаем
+// ВНУТРИ той же rw-транзакции, что и запись (РЕВЬЮ-КОДА-2026-10-02, мелочи).
+// Раньше repo читал значение (getMeta), потом отдельно писал writeSyncedMeta:
+// pullUserMeta, принявший между ними серверную версию (или вторая быстрая правка
+// — два тапа по звездам), молча перетирался значением, собранным из старого.
+//
+// fn(current) → next: СИНХРОННАЯ чистая функция (внутри Dexie-транзакции нельзя
+// ждать посторонние промисы — транзакция закоммитится раньше). current — как
+// лежит в meta (null, если ключа нет). Вернула тот же объект (Object.is) —
+// менять нечего: ничего не пишем и dirty не ставим. Возвращает итоговое значение.
+export async function updateSyncedMeta(userId, kind, fn, d = db) {
+  if (!d) return undefined
+  return d.transaction('rw', d.meta, async () => {
+    const current = (await getMeta(metaKeyFor(kind, userId), d)) ?? null
+    const next = fn(current)
+    if (Object.is(next, current)) return current
+    await putSyncedMeta(userId, kind, next, d)
+    return next
   })
 }
 

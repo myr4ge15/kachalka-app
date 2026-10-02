@@ -11,12 +11,19 @@
 import { bestOneRepMax } from './oneRepMax.js'
 import { cmpIsoAsc } from './cmp.js'
 import { localYmd } from './calendar.js'
+import { currentExerciseShapes, isCurrentUnit } from './entries.js'
 
 // Собрать упражнения, встречавшиеся в истории (только с непустыми подходами).
 // Возвращает отсортированный массив { id, name, is_bench_lift, hasWeight, metric }:
 // жим лежа — первым, дальше по имени (ru). hasWeight — фолбэк для легаси-записей
 // без явного metric (есть ли хоть один подход с весом > 0).
+// Имя, тип и флаг жима — из САМОГО СВЕЖЕГО снимка упражнения: старые тренировки
+// хранят снимок на момент сохранения и после переименования/смены типа не
+// обновляются; раньше побеждал порядок обхода, и в пикере оставалось старое имя
+// (РЕВЬЮ-КОДА-2026-10-02, п. 17). hasWeight считаем только по записям в текущей
+// единице — старые подходы с весом не должны делать reps-упражнение «весовым».
 export function collectExercises(workouts) {
+  const shapes = currentExerciseShapes(workouts)
   const map = new Map()
   for (const w of workouts ?? []) {
     for (const e of w.entries ?? []) {
@@ -24,17 +31,23 @@ export function collectExercises(workouts) {
       if (!id) continue
       const sets = e.sets ?? []
       if (sets.length === 0) continue
+      const shape = shapes.get(id)
       const rec = map.get(id) ?? {
         id,
-        name: e.exercise?.name ?? 'Упражнение',
-        is_bench_lift: false,
+        name: shape?.name ?? e.exercise?.name ?? 'Упражнение',
+        is_bench_lift: Boolean(shape?.is_bench_lift),
         hasWeight: false,
-        metric: undefined, // явный тип упражнения (если задан в денормализ. снимке)
+        // явный тип упражнения по свежему снимку; у легаси-снимка — undefined,
+        // экран решит по hasWeight
+        metric: shape && !shape.legacy ? shape.metric : undefined,
       }
-      if (e.exercise?.name) rec.name = e.exercise.name
-      if (e.exercise?.is_bench_lift) rec.is_bench_lift = true
-      if (e.exercise?.metric) rec.metric = e.exercise.metric
-      if (sets.some((s) => Number(s.weight) > 0)) rec.hasWeight = true
+      if (!shape) {
+        // Запись вне карты форм (напр. удаленная тренировка) — старое поведение.
+        if (e.exercise?.name) rec.name = e.exercise.name
+        if (e.exercise?.is_bench_lift) rec.is_bench_lift = true
+        if (e.exercise?.metric) rec.metric = e.exercise.metric
+      }
+      if (isCurrentUnit(e, shape) && sets.some((s) => Number(s.weight) > 0)) rec.hasWeight = true
       map.set(id, rec)
     }
   }
@@ -48,7 +61,11 @@ export function collectExercises(workouts) {
 // Построить ряд «по дням» для упражнения exerciseId. weighted — считать ли ведущим
 // показателем вес (true) или повторы/секунды (false). Каждая точка:
 //   { day, sets, value, orm, isPr, dir }.
+// В ряд идут только записи в ТЕКУЩЕЙ единице упражнения (по свежему снимку):
+// подходы, сделанные до смены типа, в другой единице и на одном графике с новыми
+// несравнимы (РЕВЬЮ-КОДА-2026-10-02, п. 17).
 export function buildSeries(workouts, exerciseId, weighted) {
+  const shape = currentExerciseShapes(workouts).get(exerciseId)
   const byDay = new Map()
   for (const w of workouts ?? []) {
     // ЛОКАЛЬНЫЙ день, как в календаре, истории и Ритме. Срез ISO-строки давал день
@@ -59,6 +76,7 @@ export function buildSeries(workouts, exerciseId, weighted) {
     for (const e of w.entries ?? []) {
       const id = e.exercise?.id ?? e.exercise_id
       if (id !== exerciseId) continue
+      if (!isCurrentUnit(e, shape)) continue
       const sets = e.sets ?? []
       if (sets.length === 0) continue
       const rec = byDay.get(day) ?? { day, sets: [] }

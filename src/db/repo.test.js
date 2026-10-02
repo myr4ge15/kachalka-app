@@ -10,7 +10,11 @@ import {
   createExercise, updateExercise, getExercises, pendingCount, deadLetterCount,
   retryDeadLetter, discardDeadLetter, getLastSetsForExercise, toggleReaction,
   cacheUsers, getUsers, getCachedUser, setCachedAvatar, setCachedName,
+  getPrivacyFlag, toggleFavorite, getFavorites, setProgForExercise, getProgSettings,
+  setWorkoutFeels, getRpe, getWorkoutFeels,
 } from './repo.js'
+import { setMeta } from './local.js'
+import { getUserMetaState } from './userMeta.js'
 
 // Упражнение-заготовка (весовое).
 const bench = { id: 'ex_bench', name: 'Жим лежа', muscle_group: 'грудь', is_bench_lift: true, metric: 'weight' }
@@ -439,5 +443,51 @@ describe('cacheUsers (общий ростер устройства)', () => {
     await setCachedAvatar('r2', 'new.png')
     await setCachedName('r2', 'Ольга')
     expect(await getCachedUser('r2')).toEqual({ ...OLYA, avatar_url: 'new.png', name: 'Ольга' })
+  })
+})
+
+// РЕВЬЮ-КОДА-2026-10-02, мелочи: экраны читали priv_ мимо repo.
+describe('getPrivacyFlag', () => {
+  it('нет значения → false; truthy → true', async () => {
+    expect(await getPrivacyFlag(userId)).toBe(false)
+    await setMeta(`priv_${userId}`, true)
+    expect(await getPrivacyFlag(userId)).toBe(true)
+    await setMeta(`priv_${userId}`, 0)
+    expect(await getPrivacyFlag(userId)).toBe(false)
+  })
+})
+
+// РЕВЬЮ-КОДА-2026-10-02, мелочи: чтение и запись синкаемых meta шли вне одной
+// транзакции — параллельные правки теряли друг друга.
+describe('синкаемые meta: read-modify-write в транзакции', () => {
+  it('две звезды подряд (без ожидания) обе остаются в избранном', async () => {
+    await Promise.all([toggleFavorite(userId, 'ex_a'), toggleFavorite(userId, 'ex_b')])
+    expect((await getFavorites(userId)).sort()).toEqual(['ex_a', 'ex_b'])
+    expect((await getUserMetaState()).fav.dirty).toBe(1)
+  })
+
+  it('параллельные настройки двух упражнений не перетирают друг друга', async () => {
+    await Promise.all([
+      setProgForExercise(userId, 'ex_a', { step: 2.5 }),
+      setProgForExercise(userId, 'ex_b', { step: 5 }),
+    ])
+    const s = await getProgSettings(userId)
+    expect(s.byExercise).toEqual({ ex_a: { step: 2.5 }, ex_b: { step: 5 } })
+  })
+
+  it('оценки двух тренировок, записанные параллельно, обе сохраняются', async () => {
+    await Promise.all([
+      setWorkoutFeels(userId, 'w1', '2026-01-01', { ex_a: 'easy' }),
+      setWorkoutFeels(userId, 'w2', '2026-01-02', { ex_b: 'hard' }),
+    ])
+    expect(await getWorkoutFeels(userId, 'w1')).toEqual({ ex_a: 'easy' })
+    expect(await getWorkoutFeels(userId, 'w2')).toEqual({ ex_b: 'hard' })
+  })
+
+  it('снятая оценка хранится надгробием null и не показывается', async () => {
+    await setWorkoutFeels(userId, 'w1', '2026-01-01', { ex_a: 'hard' })
+    await setWorkoutFeels(userId, 'w1', '2026-01-01', {})
+    expect(await getWorkoutFeels(userId, 'w1')).toEqual({})
+    expect((await getRpe(userId)).w1.ex).toEqual({ ex_a: null })
   })
 })

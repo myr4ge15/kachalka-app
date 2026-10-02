@@ -214,3 +214,68 @@ describe('computeNewPrs', () => {
     expect(computeNewPrs(saved, new Map())).toHaveLength(0)
   })
 })
+
+// РЕВЬЮ-КОДА-2026-10-02, п. 17: после смены типа упражнения старые тренировки
+// хранят старый снимок exercise, и единицы смешивались в одном максимуме.
+describe('смена типа упражнения (старый снимок в тренировках)', () => {
+  const oldW = (id, at, sets) => wk(id, at, 'pu', sets, { metric: 'weight', name: 'Отжимания с весом' })
+  const newR = (id, at, sets) => wk(id, at, 'pu', sets, { metric: 'reps', name: 'Отжимания' })
+  const history = [
+    oldW('w1', '2026-01-05T10:00:00Z', [{ weight: 10, reps: 8 }]),
+    newR('w2', '2026-01-10T10:00:00Z', [{ weight: 0, reps: 9 }]),
+    newR('w3', '2026-01-15T10:00:00Z', [{ weight: 0, reps: 12 }]),
+  ]
+
+  it('weight→reps: «12 (было 10)», где 10 — кг, больше не рекорд; рекорд 12 (было 9)', () => {
+    const prs = minePrs(history)
+    expect(prs).toHaveLength(1)
+    expect(prs[0]).toMatchObject({ metric: 'reps', value: 12, prev: 9, name: 'Отжимания' })
+  })
+
+  it('myBestByExercise: метрика и имя — из свежего снимка, кг в максимум не попадают', () => {
+    // Старые 10 кг > 9 повторов: раньше «лучшим» был бы вес 10 в метрике weight.
+    const best = myBestByExercise(history.slice(0, 2))
+    expect(best.get('pu')).toEqual({ value: 9, metric: 'reps', name: 'Отжимания' })
+  })
+
+  it('computeNewPrs: прежний максимум в другой единице — не база для рекорда', () => {
+    const othersBest = myBestByExercise([history[0]]) // только старые кг
+    const saved = history[2].entries
+    expect(computeNewPrs(saved, othersBest)).toEqual([])
+  })
+
+  it('reps→weight: рекорд по весу не ждет, пока вес превысит старые повторы', () => {
+    const list = [
+      wk('a', '2026-01-01T10:00:00Z', 'dip', [{ weight: 0, reps: 20 }], { metric: 'reps' }),
+      wk('b', '2026-01-05T10:00:00Z', 'dip', [{ weight: 10, reps: 8 }], { metric: 'weight' }),
+      wk('c', '2026-01-09T10:00:00Z', 'dip', [{ weight: 12.5, reps: 8 }], { metric: 'weight' }),
+    ]
+    expect(minePrs(list)).toEqual([
+      expect.objectContaining({ exId: 'dip', metric: 'weight', value: 12.5, prev: 10 }),
+    ])
+    expect(myBestByExercise(list).get('dip')).toMatchObject({ value: 12.5, metric: 'weight' })
+    const othersBest = myBestByExercise(list.slice(0, 2))
+    expect(computeNewPrs(list[2].entries, othersBest)).toEqual([
+      expect.objectContaining({ value: 12.5, prev: 10, metric: 'weight' }),
+    ])
+  })
+
+  it('легаси-записи без metric и без веса считаются повторами у reps-упражнения', () => {
+    const list = [
+      wk('a', '2026-01-01T10:00:00Z', 'pull', [{ weight: 0, reps: 8 }]), // до PLAN-metrics
+      wk('b', '2026-01-05T10:00:00Z', 'pull', [{ weight: 0, reps: 10 }], { metric: 'reps' }),
+    ]
+    expect(minePrs(list)).toEqual([expect.objectContaining({ value: 10, prev: 8, metric: 'reps' })])
+    expect(myBestByExercise(list).get('pull')).toMatchObject({ value: 10, metric: 'reps' })
+  })
+
+  it('computeBeaten: запись друга в старой единице с моим рекордом не сравнивается', () => {
+    const myBest = new Map([['pu', { value: 12, metric: 'reps', name: 'Отжимания' }]])
+    const feed = [
+      { id: 'f1', user_id: 'fr', performed_at: '2026-01-01T10:00:00Z', entries: [{ exercise_id: 'pu', metric: 'reps', sets: [{ weight: 0, reps: 10 }] }] },
+      // Старый снимок: 20 кг × 5 — это не «20 повторов».
+      { id: 'f2', user_id: 'fr', performed_at: '2026-01-02T10:00:00Z', entries: [{ exercise_id: 'pu', metric: 'weight', sets: [{ weight: 20, reps: 15 }] }] },
+    ]
+    expect(computeBeaten(feed, 'me', myBest)).toEqual([])
+  })
+})

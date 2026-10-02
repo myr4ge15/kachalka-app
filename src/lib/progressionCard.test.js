@@ -115,3 +115,18 @@ describe('buildRecommendation', () => {
     expect(r.meta.recSets.every((x) => x.weight === 50)).toBe(true)
   })
 })
+
+// РЕВЬЮ-КОДА-2026-10-02, п. 17: сессия в другой единице (до смены типа) не база
+// для рекомендации — «10 кг × 8» иначе читался бы как 8 повторов.
+describe('buildRecommendation: сессии другой единицы', () => {
+  it('сессии с metric ≠ текущему отбрасываются', () => {
+    const sessions = [{ ...sess([s(10, 8)]), metric: 'weight' }]
+    const r = buildRecommendation(ex({ metric: 'reps' }), sessions, on())
+    expect(r.meta).toBeNull()
+    expect(r.sets[0]).toMatchObject({ weight: 0, reps: 10 }) // дефолт reps, а не 10×8
+  })
+  it('сессии без metric (старый вызывающий код) берутся как есть', () => {
+    const r = buildRecommendation(ex({ metric: 'reps' }), [sess([s(0, 12)])], on())
+    expect(r.sets[0]).toMatchObject({ weight: 0, reps: 13 })
+  })
+})

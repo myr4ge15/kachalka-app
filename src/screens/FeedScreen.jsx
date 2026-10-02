@@ -1,8 +1,7 @@
 import { useEffect, useRef, useState, useCallback, useMemo } from 'react'
 import { useLiveQuery } from 'dexie-react-hooks'
 import { getCachedFeed, fetchFeed } from '../db/feed.js'
-import { getUsers, toggleReaction } from '../db/repo.js'
-import { getMeta } from '../db/local.js'
+import { getUsers, toggleReaction, getPrivacyFlag } from '../db/repo.js'
 import { syncNow } from '../db/sync.js'
 import { onOnline, onResume, onReselect } from '../lib/appEvents.js'
 import { fmtWhen, fmtAgo } from '../lib/dates.js'
@@ -51,7 +50,7 @@ export default function FeedScreen({ user, onOpenMember, flashId = null }) {
   // ленту — только «избранный круг» (принятые связи, connections.sql); RLS отдает
   // ему свои + связанных, поэтому обычный fetchFeed уже возвращает нужное. Скрываем
   // только лидерборд (в общий рейтинг приватный по-прежнему не входит).
-  const myPrivate = useLiveQuery(() => getMeta(`priv_${user.id}`), [user.id], false)
+  const myPrivate = useLiveQuery(() => getPrivacyFlag(user.id), [user.id], false)
 
   const loading = feed === undefined
   const list = feed ?? []

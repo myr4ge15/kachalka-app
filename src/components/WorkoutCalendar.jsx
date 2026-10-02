@@ -20,7 +20,8 @@ const DAY_TITLE = new Intl.DateTimeFormat('ru-RU', { weekday: 'long', day: 'nume
 //   workouts     — уже отфильтрованный список (фильтр группы из «Моих тренировок»)
 //   filter       — активная группа (для подписи) или null
 //   initialDate  — день, который открыть и выделить (Date/ISO); по умолчанию сегодня
-//   onOpen(id)   — открыть тренировку; onDismiss — закрыть лист
+//   onOpen(id, day) — открыть тренировку; day — выбранный день 'YYYY-MM-DD', чтобы
+//                  экран мог вернуть календарь на то же место; onDismiss — закрыть лист
 export default function WorkoutCalendar({ workouts, filter = null, initialDate = null, onOpen, onDismiss }) {
   const today = useMemo(() => new Date(), [])
   const [month, setMonth] = useState(() => monthOf(initialDate ?? today))
@@ -142,7 +143,7 @@ export default function WorkoutCalendar({ workouts, filter = null, initialDate =
                         </li>
                       ))}
                     </ul>
-                    <button type="button" className="btn full cal-open" onClick={() => onOpen?.(w.id)}>
+                    <button type="button" className="btn full cal-open" onClick={() => onOpen?.(w.id, picked)}>
                       Открыть тренировку
                     </button>
                   </div>

@@ -33,6 +33,28 @@ export function urlB64ToUint8Array(b64) {
   return out
 }
 
+// Подписка браузера сделана под ДРУГОЙ VAPID-ключ (ключ в сборке сменили)?
+// Такую push-сервис отвергает (обычно 403), пуши молча не доходят, а клиент раньше
+// переиспользовал ее вечно (РЕВЬЮ-КОДА-2026-10-02, мелочи). subKey —
+// `sub.options.applicationServerKey` (ArrayBuffer, бывает null/нет вовсе в старых
+// браузерах), expected — байты ключа сборки. Ключ подписки неизвестен → false:
+// пересоздавать вслепую нельзя (лишний запрос разрешения/подписки на каждом входе).
+export function isStaleServerKey(subKey, expected) {
+  const a = toBytes(subKey)
+  const b = toBytes(expected)
+  if (!a || !b || b.length === 0) return false
+  if (a.length !== b.length) return true
+  for (let i = 0; i < a.length; i++) if (a[i] !== b[i]) return true
+  return false
+}
+
+function toBytes(v) {
+  if (v instanceof Uint8Array) return v
+  if (v instanceof ArrayBuffer) return new Uint8Array(v)
+  if (ArrayBuffer.isView(v)) return new Uint8Array(v.buffer, v.byteOffset, v.byteLength)
+  return null
+}
+
 // Подписка браузера (PushSubscription.toJSON()) → аргументы push_subscribe.
 // Неполная подписка → null: такую на сервер не отправляем.
 export function subscriptionArgs(json, userAgent = '') {

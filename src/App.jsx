@@ -185,6 +185,21 @@ const FEED_FLASH_MS = 2400
 const pushAnchor = (workoutId) => ({ anchor: `feed-${workoutId}`, offset: 12, scrollTop: 0, ms: 2500 })
 const TAB_KEY = 'gym_app_tab'
 
+// Безопасный доступ к Web Storage (РЕВЬЮ-КОДА-2026-10-02): в Safari с блокировкой
+// cookie/«Частном доступе» уже ОБРАЩЕНИЕ к window.localStorage бросает
+// SecurityError. Без обертки падал эффект восстановления сессии — markAppReady не
+// звался, и заставка висела до страховочного таймера, а запись вкладки роняла
+// рендер. Хранилище тут — удобство: при отказе ведем себя как «пусто».
+function storageGet(area, key) {
+  try { return window[area]?.getItem(key) ?? null } catch { return null }
+}
+function storageSet(area, key, value) {
+  try { window[area]?.setItem(key, value) } catch { /* хранилище недоступно — живем без него */ }
+}
+function storageRemove(area, key) {
+  try { window[area]?.removeItem(key) } catch { /* хранилище недоступно — живем без него */ }
+}
+
 export default function App() {
   const [user, setUser] = useState(null)
   // Нажатие на пуш (v6.7.2): service worker открывает приложение с `?push=<tag>`
@@ -197,7 +212,7 @@ export default function App() {
   const [tab, setTab] = useState(() => {
     // Холодный старт с пуша о реакции — сразу Лента, без кадра Главной.
     if (pushIntentFromUrl(window.location.href)?.type === 'reaction') return 'feed'
-    const saved = sessionStorage.getItem(TAB_KEY)
+    const saved = storageGet('sessionStorage', TAB_KEY)
     if (saved === 'member') return 'feed' // id участника не переживает F5 → назад в Ленту
     return saved && saved !== 'workout' ? saved : 'home'
   }) // 'home' | 'history' | 'feed' | 'progress' | 'notif' | 'profile' | 'admin' | 'freshness' | 'myex' | 'achievements' | 'appearance'
@@ -270,7 +285,7 @@ export default function App() {
   // запись, а новичку/новому телефону — молча запомним версию (lib/whatsNew.js).
   const knownDeviceRef = useRef(null)
   if (knownDeviceRef.current === null) {
-    try { knownDeviceRef.current = Boolean(readStoredUserId(localStorage.getItem(SESSION_KEY))) } catch { knownDeviceRef.current = false }
+    knownDeviceRef.current = Boolean(readStoredUserId(storageGet('localStorage', SESSION_KEY)))
   }
   const [whatsNew, setWhatsNew] = useState(null)
   useEffect(() => {
@@ -347,7 +362,7 @@ export default function App() {
   }, [user?.id])
 
   // Запоминаем активную вкладку
-  useEffect(() => { sessionStorage.setItem(TAB_KEY, tab) }, [tab])
+  useEffect(() => { storageSet('sessionStorage', TAB_KEY, tab) }, [tab])
 
   // Префетч экранов остальных вкладок в простое после входа: активная вкладка уже
   // грузится, а прочие подтягиваем заранее, чтобы их открытие было мгновенным и не
@@ -399,6 +414,19 @@ export default function App() {
     // Переход на другую вкладку. Прокрутку после commit делает layout-effect
     // выше: обработчик не пытается угадать момент рендера через rAF.
     setTab(next)
+  }
+
+  // «Уведомления» открываются колокольчиком с любой вкладки — «назад» ведет туда,
+  // откуда пришли (РЕВЬЮ-КОДА-2026-10-02: у экрана не было общей BackButton).
+  // После F5 на самом экране источника нет — на Главную.
+  const notifFromRef = useRef(null)
+  function openNotif() {
+    if (tab !== 'notif') notifFromRef.current = tab
+    goTab('notif')
+  }
+  function backFromNotif() {
+    goTab(notifFromRef.current ?? 'home')
+    notifFromRef.current = null
   }
 
   // Связка ЛК → «Прогресс»: открыть вкладку с заранее выбранным упражнением.
@@ -476,12 +504,12 @@ export default function App() {
   // Готовность для сплэша (markAppReady) — по итогу восстановления: без этого
   // сплэш снимался по таймеру и мельком показывал экран входа, пока база открывалась.
   useEffect(() => {
-    const id = readStoredUserId(localStorage.getItem(SESSION_KEY))
+    const id = readStoredUserId(storageGet('localStorage', SESSION_KEY))
     if (!id) { markAppReady(); return }
     ;(async () => {
       const [roster, cache] = await Promise.all([getCachedUser(id), getCachedProfile(id)])
       await openUserDb(id)
-      localStorage.setItem(SESSION_KEY, JSON.stringify({ id }))
+      storageSet('localStorage', SESSION_KEY, JSON.stringify({ id }))
       setUser(hydrateProfile(id, roster, cache))
     })()
       // Не глушим молча: человек окажется на экране входа, и без следа в консоли
@@ -505,7 +533,7 @@ export default function App() {
     const { data } = supabase.auth.onAuthStateChange((event) => {
       if (event === 'SIGNED_IN' && userIdRef.current) reconcilePushOwner(userIdRef.current)
       if (event === 'SIGNED_OUT') {
-        localStorage.removeItem(SESSION_KEY)
+        storageRemove('localStorage', SESSION_KEY)
         setUser(null)
         closeUserDb()
       }
@@ -519,7 +547,7 @@ export default function App() {
     // закроет базу предыдущей учетки и перенесет несинхрон. правки со старой общей
     // базы. Чистка кросс-пользовательских кэшей больше не нужна — изоляция физическая.
     await openUserDb(u.id)
-    localStorage.setItem(SESSION_KEY, JSON.stringify({ id: u.id }))
+    storageSet('localStorage', SESSION_KEY, JSON.stringify({ id: u.id }))
     setUser(u)
     setTab('home')
   }
@@ -531,14 +559,22 @@ export default function App() {
     setUser((u) => (u ? { ...u, name } : u))
   }
 
-  async function handleLogout() {
-    // Пуши этой учетки на устройство больше не нужны (общий телефон). Пока сессия
-    // жива — снимаем подписку и на сервере; никогда не бросает, ждет не дольше 4 с.
-    if (user?.id) await releasePushOnLogout(user.id)
-    await authLogout()
-    localStorage.removeItem(SESSION_KEY)
-    setUser(null)      // сначала размонтируем экраны и их live-queries…
-    closeUserDb()      // …затем закрываем персональную базу
+  // Выход уже идет (до ~7 с: пуш-подписка + signOut). Второй вызов — no-op,
+  // индикацию «Выхожу…» рисует LogoutButton (РЕВЬЮ-КОДА-2026-10-02).
+  const logoutRef = useRef(null)
+  function handleLogout() {
+    if (!logoutRef.current) {
+      logoutRef.current = (async () => {
+        // Пуши этой учетки на устройство больше не нужны (общий телефон). Пока сессия
+        // жива — снимаем подписку и на сервере; никогда не бросает, ждет не дольше 4 с.
+        if (user?.id) await releasePushOnLogout(user.id)
+        await authLogout()
+        storageRemove('localStorage', SESSION_KEY)
+        setUser(null)      // сначала размонтируем экраны и их live-queries…
+        closeUserDb()      // …затем закрываем персональную базу
+      })().finally(() => { logoutRef.current = null })
+    }
+    return logoutRef.current
   }
 
   if (!isConfigured) {
@@ -571,7 +607,7 @@ export default function App() {
           <Avatar name={user.name} url={myCached?.avatar_url} className="avatar-sm" />
           {user.name} <span className="chev" aria-hidden="true">▾</span>
         </button>
-        <SyncTools unread={unread} onOpenNotif={() => goTab('notif')} />
+        <SyncTools unread={unread} onOpenNotif={openNotif} />
       </header>
 
       <main className="content" ref={contentRef}>
@@ -618,7 +654,7 @@ export default function App() {
                   onOpenGoals={() => goTab('profile')}
                 />
               )}
-              {tab === 'notif' && <NotificationsScreen user={user} />}
+              {tab === 'notif' && <NotificationsScreen user={user} onBack={backFromNotif} />}
               {tab === 'profile' && (
                 <ProfileScreen
                   user={user}
@@ -727,7 +763,7 @@ export default function App() {
           {/* Статус синка + колокольчик уведомлений на десктопе живут здесь
               (шапка на десктопе скрыта). На мобиле этот блок скрыт — они в шапке. */}
           <div className="side-tools">
-            <SyncTools unread={unread} onOpenNotif={() => goTab('notif')} />
+            <SyncTools unread={unread} onOpenNotif={openNotif} />
           </div>
           <button
             className={'side-profile' + (tab === 'profile' ? ' active' : '')}

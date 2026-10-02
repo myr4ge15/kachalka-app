@@ -153,3 +153,32 @@ describe('buildSeries — день по местному времени', () => 
     expect(series[0].day).toBe(ymd(2026, 10, 1))
   })
 })
+
+// РЕВЬЮ-КОДА-2026-10-02, п. 17: старые тренировки хранят снимок упражнения на
+// момент сохранения; после переименования/смены типа побеждал самый старый.
+describe('свежий снимок упражнения после правки справочника', () => {
+  const hist = [
+    wk('2026-01-01T10:00:00Z', [{ exercise: ex('pu', 'Отжимания с весом', { metric: 'weight' }), sets: [{ weight: 10, reps: 8 }] }]),
+    wk('2026-01-10T10:00:00Z', [{ exercise: ex('pu', 'Отжимания', { metric: 'reps' }), sets: [{ weight: 0, reps: 9 }] }]),
+    wk('2026-01-15T10:00:00Z', [{ exercise: ex('pu', 'Отжимания', { metric: 'reps' }), sets: [{ weight: 0, reps: 12 }] }]),
+  ]
+
+  it('collectExercises: имя и метрика — из самого свежего снимка (порядок входа не важен)', () => {
+    for (const list of [hist, [...hist].reverse()]) {
+      const [rec] = collectExercises(list)
+      expect(rec).toMatchObject({ id: 'pu', name: 'Отжимания', metric: 'reps', hasWeight: false })
+    }
+  })
+
+  it('buildSeries: точки в старой единице (кг) в ряд повторов не попадают', () => {
+    const s = buildSeries(hist, 'pu', false)
+    expect(s.map((p) => p.value)).toEqual([9, 12])
+    expect(s[0].isPr).toBe(true)
+  })
+
+  it('легаси-снимок без metric: экран сам решает по hasWeight (metric undefined)', () => {
+    const [rec] = collectExercises([wk('2026-01-01', [{ exercise: ex('x', 'Подтягивания'), sets: [{ weight: 0, reps: 10 }] }])])
+    expect(rec.metric).toBeUndefined()
+    expect(rec.hasWeight).toBe(false)
+  })
+})

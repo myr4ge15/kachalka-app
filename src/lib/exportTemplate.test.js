@@ -80,7 +80,9 @@ describe('buildTemplatesExport', () => {
 })
 
 describe('templatesExportFilename', () => {
-  const now = new Date('2026-07-09T10:00:00Z')
+  // Местный полдень: имя файла — по местному дню, а 10:00Z в Киритимати (UTC+14)
+  // уже 10-е число (РЕВЬЮ-КОДА-2026-10-02, поясонезависимые фикстуры).
+  const now = new Date(2026, 6, 9, 12)
   it('один шаблон → template-дата, несколько → templates-N-дата', () => {
     expect(templatesExportFilename(tpl('t1', 'Один'), now)).toBe('template-2026-07-09.json')
     expect(templatesExportFilename([tpl('t1', 'a'), tpl('t2', 'b')], now))

@@ -10,9 +10,10 @@ vi.mock('../lib/auth.js', () => ({ ensureOwnSession: (...a) => ensureOwnSession(
 vi.stubEnv('VITE_VAPID_PUBLIC_KEY', 'BKey')
 const { enablePush, disablePush, releasePushOnLogout, PushError, getPushPrefs, setPushPref, reconcilePushOwner, getPushState } = await import('./push.js')
 
-function fakeSub(endpoint = 'https://push.example/abc') {
+function fakeSub(endpoint = 'https://push.example/abc', options) {
   return {
     endpoint,
+    ...(options ? { options } : {}),
     unsubscribe: vi.fn().mockResolvedValue(true),
     toJSON: () => ({ endpoint, keys: { p256dh: 'P', auth: 'A' } }),
   }
@@ -178,5 +179,42 @@ describe('общий телефон: чья подписка (РЕВЬЮ-КОД�
     const s = await getPushState('B')
     expect(s.enabled).toBe(false)
     expect(rpc).not.toHaveBeenCalledWith('push_subscribe', expect.anything())
+  })
+})
+
+// РЕВЬЮ-КОДА-2026-10-02, мелочи: подписка под старый VAPID-ключ переиспользовалась.
+describe('смена VAPID-ключа', () => {
+  const bytes = (b64) => Uint8Array.from(atob(b64), (c) => c.charCodeAt(0))
+  const stale = () => fakeSub('https://push.example/old', { applicationServerKey: bytes('AAAA').buffer })
+  const current = () => fakeSub('https://push.example/cur', { applicationServerKey: bytes('BKey').buffer })
+
+  it('enablePush: подписка под старый ключ снимается, создается новая', async () => {
+    const old = stale()
+    const { pushManager } = setup({ existing: old, created: fakeSub('https://push.example/new') })
+    rpc.mockResolvedValue({ error: null })
+    await enablePush('A')
+    expect(old.unsubscribe).toHaveBeenCalled()
+    expect(pushManager.subscribe).toHaveBeenCalled()
+    expect(rpc).toHaveBeenCalledWith('push_subscribe', expect.objectContaining({ p_endpoint: 'https://push.example/new' }))
+  })
+
+  it('enablePush: подписка под текущий ключ переиспользуется', async () => {
+    const sub = current()
+    const { pushManager } = setup({ existing: sub })
+    rpc.mockResolvedValue({ error: null })
+    await enablePush('A')
+    expect(sub.unsubscribe).not.toHaveBeenCalled()
+    expect(pushManager.subscribe).not.toHaveBeenCalled()
+  })
+
+  it('reconcilePushOwner: своя подписка под старый ключ пересоздается при входе', async () => {
+    const old = stale()
+    const { pushManager } = setup({ existing: old, created: fakeSub('https://push.example/new') })
+    rpc.mockResolvedValue({ error: null })
+    localStorage.setItem('gym_app_push_owner', 'A')
+    await reconcilePushOwner('A')
+    expect(old.unsubscribe).toHaveBeenCalled()
+    expect(pushManager.subscribe).toHaveBeenCalled()
+    expect(rpc).toHaveBeenCalledWith('push_subscribe', expect.objectContaining({ p_endpoint: 'https://push.example/new' }))
   })
 })

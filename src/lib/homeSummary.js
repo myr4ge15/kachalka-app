@@ -12,7 +12,7 @@ import { dayIndex, tonnageInWindow } from './insights.js'
 import { mostNeglectedGroup } from './freshness.js'
 import { daySubTags } from './dayTags.js'
 import { normMetric, leadingValue } from './metric.js'
-import { entryExId, entryMetric, sortDesc } from './entries.js'
+import { entryExId, sortDesc, currentExerciseShapes, entryUnitMetric } from './entries.js'
 import { plural } from './plural.js'
 
 function localDayKey(value) {
@@ -90,7 +90,12 @@ export function buildTrainingRhythm(workouts, { now = new Date(), weeks = 8 } = 
 // Последний зафиксированный личный рекорд (свежайший по дате): идем по истории от
 // старых к новым, держим лучший ведущий показатель по упражнению и ловим момент
 // превышения. Возвращаем самый недавний. { name, metric, value, at } | null.
+// Максимум — отдельно по каждой единице (exId + метрика записи), имя — из свежего
+// снимка: после смены типа/переименования упражнения старые снимки в тренировках
+// не обновляются, и 12 повторов иначе «били» старые 10 кг (РЕВЬЮ-КОДА-2026-10-02,
+// п. 17). Та же семантика, что у records.minePrs.
 function latestPr(sorted) {
+  const shapes = currentExerciseShapes(sorted)
   const chron = [...sorted].reverse() // старые → новые
   const best = new Map()
   let last = null
@@ -98,15 +103,17 @@ function latestPr(sorted) {
     for (const e of w.entries ?? []) {
       const exId = entryExId(e)
       if (!exId) continue
-      const m = entryMetric(e)
+      const shape = shapes.get(exId)
+      const m = entryUnitMetric(e, shape?.metric)
       // Ведущее значение подхода (макс. вес / повторов / секунд) — общий leadingValue
       // из metric.js вместо инлайнового `weight?:reps` (иначе 4-я метрика тихо разъедется).
       const value = leadingValue(m, e.sets ?? [])
       if (value <= 0) continue
-      const prev = best.get(exId) ?? 0
+      const key = `${exId}:${m}`
+      const prev = best.get(key) ?? 0
       if (value > prev) {
-        if (prev > 0) last = { name: e.name ?? e.exercise?.name ?? '—', metric: m, value, at: w.performed_at }
-        best.set(exId, value)
+        if (prev > 0) last = { name: shape?.name ?? e.name ?? e.exercise?.name ?? '—', metric: m, value, at: w.performed_at }
+        best.set(key, value)
       }
     }
   }

@@ -320,3 +320,31 @@ describe('стабильность id/at', () => {
     expect(nA.at).toBe(list[1].performed_at)
   })
 })
+
+// РЕВЬЮ-КОДА-2026-10-02, п. 17: после смены типа упражнения старые тренировки
+// хранят старый снимок; кг и повторы не сравниваются.
+describe('инсайты после смены типа упражнения', () => {
+  it('R1: первые 12 повторов после 10 кг — не «Новый рекорд (было 10)»', () => {
+    const list = [
+      wk({ id: 'new', at: daysAgo(0), entries: [{ exId: 'pu', name: 'Отжимания', metric: 'reps', sets: [S(0, 12)] }] }),
+      wk({ id: 'old', at: daysAgo(3), entries: [{ exId: 'pu', name: 'Отжимания', sets: [S(10, 8)] }] }),
+    ]
+    expect(buildInsights({ workouts: list, now: NOW, max: 10 }).find((i) => i.kind === 'pr')).toBeFalsy()
+  })
+
+  it('R8: «себя прошлого» не сравнивает повторы с прошлогодними кг', () => {
+    const list = [
+      wk({ id: 'new', at: daysAgo(0), entries: [{ exId: 'pu', name: 'Отжимания', metric: 'reps', sets: [S(0, 12)] }] }),
+      wk({ id: 'old', at: daysAgo(365), entries: [{ exId: 'pu', name: 'Отжимания', sets: [S(10, 8)] }] }),
+    ]
+    expect(buildInsights({ workouts: list, now: NOW, max: 10 }).find((i) => i.kind === 'past-self')).toBeFalsy()
+  })
+
+  it('R4: сессии в старой единице не попадают в окно плато', () => {
+    const reps = [0, 1, 2].map((i) =>
+      wk({ id: 'r' + i, at: daysAgo(i * 3), entries: [{ exId: 'b', name: 'Жим', bench: true, metric: 'reps', sets: [S(0, 20)] }] })
+    )
+    const old = wk({ id: 'o', at: daysAgo(9), entries: [{ exId: 'b', name: 'Жим', bench: true, sets: [S(60, 25)] }] })
+    expect(buildInsights({ workouts: [...reps, old], now: NOW, max: 10 }).find((i) => i.kind === 'plateau')).toBeFalsy()
+  })
+})
