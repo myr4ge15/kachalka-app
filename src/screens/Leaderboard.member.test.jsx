@@ -4,7 +4,7 @@ import { beforeEach, describe, expect, it, vi } from 'vitest'
 import { render, screen, fireEvent } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { useLiveQuery } from 'dexie-react-hooks'
-import Leaderboard from './Leaderboard.jsx'
+import Leaderboard from './LegacyLeaderboard.jsx'
 
 vi.mock('dexie-react-hooks', () => ({ useLiveQuery: vi.fn() }))
 vi.mock('../db/leaderboard.js', () => ({

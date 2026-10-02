@@ -1,26 +1,27 @@
 import { useState } from 'react'
 import Avatar from './Avatar.jsx'
+import { disciplineResult } from '../lib/disciplines.js'
 
 function gapText(rivalry) {
   if (rivalry.tied) return `С ${rivalry.rival.user_name} — один результат`
   if (rivalry.direction === 'below') {
     return `${rivalry.rival.user_name} рядом — разница ${gapValue(rivalry)}`
   }
-  return `До ${rivalry.rival.user_name} — ${gapValue(rivalry)}`
+  return `${rivalry.rival.user_name} впереди на ${gapValue(rivalry)}`
 }
 
 function gapValue({ gap, gapMetric }) {
-  return gapMetric === 'weight' ? `${gap} кг` : `${gap} повт.`
+  return gapMetric === 'time' ? `${gap} сек.` : gapMetric === 'weight' ? `${gap} кг` : `${gap} повт.`
 }
 
-function RivalRow({ row, place, isMe, avatarUrl }) {
+function RivalRow({ row, place, isMe, avatarUrl, metric = 'weight' }) {
   return (
     <div className={isMe ? 'rival-detail-row me' : 'rival-detail-row'}>
       <span className="rival-detail-place">{place}</span>
       <Avatar name={row.user_name} url={avatarUrl} className="avatar-sm" />
       <span className="rival-detail-name">{isMe ? 'Ты' : row.user_name}</span>
-      <strong>{row.weight} кг</strong>
-      <span className="muted">{row.reps} повт.</span>
+      <strong>{disciplineResult(metric, metric === 'weight' ? row.weight : row.reps)}</strong>
+      {metric === 'weight' && <span className="muted">{row.reps} повт.</span>}
     </div>
   )
 }
@@ -76,6 +77,7 @@ export default function RivalryCard({ rivalry, avatarById = new Map() }) {
               place={place}
               isMe={isMe}
               avatarUrl={avatarById.get(row.user_id)}
+              metric={rivalry.metric}
             />
           ))}
         </div>

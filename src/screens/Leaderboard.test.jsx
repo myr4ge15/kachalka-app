@@ -2,7 +2,7 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 import { render, screen } from '@testing-library/react'
 import { useLiveQuery } from 'dexie-react-hooks'
-import Leaderboard from './Leaderboard.jsx'
+import Leaderboard from './LegacyLeaderboard.jsx'
 
 vi.mock('dexie-react-hooks', () => ({ useLiveQuery: vi.fn() }))
 vi.mock('../db/leaderboard.js', () => ({
@@ -44,7 +44,7 @@ describe('Leaderboard rivalry', () => {
     render(<Leaderboard user={user} />)
 
     expect(screen.getByRole('region', { name: 'Ближайший ориентир' })).toBeInTheDocument()
-    expect(screen.getByText('До Дима — 5 кг')).toBeInTheDocument()
+    expect(screen.getByText('Дима впереди на 5 кг')).toBeInTheDocument()
     expect(screen.getByText('Рейтинг · жим лежа')).toBeInTheDocument()
   })
 

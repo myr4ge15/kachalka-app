@@ -19,6 +19,7 @@ import { db, loginDb, getMeta, setMeta } from './local.js'
 import { setOneRepMax } from '../lib/oneRepMax.js'
 import { cmpIsoAsc } from '../lib/cmp.js'
 import { shouldRefetchLeaderboard } from '../lib/leaderboardCache.js'
+import { getRatingCatalog, getRatingBoard } from './disciplines.js'
 
 // Порядок рейтинга — по ФАКТИЧЕСКОМУ весу: тяжелее выше; при равном весе —
 // больше повторов; при равных и весе, и повторах — кто достиг раньше.
@@ -160,6 +161,24 @@ export function computeBoardFromFeed(feedItems, sexById) {
 // Читаем все нужные таблицы внутри одной функции, поэтому useLiveQuery
 // пересчитывает рейтинг и при обновлении снимка, и при обновлении Ленты.
 export async function getCachedLeaderboard() {
+  // Старые карточки профиля/инсайты про жим используют только актуальный снимок
+  // соответствующей дисциплины. Убранный из рейтинга жим не воскресает из старого кэша.
+  const catalog = await getRatingCatalog()
+  if (catalog) {
+    const [exercises, users] = await Promise.all([db.exercises.toArray(), loginDb.users.toArray()])
+    const sex = new Map(users.map(u => [u.id, u.sex]))
+    const read = async (flag, group) => {
+      const exercise = exercises.find(e => e[flag])
+      const discipline = catalog.items.find(d => d.exercise_id === exercise?.id && d.metric === 'weight')
+      if (!discipline) return []
+      const board = await getRatingBoard(discipline)
+      return (board?.rows ?? []).filter(row => discipline.split_by_sex
+        ? row.board === group
+        : viewerBoard(sex.get(row.user_id)) === group).sort(cmpBoard)
+    }
+    const [male, female] = await Promise.all([read('is_bench_lift', 'm'), read('is_female_lift', 'f')])
+    return { male, female }
+  }
   const snapshot = await db.leaderboard.toArray()
   if (snapshot.length) return splitBoards(snapshot)
   // Ростер (пол участников) — общий, в loginDb (см. local.js).

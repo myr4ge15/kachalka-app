@@ -18,6 +18,7 @@ import { showToast } from '../components/Toast.jsx'
 import CardsSkeleton from '../components/CardsSkeleton.jsx'
 import BackButton from '../components/BackButton.jsx'
 import PencilIcon from '../components/PencilIcon.jsx'
+import AdminDisciplines from '../components/AdminDisciplines.jsx'
 
 // Экран «Админка» (PLAN-admin). Виден только при role='admin' (вход из Профиля);
 // сервер все равно перепроверяет роль в каждой операции. Все мутации требуют
@@ -48,6 +49,12 @@ export default function AdminScreen({ user, onBack }) {
       )}
 
       <div className="admin-nav">
+        <button className={'admin-nav-btn' + (open === 'disciplines' ? ' open' : '')}
+          onClick={() => toggle('disciplines')} aria-expanded={open === 'disciplines'}>
+          <span className="admin-nav-name">Дисциплины рейтинга</span>
+          <span className="admin-nav-chev" aria-hidden="true">{open === 'disciplines' ? '⌄' : '›'}</span>
+        </button>
+        {open === 'disciplines' && <div className="admin-panel"><AdminDisciplines userId={user.id} exercises={exercises ?? []} online={online} /></div>}
         <button
           className={'admin-nav-btn' + (open === 'exercises' ? ' open' : '')}
           onClick={() => toggle('exercises')}
@@ -570,16 +577,7 @@ function ExercisesSection({ exercises, online, errMsg }) {
                   )}
                 </div>
 
-                <label className="admin-check">
-                  <input type="checkbox" checked={form.is_bench_lift}
-                    onChange={(e) => setForm((f) => ({ ...f, is_bench_lift: e.target.checked }))} />
-                  <span>Жим лежа — мужской лидерборд 🏅</span>
-                </label>
-                <label className="admin-check">
-                  <input type="checkbox" checked={form.is_female_lift}
-                    onChange={(e) => setForm((f) => ({ ...f, is_female_lift: e.target.checked }))} />
-                  <span>Женский лидерборд (ягодичный мостик) 🍑</span>
-                </label>
+                <p className="muted admin-hint">Участие в рейтинге настраивается в разделе «Дисциплины рейтинга».</p>
                 <label className="admin-check">
                   <input type="checkbox" checked={form.is_hidden}
                     onChange={(e) => setForm((f) => ({ ...f, is_hidden: e.target.checked }))} />
@@ -596,8 +594,6 @@ function ExercisesSection({ exercises, online, errMsg }) {
               <div className="admin-ex-row">
                 <div className="admin-ex-main">
                   <span className="admin-ex-name">
-                    {ex.is_bench_lift && <span className="admin-star" title="Жим — мужской лидерборд">🏅</span>}
-                    {ex.is_female_lift && <span className="admin-star" title="Женский лидерборд">🍑</span>}
                     {ex.name}
                   </span>
                   <span className="admin-ex-meta">

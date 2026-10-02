@@ -19,7 +19,7 @@ describe('RivalryCard', () => {
   it('показывает нейтральный ориентир и раскрывает две строки', () => {
     render(<RivalryCard rivalry={rivalry} />)
 
-    const toggle = screen.getByRole('button', { name: /До Дима — 5 кг/ })
+    const toggle = screen.getByRole('button', { name: /Дима впереди на 5 кг/ })
     expect(toggle).toHaveAttribute('aria-expanded', 'false')
     expect(screen.queryByLabelText('Сравнение результатов')).not.toBeInTheDocument()
 
