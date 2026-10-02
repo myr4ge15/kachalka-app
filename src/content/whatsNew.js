@@ -17,7 +17,7 @@
 
 export const WHATS_NEW = [
   {
-    version: '6.8.1',
+    version: '6.8.2',
     date: '2026-10-02',
     headline: 'Приглашение по ссылке и свайп назад',
     main: [
