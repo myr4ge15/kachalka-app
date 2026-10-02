@@ -10,6 +10,7 @@ import AdminScreen from './AdminScreen.jsx'
 import { useLiveQuery } from 'dexie-react-hooks'
 import {
   adminListUsers, adminSetUser, adminSetPrivate, adminSetSex, adminUpdateExercise,
+  adminDeleteUser,
   adminCreateInvite, adminListInvites, adminRevokeInvite,
 } from '../lib/admin.js'
 
@@ -25,6 +26,7 @@ vi.mock('../lib/admin.js', () => ({
   adminSetSex: vi.fn(() => Promise.resolve()),
   adminResetPin: vi.fn(),
   adminCreateUser: vi.fn(),
+  adminDeleteUser: vi.fn(() => Promise.resolve()),
   adminSetUserOrder: vi.fn(),
   adminUpdateExercise: vi.fn(),
   adminMergeExercise: vi.fn(),
@@ -51,6 +53,7 @@ beforeEach(() => {
   vi.mocked(adminSetUser).mockClear()
   vi.mocked(adminSetPrivate).mockClear()
   vi.mocked(adminSetSex).mockClear()
+  vi.mocked(adminDeleteUser).mockClear()
   vi.mocked(adminListUsers).mockResolvedValue([DIMA])
 })
 
@@ -114,6 +117,55 @@ describe('AdminScreen: правка участника', () => {
     await user.click(save)
 
     await waitFor(() => expect(adminSetSex).toHaveBeenCalledWith('u1', null))
+  })
+})
+
+describe('AdminScreen: удаление участника', () => {
+  it('требует точное имя и после подтверждения зовет adminDeleteUser', async () => {
+    const user = userEvent.setup()
+
+    render(<AdminScreen user={ME} onBack={() => {}} />)
+    await user.click(screen.getByRole('button', { name: /Пользователи/ }))
+
+    expect(await screen.findByText('Дима')).toBeInTheDocument()
+
+    await user.click(screen.getByRole('button', { name: 'Удалить Дима' }))
+
+    const confirm = screen.getByLabelText(/Для подтверждения введи имя/)
+    const remove = screen.getByRole('button', { name: 'Удалить навсегда' })
+
+    expect(remove).toBeDisabled()
+
+    await user.type(confirm, 'Дим')
+    expect(remove).toBeDisabled()
+
+    await user.type(confirm, 'а')
+    expect(remove).toBeEnabled()
+
+    await user.click(remove)
+
+    await waitFor(() => {
+      expect(adminDeleteUser).toHaveBeenCalledTimes(1)
+      expect(adminDeleteUser).toHaveBeenCalledWith('u1')
+    })
+  })
+
+  it('не показывает удаление для текущего пользователя', async () => {
+    vi.mocked(adminListUsers).mockResolvedValue([ME, DIMA])
+    const user = userEvent.setup()
+
+    render(<AdminScreen user={ME} onBack={() => {}} />)
+    await user.click(screen.getByRole('button', { name: /Пользователи/ }))
+
+    expect(await screen.findByText('Саня')).toBeInTheDocument()
+
+    expect(
+      screen.queryByRole('button', { name: 'Удалить Саня' })
+    ).not.toBeInTheDocument()
+
+    expect(
+      screen.getByRole('button', { name: 'Удалить Дима' })
+    ).toBeInTheDocument()
   })
 })
 

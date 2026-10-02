@@ -8,6 +8,8 @@ describe('admin.humanRpc', () => {
   const cases = [
     ['admin only', 'Нужны права админа.'],
     ['permission denied (42501)', 'Нужны права админа.'],
+    ['cannot delete yourself', 'Нельзя удалить самого себя.'],
+    ['cannot delete the last admin', 'Нельзя удалить последнего администратора.'],
     ['cannot remove last admin', 'Нельзя снять роль с последнего админа.'],
     ['user not found', 'Запись не найдена.'],
     ['name length 1..60', 'Название — от 1 до 60 символов.'],

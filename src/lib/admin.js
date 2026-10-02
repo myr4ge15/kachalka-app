@@ -111,6 +111,19 @@ export async function adminSetUser(id, name, role) {
   return { id, name: clean, role }
 }
 
+// Удалить пользователя
+export async function adminDeleteUser(id) {
+  const res = await withTimeout(
+    supabase.rpc('admin_delete_user', { p_user_id: id })
+  )
+
+  if (res.error) {
+    throw new AdminError(humanRpc(res.error.message))
+  }
+
+  return true
+}
+
 // Сбросить PIN участнику (Edge Function). new_pin опционален — сервер сгенерит.
 // Возвращает установленный PIN (для передачи человеку).
 export async function adminResetPin(targetUserId, newPin = '') {

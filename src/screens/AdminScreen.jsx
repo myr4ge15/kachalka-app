@@ -1,10 +1,11 @@
+
 import { useEffect, useMemo, useRef, useState } from 'react'
 import { useLiveQuery } from 'dexie-react-hooks'
 import { getAllExercisesForAdmin } from '../db/repo.js'
 import { useSyncStatus } from '../db/sync.js'
 import { findExactDuplicate } from '../lib/similar.js'
 import {
-  adminListUsers, adminSetUser, adminSetPrivate, adminSetSex, adminResetPin, adminCreateUser,
+  adminListUsers, adminSetUser, adminSetPrivate, adminSetSex, adminResetPin, adminCreateUser, adminDeleteUser,
   adminSetUserOrder, adminUpdateExercise, adminMergeExercise, AdminError,
   adminListConnections, adminSetConnection,
 } from '../lib/admin.js'
@@ -556,6 +557,11 @@ function UsersSection({ meId, online, errMsg }) {
   const [pinBusy, setPinBusy] = useState(false)
   const [shownPin, setShownPin] = useState(null) // { id, pin }
 
+  // удаление участника
+  const [deleteUser, setDeleteUser] = useState(null)
+  const [deleteBusy, setDeleteBusy] = useState(false)
+  const [deleteConfirm, setDeleteConfirm] = useState('')
+
   // порядок учеток на экране входа (drag-and-drop)
   const [reorder, setReorder] = useState(false)
 
@@ -637,6 +643,39 @@ function UsersSection({ meId, online, errMsg }) {
       showToast({ emoji: '⚠️', title: 'Не удалось', sub: errMsg(e) })
     } finally {
       setPinBusy(false); setPinForId(null)
+    }
+  }
+
+  async function removeUser() {
+    if (!deleteUser || !online) return
+
+    setDeleteBusy(true)
+
+    try {
+      await adminDeleteUser(deleteUser.id)
+
+      showToast({
+        emoji: '🗑️',
+        title: 'Участник удалён',
+        sub: deleteUser.name,
+      })
+
+      if (alive.current) {
+        setDeleteUser(null)
+        setDeleteConfirm('')
+      }
+
+      reload()
+    } catch (e) {
+      showToast({
+        emoji: '⚠️',
+        title: 'Не удалось удалить',
+        sub: errMsg(e),
+      })
+
+      reload()
+    } finally {
+      if (alive.current) setDeleteBusy(false)
     }
   }
 
@@ -737,6 +776,7 @@ function UsersSection({ meId, online, errMsg }) {
                   <button className="admin-mini" onClick={() => openEdit(u)} disabled={!online} aria-label="Изменить"><PencilIcon size={16} /></button>
                   <button className="admin-mini" onClick={() => resetPin(u)}
                     disabled={!online || (pinBusy && pinForId === u.id)} aria-label="Сбросить PIN">🔑</button>
+                  {u.id !== meId && <button className="admin-mini" onClick={() => { setDeleteUser(u); setDeleteConfirm('') }} disabled={!online} aria-label={`Удалить ${u.name}`} title="Удалить участника">🗑️</button>}
                 </div>
               </div>
             )}
@@ -749,6 +789,55 @@ function UsersSection({ meId, online, errMsg }) {
           </li>
         ))}
       </ul>
+
+      {deleteUser && (
+        <div className="admin-merge">
+          <p className="admin-merge-title">Удалить участника?</p>
+          <p className="admin-hint">
+            Будет удалена учётная запись <b>{deleteUser.name}</b>, её тренировки,
+            цели, реакции и связанные пользовательские данные.
+            Публичные шаблоны и созданные упражнения останутся без владельца.
+          </p>
+
+          <label className="field">
+            <span className="field-lab">
+              Для подтверждения введи имя: {deleteUser.name}
+            </span>
+            <input
+              className="admin-input"
+              type="text"
+              value={deleteConfirm}
+              onChange={(e) => setDeleteConfirm(e.target.value)}
+              disabled={deleteBusy}
+              autoComplete="off"
+            />
+          </label>
+
+          <div className="admin-ex-actions">
+            <button
+              className="btn ghost"
+              onClick={() => {
+                setDeleteUser(null)
+                setDeleteConfirm('')
+              }}
+              disabled={deleteBusy}
+            >
+              Отмена
+            </button>
+            <button
+              className="btn danger"
+              onClick={removeUser}
+              disabled={
+                deleteBusy ||
+                !online ||
+                deleteConfirm.trim() !== deleteUser.name.trim()
+              }
+            >
+              {deleteBusy ? 'Удаляю…' : 'Удалить навсегда'}
+            </button>
+          </div>
+        </div>
+      )}
 
       {addOpen ? (
         <div className="admin-add">
