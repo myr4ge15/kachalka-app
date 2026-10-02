@@ -132,7 +132,21 @@ jobs:
         continue-on-error: true
         env:
           PUSH_WEBHOOK_SECRET: ${{ secrets.PUSH_WEBHOOK_SECRET }}
+        # Любой сбой — предупреждение (::warning::) в сводке выката: раньше нет секрета или
+        # отказ функции проглатывались молча, и пуш тихо не уходил несколько релизов подряд.
         run: |
-          if [ -z "$PUSH_WEBHOOK_SECRET" ]; then echo "PUSH_WEBHOOK_SECRET не задан — рассылки нет"; exit 0; fi
-          curl -fsS -X POST -H "x-webhook-secret: $PUSH_WEBHOOK_SECRET" \
-            https://lkrrbpbytinrdpfmhxep.functions.supabase.co/push-update
+          if [ -z "$PUSH_WEBHOOK_SECRET" ]; then
+            echo "::warning title=Пуш о новой версии не отправлен::В Actions нет секрета PUSH_WEBHOOK_SECRET (Settings → Secrets and variables → Actions)."
+            exit 0
+          fi
+          code=$(curl -sS -o push-update.txt -w '%{http_code}' -X POST \
+            -H "x-webhook-secret: $PUSH_WEBHOOK_SECRET" \
+            https://lkrrbpbytinrdpfmhxep.functions.supabase.co/push-update || echo 000)
+          echo "push-update ответил $code: $(cat push-update.txt 2>/dev/null)"
+          case "$code" in
+            200|202) ;;
+            403) echo "::warning title=Пуш о новой версии не отправлен::push-update ответил 403 — секрет PUSH_WEBHOOK_SECRET в Actions не совпадает с секретом Edge Functions." ;;
+            404) echo "::warning title=Пуш о новой версии не отправлен::push-update ответил 404 — функция не задеплоена (supabase functions deploy push-update --no-verify-jwt)." ;;
+            401) echo "::warning title=Пуш о новой версии не отправлен::push-update ответил 401 — функция задеплоена без --no-verify-jwt." ;;
+            *)   echo "::warning title=Пуш о новой версии не отправлен::push-update ответил $code — смотри логи функции в Supabase." ;;
+          esac
