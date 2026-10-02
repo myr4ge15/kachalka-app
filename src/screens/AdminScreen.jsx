@@ -9,7 +9,7 @@ import {
   adminListConnections, adminSetConnection,
   adminCreateInvite, adminListInvites, adminRevokeInvite,
 } from '../lib/admin.js'
-import { inviteUrl, inviteListLabel } from '../lib/invite.js'
+import { inviteUrl, inviteListLabel, inviteMessage } from '../lib/invite.js'
 import { connectedIdsFor } from '../lib/connections.js'
 import { onlyDigits } from '../lib/text.js'
 import { submusclesOf, secondaryOptionsFor, labelOf, majorOf, defaultSubmuscleFor } from '../lib/muscles.js'
@@ -125,7 +125,7 @@ function InvitesSection({ online, errMsg }) {
   const [loadErr, setLoadErr] = useState('')
   const [note, setNote] = useState('')
   const [busy, setBusy] = useState(false)
-  const [fresh, setFresh] = useState(null) // { id, url, note }
+  const [fresh, setFresh] = useState(null) // { id, url, note, expiresAt }
   const [revId, setRevId] = useState(null)
   const alive = useRef(true)
   useEffect(() => { alive.current = true; return () => { alive.current = false } }, [])
@@ -149,7 +149,7 @@ function InvitesSection({ online, errMsg }) {
     try {
       const inv = await adminCreateInvite(note)
       const url = inviteUrl(inv.token, window.location.origin, import.meta.env.BASE_URL)
-      if (alive.current) { setFresh({ id: inv.id, url, note: note.trim() }); setNote('') }
+      if (alive.current) { setFresh({ id: inv.id, url, note: note.trim(), expiresAt: inv.expires_at }); setNote('') }
       reload()
     } catch (e) {
       showToast({ emoji: '⚠️', title: 'Не удалось', sub: errMsg(e) })
@@ -160,8 +160,8 @@ function InvitesSection({ online, errMsg }) {
 
   async function copy() {
     try {
-      await navigator.clipboard.writeText(fresh.url)
-      showToast({ emoji: '📋', title: 'Ссылка скопирована' })
+      await navigator.clipboard.writeText(inviteMessage(fresh))
+      showToast({ emoji: '📋', title: 'Приглашение скопировано', sub: 'Текст со ссылкой — вставь в чат.' })
     } catch {
       showToast({ emoji: '⚠️', title: 'Не скопировалось', sub: 'Выдели ссылку и скопируй вручную.' })
     }
@@ -169,7 +169,7 @@ function InvitesSection({ online, errMsg }) {
 
   async function share() {
     try {
-      await navigator.share({ title: 'Журнал тренировок', text: 'Приглашение в журнал тренировок', url: fresh.url })
+      await navigator.share({ title: 'Журнал тренировок', text: inviteMessage({ expiresAt: fresh.expiresAt }), url: fresh.url })
     } catch { /* закрыли меню «Поделиться» — ничего не делаем */ }
   }
 
@@ -201,7 +201,10 @@ function InvitesSection({ online, errMsg }) {
           <p className="admin-merge-title">Ссылка{fresh.note ? ` · ${fresh.note}` : ''}</p>
           <input className="admin-input invite-url" type="text" readOnly value={fresh.url}
             aria-label="Ссылка-приглашение" onFocus={(e) => e.target.select()} />
-          <p className="admin-hint">Ссылка видна только сейчас. Потеряешь — отзови и создай новую.</p>
+          <p className="admin-hint">
+            Скопируется вместе с коротким приглашением. Ссылка видна только сейчас — потеряешь,
+            отзови и создай новую.
+          </p>
           <div className="admin-ex-actions">
             <button className="btn ghost" onClick={() => setFresh(null)}>Готово</button>
             {canShare && <button className="btn ghost" onClick={share}>Поделиться</button>}

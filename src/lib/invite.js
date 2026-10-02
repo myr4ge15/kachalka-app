@@ -37,6 +37,22 @@ export function inviteUrl(token, origin, base = '/') {
   return `${origin}${b}#invite=${token}`
 }
 
+// Пригласительный текст к ссылке — для «Скопировать» и «Поделиться». Без url —
+// только слова (navigator.share передает ссылку отдельным полем); с url — ссылка
+// последней строкой, чтобы мессенджер развернул ее в превью.
+export function inviteMessage({ url = '', expiresAt = null } = {}) {
+  const lines = [
+    'Привет! Зову тебя в наш журнал тренировок 💪',
+    'Открой ссылку, придумай имя и PIN из 4 цифр — и ты в деле.',
+  ]
+  const until = expiresAt ? new Date(expiresAt) : null
+  lines.push(until && !Number.isNaN(until.getTime())
+    ? `Ссылка одноразовая, работает до ${String(until.getDate()).padStart(2, '0')}.${String(until.getMonth() + 1).padStart(2, '0')}.`
+    : 'Ссылка одноразовая и работает 7 дней.')
+  if (url) lines.push(url)
+  return lines.join('\n')
+}
+
 // Проверка формы до запроса. Пустая строка — все в порядке.
 export function validateRegistration({ name, pin, pin2 }) {
   const n = String(name ?? '').trim()
