@@ -1,5 +1,19 @@
 import { describe, it, expect } from 'vitest'
-import { transitionKind, isNested, swipeAxis, swipeCommits, edgeSwipeSupported } from './screenNav.js'
+import { transitionKind, isNested, swipeAxis, swipeCommits, edgeSwipeSupported, nextScreenStack, initialScreenStack } from './screenNav.js'
+
+describe('стек возврата', () => {
+  it('сохраняет предков и убирает закрытые дочерние экраны', () => {
+    const stack = nextScreenStack(nextScreenStack(['profile'], 'appearance'), 'notif')
+    expect(stack).toEqual(['profile', 'appearance', 'notif'])
+    expect(nextScreenStack(stack, 'appearance')).toEqual(['profile', 'appearance'])
+    expect(nextScreenStack(stack, 'feed')).toEqual(['feed'])
+  })
+  it('холодный вход на вложенный экран имеет родителя', () => {
+    expect(initialScreenStack('appearance')).toEqual(['profile', 'appearance'])
+    expect(initialScreenStack('notif')).toEqual(['home', 'notif'])
+    expect(initialScreenStack('feed')).toEqual(['feed'])
+  })
+})
 
 describe('transitionKind', () => {
   it('вкладка ↔ вкладка и профиль — fade', () => {

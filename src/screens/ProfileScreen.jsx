@@ -1,5 +1,5 @@
 import { plural } from '../lib/plural.js'
-import { useEffect, useMemo, useRef, useState } from 'react'
+import { useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react'
 import { useLiveQuery } from 'dexie-react-hooks'
 import {
   getWorkouts, getCachedUser, setCachedAvatar, setCachedName, setCachedSex, softDeleteMyWorkouts,
@@ -30,6 +30,7 @@ import PersonalRecords from '../components/PersonalRecords.jsx'
 import GoalsList from '../components/GoalsList.jsx'
 import PencilIcon from '../components/PencilIcon.jsx'
 import BackButton from '../components/BackButton.jsx'
+import { useEdgeSwipeBack } from '../hooks/useEdgeSwipeBack.js'
 import { useRevealFocus } from '../hooks/useRevealFocus.js'
 import { WHATS_NEW } from '../content/whatsNew.js'
 import { hasUnopened, readMark, fmtWhatsNewDate, OPENED_KEY } from '../lib/whatsNew.js'
@@ -52,7 +53,7 @@ function GoalStepper({ onDec, onInc, children }) {
 }
 
 // Пропсы: user, onLogout, onOpenProgress(exerciseId), onOpenFeed().
-export default function ProfileScreen({ user, onLogout, onOpenProgress, onOpenFeed, onRenamed, onOpenAdmin, onOpenMyExercises, onOpenAchievements, onOpenAppearance, onOpenWhatsNew, startInSettings = false, onStartInSettingsConsumed }) {
+export default function ProfileScreen({ user, onLogout, onOpenProgress, onOpenFeed, onRenamed, onOpenAdmin, onOpenMyExercises, onOpenAchievements, onOpenAppearance, onOpenWhatsNew, startInSettings = false, onStartInSettingsConsumed, contentRef, edgeSwipeOn = false }) {
   const workouts = useLiveQuery(() => getWorkouts(user.id), [user.id])
   const goals = useLiveQuery(() => readGoals(user.id), [user.id])
   const myCached = useLiveQuery(() => getCachedUser(user.id), [user.id])
@@ -122,7 +123,7 @@ export default function ProfileScreen({ user, onLogout, onOpenProgress, onOpenFe
   // «Настройки» — отдельный под-экран Профиля (v6.3.3): список сразу сверху, со
   // стрелкой «назад». Состояние (PIN-форма, пол, бэкап) живет здесь же, поэтому это
   // вид внутри ProfileScreen, а не отдельный роут App.
-  // startInSettings — возврат из под-экрана Настроек (Оформление/Каталог/Админка): сразу
+  // startInSettings — возврат из под-экрана Настроек (Оформление/Каталог/Обновления): сразу
   // показываем список Настроек, а не корень Профиля (v6.3.5), и гасим интент у App.
   const [settingsOpen, setSettingsOpen] = useState(startInSettings)
   const wnUnopened = hasUnopened(WHATS_NEW, readMark(OPENED_KEY))
@@ -447,7 +448,14 @@ export default function ProfileScreen({ user, onLogout, onOpenProgress, onOpenFe
     if (navigator.onLine) syncNow(user.id)
   }
 
+  const settingsSurfaceRef = useRef(null)
+  const profileSurfaceRef = useRef(null)
+  useLayoutEffect(() => {
+    contentRef?.current?.scrollTo({ top: settingsOpen ? 0 : Number(profileSurfaceRef.current?.dataset.scrollTop || 0) })
+  }, [settingsOpen, contentRef])
+
   function openSettings() {
+    if (profileSurfaceRef.current) profileSurfaceRef.current.dataset.scrollTop = String(contentRef?.current?.scrollTop || 0)
     setSettingsOpen(true)
     document.querySelector('.content')?.scrollTo({ top: 0 })
   }
@@ -455,11 +463,12 @@ export default function ProfileScreen({ user, onLogout, onOpenProgress, onOpenFe
     setSettingsOpen(false)
     setPinOpen(false)
     setDelArm(false)
-    document.querySelector('.content')?.scrollTo({ top: 0 })
+    document.querySelector('.content')?.scrollTo({ top: Number(profileSurfaceRef.current?.dataset.scrollTop || 0) })
   }
 
-  if (settingsOpen) {
-    return (
+  useEdgeSwipeBack(contentRef, settingsSurfaceRef, closeSettings, edgeSwipeOn && settingsOpen)
+
+  const settingsView = (
       <div className="screen profile settings-screen">
         <div className="detail-head">
           <BackButton onClick={closeSettings} />
@@ -600,9 +609,6 @@ export default function ProfileScreen({ user, onLogout, onOpenProgress, onOpenFe
                 hidden
               />
             </label>
-            {user.role === 'admin' && (
-              <button className="act" onClick={() => onOpenAdmin?.()}>🛠 Админка</button>
-            )}
             {delArm ? (
               <div className="danger-confirm">
                 <p className="danger-text">
@@ -627,10 +633,11 @@ export default function ProfileScreen({ user, onLogout, onOpenProgress, onOpenFe
           {' · '}v{APP_VERSION}
         </p>
       </div>
-    )
-  }
+  )
 
   return (
+    <div className="nav-stack profile-stack">
+    <div ref={profileSurfaceRef} className={settingsOpen ? "nav-layer nav-underlay" : "nav-layer nav-current"} inert={settingsOpen} aria-hidden={settingsOpen ? true : undefined}>
     <div className="screen profile">
       {/* шапка профиля */}
       <div className="prof-head">
@@ -883,6 +890,12 @@ export default function ProfileScreen({ user, onLogout, onOpenProgress, onOpenFe
           </div>
         )}
 
+        {user.role === 'admin' && (
+          <button className="settings-toggle" onClick={() => onOpenAdmin?.()}>
+            <span className="settings-title"><span aria-hidden="true">🛠</span> Админка</span>
+            <span className="settings-chev" aria-hidden="true">›</span>
+          </button>
+        )}
         <button className="settings-toggle" onClick={openSettings}>
           <span className="settings-title"><span aria-hidden="true">⚙️</span> Настройки</span>
           <span className="settings-chev" aria-hidden="true">›</span>
@@ -906,6 +919,9 @@ export default function ProfileScreen({ user, onLogout, onOpenProgress, onOpenFe
         </a>
         {' · '}v{APP_VERSION}
       </p>
+    </div>
+    </div>
+    {settingsOpen && <div className="nav-layer nav-current" ref={settingsSurfaceRef}>{settingsView}</div>}
     </div>
   )
 }

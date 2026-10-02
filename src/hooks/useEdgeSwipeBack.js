@@ -23,11 +23,14 @@ export function useEdgeSwipeBack(containerRef, screenRef, onBack, enabled) {
   useEffect(() => { backRef.current = onBack }, [onBack])
 
   useEffect(() => {
-    const box = containerRef.current
+    const box = containerRef?.current
     if (!enabled || !box) return undefined
 
     let g = null // { x0, y0, t0, axis, dx, lastX, lastT, v }
     let settleTimer = null
+    let settling = false
+    let previewStack = null
+    let oldOverflow = ''
 
     const screen = () => screenRef.current
     const setLeft = (px, animate) => {
@@ -39,10 +42,32 @@ export function useEdgeSwipeBack(containerRef, screenRef, onBack, enabled) {
     const clear = () => {
       const el = screen()
       if (el) { el.style.transition = ''; el.style.left = ''; el.classList.remove('edge-dragging') }
+      if (previewStack) {
+        delete previewStack.dataset.swiping
+        previewStack.style.removeProperty('--swipe-under-top')
+        previewStack.style.removeProperty('--swipe-height')
+        box.style.overflowY = oldOverflow
+        previewStack = null
+      }
+      settling = false
+    }
+
+    const revealParent = () => {
+      const stack = screen()?.parentElement
+      const parent = stack?.querySelector(':scope > .nav-underlay')
+      if (!parent) return false
+      previewStack = stack
+      oldOverflow = box.style.overflowY
+      box.style.overflowY = 'hidden'
+      const parentScroll = Number(parent.dataset.scrollTop || 0)
+      stack.style.setProperty('--swipe-under-top', `${box.scrollTop - parentScroll}px`)
+      stack.style.setProperty('--swipe-height', `${Math.max(box.scrollTop, parentScroll) + box.clientHeight}px`)
+      stack.dataset.swiping = 'true'
+      return true
     }
 
     function onStart(e) {
-      if (g || e.touches.length !== 1) return
+      if (g || settling || e.touches.length !== 1) return
       const t = e.touches[0]
       if (t.clientX > EDGE_PX) return
       g = { x0: t.clientX, y0: t.clientY, axis: null, dx: 0, lastX: t.clientX, lastT: e.timeStamp, v: 0 }
@@ -50,6 +75,7 @@ export function useEdgeSwipeBack(containerRef, screenRef, onBack, enabled) {
 
     function onMove(e) {
       if (!g) return
+      if (e.touches.length !== 1) { onCancel(); return }
       const t = e.touches[0]
       const dx = t.clientX - g.x0
       const dy = t.clientY - g.y0
@@ -57,6 +83,7 @@ export function useEdgeSwipeBack(containerRef, screenRef, onBack, enabled) {
         g.axis = swipeAxis(dx, dy)
         if (g.axis === 'y') { g = null; return }
         if (!g.axis) return
+        g.preview = revealParent()
         screen()?.classList.add('edge-dragging')
       }
       e.preventDefault() // наш жест: не прокручиваем и не отдаем странице
@@ -65,7 +92,7 @@ export function useEdgeSwipeBack(containerRef, screenRef, onBack, enabled) {
       g.lastX = t.clientX
       g.lastT = e.timeStamp
       g.dx = Math.max(0, dx)
-      setLeft(g.dx, false)
+      if (g.preview && !reducedMotion()) setLeft(Math.min(g.dx, box.clientWidth || window.innerWidth), false)
     }
 
     function onEnd() {
@@ -75,11 +102,14 @@ export function useEdgeSwipeBack(containerRef, screenRef, onBack, enabled) {
       if (done.axis !== 'x') return
       const width = box.clientWidth || window.innerWidth
       if (swipeCommits(done.dx, done.v, width)) {
+        if (!done.preview || reducedMotion()) { clear(); backRef.current?.(); return }
+        settling = true
         setLeft(width, true)
         clearTimeout(settleTimer)
         // Экран уехал — дальше обычная «Назад»: смена tab размонтирует этот экран.
-        settleTimer = setTimeout(() => backRef.current?.(), reducedMotion() ? 0 : SETTLE_MS)
+        settleTimer = setTimeout(() => { clear(); backRef.current?.() }, SETTLE_MS)
       } else {
+        settling = true
         setLeft(0, true)
         clearTimeout(settleTimer)
         settleTimer = setTimeout(clear, SETTLE_MS)
@@ -89,6 +119,7 @@ export function useEdgeSwipeBack(containerRef, screenRef, onBack, enabled) {
     function onCancel() {
       if (!g) return
       g = null
+      settling = true
       setLeft(0, true)
       clearTimeout(settleTimer)
       settleTimer = setTimeout(clear, SETTLE_MS)
@@ -104,6 +135,7 @@ export function useEdgeSwipeBack(containerRef, screenRef, onBack, enabled) {
       box.removeEventListener('touchend', onEnd)
       box.removeEventListener('touchcancel', onCancel)
       clearTimeout(settleTimer)
+      clear() // Внутренний экран может закрыться без размонтирования обертки.
     }
   }, [containerRef, screenRef, enabled])
 }

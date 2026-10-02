@@ -17,7 +17,7 @@ import { markAppReady } from './lib/splash.js'
 import { fabState } from './lib/quickAdd.js'
 import { useTabDot } from './hooks/useTabDot.js'
 import { useEdgeSwipeBack } from './hooks/useEdgeSwipeBack.js'
-import { transitionKind, isNested, edgeSwipeSupported } from './lib/screenNav.js'
+import { transitionKind, isNested, edgeSwipeSupported, nextScreenStack, initialScreenStack } from './lib/screenNav.js'
 import { isIOSDevice } from './lib/pushSupport.js'
 import { captureAnchor, useScrollAnchorRestore } from './hooks/useScrollAnchor.js'
 import { useAccentSync } from './hooks/useAccentSync.js'
@@ -140,7 +140,12 @@ function TabIcon({ name }) {
   )
   if (name === 'history') return (
     <svg {...p}>
-      <path d="M1.5 12h21" /><rect x="3" y="8.5" width="2.6" height="7" rx="1" fill="currentColor" stroke="none" /><rect x="6.4" y="6" width="3" height="12" rx="1.2" fill="currentColor" stroke="none" /><rect x="14.6" y="6" width="3" height="12" rx="1.2" fill="currentColor" stroke="none" /><rect x="18.4" y="8.5" width="2.6" height="7" rx="1" fill="currentColor" stroke="none" />
+      {/* Lucide Dumbbell — ISC, см. public/licenses/lucide.txt. */}
+      <path d="M17.596 12.768a2 2 0 1 0 2.829-2.829l-1.768-1.767a2 2 0 0 0 2.828-2.829l-2.828-2.828a2 2 0 0 0-2.829 2.828l-1.767-1.768a2 2 0 1 0-2.829 2.829z" />
+      <path d="m2.5 21.5 1.4-1.4" />
+      <path d="m20.1 3.9 1.4-1.4" />
+      <path d="M5.343 21.485a2 2 0 1 0 2.829-2.828l1.767 1.768a2 2 0 1 0 2.829-2.829l-6.364-6.364a2 2 0 1 0-2.829 2.829l1.768 1.767a2 2 0 0 0-2.828 2.829z" />
+      <path d="m9.6 14.4 4.8-4.8" />
     </svg>
   )
   if (name === 'feed') return (
@@ -412,11 +417,11 @@ export default function App() {
   const contentRef = useRef(null)
   // Текущий экран (.screen-anim) — его двигает свайп назад от края.
   const screenRef = useRef(null)
-  // Как показать смену экрана (v6.8.1): вкладки — fade, вложенные — сдвиг справа /
-  // слева без прозрачности (lib/screenNav.js). Предыдущий tab держим в состоянии —
-  // это штатный прием React «производное от прошлого рендера», без ref в рендере.
-  const [routeAnim, setRouteAnim] = useState({ tab, kind: 'fade' })
-  if (routeAnim.tab !== tab) setRouteAnim({ tab, kind: transitionKind(routeAnim.tab, tab) })
+  // Вкладки — fade, вход во вложенный экран — сдвиг справа. Предки остаются
+  // смонтированными для свайпа: возврат раскрывает их без новой анимации входа.
+  // Производное от прошлого рендера храним в состоянии, без чтения ref в рендере.
+  const [routeAnim, setRouteAnim] = useState({ tab, kind: 'fade', stack: initialScreenStack(tab) })
+  if (routeAnim.tab !== tab) setRouteAnim({ tab, kind: routeAnim.stack.includes(tab) ? 'pop' : transitionKind(routeAnim.tab, tab), stack: nextScreenStack(routeAnim.stack, tab) })
   // Свайп назад — только iOS «на экране Домой»: там у системы своего жеста нет.
   const [edgeSwipeOn] = useState(() => {
     try {
@@ -433,12 +438,14 @@ export default function App() {
   // из обработчика мог сработать еще на длинном Профиле до commit вкладки, и
   // «Прогресс» наследовал нижнюю позицию скролла.
   useLayoutEffect(() => {
-    contentRef.current?.scrollTo({ top: 0 })
-  }, [tab])
+    const top = routeAnim.kind === 'pop' ? Number(screenRef.current?.dataset.scrollTop || 0) : 0
+    contentRef.current?.scrollTo({ top })
+  }, [tab, routeAnim.kind])
   // …кроме возврата из профиля участника: Лента встает туда, откуда ушли.
   useScrollAnchorRestore(contentRef, tab === 'feed' ? feedRestore : null, () => setFeedRestore(null))
 
   function goTab(next) {
+    if (screenRef.current) screenRef.current.dataset.scrollTop = String(contentRef.current?.scrollTop || 0)
     // Повторный тап по уже открытой вкладке — контент не меняется: плавно
     // возвращаем его наверх (как «прокрутка к началу» в iOS) + сигнал «обнови меня»
     // (напр. Лента перезапрашивает посты).
@@ -514,8 +521,8 @@ export default function App() {
       case 'notif': return backFromNotif()
       case 'member': return backFromMember()
       case 'freshness': return goTab('home')
-      case 'achievements': return goTab('profile')
-      case 'admin': case 'myex': case 'whatsnew': case 'appearance': return backToSettings()
+      case 'admin': case 'achievements': return goTab('profile')
+      case 'myex': case 'whatsnew': case 'appearance': return backToSettings()
       default: return undefined
     }
   }
@@ -672,15 +679,15 @@ export default function App() {
       </header>
 
       <main className="content" ref={contentRef}>
-        <Suspense fallback={<ScreenSkeleton />}>
-          {/* key={tab} перезапускает микро-переход (fade+slide-up, .screen-anim)
-              на каждую смену вкладки — контент въезжает, а не мигает подменой.
-              ErrorBoundary внутри этой обертки изолирует падение одной вкладки:
-              шапка/таббар (вне <main>) живут, а смена вкладки размонтирует
-              боундари (новый key) и тем самым сбрасывает ошибку. */}
-          <div className={'screen-anim screen-anim--' + routeAnim.kind} key={tab} ref={screenRef}>
+        <div className="nav-stack" key={user.id}>
+          {routeAnim.stack.map((route, index) => (
+            <div key={route} data-route={route}
+              className={route === tab ? 'nav-layer nav-current screen-anim screen-anim--' + routeAnim.kind : index === routeAnim.stack.length - 2 ? 'nav-layer nav-underlay' : 'nav-layer nav-hidden'}
+              ref={route === tab ? screenRef : undefined}
+              inert={route !== tab} aria-hidden={route !== tab ? true : undefined}>
+              <Suspense fallback={<ScreenSkeleton />}>
             <ErrorBoundary fallback={(_err, reset) => <ScreenCrash onRetry={reset} />}>
-              {tab === 'home' && (
+              {route === 'home' && (
                 <HomeScreen
                   user={user}
                   onNavigate={goTab}
@@ -691,7 +698,7 @@ export default function App() {
                   onFocusRhythmConsumed={() => setFocusRhythm(false)}
                 />
               )}
-              {tab === 'history' && (
+              {route === 'history' && (
                 <HistoryScreen
                   user={user}
                   openNew={openNewWorkout}
@@ -703,11 +710,11 @@ export default function App() {
                   onOpenProgress={openProgressFor}
                 />
               )}
-              {tab === 'feed' && <FeedScreen user={user} onOpenMember={openMember} flashId={feedFlashId} />}
-              {tab === 'member' && memberId && (
+              {route === 'feed' && <FeedScreen user={user} onOpenMember={openMember} flashId={feedFlashId} />}
+              {route === 'member' && memberId && (
                 <MemberScreen user={user} memberId={memberId} onBack={backFromMember} />
               )}
-              {tab === 'progress' && (
+              {route === 'progress' && (
                 <ProgressScreen
                   user={user}
                   initialExerciseId={progressExId}
@@ -715,8 +722,8 @@ export default function App() {
                   onOpenGoals={() => goTab('profile')}
                 />
               )}
-              {tab === 'notif' && <NotificationsScreen user={user} onBack={backFromNotif} />}
-              {tab === 'profile' && (
+              {route === 'notif' && <NotificationsScreen user={user} onBack={backFromNotif} />}
+              {route === 'profile' && (
                 <ProfileScreen
                   user={user}
                   onLogout={handleLogout}
@@ -728,31 +735,35 @@ export default function App() {
                   onOpenAchievements={() => goTab('achievements')}
                   onOpenAppearance={() => goTab('appearance')}
                   onOpenWhatsNew={() => goTab('whatsnew')}
+                  contentRef={contentRef}
+                  edgeSwipeOn={edgeSwipeOn && route === tab}
                   startInSettings={openSettings}
                   onStartInSettingsConsumed={() => setOpenSettings(false)}
                 />
               )}
-              {tab === 'admin' && user.role === 'admin' && (
-                <AdminScreen user={user} onBack={backToSettings} />
+              {route === 'admin' && user.role === 'admin' && (
+                <AdminScreen user={user} onBack={() => goTab('profile')} />
               )}
-              {tab === 'freshness' && (
+              {route === 'freshness' && (
                 <FreshnessScreen user={user} onBack={() => goTab('home')} />
               )}
-              {tab === 'myex' && (
+              {route === 'myex' && (
                 <MyExercisesScreen user={user} onBack={backToSettings} />
               )}
-              {tab === 'achievements' && (
+              {route === 'achievements' && (
                 <AchievementsScreen user={user} onBack={() => goTab('profile')} />
               )}
-              {tab === 'whatsnew' && (
+              {route === 'whatsnew' && (
                 <WhatsNewScreen onBack={backToSettings} />
               )}
-              {tab === 'appearance' && (
+              {route === 'appearance' && (
                 <AppearanceScreen user={user} onBack={backToSettings} />
               )}
             </ErrorBoundary>
-          </div>
-        </Suspense>
+              </Suspense>
+            </div>
+          ))}
+        </div>
       </main>
 
 

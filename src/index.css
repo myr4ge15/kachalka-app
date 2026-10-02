@@ -530,15 +530,29 @@ input { font-family: inherit; }
   from { opacity: 0; }
   to   { opacity: 1; }
 }
-/* v6.8.1: вложенные экраны (lib/screenNav.js) — сдвиг БЕЗ прозрачности: fade из
-   прозрачного над темным фоном при «Настройки ↔ Что нового» выглядел миганием.
+/* Вложенные экраны (lib/screenNav.js) — вход сдвигом БЕЗ прозрачности;
+   возврат раскрывает сохраненного родителя без второй анимации.
    Двигаем `left` (экран position:relative), а не transform — см. ⚠️ выше. */
 .screen-anim--push { animation: screen-push var(--dur-nav) var(--ease-out); }
-.screen-anim--pop  { animation: screen-pop var(--dur-nav) var(--ease-out); }
+.screen-anim--pop  { animation: none; }
 @keyframes screen-push { from { left: 44px; } to { left: 0; } }
-@keyframes screen-pop  { from { left: -44px; } to { left: 0; } }
 /* Свайп назад от края (hooks/useEdgeSwipeBack.js): экран ведет палец, а не анимация. */
 .screen-anim.edge-dragging { animation: none; }
+/* Родитель остается смонтированным: при возврате нет повторной загрузки данных.
+   Подложка недоступна для тапов/фокуса (inert) и показывается только на время жеста.
+   Ни один слой не использует transform: fixed-потомки сохраняют привязку к окну. */
+.nav-stack { position: relative; min-height: 100%; }
+.nav-layer { position: relative; background: var(--bg); }
+.nav-underlay, .nav-hidden { display: none; }
+.nav-stack[data-swiping] > .nav-underlay {
+  display: block; position: absolute; top: var(--swipe-under-top, 0px);
+  left: 0; right: 0; min-height: var(--swipe-height, 100%);
+  pointer-events: none;
+}
+.nav-stack[data-swiping] > .nav-current {
+  min-height: var(--swipe-height, 100%);
+  box-shadow: -12px 0 28px rgb(0 0 0 / .16);
+}
 @media (prefers-reduced-motion: reduce) {
   .screen-anim { animation: none; }
 }
