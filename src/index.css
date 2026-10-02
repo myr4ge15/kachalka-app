@@ -1862,6 +1862,8 @@ img.avatar-lg.has-img {
 }
 .settings-toggle:active { background: var(--surface-2); }
 .settings-toggle + .settings-toggle { margin-top: 12px; }
+.member-invites { margin-bottom: 12px; }
+.member-invites > .invite-sec { margin-top: 12px; }
 .settings-title {
   display: inline-flex; align-items: center; gap: 9px;
   font-size: 15px; font-weight: 600; color: var(--text);

@@ -15,6 +15,7 @@ import { currentValues, evaluateBadges, BADGES } from '../lib/badges.js'
 import { normMetric, parseTime, fmtTime } from '../lib/metric.js'
 import { setPin, setName, setSex, LoginError } from '../lib/auth.js'
 import LogoutButton from '../components/LogoutButton.jsx'
+import MemberInvites from '../components/MemberInvites.jsx'
 import SexPicker from '../components/SexPicker.jsx'
 import PushToggle from '../components/PushToggle.jsx'
 import PushTypes from '../components/PushTypes.jsx'
@@ -890,6 +891,7 @@ export default function ProfileScreen({ user, onLogout, onOpenProgress, onOpenFe
           </div>
         )}
 
+        <MemberInvites key={user.id} userId={user.id} />
         {user.role === 'admin' && (
           <button className="settings-toggle" onClick={() => onOpenAdmin?.()}>
             <span className="settings-title"><span aria-hidden="true">🛠</span> Админка</span>

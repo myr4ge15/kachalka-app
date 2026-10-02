@@ -273,6 +273,10 @@ updated_at)` + `upsert_user_meta` (`supabase/user-meta.sql`, RLS «только 
   `updated_at` не двигают — иначе анонимный `login_users.updated_at` выдает время каждого входа. Служебные
   таблицы `auth_attempts`/`audit_log`/`admin_rate`/`tg_announced` — без прав у anon/authenticated (только
   service_role и DEFINER-функции). Политики чтения `users`/`exercises` — `app_uid() is not null`, не `true`.
+- **Приглашения участников (v6.10.0)** → добавочный канон `member-invites.sql`: `create_my_invite`,
+  `my_invites`, `revoke_my_invite` проверяют `app_uid()` и владельца; лимит 3 активных ссылок
+  сериализован на автора, срок 7 дней. Онлайн-операции в `lib/memberInvites.js` — исключение
+  из очередей синка, как админские приглашения; сырой токен только в памяти открытой панели.
 - **Приглашения и уникальность имен (v6.8.0)** → канон `invites.sql`. Имена участников уникальны индексом
   `users_name_key_uidx` по `user_name_key(name)` — новый путь создания/переименования не проверяет тезок сам,
   а ловит `23505` (клиент: «Это имя уже занято»). Регистр в ключе сворачивается `translate` по кириллице, а не
