@@ -145,17 +145,42 @@ describe('общий телефон: чья подписка (РЕВЬЮ-КОД�
     expect(rpc).toHaveBeenCalledWith('push_subscribe', expect.anything())
   })
 
-  it('выход снимает подписку, следующий вход той же учетки восстанавливает ее сам', async () => {
+  it('выход отвязывает подписку на сервере, но оставляет ее в браузере; вход той же учетки привязывает снова без новой подписки', async () => {
     const sub = fakeSub()
     const { pushManager } = setup({ existing: sub })
     rpc.mockResolvedValue({ error: null })
     await enablePush('A')
+    rpc.mockClear()
     await releasePushOnLogout('A')
-    expect(sub.unsubscribe).toHaveBeenCalled()
-    pushManager.getSubscription.mockResolvedValue(null)
+    expect(sub.unsubscribe).not.toHaveBeenCalled()
+    expect(rpc).toHaveBeenCalledWith('push_unsubscribe', { p_endpoint: sub.endpoint })
+    rpc.mockClear()
     pushManager.subscribe.mockClear()
     await reconcilePushOwner('A')
-    expect(pushManager.subscribe).toHaveBeenCalled()
+    expect(pushManager.subscribe).not.toHaveBeenCalled() // iOS без нажатия может не дать
+    expect(rpc).toHaveBeenCalledWith('push_subscribe', expect.anything())
+  })
+
+  it('подписка до 6.7.5 (без владельца и отметки): выход → вход той же учетки → пуши на месте', async () => {
+    const sub = fakeSub()
+    setup({ existing: sub }) // включали раньше: в localStorage ничего нет
+    rpc.mockResolvedValue({ error: null })
+    await releasePushOnLogout('A')
+    expect(sub.unsubscribe).not.toHaveBeenCalled()
+    rpc.mockClear()
+    await reconcilePushOwner('A')
+    expect(rpc).toHaveBeenCalledWith('push_subscribe', expect.anything())
+  })
+
+  it('та же старая подписка: выход A → вход B снимает ее, а не отдает B', async () => {
+    const sub = fakeSub()
+    setup({ existing: sub })
+    rpc.mockResolvedValue({ error: null })
+    await releasePushOnLogout('A')
+    rpc.mockClear()
+    await reconcilePushOwner('B')
+    expect(sub.unsubscribe).toHaveBeenCalled()
+    expect(rpc).not.toHaveBeenCalledWith('push_subscribe', expect.anything())
   })
 
   it('выключил тумблером — при входе подписку не возвращаем', async () => {

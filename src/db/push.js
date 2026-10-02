@@ -204,10 +204,34 @@ export async function disablePush(userId, { background = false, forget = true } 
 
 // Выход из учетки: уведомления этого человека больше не должны приходить на
 // устройство (общий телефон). Никогда не бросает и не задерживает выход надолго.
+//
+// v6.7.7: подписку в БРАУЗЕРЕ при выходе не снимаем — только отвязываем на сервере.
+// В 6.7.5–6.7.6 выход снимал ее целиком, а вернуть при повторном входе удавалось не
+// всегда: у тех, кто включал пуши до 6.7.5, не было отметки «хочет пуши», а iOS
+// может не дать подписаться заново без нажатия пользователя. Итог — после
+// выхода/входа уведомления молча выключались. Теперь:
+//  - вошел тот же человек — та же подписка снова привязывается к нему
+//    (reconcilePushOwner, без участия iOS);
+//  - вошел другой — подписка прежнего владельца снимается там же;
+//  - пока никто не вошел, сервер ее не знает — пуши на устройство не идут.
 export async function releasePushOnLogout(userId) {
   try {
-    await withTimeout(disablePush(userId, { forget: false }), 4000)
+    await withTimeout(unbindOnServer(userId), 4000)
   } catch { /* выход важнее */ }
+}
+
+async function unbindOnServer(userId) {
+  const { sub } = await currentSubscription()
+  if (!sub) return
+  // Владелец должен быть записан ДО выхода: иначе следующая учетка «усыновила» бы
+  // подписку без владельца (так жили подписки до 6.7.5).
+  if (!getOwner()) setOwner(userId)
+  if (getOwner() !== String(userId)) return
+  setWanted(userId, true) // подписка была — значит, человек пуши хотел
+  if (!navigator.onLine || !(await hasSession(userId))) return
+  try {
+    await withTimeout(supabase.rpc('push_unsubscribe', { p_endpoint: sub.endpoint }), 5000)
+  } catch { /* не вышло — снимем при входе другой учетки */ }
 }
 
 // Сверка подписки при входе и восстановлении сессии. Никогда не бросает.
@@ -246,6 +270,8 @@ export async function reconcilePushOwner(userId) {
       if (facts.permission !== 'granted') return
       await saveOnServer(sub)
       setOwner(userId)
+      // Подписки до 6.7.5 жили без отметки «хочет пуши» — ставим ее по факту.
+      setWanted(userId, true)
       return
     }
     if (!(resubscribe || isWanted(userId)) || facts.permission !== 'granted' || !facts.configured) return
