@@ -16,6 +16,9 @@ import { emitReselect } from './lib/appEvents.js'
 import { markAppReady } from './lib/splash.js'
 import { fabState } from './lib/quickAdd.js'
 import { useTabDot } from './hooks/useTabDot.js'
+import { useEdgeSwipeBack } from './hooks/useEdgeSwipeBack.js'
+import { transitionKind, isNested, edgeSwipeSupported } from './lib/screenNav.js'
+import { isIOSDevice } from './lib/pushSupport.js'
 import { captureAnchor, useScrollAnchorRestore } from './hooks/useScrollAnchor.js'
 import { useAccentSync } from './hooks/useAccentSync.js'
 import LoginScreen from './screens/LoginScreen.jsx'
@@ -407,6 +410,20 @@ export default function App() {
   // Тап по кнопке вкладки всегда возвращает ее контент в самый верх — в т.ч.
   // повторный тап по уже активной вкладке (как «прокрутка наверх» в iOS).
   const contentRef = useRef(null)
+  // Текущий экран (.screen-anim) — его двигает свайп назад от края.
+  const screenRef = useRef(null)
+  // Как показать смену экрана (v6.8.1): вкладки — fade, вложенные — сдвиг справа /
+  // слева без прозрачности (lib/screenNav.js). Предыдущий tab держим в состоянии —
+  // это штатный прием React «производное от прошлого рендера», без ref в рендере.
+  const [routeAnim, setRouteAnim] = useState({ tab, kind: 'fade' })
+  if (routeAnim.tab !== tab) setRouteAnim({ tab, kind: transitionKind(routeAnim.tab, tab) })
+  // Свайп назад — только iOS «на экране Домой»: там у системы своего жеста нет.
+  const [edgeSwipeOn] = useState(() => {
+    try {
+      const standalone = window.matchMedia?.('(display-mode: standalone)').matches || navigator.standalone === true
+      return edgeSwipeSupported({ isIOS: isIOSDevice(navigator), standalone })
+    } catch { return false }
+  })
   // Нижнее меню: переезжающая точка активной вкладки (hooks/useTabDot.js).
   const navRef = useRef(null)
   useTabDot(navRef, tab)
@@ -490,6 +507,19 @@ export default function App() {
     setOpenSettings(true)
     goTab('profile')
   }
+
+  // «Назад» вложенного экрана — тот же, что у его кнопки «‹» (см. рендер ниже).
+  function nestedBack() {
+    switch (tab) {
+      case 'notif': return backFromNotif()
+      case 'member': return backFromMember()
+      case 'freshness': return goTab('home')
+      case 'achievements': return goTab('profile')
+      case 'admin': case 'myex': case 'whatsnew': case 'appearance': return backToSettings()
+      default: return undefined
+    }
+  }
+  useEdgeSwipeBack(contentRef, screenRef, nestedBack, edgeSwipeOn && Boolean(user) && isNested(tab))
 
   // Применяем намерение пуша, когда человек вошел: Лента + прокрутка к оцененной
   // тренировке тем же якорем, что «Назад» из профиля друга. Карточки нет (старше
@@ -648,7 +678,7 @@ export default function App() {
               ErrorBoundary внутри этой обертки изолирует падение одной вкладки:
               шапка/таббар (вне <main>) живут, а смена вкладки размонтирует
               боундари (новый key) и тем самым сбрасывает ошибку. */}
-          <div className="screen-anim" key={tab}>
+          <div className={'screen-anim screen-anim--' + routeAnim.kind} key={tab} ref={screenRef}>
             <ErrorBoundary fallback={(_err, reset) => <ScreenCrash onRetry={reset} />}>
               {tab === 'home' && (
                 <HomeScreen

@@ -124,6 +124,7 @@
      Под prefers-reduced-motion длительности зануляются (переопределение ниже),
      поэтому одиночная точка правки гасит движение по всему приложению. */
   --dur-fast: 120ms;   /* нажатие кнопки, мелкий отклик */
+  --dur-nav: 220ms;    /* вход/выход вложенного экрана (сдвиг) */
   --dur-base: 180ms;   /* смена экрана, fade/slide-up контента */
   --dur-slow: 260ms;   /* крупные появления (панели, тосты) */
   --ease-out: cubic-bezier(.22, .61, .36, 1);   /* «выезд» — быстро стартует, мягко тормозит */
@@ -150,6 +151,7 @@ html[data-accent="peach"] { --acc: #FFBE98; --acc-2: #FFD6BE; --on-acc: #2A1206;
   :root {
     --dur-fast: 0ms;
     --dur-base: 0ms;
+    --dur-nav: 0ms;
     --dur-slow: 0ms;
     --press-scale: 1;
   }
@@ -254,7 +256,9 @@ input { font-family: inherit; }
    таббара + домашний индикатор. */
 .content {
   flex: 1; min-height: 0;
-  overflow-y: auto; overscroll-behavior: contain;
+  /* overflow-x: hidden — сдвинутый вбок экран (переход, свайп назад) не дает
+     горизонтальной прокрутки. */
+  overflow-y: auto; overflow-x: hidden; overscroll-behavior: contain;
   -webkit-overflow-scrolling: touch;
   padding-bottom: calc(80px + env(safe-area-inset-bottom));
 }
@@ -455,8 +459,16 @@ input { font-family: inherit; }
 .invite-form .error { margin-top: 0; }
 .invite-actions { display: flex; gap: 10px; margin-top: 14px; }
 .invite-actions .btn { flex: 1; }
-/* ссылка в админке: длинная — мельче и без переноса */
+/* Админка → «Приглашения»: блоки с ровным зазором, кнопки ссылки — «Скопировать»
+   во всю ширину, под ней две половины (три в ряд на 390 px не влезали). */
+.invite-sec { display: flex; flex-direction: column; gap: 10px; }
+.invite-sec .admin-add { margin-top: 0; }
 .invite-url { font-size: 13px; }
+.invite-fresh-actions { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+.invite-fresh-actions .btn { margin-top: 0; min-width: 0; }
+.invite-fresh-actions .btn.primary,
+.invite-fresh-actions .btn:only-of-type { grid-column: 1 / -1; }
+.invite-fresh-actions .btn.primary + .btn:last-child { grid-column: 1 / -1; }
 
 /* ---------- skeleton (каркас загрузки) ----------
    Примитив «мгновенности»: серая плашка формы будущего контента вместо строки
@@ -513,11 +525,20 @@ input { font-family: inherit; }
    transient-анимация (без forwards) containing block не создает — это верно только
    ПОСЛЕ ее окончания. opacity создает лишь stacking context, поэтому fixed-потомки
    остаются привязаны к вьюпорту и просто проявляются вместе с экраном. */
-.screen-anim { animation: screen-enter var(--dur-base) var(--ease-out); }
+.screen-anim { position: relative; animation: screen-enter var(--dur-base) var(--ease-out); }
 @keyframes screen-enter {
   from { opacity: 0; }
   to   { opacity: 1; }
 }
+/* v6.8.1: вложенные экраны (lib/screenNav.js) — сдвиг БЕЗ прозрачности: fade из
+   прозрачного над темным фоном при «Настройки ↔ Что нового» выглядел миганием.
+   Двигаем `left` (экран position:relative), а не transform — см. ⚠️ выше. */
+.screen-anim--push { animation: screen-push var(--dur-nav) var(--ease-out); }
+.screen-anim--pop  { animation: screen-pop var(--dur-nav) var(--ease-out); }
+@keyframes screen-push { from { left: 44px; } to { left: 0; } }
+@keyframes screen-pop  { from { left: -44px; } to { left: 0; } }
+/* Свайп назад от края (hooks/useEdgeSwipeBack.js): экран ведет палец, а не анимация. */
+.screen-anim.edge-dragging { animation: none; }
 @media (prefers-reduced-motion: reduce) {
   .screen-anim { animation: none; }
 }

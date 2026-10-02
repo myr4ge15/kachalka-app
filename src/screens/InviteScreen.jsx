@@ -159,9 +159,6 @@ export default function InviteScreen({ token, signedInAs = null, onRegistered, o
         <button className="btn primary" type="submit" disabled={busy}>
           {busy ? 'Регистрирую…' : 'Зарегистрироваться'}
         </button>
-        <button className="btn ghost" type="button" onClick={onCancel} disabled={busy}>
-          У меня уже есть учетка
-        </button>
       </form>
     )
   }

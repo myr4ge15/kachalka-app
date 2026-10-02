@@ -1,7 +1,7 @@
 import { describe, it, expect } from 'vitest'
 import {
   inviteFromUrl, stripInvite, inviteUrl, validateRegistration,
-  inviteDeadText, inviteErrorText, inviteListLabel,
+  inviteDeadText, inviteErrorText, inviteListLabel, inviteMessage,
 } from './invite.js'
 
 const TOKEN = 'a_tiNNP3RyzFJHQdG_xlbBkLpflaqExEUJzq2xU0eXo'
@@ -73,5 +73,22 @@ describe('тексты', () => {
     expect(inviteListLabel({ status: 'used', used_by_name: 'Маша', used_at: '2026-10-03T10:00:00' })).toBe('✅ Маша · 03.10')
     expect(inviteListLabel({ status: 'used', used_by_name: null, used_at: '2026-10-03T10:00:00' })).toMatch(/удален/)
     expect(inviteListLabel({ status: 'revoked' })).toMatch(/отозвана/)
+  })
+})
+
+describe('inviteMessage', () => {
+  it('со ссылкой — текст, срок и ссылка последней строкой', () => {
+    const url = `${BASE}#invite=${TOKEN}`
+    const lines = inviteMessage({ url, expiresAt: new Date(2026, 9, 9, 15) }).split('\n')
+    expect(lines[0]).toMatch(/журнал тренировок/)
+    expect(lines).toContain('Ссылка одноразовая, работает до 09.10.')
+    expect(lines.at(-1)).toBe(url)
+  })
+  it('без ссылки — только слова (для «Поделиться»)', () => {
+    expect(inviteMessage({ expiresAt: new Date(2026, 9, 9) })).not.toMatch(/https?:/)
+  })
+  it('без срока или с мусором — общая фраза про 7 дней', () => {
+    expect(inviteMessage({})).toMatch(/работает 7 дней\.$/)
+    expect(inviteMessage({ expiresAt: 'nope' })).toMatch(/работает 7 дней\.$/)
   })
 })
