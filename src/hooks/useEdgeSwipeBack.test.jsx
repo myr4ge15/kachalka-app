@@ -32,7 +32,11 @@ afterEach(() => vi.useRealTimers())
 
 describe('useEdgeSwipeBack', () => {
   it('довел от края дальше трети ширины — «Назад»', () => {
-    const onBack = vi.fn()
+    const onBack = vi.fn(() => {
+      // До передачи экрана React подложка не скрывается, уходящий не прыгает назад.
+      expect(getByTestId('stack').dataset.swiping).toBe('true')
+      expect(getByTestId('screen').style.left).toBe('390px')
+    })
     const { getByTestId } = render(<Harness onBack={onBack} />)
     const box = getByTestId('box')
     Object.defineProperty(box, 'clientWidth', { value: 390 })

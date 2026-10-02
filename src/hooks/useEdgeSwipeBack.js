@@ -9,6 +9,7 @@
 // containerRef — скроллер (.content, на нем слушаем касания), screenRef — сам
 // экран (.screen-anim). Решения по жесту — чистые функции lib/screenNav.js.
 import { useEffect, useRef } from 'react'
+import { flushSync } from 'react-dom'
 import { EDGE_PX, swipeAxis, swipeCommits } from '../lib/screenNav.js'
 
 const SETTLE_MS = 180
@@ -31,8 +32,9 @@ export function useEdgeSwipeBack(containerRef, screenRef, onBack, enabled) {
     let settling = false
     let previewStack = null
     let oldOverflow = ''
+    let draggedScreen = null
 
-    const screen = () => screenRef.current
+    const screen = () => draggedScreen || screenRef.current
     const setLeft = (px, animate) => {
       const el = screen()
       if (!el) return
@@ -40,8 +42,9 @@ export function useEdgeSwipeBack(containerRef, screenRef, onBack, enabled) {
       el.style.left = px ? `${px}px` : ''
     }
     const clear = () => {
-      const el = screen()
+      const el = draggedScreen
       if (el) { el.style.transition = ''; el.style.left = ''; el.classList.remove('edge-dragging') }
+      draggedScreen = null
       if (previewStack) {
         delete previewStack.dataset.swiping
         previewStack.style.removeProperty('--swipe-under-top')
@@ -50,6 +53,12 @@ export function useEdgeSwipeBack(containerRef, screenRef, onBack, enabled) {
         previewStack = null
       }
       settling = false
+    }
+    const finishBack = () => {
+      // Подложка остается видимой до commit: иначе между кадрами вспыхивает
+      // уходящий экран. Cleanup очищает именно его, а не новый screenRef.
+      flushSync(() => backRef.current?.())
+      clear()
     }
 
     const revealParent = () => {
@@ -83,6 +92,7 @@ export function useEdgeSwipeBack(containerRef, screenRef, onBack, enabled) {
         g.axis = swipeAxis(dx, dy)
         if (g.axis === 'y') { g = null; return }
         if (!g.axis) return
+        draggedScreen = screenRef.current
         g.preview = revealParent()
         screen()?.classList.add('edge-dragging')
       }
@@ -102,12 +112,12 @@ export function useEdgeSwipeBack(containerRef, screenRef, onBack, enabled) {
       if (done.axis !== 'x') return
       const width = box.clientWidth || window.innerWidth
       if (swipeCommits(done.dx, done.v, width)) {
-        if (!done.preview || reducedMotion()) { clear(); backRef.current?.(); return }
+        if (!done.preview || reducedMotion()) { finishBack(); return }
         settling = true
         setLeft(width, true)
         clearTimeout(settleTimer)
         // Экран уехал — дальше обычная «Назад»: смена tab размонтирует этот экран.
-        settleTimer = setTimeout(() => { clear(); backRef.current?.() }, SETTLE_MS)
+        settleTimer = setTimeout(finishBack, SETTLE_MS)
       } else {
         settling = true
         setLeft(0, true)

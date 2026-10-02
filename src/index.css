@@ -1861,6 +1861,7 @@ img.avatar-lg.has-img {
   padding: 14px; cursor: pointer; text-align: left; min-height: 52px;
 }
 .settings-toggle:active { background: var(--surface-2); }
+.settings-toggle + .settings-toggle { margin-top: 12px; }
 .settings-title {
   display: inline-flex; align-items: center; gap: 9px;
   font-size: 15px; font-weight: 600; color: var(--text);
