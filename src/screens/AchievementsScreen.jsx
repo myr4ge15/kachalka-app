@@ -15,7 +15,7 @@ import BackButton from '../components/BackButton.jsx'
 export default function AchievementsScreen({ user, onBack }) {
   // Первый заход — тихо размечаем исторические вехи (без тостов/колокольчика),
   // чтобы у уже заслуженных бейджей появилась дата и держалась необратимость.
-  useEffect(() => { backfillBadges(user.id) }, [user.id])
+  useEffect(() => { backfillBadges(user.id).catch(() => { /* разметка необязательна */ }) }, [user.id])
 
   const data = useLiveQuery(() => getBadgesView(user.id), [user.id])
   const loading = data === undefined

@@ -1,7 +1,7 @@
 // @vitest-environment jsdom
 import { describe, it, expect, vi } from 'vitest'
-import { Suspense, useEffect } from 'react'
-import { render, screen } from '@testing-library/react'
+import { Suspense, useEffect, Component } from 'react'
+import { render, screen, fireEvent } from '@testing-library/react'
 import { lazyScreen } from './lazyScreen.jsx'
 
 const Hello = ({ name }) => <p>Привет, {name}</p>
@@ -54,6 +54,30 @@ describe('lazyScreen', () => {
     rerender(ui(2))
     expect(screen.getByText('готово')).toBeInTheDocument()
     expect(mounts).toBe(1)
+  })
+
+  it('упавший РЕНДЕР не залипает: повторное монтирование («Попробовать снова») грузит заново', async () => {
+    const factory = vi.fn()
+      .mockImplementationOnce(() => Promise.reject(new Error('net')))
+      .mockImplementation(() => Promise.resolve(mod))
+    const Screen = lazyScreen(factory)
+    class Boundary extends Component {
+      state = { failed: false }
+      static getDerivedStateFromError() { return { failed: true } }
+      render() {
+        return this.state.failed
+          ? <button onClick={() => this.setState({ failed: false })}>снова</button>
+          : this.props.children
+      }
+    }
+    const spy = vi.spyOn(console, 'error').mockImplementation(() => {})
+    render(<Boundary><Suspense fallback={<p>загрузка</p>}><Screen name="Андрюша" /></Suspense></Boundary>)
+    const again = await screen.findByText('снова')
+    await new Promise((r) => setTimeout(r, 350)) // человек нажимает не мгновенно
+    fireEvent.click(again)
+    expect(await screen.findByText('Привет, Андрюша')).toBeInTheDocument()
+    expect(factory).toHaveBeenCalledTimes(2)
+    spy.mockRestore()
   })
 
   it('упавшая загрузка не залипает: повторный preload снова зовет import', async () => {

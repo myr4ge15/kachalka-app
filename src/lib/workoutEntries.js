@@ -12,7 +12,7 @@
 // подхода (общий с progressionCard), поэтому новые подходы получают уникальный _k.
 // ============================================================================
 import { exerciseMetric, isCountMetric } from './metric.js'
-import { WEIGHT_MAX, repsMax } from './setLimits.js'
+import { WEIGHT_MAX, repsMax, savableSet } from './setLimits.js'
 import { defaultSet, sk } from './progressionCard.js'
 
 // Добавить упражнение в конец (анти-дубль по exercise.id). Уже есть → массив без
@@ -142,4 +142,20 @@ export function setsFromTemplate(ex, item) {
   const reps = Math.max(1, Math.round(Number(item.reps)) || defaultSet(ex).reps)
   const weight = count ? 0 : (Number(item.weight) || 0)
   return Array.from({ length: n }, () => ({ weight, reps, _k: sk() }))
+}
+
+// Сколько подходов реально уйдет в запись и сколько строк будет пропущено
+// (пустые/нулевые повторы, нечисловой вес). Считает тем же правилом, что и запись
+// (setLimits.savableSet), поэтому число на кнопке «Сохранить» равно записанному.
+export function countSavable(entries) {
+  let sets = 0
+  let skipped = 0
+  for (const e of entries ?? []) {
+    const metric = exerciseMetric(e?.exercise)
+    for (const s of e?.sets ?? []) {
+      if (savableSet(s, metric)) sets++
+      else skipped++
+    }
+  }
+  return { sets, skipped }
 }

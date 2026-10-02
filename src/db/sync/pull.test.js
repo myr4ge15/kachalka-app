@@ -327,7 +327,25 @@ describe('pullUserMeta', () => {
     })
     const state = await getUserMetaState(db)
     expect(state.badges.dirty).toBe(1)
-    expect(state.prog).toEqual({ at: T3, dirty: 0 })
+    expect(state.prog).toEqual({ at: T3, dirty: 0, base: T3 })
+  })
+
+  it('часы телефона отстают: звезда, поставленная после синка, не откатывается собственной прошлой версией', async () => {
+    const SRV = '2026-10-02T10:00:20.000Z'
+    // прошлый синк: на сервере ['A'], базис = его updated_at
+    await setMeta(`fav_${userId}`, ['A'], db)
+    await setMeta('user_meta_state', { fav: { at: SRV, dirty: 0, base: SRV } }, db)
+    // правка «через 10 с» по часам, отстающим на 15 с
+    await setMeta(`fav_${userId}`, ['A', 'B'], db)
+    await setMeta('user_meta_state', { fav: { at: '2026-10-02T10:00:15.000Z', dirty: 1, base: SRV } }, db)
+    server.from = (call) => (call.table === 'user_meta'
+      ? { data: [{ key: 'fav', value: ['A'], updated_at: SRV }], error: null }
+      : defaultResponse(call))
+
+    await pullUserMeta(userId, db)
+
+    expect(await getMeta(`fav_${userId}`, db)).toEqual(['A', 'B'])
+    expect((await getUserMetaState(db)).fav.dirty).toBe(1)
   })
 })
 

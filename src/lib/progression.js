@@ -270,7 +270,7 @@ export function recommendProgression({ metric, lastSets, recentSessions, setting
       const n = feltEasy ? easyRun : streak
       const lead = feltEasy
         ? `${n} ${plural(n, 'раз', 'раза', 'раз')} подряд «легко»`
-        : `${n} тренировки подряд закрываешь`
+        : `${n} ${plural(n, 'тренировку', 'тренировки', 'тренировок')} подряд закрываешь`
       return result('nudge', buildWeightSets(a.workWeight + step, repFloor(ceiling)),
         `${lead} → пора +${fmtStep(step)} кг`, prev)
     }

@@ -1,5 +1,6 @@
 import HoldButton from './HoldButton.jsx'
-import { exerciseMetric, isCountMetric, fmtSet, fmtTime, parseTime } from '../lib/metric.js'
+import TimeInput from './TimeInput.jsx'
+import { exerciseMetric, isCountMetric, fmtSet } from '../lib/metric.js'
 import { resolveProgSettings } from '../lib/progression.js'
 import {
   daysAgoLabel, progArrow, progTone, nextProgStep, fmtProgStep,
@@ -185,10 +186,10 @@ export default function ExerciseCard({
           {isTime ? (
             <div className="stepper" role="group" aria-label={`Подход ${si + 1}, время`}>
               <HoldButton onTrigger={() => onStep(ei, si, 'reps', -5)}>−</HoldButton>
-              <input
-                type="text" inputMode="numeric" value={fmtTime(s.reps)}
+              <TimeInput
+                value={s.reps}
                 aria-label={`Время, подход ${si + 1}`}
-                onChange={(e) => onUpdateSet(ei, si, 'reps', parseTime(e.target.value))}
+                onChange={(sec) => onUpdateSet(ei, si, 'reps', sec)}
               />
               <HoldButton onTrigger={() => onStep(ei, si, 'reps', 5)}>+</HoldButton>
             </div>

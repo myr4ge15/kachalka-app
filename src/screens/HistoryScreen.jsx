@@ -382,6 +382,7 @@ export default function HistoryScreen({
     if (selected !== null) {
       return (
         <WorkoutScreen
+          key={selected}
           user={user}
           workoutId={selected === 'new' ? null : selected}
           onBack={closeSelected}

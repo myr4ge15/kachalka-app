@@ -23,6 +23,7 @@
 // my_is_private, его переписывает ближайший pull. Кладем в файл только чтобы
 // снимок был полным для глаз человека.
 // ============================================================================
+import { localYmd } from './calendar.js'
 import { cleanWorkoutForExport, downloadJson } from './exportWorkout.js'
 import { normMetric } from './metric.js'
 import { mergeRpe } from './rpe.js'
@@ -86,7 +87,7 @@ export function buildBackup(data, appVersion = 'dev', now = new Date()) {
 // там она не экспортируется, а тянуть ради трех строк новый общий модуль дороже.
 function ymd(d) {
   const t = d instanceof Date ? d : new Date(d)
-  return Number.isNaN(t.getTime()) ? '' : t.toISOString().slice(0, 10)
+  return localYmd(t) // местный день: ночью UTC-дата — еще «вчера»
 }
 
 // Имя файла бэкапа: backup-YYYY-MM-DD.json (дата выгрузки).

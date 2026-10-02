@@ -452,7 +452,7 @@ describe('pushGoal / pushUserMeta — частичный commit', () => {
     await expect(pushUserMeta(userId, db)).rejects.toMatchObject({ message: 'meta failed' })
 
     const state = await getUserMetaState(db)
-    expect(state.badges).toEqual({ at: '2026-07-29T12:00:00.000Z', dirty: 0 })
+    expect(state.badges).toEqual({ at: '2026-07-29T12:00:00.000Z', dirty: 0, base: '2026-07-29T12:00:00.000Z' })
     expect(state.prog.dirty).toBe(1)
     expect(await readSyncedMeta(userId, 'badges', db)).toEqual({
       first: { at: '2026-07-01' },

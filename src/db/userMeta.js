@@ -28,7 +28,8 @@ export async function getUserMetaState(d = db) {
   const out = {}
   for (const kind of SYNCED_KINDS) {
     const st = src[kind]
-    out[kind] = { at: st?.at ?? '', dirty: st?.dirty ? 1 : 0 }
+    // base — последний виденный серверный updated_at (см. lib/userMeta planMetaSync).
+    out[kind] = { at: st?.at ?? '', dirty: st?.dirty ? 1 : 0, base: st?.base ?? '' }
   }
   return out
 }
@@ -66,10 +67,14 @@ export async function writeSyncedMeta(userId, kind, value, d = db) {
 // Прием значения с сервера: пишем без пометки dirty. write=false — значение не
 // изменилось, трогаем только отметку времени (лишняя запись meta дергала бы
 // useLiveQuery на всех экранах).
-export async function acceptSyncedMeta(userId, kind, { value, write, dirty, at }, d = db) {
+export async function acceptSyncedMeta(userId, kind, { value, write, dirty, at, base }, d = db) {
   if (!d) return
   await d.transaction('rw', d.meta, async () => {
     if (write) await setMeta(metaKeyFor(kind, userId), value, d)
-    await setUserMetaState(kind, { at: at ?? nowIso(), dirty: dirty ? 1 : 0 }, d)
+    await setUserMetaState(kind, {
+      at: at ?? nowIso(),
+      dirty: dirty ? 1 : 0,
+      ...(base !== undefined ? { base } : {}),
+    }, d)
   })
 }

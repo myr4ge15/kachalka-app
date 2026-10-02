@@ -7,6 +7,7 @@
 // (_dirty/_deleted/user_id/updated_at): отдаем дату, упражнения (с метрикой) и
 // подходы {weight, reps} как есть — так выгрузку легко открыть/перенести.
 // ============================================================================
+import { localYmd } from './calendar.js'
 import { exerciseMetric } from './metric.js'
 
 // Один подход → чистый {weight, reps}.
@@ -50,7 +51,7 @@ export function buildExport(workouts, appVersion = 'dev', now = new Date()) {
 // YYYY-MM-DD из даты/ISO ('' если не распарсилось).
 function ymd(d) {
   const t = d instanceof Date ? d : new Date(d)
-  return Number.isNaN(t.getTime()) ? '' : t.toISOString().slice(0, 10)
+  return localYmd(t) // местный день: ночью UTC-дата — еще «вчера»
 }
 
 // Имя файла: одна тренировка → workout-YYYY-MM-DD.json (по ее дате),

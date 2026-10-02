@@ -150,9 +150,15 @@ export async function markAllSeen(userId, list) {
     (m, n) => (cmpIsoAsc(m, n.at) < 0 ? n.at : m),
     seen
   )
+  // Метка не уходит в будущее: `at` у рекордов — дата тренировки, и одна запись с
+  // ошибочной будущей датой уводила метку вперед. Слияние notif_seen_at идет по
+  // максимуму, так что она расходилась по всем устройствам и не откатывалась —
+  // колокольчик молчал до той даты.
+  const now = nowIso()
+  const capped = newest && cmpIsoAsc(newest, now) > 0 ? now : newest
   // Через writeSyncedMeta: метка уезжает в серверный user_meta, поэтому
   // «прочитано» теперь общее для всех устройств (раньше у каждого было свое).
-  await writeSyncedMeta(userId, 'notif_seen_at', newest || nowIso())
+  await writeSyncedMeta(userId, 'notif_seen_at', capped || now)
 }
 
 // Новые личные рекорды, установленные ИМЕННО этой тренировкой (для тоста после

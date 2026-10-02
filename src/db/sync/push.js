@@ -19,6 +19,7 @@ import { readGoals, writeGoals } from '../notifications.js'
 import { getUserMetaState, setUserMetaState, readSyncedMeta } from '../userMeta.js'
 import { SYNCED_KINDS } from '../../lib/userMeta.js'
 import { normMetric } from '../../lib/metric.js'
+import { isTransientSyncError } from '../../lib/syncErrors.js'
 
 // После стольких неудачных попыток операция считается «отравленной» и
 // откладывается в dead-letter (флаг _dead): она больше не блокирует очередь,
@@ -29,6 +30,7 @@ const MAX_ATTEMPTS = 5
 // этот блок был скопирован в 4 push-циклах, РЕВЬЮ-КОДА-2026-07-13). Идем по seq;
 // `handler(op)` делает работу и САМ удаляет операцию на успехе (успех = не бросил).
 //   - table — Dexie-таблица очереди (ex_outbox/tpl_outbox/outbox/reaction_outbox);
+//   - временные сбои (lib/syncErrors.js) попыткой не считаются;
 //   - deadLetter=true (тренировки/упражнения/шаблоны): _dead-операции пропускаем;
 //     на ошибке растим attempts, после MAX помечаем `_dead` и идем дальше (не
 //     вешаем очередь), иначе БРОСАЕМ — прекращаем проход, сохраняя порядок;
@@ -43,8 +45,18 @@ export async function runOutbox(table, handler, { deadLetter = true } = {}) {
     try {
       await handler(op)
     } catch (err) {
-      const attempts = (op.attempts ?? 0) + 1
       const lastError = String(err?.message ?? err)
+      // Временный сбой (сеть, таймаут, сервер лежит, токен протух) попыткой НЕ
+      // считаем: операция здорова, виновата связь. Иначе пять таймаутов подряд
+      // отправляли ее в dead-letter (см. lib/syncErrors.js). Текст ошибки пишем —
+      // он виден в диагностике. Очередь с dead-letter прекращает проход (порядок
+      // важен), реакции пробуют следующие.
+      if (isTransientSyncError(err)) {
+        await table.update(op.seq, { lastError })
+        if (deadLetter) throw err
+        continue
+      }
+      const attempts = (op.attempts ?? 0) + 1
       if (deadLetter) {
         const dead = attempts >= MAX_ATTEMPTS
         await table.update(op.seq, { attempts, lastError, ...(dead ? { _dead: 1 } : {}) })
@@ -367,7 +379,9 @@ export async function pushUserMeta(userId, d = db) {
     await d.transaction('rw', d.meta, async () => {
       const now = await getUserMetaState(d)
       if (now[kind].at !== state[kind].at) return
-      await setUserMetaState(kind, { at: res.data ?? nowIso(), dirty: 0 }, d)
+      // res.data — серверный updated_at строки: он же новый базис (сервер теперь
+      // в точности наше значение).
+      await setUserMetaState(kind, { at: res.data ?? nowIso(), dirty: 0, ...(res.data ? { base: res.data } : {}) }, d)
     })
   }
 }

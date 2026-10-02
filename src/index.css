@@ -544,6 +544,8 @@ input { font-family: inherit; }
   bottom: calc(72px + env(safe-area-inset-bottom));
 }
 .wk-save-bar .save-btn { margin: 0; }
+/* Предупреждение о строках, которые не попадут в запись (в потоке, над спейсером). */
+.wk-skip-note { margin: 12px 4px 0; color: var(--yellow); font-size: 13px; line-height: 1.35; }
 /* Резерв, чтобы последний контент прокручивался выше плавающей кнопки. */
 .wk-save-spacer { height: 76px; }
 
@@ -1227,6 +1229,13 @@ input { font-family: inherit; }
 .banner.ok { background: color-mix(in srgb, var(--green) 12%, transparent); border: 1px solid color-mix(in srgb, var(--green) 35%, transparent); color: var(--green); }
 .field-need { border-color: color-mix(in srgb, var(--yellow) 70%, transparent); }
 .field-need-hint { font-size: 13px; color: var(--yellow); }
+.banner.edit-restored {
+  display: flex; align-items: center; justify-content: space-between; gap: 10px; flex-wrap: wrap;
+  background: color-mix(in srgb, var(--yellow) 10%, transparent);
+  border: 1px solid color-mix(in srgb, var(--yellow) 35%, transparent);
+  color: var(--text); font-weight: 500;
+}
+.banner.edit-restored .link-btn { min-height: 44px; font-weight: 600; }
 .banner.error { background: color-mix(in srgb, var(--red) 12%, transparent); border: 1px solid color-mix(in srgb, var(--red) 35%, transparent); color: #fca5a5; }
 .error { color: var(--red); font-size: 14px; text-align: center; margin-top: 10px; }
 

@@ -132,6 +132,42 @@ describe('mergeMetaValue: prog (last-write-wins)', () => {
   })
 })
 
+describe('planMetaSync — базис серверной версии (часы телефона отстают)', () => {
+  const SRV = '2026-10-02T10:00:20.000Z' // updated_at последнего push
+  it('сервер не менялся с базиса → локальная правка побеждает, даже если ее время «раньше» серверного', () => {
+    const p = planMetaSync({
+      kind: 'fav', local: ['A', 'B'], remote: ['A'],
+      localAt: '2026-10-02T10:00:15.000Z', // часы отстают на 15 с: правка через 10 с после синка
+      remoteAt: SRV, hasRemote: true, now: NOW, base: SRV, localDirty: true,
+    })
+    expect(p.value).toEqual(['A', 'B'])
+    expect(p.write).toBe(false)
+    expect(p.dirty).toBe(1)
+  })
+  it('сервер изменился после базиса (другое устройство) → честный спор по времени', () => {
+    const p = planMetaSync({
+      kind: 'fav', local: ['A', 'B'], remote: ['C'],
+      localAt: '2026-10-02T10:00:15.000Z', remoteAt: '2026-10-02T10:05:00.000Z',
+      hasRemote: true, now: NOW, base: SRV, localDirty: true,
+    })
+    expect(p.value).toEqual(['C'])
+    expect(p.base).toBe('2026-10-02T10:05:00.000Z')
+  })
+  it('без базиса (старое состояние) — как раньше, LWW', () => {
+    const p = planMetaSync({
+      kind: 'fav', local: ['A', 'B'], remote: ['A'],
+      localAt: '2026-10-02T10:00:15.000Z', remoteAt: SRV, hasRemote: true, now: NOW, localDirty: true,
+    })
+    expect(p.value).toEqual(['A'])
+  })
+  it('принятая серверная версия становится новым базисом', () => {
+    const p = planMetaSync({
+      kind: 'prog', local: null, remote: { enabled: true }, localAt: '', remoteAt: SRV, hasRemote: true, now: NOW,
+    })
+    expect(p.base).toBe(SRV)
+  })
+})
+
 describe('planMetaSync', () => {
   it('строки на сервере нет, локально есть → бэкофилл (dirty без перезаписи)', () => {
     const p = planMetaSync({

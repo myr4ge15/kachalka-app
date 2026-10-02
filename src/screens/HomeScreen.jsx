@@ -3,7 +3,7 @@ import { fmtHomeTitle } from '../lib/dates.js'
 import { useLiveQuery } from 'dexie-react-hooks'
 import { getHomeData } from '../db/insights.js'
 import { fmtDaysAgo, fmtDays } from '../lib/homeSummary.js'
-import { fmtTonnage, goalProgress } from '../lib/profileStats.js'
+import { fmtTonnage } from '../lib/profileStats.js'
 import { fmtMetricValue } from '../lib/metric.js'
 import { plural } from '../lib/plural.js'
 import { tagSlug, groupAccusative, GROUP_ORDER } from '../lib/dayTags.js'
@@ -224,9 +224,11 @@ export default function HomeScreen({ user, onNavigate, onNewWorkout, onOpenProgr
               </span>
               <span className="pct">{summary.nearestGoal.pct}%</span>
             </div>
-            <div className="bar"><i style={{ width: `${goalProgress(summary.nearestGoal.current, summary.nearestGoal.target)}%` }} /></div>
+            <div className="bar"><i style={{ width: `${summary.nearestGoal.pct}%` }} /></div>
             <div className="goal-sub">
-              текущий: {fmtMetricValue(summary.nearestGoal.metric, summary.nearestGoal.current)} · осталось: {fmtMetricValue(summary.nearestGoal.metric, summary.nearestGoal.left)}
+              {summary.nearestGoal.waitingForReps
+                ? <>целевой вес взят · нужно ≥{summary.nearestGoal.reps} повт. в подходе</>
+                : <>текущий: {fmtMetricValue(summary.nearestGoal.metric, summary.nearestGoal.current)} · осталось: {fmtMetricValue(summary.nearestGoal.metric, summary.nearestGoal.left)}</>}
             </div>
           </div>
         </section>

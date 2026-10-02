@@ -1,4 +1,9 @@
 import { createClient } from '@supabase/supabase-js'
+import { withTimeout } from '../lib/withTimeout.js'
+
+// Проверка личности — один крошечный RPC перед каждым прогоном синка; ждать его
+// дольше не стоит: не ответил → «неизвестно», прогон идет с предохранителем.
+const IDENTITY_TIMEOUT_MS = 10000
 
 const url = import.meta.env.VITE_SUPABASE_URL
 // Publishable key (sb_publishable_...): публичный клиентский ключ, безопасен в коде.
@@ -68,6 +73,26 @@ export function sessionAppUserId(session) {
 export function isSessionOf(session, userId) {
   const owner = sessionAppUserId(session)
   return owner == null || String(owner) === String(userId)
+}
+
+// Кем сервер считает эту сессию ПРЯМО СЕЙЧАС: rpc('app_uid') — та же функция, на
+// которой стоит весь RLS. Claim в JWT (isSessionOf) отвечает лишь «для кого токен
+// выпущен»; после сброса PIN админом (session_epoch вырос) токен еще живет до часа,
+// но app_uid() уже NULL — и RLS отдает ПУСТЫЕ выборки без ошибки. Клиент принимал
+// пустоту за «все удалено» и стирал локальную историю (РЕВЬЮ-КОДА-2026-10-02, п. 1).
+// Возвращает:
+//   { known: true,  id }   — сервер ответил (id === null → сессия отозвана);
+//   { known: false, id: null } — спросить не удалось (сеть, старый сервер без
+//     доступа к функции): вызывающий решает сам, блокировать нельзя.
+export async function serverIdentity() {
+  if (!isConfigured) return { known: false, id: null }
+  try {
+    const res = await withTimeout(supabase.rpc('app_uid'), IDENTITY_TIMEOUT_MS)
+    if (!res || res.error) return { known: false, id: null }
+    return { known: true, id: res.data == null ? null : String(res.data) }
+  } catch {
+    return { known: false, id: null }
+  }
 }
 
 // «Прогрев» базы: дешевый запрос при старте приложения, чтобы разбудить

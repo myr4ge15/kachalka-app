@@ -54,6 +54,27 @@ jobs:
     steps:
       - uses: actions/checkout@v5
 
+      # Предохранитель ДО всего остального (РЕВЬЮ-КОДА-2026-10-02, п. 22):
+      #  - выкат только с тега v* — кнопка «Run workflow» по умолчанию стартует с
+      #    main и выкатила бы друзьям невыпущенный код (откат = запуск НА ТЕГЕ);
+      #  - тег обязан равняться версии из package.json, иначе плашка обновления и
+      #    пуш «вышла версия» покажут не ту версию;
+      #  - без секретов сборка проходит, но друзья получают экран «Нужна настройка».
+      - name: Тег = версия, секреты заданы
+        env:
+          VITE_SUPABASE_URL: ${{ secrets.VITE_SUPABASE_URL }}
+          VITE_SUPABASE_KEY: ${{ secrets.VITE_SUPABASE_KEY }}
+          VITE_VAPID_PUBLIC_KEY: ${{ secrets.VITE_VAPID_PUBLIC_KEY }}
+        run: |
+          node -e "
+            const e = process.env, v = 'v' + require('./package.json').version, bad = [];
+            if (e.GITHUB_REF_TYPE !== 'tag') bad.push('выкат идет только с тега v* (сейчас: ' + e.GITHUB_REF_NAME + '). Для отката запусти workflow, выбрав нужный тег.');
+            else if (e.GITHUB_REF_NAME !== v) bad.push('тег ' + e.GITHUB_REF_NAME + ' не равен версии из package.json (' + v + ').');
+            for (const k of ['VITE_SUPABASE_URL', 'VITE_SUPABASE_KEY', 'VITE_VAPID_PUBLIC_KEY']) if (!e[k]) bad.push('не задан секрет ' + k + '.');
+            if (bad.length) { console.error(bad.join('\n')); process.exit(1) }
+            console.log('Выкат ' + v + ': тег и версия совпадают, секреты на месте.');
+          "
+
       - uses: actions/cache@v5
         with:
           path: ~/.npm

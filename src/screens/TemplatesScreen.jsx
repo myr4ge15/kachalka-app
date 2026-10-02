@@ -12,7 +12,7 @@ import {
 } from '../db/repo.js'
 import { syncNow } from '../db/sync.js'
 import {
-  exerciseMetric, isCountMetric, fmtTemplateTarget, fmtTime, parseTime,
+  exerciseMetric, isCountMetric, fmtTemplateTarget,
 } from '../lib/metric.js'
 import { exportTemplates } from '../lib/exportTemplate.js'
 import { useExportSelection } from '../hooks/useExportSelection.js'
@@ -20,6 +20,7 @@ import ExercisePicker from '../components/ExercisePicker.jsx'
 import CardsSkeleton from '../components/CardsSkeleton.jsx'
 import ExportBar from '../components/ExportBar.jsx'
 import BackButton from '../components/BackButton.jsx'
+import TimeInput from '../components/TimeInput.jsx'
 
 // Дефолтный целевой план по типу упражнения: 3 подхода × 10 повторов (время —
 // 1:00 = 60 с), без целевого веса. Используется для новых и легаси-упражнений.
@@ -259,6 +260,11 @@ function TemplateEditor({ user, templateId, onBack }) {
         setMessage({ type: 'error', text: 'Шаблон не найден.' })
       }
       setLoading(false)
+    }).catch((err) => {
+      // Без этого сбой чтения оставлял вечный скелетон.
+      if (!alive) return
+      setMessage({ type: 'error', text: 'Не удалось открыть шаблон: ' + (err?.message ?? err) })
+      setLoading(false)
     })
     return () => { alive = false }
   }, [isNew, templateId, user.id])
@@ -481,10 +487,9 @@ function TemplateEditor({ user, templateId, onBack }) {
                   <label className="tpl-target">
                     <span className="tpl-target-lab">{isTime ? 'мин:сек' : 'повт.'}</span>
                     {isTime ? (
-                      <input
-                        type="text" inputMode="numeric"
-                        value={fmtTime(it.reps)}
-                        onChange={(e) => updateTarget(idx, 'reps', parseTime(e.target.value))}
+                      <TimeInput
+                        value={it.reps}
+                        onChange={(sec) => updateTarget(idx, 'reps', sec)}
                       />
                     ) : (
                       <input

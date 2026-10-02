@@ -43,11 +43,26 @@ const ANON = import.meta.env.VITE_SUPABASE_KEY ?? ''
 // (PLAN-user-isolation). Ключ уже неймспейснут по userId.
 const pinCacheKey = (userId) => `pin_${userId}`
 
-// PIN текущей сессии в памяти (чистится при logout). Не на диске.
-let sessionPin = null
+// PIN текущей сессии в памяти (чистится при logout). Не на диске. Хранится ВМЕСТЕ
+// с владельцем: на общем телефоне PIN учетки A не должен уйти на сервер в паре с
+// id учетки B (лишняя неудачная попытка в счетчик блокировки B).
+let sessionPin = null       // PIN
+let sessionPinUserId = null // чей он
 // Последний неудачный фоновый вход и чья это учетка (см. noteLoginFailure).
 let lastLoginFailure = null
 let lastLoginUserId = null
+// «Поколение» входа: растет на logout. Ответ auth-login, пришедший ПОСЛЕ выхода
+// (медленная сеть, таймаут 30 с), относится к прошлому поколению и применяться не
+// должен — иначе он возвращал в хранилище сессию вышедшего и подменял PIN в памяти
+// (РЕВЬЮ-КОДА-2026-10-02, п. 21).
+let authGeneration = 0
+// Вход, который сейчас в полете: фоновый перевыпуск не дублирует его.
+let inFlight = null // { userId, promise }
+
+function rememberPin(userId, pin) {
+  sessionPin = pin
+  sessionPinUserId = userId
+}
 
 // Ошибка входа с машиночитаемым кодом для UI.
 export class LoginError extends Error {
@@ -60,8 +75,23 @@ export class LoginError extends Error {
 }
 
 // Онлайн-вход через auth-login. Возвращает { id, name, role }.
-export async function login(userId, pin) {
+export function login(userId, pin) {
+  const promise = doLogin(userId, pin).catch((err) => {
+    // Чья это неудача — знает сама ошибка (noteLoginFailure не гадает по глобалу).
+    if (err && typeof err === 'object') err.userId = userId
+    throw err
+  })
+  const mine = { userId, promise }
+  inFlight = mine
+  const done = () => { if (inFlight === mine) inFlight = null }
+  promise.then(done, done)
+  return promise
+}
+
+async function doLogin(userId, pin) {
   lastLoginUserId = userId
+  const generation = authGeneration
+  const stale = () => generation !== authGeneration
   let res
   try {
     res = await fetchWithTimeout(FN_URL, {
@@ -89,6 +119,8 @@ export async function login(userId, pin) {
   if (!res.ok || !body?.session) {
     throw new LoginError('server', body?.error ?? 'Не удалось войти.')
   }
+  // Пока ждали ответ, человек вышел (или вошел другой): сессию не поднимаем.
+  if (stale()) throw new LoginError('cancelled', 'Вход отменен.')
 
   const { error } = await supabase.auth.setSession({
     access_token: body.session.access_token,
@@ -103,7 +135,11 @@ export async function login(userId, pin) {
     name: body.user.name,
     role: body.user.role,
   })
-  sessionPin = pin
+  // Вышли за те миллисекунды, что поднималась сессия: PIN в память не кладем.
+  // Саму сессию здесь не гасим — SIGNED_OUT выкинул бы уже вошедшего следующего;
+  // чужую сессию синк не использует (hasSession(userId)).
+  if (stale()) throw new LoginError('cancelled', 'Вход отменен.')
+  rememberPin(userId, pin)
   lastLoginFailure = null
   return { id: body.user.id, name: body.user.name, role: body.user.role }
 }
@@ -117,7 +153,7 @@ export async function verifyPinOffline(userId, pin) {
   if (!cached?.pin_hash) return null
   const ok = await verifyPin(pin, { pin_hash: cached.pin_hash, pin_salt: cached.pin_salt })
   if (!ok) return false
-  sessionPin = pin
+  rememberPin(userId, pin)
   return { id: userId, name: cached.name, role: cached.role }
 }
 
@@ -189,7 +225,7 @@ export async function setPin(userId, currentPin, newPin) {
     pin_hash: body.pin_hash,
     pin_salt: body.pin_salt ?? null,
   })
-  sessionPin = newPin
+  rememberPin(userId, newPin)
   return true
 }
 
@@ -270,12 +306,18 @@ export async function ensureOwnSession(userId) {
 // месяцами не было сессии (синк висел «↑ 4», пол не менялся), а мы видели только
 // «выйди и зайди заново». Запоминаем последнюю причину и показываем ее.
 export function noteLoginFailure(err) {
+  // Отмененный выходом вход — не причина «нет сессии» для следующей учетки.
+  if (err instanceof LoginError && err.code === 'cancelled') return
   lastLoginFailure = err ?? null
   // Сервер не принял PIN, который принял локальный кэш → кэш устарел (PIN меняли на
   // другом устройстве или админ сбросил). Стираем устаревший хэш: следующий вход
   // пойдет через сервер и честно скажет «Неверный PIN» или впустит с новым.
-  if (err instanceof LoginError && err.code === 'invalid' && lastLoginUserId) {
-    const key = pinCacheKey(lastLoginUserId)
+  const failedUserId = err?.userId ?? lastLoginUserId
+  if (err instanceof LoginError && err.code === 'invalid' && failedUserId) {
+    // Этот PIN сервер уже отверг — не шлем его повторно фоновым перевыпуском
+    // (каждая попытка идет в счетчик блокировки).
+    if (sessionPinUserId === failedUserId) { sessionPin = null; sessionPinUserId = null }
+    const key = pinCacheKey(failedUserId)
     getLoginMeta(key).then((c) => c && setLoginMeta(key, { ...c, pin_hash: null, pin_salt: null })).catch(() => {})
   }
 }
@@ -305,15 +347,24 @@ export async function dropForeignSession(userId) {
 // Молчаливый перевыпуск сессии (сеть появилась, UI уже открыт офлайн).
 // Использует PIN из памяти; если его нет — тихо ничего не делает.
 export async function refreshSessionSilently(userId) {
-  if (!sessionPin) return false
+  // Вход этой учетки уже идет (LoginScreen запустил его в фоне) — ждем его, а не
+  // шлем второй запрос с тем же PIN.
+  if (inFlight && inFlight.userId === userId) {
+    try { await inFlight.promise; return true } catch { return false }
+  }
+  if (!sessionPin || sessionPinUserId !== userId) return false
   try {
     await login(userId, sessionPin)
     return true
   } catch (e) {
-    lastLoginUserId = userId
     noteLoginFailure(e)
     return false
   }
+}
+
+// Есть ли в памяти PIN этой учетки (то есть возможен тихий перевыпуск сессии).
+export function canRefreshSilently(userId) {
+  return Boolean(sessionPin) && sessionPinUserId === userId
 }
 
 export function getSessionPin() {
@@ -322,6 +373,8 @@ export function getSessionPin() {
 
 export async function logout() {
   sessionPin = null
+  sessionPinUserId = null
+  authGeneration++
   // scope:'local' — чистим ТОЛЬКО локально сохраненную сессию, без сетевого
   // вызова /logout (по умолчанию scope:'global' дергает сервер и в авиарежиме
   // висел минутами/не отвечал). Таймаут — страховка на случай зависшего I/O.

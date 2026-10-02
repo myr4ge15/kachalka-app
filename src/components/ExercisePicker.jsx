@@ -360,7 +360,7 @@ export default function ExercisePicker({
               {byMuscle.map((e) => row(e, 'muscle:'))}
             </>
           )}
-          {mainList.length === 0 && byMuscle.length === 0 && shortcutIds.size === 0 && !suggestCreate && (
+          {mainList.length === 0 && byMuscle.length === 0 && !(showShortcuts && shortcutIds.size > 0) && !suggestCreate && (
             <p className="muted">Ничего не найдено.</p>
           )}
           {suggestCreate && (

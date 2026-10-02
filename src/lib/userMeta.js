@@ -114,9 +114,21 @@ export function mergeMetaValue({ kind, local, remote, localAt, remoteAt }) {
 //   at    — новая отметка времени в состоянии синка.
 // hasRemote=false (строки на сервере еще нет) — это первый залив: локальное
 // значение помечаем dirty, чтобы ближайший push его забэкофиллил.
-export function planMetaSync({ kind, local, remote, localAt, remoteAt, hasRemote, now }) {
+//
+// base — серверный updated_at, который это устройство видело последним (принял
+// pull или вернул push); localDirty — есть неотправленная локальная правка. Если
+// сервер с base НЕ менялся, а локально есть правка, она сделана поверх уже
+// известной серверной версии — побеждает без сравнения часов. Раньше в этом случае
+// сравнивались часы телефона (at правки) с серверными: у телефона, отстающего на
+// 15 с, звезда, поставленная через 10 с после синка, «проигрывала» собственной
+// прошлой версии и исчезала (РЕВЬЮ-КОДА-2026-10-02, п. 19). LWW по часам остается
+// только для настоящего спора — сервер изменился (другое устройство) после base.
+export function planMetaSync({ kind, local, remote, localAt, remoteAt, hasRemote, now, base = '', localDirty = false }) {
   if (!hasRemote) {
-    return { value: local ?? null, write: false, dirty: local == null ? 0 : 1, at: localAt ?? now }
+    return { value: local ?? null, write: false, dirty: local == null ? 0 : 1, at: localAt ?? now, base: '' }
+  }
+  if (localDirty && local != null && base && remoteAt === base) {
+    return { value: local, write: false, dirty: 1, at: localAt || now, base }
   }
   const value = mergeMetaValue({ kind, local, remote, localAt, remoteAt })
   const matchesRemote = sameMetaValue(value, remote)
@@ -127,5 +139,6 @@ export function planMetaSync({ kind, local, remote, localAt, remoteAt, hasRemote
     // Победило серверное состояние → берем серверный watermark; иначе значение
     // еще поедет наверх, отметку ставим локальную (ее перепишет push).
     at: matchesRemote ? remoteAt : now,
+    base: remoteAt,
   }
 }

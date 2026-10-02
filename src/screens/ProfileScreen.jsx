@@ -1,3 +1,4 @@
+import { plural } from '../lib/plural.js'
 import { useEffect, useMemo, useRef, useState } from 'react'
 import { useLiveQuery } from 'dexie-react-hooks'
 import {
@@ -832,7 +833,7 @@ export default function ProfileScreen({ user, onLogout, onOpenProgress, onOpenFe
                 <span className="em" aria-hidden="true">🔁</span>
                 <div>
                   <div className="v">{summary.favExercise.name}</div>
-                  <div className="k">чаще всего · {summary.favExercise.sets} подходов</div>
+                  <div className="k">чаще всего · {summary.favExercise.sets} {plural(summary.favExercise.sets, 'подход', 'подхода', 'подходов')}</div>
                 </div>
               </div>
             </section>

@@ -3,6 +3,7 @@ import {
   appendExerciseIn, removeExerciseIn, insertExerciseIn, replaceExerciseIn,
   updateSetIn, stepSetIn, addSetIn, removeSetIn, insertSetIn,
   revertProgIn, applyProgIn, toggleProgSettingsIn, setsFromTemplate,
+  countSavable,
 } from './workoutEntries.js'
 import { WEIGHT_MAX, TIME_MAX } from './setLimits.js'
 
@@ -181,5 +182,27 @@ describe('setsFromTemplate', () => {
   it('не-весовое → вес 0 даже если в плане задан', () => {
     const out = setsFromTemplate(rEx(), { sets: 2, reps: 12, weight: 40 })
     expect(out.every((x) => x.weight === 0 && x.reps === 12)).toBe(true)
+  })
+})
+
+describe('countSavable — число на кнопке «Сохранить» равно записанному', () => {
+  const weightEx = { id: 'w', name: 'Жим', metric: 'weight' }
+  const repsEx = { id: 'r', name: 'Подтягивания', metric: 'reps' }
+  it('пустые и нулевые повторы, нечисловой вес — в запись не идут', () => {
+    const entries = [
+      { exercise: weightEx, sets: [
+        { weight: 60, reps: 5 },
+        { weight: '62,5', reps: '5' }, // запятая — допустима
+        { weight: 60, reps: '' },      // стерли повторы
+        { weight: '60кг', reps: 5 },   // мусор в весе
+        { weight: 60, reps: 0 },
+      ] },
+      { exercise: repsEx, sets: [{ weight: 0, reps: 12 }, { weight: 0, reps: '' }] },
+    ]
+    expect(countSavable(entries)).toEqual({ sets: 3, skipped: 4 })
+  })
+  it('пусто → нули', () => {
+    expect(countSavable([])).toEqual({ sets: 0, skipped: 0 })
+    expect(countSavable(undefined)).toEqual({ sets: 0, skipped: 0 })
   })
 })

@@ -16,6 +16,11 @@ const srv = vi.hoisted(() => ({
     upsertWorkout: () => ({ error: null }), // (args) => {error}
     deleteWorkout: () => ({ error: null }),
     exFullFetches: 0, // сколько раз дернут ПОЛНЫЙ select справочника (не проба updated_at)
+    identity: { known: false, id: null }, // ответ serverIdentity (кем сервер считает сессию)
+    session: true, // hasSession
+    sessionDelay: null, // промис, которого ждет hasSession (гонка двух syncNow)
+    signOuts: 0,
+    healFetches: [], // id, запрошенные дотягиванием .in('id', …)
   },
 }))
 
@@ -39,6 +44,12 @@ vi.mock('./supabase.js', () => {
     if (b._table === 'workouts') {
       if (b._delete) return state.deleteWorkout(b)
       if (b._select === 'id') return { data: state.workoutIds.map((id) => ({ id })), error: null }
+      if (b._in) {
+        // дотягивание по id (самолечение): отдаем строки из «полной» серверной истории
+        state.healFetches.push(...b._in)
+        const all = state.workoutsAll ?? state.workoutsMain
+        return { data: all.filter((r) => b._in.includes(r.id)), error: null }
+      }
       if (b._eqUser) {
         // инкрементально: если задан .gt('updated_at', wm) — отдаем только дельту
         let rows = state.workoutsMain
@@ -57,6 +68,7 @@ vi.mock('./supabase.js', () => {
       select(s) { this._select = s; return this },
       eq(k, _v) { if (k === 'user_id') this._eqUser = true; return this },
       gt(k, v) { if (k === 'updated_at') this._gtUpdated = v; return this },
+      in(k, v) { if (k === 'id') this._in = v; return this },
       order() { return this },
       limit() { return this },
       or() { return this },
@@ -79,10 +91,21 @@ vi.mock('./supabase.js', () => {
     auth: {
       getSession: async () => ({ data: { session: { access_token: 'x' } } }),
       onAuthStateChange: () => ({ data: { subscription: { unsubscribe() {} } } }),
+      signOut: async () => { state.signOuts++; return { error: null } },
     },
   }
-  return { supabase, isConfigured: true, hasSession: async () => true, warmup() {} }
+  return {
+    supabase, isConfigured: true, warmup() {},
+    hasSession: async () => { if (state.sessionDelay) await state.sessionDelay; return state.session },
+    serverIdentity: async () => state.identity,
+  }
 })
+
+// Тихий перевыпуск сессии (lib/auth) — управляется из теста.
+vi.mock('../lib/auth.js', () => ({
+  canRefreshSilently: () => srv.state.canRefresh,
+  refreshSessionSilently: async () => { srv.state.refreshCalls++; return srv.state.refresh() },
+}))
 
 import { openUserDb, closeUserDb, db } from './local.js'
 import { saveWorkout } from './repo.js'
@@ -130,6 +153,15 @@ beforeEach(async () => {
   srv.state.upsertWorkout = () => ({ error: null })
   srv.state.deleteWorkout = () => ({ error: null })
   srv.state.exFullFetches = 0
+  srv.state.identity = { known: true, id: userId } // сервер подтверждает: сессия наша
+  srv.state.session = true
+  srv.state.sessionDelay = null
+  srv.state.signOuts = 0
+  srv.state.canRefresh = false
+  srv.state.refreshCalls = 0
+  srv.state.refresh = () => false
+  srv.state.healFetches = []
+  srv.state.workoutsAll = null
 })
 afterEach(async () => {
   await closeUserDb()
@@ -148,7 +180,7 @@ describe('push: слив очереди outbox', () => {
   })
 
   it('dead-letter: после MAX_ATTEMPTS ошибок upsert операция помечается _dead, документ остается _dirty', async () => {
-    srv.state.upsertWorkout = () => ({ error: { message: 'boom' } })
+    srv.state.upsertWorkout = () => ({ error: { message: 'boom', code: '23503' } })
     const id = await saveWorkout({ user_id: userId, performed_at: '2026-01-10', entries: [{ exercise: bench, sets: [{ weight: 100, reps: 5 }] }] })
     for (let i = 0; i < 5; i++) await syncNow(userId) // MAX_ATTEMPTS = 5
     const op = await db.outbox.where('workoutId').equals(id).first()
@@ -395,5 +427,153 @@ describe('runOutbox (дедуп push-циклов)', () => {
     await runOutbox(t, async () => { throw new Error('x') }, { deadLetter: false })
     expect(t.get(1)).toBeUndefined() // удалена, без dead-letter
     expect(t.size).toBe(0)
+  })
+})
+
+// ---------------------------------------------------------------------------
+// Регрессии РЕВЬЮ-КОДА-2026-10-02: отозванная сессия, параллельные прогоны,
+// временные сбои сети, самолечение по id.
+// ---------------------------------------------------------------------------
+describe('syncNow: личность сессии и предохранитель удалений', () => {
+  async function seedClean(ids) {
+    for (const id of ids) {
+      await db.workouts.put({
+        id, user_id: userId, performed_at: '2026-01-10', created_at: '2026-01-10',
+        updated_at: '2026-01-10T10:00:00Z', _dirty: 0, _deleted: 0, entries: [],
+      })
+    }
+  }
+
+  it('отозванная сессия (сервер нас не узнает): история НЕ стирается, прогон не идет, сессия гасится', async () => {
+    await seedClean(['a', 'b'])
+    await db.meta.put({ key: 'wm_workouts', value: '2026-01-10T10:00:00Z' })
+    srv.state.identity = { known: true, id: null } // app_uid() = NULL
+    srv.state.workoutIds = [] // RLS отдает пустоту без ошибки
+    expect(await syncNow(userId)).toBe(false)
+    expect(await syncNow(userId)).toBe(false)
+    expect(await db.workouts.count()).toBe(2)
+    expect(srv.state.signOuts).toBe(2)
+  })
+
+  it('сессия другой учетки по мнению сервера — прогон не идет', async () => {
+    await seedClean(['a'])
+    srv.state.identity = { known: true, id: 'someone-else' }
+    expect(await syncNow(userId)).toBe(false)
+    expect(await db.workouts.count()).toBe(1)
+  })
+
+  it('личность не проверена (старый сервер) + пустой список id: удаления пропущены, есть предупреждение', async () => {
+    await seedClean(['a', 'b'])
+    srv.state.identity = { known: false, id: null }
+    srv.state.workoutIds = []
+    await syncNow(userId)
+    await syncNow(userId)
+    await syncNow(userId)
+    expect(await db.workouts.count()).toBe(2)
+  })
+
+  it('личность подтверждена + пустой список id: удаление со второй сверки работает как раньше', async () => {
+    await seedClean(['a'])
+    srv.state.workoutIds = []
+    await syncNow(userId)
+    expect(await db.workouts.count()).toBe(1)
+    await syncNow(userId)
+    expect(await db.workouts.count()).toBe(0)
+  })
+
+  it('самолечение: тренировка есть на сервере, локально нет и старше watermark — дотягивается по id', async () => {
+    await seedClean(['a'])
+    await db.meta.put({ key: 'wm_workouts', value: '2026-03-01T00:00:00Z' })
+    srv.state.workoutIds = ['a', 'lost']
+    srv.state.workoutsMain = [] // дельта пуста: обе старше watermark
+    srv.state.workoutsAll = [serverRow({ id: 'lost', user_id: userId, updated_at: '2026-01-05T00:00:00Z', weight: 77 })]
+    await syncNow(userId)
+    const healed = await db.workouts.get('lost')
+    expect(healed.entries[0].sets[0].weight).toBe(77)
+    expect(srv.state.healFetches).toEqual(['lost'])
+    // watermark дотягивание не двигает; повторный прогон ничего не запрашивает
+    expect((await db.meta.get('wm_workouts')).value).toBe('2026-03-01T00:00:00Z')
+    srv.state.healFetches = []
+    await syncNow(userId)
+    expect(srv.state.healFetches).toEqual([])
+  })
+
+  it('самолечение не воскрешает то, что удалено локально и ждет отправки', async () => {
+    await db.workouts.put({
+      id: 'tomb', user_id: userId, performed_at: '2026-01-10', created_at: '2026-01-10',
+      updated_at: '2026-01-10T10:00:00Z', _dirty: 0, _deleted: 1, entries: [],
+    })
+    srv.state.workoutIds = ['tomb']
+    srv.state.workoutsAll = [serverRow({ id: 'tomb', user_id: userId, updated_at: '2026-01-05T00:00:00Z' })]
+    await syncNow(userId)
+    expect(srv.state.healFetches).toEqual([])
+    expect((await db.workouts.get('tomb'))._deleted).toBe(1)
+  })
+})
+
+describe('syncNow: один прогон за раз', () => {
+  it('два вызова подряд не идут параллельно (гард ставится до первого await)', async () => {
+    await saveWorkout({ user_id: userId, performed_at: '2026-01-10', entries: [{ exercise_id: bench.id, exercise: bench, sets: [{ weight: 100, reps: 5 }] }] })
+    let calls = 0
+    srv.state.upsertWorkout = () => { calls++; return { error: null } }
+    let release
+    srv.state.sessionDelay = new Promise((r) => { release = r })
+    const first = syncNow(userId)
+    const second = syncNow(userId)
+    release()
+    const res = await Promise.all([first, second])
+    expect(res).toEqual([true, undefined])
+    expect(calls).toBe(1)
+  })
+
+  it('сессии нет, но PIN в памяти: синк сам поднимает сессию и идет; повтор — не чаще раза в минуту', async () => {
+    srv.state.session = false
+    srv.state.canRefresh = true
+    srv.state.refresh = () => false // сервер входа недоступен
+    expect(await syncNow(userId)).toBeUndefined()
+    expect(await syncNow(userId)).toBeUndefined() // в пределах минуты — без второй попытки
+    expect(srv.state.refreshCalls).toBe(1)
+    vi.useFakeTimers({ toFake: ['Date'] })
+    vi.setSystemTime(Date.now() + 61000)
+    srv.state.refresh = () => { srv.state.session = true; return true }
+    expect(await syncNow(userId)).toBe(true)
+    expect(srv.state.refreshCalls).toBe(2)
+    vi.useRealTimers()
+  })
+
+  it('после прогона без сессии гард снят — следующий вызов идет', async () => {
+    srv.state.session = false
+    expect(await syncNow(userId)).toBeUndefined()
+    srv.state.session = true
+    expect(await syncNow(userId)).toBe(true)
+  })
+})
+
+describe('push: временные сбои не считаются попытками', () => {
+  async function saveOne() {
+    return saveWorkout({ user_id: userId, performed_at: '2026-01-10', entries: [{ exercise_id: bench.id, exercise: bench, sets: [{ weight: 100, reps: 5 }] }] })
+  }
+
+  it('десять сетевых сбоев подряд не отправляют операцию в dead-letter', async () => {
+    const id = await saveOne()
+    srv.state.upsertWorkout = () => ({ error: { message: 'TypeError: Failed to fetch', code: '' } })
+    for (let i = 0; i < 10; i++) expect(await syncNow(userId)).toBe(false)
+    const op = await db.outbox.where('workoutId').equals(id).first()
+    expect(op._dead).toBeFalsy()
+    expect(op.attempts).toBe(0)
+    expect(op.lastError).toContain('Failed to fetch')
+    // связь вернулась — операция уезжает
+    srv.state.upsertWorkout = () => ({ error: null })
+    srv.state.workoutIds = [id]
+    expect(await syncNow(userId)).toBe(true)
+    expect(await db.outbox.count()).toBe(0)
+  })
+
+  it('ошибка данных от сервера по-прежнему доводит до dead-letter за 5 попыток', async () => {
+    const id = await saveOne()
+    srv.state.upsertWorkout = () => ({ error: { message: 'violates foreign key', code: '23503' } })
+    for (let i = 0; i < 5; i++) await syncNow(userId)
+    const op = await db.outbox.where('workoutId').equals(id).first()
+    expect(op._dead).toBe(1)
   })
 })

@@ -283,16 +283,43 @@ describe('dead-letter: pendingCount / retry / discard', () => {
     expect(await deadLetterCount()).toBe(0)
   })
 
-  it('discardDeadLetter удаляет операцию и снимает _dirty/_deleted с документа', async () => {
+  it('discardDeadLetter удаляет операцию и убирает отклоненную тренировку локально (серверную версию дотянет pull)', async () => {
     const id = await saveWorkout({ user_id: userId, performed_at: '2026-01-10', entries: [entry(bench, [{ weight: 100, reps: 5 }])] })
     const op = await db.outbox.where('workoutId').equals(id).first()
     await db.outbox.update(op.seq, { _dead: 1 })
     const n = await discardDeadLetter()
     expect(n).toBe(1)
     expect(await db.outbox.count()).toBe(0)
-    const doc = await db.workouts.get(id)
-    expect(doc._dirty).toBe(0)
-    expect(doc._deleted).toBe(0)
+    // Не «чистая с отклоненным содержимым», а отсутствует: иначе локально висела бы
+    // правка, которой нет ни на сервере, ни на других устройствах.
+    expect(await db.workouts.get(id)).toBeUndefined()
+  })
+
+  it('discardDeadLetter сбрасывает метки шаблонов и справочника — pull перечитает их целиком', async () => {
+    await db.meta.bulkPut([{ key: 'sig_templates', value: 'sig' }, { key: 'wm_exercises', value: 'wm' }, { key: 'wm_workouts', value: 'keep' }])
+    await db.templates.put({ id: 't1', name: 'T-правка', user_id: userId, _dirty: 1, _deleted: 0, exercises: [] })
+    await db.tpl_outbox.add({ templateId: 't1', type: 'upsert', attempts: 5, _dead: 1 })
+    await db.exercises.put({ id: 'e1', name: 'Свое', _dirty: 1 })
+    await db.ex_outbox.add({ exerciseId: 'e1', attempts: 5, _dead: 1 })
+    expect(await discardDeadLetter()).toBe(2)
+    expect(await db.meta.get('sig_templates')).toBeUndefined()
+    expect(await db.meta.get('wm_exercises')).toBeUndefined()
+    expect((await db.meta.get('wm_workouts')).value).toBe('keep')
+    expect((await db.templates.get('t1'))._dirty).toBe(0)
+  })
+
+  it('новая правка тренировки воскрешает мертвую операцию', async () => {
+    const id = await saveWorkout({ user_id: userId, performed_at: '2026-01-10', entries: [entry(bench, [{ weight: 100, reps: 5 }])] })
+    const op = await db.outbox.where('workoutId').equals(id).first()
+    await db.outbox.update(op.seq, { _dead: 1, attempts: 5, lastError: 'boom' })
+    expect(await pendingCount()).toBe(0)
+    await saveWorkout({ id, user_id: userId, performed_at: '2026-01-10', entries: [entry(bench, [{ weight: 105, reps: 5 }])] })
+    const ops = await db.outbox.where('workoutId').equals(id).toArray()
+    expect(ops).toHaveLength(1)
+    expect(ops[0]._dead).toBe(0)
+    expect(ops[0].attempts).toBe(0)
+    expect(await pendingCount()).toBe(1)
+    expect(await deadLetterCount()).toBe(0)
   })
 })
 

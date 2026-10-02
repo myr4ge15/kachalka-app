@@ -23,7 +23,7 @@ import { normalizeName } from '../lib/similar.js'
 import { cmpIsoDesc } from '../lib/cmp.js'
 import { sortUsersByOrder } from '../lib/userOrder.js'
 import { normMetric } from '../lib/metric.js'
-import { clampSet } from '../lib/setLimits.js'
+import { savableSet, toNum } from '../lib/setLimits.js'
 import { canEditExercise } from '../lib/exerciseCatalog.js'
 import { pickLastSets } from '../lib/lastSets.js'
 import { isReactionKind } from '../lib/reactions.js'
@@ -464,13 +464,6 @@ export async function getTemplate(id) {
 
 // ----------------------------- Запись --------------------------------------
 
-// Парсим число из инпута, принимая десятичную запятую (1,5 → 1.5).
-// Без этого Number('1,5') === NaN и подход молча отбрасывался.
-function toNum(v) {
-  if (typeof v === 'number') return v
-  return Number(String(v ?? '').trim().replace(',', '.'))
-}
-
 // Нормализуем подходы из формы (строки из input) в числа. clampSet отсекает
 // отрицательные/NaN/абсурдные вес и повторы и приводит их к допустимым границам
 // (см. lib/setLimits.js) — иначе кривые значения ломают рекорды/лидерборд/цели и
@@ -484,7 +477,7 @@ function cleanEntries(entries) {
         exercise_id: e.exercise?.id ?? e.exercise_id,
         exercise: e.exercise ? pickExerciseShape(e.exercise) : undefined,
         sets: (e.sets ?? [])
-          .map((s) => clampSet(toNum(s.weight), toNum(s.reps), metric))
+          .map((s) => savableSet(s, metric))
           .filter(Boolean),
       }
     })
@@ -557,6 +550,20 @@ export async function softDeleteMyWorkouts(userId) {
   })
 }
 
+// Есть ли уже операция этого типа? Если да — новую не ставим (push читает свежий
+// документ). МЕРТВУЮ (_dead) при этом возвращаем в строй: человек только что
+// поправил документ заново, значит правка должна уехать. Раньше мертвая операция
+// считалась «уже стоящей в очереди» — новая не создавалась, старая не отправлялась,
+// и ближайший pull перезаписывал правку серверной версией (РЕВЬЮ-КОДА-2026-10-02,
+// п. 5). Возвращает true, если операция нужного типа найдена.
+async function reviveOps(table, pending, type) {
+  const same = pending.filter((o) => o.type === type)
+  for (const o of same) {
+    if (o._dead) await table.update(o.seq, { _dead: 0, attempts: 0, lastError: null })
+  }
+  return same.length > 0
+}
+
 // ------------------------- Очередь (outbox) --------------------------------
 // Схлопываем дубли по тренировке, чтобы очередь не разрасталась:
 //  - upsert поверх upsert → одна операция (push всегда читает свежий документ);
@@ -565,14 +572,14 @@ export async function softDeleteMyWorkouts(userId) {
 async function enqueue(type, workoutId) {
   const pending = await db.outbox.where('workoutId').equals(workoutId).toArray()
   if (type === 'upsert') {
-    if (pending.some((o) => o.type === 'upsert')) return
+    if (await reviveOps(db.outbox, pending, 'upsert')) return
     // если был delete — снимаем его, ставим upsert
     for (const o of pending) if (o.type === 'delete') await db.outbox.delete(o.seq)
     await db.outbox.add({ workoutId, type, createdAt: nowIso(), attempts: 0 })
   } else {
     // delete: убираем все upsert этой тренировки
     for (const o of pending) if (o.type === 'upsert') await db.outbox.delete(o.seq)
-    if (pending.some((o) => o.type === 'delete')) return
+    if (await reviveOps(db.outbox, pending, 'delete')) return
     await db.outbox.add({ workoutId, type, createdAt: nowIso(), attempts: 0 })
   }
 }
@@ -708,12 +715,12 @@ export async function deleteTemplate(id) {
 async function enqueueTpl(type, templateId) {
   const pending = await db.tpl_outbox.where('templateId').equals(templateId).toArray()
   if (type === 'upsert') {
-    if (pending.some((o) => o.type === 'upsert')) return
+    if (await reviveOps(db.tpl_outbox, pending, 'upsert')) return
     for (const o of pending) if (o.type === 'delete') await db.tpl_outbox.delete(o.seq)
     await db.tpl_outbox.add({ templateId, type, createdAt: nowIso(), attempts: 0 })
   } else {
     for (const o of pending) if (o.type === 'upsert') await db.tpl_outbox.delete(o.seq)
-    if (pending.some((o) => o.type === 'delete')) return
+    if (await reviveOps(db.tpl_outbox, pending, 'delete')) return
     await db.tpl_outbox.add({ templateId, type, createdAt: nowIso(), attempts: 0 })
   }
 }
@@ -767,20 +774,33 @@ export async function retryDeadLetter() {
   return n
 }
 
-// Отклонить мертвые операции: удалить их из очередей и снять локальные флаги
-// `_dirty`/`_deleted` с затронутых документов, чтобы следующий pull привел их к
-// серверной правде (несохраненная правка/создание при этом теряется — это и есть
-// «отклонить»). Возвращает число удаленных операций.
+// Отклонить мертвые операции: удалить их из очередей и привести затронутые
+// документы к серверной правде (несохраненная правка/создание при этом теряется —
+// это и есть «отклонить»). Возвращает число удаленных операций.
+//
+// Pull инкрементальный, поэтому просто снять `_dirty` мало: серверная версия старше
+// watermark и сама не приедет — локально оставалась бы отклоненная правка с видом
+// «синхронизировано», расходясь с сервером и другими устройствами
+// (РЕВЬЮ-КОДА-2026-10-02, п. 6). Поэтому:
+//   - тренировку убираем локально: если она есть на сервере, pull дотянет ее по id
+//     (самолечение в pullWorkouts); если это было неотправленное создание — ее и
+//     не должно остаться;
+//   - у шаблонов и упражнений сбрасываем сигнатуру/watermark — следующий pull
+//     перечитает их целиком.
 export async function discardDeadLetter() {
   let n = 0
   await db.transaction(
     'rw',
-    db.outbox, db.ex_outbox, db.tpl_outbox, db.workouts, db.exercises, db.templates,
+    [db.outbox, db.ex_outbox, db.tpl_outbox, db.workouts, db.exercises, db.templates, db.meta],
     async () => {
       for (const o of await db.outbox.filter((x) => x._dead).toArray()) {
-        await db.workouts.update(o.workoutId, { _dirty: 0, _deleted: 0 })
+        await db.workouts.delete(o.workoutId)
         await db.outbox.delete(o.seq); n++
       }
+      const deadEx = await db.ex_outbox.filter((x) => x._dead).count()
+      const deadTpl = await db.tpl_outbox.filter((x) => x._dead).count()
+      if (deadEx) await db.meta.delete('wm_exercises')
+      if (deadTpl) await db.meta.delete('sig_templates')
       for (const o of await db.ex_outbox.filter((x) => x._dead).toArray()) {
         await db.exercises.update(o.exerciseId, { _dirty: 0 })
         await db.ex_outbox.delete(o.seq); n++

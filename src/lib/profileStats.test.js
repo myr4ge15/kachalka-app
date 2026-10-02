@@ -174,6 +174,12 @@ describe('goalProgress', () => {
     expect(goalProgress(120, 100)).toBe(100)
     expect(goalProgress(0, 100)).toBe(0)
   })
+  it('100 — только когда цель реально достигнута (без округления вверх)', () => {
+    expect(goalProgress(99.5, 100)).toBe(99)
+    expect(goalProgress(199, 200)).toBe(99)
+    expect(goalProgress(100, 100)).toBe(100)
+    expect(goalProgress(0.4, 100)).toBe(0)
+  })
   it('target ≤ 0 → 0 (без деления на ноль)', () => {
     expect(goalProgress(50, 0)).toBe(0)
     expect(goalProgress(50, undefined)).toBe(0)

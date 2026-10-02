@@ -412,4 +412,76 @@ describe('WorkoutScreen', () => {
       })],
     })))
   })
+
+  // ---- РЕВЬЮ-КОДА-2026-10-02: несохраненные правки и дата ----
+  const existing = (updated_at = 'v1') => ({
+    id: 'w1', updated_at,
+    performed_at: '2026-07-30T12:00:00.000Z',
+    entries: [{ exercise_id: 'bench', exercise: draft[0].exercise, sets: [{ weight: 60, reps: 8 }] }],
+  })
+
+  it('правка существующей тренировки переживает уход с экрана и перемонтирование', async () => {
+    vi.mocked(getWorkout).mockResolvedValue(existing())
+    const first = render(<WorkoutScreen user={user} workoutId="w1" />)
+    await screen.findByText('Жим лежа')
+    fireEvent.click(screen.getByRole('button', { name: '+ подход (повтор предыдущего)' }))
+    expect(screen.getByRole('button', { name: 'Сохранить (2)' })).toBeInTheDocument()
+    first.unmount() // «Назад», другая вкладка, поворот планшета
+
+    render(<WorkoutScreen user={user} workoutId="w1" />)
+    expect(await screen.findByRole('button', { name: 'Сохранить (2)' })).toBeInTheDocument()
+    expect(screen.getByText(/несохраненные правки/)).toBeInTheDocument()
+
+    fireEvent.click(screen.getByRole('button', { name: 'Вернуть как было' }))
+    expect(screen.getByRole('button', { name: 'Сохранить (1)' })).toBeInTheDocument()
+    expect(readDraft('workout_edit_u1_w1')).toBeUndefined()
+  })
+
+  it('если тренировку изменили с другого устройства, старые правки не накатываются', async () => {
+    writeDraft('workout_edit_u1_w1', {
+      base: 'v1', performedAt: '2026-07-30T12:00:00.000Z', feels: {},
+      entries: [{ exercise: draft[0].exercise, sets: [{ weight: 60, reps: 8, _k: 'a' }, { weight: 60, reps: 8, _k: 'b' }] }],
+    })
+    vi.mocked(getWorkout).mockResolvedValue(existing('v2'))
+    render(<WorkoutScreen user={user} workoutId="w1" />)
+    expect(await screen.findByRole('button', { name: 'Сохранить (1)' })).toBeInTheDocument()
+    expect(screen.queryByText(/несохраненные правки/)).toBeNull()
+    expect(readDraft('workout_edit_u1_w1')).toBeUndefined()
+  })
+
+  it('после сохранения правок черновик правки удаляется', async () => {
+    vi.mocked(getWorkout).mockResolvedValue(existing())
+    render(<WorkoutScreen user={user} workoutId="w1" onBack={() => {}} />)
+    await screen.findByText('Жим лежа')
+    fireEvent.click(screen.getByRole('button', { name: '+ подход (повтор предыдущего)' }))
+    expect(readDraft('workout_edit_u1_w1')).toBeTruthy()
+    fireEvent.click(screen.getByRole('button', { name: 'Сохранить (2)' }))
+    await waitFor(() => expect(saveWorkout).toHaveBeenCalledOnce())
+    await waitFor(() => expect(readDraft('workout_edit_u1_w1')).toBeUndefined())
+  })
+
+  it('открыть и уйти без правок — черновика правки нет', async () => {
+    vi.mocked(getWorkout).mockResolvedValue(existing())
+    const r = render(<WorkoutScreen user={user} workoutId="w1" />)
+    await screen.findByText('Жим лежа')
+    r.unmount()
+    expect(readDraft('workout_edit_u1_w1')).toBeUndefined()
+  })
+
+  it('выбранная дата новой тренировки переживает уход с экрана', async () => {
+    writeDraft('workout_draft_new_u1', draft)
+    const first = render(<WorkoutScreen user={user} />)
+    const input = screen.getByLabelText('Дата тренировки')
+    fireEvent.change(input, { target: { value: '2026-07-20' } })
+    first.unmount()
+    render(<WorkoutScreen user={user} />)
+    expect(screen.getByLabelText('Дата тренировки')).toHaveValue('2026-07-20')
+  })
+
+  it('незаполненный подход не входит в счетчик и о нем сказано', async () => {
+    writeDraft('workout_draft_new_u1', [{ ...draft[0], sets: [{ weight: 60, reps: 8, _k: 'a' }, { weight: 60, reps: '', _k: 'b' }] }])
+    render(<WorkoutScreen user={user} />)
+    expect(screen.getByRole('button', { name: 'Сохранить (1)' })).toBeInTheDocument()
+    expect(screen.getByText(/1 незаполненный подход не сохранится/)).toBeInTheDocument()
+  })
 })

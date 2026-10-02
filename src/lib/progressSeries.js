@@ -10,6 +10,7 @@
 // ============================================================================
 import { bestOneRepMax } from './oneRepMax.js'
 import { cmpIsoAsc } from './cmp.js'
+import { localYmd } from './calendar.js'
 
 // Собрать упражнения, встречавшиеся в истории (только с непустыми подходами).
 // Возвращает отсортированный массив { id, name, is_bench_lift, hasWeight, metric }:
@@ -50,7 +51,10 @@ export function collectExercises(workouts) {
 export function buildSeries(workouts, exerciseId, weighted) {
   const byDay = new Map()
   for (const w of workouts ?? []) {
-    const day = String(w.performed_at ?? '').slice(0, 10)
+    // ЛОКАЛЬНЫЙ день, как в календаре, истории и Ритме. Срез ISO-строки давал день
+    // по UTC: тренировка в 00:30 по Москве уезжала во «вчера» и склеивалась со
+    // вчерашней в одну точку.
+    const day = localYmd(w.performed_at)
     if (!day) continue
     for (const e of w.entries ?? []) {
       const id = e.exercise?.id ?? e.exercise_id

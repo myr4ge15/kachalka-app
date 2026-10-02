@@ -1,3 +1,4 @@
+import { plural } from '../lib/plural.js'
 import { useState } from 'react'
 import SheetDialog from './SheetDialog.jsx'
 import WhatsNewItems from './WhatsNewItems.jsx'
@@ -16,7 +17,7 @@ export default function WhatsNewSheet({ release, onDone, onOpenAll }) {
       <p className="wn-kicker">
         <span className="wn-ver">v{release.version}</span>
         {fmtWhatsNewDate(release.date)}
-        {release.count > 1 ? ` · за ${release.count} обновления` : ''}
+        {release.count > 1 ? ` · за ${release.count} ${plural(release.count, 'обновление', 'обновления', 'обновлений')}` : ''}
       </p>
       <div className="sheet-scroll">
         <WhatsNewItems items={release.main} />

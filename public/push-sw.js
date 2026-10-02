@@ -7,7 +7,7 @@
 // Каждый пуш ОБЯЗАН показать уведомление: «тихие» пуши браузеры запрещают,
 // а Safari за них отзывает подписку.
 
-/* global self, clients, URL */
+/* global self, clients, URL, MessageChannel, setTimeout, clearTimeout */
 
 self.addEventListener('push', (event) => {
   let data = {}
@@ -33,28 +33,59 @@ self.addEventListener('push', (event) => {
 })
 
 // Адрес, который откроет нажатие. tag кладем в `?push=` (v6.7.2): по нему
-// приложение понимает, что показать (src/lib/pushIntent.js — реакция → карточка
-// тренировки). Раньше все пуши вели на «./», то есть на Главную.
+// приложение понимает, что показать (src/lib/pushIntent.js — реакция → Лента у
+// оцененной тренировки). Раньше все пуши вели на «./», то есть на Главную.
 function openUrl(data, scope) {
   const url = new URL(data.url || './', scope)
   if (data.tag) url.searchParams.set('push', data.tag)
   return url.href
 }
 
-// Нажатие: если приложение уже открыто — переключаемся на него и сообщаем, куда
-// перейти (раньше окно просто выходило на передний план там, где было); иначе
-// открываем новое окно сразу с нужным адресом.
+// Сколько ждать от открытого окна подтверждения, что оно приняло переход (мс).
+const ACK_MS = 2000
+
+// Попросить открытое окно перейти по адресу и дождаться ответа через MessageChannel.
+// Свернутую PWA телефон «замораживает», и сообщение может не дойти; старая
+// версия страницы (до обновления) его не понимает. В обоих случаях ответа нет.
+function askToOpen(win, url) {
+  return new Promise((resolve) => {
+    const ch = new MessageChannel()
+    const timer = setTimeout(() => resolve(false), ACK_MS)
+    ch.port1.onmessage = () => { clearTimeout(timer); resolve(true) }
+    try {
+      win.postMessage({ type: 'push-open', url }, [ch.port2])
+    } catch {
+      clearTimeout(timer)
+      resolve(false)
+    }
+  })
+}
+
+// Нажатие (v6.7.4): приложение уже открыто — выводим окно вперед и просим его
+// перейти; не ответило — перезагружаем это окно сразу на нужный адрес (тот же путь,
+// что при холодном старте). Окна нет — открываем новое.
+// Раньше сообщение уходило без подтверждения: из фона приложение оставалось там,
+// где было (обычно на Главной).
+async function openFromNotification(target) {
+  const scope = self.registration.scope
+  const wins = await clients.matchAll({ type: 'window', includeUncontrolled: true })
+  const win = wins.find((w) => w.url.startsWith(scope))
+  if (win) {
+    let shown = win
+    try { shown = (await win.focus()) || win } catch { /* фокус не дали — все равно пробуем */ }
+    if (await askToOpen(shown, target)) return
+    if ('navigate' in shown) {
+      try {
+        const nav = await shown.navigate(target)
+        if (nav) return
+      } catch { /* окно не под этим SW — откроем новое */ }
+    }
+  }
+  if (clients.openWindow) await clients.openWindow(target)
+}
+
 self.addEventListener('notificationclick', (event) => {
   event.notification.close()
   const target = (event.notification.data && event.notification.data.url) || self.registration.scope
-  event.waitUntil((async () => {
-    const wins = await clients.matchAll({ type: 'window', includeUncontrolled: true })
-    for (const w of wins) {
-      if (w.url.startsWith(self.registration.scope) && 'focus' in w) {
-        w.postMessage({ type: 'push-open', url: target })
-        return w.focus()
-      }
-    }
-    if (clients.openWindow) return clients.openWindow(target)
-  })())
+  event.waitUntil(openFromNotification(target))
 })

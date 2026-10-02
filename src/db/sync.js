@@ -19,13 +19,14 @@
 // ============================================================================
 import { useSyncExternalStore } from 'react'
 import { useLiveQuery } from 'dexie-react-hooks'
-import { supabase, isConfigured, hasSession } from './supabase.js'
+import { supabase, isConfigured, hasSession, serverIdentity } from './supabase.js'
 import { db, nowIso, setMeta } from './local.js'
 import { pendingCount, deadLetterCount } from './repo.js'
 import { fetchFeed } from './feed.js'
 import { onOnline, onOffline, onResume } from '../lib/appEvents.js'
 import { pollIntervalFor, isRealtimeAlive, makeDebouncer } from '../lib/realtimeSync.js'
 import { backoffDelay, nextFailureCount } from '../lib/backoff.js'
+import { refreshSessionSilently, canRefreshSilently } from '../lib/auth.js'
 import { pull, pullGoal, pullUserMeta } from './sync/pull.js'
 import { push, pushExercises, pushTemplates, pushReactions, pushGoal, pushUserMeta } from './sync/push.js'
 
@@ -59,6 +60,23 @@ const getSnapshot = () => state
 // --------------------------- оркестрация -----------------------------------
 let running = false
 
+// Тихий перевыпуск сессии из syncNow — не чаще раза в REVIVE_EVERY_MS.
+const REVIVE_EVERY_MS = 60000
+let lastReviveAt = 0
+async function reviveSession(userId) {
+  if (!canRefreshSilently(userId)) {
+    // PIN в памяти нет (приложение перезапускали): поднять сессию может только
+    // сам человек. Говорим об этом прямо, а не рисуем «синхронизировано».
+    setState({ lastError: 'Нет входа на сервере — выйди и войди по PIN, чтобы данные отправились', netError: true })
+    return false
+  }
+  const now = Date.now()
+  if (now - lastReviveAt < REVIVE_EVERY_MS) return false
+  lastReviveAt = now
+  if (!(await refreshSessionSilently(userId))) return false
+  return hasSession(userId)
+}
+
 // Полный цикл: сначала отдаем локальные изменения, затем забираем серверные.
 // Возвращает: true — прогон прошел (для сброса backoff поллинга), false — сбой
 // (для роста интервала), undefined — прогон пропущен (офлайн/нет сессии/уже идет).
@@ -80,10 +98,36 @@ export async function syncNow(userId) {
   // только сессия появится, прогон вызовет ре-триггер по onAuthStateChange.
   // Сессия ДРУГОЙ учетки (см. hasSession) — тоже «нет сессии»: иначе личные
   // данные этого пользователя уехали бы под чужим JWT.
-  if (!(await hasSession(userId))) return
+  //
+  // Гард `running` ставим СИНХРОННО, до первого await: раньше между проверкой и
+  // `running = true` стоял `await hasSession()`, и два вызова подряд (startSync
+  // зовет syncNow сразу и еще раз по INITIAL_SESSION) оба проходили гард — два
+  // параллельных прогона слали каждую операцию дважды и вдвое быстрее доводили ее
+  // до dead-letter (РЕВЬЮ-КОДА-2026-10-02, п. 7).
   running = true
-  setState({ syncing: true })
+  let started = false
   try {
+    if (!(await hasSession(userId))) {
+      // Сессии нет, а UI открыт: так бывает после входа по офлайн-кэшу PIN, когда
+      // фоновый вход не прошел (не было сети, сервер спал). Раньше синк на этом
+      // просто молчал — «↑ N» висело до ручного «выйти и войти». Теперь пробуем
+      // поднять сессию сами, пока PIN есть в памяти (не чаще раза в минуту: каждая
+      // попытка — запрос к серверу входа).
+      if (!(await reviveSession(userId))) return
+    }
+    // Сервер все еще считает эту сессию нашей? Отозванная (сброс PIN админом) или
+    // чужая сессия отдает под RLS пустые выборки БЕЗ ошибки — pull принял бы их за
+    // удаление всей истории. Такой прогон не начинаем вовсе и гасим мертвую сессию
+    // локально: SIGNED_OUT вернет на экран входа, несинхронизированные правки
+    // останутся в персональной базе и уедут после входа.
+    const who = await serverIdentity()
+    if (who.known && who.id !== String(userId)) {
+      setState({ lastError: 'Сессия завершена на сервере — войди заново', netError: true })
+      try { await supabase.auth.signOut({ scope: 'local' }) } catch { /* уже вышли */ }
+      return false
+    }
+    started = true
+    setState({ syncing: true })
     await pushExercises(d) // упражнения раньше всего (FK на exercise_id)
     await pushTemplates(d) // шаблоны после упражнений (FK), до/после тренировок неважно
     const justPushed = await push(d)
@@ -96,7 +140,7 @@ export async function syncNow(userId) {
     // catch было не видно, почему цель не доезжает до сервера).
     let goalWarn = null
     try { await pushGoal(userId, d) } catch (e) { goalWarn = 'цель не отправлена: ' + String(e?.message ?? e) }
-    const warnings = await pull(userId, justPushed, d)
+    const warnings = await pull(userId, justPushed, d, { identityVerified: who.known })
     // pullGoal может пометить локальную цель на отправку (бэкофилл старой цели
     // без _dirty) — сразу доливаем ее вторым pushGoal в этом же цикле.
     try {
@@ -140,7 +184,7 @@ export async function syncNow(userId) {
     return false
   } finally {
     running = false
-    setState({ syncing: false, online: navigator.onLine })
+    if (started) setState({ syncing: false, online: navigator.onLine })
   }
 }
 
@@ -157,8 +201,13 @@ export function startSync(getUserId) {
   let timer = null
   let baseMs = pollIntervalFor(false)
   let failures = 0
+  // После остановки (выход/смена учетки) ничего не перепланируем: без флага tick,
+  // ждавший syncNow в момент остановки, по возвращении заводил таймер заново — и
+  // цикл с замыканием на прежнюю учетку жил до перезагрузки страницы.
+  let stopped = false
   const scheduleNext = () => {
     if (timer) clearTimeout(timer)
+    if (stopped) return
     timer = setTimeout(tick, backoffDelay(baseMs, failures))
   }
   async function tick() {
@@ -227,6 +276,7 @@ export function startSync(getUserId) {
   syncNow(getUserId()) // первый прогон сразу
 
   return () => {
+    stopped = true
     offOnline()
     offOffline()
     offResume()

@@ -56,16 +56,16 @@ export function fmtTime(totalSec) {
   return `${m}:${String(s).padStart(2, '0')}`
 }
 
-// 'м:сс' или число секунд → секунды. '1:30' → 90, '90' → 90, мусор → 0.
+// 'м:сс', 'ч:мм:сс' или число секунд → секунды. '1:30' → 90, '1:30:00' → 5400,
+// '90' → 90, мусор → 0. Три части — часы: раньше '1:30:00' молча давало 90.
 export function parseTime(v) {
   if (typeof v === 'number') return Math.max(0, Math.round(v))
   const str = String(v ?? '').trim()
   if (!str) return 0
   if (str.includes(':')) {
-    const [mm, ss] = str.split(':')
-    const m = Number(mm) || 0
-    const s = Number(ss) || 0
-    return Math.max(0, Math.round(m * 60 + s))
+    const parts = str.split(':').map((p) => Number(p) || 0)
+    const [h, m, s] = parts.length >= 3 ? parts : [0, parts[0], parts[1] ?? 0]
+    return Math.max(0, Math.round(h * 3600 + m * 60 + s))
   }
   return Math.max(0, Math.round(Number(str) || 0))
 }

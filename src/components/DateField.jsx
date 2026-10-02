@@ -8,8 +8,14 @@ export default function DateField({ performedAt, onChange }) {
   const current = toDateInput(performedAt)
   // Пусто (сброс) → сегодня. Ту же дату повторно не шлем: blur после обычного выбора
   // не должен дергать onChange второй раз.
+  // Будущую дату не принимаем (max у поля + страховка здесь: не все браузеры
+  // соблюдают max при ручном вводе). Тренировка «из будущего» ломала не только
+  // статистику: метка «уведомления прочитаны» уезжала в ее дату и глушила
+  // колокольчик на всех устройствах.
+  const today = toDateInput()
   function apply(raw) {
-    const day = raw || toDateInput()
+    let day = raw || today
+    if (day > today) day = today
     if (day === current) return
     onChange(fromDateInput(day, performedAt))
   }
@@ -27,6 +33,7 @@ export default function DateField({ performedAt, onChange }) {
         // не показывает в пикере кнопку «Сбросить» (она очищала поле, а приложение об этом
         // не узнавало). Формы тут нет — на отправку не влияет.
         required
+        max={today}
         value={current}
         // «Сбросить» в пикере iOS очищает значение — а кружок уже стоит на сегодня.
         // v6.3.5: пустое значение в change → сегодня. v6.3.6: iOS не всегда шлет change

@@ -127,7 +127,11 @@ function nearestGoal(goals, sorted) {
     const pct = goalProgress(current, g.targetWeight)
     const left = Math.max(0, Number(g.targetWeight) - current)
     const reps = m === 'weight' && Number(g.targetReps) > 0 ? Math.round(Number(g.targetReps)) : 0
-    const cand = { name: g.exerciseName ?? '—', metric: m, target: g.targetWeight, current, pct, left, reps }
+    // Цель «вес × повторы»: вес взят, а нужного числа повторов еще не было (иначе
+    // цель была бы достигнута и сюда не попала). Главная говорит, чего не хватает
+    // (как список целей в Профиле), а не «осталось: 0 кг».
+    const waitingForReps = reps > 0 && pct >= 100
+    const cand = { name: g.exerciseName ?? '—', metric: m, target: g.targetWeight, current, pct, left, reps, waitingForReps }
     if (!best || pct > best.pct) best = cand
   }
   return best

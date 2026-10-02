@@ -75,7 +75,6 @@ export function usePushToggle(userId) {
 
   // Оптимистично: тумблер переключается сразу, при ошибке — откат и текст ошибки.
   const setType = useCallback(async (type, on) => {
-    const before = prefs
     setPrefs((p) => ({ ...(p ?? {}), [type]: on }))
     setPrefsBusy(type)
     setPrefsError('')
@@ -84,13 +83,15 @@ export function usePushToggle(userId) {
       if (aliveRef.current) setPrefs(saved)
     } catch (e) {
       if (aliveRef.current) {
-        setPrefs(before)
+        // Откатываем ТОЛЬКО свой тумблер: снимок всех настроек из замыкания при
+        // двух быстрых нажатиях возвращал соседний тумблер в уже неверное положение.
+        setPrefs((p) => ({ ...(p ?? {}), [type]: !on }))
         setPrefsError(e?.message || 'Не удалось сохранить.')
       }
     } finally {
       if (aliveRef.current) setPrefsBusy(null)
     }
-  }, [prefs, userId])
+  }, [userId])
 
   return { ...state, busy, error, toggle, prefs, prefsError, prefsBusy, setType }
 }

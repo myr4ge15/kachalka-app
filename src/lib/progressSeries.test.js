@@ -127,3 +127,29 @@ describe('seriesValueSpread', () => {
     expect(seriesValueSpread(undefined)).toBe(0)
   })
 })
+
+describe('buildSeries — день по местному времени', () => {
+  // Даты строим из ЛОКАЛЬНЫХ компонент: тест не зависит от пояса машины.
+  const at = (y, m, d, h, min = 0) => new Date(y, m - 1, d, h, min).toISOString()
+  const wk = (iso, weight) => ({
+    performed_at: iso,
+    entries: [{ exercise: { id: 'e1', name: 'Жим', metric: 'weight' }, sets: [{ weight, reps: 5 }] }],
+  })
+  const ymd = (y, m, d) => `${y}-${String(m).padStart(2, '0')}-${String(d).padStart(2, '0')}`
+
+  it('ночная тренировка (00:30) попадает в свой календарный день, а не во вчера', () => {
+    const series = buildSeries(
+      [wk(at(2026, 10, 1, 20), 80), wk(at(2026, 10, 2, 0, 30), 85), wk(at(2026, 10, 2, 21), 82.5)],
+      'e1', true
+    )
+    expect(series.map((p) => [p.day, p.value])).toEqual([
+      [ymd(2026, 10, 1), 80],
+      [ymd(2026, 10, 2), 85],
+    ])
+  })
+
+  it('поздний вечер (23:30) остается в своем дне', () => {
+    const series = buildSeries([wk(at(2026, 10, 1, 23, 30), 90)], 'e1', true)
+    expect(series[0].day).toBe(ymd(2026, 10, 1))
+  })
+})

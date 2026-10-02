@@ -2,7 +2,7 @@ import { useState, useEffect, useLayoutEffect, useRef, Suspense } from 'react'
 import { useLiveQuery } from 'dexie-react-hooks'
 import { isConfigured, warmup, supabase } from './db/supabase.js'
 import { logout as authLogout, getCachedProfile } from './lib/auth.js'
-import { releasePushOnLogout, getPushState, enablePush, wasPushAsked, markPushAsked } from './db/push.js'
+import { releasePushOnLogout, getPushState, enablePush, wasPushAsked, markPushAsked, reconcilePushOwner } from './db/push.js'
 import { shouldAskPush } from './lib/pushSupport.js'
 import { pushIntentFromUrl, stripPushParam } from './lib/pushIntent.js'
 import PushAskSheet from './components/PushAskSheet.jsx'
@@ -245,6 +245,8 @@ export default function App() {
       if (e.data?.type !== 'push-open') return
       const intent = pushIntentFromUrl(e.data.url)
       if (intent) setPushIntent(intent)
+      // Подтверждение для SW (v6.7.4): без него он перезагрузит окно на адрес пуша.
+      e.ports?.[0]?.postMessage('ok')
     }
     sw.addEventListener('message', onMessage)
     return () => sw.removeEventListener('message', onMessage)
@@ -492,8 +494,16 @@ export default function App() {
   // logout) — возвращаем на экран входа. Офлайн событие не приходит, поэтому
   // UI остается доступным до появления сети (тогда либо тихий перевыпуск, либо
   // SIGNED_OUT → PIN заново).
+  // Подписка на пуши — за той учеткой, что вошла (общий телефон): сверка при
+  // входе и, раз уж серверной части нужна своя сессия, еще раз, когда она поднялась.
+  const userIdRef = useRef(null)
+  useEffect(() => {
+    userIdRef.current = user?.id ?? null
+    if (user?.id) reconcilePushOwner(user.id)
+  }, [user?.id])
   useEffect(() => {
     const { data } = supabase.auth.onAuthStateChange((event) => {
+      if (event === 'SIGNED_IN' && userIdRef.current) reconcilePushOwner(userIdRef.current)
       if (event === 'SIGNED_OUT') {
         localStorage.removeItem(SESSION_KEY)
         setUser(null)

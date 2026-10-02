@@ -56,3 +56,20 @@ describe('DateField', () => {
     expect(toDateInput(onChange.mock.calls[0][0])).toBe(toDateInput())
   })
 })
+
+describe('DateField — будущая дата', () => {
+  it('у поля стоит max = сегодня', () => {
+    render(<DateField performedAt="2026-07-23T12:00:00.000Z" onChange={() => {}} />)
+    expect(screen.getByLabelText('Дата тренировки')).toHaveAttribute('max', toDateInput())
+  })
+
+  it('введенная вручную будущая дата прижимается к сегодня', () => {
+    const onChange = vi.fn()
+    const { container } = render(
+      <DateField performedAt="2026-07-23T12:00:00.000Z" onChange={onChange} />
+    )
+    fireEvent.change(container.querySelector('input[type="date"]'), { target: { value: '2099-01-01' } })
+    expect(onChange).toHaveBeenCalledTimes(1)
+    expect(toDateInput(onChange.mock.calls[0][0])).toBe(toDateInput())
+  })
+})

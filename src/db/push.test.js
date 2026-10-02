@@ -7,7 +7,8 @@ vi.mock('./supabase.js', () => ({ supabase: { rpc: (...a) => rpc(...a) }, hasSes
 const ensureOwnSession = vi.fn()
 vi.mock('../lib/auth.js', () => ({ ensureOwnSession: (...a) => ensureOwnSession(...a) }))
 
-const { enablePush, disablePush, releasePushOnLogout, PushError, getPushPrefs, setPushPref } = await import('./push.js')
+vi.stubEnv('VITE_VAPID_PUBLIC_KEY', 'BKey')
+const { enablePush, disablePush, releasePushOnLogout, PushError, getPushPrefs, setPushPref, reconcilePushOwner, getPushState } = await import('./push.js')
 
 function fakeSub(endpoint = 'https://push.example/abc') {
   return {
@@ -28,10 +29,12 @@ function setup({ permission = 'granted', existing = null, created = fakeSub() } 
   })
   Object.defineProperty(navigator, 'onLine', { configurable: true, get: () => true })
   globalThis.Notification = { permission, requestPermission: vi.fn().mockResolvedValue(permission) }
+  globalThis.PushManager ??= function PushManager() {}
   return { pushManager, created }
 }
 
 beforeEach(() => {
+  localStorage.clear()
   rpc.mockReset()
   hasSession.mockReset().mockResolvedValue(true)
   ensureOwnSession.mockReset().mockResolvedValue()
@@ -115,5 +118,65 @@ describe('настройки типов (v6.7.0)', () => {
     Object.defineProperty(navigator, 'onLine', { configurable: true, get: () => false })
     await expect(setPushPref('u1', 'record', false)).rejects.toThrow(/Нет сети/)
     expect(rpc).not.toHaveBeenCalled()
+  })
+})
+
+describe('общий телефон: чья подписка (РЕВЬЮ-КОДА-2026-10-02, п. 9)', () => {
+  it('вход другой учетки снимает подписку прежней, на сервер ее не перепривязывает', async () => {
+    const sub = fakeSub()
+    setup({ existing: sub })
+    rpc.mockResolvedValue({ error: null })
+    await enablePush('A')
+    rpc.mockClear()
+    await reconcilePushOwner('B')
+    expect(sub.unsubscribe).toHaveBeenCalled()
+    expect(rpc).not.toHaveBeenCalledWith('push_subscribe', expect.anything())
+  })
+
+  it('свою подписку при входе подтверждает на сервере', async () => {
+    const sub = fakeSub()
+    setup({ existing: sub })
+    rpc.mockResolvedValue({ error: null })
+    await enablePush('A')
+    rpc.mockClear()
+    await reconcilePushOwner('A')
+    expect(sub.unsubscribe).not.toHaveBeenCalled()
+    expect(rpc).toHaveBeenCalledWith('push_subscribe', expect.anything())
+  })
+
+  it('выход снимает подписку, следующий вход той же учетки восстанавливает ее сам', async () => {
+    const sub = fakeSub()
+    const { pushManager } = setup({ existing: sub })
+    rpc.mockResolvedValue({ error: null })
+    await enablePush('A')
+    await releasePushOnLogout('A')
+    expect(sub.unsubscribe).toHaveBeenCalled()
+    pushManager.getSubscription.mockResolvedValue(null)
+    pushManager.subscribe.mockClear()
+    await reconcilePushOwner('A')
+    expect(pushManager.subscribe).toHaveBeenCalled()
+  })
+
+  it('выключил тумблером — при входе подписку не возвращаем', async () => {
+    const sub = fakeSub()
+    const { pushManager } = setup({ existing: sub })
+    rpc.mockResolvedValue({ error: null })
+    await enablePush('A')
+    await disablePush('A', { background: true })
+    pushManager.getSubscription.mockResolvedValue(null)
+    pushManager.subscribe.mockClear()
+    await reconcilePushOwner('A')
+    expect(pushManager.subscribe).not.toHaveBeenCalled()
+  })
+
+  it('чужая подписка в Настройках — «выключено», без молчаливой перепривязки', async () => {
+    const sub = fakeSub()
+    setup({ existing: sub })
+    rpc.mockResolvedValue({ error: null })
+    await enablePush('A')
+    rpc.mockClear()
+    const s = await getPushState('B')
+    expect(s.enabled).toBe(false)
+    expect(rpc).not.toHaveBeenCalledWith('push_subscribe', expect.anything())
   })
 })

@@ -8,6 +8,7 @@
 // updated_at): имя, видимость, автор (у чужих общих) и упорядоченный состав
 // с целевым планом {sets, reps, weight} как есть (легаси без плана → null).
 // ============================================================================
+import { localYmd } from './calendar.js'
 import { exerciseMetric } from './metric.js'
 import { downloadJson } from './exportWorkout.js'
 
@@ -59,7 +60,7 @@ export function buildTemplatesExport(templates, appVersion = 'dev', now = new Da
 // YYYY-MM-DD из даты/ISO ('' если не распарсилось).
 function ymd(d) {
   const t = d instanceof Date ? d : new Date(d)
-  return Number.isNaN(t.getTime()) ? '' : t.toISOString().slice(0, 10)
+  return localYmd(t) // местный день: ночью UTC-дата — еще «вчера»
 }
 
 // Имя файла: один шаблон → template-YYYY-MM-DD.json, несколько →

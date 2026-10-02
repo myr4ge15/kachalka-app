@@ -9,10 +9,11 @@ import { readGoals } from '../db/notifications.js'
 import { fmtMetricValue, fmtSet as fmtSetMetric, fmtTime } from '../lib/metric.js'
 import { collectExercises, buildSeries, seriesValueSpread } from '../lib/progressSeries.js'
 import { buildGoalGuide, selectProgressGoal } from '../lib/progressGoal.js'
+import { localYmd, toDate } from '../lib/calendar.js'
 import CardsSkeleton from '../components/CardsSkeleton.jsx'
 
 function fmtDate(iso) {
-  const d = new Date(iso)
+  const d = toDate(iso) // 'YYYY-MM-DD' — местный день, а не UTC-полночь
   return d.toLocaleDateString('ru-RU', { day: '2-digit', month: '2-digit' })
 }
 
@@ -42,7 +43,7 @@ function periodRange(period, from, to) {
   const d = new Date()
   if (period === 'week') d.setDate(d.getDate() - 7)
   else if (period === 'month') d.setMonth(d.getMonth() - 1)
-  return { from: d.toISOString().slice(0, 10), to: null }
+  return { from: localYmd(d), to: null }
 }
 
 function inRange(day, range) {
@@ -124,7 +125,7 @@ export default function ProgressScreen({
   const formCutoff = useMemo(() => {
     const d = new Date()
     d.setDate(d.getDate() - FORM_WEEKS * 7)
-    return d.toISOString().slice(0, 10)
+    return localYmd(d)
   }, [])
   const allBest = weighted ? fullData.reduce((m, p) => Math.max(m, p.value), 0) : 0
   const allBestOrm = weighted ? fullData.reduce((m, p) => Math.max(m, p.orm || 0), 0) : 0

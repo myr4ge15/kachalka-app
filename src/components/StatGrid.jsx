@@ -1,3 +1,4 @@
+import { plural } from '../lib/plural.js'
 import { fmtTonnage } from '../lib/profileStats.js'
 
 // Быстрые цифры профиля «за все время»: число тренировок + суммарный тоннаж
@@ -9,7 +10,7 @@ export default function StatGrid({ totalWorkouts, tonnage }) {
     <div className="stat-grid">
       <div className="stat-cell">
         <div className="stat-num">{totalWorkouts}</div>
-        <div className="stat-lab">тренировок<br />всего</div>
+        <div className="stat-lab">{plural(totalWorkouts, 'тренировка', 'тренировки', 'тренировок')}<br />всего</div>
       </div>
       <div className="stat-cell">
         <div className="stat-num">{t.value}<span className="u"> {t.unit}</span></div>

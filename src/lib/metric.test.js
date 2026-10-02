@@ -102,6 +102,17 @@ describe('parseTime', () => {
   })
 })
 
+describe('parseTime — часы', () => {
+  it("'ч:мм:сс' не теряет часы", () => {
+    expect(parseTime('1:30:00')).toBe(5400)
+    expect(parseTime('0:01:30')).toBe(90)
+  })
+  it('незаконченный ввод не падает', () => {
+    expect(parseTime('1:')).toBe(60)
+    expect(parseTime(':30')).toBe(30)
+  })
+})
+
 describe('fmtMetricValue', () => {
   it('форматирует по метрике', () => {
     expect(fmtMetricValue('weight', 80)).toBe('80 кг')

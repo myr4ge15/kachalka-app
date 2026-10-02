@@ -62,6 +62,38 @@ async function currentSubscription() {
   }
 }
 
+// ЧЬЯ подписка браузера (РЕВЬЮ-КОДА-2026-10-02, п. 9). Подписка у браузера одна, а
+// учеток на общем телефоне несколько: сервер привязывает endpoint к одной из них.
+// Раньше перепривязка шла только из Настроек, и после входа другой учетки на
+// устройство продолжали приходить пуши прежней («реакция на ТВОЮ тренировку» —
+// не тому человеку). Теперь владелец подписки записан на устройстве, а при входе
+// чужая подписка снимается. «Хочу пуши» — отдельно на учетку: выход из учетки не
+// означает «больше не присылать», поэтому при следующем входе подписка
+// восстанавливается сама (если разрешение браузера уже выдано).
+const OWNER_KEY = 'gym_app_push_owner'
+const wantedKey = (userId) => `gym_app_push_wanted_${userId}`
+function store() {
+  try { return globalThis.localStorage ?? null } catch { return null }
+}
+function getOwner() {
+  try { return store()?.getItem(OWNER_KEY) ?? null } catch { return null }
+}
+function setOwner(userId) {
+  try { store()?.setItem(OWNER_KEY, String(userId)) } catch { /* приватный режим */ }
+}
+function clearOwner() {
+  try { store()?.removeItem(OWNER_KEY) } catch { /* нечего чистить */ }
+}
+function isWanted(userId) {
+  try { return store()?.getItem(wantedKey(userId)) === '1' } catch { return false }
+}
+function setWanted(userId, on) {
+  try {
+    if (on) store()?.setItem(wantedKey(userId), '1')
+    else store()?.removeItem(wantedKey(userId))
+  } catch { /* приватный режим */ }
+}
+
 async function saveOnServer(sub) {
   const args = subscriptionArgs(sub?.toJSON?.(), navigator.userAgent)
   if (!args) throw new PushError('Браузер выдал неполную подписку — попробуй еще раз.')
@@ -85,8 +117,13 @@ export async function getPushState(userId) {
   if (availability !== 'ok') return { availability, enabled: false, permission }
   const { reg, sub } = await currentSubscription()
   if (!reg) return { availability: 'unsupported', enabled: false, permission }
-  const enabled = Boolean(sub) && facts.permission === 'granted'
+  // Подписка другой учетки этого устройства — не «включено» для текущей и не
+  // перепривязываем ее молча (включит тумблером — тогда заберет себе).
+  const owner = getOwner()
+  const mine = !owner || owner === String(userId)
+  const enabled = Boolean(sub) && facts.permission === 'granted' && mine
   if (enabled && navigator.onLine && (await hasSession(userId))) {
+    if (!owner) setOwner(userId)
     saveOnServer(sub).catch(() => { /* не критично: повторим при следующем открытии */ })
   }
   return { availability, enabled, permission }
@@ -120,6 +157,8 @@ export async function enablePush(userId) {
   try {
     await ensureOwnSession(userId)
     await saveOnServer(sub)
+    setOwner(userId)
+    setWanted(userId, true)
   } catch (e) {
     // Сервер о подписке не знает — не оставляем браузер «включенным» впустую.
     await sub.unsubscribe().catch(() => {})
@@ -132,11 +171,16 @@ export async function enablePush(userId) {
 // по возможности убираем ее на сервере. background: true (тумблер в Настройках,
 // v6.7.1) — серверную чистку не ждем: пуши на устройство уже не придут, а ждать
 // просыпающийся сервер до 5 с незачем. Выход из учетки ждет (сессия вот-вот уйдет).
-export async function disablePush(userId, { background = false } = {}) {
+//
+// forget: true (тумблер «выкл») — человек больше не хочет пушей; false (выход из
+// учетки) — подписку снимаем, но при следующем входе восстановим.
+export async function disablePush(userId, { background = false, forget = true } = {}) {
+  if (forget) setWanted(userId, false)
   const { sub } = await currentSubscription()
   if (!sub) return
   const endpoint = sub.endpoint
   await sub.unsubscribe().catch(() => {})
+  clearOwner()
   const cleanup = (async () => {
     if (!navigator.onLine || !(await hasSession(userId))) return
     try {
@@ -150,8 +194,54 @@ export async function disablePush(userId, { background = false } = {}) {
 // устройство (общий телефон). Никогда не бросает и не задерживает выход надолго.
 export async function releasePushOnLogout(userId) {
   try {
-    await withTimeout(disablePush(userId), 4000)
+    await withTimeout(disablePush(userId, { forget: false }), 4000)
   } catch { /* выход важнее */ }
+}
+
+// Сверка подписки при входе и восстановлении сессии. Никогда не бросает.
+//  - подписка чужой учетки этого устройства → снимаем в браузере (без сети тоже:
+//    push-сервис ответит серверу «подписки нет», и строка сотрется сама);
+//  - своя → подтверждаем на сервере (сервер мог перепривязать endpoint к другой
+//    учетке, пока она была активна);
+//  - подписки нет, а человек пуши хотел и разрешение уже выдано → подписываем
+//    заново (выход из учетки снимал подписку).
+// Серверная часть — только под своей сессией; без нее вызов повторят, когда
+// сессия поднимется (App слушает onAuthStateChange).
+export async function reconcilePushOwner(userId) {
+  try {
+    if (!userId) return
+    const facts = browserFacts()
+    if (!facts.supported) return
+    const reg = await registration()
+    if (!reg?.pushManager) return
+    let sub = null
+    try { sub = await reg.pushManager.getSubscription() } catch { sub = null }
+    const owner = getOwner()
+    if (sub && owner && owner !== String(userId)) {
+      await sub.unsubscribe().catch(() => {})
+      clearOwner()
+      sub = null
+    }
+    if (!navigator.onLine || !(await hasSession(userId))) return
+    if (sub) {
+      if (facts.permission !== 'granted') return
+      await saveOnServer(sub)
+      setOwner(userId)
+      return
+    }
+    if (!isWanted(userId) || facts.permission !== 'granted' || !facts.configured) return
+    const fresh = await reg.pushManager.subscribe({
+      userVisibleOnly: true,
+      applicationServerKey: urlB64ToUint8Array(VAPID_PUBLIC_KEY),
+    })
+    try {
+      await saveOnServer(fresh)
+      setOwner(userId)
+    } catch (e) {
+      await fresh.unsubscribe().catch(() => {})
+      throw e
+    }
+  } catch { /* пуши не критичны: сверим при следующем входе */ }
 }
 
 // Разовый вопрос «Включить уведомления?» (v6.6.1): отметка «уже спрашивали» —

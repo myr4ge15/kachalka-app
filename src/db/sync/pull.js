@@ -137,7 +137,10 @@ function templateRowToDoc(t) {
 // обновились». Исключение — pullWorkouts: ошибка ОСНОВНОГО оконного запроса
 // тренировок БРОСАЕТ (это сетевой сбой всего прогона, ловится в syncNow).
 // Хелперы объявлены ниже (function-declaration'ы хойстятся).
-export async function pull(userId, justPushed = new Set(), d = db) {
+// opts.identityVerified — syncNow в ЭТОМ прогоне получил от сервера подтверждение,
+// что сессия наша (supabase.serverIdentity). Без него пустой список серверных id
+// удалением не считаем (см. pullWorkouts).
+export async function pull(userId, justPushed = new Set(), d = db, opts = {}) {
   // Независимые подтяжки (FK-зависимостей между ними нет — исторически шли цепочкой
   // await лишь по привычке) гоняем ПАРАЛЛЕЛЬНО: wall-clock цикла синка схлопывается
   // с СУММЫ round-trip'ов в МАКСИМУМ одного. Каждую заворачиваем так, чтобы она НЕ
@@ -148,7 +151,7 @@ export async function pull(userId, justPushed = new Set(), d = db) {
     wrap(pullExercises(d)),
     wrap(pullRoster()), // ростер и его сигнатура — в общей loginDb, `d` не нужен
     wrap(pullPrivacyFlag(userId, d)), // best-effort, warnings не копит
-    wrap(pullWorkouts(userId, justPushed, d)),
+    wrap(pullWorkouts(userId, justPushed, d, opts)),
     wrap(pullTemplates(userId, d)),
   ])
   // Тренировки — КРИТИЧНАЯ подтяжка: ее сбой = сетевой сбой всего прогона (как и
@@ -265,7 +268,10 @@ async function pullPrivacyFlag(userId, d = db) {
 }
 
 // -------------------------- pull: тренировки -------------------------------
-async function pullWorkouts(userId, justPushed = new Set(), d = db) {
+// Размер пачки для дотягивания тренировок по id (.in('id', …) уходит в URL).
+const HEAL_CHUNK = 100
+
+async function pullWorkouts(userId, justPushed = new Set(), d = db, { identityVerified = false } = {}) {
   const warnings = []
   // тренировки пользователя — ТОЛЬКО дельта по watermark. Первый прогон (wm пуст)
   // тянет всю историю один раз, дальше — лишь `updated_at > wm` (обычно 0 строк).
@@ -293,6 +299,22 @@ async function pullWorkouts(userId, justPushed = new Set(), d = db) {
   let allServerIds = null
   if (idsRes.error) warnings.push('удаления не сверены: ' + (idsRes.error.message ?? idsRes.error))
   else allServerIds = new Set((idsRes.data ?? []).map((r) => r.id))
+
+  // ПРЕДОХРАНИТЕЛЬ. Пустой список id при непустой локальной истории — почти всегда
+  // не «пользователь удалил все», а сессия, которую сервер перестал узнавать: RLS
+  // отдает пустоту без ошибки. Удаление по такому ответу стирало историю
+  // безвозвратно (РЕВЬЮ-КОДА-2026-10-02, п. 1). Верим пустоте, только если личность
+  // в этом прогоне подтверждена сервером; иначе сверку удалений пропускаем.
+  if (allServerIds && allServerIds.size === 0 && !identityVerified) {
+    const cleanLocal = await d.workouts
+      .where('user_id').equals(userId)
+      .filter((w) => !w._dirty && !w._deleted)
+      .count()
+    if (cleanLocal > 0) {
+      allServerIds = null
+      warnings.push('удаления не сверены: сервер вернул пустой список')
+    }
+  }
 
   // Кандидаты на удаление с прошлого прогона (отсутствовали на ПРОШЛОЙ сверке id).
   // Читаем ДО транзакции (meta — другая таблица). Сверку удалений в этом прогоне
@@ -365,6 +387,37 @@ async function pullWorkouts(userId, justPushed = new Set(), d = db) {
 
   // Пронести кандидатов на удаление в следующий прогон (только если сверка была).
   if (reconcile) await setMeta(PENDING_DELETES, reconcile.nextCandidates, d)
+
+  // САМОЛЕЧЕНИЕ. Тренировка есть на сервере, а локально ее нет и в дельте она не
+  // пришла (updated_at ≤ watermark) — инкрементальный запрос не привезет ее никогда.
+  // Так бывает после «Отклонить» в dead-letter, после стертой по ошибке истории и
+  // при транзакции, закоммиченной позже watermark с меньшим updated_at. Полный
+  // список id у нас уже есть — дотягиваем недостающее точечно. Watermark при этом
+  // не двигаем: эти строки старше него. Сбой дотягивания — предупреждение, а не
+  // падение прогона: следующий цикл попробует снова.
+  if (allServerIds && allServerIds.size) {
+    const have = new Set(await d.workouts.where('user_id').equals(userId).primaryKeys())
+    const missing = [...allServerIds].filter((id) => !have.has(id))
+    for (let i = 0; i < missing.length; i += HEAL_CHUNK) {
+      const chunk = missing.slice(i, i + HEAL_CHUNK)
+      let res
+      try {
+        res = await withTimeout(
+          supabase.from('workouts').select(SELECT_WORKOUT).eq('user_id', userId).in('id', chunk)
+        )
+      } catch (e) { res = { error: e } }
+      if (res.error) {
+        warnings.push('история не дотянута: ' + (res.error.message ?? res.error))
+        break
+      }
+      await d.transaction('rw', d.workouts, async () => {
+        for (const row of res.data ?? []) {
+          // Пока шел запрос, запись могла появиться локально (своя правка) — не трогаем.
+          if (!(await d.workouts.get(row.id))) await d.workouts.put(rowToDoc(row))
+        }
+      })
+    }
+  }
 
   // Двигаем watermark тренировок = max updated_at по ФАКТИЧЕСКИ полученным строкам
   // (не по пробе): если реплика отстала и отдала меньше, чем есть на праймари,
@@ -557,6 +610,8 @@ export async function pullUserMeta(userId, d = db) {
       remoteAt: row?.updated_at ?? '',
       hasRemote: Boolean(row),
       now,
+      base: before[kind]?.base ?? '',
+      localDirty: Boolean(before[kind]?.dirty),
     })
     // Перепроверка и запись — одной транзакцией, чтобы правка не вклинилась между ними.
     await d.transaction('rw', d.meta, async () => {

@@ -42,6 +42,8 @@ export async function isHeic(file) {
   }
 }
 
+const HEIC_TIMEOUT_MS = 20000
+
 // Привести файл к декодируемому <img> виду: HEIC → JPEG (heic2any грузим лениво,
 // только когда реально нужен, чтобы не тянуть libheif в основной бандл).
 async function toDecodableFile(file) {
@@ -52,7 +54,15 @@ async function toDecodableFile(file) {
   } catch {
     throw new Error('Не удалось загрузить конвертер HEIC')
   }
-  const out = await heic2any({ blob: file, toType: 'image/jpeg', quality: 0.9 })
+  // heic2any конвертирует в воркере и его ошибку не обрабатывает: если воркер не
+  // стартовал (CSP, старый браузер), промис висит вечно. Ограничиваем ожидание.
+  let timer
+  const out = await Promise.race([
+    heic2any({ blob: file, toType: 'image/jpeg', quality: 0.9 }),
+    new Promise((_, reject) => {
+      timer = setTimeout(() => reject(new Error('Не удалось прочитать HEIC-фото. Выбери JPEG или PNG.')), HEIC_TIMEOUT_MS)
+    }),
+  ]).finally(() => clearTimeout(timer))
   const blob = Array.isArray(out) ? out[0] : out
   return new File([blob], 'avatar.jpg', { type: 'image/jpeg' })
 }

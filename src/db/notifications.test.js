@@ -152,6 +152,14 @@ describe('countUnread / markAllSeen / getSeenAt (водяной знак)', () =
     expect(await countUnread(userId)).toBe(0)
   })
 
+  it('метка «прочитано» не уходит в будущее из-за события с будущей датой', async () => {
+    const future = new Date(Date.now() + 365 * 86400000).toISOString()
+    await markAllSeen(userId, [{ id: 'x', type: 'pr', at: future }])
+    const seen = await getSeenAt(userId)
+    expect(seen < future).toBe(true)
+    expect(new Date(seen).getTime()).toBeLessThanOrEqual(Date.now() + 1000)
+  })
+
   it('getNotifications сортирует свежие сверху', async () => {
     await writeGoals(userId, [
       { exerciseId: 'ex_a', exerciseName: 'A', metric: 'weight', targetWeight: 50, achievedAt: '2026-01-01T00:00:00.000Z' },

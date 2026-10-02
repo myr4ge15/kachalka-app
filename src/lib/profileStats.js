@@ -193,9 +193,13 @@ export function currentBestValue(workouts, exerciseId, metric) {
   return best
 }
 
-// Процент достижения цели (0..100), безопасно при target ≤ 0.
+// Процент достижения цели (0..100), безопасно при target ≤ 0. 100 — ТОЛЬКО когда
+// значение действительно дошло до цели: округление вверх показывало «100 %» и
+// «целевой вес взят» при 99,5 из 100. До цели — вниз и не выше 99.
 export function goalProgress(current, target) {
   const t = Number(target) || 0
   if (t <= 0) return 0
-  return Math.min(100, Math.round(((Number(current) || 0) / t) * 100))
+  const c = Number(current) || 0
+  if (c >= t) return 100
+  return Math.max(0, Math.min(99, Math.floor((c / t) * 100)))
 }

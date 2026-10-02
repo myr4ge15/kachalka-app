@@ -31,7 +31,8 @@ export function findNearestRival(rows, userId) {
   const rivalIndex = myIndex === 0 ? 1 : myIndex - 1
   const me = ranked[myIndex]
   const rival = ranked[rivalIndex]
-  const weightGap = Math.abs(num(rival.weight) - num(me.weight))
+  // До сотых: 80.3 − 80.1 в двоичной арифметике = 0.20000000000000284.
+  const weightGap = Math.round(Math.abs(num(rival.weight) - num(me.weight)) * 100) / 100
   const repsGap = Math.abs(num(rival.reps) - num(me.reps))
   const tied = weightGap === 0 && repsGap === 0
   const gapMetric = weightGap > 0 ? 'weight' : 'reps'

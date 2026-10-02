@@ -56,3 +56,18 @@ export function clampSet(weight, reps, metric = 'weight') {
   if (w == null || r == null) return null
   return { weight: w, reps: r }
 }
+
+// Число из инпута, принимая десятичную запятую (1,5 → 1.5). Без этого
+// Number('1,5') === NaN и подход молча отбрасывался.
+export function toNum(v) {
+  if (typeof v === 'number') return v
+  return Number(String(v ?? '').trim().replace(',', '.'))
+}
+
+// Подход из формы (строки из input) → { weight, reps } в допустимых границах либо
+// null, если он не будет сохранен. ЕДИНОЕ правило для записи (repo.cleanEntries) и
+// для счетчика на кнопке «Сохранить»: раньше кнопка считала все строки, а запись
+// отбрасывала незаполненные — «Сохранить (5)» записывало 4 без единого слова.
+export function savableSet(set, metric = 'weight') {
+  return clampSet(toNum(set?.weight), toNum(set?.reps), metric)
+}

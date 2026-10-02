@@ -8,8 +8,15 @@ describe('StatGrid', () => {
   it('показывает число тренировок и подписи', () => {
     render(<StatGrid totalWorkouts={42} tonnage={12345} />)
     expect(screen.getByText('42')).toBeInTheDocument()
-    expect(screen.getByText(/тренировок/)).toBeInTheDocument()
+    expect(screen.getByText(/тренировки/)).toBeInTheDocument() // 42 тренировки
     expect(screen.getByText(/поднято/)).toBeInTheDocument()
+  })
+
+  it('склоняет подпись: 1 тренировка, 5 тренировок', () => {
+    const { container, rerender } = render(<StatGrid totalWorkouts={1} tonnage={0} />)
+    expect(container.textContent).toContain('тренировкавсего')
+    rerender(<StatGrid totalWorkouts={5} tonnage={0} />)
+    expect(container.textContent).toContain('тренировоквсего')
   })
 
   it('масштабирует тоннаж через fmtTonnage', () => {

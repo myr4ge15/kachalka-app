@@ -33,7 +33,7 @@ export default function NotificationsScreen({ user }) {
         seenRef.current = s
         setReady(true)
       }
-    })
+    }).catch(() => { if (alive) setReady(true) }) // без метки — просто без подсветки
     return () => { alive = false }
   }, [user.id])
 
