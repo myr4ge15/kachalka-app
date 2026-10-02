@@ -16,7 +16,9 @@ import FeedPrBadge from '../components/FeedPrBadge.jsx'
 import ReactionBar from '../components/ReactionBar.jsx'
 import { useSpinPhase } from '../hooks/useSpinPhase.js'
 
-export default function FeedScreen({ user, onOpenMember }) {
+// flashId — id тренировки, к которой привел пуш о реакции (v6.7.3): ее карточка
+// коротко подсвечивается акцентом, чтобы было видно, какую оценили.
+export default function FeedScreen({ user, onOpenMember, flashId = null }) {
   // Кэш ленты (офлайн-доступен, обновляется мгновенно при фоновой подтяжке).
   const feed = useLiveQuery(() => getCachedFeed(), [], undefined)
 
@@ -256,7 +258,7 @@ export default function FeedScreen({ user, onOpenMember }) {
           {list.map((w) => {
         const isMe = w.user_id === user.id
         return (
-          <div key={w.id} className="card feed-card">
+          <div key={w.id} className={`card feed-card${w.id === flashId ? ' feed-card--flash' : ''}`}>
             {/* Тап по автору — его профиль (v6.7.0; свой — обычный Профиль). */}
             <button
               type="button"

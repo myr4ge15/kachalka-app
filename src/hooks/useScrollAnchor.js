@@ -11,7 +11,7 @@ export function captureAnchor(container, key) {
 
 // Вернуть скроллер к якорю после возврата на экран. Контент дорисовывается
 // асинхронно (кэш Ленты, рейтинг над постами, въезд экрана), поэтому подгоняем
-// несколько кадров подряд (~1 с), а не один раз. Палец/колесо пользователя
+// несколько кадров подряд (~1 с, или snap.ms — пуш ждет холодного старта), а не один раз. Палец/колесо пользователя
 // останавливают подгонку — с ним не спорим.
 const RESTORE_MS = 1000
 
@@ -40,7 +40,7 @@ export function useScrollAnchorRestore(containerRef, snap, onDone) {
         maxScroll: sc.scrollHeight - sc.clientHeight,
       })
       if (Math.abs(top - sc.scrollTop) > 1) sc.scrollTop = top
-      if (performance.now() - started > RESTORE_MS) stop()
+      if (performance.now() - started > (snap.ms ?? RESTORE_MS)) stop()
       else raf = requestAnimationFrame(tick)
     }
     sc.addEventListener('touchstart', stop, { passive: true })

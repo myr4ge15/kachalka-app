@@ -178,6 +178,11 @@ function ScreenCrash({ onRetry }) {
 // перезапуск, как и сессия Supabase Auth (persistSession); PIN спрашивается
 // заново лишь когда refresh-токен умрет (~7 дней) или после logout.
 const SESSION_KEY = 'gym_app_user'
+// Сколько горит подсветка карточки, к которой привел пуш (мс).
+const FEED_FLASH_MS = 2400
+// Якорь «к тренировке из пуша»: карточка встает чуть ниже верха экрана. Ждем ее
+// дольше обычного возврата — при холодном старте Лента еще грузит экран и кэш.
+const pushAnchor = (workoutId) => ({ anchor: `feed-${workoutId}`, offset: 12, scrollTop: 0, ms: 2500 })
 const TAB_KEY = 'gym_app_tab'
 
 export default function App() {
@@ -190,8 +195,8 @@ export default function App() {
   // «5 секунд после открытия»). Старое значение 'workout' (вкладки больше нет)
   // проваливается в дефолт.
   const [tab, setTab] = useState(() => {
-    // Холодный старт с пуша о реакции — сразу «Тренировки», без кадра Главной.
-    if (pushIntentFromUrl(window.location.href)?.type === 'workout') return 'history'
+    // Холодный старт с пуша о реакции — сразу Лента, без кадра Главной.
+    if (pushIntentFromUrl(window.location.href)?.type === 'reaction') return 'feed'
     const saved = sessionStorage.getItem(TAB_KEY)
     if (saved === 'member') return 'feed' // id участника не переживает F5 → назад в Ленту
     return saved && saved !== 'workout' ? saved : 'home'
@@ -217,10 +222,14 @@ export default function App() {
   // false — нет интента; null — календарь на сегодня; 'YYYY-MM-DD' — сразу этот день.
   const [calendarIntent, setCalendarIntent] = useState(false)
 
-  // Интент «открой эту тренировку» (v6.7.2, нажатие на пуш о реакции): id для хаба
-  // «Тренировки», тот его считывает и гасит. Нет тренировки на устройстве — ведем
-  // в «Уведомления», где реакция тоже есть.
-  const [openWorkoutId, setOpenWorkoutId] = useState(null)
+  // Подсветка карточки Ленты, к которой привел пуш о реакции (v6.7.3): id
+  // тренировки на пару секунд, потом гаснет сама.
+  const [feedFlashId, setFeedFlashId] = useState(null)
+  useEffect(() => {
+    if (!feedFlashId) return
+    const t = setTimeout(() => setFeedFlashId(null), FEED_FLASH_MS)
+    return () => clearTimeout(t)
+  }, [feedFlashId])
 
   // Параметр `push` из адреса убираем сразу: иначе F5 снова открыл бы тренировку.
   useEffect(() => {
@@ -433,13 +442,16 @@ export default function App() {
     goTab('profile')
   }
 
-  // Применяем намерение пуша, когда человек вошел. Идем в обход goTab: на уже
-  // открытых «Тренировках» тот прислал бы `reselect`, и хаб вернулся бы к списку.
+  // Применяем намерение пуша, когда человек вошел: Лента + прокрутка к оцененной
+  // тренировке тем же якорем, что «Назад» из профиля друга. Карточки нет (старше
+  // окна Ленты) — якорь не найдется, и Лента встанет в начало. Идем в обход goTab:
+  // на уже открытой Ленте тот прислал бы `reselect` и уехал бы наверх.
   useEffect(() => {
     if (!user?.id || !pushIntent) return
-    if (pushIntent.type === 'workout') {
-      setOpenWorkoutId(pushIntent.workoutId)
-      setTab('history')
+    if (pushIntent.type === 'reaction') {
+      setFeedRestore(pushAnchor(pushIntent.workoutId))
+      setFeedFlashId(pushIntent.workoutId)
+      setTab('feed')
     }
     setPushIntent(null)
   }, [user?.id, pushIntent])
@@ -579,15 +591,12 @@ export default function App() {
                   onOpenNewConsumed={() => setOpenNewWorkout(false)}
                   openCalendar={calendarIntent}
                   onOpenCalendarConsumed={() => setCalendarIntent(false)}
-                  openWorkout={openWorkoutId}
-                  onOpenWorkoutConsumed={() => setOpenWorkoutId(null)}
-                  onOpenWorkoutMissing={() => goTab('notif')}
                   onReturn={backToRhythm}
                   onBusyChange={setHistoryBusy}
                   onOpenProgress={openProgressFor}
                 />
               )}
-              {tab === 'feed' && <FeedScreen user={user} onOpenMember={openMember} />}
+              {tab === 'feed' && <FeedScreen user={user} onOpenMember={openMember} flashId={feedFlashId} />}
               {tab === 'member' && memberId && (
                 <MemberScreen user={user} memberId={memberId} onBack={backFromMember} />
               )}

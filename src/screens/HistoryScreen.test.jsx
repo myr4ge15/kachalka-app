@@ -59,32 +59,6 @@ describe('HistoryScreen', () => {
     })
   })
 
-  it('интент openWorkout (пуш о реакции) открывает карточку тренировки', () => {
-    const onConsumed = vi.fn()
-    const onMissing = vi.fn()
-    render(<HistoryScreen user={user} openWorkout="w1"
-      onOpenWorkoutConsumed={onConsumed} onOpenWorkoutMissing={onMissing} />)
-    expect(screen.getByTestId('workout-screen')).toHaveTextContent('w1')
-    expect(onConsumed).toHaveBeenCalledTimes(1)
-    expect(onMissing).not.toHaveBeenCalled()
-  })
-
-  it('openWorkout ждет загрузки списка, а без тренировки на устройстве — сообщает', () => {
-    const onConsumed = vi.fn()
-    const onMissing = vi.fn()
-    vi.mocked(useLiveQuery).mockReturnValue(undefined)
-    const { rerender } = render(<HistoryScreen user={user} openWorkout="gone"
-      onOpenWorkoutConsumed={onConsumed} onOpenWorkoutMissing={onMissing} />)
-    expect(onConsumed).not.toHaveBeenCalled()
-
-    vi.mocked(useLiveQuery).mockReturnValue([workout])
-    rerender(<HistoryScreen user={user} openWorkout="gone"
-      onOpenWorkoutConsumed={onConsumed} onOpenWorkoutMissing={onMissing} />)
-    expect(onMissing).toHaveBeenCalledTimes(1)
-    expect(onConsumed).toHaveBeenCalledTimes(1)
-    expect(screen.queryByTestId('workout-screen')).not.toBeInTheDocument()
-  })
-
   it('на мобильном открывает выбранную тренировку вместо списка', () => {
     render(<HistoryScreen user={user} />)
     fireEvent.click(screen.getByText('Жим лежа').closest('button'))

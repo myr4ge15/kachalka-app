@@ -1420,6 +1420,17 @@ html[data-update]:not([data-composer]) .content { padding-top: 64px; }
 }
 .feed-refresh-ico.spin { animation: spin var(--spin-dur) linear infinite; animation-delay: var(--spin-phase, 0s); }
 .feed-card { padding: 14px; border-radius: 16px; }
+/* Карточка, к которой привел пуш о реакции (v6.7.3): акцентная рамка вспыхивает и
+   гаснет. Тень, а не border — без сдвига раскладки. Без анимации — просто горит,
+   пока App не снимет класс (~2,4 c). */
+.feed-card--flash { animation: feed-flash 2.4s ease-out both; }
+@keyframes feed-flash {
+  0%, 45% { box-shadow: 0 0 0 2px var(--acc), 0 0 0 6px var(--acc-soft); }
+  100% { box-shadow: 0 0 0 2px transparent, 0 0 0 6px transparent; }
+}
+@media (prefers-reduced-motion: reduce) {
+  .feed-card--flash { animation: none; box-shadow: 0 0 0 2px var(--acc); }
+}
 .feed-card-head { display: flex; align-items: center; gap: 12px; margin-bottom: 10px; }
 /* v6.7.0: шапка карточки — кнопка в профиль автора; сброс кнопочных стилей. */
 .feed-card-head-btn {

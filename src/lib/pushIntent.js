@@ -3,7 +3,8 @@
 // старте (openWindow), и сообщением в уже открытое окно. Здесь tag превращается
 // в намерение. Сервер для этого ничего не меняет: tag уже несет нужный id.
 //
-//   reaction-<workoutId>-<reactorId> → карточка своей тренировки.
+//   reaction-<workoutId>-<reactorId> → Лента, прокрутка к этой тренировке
+//   (v6.7.3; в v6.7.2 открывалась карточка тренировки — не прижилось).
 //
 // Остальные пуши (рекорды, рейтинг, напоминания) пока ведут на Главную, как раньше.
 
@@ -15,7 +16,7 @@ export const PUSH_PARAM = 'push'
 export function pushIntentFromTag(tag) {
   if (typeof tag !== 'string') return null
   const m = REACTION_RE.exec(tag)
-  if (m) return { type: 'workout', workoutId: m[1].toLowerCase() }
+  if (m) return { type: 'reaction', workoutId: m[1].toLowerCase() }
   return null
 }
 
