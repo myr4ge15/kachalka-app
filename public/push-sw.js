@@ -22,7 +22,7 @@ self.addEventListener('push', (event) => {
     body: data.body || '',
     icon: new URL('icon-192.png', scope).href,
     lang: 'ru',
-    data: { url: new URL(data.url || './', scope).href },
+    data: { url: openUrl(data, scope) },
   }
   if (data.tag) {
     options.tag = data.tag
@@ -32,14 +32,28 @@ self.addEventListener('push', (event) => {
   event.waitUntil(self.registration.showNotification(title, options))
 })
 
-// Нажатие: переключаемся на уже открытое окно приложения, иначе открываем новое.
+// Адрес, который откроет нажатие. tag кладем в `?push=` (v6.7.2): по нему
+// приложение понимает, что показать (src/lib/pushIntent.js — реакция → карточка
+// тренировки). Раньше все пуши вели на «./», то есть на Главную.
+function openUrl(data, scope) {
+  const url = new URL(data.url || './', scope)
+  if (data.tag) url.searchParams.set('push', data.tag)
+  return url.href
+}
+
+// Нажатие: если приложение уже открыто — переключаемся на него и сообщаем, куда
+// перейти (раньше окно просто выходило на передний план там, где было); иначе
+// открываем новое окно сразу с нужным адресом.
 self.addEventListener('notificationclick', (event) => {
   event.notification.close()
   const target = (event.notification.data && event.notification.data.url) || self.registration.scope
   event.waitUntil((async () => {
     const wins = await clients.matchAll({ type: 'window', includeUncontrolled: true })
     for (const w of wins) {
-      if (w.url.startsWith(self.registration.scope) && 'focus' in w) return w.focus()
+      if (w.url.startsWith(self.registration.scope) && 'focus' in w) {
+        w.postMessage({ type: 'push-open', url: target })
+        return w.focus()
+      }
     }
     if (clients.openWindow) return clients.openWindow(target)
   })())

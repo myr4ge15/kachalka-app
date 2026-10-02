@@ -4,6 +4,7 @@ import { isConfigured, warmup, supabase } from './db/supabase.js'
 import { logout as authLogout, getCachedProfile } from './lib/auth.js'
 import { releasePushOnLogout, getPushState, enablePush, wasPushAsked, markPushAsked } from './db/push.js'
 import { shouldAskPush } from './lib/pushSupport.js'
+import { pushIntentFromUrl, stripPushParam } from './lib/pushIntent.js'
 import PushAskSheet from './components/PushAskSheet.jsx'
 import { startSync, useSyncStatus } from './db/sync.js'
 import { countUnread } from './db/notifications.js'
@@ -181,10 +182,16 @@ const TAB_KEY = 'gym_app_tab'
 
 export default function App() {
   const [user, setUser] = useState(null)
+  // Нажатие на пуш (v6.7.2): service worker открывает приложение с `?push=<tag>`
+  // или, если оно уже открыто, присылает сообщение. Намерение ждет входа и
+  // применяется один раз (см. эффект ниже); до входа просто лежит.
+  const [pushIntent, setPushIntent] = useState(() => pushIntentFromUrl(window.location.href))
   // Активная вкладка переживает F5 (sessionStorage). Дефолт — 'home' (Главная,
   // «5 секунд после открытия»). Старое значение 'workout' (вкладки больше нет)
   // проваливается в дефолт.
   const [tab, setTab] = useState(() => {
+    // Холодный старт с пуша о реакции — сразу «Тренировки», без кадра Главной.
+    if (pushIntentFromUrl(window.location.href)?.type === 'workout') return 'history'
     const saved = sessionStorage.getItem(TAB_KEY)
     if (saved === 'member') return 'feed' // id участника не переживает F5 → назад в Ленту
     return saved && saved !== 'workout' ? saved : 'home'
@@ -209,6 +216,30 @@ export default function App() {
   // Интент «открой календарь тренировок» (v6.3.0, ссылка из Ритма Главной).
   // false — нет интента; null — календарь на сегодня; 'YYYY-MM-DD' — сразу этот день.
   const [calendarIntent, setCalendarIntent] = useState(false)
+
+  // Интент «открой эту тренировку» (v6.7.2, нажатие на пуш о реакции): id для хаба
+  // «Тренировки», тот его считывает и гасит. Нет тренировки на устройстве — ведем
+  // в «Уведомления», где реакция тоже есть.
+  const [openWorkoutId, setOpenWorkoutId] = useState(null)
+
+  // Параметр `push` из адреса убираем сразу: иначе F5 снова открыл бы тренировку.
+  useEffect(() => {
+    const clean = stripPushParam(window.location.href)
+    if (clean) window.history.replaceState(window.history.state, '', clean)
+  }, [])
+
+  // Уже открытое приложение: адрес не меняется, service worker шлет сообщение.
+  useEffect(() => {
+    const sw = navigator.serviceWorker
+    if (!sw) return
+    const onMessage = (e) => {
+      if (e.data?.type !== 'push-open') return
+      const intent = pushIntentFromUrl(e.data.url)
+      if (intent) setPushIntent(intent)
+    }
+    sw.addEventListener('message', onMessage)
+    return () => sw.removeEventListener('message', onMessage)
+  }, [])
 
   // Вернуться из календаря/тренировки обратно к Ритму Главной (v6.3.5): Главная
   // докручивает до блока «Ритм» и гасит флаг.
@@ -402,6 +433,17 @@ export default function App() {
     goTab('profile')
   }
 
+  // Применяем намерение пуша, когда человек вошел. Идем в обход goTab: на уже
+  // открытых «Тренировках» тот прислал бы `reselect`, и хаб вернулся бы к списку.
+  useEffect(() => {
+    if (!user?.id || !pushIntent) return
+    if (pushIntent.type === 'workout') {
+      setOpenWorkoutId(pushIntent.workoutId)
+      setTab('history')
+    }
+    setPushIntent(null)
+  }, [user?.id, pushIntent])
+
   function startNewWorkout() {
     setOpenNewWorkout(true)
     if (tab === 'history') {
@@ -537,6 +579,9 @@ export default function App() {
                   onOpenNewConsumed={() => setOpenNewWorkout(false)}
                   openCalendar={calendarIntent}
                   onOpenCalendarConsumed={() => setCalendarIntent(false)}
+                  openWorkout={openWorkoutId}
+                  onOpenWorkoutConsumed={() => setOpenWorkoutId(null)}
+                  onOpenWorkoutMissing={() => goTab('notif')}
                   onReturn={backToRhythm}
                   onBusyChange={setHistoryBusy}
                   onOpenProgress={openProgressFor}

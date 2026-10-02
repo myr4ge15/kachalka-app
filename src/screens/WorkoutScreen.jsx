@@ -282,6 +282,13 @@ export default function WorkoutScreen({ user, workoutId = null, onBack, onSaved 
     const removed = entries[idx]
     setEntries((prev) => removeExerciseIn(prev, idx))
     if (!removed) return
+    // Убрали открытую карточку — раскрываем соседнюю (ту, что встала на ее место,
+    // а у последней — предыдущую), а не первую в списке: иначе экран уезжал к
+    // началу тренировки (v6.7.2).
+    if (removed.exercise?.id === activeExerciseId) {
+      const neighbor = entries[idx + 1] ?? entries[idx - 1]
+      if (neighbor) activateExercise(neighbor.exercise.id)
+    }
     // Удаление срабатывает сразу, но даем окно отмены — кнопка удаления
     // соседствует с зоной сохранения/добавления, легко нажать случайно.
     showToast({
@@ -292,7 +299,10 @@ export default function WorkoutScreen({ user, workoutId = null, onBack, onSaved 
       actionLabel: 'Отменить',
       duration: 4000, // дольше дефолтных 3 c (нужно окно отмены), но не 6 — «висел»
       raised: true, // выше липкой кнопки «Сохранить» — чтобы не перекрывала ее
-      onAction: () => setEntries((prev) => insertExerciseIn(prev, idx, removed)),
+      onAction: () => {
+        setEntries((prev) => insertExerciseIn(prev, idx, removed))
+        activateExercise(removed.exercise.id)
+      },
     })
   }
 

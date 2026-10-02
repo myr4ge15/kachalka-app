@@ -56,6 +56,9 @@ function useMediaQuery(query) {
 //                        режим выбора для экспорта: App прячет плавающую «+».
 //   openCalendar       — одноразовый интент «открой календарь» (v6.3.0): false —
 //                        нет; null — на сегодня; 'YYYY-MM-DD' — сразу этот день.
+//   openWorkout        — одноразовый интент «открой тренировку <id>» (v6.7.2, пуш о
+//                        реакции); гасится onOpenWorkoutConsumed, а если такой
+//                        тренировки на устройстве нет — onOpenWorkoutMissing().
 //   onReturn()         — календарь открыт из Ритма Главной: закрытие календаря или
 //                        «назад» из открытой в нем тренировки возвращают в Ритм (v6.3.5).
 export default function HistoryScreen({
@@ -64,6 +67,9 @@ export default function HistoryScreen({
   onOpenNewConsumed,
   openCalendar = false,
   onOpenCalendarConsumed,
+  openWorkout = null,
+  onOpenWorkoutConsumed,
+  onOpenWorkoutMissing,
   onReturn,
   onBusyChange,
   onOpenProgress,
@@ -108,6 +114,22 @@ export default function HistoryScreen({
     setFromRhythm(Boolean(onReturn))
     onOpenCalendarConsumed?.()
   }, [openCalendar, onOpenCalendarConsumed, onReturn])
+
+  // Интент «открой эту тренировку» (v6.7.2, нажатие на пуш о реакции). Ждем,
+  // пока список прочитается из базы: тренировки нет на устройстве (еще не
+  // доехала синком или удалена) — сообщаем App, тот ведет в «Уведомления».
+  useEffect(() => {
+    if (!openWorkout || loading) return
+    if (list.some((w) => w.id === openWorkout)) {
+      setCalendar(false)
+      setFinishResult(null)
+      setFromRhythm(false)
+      setSelected(openWorkout)
+    } else {
+      onOpenWorkoutMissing?.()
+    }
+    onOpenWorkoutConsumed?.()
+  }, [openWorkout, loading, list, onOpenWorkoutConsumed, onOpenWorkoutMissing])
 
   // Закрыть календарь / тренировку: из Ритма — назад в Ритм, иначе — к списку.
   function backFromRhythmOr(fallback) {

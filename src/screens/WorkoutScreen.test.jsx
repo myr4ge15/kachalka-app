@@ -134,6 +134,27 @@ describe('WorkoutScreen', () => {
     })
   })
 
+  it('после «убрать» раскрывает соседнюю карточку, а не первую', () => {
+    const third = {
+      exercise: { id: 'squat', name: 'Присед', metric: 'weight', muscle_group: 'ноги', secondary: [] },
+      sets: [{ weight: 100, reps: 5, _k: 'set-3' }],
+    }
+    writeDraft(`workout_draft_new_${user.id}`, [...draft, secondEntry, third])
+    const { container } = render(<WorkoutScreen user={user} />)
+    const card = (id) => container.querySelector(`[data-exercise-id="${id}"]`)
+
+    fireEvent.click(screen.getByRole('button', { name: /Открыть Подтягивания/ }))
+    fireEvent.click(screen.getByRole('button', { name: 'убрать' }))
+    expect(card('pullup')).toBeNull()
+    expect(card('squat')).toHaveAttribute('data-active', 'true')
+    expect(card('bench')).toHaveAttribute('data-active', 'false')
+
+    // Последняя карточка — фокус уходит на предыдущую.
+    fireEvent.click(screen.getByRole('button', { name: 'убрать' }))
+    expect(card('squat')).toBeNull()
+    expect(card('bench')).toHaveAttribute('data-active', 'true')
+  })
+
   it('центрирует без анимации при prefers-reduced-motion', () => {
     Object.defineProperty(window, 'matchMedia', {
       configurable: true,
