@@ -15,6 +15,17 @@ import FeedPrBadge from '../components/FeedPrBadge.jsx'
 import ReactionBar from '../components/ReactionBar.jsx'
 import { useSpinPhase } from '../hooks/useSpinPhase.js'
 
+// Рейтинг над постами на телефоне — свернут по умолчанию (v6.11.1): раньше он
+// всегда стоял раскрытым и отодвигал саму ленту. Выбор помним на устройстве для
+// каждой учетки. На десктопе рейтинг — сайдбар, там он всегда виден (CSS).
+const railKey = (userId) => `gym_app_feed_rating_open_${userId}`
+function readRailOpen(userId) {
+  try { return localStorage.getItem(railKey(userId)) === '1' } catch { return false }
+}
+function writeRailOpen(userId, open) {
+  try { localStorage.setItem(railKey(userId), open ? '1' : '0') } catch { /* приватный режим */ }
+}
+
 // flashId — id тренировки, к которой привел пуш о реакции (v6.7.3): ее карточка
 // коротко подсвечивается акцентом, чтобы было видно, какую оценили.
 export default function FeedScreen({ user, onOpenMember, flashId = null }) {
@@ -54,6 +65,9 @@ export default function FeedScreen({ user, onOpenMember, flashId = null }) {
 
   const loading = feed === undefined
   const list = feed ?? []
+
+  const [railOpen, setRailOpen] = useState(() => readRailOpen(user.id))
+  const toggleRail = () => setRailOpen((open) => { writeRailOpen(user.id, !open); return !open })
 
   // Тап по реакции: оптимистично (очередь + правка кэша ленты), затем отправка.
   const onReact = useCallback((workoutId, kind, mine) => {
@@ -319,8 +333,17 @@ export default function FeedScreen({ user, onOpenMember, flashId = null }) {
 
         {/* Лидерборд приватному не показываем: в общий рейтинг он не входит. */}
         {!myPrivate && (
-          <aside className="feed-rail">
-            <Leaderboard user={user} onOpenMember={onOpenMember} />
+          <aside className="feed-rail" data-open={railOpen ? '1' : '0'}>
+            <button type="button" className="group-toggle feed-rail-toggle" aria-expanded={railOpen}
+              onClick={toggleRail}>
+              <span className="group-caret" aria-hidden="true">{railOpen ? '▾' : '▸'}</span>
+              <span className="group-toggle-title">Рейтинг</span>
+            </button>
+            {/* Свернутый рейтинг не размонтируем: данные уже подгружены, раскрытие
+                мгновенное, а на десктопе он виден всегда. */}
+            <div className="feed-rail-body">
+              <Leaderboard user={user} onOpenMember={onOpenMember} />
+            </div>
           </aside>
         )}
       </div>

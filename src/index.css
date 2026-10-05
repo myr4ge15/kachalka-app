@@ -1492,6 +1492,10 @@ html[data-update]:not([data-composer]) .content { padding-top: 64px; }
 
 .feed-layout { display: flex; flex-direction: column; }
 .feed-rail { order: -1; }
+/* Рейтинг в ленте сворачивается (v6.11.1, FeedScreen): на телефоне по умолчанию
+   свернут, на десктопе (сайдбар) кнопки нет и он виден всегда — см. @media ниже. */
+.feed-rail-toggle { padding-top: 4px; }
+.feed-rail[data-open="0"] .feed-rail-body { display: none; }
 .feed-head { display: flex; align-items: center; justify-content: space-between; gap: 10px; margin: 4px 0 8px; }
 /* Заголовок и кнопка в одной строке, подзаголовок — ПОД строкой целиком: у .sub
    отрицательный отступ, и двухстрочный текст приватного режима заезжал под
@@ -2331,6 +2335,8 @@ label.act.busy { opacity: .55; pointer-events: none; }
     grid-area: rail; order: 0;
     position: sticky; top: 12px;
   }
+  .feed-rail-toggle { display: none; }
+  .feed-rail[data-open="0"] .feed-rail-body { display: block; }
 
   /* Мои тренировки (слайс 3): master-detail — список слева (липкий), редактор
      справа. .md-screen шире прочих; список прилипает при прокрутке длинной детали. */
@@ -3205,6 +3211,9 @@ label > span.muted:first-child, .date-field > .muted, .create-label, .field-lab,
   .sheet.sheet--compact { align-self: center; height: auto; max-height: 80vh; border-radius: 16px; }
 }
 .sheet--compact .sheet-scroll { flex: 0 1 auto; }
+/* Открыт лист — фон стоит (v6.11.1, SheetDialog ставит data-sheet-open). Позиция
+   прокрутки при overflow:hidden сохраняется — после закрытия экран там же. */
+html[data-sheet-open] .content { overflow-y: hidden; }
 .wn-kicker {
   display: flex; align-items: center; gap: 8px; margin: -4px 0 10px; flex-shrink: 0;
   font-size: var(--fs-meta); color: var(--muted); font-weight: var(--fw-strong);

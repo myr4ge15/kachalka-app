@@ -4,7 +4,7 @@ import CardsSkeleton from '../components/CardsSkeleton.jsx'
 import { showToast } from '../components/Toast.jsx'
 import { useSyncStatus } from '../db/sync.js'
 import {
-  bodyProblem, buildContext, fmtFeedbackDate, hasUnreadReply, FEEDBACK_MAX, STATUS_LABEL,
+  bodyProblem, buildContext, fmtFeedbackDate, hasUnreadReply, isWebKit26Plus, FEEDBACK_MAX, STATUS_LABEL,
 } from '../lib/feedback.js'
 import {
   ackMyFeedback, listMyFeedback, submitFeedback as defaultSubmit, FeedbackError,
@@ -15,8 +15,9 @@ const defaultApi = { submit: defaultSubmit, list: listMyFeedback, ack: ackMyFeed
 // «Написать разработчику» (v6.11.0, Профиль → Настройки). Обращение уходит
 // разработчику в Telegram; ответ и статус видны здесь и приходят пушем
 // (tag feedback-<id> открывает этот экран и подсвечивает обращение).
-// Пропсы: user, onBack(), [focusId] — id из пуша, [api] — для тестов.
-export default function FeedbackScreen({ user, onBack, focusId = null, api = defaultApi }) {
+// Пропсы: user, onBack(), [focusId] — id из пуша, [fromScreen] — вкладка, с которой
+// пришли в Настройки (в контекст обращения), [api] — для тестов.
+export default function FeedbackScreen({ user, onBack, focusId = null, fromScreen = null, api = defaultApi }) {
   const { online } = useSyncStatus()
   const [text, setText] = useState('')
   const [file, setFile] = useState(null)
@@ -76,9 +77,10 @@ export default function FeedbackScreen({ user, onBack, focusId = null, api = def
       const context = buildContext({
         version: typeof __APP_VERSION__ !== 'undefined' ? __APP_VERSION__ : 'dev',
         userAgent: navigator.userAgent,
+        modernWebKit: isWebKit26Plus(),
         standalone,
         viewport: { w: window.innerWidth, h: window.innerHeight },
-        screen: 'profile',
+        screen: fromScreen ?? 'profile',
         online: navigator.onLine,
       })
       await api.submit(user.id, { body: text, context, file })

@@ -123,4 +123,29 @@ describe('SheetDialog', () => {
     expect(container).not.toHaveAttribute('inert')
     expect(opener).toHaveFocus()
   })
+  it('пока открыт хоть один лист, фон не прокручивается (data-sheet-open)', () => {
+    const root = document.documentElement
+    const { rerender, unmount } = render(
+      <>
+        <SheetDialog title="Нижний" onDismiss={() => {}}><button>a</button></SheetDialog>
+        <SheetDialog title="Верхний" onDismiss={() => {}}><button>b</button></SheetDialog>
+      </>
+    )
+    expect(root.dataset.sheetOpen).toBe('1')
+    rerender(<SheetDialog title="Нижний" onDismiss={() => {}}><button>a</button></SheetDialog>)
+    expect(root.dataset.sheetOpen).toBe('1') // нижний еще открыт
+    unmount()
+    expect(root.dataset.sheetOpen).toBeUndefined()
+  })
+
+  it('жест по затемнению гасится, внутри листа — нет', () => {
+    render(<SheetDialog title="Лист" onDismiss={() => {}}><div data-testid="inside">x</div></SheetDialog>)
+    const overlay = document.querySelector('.overlay')
+    const onBackdrop = new Event('touchmove', { bubbles: true, cancelable: true })
+    overlay.dispatchEvent(onBackdrop)
+    expect(onBackdrop.defaultPrevented).toBe(true)
+    const inside = new Event('touchmove', { bubbles: true, cancelable: true })
+    screen.getByTestId('inside').dispatchEvent(inside)
+    expect(inside.defaultPrevented).toBe(false)
+  })
 })

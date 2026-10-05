@@ -9,6 +9,7 @@ import BackButton from '../components/BackButton.jsx'
 import { getUsers } from '../db/repo.js'
 import { byGender } from '../lib/gender.js'
 import { filterNotifs, activeCategories } from '../lib/notifFilter.js'
+import { plural } from '../lib/plural.js'
 
 // Экран «Уведомления»: личные рекорды и кто обходит тебя в кругу (ТЗ §4.5, MVP).
 // Вложенный роут — шапка с общей круглой BackButton, как у остальных вложенных
@@ -75,7 +76,7 @@ export default function NotificationsScreen({ user, onBack }) {
 
       {!loading && items.length > 0 && (
         <div className="muted notif-count">
-          {unreadCount > 0 ? `${unreadCount} новых` : 'все прочитано'}
+          {unreadCount > 0 ? `${unreadCount} ${plural(unreadCount, 'новое', 'новых', 'новых')}` : 'все прочитано'}
         </div>
       )}
 

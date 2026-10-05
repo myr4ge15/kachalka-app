@@ -38,7 +38,7 @@ describe('AdminFeedback', () => {
     expect(screen.getByText('Темная тема ярче')).toBeTruthy()
     expect(screen.queryByText('Старое')).toBeNull()
     expect(screen.getByRole('tab', { name: 'Открытые · 2' })).toBeTruthy()
-    expect(screen.getByText('v6.11.0 · iPhone · iOS 17.5 · PWA · экран: Профиль')).toBeTruthy()
+    expect(screen.getByText('v6.11.0 · iPhone · iOS 17.5 · PWA · открыто с: Профиль')).toBeTruthy()
     expect(screen.getByText(/· прочитан/)).toBeTruthy()
     await userEvent.click(screen.getByRole('tab', { name: 'Все · 3' }))
     expect(screen.getByText('Старое')).toBeTruthy()

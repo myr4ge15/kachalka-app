@@ -769,7 +769,8 @@ export default function App() {
                 <AppearanceScreen user={user} onBack={backToSettings} />
               )}
               {route === 'feedback' && (
-                <FeedbackScreen user={user} focusId={feedbackFocus} onBack={backToSettings} />
+                <FeedbackScreen user={user} focusId={feedbackFocus} onBack={backToSettings}
+                  fromScreen={routeAnim.stack.find((t) => !isNested(t)) ?? null} />
               )}
             </ErrorBoundary>
               </Suspense>

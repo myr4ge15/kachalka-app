@@ -21,14 +21,14 @@ const ROW = {
   replied_at: '2026-10-05T12:00:00Z', reply_seen_at: null, has_screenshot: true, created_at: '2026-10-05T10:00:00Z',
 }
 
-function setup(over = {}) {
+function setup(over = {}, props = {}) {
   const api = {
     submit: vi.fn(async () => ({ id: 'new', delivered: true })),
     list: vi.fn(async () => []),
     ack: vi.fn(),
     ...over,
   }
-  render(<FeedbackScreen user={USER} onBack={() => {}} api={api} />)
+  render(<FeedbackScreen user={USER} onBack={() => {}} api={api} {...props} />)
   return api
 }
 
@@ -40,6 +40,14 @@ beforeEach(() => {
 })
 
 describe('FeedbackScreen', () => {
+  it('контекст: вкладка, с которой пришли в Настройки, а не всегда «Профиль»', async () => {
+    const api = setup({}, { fromScreen: 'feed' })
+    await userEvent.type(screen.getByLabelText('Что случилось?'), 'Не грузится')
+    await userEvent.click(screen.getByRole('button', { name: 'Отправить' }))
+    await waitFor(() => expect(api.submit).toHaveBeenCalledTimes(1))
+    expect(api.submit.mock.calls[0][1].context.screen).toBe('Лента')
+  })
+
   it('отправка: текст + контекст (версия, устройство, экран), форма очищается', async () => {
     const api = setup()
     const send = screen.getByRole('button', { name: 'Отправить' })

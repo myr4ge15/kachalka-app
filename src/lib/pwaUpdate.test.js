@@ -1,5 +1,5 @@
 import { describe, it, expect, vi } from 'vitest'
-import { shouldReshowUpdate, makeReloadOnce, isRealUpdate } from './pwaUpdate.js'
+import { shouldReshowUpdate, makeReloadOnce, isRealUpdate, shouldAutoApply, AUTO_APPLY_MS } from './pwaUpdate.js'
 
 const TTL = 4 * 60 * 60 * 1000 // 4 часа
 
@@ -49,5 +49,16 @@ describe('makeReloadOnce', () => {
     const once = makeReloadOnce(reload)
     once(); once(); once()
     expect(reload).toHaveBeenCalledTimes(1)
+  })
+})
+
+describe('shouldAutoApply (пуш «вышла новая версия»)', () => {
+  it('нажали пуш недавно и композер закрыт — применяем сами', () => {
+    expect(shouldAutoApply({ requestedAt: 1000, now: 1000 + AUTO_APPLY_MS, composerOpen: false })).toBe(true)
+  })
+  it('не нажимали, слишком давно или идет запись тренировки — обычная плашка', () => {
+    expect(shouldAutoApply({ requestedAt: 0, now: 5, composerOpen: false })).toBe(false)
+    expect(shouldAutoApply({ requestedAt: 1000, now: 1001 + AUTO_APPLY_MS, composerOpen: false })).toBe(false)
+    expect(shouldAutoApply({ requestedAt: 1000, now: 1000, composerOpen: true })).toBe(false)
   })
 })

@@ -37,6 +37,19 @@ export function isRealUpdate(currentVersion, serverVersion) {
   return String(serverVersion) !== String(currentVersion)
 }
 
+// Автоприменение по пушу «вышла новая версия» (v6.11.1). Нажатие на такой пуш —
+// уже согласие обновиться, поэтому плашку с кнопкой «Обновить» не показываем, а
+// применяем ждущую версию сами. Ограничения:
+//  • только в окне AUTO_APPLY_MS после нажатия — если новая версия так и не
+//    доехала (сеть), через минуту обычная плашка, а не внезапная перезагрузка;
+//  • не посреди записи тренировки (открыт композер) — тогда обычная плашка.
+export const AUTO_APPLY_MS = 60 * 1000
+
+export function shouldAutoApply({ requestedAt, now, composerOpen, ttl = AUTO_APPLY_MS }) {
+  if (!requestedAt || composerOpen) return false
+  return now - requestedAt <= ttl
+}
+
 // Одноразовая перезагрузка при смене контроллера SW (v3.10.2). Нужна, потому что
 // vite-plugin-pwa в prompt-режиме перезагружает страницу сам ТОЛЬКО в обработчике
 // `controlling` под условием `event.isUpdate` (= была ли страница под контролем SW

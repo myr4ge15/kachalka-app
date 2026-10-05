@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
 import {
-  bodyProblem, buildContext, cleanBody, contextLine, describeDevice, feedbackErrorText,
+  bodyProblem, buildContext, cleanBody, contextLine, describeDevice, feedbackErrorText, isWebKit26Plus,
   fmtFeedbackDate, hasUnreadReply, isOpenStatus, openCount, unreadReplies, FEEDBACK_MAX,
 } from './feedback.js'
 
@@ -83,7 +83,36 @@ describe('тексты и форматы', () => {
     expect(fmtFeedbackDate('2026-10-05T14:32:00')).toBe('05.10 14:32')
     expect(fmtFeedbackDate('nope')).toBe('')
     expect(contextLine({ version: '6.11.0', device: 'iPhone', standalone: false, screen: 'Лента', online: false }))
-      .toBe('v6.11.0 · iPhone · браузер · экран: Лента · офлайн')
+      .toBe('v6.11.0 · iPhone · браузер · открыто с: Лента · офлайн')
     expect(contextLine({ device: { x: 1 } })).toBe('')
+  })
+})
+
+describe('describeDevice — замороженный userAgent iOS 26 (v6.11.1)', () => {
+  // Safari 26 пишет в UA «OS 18_6/18_7», а в PWA нет и токена Version/.
+  const PWA_26 = 'Mozilla/5.0 (iPhone; CPU iPhone OS 18_7 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Mobile/15E148'
+  const SAFARI_26 = 'Mozilla/5.0 (iPhone; CPU iPhone OS 18_6 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/26.0 Mobile/15E148 Safari/604.1'
+  it('PWA на движке 26+ → «iOS 26+», а не замороженные 18.7', () => {
+    expect(describeDevice(PWA_26, { modernWebKit: true })).toBe('iPhone · iOS 26+')
+  })
+  it('настоящая iOS 18.7 (старый движок) остается 18.7', () => {
+    expect(describeDevice(PWA_26, { modernWebKit: false })).toBe('iPhone · iOS 18.7')
+    expect(describeDevice(PWA_26)).toBe('iPhone · iOS 18.7')
+  })
+  it('в Safari берем настоящую версию из Version/26.x', () => {
+    expect(describeDevice(SAFARI_26)).toBe('iPhone · iOS 26.0')
+  })
+  it('старые iOS не трогаем', () => {
+    expect(describeDevice(IPHONE, { modernWebKit: true })).toBe('iPhone · iOS 17.5')
+  })
+})
+
+describe('isWebKit26Plus', () => {
+  it('по поддержке CSS: якоря или анимации по прокрутке', () => {
+    expect(isWebKit26Plus({ supports: (q) => q.startsWith('anchor-name') })).toBe(true)
+    expect(isWebKit26Plus({ supports: (q) => q.startsWith('animation-timeline') })).toBe(true)
+    expect(isWebKit26Plus({ supports: () => false })).toBe(false)
+    expect(isWebKit26Plus(undefined)).toBe(false)
+    expect(isWebKit26Plus({ supports: () => { throw new Error('x') } })).toBe(false)
   })
 })

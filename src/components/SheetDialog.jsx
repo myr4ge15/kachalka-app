@@ -24,6 +24,12 @@ const frozenByUs = new Set()
 function syncInert() {
   frozenByUs.forEach((el) => el.removeAttribute('inert'))
   frozenByUs.clear()
+  // Фон под листом не прокручивается (v6.11.1): inert блокирует клики и фокус, но
+  // не жест прокрутки — на iPhone под «Что нового» скроллился экран. Пока открыт
+  // хоть один лист, CSS по html[data-sheet-open] замораживает .content.
+  const root = document.documentElement
+  if (openStack.length) root.dataset.sheetOpen = '1'
+  else delete root.dataset.sheetOpen
   const top = openStack[openStack.length - 1]?.overlay
   if (!top?.parentNode) return
   for (const el of top.parentNode.children) {
@@ -82,9 +88,16 @@ export default function SheetDialog({
       dismissRef.current()
     }
     document.addEventListener('keydown', onDocKeyDown)
+    // Жест по затемнению (вне листа) не должен уходить в прокрутку страницы.
+    // Только по самой подложке: внутри листа свои прокручиваемые списки.
+    function onBackdropMove(event) {
+      if (event.target === overlay && event.cancelable) event.preventDefault()
+    }
+    overlay?.addEventListener('touchmove', onBackdropMove, { passive: false })
 
     return () => {
       document.removeEventListener('keydown', onDocKeyDown)
+      overlay?.removeEventListener('touchmove', onBackdropMove)
       const at = openStack.indexOf(token)
       if (at !== -1) openStack.splice(at, 1)
       // Сначала снимаем inert: в inert-поддереве фокус не ставится.

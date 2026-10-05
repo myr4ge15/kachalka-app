@@ -1,7 +1,14 @@
-import { useEffect, useRef, useState } from 'react'
+import { useCallback, useEffect, useRef, useState } from 'react'
 import { useRegisterSW } from 'virtual:pwa-register/react'
 import { onOnline, onResume } from '../lib/appEvents.js'
-import { shouldReshowUpdate, makeReloadOnce, isRealUpdate } from '../lib/pwaUpdate.js'
+import { shouldReshowUpdate, makeReloadOnce, isRealUpdate, shouldAutoApply } from '../lib/pwaUpdate.js'
+import { pushIntentFromUrl } from '../lib/pushIntent.js'
+
+// Открыли нажатием на пуш «вышла новая версия»? Читаем адрес в момент монтирования:
+// App убирает `?push=` из адреса только в эффекте, позже первого рендера.
+function openedByUpdatePush() {
+  try { return pushIntentFromUrl(window.location.href)?.type === 'update' } catch { return false }
+}
 
 // Как часто, пока приложение открыто, форсим проверку нового деплоя. Браузер сам
 // опрашивает service worker редко (навигация / ~раз в сутки), поэтому в долго
@@ -83,6 +90,10 @@ export default function UpdatePrompt() {
   // Сверка с сервером завершена. До нее плашку не рисуем: иначе ложная «Новая
   // версия» успевала мигнуть и только потом гаснуть.
   const [versionChecked, setVersionChecked] = useState(false)
+  // Когда нажали пуш «вышла новая версия» (0 — не нажимали). См. shouldAutoApply.
+  const [autoAt, setAutoAt] = useState(() => (openedByUpdatePush() ? Date.now() : 0))
+  const autoAtRef = useRef(autoAt)
+  autoAtRef.current = autoAt
 
   const {
     needRefresh: [needRefresh, setNeedRefresh],
@@ -90,6 +101,8 @@ export default function UpdatePrompt() {
   } = useRegisterSW({
     onRegisteredSW(_swScriptUrl, registration) {
       regRef.current = registration ?? null
+      // Пришли из пуша о новой версии — сразу спрашиваем сервер, не ждем таймера.
+      if (registration && autoAtRef.current) registration.update().catch(() => {})
     },
   })
   needRefreshRef.current = needRefresh
@@ -163,6 +176,20 @@ export default function UpdatePrompt() {
     return () => { alive = false }
   }, [needRefresh, setNeedRefresh])
 
+  // Пуш о новой версии нажали, когда приложение уже открыто: SW шлет сообщение
+  // (ответ ему дает App). Запоминаем нажатие и сразу проверяем обновление.
+  useEffect(() => {
+    const sw = typeof navigator !== 'undefined' ? navigator.serviceWorker : null
+    if (!sw) return undefined
+    const onMessage = (e) => {
+      if (e.data?.type !== 'push-open' || pushIntentFromUrl(e.data.url)?.type !== 'update') return
+      setAutoAt(Date.now())
+      regRef.current?.update().catch(() => {})
+    }
+    sw.addEventListener('message', onMessage)
+    return () => sw.removeEventListener('message', onMessage)
+  }, [])
+
   const snooze = () => {
     snoozedAtRef.current = Date.now()
     setNeedRefresh(false)
@@ -174,15 +201,23 @@ export default function UpdatePrompt() {
   // десктопе) = false → reload не срабатывал, приходилось жать Ctrl+Shift+R.
   // Вешаем СВОЙ одноразовый controllerchange→reload: новый SW активируется,
   // захватывает страницу (clientsClaim) и меняет контроллер → перезагружаемся.
-  const applyUpdate = () => {
+  const applyUpdate = useCallback(() => {
     const reloadOnce = makeReloadOnce(() => window.location.reload())
     navigator.serviceWorker?.addEventListener('controllerchange', reloadOnce)
     updateServiceWorker(true)
-  }
+  }, [updateServiceWorker])
 
   // Строка висит поверх верха контента — пока она видна, контент сдвигаем вниз
   // (CSS по html[data-update]), иначе она закрывала заголовок экрана.
   const visible = needRefresh && versionChecked
+
+  // Новая версия подтверждена, а человек пришел из пуша о ней — применяем сами.
+  useEffect(() => {
+    if (!visible || !autoAt) return
+    const composerOpen = document.documentElement.dataset.composer === '1'
+    if (shouldAutoApply({ requestedAt: autoAt, now: Date.now(), composerOpen })) applyUpdate()
+    setAutoAt(0) // одно нажатие — одна попытка; дальше обычная плашка
+  }, [visible, autoAt, applyUpdate])
   useEffect(() => {
     const root = document.documentElement
     if (visible) root.dataset.update = '1'

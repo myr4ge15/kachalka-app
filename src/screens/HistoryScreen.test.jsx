@@ -39,7 +39,7 @@ const user = { id: 'u1', name: 'Саня' }
 const workout = {
   id: 'w1',
   user_id: 'u1',
-  performed_at: '2026-07-29T10:00:00Z',
+  performed_at: '2026-07-29T10:00:00',
   entries: [{
     exercise_id: 'bench',
     exercise: { id: 'bench', name: 'Жим лежа', metric: 'weight', muscle_group: 'грудь' },

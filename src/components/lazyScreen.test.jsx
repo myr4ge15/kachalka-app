@@ -73,11 +73,15 @@ describe('lazyScreen', () => {
     const spy = vi.spyOn(console, 'error').mockImplementation(() => {})
     render(<Boundary><Suspense fallback={<p>загрузка</p>}><Screen name="Андрюша" /></Suspense></Boundary>)
     const again = await screen.findByText('снова')
-    await new Promise((r) => setTimeout(r, 350)) // человек нажимает не мгновенно
+    // Человек нажимает не мгновенно (lazyScreen ждет RETRY_AFTER_MS = 300 мс по
+    // Date.now). Сдвигаем часы, а не спим реальные 350 мс.
+    const now = Date.now()
+    vi.spyOn(Date, 'now').mockReturnValue(now + 350)
     fireEvent.click(again)
     expect(await screen.findByText('Привет, Андрюша')).toBeInTheDocument()
     expect(factory).toHaveBeenCalledTimes(2)
     spy.mockRestore()
+    vi.mocked(Date.now).mockRestore()
   })
 
   it('упавшая загрузка не залипает: повторный preload снова зовет import', async () => {

@@ -30,6 +30,8 @@ test('дисциплины: группы, время и офлайн после 
     })
   },user.id)
   await page.getByRole('button',{name:'Лента',exact:true}).click()
+  // v6.11.1: на телефоне рейтинг в ленте свернут, раскрытие помнится (после reload — открыт).
+  await page.getByRole('button',{name:'Рейтинг',exact:true}).click()
   await expect(page.getByRole('button',{name:'Женщины',exact:true})).toHaveAttribute('aria-pressed','true')
   await expect(page.getByText('80 кг',{exact:true})).toBeVisible()
   await page.getByRole('button',{name:'Мужчины',exact:true}).click()

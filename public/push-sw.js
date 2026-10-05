@@ -29,7 +29,14 @@ self.addEventListener('push', (event) => {
     // Повтор с тем же tag (вторая реакция того же человека) — снова со звуком.
     options.renotify = true
   }
-  event.waitUntil(self.registration.showNotification(title, options))
+  const work = [self.registration.showNotification(title, options)]
+  // «Вышла новая версия» (v6.11.1): сразу скачиваем новый sw.js, пока уведомление
+  // висит. К нажатию версия уже ждет установленной, и приложение применяет ее без
+  // плашки (UpdatePrompt, ?push=update) — вместо «открыл, подождал, нажал Обновить».
+  if (data.tag === 'update' && self.registration.update) {
+    work.push(self.registration.update().catch(() => {}))
+  }
+  event.waitUntil(Promise.all(work))
 })
 
 // Адрес, который откроет нажатие. tag кладем в `?push=` (v6.7.2): по нему

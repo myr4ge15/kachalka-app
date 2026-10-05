@@ -38,3 +38,11 @@ describe('pushIntent', () => {
     expect(stripPushParam('https://x.io/app/')).toBeNull()
   })
 })
+
+describe('pushIntent — новая версия', () => {
+  it('tag update → намерение обновиться (и из адреса)', () => {
+    expect(pushIntentFromTag('update')).toEqual({ type: 'update' })
+    expect(pushIntentFromUrl('https://x.io/app/?push=update')).toEqual({ type: 'update' })
+    expect(pushIntentFromTag('updates')).toBeNull()
+  })
+})
