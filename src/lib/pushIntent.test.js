@@ -13,6 +13,11 @@ describe('pushIntent', () => {
     expect(pushIntentFromTag(`reaction-${W.toUpperCase()}-${U}`)?.workoutId).toBe(W)
   })
 
+  it('ответ на обращение ведет на экран обратной связи', () => {
+    expect(pushIntentFromTag(`feedback-${W.toUpperCase()}`)).toEqual({ type: 'feedback', feedbackId: W })
+    expect(pushIntentFromTag(`feedback-${W}-x`)).toBeNull()
+  })
+
   it('остальные и битые tag — без намерения', () => {
     expect(pushIntentFromTag(`record-${W}`)).toBeNull()
     expect(pushIntentFromTag('reaction-123-456')).toBeNull()

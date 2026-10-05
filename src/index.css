@@ -2406,6 +2406,45 @@ label.act.busy { opacity: .55; pointer-events: none; }
 .admin-nav-btn.open .admin-nav-chev { border-color: var(--acc-2); transform: translateY(-2px) rotate(45deg); }
 @media (prefers-reduced-motion: reduce) { .admin-nav-chev { transition: none; } }
 .admin-panel { padding: 2px 0 4px; }
+
+/* «Написать разработчику» (v6.11.0): экран участника и раздел «Обращения» в админке. */
+.fb-intro { margin: 0 2px 12px; line-height: 1.45; }
+.fb-text { min-height: 112px; resize: vertical; font: inherit; line-height: 1.4; }
+.fb-count { align-self: flex-end; margin-top: -4px; font-size: 12px; color: var(--muted); font-variant-numeric: tabular-nums; }
+.fb-count.over { color: var(--red); }
+.fb-attach { min-height: 46px; }
+.fb-shot { display: flex; flex-direction: column; gap: 8px; }
+.fb-shot img {
+  display: block; max-width: 100%; max-height: 320px; width: auto; align-self: flex-start;
+  border-radius: 12px; border: 1px solid var(--border); object-fit: contain; background: var(--bg);
+}
+.feedback-screen .fb-list-title { margin-top: 22px; }
+.fb-item { display: flex; flex-direction: column; gap: 6px; scroll-margin: 80px; }
+.fb-item.focus { border-color: color-mix(in srgb, var(--acc) 60%, transparent); }
+.fb-item-head { display: flex; align-items: center; justify-content: space-between; gap: 10px; min-width: 0; }
+.fb-item-head .admin-ex-name { min-width: 0; }
+.fb-body { margin: 0; font-size: 15px; line-height: 1.45; color: var(--text); white-space: pre-wrap; overflow-wrap: anywhere; }
+.fb-ctx { margin: 0; }
+.fb-status {
+  flex: 0 0 auto; font-size: 12px; font-weight: 600; padding: 3px 9px; border-radius: 999px;
+  color: var(--muted); border: 1px solid var(--border); white-space: nowrap;
+}
+.fb-status.s-new { color: var(--acc-2); border-color: color-mix(in srgb, var(--acc) 55%, transparent); }
+.fb-status.s-in_progress { color: var(--yellow); border-color: color-mix(in srgb, var(--yellow) 45%, transparent); }
+.fb-status.s-resolved { color: var(--green); border-color: color-mix(in srgb, var(--green) 45%, transparent); }
+.fb-reply {
+  margin-top: 4px; padding: 10px 12px; border-radius: 12px; background: var(--surface-2);
+  display: flex; flex-direction: column; gap: 4px;
+}
+.fb-reply.new { background: var(--acc-soft); }
+.fb-reply-head { display: flex; align-items: center; justify-content: space-between; gap: 8px; font-size: 12px; color: var(--muted); }
+.fb-admin { display: flex; flex-direction: column; gap: 10px; }
+.fb-filter .seg-item { min-height: 44px; }
+.fb-edit-btn { margin-top: 4px; min-height: 44px; }
+.fb-editor { margin-top: 4px; }
+.fb-status-pick { display: grid; grid-template-columns: 1fr 1fr; gap: 6px; }
+.fb-status-pick .seg-item { min-height: 44px; }
+
 .admin-panel .sec { margin-bottom: 0; }
 
 .admin-search {

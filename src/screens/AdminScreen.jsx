@@ -19,6 +19,7 @@ import CardsSkeleton from '../components/CardsSkeleton.jsx'
 import BackButton from '../components/BackButton.jsx'
 import PencilIcon from '../components/PencilIcon.jsx'
 import AdminDisciplines from '../components/AdminDisciplines.jsx'
+import AdminFeedback from '../components/AdminFeedback.jsx'
 
 // Экран «Админка» (PLAN-admin). Виден только при role='admin' (вход из Профиля);
 // сервер все равно перепроверяет роль в каждой операции. Все мутации требуют
@@ -30,7 +31,7 @@ export default function AdminScreen({ user, onBack }) {
   const exercises = useLiveQuery(() => getAllExercisesForAdmin(), [], [])
 
   // Разделы свернуты по умолчанию; раскрывается тот, что админ сам открыл (аккордеон).
-  const [open, setOpen] = useState(null) // null | 'exercises' | 'users' | 'invites' | 'access'
+  const [open, setOpen] = useState(null) // null | 'disciplines' | 'exercises' | 'users' | 'invites' | 'feedback' | 'access'
   const toggle = (key) => setOpen((cur) => (cur === key ? null : key))
 
   const errMsg = (e) => (e instanceof AdminError ? e.message : String(e?.message ?? e))
@@ -102,6 +103,20 @@ export default function AdminScreen({ user, onBack }) {
         {open === 'invites' && (
           <div className="admin-panel">
             <InvitesSection online={online} errMsg={errMsg} />
+          </div>
+        )}
+
+        <button
+          className={'admin-nav-btn' + (open === 'feedback' ? ' open' : '')}
+          onClick={() => toggle('feedback')}
+          aria-expanded={open === 'feedback'}
+        >
+          <span className="admin-nav-name">Обращения</span>
+          <span className="admin-nav-chev" aria-hidden="true" />
+        </button>
+        {open === 'feedback' && (
+          <div className="admin-panel">
+            <AdminFeedback online={online} />
           </div>
         )}
 

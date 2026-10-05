@@ -5,11 +5,13 @@
 //
 //   reaction-<workoutId>-<reactorId> → Лента, прокрутка к этой тренировке
 //   (v6.7.3; в v6.7.2 открывалась карточка тренировки — не прижилось).
+//   feedback-<feedbackId> → экран «Написать разработчику» с ответом (v6.11.0).
 //
 // Остальные пуши (рекорды, рейтинг, напоминания) пока ведут на Главную, как раньше.
 
 const UUID = '[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}'
 const REACTION_RE = new RegExp(`^reaction-(${UUID})-`, 'i')
+const FEEDBACK_RE = new RegExp(`^feedback-(${UUID})$`, 'i')
 
 export const PUSH_PARAM = 'push'
 
@@ -17,6 +19,8 @@ export function pushIntentFromTag(tag) {
   if (typeof tag !== 'string') return null
   const m = REACTION_RE.exec(tag)
   if (m) return { type: 'reaction', workoutId: m[1].toLowerCase() }
+  const f = FEEDBACK_RE.exec(tag)
+  if (f) return { type: 'feedback', feedbackId: f[1].toLowerCase() }
   return null
 }
 

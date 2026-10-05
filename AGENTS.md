@@ -273,6 +273,14 @@ updated_at)` + `upsert_user_meta` (`supabase/user-meta.sql`, RLS «только 
   `updated_at` не двигают — иначе анонимный `login_users.updated_at` выдает время каждого входа. Служебные
   таблицы `auth_attempts`/`audit_log`/`admin_rate`/`tg_announced` — без прав у anon/authenticated (только
   service_role и DEFINER-функции). Политики чтения `users`/`exercises` — `app_uid() is not null`, не `true`.
+- **Обращения «Написать разработчику» (v6.11.0)** → канон `feedback.sql`: таблица `feedback` закрыта
+  от клиентов, только DEFINER RPC (`submit_feedback`/`my_feedback`/`ack_my_feedback` — по `app_uid()`,
+  `admin_list_feedback`/`admin_update_feedback` — гейт `is_admin()`). Edge `feedback` деплоится С проверкой
+  JWT (без `--no-verify-jwt`) и зовет RPC клиентом С JWT вызывающего — личность и права решает SQL, а не
+  Edge. Запись в БД раньше Telegram. Пуш автору — тип `feedback` в `sendToUser` (в `push_prefs` его нет,
+  он всегда включен); решение «слать ли» — поле `notify` из `admin_update_feedback`. Скриншоты — приватный
+  bucket `feedback`, запись только в `<app_uid>/`, чтение только `is_admin()`. Онлайн-операции —
+  `lib/feedbackApi.js`, исключение из очередей синка, как приглашения.
 - **Приглашения участников (v6.10.0)** → добавочный канон `member-invites.sql`: `create_my_invite`,
   `my_invites`, `revoke_my_invite` проверяют `app_uid()` и владельца; лимит 3 активных ссылок
   сериализован на автора, срок 7 дней. Онлайн-операции в `lib/memberInvites.js` — исключение

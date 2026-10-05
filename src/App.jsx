@@ -54,6 +54,7 @@ const MyExercisesScreen = lazyScreen(() => import('./screens/MyExercisesScreen.j
 const AchievementsScreen = lazyScreen(() => import('./screens/AchievementsScreen.jsx'))
 const AppearanceScreen = lazyScreen(() => import('./screens/AppearanceScreen.jsx'))
 const WhatsNewScreen = lazyScreen(() => import('./screens/WhatsNewScreen.jsx'))
+const FeedbackScreen = lazyScreen(() => import('./screens/FeedbackScreen.jsx'))
 const MemberScreen = lazyScreen(() => import('./screens/MemberScreen.jsx'))
 
 // Иконка состояния синхронизации — инлайн-SVG (без зависимостей), как TabIcon.
@@ -254,6 +255,8 @@ export default function App() {
   // Подсветка карточки Ленты, к которой привел пуш о реакции (v6.7.3): id
   // тренировки на пару секунд, потом гаснет сама.
   const [feedFlashId, setFeedFlashId] = useState(null)
+  // Обращение, к которому привел пуш с ответом разработчика (v6.11.0).
+  const [feedbackFocus, setFeedbackFocus] = useState(null)
   useEffect(() => {
     if (!feedFlashId) return
     const t = setTimeout(() => setFeedFlashId(null), FEED_FLASH_MS)
@@ -399,7 +402,7 @@ export default function App() {
     if (!user?.id) return
     const screens = [HomeScreen, HistoryScreen, FeedScreen, ProgressScreen, FreshnessScreen,
       NotificationsScreen, ProfileScreen, MyExercisesScreen, AchievementsScreen, AppearanceScreen,
-      MemberScreen]
+      MemberScreen, FeedbackScreen]
     if (user.role === 'admin') screens.push(AdminScreen)
     const prefetch = () => { for (const s of screens) s.preload().catch(() => {}) }
     const ric = window.requestIdleCallback
@@ -522,7 +525,7 @@ export default function App() {
       case 'member': return backFromMember()
       case 'freshness': return goTab('home')
       case 'admin': case 'achievements': return goTab('profile')
-      case 'myex': case 'whatsnew': case 'appearance': return backToSettings()
+      case 'myex': case 'whatsnew': case 'appearance': case 'feedback': return backToSettings()
       default: return undefined
     }
   }
@@ -538,6 +541,11 @@ export default function App() {
       setFeedRestore(pushAnchor(pushIntent.workoutId))
       setFeedFlashId(pushIntent.workoutId)
       setTab('feed')
+    }
+    // Ответ на обращение (v6.11.0) — экран обратной связи с подсветкой этого обращения.
+    if (pushIntent.type === 'feedback') {
+      setFeedbackFocus(pushIntent.feedbackId)
+      setTab('feedback')
     }
     setPushIntent(null)
   }, [user?.id, pushIntent])
@@ -735,6 +743,7 @@ export default function App() {
                   onOpenAchievements={() => goTab('achievements')}
                   onOpenAppearance={() => goTab('appearance')}
                   onOpenWhatsNew={() => goTab('whatsnew')}
+                  onOpenFeedback={() => goTab('feedback')}
                   contentRef={contentRef}
                   edgeSwipeOn={edgeSwipeOn && route === tab}
                   startInSettings={openSettings}
@@ -758,6 +767,9 @@ export default function App() {
               )}
               {route === 'appearance' && (
                 <AppearanceScreen user={user} onBack={backToSettings} />
+              )}
+              {route === 'feedback' && (
+                <FeedbackScreen user={user} focusId={feedbackFocus} onBack={backToSettings} />
               )}
             </ErrorBoundary>
               </Suspense>

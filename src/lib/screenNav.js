@@ -9,7 +9,7 @@
 
 // Вложенные роуты App.jsx — у каждого есть «Назад». Новый вложенный экран — сюда же.
 export const NESTED_ROUTES = new Set([
-  'notif', 'member', 'freshness', 'achievements', 'admin', 'myex', 'whatsnew', 'appearance',
+  'notif', 'member', 'freshness', 'achievements', 'admin', 'myex', 'whatsnew', 'appearance', 'feedback',
 ])
 
 export function isNested(tab) {

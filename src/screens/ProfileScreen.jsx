@@ -21,6 +21,7 @@ import PushToggle from '../components/PushToggle.jsx'
 import PushTypes from '../components/PushTypes.jsx'
 import { usePushToggle } from '../hooks/usePushToggle.js'
 import { uploadMyAvatar } from '../lib/avatar.js'
+import { myUnreadReplies } from '../lib/feedbackApi.js'
 import { onlyDigits } from '../lib/text.js'
 import { showToast } from '../components/Toast.jsx'
 import HoldButton from '../components/HoldButton.jsx'
@@ -54,7 +55,7 @@ function GoalStepper({ onDec, onInc, children }) {
 }
 
 // Пропсы: user, onLogout, onOpenProgress(exerciseId), onOpenFeed().
-export default function ProfileScreen({ user, onLogout, onOpenProgress, onOpenFeed, onRenamed, onOpenAdmin, onOpenMyExercises, onOpenAchievements, onOpenAppearance, onOpenWhatsNew, startInSettings = false, onStartInSettingsConsumed, contentRef, edgeSwipeOn = false }) {
+export default function ProfileScreen({ user, onLogout, onOpenProgress, onOpenFeed, onRenamed, onOpenAdmin, onOpenMyExercises, onOpenAchievements, onOpenAppearance, onOpenWhatsNew, onOpenFeedback, startInSettings = false, onStartInSettingsConsumed, contentRef, edgeSwipeOn = false }) {
   const workouts = useLiveQuery(() => getWorkouts(user.id), [user.id])
   const goals = useLiveQuery(() => readGoals(user.id), [user.id])
   const myCached = useLiveQuery(() => getCachedUser(user.id), [user.id])
@@ -128,6 +129,15 @@ export default function ProfileScreen({ user, onLogout, onOpenProgress, onOpenFe
   // показываем список Настроек, а не корень Профиля (v6.3.5), и гасим интент у App.
   const [settingsOpen, setSettingsOpen] = useState(startInSettings)
   const wnUnopened = hasUnopened(WHATS_NEW, readMark(OPENED_KEY))
+  // Непрочитанный ответ разработчика на обращение (v6.11.0) — метка «ответ» у пункта
+  // «Написать разработчику». Тянем при открытии Настроек; любая ошибка — просто без метки.
+  const [fbUnread, setFbUnread] = useState(0)
+  useEffect(() => {
+    if (!settingsOpen) return undefined
+    let live = true
+    myUnreadReplies(user.id).then((n) => { if (live) setFbUnread(n) })
+    return () => { live = false }
+  }, [settingsOpen, user.id])
   useEffect(() => {
     if (startInSettings) onStartInSettingsConsumed?.()
   }, [startInSettings, onStartInSettingsConsumed])
@@ -514,6 +524,14 @@ export default function ProfileScreen({ user, onLogout, onOpenProgress, onOpenFe
                 🎨 Оформление
                 <span className="act-sub">акцентный цвет приложения</span>
               </span>
+            </button>
+            {/* «Написать разработчику» (v6.11.0): ошибка, идея, вопрос — сразу разработчику. */}
+            <button className={'act' + (fbUnread ? ' act-new' : '')} onClick={() => onOpenFeedback?.()}>
+              <span className="act-txt">
+                💬 Написать разработчику
+                <span className="act-sub">ошибка, идея или вопрос</span>
+              </span>
+              {fbUnread > 0 && <span className="act-badge">ответ</span>}
             </button>
             <SexPicker value={sexValue} busy={sexPending !== undefined} error={sexErr} onChange={changeSex} />
             <button
