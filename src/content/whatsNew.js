@@ -17,7 +17,7 @@
 
 export const WHATS_NEW = [
   {
-    version: '6.13.0',
+    version: '6.13.1',
     date: '2026-10-05',
     headline: 'Бег в километрах и связь с разработчиком',
     main: [
