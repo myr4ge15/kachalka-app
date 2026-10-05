@@ -760,6 +760,9 @@ input { font-family: inherit; }
   color: var(--acc-2); font-size: 13px; font-weight: 600; cursor: pointer;
 }
 .set-add:active { background: var(--surface-2); }
+/* Темп дистанции под подходами (v6.12.0, ExerciseCard). */
+.set-pace { margin: 2px 2px 8px; font-size: 13px; font-variant-numeric: tabular-nums; }
+.pr-pace { font-size: 12px; font-weight: 400; }
 
 /* Панель автопрогрессии: прошлая мелко, рекомендация крупно, причина строкой. */
 .ap { margin-top: 8px; padding: 10px 12px; border-radius: 13px; background: var(--bg); }
@@ -1494,7 +1497,7 @@ html[data-update]:not([data-composer]) .content { padding-top: 64px; }
 .feed-rail { order: -1; }
 /* Рейтинг в ленте сворачивается (v6.11.1, FeedScreen): на телефоне по умолчанию
    свернут, на десктопе (сайдбар) кнопки нет и он виден всегда — см. @media ниже. */
-.feed-rail-toggle { padding-top: 4px; }
+.feed-rail-toggle { margin: 4px 0 12px; }
 .feed-rail[data-open="0"] .feed-rail-body { display: none; }
 .feed-head { display: flex; align-items: center; justify-content: space-between; gap: 10px; margin: 4px 0 8px; }
 /* Заголовок и кнопка в одной строке, подзаголовок — ПОД строкой целиком: у .sub
@@ -2046,6 +2049,9 @@ img.avatar-lg.has-img {
 .push-err { color: var(--red); font-size: 13px; font-weight: 600; margin: -4px 2px 0; }
 /* Типы пушей (components/PushTypes.jsx, v6.7.0): вложенный список под главным тумблером. */
 .push-types { display: flex; flex-direction: column; gap: 6px; padding-left: 14px; border-left: 2px solid var(--border); margin-left: 6px; }
+/* v6.12.0: типы свернуты в строку-аккордеон под главным тумблером. */
+.push-types-toggle { min-height: 48px; padding: 10px 12px; font-size: 14px; margin-left: 6px; width: calc(100% - 6px); }
+.push-types-toggle .settings-chev { margin-left: auto; }
 .push-type { min-height: 48px; padding: 10px 12px; font-size: 14px; }
 .push-type:disabled { opacity: .6; }
 /* блоки .actions/danger-confirm под тогглом «Настройки» идут встык — разводим
@@ -2443,6 +2449,21 @@ label.act.busy { opacity: .55; pointer-events: none; }
   display: flex; flex-direction: column; gap: 4px;
 }
 .fb-reply.new { background: var(--acc-soft); }
+/* v6.12.0: ответ из Telegram с картинками, переоткрытие автором. */
+.fb-reply.stale { opacity: .75; }
+.fb-reopen { margin: 0; font-size: 13px; line-height: 1.4; color: var(--yellow); white-space: pre-wrap; overflow-wrap: anywhere; }
+.fb-reopen-btn { align-self: flex-start; min-height: 44px; margin-top: 2px; }
+.fb-reopen-form { display: flex; flex-direction: column; gap: 6px; margin-top: 4px; }
+.fb-photos { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 4px; }
+.fb-photo {
+  width: 76px; height: 76px; padding: 0; border-radius: 10px; overflow: hidden;
+  border: 1px solid var(--border); background: var(--bg);
+  display: grid; place-items: center; color: var(--muted); font-size: 22px;
+}
+.fb-photo img { width: 100%; height: 100%; object-fit: cover; display: block; }
+.fb-photo--gone { opacity: .6; }
+.fb-viewer-body { flex: 1; min-height: 0; display: grid; place-items: center; overflow: auto; }
+.fb-viewer-body img { max-width: 100%; max-height: 100%; object-fit: contain; border-radius: 12px; }
 .fb-reply-head { display: flex; align-items: center; justify-content: space-between; gap: 8px; font-size: 12px; color: var(--muted); }
 .fb-admin { display: flex; flex-direction: column; gap: 10px; }
 .fb-filter .seg-item { min-height: 44px; }
@@ -3370,3 +3391,16 @@ html[data-sheet-open] .content { overflow-y: hidden; }
   }
   .toast.raised { bottom: calc(72px + env(safe-area-inset-bottom)); }
 }
+
+/* вход по имени, «Хочу в круг» (v6.12.0) */
+.login-alt { display: flex; flex-wrap: wrap; justify-content: center; gap: 4px 16px; margin-top: 14px; }
+.login-alt .link-btn { min-height: 44px; font-weight: 600; }
+.join-status {
+  margin-top: 14px; padding: 12px 14px; border-radius: 14px; background: var(--acc-soft);
+  display: flex; flex-direction: column; gap: 6px; align-items: center; text-align: center;
+}
+.join-status p { margin: 0; line-height: 1.4; }
+.join-status .btn { width: 100%; margin-top: 4px; }
+.join-status .link-btn { min-height: 44px; }
+.join-about { min-height: 84px; }
+.hp { position: absolute; left: -10000px; width: 1px; height: 1px; overflow: hidden; }

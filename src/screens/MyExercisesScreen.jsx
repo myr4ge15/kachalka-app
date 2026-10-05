@@ -28,7 +28,7 @@ import PencilIcon from '../components/PencilIcon.jsx'
 // Пропсы: user (нужен для owner_id), onBack().
 
 const BASE_GROUPS = ['грудь', 'спина', 'ноги', 'плечи', 'бицепс', 'трицепс', 'пресс', 'кардио']
-const METRIC_LABEL = { weight: 'вес и повторения', reps: 'только повторения', time: 'на время' }
+const METRIC_LABEL = { weight: 'вес и повторения', reps: 'только повторения', time: 'на время', distance: 'дистанция и время' }
 
 export default function MyExercisesScreen({ user, onBack }) {
   // Весь справочник без скрытых админкой — тот же источник, что у пикера.
@@ -205,6 +205,7 @@ function EditForm({ ex, editorId, groups, onCancel, onSaved }) {
         <button className={metric === 'weight' ? 'chip active' : 'chip'} onClick={() => setMetric('weight')}>Вес и повторения</button>
         <button className={metric === 'reps' ? 'chip active' : 'chip'} onClick={() => setMetric('reps')}>Только повторения</button>
         <button className={metric === 'time' ? 'chip active' : 'chip'} onClick={() => setMetric('time')}>На время</button>
+        <button className={metric === 'distance' ? 'chip active' : 'chip'} onClick={() => setMetric('distance')}>Дистанция и время</button>
       </div>
 
       <div className="create-label">Группа мышц</div>

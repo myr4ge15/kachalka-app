@@ -1,83 +1,85 @@
 import { useState, useEffect, useRef } from 'react'
-import { supabase } from '../db/supabase.js'
-import { getUsers, cacheUsers } from '../db/repo.js'
+import { getUsers } from '../db/repo.js'
 import { migrateLoginZone } from '../db/local.js'
-import { login as authLogin, verifyPinOffline, dropForeignSession, noteLoginFailure, LoginError } from '../lib/auth.js'
-import { withTimeout } from '../lib/withTimeout.js'
+import {
+  login as authLogin, loginByName, verifyPinOffline, dropForeignSession, noteLoginFailure,
+  knownAccounts, forgetAccount, LoginError,
+} from '../lib/auth.js'
+import { loadPending, savePending, clearPending, pollJoin } from '../lib/joinRequest.js'
+import { onlyDigits } from '../lib/text.js'
 import BackButton from '../components/BackButton.jsx'
+import JoinRequestForm from '../components/JoinRequestForm.jsx'
 
-export default function LoginScreen({ onLogin }) {
-  const [users, setUsers] = useState([])
+// Экран входа (v6.12.0).
+//   • Пикер показывает ТОЛЬКО учетки, уже входившие на этом устройстве (есть
+//     офлайн-кэш PIN). Список всех участников экран больше не запрашивает: кто
+//     случайно открыл ссылку на приложение, круг не видит.
+//   • Новое устройство (или другой человек) — «Войти по имени»: имя + PIN, онлайн.
+//     Сервер прощает регистр, пробелы и знаки и узнает однозначное начало имени.
+//   • «Забыть на этом устройстве» — убрать учетку из пикера (на экране PIN).
+//   • «Хочу в круг» — заявка владельцу; одобрено → регистрация по приглашению
+//     (onInvite(token) → InviteScreen).
+export default function LoginScreen({ onLogin, onInvite }) {
+  const [known, setKnown] = useState([])
+  const [mode, setMode] = useState('loading') // 'loading' | 'pick' | 'pin' | 'name' | 'join'
   const [selected, setSelected] = useState(null)
   const [pin, setPin] = useState('')
   const [error, setError] = useState('')
-  const [loading, setLoading] = useState(true)
   const [busy, setBusy] = useState(false)
+  const [confirmForget, setConfirmForget] = useState(false)
+  const [pending, setPending] = useState(() => loadPending())
+  const [joinNote, setJoinNote] = useState(null) // 'declined' | null
   // Синхронный замок «попытка в полете»: setBusy(true) применяется асинхронно,
   // поэтому гонка backspace+перенабор до 4 цифр могла вызвать submit() дважды до
-  // ре-рендера (лишняя попытка → инфляция серверного счетчика блокировки). Ref
-  // меняется синхронно и не зависит от тайминга коммита состояния.
+  // ре-рендера (лишняя попытка → инфляция серверного счетчика блокировки).
   const inFlight = useRef(false)
+  const alive = useRef(true)
+  useEffect(() => { alive.current = true; return () => { alive.current = false } }, [])
 
-  // Имена для пикера: сначала из кэша (IndexedDB) — мгновенно и офлайн, затем
-  // тихо обновляем из login_users (view БЕЗ хэшей/соли/роли, доступен анониму).
-  // PIN здесь больше не тянем: сверка идет в auth-login (онлайн) либо по
-  // локальному кэшу своего хэша (офлайн, verifyPinOffline).
+  async function reloadKnown() {
+    const list = await knownAccounts(await getUsers())
+    if (alive.current) setKnown(list)
+    return list
+  }
+
   useEffect(() => {
-    let alive = true
     async function load() {
-      // Перенос «загрузочной зоны» со старой общей базы (ростер + офлайн-кэш PIN),
-      // чтобы пикер и офлайн-вход пережили апдейт на персональные базы. Идемпотентно.
+      // Перенос «загрузочной зоны» со старой общей базы (ростер + офлайн-кэш PIN).
       await migrateLoginZone()
-      const cached = await getUsers()
-      if (alive && cached.length) {
-        setUsers(cached)
-        setLoading(false)
-      }
-      try {
-        // withTimeout: подвисшая сеть иначе держала экран на «Загрузка…» ~минуту
-        // (запрос без таймаута). При наличии кэша список уже показан выше —
-        // обновление просто тихо отвалится по таймауту.
-        // sex тянем вместе с остальным: кэш ростера — источник пола для рейтинга
-        // (getCachedUser → viewerBoard), и на новом устройстве до первого pull
-        // другого источника нет. Раньше его тут не было, и запись кэша обнуляла пол
-        // всем учеткам устройства (инцидент 29.07.2026, см. lib/roster.js).
-        // Фолбэк на выборку без sex — как в pullGoal: на сервере со старой
-        // редакцией вью login_users select упал бы, и устройство без кэша осталось
-        // бы вовсе без ростера, а это единственная точка входа в приложение.
-        const roster = (fields) => withTimeout(
-          supabase
-            .from('login_users')
-            .select(fields)
-            .order('sort_order', { nullsFirst: false })
-            .order('id')
-        )
-        let { data, error } = await roster('id, name, avatar_url, sort_order, sex')
-        if (error) ({ data, error } = await roster('id, name, avatar_url, sort_order'))
-        if (error) throw error
-        if (data) {
-          await cacheUsers(data)
-          if (alive) setUsers(data)
-        }
-      } catch (err) {
-        if (alive && cached.length === 0) {
-          setError(
-            'Не удалось загрузить пользователей и нет офлайн-кэша. ' +
-              'Подключись к сети хотя бы раз: ' + (err.message ?? err)
-          )
-        }
-      } finally {
-        if (alive) setLoading(false)
-      }
+      const list = await reloadKnown().catch(() => [])
+      if (alive.current) setMode(list.length ? 'pick' : 'name')
     }
     load()
-    return () => { alive = false }
   }, [])
 
+  // Ожидающая заявка «Хочу в круг»: при открытии экрана спрашиваем статус.
+  async function checkJoin(p = pending) {
+    if (!p || p.token || !navigator.onLine) return
+    try {
+      const res = await pollJoin(p)
+      if (!alive.current) return
+      if (res.token) {
+        const next = { ...p, token: res.token }
+        savePending(next)
+        setPending(next)
+        onInvite?.(res.token)
+      } else if (res.status === 'declined') {
+        clearPending(); setPending(null); setJoinNote('declined')
+      } else if (res.status !== 'new' && res.status !== 'approved') {
+        clearPending(); setPending(null) // claimed без токена / invalid — забыть молча
+      }
+    } catch { /* нет сети — проверим в следующий раз */ }
+  }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  useEffect(() => { checkJoin() }, [])
+
+  function goPick() {
+    setSelected(null); setPin(''); setError(''); setConfirmForget(false)
+    setMode(known.length ? 'pick' : 'name')
+  }
+
   function pickUser(u) {
-    setSelected(u)
-    setPin('')
-    setError('')
+    setSelected(u); setPin(''); setError(''); setConfirmForget(false); setMode('pin')
   }
 
   function pressDigit(d) {
@@ -91,84 +93,154 @@ export default function LoginScreen({ onLogin }) {
     setPin(pin.slice(0, -1))
   }
 
-  async function submit() {
+  function showError(e) {
+    if (e instanceof LoginError && e.code === 'locked') {
+      const mins = e.retryAfter ? Math.ceil(e.retryAfter / 60) : null
+      setError(mins ? `Слишком много попыток. Попробуй через ${mins} мин.` : 'Слишком много попыток. Подожди немного.')
+    } else if (e instanceof LoginError) {
+      setError(e.message)
+    } else {
+      setError('Ошибка входа: ' + (e?.message ?? e))
+    }
+  }
+
+  async function submitPin() {
     if (pin.length !== 4 || !selected || busy || inFlight.current) return
     inFlight.current = true
     setBusy(true)
     try {
       // 1) Офлайн-разблокировка по локальному кэшу своего хэша (мгновенно).
-      //    offline: {id,name,role} — кэш есть и PIN совпал;
-      //             false          — кэш есть, но PIN не совпал;
-      //             null           — кэша нет (первый вход на устройстве).
+      //    {id,name,role} — PIN совпал; false — не совпал; null — кэша нет.
       const offline = await verifyPinOffline(selected.id, pin)
       if (offline) {
-        // Чужую сессию, оставшуюся на устройстве, снимаем ДО входа: ее SIGNED_OUT
-        // должен отработать, пока App еще на экране входа, а не выкинуть нас позже.
+        // Чужую сессию снимаем ДО входа (ее SIGNED_OUT должен отработать здесь).
         await dropForeignSession(selected.id)
-        // UI открываем сразу; если есть сеть — перевыпускаем сессию в фоне. Ошибку
-        // не глотаем: запоминаем причину (устаревший PIN и т.п.), ее покажут «мои»
-        // серверные действия вместо безликого «перезайди» (v6.3.2).
+        // UI открываем сразу; сессию перевыпускаем в фоне, причину сбоя запоминаем.
         if (navigator.onLine) authLogin(selected.id, pin).catch(noteLoginFailure)
         onLogin(offline)
         return
       }
-
-      // 2) Кэш не подошел (false) или его нет (null). Офлайн — судим по локальному
-      //    вердикту: промах кэша → «Неверный PIN», отсутствие кэша → нужна сеть.
+      // 2) Офлайн — судим по локальному вердикту.
       if (!navigator.onLine) {
-        setError(
-          offline === false
-            ? 'Неверный PIN'
-            : 'Нет сети, а на этом устройстве еще не входили. Подключись к сети для первого входа.'
-        )
+        setError(offline === false
+          ? 'Неверный PIN'
+          : 'Нет сети. Подключись к интернету, чтобы войти.')
         setPin('')
         return
       }
-
-      // 3) Онлайн — сверяем PIN на сервере, НЕ отбивая по устаревшему кэшу. Это чинит
-      //    «новый PIN после смены не заходит» (старый локальный хэш давал false):
-      //    успех authLogin перезапишет кэш свежим хэшем. Реально неверный PIN придет
-      //    как LoginError('invalid') → «Неверный PIN» (обработка в catch ниже).
+      // 3) Онлайн — сверяем на сервере, не отбивая по устаревшему кэшу (PIN меняли
+      //    на другом устройстве): успех перезапишет кэш свежим хэшем.
       const user = await authLogin(selected.id, pin)
       onLogin(user)
     } catch (e) {
-      if (e instanceof LoginError && e.code === 'locked') {
-        const mins = e.retryAfter ? Math.ceil(e.retryAfter / 60) : null
-        setError(mins ? `Слишком много попыток. Попробуй через ${mins} мин.` : 'Слишком много попыток. Подожди немного.')
-      } else if (e instanceof LoginError) {
-        setError(e.message)
-      } else {
-        setError('Ошибка входа: ' + (e?.message ?? e))
-      }
+      showError(e)
       setPin('')
     } finally {
-      setBusy(false)
+      if (alive.current) setBusy(false)
       inFlight.current = false
     }
   }
 
   // Автопроверка при вводе 4-й цифры
   useEffect(() => {
-    if (pin.length === 4) submit()
+    if (mode === 'pin' && pin.length === 4) submitPin()
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [pin])
 
-  if (loading) {
+  async function forget() {
+    if (!confirmForget) { setConfirmForget(true); return }
+    await forgetAccount(selected.id)
+    const list = await reloadKnown()
+    setSelected(null); setPin(''); setError(''); setConfirmForget(false)
+    setMode(list.length ? 'pick' : 'name')
+  }
+
+  const mark = (
+    <div className="login-mark" aria-hidden="true">
+      <svg viewBox="0 0 24 24" width="30" height="30" fill="none" stroke="currentColor"
+        strokeWidth="2.2" strokeLinecap="round"><path d="M1.5 12h21" /><rect x="3" y="8.5" width="2.6" height="7" rx="1" fill="currentColor" stroke="none" /><rect x="6.4" y="6" width="3" height="12" rx="1.2" fill="currentColor" stroke="none" /><rect x="14.6" y="6" width="3" height="12" rx="1.2" fill="currentColor" stroke="none" /><rect x="18.4" y="8.5" width="2.6" height="7" rx="1" fill="currentColor" stroke="none" /></svg>
+    </div>
+  )
+
+  // Статус заявки «Хочу в круг» (над формами входа).
+  let joinCard = null
+  if (pending?.token) {
+    joinCard = (
+      <div className="join-status" role="status">
+        <p><b>Тебя приняли в круг 🎉</b></p>
+        <p className="muted">Осталось придумать PIN и войти.</p>
+        <button className="btn primary" onClick={() => onInvite?.(pending.token)}>Зарегистрироваться</button>
+        <button className="link-btn" onClick={() => { clearPending(); setPending(null) }}>Убрать</button>
+      </div>
+    )
+  } else if (pending) {
+    joinCard = (
+      <div className="join-status" role="status">
+        <p><b>Заявка отправлена</b>{pending.name ? ` — ${pending.name}` : ''}</p>
+        <p className="muted">Как только владелец ответит, приглашение откроется здесь.</p>
+        <button className="btn ghost" onClick={() => checkJoin()}>Проверить</button>
+        <button className="link-btn" onClick={() => { clearPending(); setPending(null) }}>Отменить заявку</button>
+      </div>
+    )
+  } else if (joinNote === 'declined') {
+    joinCard = (
+      <div className="join-status" role="status">
+        <p>Владелец пока не принял заявку.</p>
+        <button className="link-btn" onClick={() => setJoinNote(null)}>Понятно</button>
+      </div>
+    )
+  }
+
+  if (mode === 'loading') {
     return <div className="screen center"><p className="muted">Загрузка…</p></div>
   }
 
-  if (!selected) {
+  if (mode === 'join') {
+    return (
+      <div className="screen center">
+        <div className="card login-card invite-card">
+          {mark}
+          <h1 className="title">Хочу в круг</h1>
+          <JoinRequestForm
+            onBack={goPick}
+            onSubmitted={(p) => { setPending(p); setJoinNote(null); goPick() }}
+          />
+        </div>
+      </div>
+    )
+  }
+
+  if (mode === 'name') {
+    return (
+      <div className="screen center">
+        <div className="card login-card invite-card">
+          {known.length > 0 && (
+            <div className="login-pin-head"><BackButton onClick={goPick} label="К списку" /></div>
+          )}
+          {mark}
+          <h1 className="title">Журнал тренировок</h1>
+          <p className="muted login-sub">Введи свое имя и PIN — как в приложении у друзей.</p>
+          {joinCard}
+          <NameLoginForm onLogin={onLogin} showError={showError} error={error} setError={setError} />
+          {!pending && (
+            <div className="login-alt">
+              <button className="link-btn" onClick={() => { setError(''); setMode('join') }}>Хочу в круг</button>
+            </div>
+          )}
+        </div>
+      </div>
+    )
+  }
+
+  if (mode === 'pick') {
     return (
       <div className="screen center">
         <div className="card login-card">
-          {/* Знак приложения + заголовок (v6.2.1, редизайн «Спорт-блоки»). */}
-          <div className="login-mark" aria-hidden="true">
-            <svg viewBox="0 0 24 24" width="30" height="30" fill="none" stroke="currentColor"
-              strokeWidth="2.2" strokeLinecap="round"><path d="M1.5 12h21" /><rect x="3" y="8.5" width="2.6" height="7" rx="1" fill="currentColor" stroke="none" /><rect x="6.4" y="6" width="3" height="12" rx="1.2" fill="currentColor" stroke="none" /><rect x="14.6" y="6" width="3" height="12" rx="1.2" fill="currentColor" stroke="none" /><rect x="18.4" y="8.5" width="2.6" height="7" rx="1" fill="currentColor" stroke="none" /></svg>
-          </div>
+          {mark}
           <h1 className="title">Журнал тренировок</h1>
+          {joinCard}
           <div className="user-list">
-            {users.map((u) => (
+            {known.map((u) => (
               <button key={u.id} className="user-btn" onClick={() => pickUser(u)}>
                 <span className="user-btn-name">{u.name}</span>
                 <svg className="user-btn-chev" viewBox="0 0 24 24" width="18" height="18" fill="none"
@@ -176,21 +248,22 @@ export default function LoginScreen({ onLogin }) {
                   aria-hidden="true"><path d="M9 6l6 6-6 6" /></svg>
               </button>
             ))}
-            {users.length === 0 && (
-              <p className="muted">Список пуст. Заполни таблицу users (seed.sql).</p>
-            )}
           </div>
-          {error && <p className="error">{error}</p>}
+          <div className="login-alt">
+            <button className="link-btn" onClick={() => { setError(''); setMode('name') }}>Войти под другим именем</button>
+            {!pending && <button className="link-btn" onClick={() => { setError(''); setMode('join') }}>Хочу в круг</button>}
+          </div>
         </div>
       </div>
     )
   }
 
+  // mode === 'pin'
   return (
     <div className="screen center">
       <div className="card login-card">
         <div className="login-pin-head">
-          <BackButton onClick={() => setSelected(null)} label="Выбрать другого" />
+          <BackButton onClick={goPick} label="Выбрать другого" />
         </div>
         <h2 className="title">{selected.name}</h2>
         <p className="muted login-sub">Введи PIN — 4 цифры</p>
@@ -222,7 +295,60 @@ export default function LoginScreen({ onLogin }) {
             </svg>
           </button>
         </div>
+        <div className="login-alt">
+          <button className={confirmForget ? 'link-btn danger' : 'link-btn'} disabled={busy} onClick={forget}>
+            {confirmForget ? 'Точно убрать из списка?' : 'Забыть на этом устройстве'}
+          </button>
+        </div>
+        {confirmForget && (
+          <p className="muted invite-note">Тренировки не пропадут — потом войдешь по имени и PIN.</p>
+        )}
       </div>
     </div>
+  )
+}
+
+// Вход по имени + PIN (новое устройство). Только онлайн: хэша учетки тут еще нет.
+function NameLoginForm({ onLogin, showError, error, setError }) {
+  const [name, setName] = useState('')
+  const [pin, setPin] = useState('')
+  const [busy, setBusy] = useState(false)
+
+  async function submit(e) {
+    e.preventDefault()
+    if (busy) return
+    if (!name.trim()) { setError('Напиши свое имя.'); return }
+    if (pin.length !== 4) { setError('PIN — 4 цифры.'); return }
+    if (!navigator.onLine) { setError('Нет сети. Первый вход на устройстве — только онлайн.'); return }
+    setBusy(true)
+    setError('')
+    try {
+      const user = await loginByName(name, pin)
+      onLogin(user)
+    } catch (err) {
+      showError(err)
+      setPin('')
+      setBusy(false)
+    }
+  }
+
+  return (
+    <form className="invite-form" onSubmit={submit} noValidate>
+      <label className="field">
+        <span className="field-lab">Имя</span>
+        <input className="admin-input" type="text" maxLength={60} autoComplete="username" autoCapitalize="words"
+          value={name} disabled={busy} onChange={(e) => { setName(e.target.value); setError('') }} />
+      </label>
+      <label className="field">
+        <span className="field-lab">PIN — 4 цифры</span>
+        <input className="pin-input" type="password" inputMode="numeric" maxLength={4}
+          autoComplete="current-password" placeholder="••••" value={pin} disabled={busy}
+          onChange={(e) => { setPin(onlyDigits(e.target.value).slice(0, 4)); setError('') }} />
+      </label>
+      {error && <p className="error" role="alert">{error}</p>}
+      <button className="btn primary" type="submit" disabled={busy}>
+        {busy ? 'Входим…' : 'Войти'}
+      </button>
+    </form>
   )
 }

@@ -105,6 +105,8 @@ export default function ProgressScreen({
   const weighted = selected
     ? (selected.metric ? selected.metric === 'weight' : selected.hasWeight)
     : true
+  // Дистанция (v6.12.0): динамика по самой длинной дистанции дня, км; без 1ПМ.
+  const isDistance = metric === 'distance'
 
   // PR и направление считаем по ВСЕЙ истории (рекорд — личный за все время),
   // а период лишь сужает отображаемые точки. Поэтому строим ряд целиком и
@@ -115,16 +117,16 @@ export default function ProgressScreen({
   const [to, setTo] = useState('')
 
   const fullData = useMemo(
-    () => (selected ? buildSeries(workouts ?? [], selected.id, weighted) : []),
-    [workouts, selected, weighted]
+    () => (selected ? buildSeries(workouts ?? [], selected.id, weighted, { distance: isDistance }) : []),
+    [workouts, selected, weighted, isDistance]
   )
   const range = useMemo(() => periodRange(period, from, to), [period, from, to])
   const data = useMemo(() => fullData.filter((p) => inRange(p.day, range)), [fullData, range])
   const rows = useMemo(() => [...data].reverse(), [data])
 
-  const unit = weighted ? 'кг' : metric === 'time' ? 'мин:сек' : 'повт.'
+  const unit = weighted ? 'кг' : isDistance ? 'км' : metric === 'time' ? 'мин:сек' : 'повт.'
   // С большой буквы — как «Дата» и «Подходы» в шапке таблицы и «Вес: 80 кг» в подсказке графика (v6.3.5).
-  const metricLabel = weighted ? 'Вес' : metric === 'time' ? 'Время' : 'Повт.'
+  const metricLabel = weighted ? 'Вес' : isDistance ? 'Дистанция' : metric === 'time' ? 'Время' : 'Повт.'
   // Для упражнений без веса — лучший подход за выбранный период.
   const best = data.reduce((m, p) => Math.max(m, p.value), 0)
 
@@ -215,7 +217,9 @@ export default function ProgressScreen({
                 1ПМ (расчетный) — справочно <span className="orm-info-ico" aria-hidden="true">ⓘ</span>
               </button>
             </>
-          : metric === 'time'
+          : isDistance
+            ? 'Дистанция — динамика по самой длинной за день (км)'
+            : metric === 'time'
             ? 'Упражнение на время — динамика по лучшему подходу (мин:сек)'
             : 'Упражнение без веса — динамика по лучшему подходу (повт.)'}
       </p>

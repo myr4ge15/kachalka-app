@@ -98,12 +98,12 @@ export async function serverIdentity() {
 // «Прогрев» базы: дешевый запрос при старте приложения, чтобы разбудить
 // бесплатный проект Supabase из паузы заранее — до того как пользователь
 // нажмет «Сохранить». Ошибки молча глотаем: это не критичный путь.
-// Бьем по login_users (доступен анониму и после ужесточения RLS) — иначе
-// прогрев по exercises после ужесточения словил бы 401.
+// Бьем по rpc('app_uid'): до входа он вернет null (или отказ в правах — тоже
+// годится, запрос все равно дошел до базы). login_users с 6.12.0 закрыт от
+// анонимов (login-users-close.sql), а прогрев не должен зависеть от прав.
 export function warmup() {
   if (!isConfigured) return
-  supabase
-    .from('login_users')
-    .select('id', { head: true, count: 'exact' })
+  Promise.resolve()
+    .then(() => supabase.rpc('app_uid'))
     .then(() => {}, () => {})
 }

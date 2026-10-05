@@ -257,6 +257,7 @@ const METRIC_OPTIONS = [
   { id: 'weight', label: 'Вес и повторения', meta: null },
   { id: 'reps', label: 'Только повторения', meta: 'повторения' },
   { id: 'time', label: 'На время', meta: 'на время' },
+  { id: 'distance', label: 'Дистанция и время', meta: 'дистанция' },
 ]
 function ExercisesSection({ exercises, online, errMsg }) {
   const [query, setQuery] = useState('')

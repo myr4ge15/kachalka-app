@@ -14,6 +14,7 @@
 import { currentStreak, totalTonnage, fmtTonnage } from './profileStats.js'
 import { minePrs } from './records.js'
 import { cmpIsoAsc } from './cmp.js'
+import { normMetric, setTonnage } from './metric.js'
 
 // Индекс НЕДЕЛИ (Monday-based, ЛОКАЛЬНО) — паритетная копия из profileStats
 // (как freshness.js держит свои копии, чтобы не плодить связность/цикл). День
@@ -166,9 +167,7 @@ export function badgeEarnedDates(workouts) {
   for (const w of chron) {
     for (const e of w.entries ?? []) {
       for (const s of e.sets ?? []) {
-        const wt = Number(s.weight) || 0
-        const reps = Number(s.reps) || 0
-        if (wt > 0 && reps > 0) cum += wt * reps
+        cum += setTonnage(normMetric(e.metric ?? e.exercise?.metric), s) // км дистанции — не кг
       }
     }
     for (const def of volDefs) {

@@ -26,6 +26,7 @@ const N = {
   insight: { id: 'n5', type: 'insight', at: '2026-08-01T10:00:00Z', text: 'Ты стабилен', emoji: '📈' },
   badge: { id: 'n6', type: 'badge', at: '2026-08-01T09:00:00Z', name: '10 тренировок', emoji: '🏅' },
 }
+const FB = { id: 'feedback:f1', type: 'feedback', feedbackId: 'f1', at: '2026-10-04T10:00:00Z', status: 'resolved', text: '', photos: 1 }
 
 const renderScreen = () => render(<NotificationsScreen user={ME} onBack={vi.fn()} />)
 
@@ -78,6 +79,17 @@ describe('NotificationsScreen', () => {
     expect(screen.getByRole('tab', { name: 'реакции' })).toHaveAttribute('aria-selected', 'true')
     expect(container.querySelectorAll('.notif')).toHaveLength(1)
     expect(screen.getByText('2 новых')).toBeInTheDocument()
+  })
+
+  it('ответ разработчика (v6.12.0): своя категория, текст или пометка скриншота, ведет в обращение', async () => {
+    mocks.list = [FB, N.mine]
+    const onOpenFeedback = vi.fn()
+    render(<NotificationsScreen user={ME} onBack={vi.fn()} onOpenFeedback={onOpenFeedback} />)
+    expect(await screen.findByText('Ответ разработчика · решено')).toBeInTheDocument()
+    expect(screen.getByText('📎 Ответ со скриншотом')).toBeInTheDocument()
+    expect(screen.getAllByRole('tab').map((t) => t.textContent)).toEqual(['все', 'рекорды', 'ответы'])
+    fireEvent.click(screen.getByRole('button', { name: 'Открыть обращение ›' }))
+    expect(onOpenFeedback).toHaveBeenCalledWith('f1')
   })
 
   it('одна категория — чипов нет; без метки «прочитано» все новые', async () => {

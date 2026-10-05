@@ -1,5 +1,5 @@
 import { useState } from 'react'
-import { fmtMetricValue } from '../lib/metric.js'
+import { fmtMetricValue, fmtPace } from '../lib/metric.js'
 
 // Список личных рекордов профиля (тап по строке → «Прогресс»). Презентационный:
 // records + onOpenProgress(exId) приходят от ProfileScreen. По умолчанию видны
@@ -34,7 +34,9 @@ export default function PersonalRecords({ records, onOpenProgress }) {
                 <span className="txt">{r.name}</span>
               </span>
               <span className="pr-val">
-                {fmtMetricValue(r.metric, r.value)} <span className="arr">›</span>
+                {fmtMetricValue(r.metric, r.value)}
+                {r.pace ? <span className="pr-pace muted"> · {fmtPace(r.pace)}</span> : null}
+                {' '}<span className="arr">›</span>
               </span>
             </button>
           </li>

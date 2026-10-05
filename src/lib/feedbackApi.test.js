@@ -3,6 +3,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 const mocks = vi.hoisted(() => ({
   rpc: vi.fn(), hasSession: vi.fn(), upload: vi.fn(), signed: vi.fn(), getSession: vi.fn(), from: vi.fn(),
 }))
+vi.mock('../db/feedbackReplies.js', () => ({ cacheFeedbackReplies: vi.fn() }))
 vi.mock('../db/supabase.js', () => ({
   supabase: {
     rpc: mocks.rpc,
@@ -13,8 +14,8 @@ vi.mock('../db/supabase.js', () => ({
 }))
 
 import {
-  ackMyFeedback, adminListFeedback, adminUpdateFeedback, feedbackShotUrl, listMyFeedback,
-  myUnreadReplies, submitFeedback,
+  _clearMediaCache, ackMyFeedback, adminListFeedback, adminUpdateFeedback, feedbackMedia, feedbackShotUrl,
+  listMyFeedback, myUnreadReplies, reopenFeedback, submitFeedback,
 } from './feedbackApi.js'
 
 const ok = (payload, status = 200) => Promise.resolve({ ok: status < 400, status, json: async () => payload })
@@ -127,5 +128,41 @@ describe('админка', () => {
     mocks.signed.mockResolvedValue({ data: { signedUrl: 'https://x/s' } })
     await expect(feedbackShotUrl('me/a.jpg')).resolves.toBe('https://x/s')
     expect(mocks.signed).toHaveBeenCalledWith('me/a.jpg', 600)
+  })
+})
+
+describe('Telegram: переоткрытие и картинки (v6.12.0)', () => {
+  beforeEach(() => {
+    _clearMediaCache()
+    vi.stubGlobal('URL', { ...URL, createObjectURL: vi.fn(() => 'blob:x') })
+  })
+
+  it('reopen: комментарий обрезан, пустой — до сети не доходит; лимит — код', async () => {
+    fetch.mockImplementationOnce(() => ok({ ok: true, delivered: true }))
+    await expect(reopenFeedback('f1', '  не помогло  ')).resolves.toEqual({ delivered: true })
+    expect(JSON.parse(fetch.mock.calls[0][1].body)).toEqual({ action: 'reopen', id: 'f1', note: 'не помогло' })
+    await expect(reopenFeedback('f1', '   ')).rejects.toMatchObject({ code: 'empty' })
+    expect(fetch).toHaveBeenCalledTimes(1)
+    fetch.mockImplementationOnce(() => ok({ error: 'reopen_limit' }, 429))
+    await expect(reopenFeedback('f1', 'еще')).rejects.toMatchObject({ code: 'reopen_limit' })
+  })
+
+  it('media: байты → object URL, повтор из кэша; 404 — not_found и не кэшируется', async () => {
+    const blobRes = { ok: true, status: 200, blob: async () => new Blob(['x']) }
+    fetch.mockImplementation(() => Promise.resolve(blobRes))
+    await expect(feedbackMedia('f1', 'reply', 1)).resolves.toBe('blob:x')
+    await feedbackMedia('f1', 'reply', 1)
+    expect(fetch).toHaveBeenCalledTimes(1)
+    expect(JSON.parse(fetch.mock.calls[0][1].body)).toEqual({ action: 'media', id: 'f1', kind: 'reply', n: 1 })
+    fetch.mockImplementation(() => Promise.resolve({ ok: false, status: 404 }))
+    await expect(feedbackMedia('f2', 'shot', 0)).rejects.toMatchObject({ code: 'not_found' })
+    fetch.mockImplementation(() => Promise.resolve(blobRes))
+    await expect(feedbackMedia('f2', 'shot', 0)).resolves.toBe('blob:x')
+  })
+
+  it('media офлайн — без сети', async () => {
+    vi.stubGlobal('navigator', { onLine: false })
+    await expect(feedbackMedia('f3')).rejects.toMatchObject({ code: 'offline' })
+    expect(fetch).not.toHaveBeenCalled()
   })
 })

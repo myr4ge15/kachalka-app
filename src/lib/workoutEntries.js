@@ -40,10 +40,15 @@ export function insertExerciseIn(entries, idx, entry) {
 // нового упражнения обнуляем weight — инвариант «вес=0 у не-весовых». Валидацию
 // (тот же id / дубль) держит вызывающий; здесь — только трансформация.
 export function replaceExerciseIn(entries, idx, ex) {
-  const count = isCountMetric(exerciseMetric(ex))
+  const next = exerciseMetric(ex)
+  const count = isCountMetric(next)
   return entries.map((e, i) => {
     if (i !== idx) return e
-    const sets = count ? e.sets.map((s) => ({ ...s, weight: 0 })) : e.sets
+    // Килограммы ≠ километры (v6.12.0): при смене весового на дистанцию и обратно
+    // поле weight тоже обнуляем, иначе «80 кг» становились «80 км».
+    const prev = exerciseMetric(e.exercise)
+    const unitChanged = prev !== next && (prev === 'distance' || next === 'distance')
+    const sets = count || unitChanged ? e.sets.map((s) => ({ ...s, weight: count ? 0 : '' })) : e.sets
     return { exercise: ex, sets }
   })
 }

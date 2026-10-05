@@ -13,7 +13,8 @@ export default function AdminDisciplines({ userId, exercises, online }) {
   const [error, setError] = useState('')
   const alive = useRef(true)
   useEffect(() => { alive.current = true; return () => { alive.current = false } }, [])
-  const available = exercises.filter(e => !e.is_hidden && !items.some(d => d.exercise_id === e.id))
+  // Дистанция в рейтинге пока не поддерживается (v6.12.0): сервер считает результат по повторам/весу.
+  const available = exercises.filter(e => !e.is_hidden && e.metric !== 'distance' && !items.some(d => d.exercise_id === e.id))
   useEffect(() => {
     let active = true
     if (online) fetchRatingCatalog(userId, { force: true }).catch(() => {

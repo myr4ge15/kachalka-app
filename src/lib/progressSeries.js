@@ -64,7 +64,8 @@ export function collectExercises(workouts) {
 // В ряд идут только записи в ТЕКУЩЕЙ единице упражнения (по свежему снимку):
 // подходы, сделанные до смены типа, в другой единице и на одном графике с новыми
 // несравнимы (РЕВЬЮ-КОДА-2026-10-02, п. 17).
-export function buildSeries(workouts, exerciseId, weighted) {
+// distance (v6.12.0) — ведущее число в weight (км), но 1ПМ не считаем.
+export function buildSeries(workouts, exerciseId, weighted, { distance = false } = {}) {
   const shape = currentExerciseShapes(workouts).get(exerciseId)
   const byDay = new Map()
   for (const w of workouts ?? []) {
@@ -90,7 +91,7 @@ export function buildSeries(workouts, exerciseId, weighted) {
       // Ведущий показатель за день = лучший единичный подход (как и рекорд):
       // для весовых — макс. вес, для своего веса/времени — макс. повторов/секунд.
       // 1ПМ (orm) считаем отдельно — вторичное число, на рекорды не влияет.
-      value: weighted
+      value: weighted || distance
         ? rec.sets.reduce((m, x) => Math.max(m, Number(x.weight) || 0), 0)
         : rec.sets.reduce((m, x) => Math.max(m, Number(x.reps) || 0), 0),
       orm: weighted ? bestOneRepMax(rec.sets) : 0,

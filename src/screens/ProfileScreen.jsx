@@ -130,14 +130,14 @@ export default function ProfileScreen({ user, onLogout, onOpenProgress, onOpenFe
   const [settingsOpen, setSettingsOpen] = useState(startInSettings)
   const wnUnopened = hasUnopened(WHATS_NEW, readMark(OPENED_KEY))
   // Непрочитанный ответ разработчика на обращение (v6.11.0) — метка «ответ» у пункта
-  // «Написать разработчику». Тянем при открытии Настроек; любая ошибка — просто без метки.
+  // «Написать разработчику». С v6.12.0 пункт в корне Профиля (а не в Настройках) —
+  // тянем при входе в Профиль; любая ошибка — просто без метки.
   const [fbUnread, setFbUnread] = useState(0)
   useEffect(() => {
-    if (!settingsOpen) return undefined
     let live = true
     myUnreadReplies(user.id).then((n) => { if (live) setFbUnread(n) })
     return () => { live = false }
-  }, [settingsOpen, user.id])
+  }, [user.id])
   useEffect(() => {
     if (startInSettings) onStartInSettingsConsumed?.()
   }, [startInSettings, onStartInSettingsConsumed])
@@ -341,8 +341,10 @@ export default function ProfileScreen({ user, onLogout, onOpenProgress, onOpenFe
   const goalList = (goals ?? []).filter((g) => !g._deleted)
   // Цели — по любой метрике (вес/повторы/время): предлагаем все упражнения из
   // рекордов, по которым цели еще нет.
+  // Дистанцию (бег, эллипс) в цели не берем (v6.12.0): серверные цели знают
+  // только вес/повторы/время, а «пробежать N км» — отдельная история.
   const addOptions = records.filter(
-    (r) => !goalList.some((g) => g.exerciseId === r.exId)
+    (r) => r.metric !== 'distance' && !goalList.some((g) => g.exerciseId === r.exId)
   )
   const edName = edExId
     ? (goalList.find((g) => g.exerciseId === edExId)?.exerciseName ??
@@ -462,7 +464,17 @@ export default function ProfileScreen({ user, onLogout, onOpenProgress, onOpenFe
   const settingsSurfaceRef = useRef(null)
   const profileSurfaceRef = useRef(null)
   useLayoutEffect(() => {
-    contentRef?.current?.scrollTo({ top: settingsOpen ? 0 : Number(profileSurfaceRef.current?.dataset.scrollTop || 0) })
+    const box = contentRef?.current
+    if (!box) return undefined
+    const top = () => (settingsOpen ? 0 : Number(profileSurfaceRef.current?.dataset.scrollTop || 0))
+    box.scrollTo({ top: top() })
+    // v6.12.0: на iPhone Настройки, закрытые свайпом прокрученными вниз, при повторном
+    // открытии вставали внизу — позицию после commit перебивала инерция/восстановление
+    // прокрутки WebKit. Повторяем установку в следующем кадре, когда разметка устоялась.
+    const raf = typeof requestAnimationFrame === 'function'
+      ? requestAnimationFrame(() => box.scrollTo({ top: top() }))
+      : null
+    return () => { if (raf != null) cancelAnimationFrame(raf) }
   }, [settingsOpen, contentRef])
 
   function openSettings() {
@@ -524,14 +536,6 @@ export default function ProfileScreen({ user, onLogout, onOpenProgress, onOpenFe
                 🎨 Оформление
                 <span className="act-sub">акцентный цвет приложения</span>
               </span>
-            </button>
-            {/* «Написать разработчику» (v6.11.0): ошибка, идея, вопрос — сразу разработчику. */}
-            <button className={'act' + (fbUnread ? ' act-new' : '')} onClick={() => onOpenFeedback?.()}>
-              <span className="act-txt">
-                💬 Написать разработчику
-                <span className="act-sub">ошибка, идея или вопрос</span>
-              </span>
-              {fbUnread > 0 && <span className="act-badge">ответ</span>}
             </button>
             <SexPicker value={sexValue} busy={sexPending !== undefined} error={sexErr} onChange={changeSex} />
             <button
@@ -910,6 +914,12 @@ export default function ProfileScreen({ user, onLogout, onOpenProgress, onOpenFe
         )}
 
         <MemberInvites key={user.id} userId={user.id} />
+        {/* «Написать разработчику» (v6.11.0; в корне Профиля с v6.12.0 — в Настройках
+            его не находили): ошибка, идея, вопрос — сразу разработчику. */}
+        <button className={'settings-toggle fb-entry' + (fbUnread ? ' act-new' : '')} onClick={() => onOpenFeedback?.()}>
+          <span className="settings-title"><span aria-hidden="true">💬</span> Написать разработчику</span>
+          {fbUnread > 0 ? <span className="act-badge">ответ</span> : <span className="settings-chev" aria-hidden="true">›</span>}
+        </button>
         {user.role === 'admin' && (
           <button className="settings-toggle" onClick={() => onOpenAdmin?.()}>
             <span className="settings-title"><span aria-hidden="true">🛠</span> Админка</span>

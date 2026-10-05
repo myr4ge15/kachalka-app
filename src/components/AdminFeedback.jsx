@@ -1,14 +1,15 @@
 import { useEffect, useRef, useState } from 'react'
 import CardsSkeleton from './CardsSkeleton.jsx'
 import { showToast } from './Toast.jsx'
+import FeedbackPhotos from './FeedbackPhotos.jsx'
 import {
-  contextLine, fmtFeedbackDate, isOpenStatus, openCount, FEEDBACK_MAX, FEEDBACK_STATUSES, STATUS_LABEL,
+  contextLine, fmtFeedbackDate, hasReply, isOpenStatus, openCount, FEEDBACK_MAX, FEEDBACK_STATUSES, STATUS_LABEL,
 } from '../lib/feedback.js'
 import {
-  adminListFeedback, adminUpdateFeedback, feedbackShotUrl, FeedbackError,
+  adminListFeedback, adminUpdateFeedback, feedbackMedia, feedbackShotUrl, FeedbackError,
 } from '../lib/feedbackApi.js'
 
-const defaultApi = { list: adminListFeedback, update: adminUpdateFeedback, shot: feedbackShotUrl }
+const defaultApi = { list: adminListFeedback, update: adminUpdateFeedback, shot: feedbackShotUrl, media: feedbackMedia }
 const errText = (e) => (e instanceof FeedbackError ? e.message : String(e?.message ?? e))
 
 // Админка → «Обращения» (v6.11.0): бэклог обратной связи участников. Новые и «в
@@ -108,6 +109,16 @@ function FeedbackCard({ row, online, api, editing, onEdit, onSaved }) {
       <span className="admin-ex-meta">{fmtFeedbackDate(row.created_at)}</span>
       <p className="fb-body">{row.body}</p>
       {ctx && <p className="admin-ex-meta fb-ctx">{ctx}</p>}
+      {row.reopened_at && row.reopen_note && (
+        <p className="fb-reopen">
+          <span aria-hidden="true">🔁 </span>Открыто снова{row.reopen_count > 1 ? ` (${row.reopen_count}-й раз)` : ''}: {row.reopen_note}
+        </p>
+      )}
+      {/* v6.12.0: отправленный в Telegram скриншот живет там (file_id), в Storage — только недошедший. */}
+      {!row.screenshot_path && row.has_screenshot_tg && (
+        <FeedbackPhotos id={row.id} kind="shot" count={1} load={api.media} lazy disabled={!online}
+          label={`Скриншот от ${row.author_name}`} />
+      )}
       {row.screenshot_path && (shotUrl ? (
         <a className="fb-shot" href={shotUrl} target="_blank" rel="noreferrer">
           <img src={shotUrl} alt={`Скриншот от ${row.author_name}`} />
@@ -117,12 +128,16 @@ function FeedbackCard({ row, online, api, editing, onEdit, onSaved }) {
           {shotBusy ? 'Открываю…' : '📎 Показать скриншот'}
         </button>
       ))}
-      {row.reply && !editing && (
+      {hasReply(row) && !editing && (
         <div className="fb-reply">
           <div className="fb-reply-head">
             <span>Ответ · {fmtFeedbackDate(row.replied_at)}{row.reply_seen_at ? ' · прочитан' : ''}</span>
           </div>
-          <p className="fb-body">{row.reply}</p>
+          {row.reply && <p className="fb-body">{row.reply}</p>}
+          {row.reply_photos > 0 && (
+            <FeedbackPhotos id={row.id} kind="reply" count={row.reply_photos} load={api.media} lazy
+              disabled={!online} label="Фото ответа" />
+          )}
         </div>
       )}
       {editing

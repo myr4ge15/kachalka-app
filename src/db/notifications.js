@@ -17,6 +17,7 @@ import { myBestByExercise, minePrs, computeBeaten, computeNewPrs, crossedGoal, g
 import { computeReactionNotifs } from '../lib/reactions.js'
 import { buildInsights } from '../lib/insights.js'
 import { BADGES } from '../lib/badges.js'
+import { getCachedFeedbackReplies } from './feedbackReplies.js'
 import { getBadges, getCachedUser } from './repo.js'
 import { getCachedLeaderboard } from './leaderboard.js'
 import { normMetric } from '../lib/metric.js'
@@ -126,7 +127,9 @@ export async function getNotifications(userId) {
   const reactions = computeReactionNotifs(feedItems, userId)
   const insights = await insightNotifs(userId, workouts)
   const badges = await badgeNotifs(userId)
-  return [...mine, ...beaten, ...goal, ...reactions, ...insights, ...badges]
+  // Ответы разработчика на мои обращения (v6.12.0) — кэш с сервера, см. db/feedbackReplies.js.
+  const replies = await getCachedFeedbackReplies(userId)
+  return [...mine, ...beaten, ...goal, ...reactions, ...insights, ...badges, ...replies]
     .sort((a, b) => cmpIsoDesc(a.at, b.at))
     .slice(0, LIMIT)
 }

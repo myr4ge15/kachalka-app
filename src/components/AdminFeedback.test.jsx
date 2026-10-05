@@ -9,7 +9,7 @@ import { showToast } from './Toast.jsx'
 vi.mock('./Toast.jsx', () => ({ showToast: vi.fn() }))
 vi.mock('../lib/feedbackApi.js', () => ({
   FeedbackError: class FeedbackError extends Error {},
-  adminListFeedback: vi.fn(), adminUpdateFeedback: vi.fn(), feedbackShotUrl: vi.fn(),
+  adminListFeedback: vi.fn(), adminUpdateFeedback: vi.fn(), feedbackShotUrl: vi.fn(), feedbackMedia: vi.fn(),
 }))
 
 const ROWS = [
@@ -23,6 +23,7 @@ function setup(over = {}) {
     list: vi.fn(async () => ROWS),
     update: vi.fn(async () => ({ notified: true, pushed: 1 })),
     shot: vi.fn(async () => 'https://x.supabase.co/signed/a.jpg'),
+    media: vi.fn(async (id, kind, n) => `blob:${id}-${kind}-${n}`),
     ...over,
   }
   render(<AdminFeedback online api={api} />)
@@ -79,5 +80,25 @@ describe('AdminFeedback', () => {
   it('нет открытых — понятная пустая заглушка', async () => {
     setup({ list: vi.fn(async () => [ROWS[2]]) })
     expect(await screen.findByText('Открытых обращений нет 🎉')).toBeTruthy()
+  })
+})
+
+describe('AdminFeedback — Telegram (v6.12.0)', () => {
+  const TG = {
+    id: 't', author_name: 'Оля', body: 'Не грузится', status: 'new', context: {}, screenshot_path: null,
+    has_screenshot_tg: true, reply: null, reply_photos: 2, replied_at: '2026-10-05T12:00:00Z',
+    reopen_note: 'Все еще не грузится', reopened_at: '2026-10-05T13:00:00Z', reopen_count: 2,
+    created_at: '2026-10-05T10:00:00Z',
+  }
+
+  it('скриншот из Telegram и фото ответа — по нажатию, через прокси; комментарий переоткрытия', async () => {
+    const api = setup({ list: vi.fn(async () => [TG]) })
+    expect(await screen.findByText('Открыто снова (2-й раз): Все еще не грузится')).toBeTruthy()
+    expect(api.media).not.toHaveBeenCalled() // байты не тянем, пока не попросили
+    await userEvent.click(screen.getByRole('button', { name: '📎 Показать скриншот от оля' }))
+    await waitFor(() => expect(api.media).toHaveBeenCalledWith('t', 'shot', 0))
+    await userEvent.click(screen.getByRole('button', { name: '📎 Показать фото ответа (2)' }))
+    await waitFor(() => expect(api.media).toHaveBeenCalledWith('t', 'reply', 1))
+    expect(api.shot).not.toHaveBeenCalled()
   })
 })

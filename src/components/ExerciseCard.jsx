@@ -1,6 +1,6 @@
 import HoldButton from './HoldButton.jsx'
 import TimeInput from './TimeInput.jsx'
-import { exerciseMetric, isCountMetric, fmtSet } from '../lib/metric.js'
+import { exerciseMetric, isCountMetric, fmtSet, bestPace, fmtPace, paceSecPerKm } from '../lib/metric.js'
 import { resolveProgSettings } from '../lib/progression.js'
 import {
   daysAgoLabel, progArrow, progTone, nextProgStep, fmtProgStep,
@@ -29,8 +29,11 @@ export default function ExerciseCard({
 }) {
   const metric = exerciseMetric(entry.exercise)
   const count = isCountMetric(metric) // своего веса / на время — без столбца «кг»
-  const isTime = metric === 'time'
+  // Дистанция (v6.12.0): столбцы «км» и «мин:сек»; темп считаем по ходу ввода.
+  const isDistance = metric === 'distance'
+  const isTime = metric === 'time' || isDistance
   const valLabel = isTime ? 'мин:сек' : 'повт.'
+  const pace = isDistance ? bestPace(entry.sets) ?? lastPace(entry.sets) : null
   const summary = exerciseFocusSummary(entry)
 
   // Свернутое упражнение доступно одной крупной кнопкой со сводкой подходов.
@@ -162,7 +165,7 @@ export default function ExerciseCard({
       <div className="sets-head">
         {count
           ? <><span>#</span><span>{valLabel}</span><span></span></>
-          : <><span>#</span><span>кг</span><span>повт.</span><span></span></>}
+          : <><span>#</span><span>{isDistance ? 'км' : 'кг'}</span><span>{isDistance ? 'мин:сек' : 'повт.'}</span><span></span></>}
       </div>
 
       {entry.sets.map((s, si) => (
@@ -172,26 +175,27 @@ export default function ExerciseCard({
           <span className="set-no" aria-hidden="true">{si + 1}</span>
 
           {!count && (
-            <div className="stepper" role="group" aria-label={`Подход ${si + 1}, вес`}>
-              <HoldButton onTrigger={() => onStep(ei, si, 'weight', -1.25)}>−</HoldButton>
+            <div className="stepper" role="group" aria-label={`Подход ${si + 1}, ${isDistance ? 'дистанция' : 'вес'}`}>
+              <HoldButton onTrigger={() => onStep(ei, si, 'weight', isDistance ? -0.5 : -1.25)}>−</HoldButton>
               <input
                 type="text" inputMode="decimal" value={s.weight}
-                aria-label={`Вес, подход ${si + 1}`}
+                aria-label={`${isDistance ? 'Дистанция, км' : 'Вес'}, подход ${si + 1}`}
+                placeholder={isDistance ? 'км' : undefined}
                 onChange={(e) => onUpdateSet(ei, si, 'weight', e.target.value.replace(',', '.'))}
               />
-              <HoldButton onTrigger={() => onStep(ei, si, 'weight', 1.25)}>+</HoldButton>
+              <HoldButton onTrigger={() => onStep(ei, si, 'weight', isDistance ? 0.5 : 1.25)}>+</HoldButton>
             </div>
           )}
 
           {isTime ? (
             <div className="stepper" role="group" aria-label={`Подход ${si + 1}, время`}>
-              <HoldButton onTrigger={() => onStep(ei, si, 'reps', -5)}>−</HoldButton>
+              <HoldButton onTrigger={() => onStep(ei, si, 'reps', isDistance ? -30 : -5)}>−</HoldButton>
               <TimeInput
                 value={s.reps}
                 aria-label={`Время, подход ${si + 1}`}
                 onChange={(sec) => onUpdateSet(ei, si, 'reps', sec)}
               />
-              <HoldButton onTrigger={() => onStep(ei, si, 'reps', 5)}>+</HoldButton>
+              <HoldButton onTrigger={() => onStep(ei, si, 'reps', isDistance ? 30 : 5)}>+</HoldButton>
             </div>
           ) : (
             <div className="stepper" role="group" aria-label={`Подход ${si + 1}, повторения`}>
@@ -211,6 +215,12 @@ export default function ExerciseCard({
           </button>
         </div>
       ))}
+
+      {isDistance && (
+        <p className="set-pace muted" aria-live="polite">
+          {pace ? `Темп: ${fmtPace(pace)}` : 'Укажи км и время — посчитаю темп'}
+        </p>
+      )}
 
       <button className="set-add" onClick={() => onAddSet(ei)}>
         + подход (повтор предыдущего)
@@ -246,4 +256,14 @@ function GearIcon() {
       <path d="M19.4 15a1.7 1.7 0 0 0 .3 1.8l.1.1a2 2 0 1 1-2.8 2.8l-.1-.1a1.7 1.7 0 0 0-1.8-.3 1.7 1.7 0 0 0-1 1.5V21a2 2 0 1 1-4 0v-.1a1.7 1.7 0 0 0-1.1-1.5 1.7 1.7 0 0 0-1.8.3l-.1.1a2 2 0 1 1-2.8-2.8l.1-.1a1.7 1.7 0 0 0 .3-1.8 1.7 1.7 0 0 0-1.5-1H3a2 2 0 1 1 0-4h.1a1.7 1.7 0 0 0 1.5-1.1 1.7 1.7 0 0 0-.3-1.8l-.1-.1a2 2 0 1 1 2.8-2.8l.1.1a1.7 1.7 0 0 0 1.8.3H9a1.7 1.7 0 0 0 1-1.5V3a2 2 0 1 1 4 0v.1a1.7 1.7 0 0 0 1 1.5 1.7 1.7 0 0 0 1.8-.3l.1-.1a2 2 0 1 1 2.8 2.8l-.1.1a1.7 1.7 0 0 0-.3 1.8V9a1.7 1.7 0 0 0 1.5 1H21a2 2 0 1 1 0 4h-.1a1.7 1.7 0 0 0-1.5 1z" />
     </svg>
   )
+}
+
+// Темп короткого отрезка (меньше 1 км), когда длинных нет: подсказка при вводе,
+// а не рекорд — рекордный темп считается только от 1 км (lib/metric.js bestPace).
+function lastPace(sets) {
+  for (let i = (sets ?? []).length - 1; i >= 0; i--) {
+    const p = paceSecPerKm(sets[i]?.weight, sets[i]?.reps)
+    if (p != null) return p
+  }
+  return null
 }

@@ -16,7 +16,9 @@ function blankOrNonPositive(value) {
 // Для reps/time weight=0 — штатный формат, поэтому проверяем только reps.
 export function isExerciseIncomplete(entry) {
   if (!entry?.sets?.length) return true
-  const weighted = exerciseMetric(entry.exercise) === 'weight'
+  // У дистанции «вес» — километры; без них подход тоже незаполнен.
+  const m = exerciseMetric(entry.exercise)
+  const weighted = m === 'weight' || m === 'distance'
   return entry.sets.some((set) => (
     blankOrNonPositive(set?.reps) ||
     (weighted && blankOrNonPositive(set?.weight))

@@ -1,81 +1,138 @@
 // @vitest-environment jsdom
-// Экран входа: выборка ростера. Регрессия 29.07.2026 — select без `sex` вместе с
-// деструктивной записью кэша обнулял пол ВСЕМ учеткам устройства (см. lib/roster.js).
-// Здесь пиннится именно место регрессии: какие поля экран спрашивает и что делает,
-// если сервер такую выборку не принимает.
-import { beforeEach, describe, expect, it, vi } from 'vitest'
-import { render, screen, waitFor } from '@testing-library/react'
+// Экран входа (v6.12.0): пикер — только учетки устройства, вход по имени,
+// «Забыть на этом устройстве», статус заявки «Хочу в круг». Список участников
+// экран больше не запрашивает (кто случайно открыл ссылку, круг не видит).
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
+import { fireEvent, render, screen, waitFor } from '@testing-library/react'
 import LoginScreen from './LoginScreen.jsx'
-import { supabase } from '../db/supabase.js'
-import { cacheUsers, getUsers } from '../db/repo.js'
+import * as auth from '../lib/auth.js'
+import * as join from '../lib/joinRequest.js'
 
-// Билдер запоминает строку select и отдает заранее заданный результат.
-const selects = []
-let results = []
-vi.mock('../db/supabase.js', () => ({
-  supabase: {
-    from: vi.fn(() => ({
-      select: vi.fn((fields) => {
-        selects.push(fields)
-        const res = results.shift() ?? { data: [], error: null }
-        const chain = { order: vi.fn(() => chain), then: (fn) => fn(res) }
-        return chain
-      }),
-    })),
-  },
-}))
-vi.mock('../db/repo.js', () => ({ getUsers: vi.fn(() => Promise.resolve([])), cacheUsers: vi.fn() }))
-vi.mock('../db/local.js', () => ({ migrateLoginZone: vi.fn(() => Promise.resolve()) }))
-vi.mock('../lib/auth.js', () => ({
-  login: vi.fn(),
-  verifyPinOffline: vi.fn(),
-  dropForeignSession: vi.fn(async () => {}),
-  LoginError: class LoginError extends Error {},
-}))
-
-const ROSTER = [{ id: 'u1', name: 'Дима', avatar_url: null, sort_order: 1, sex: 'm' }]
-
-beforeEach(() => {
-  selects.length = 0
-  results = []
-  vi.mocked(supabase.from).mockClear()
-  vi.mocked(cacheUsers).mockClear()
-  vi.mocked(getUsers).mockResolvedValue([])
+vi.mock('../db/repo.js', () => ({ getUsers: vi.fn(async () => [{ id: 'u1', name: 'Дима' }, { id: 'u9', name: 'Чужой' }]) }))
+vi.mock('../db/local.js', () => ({ migrateLoginZone: vi.fn(async () => {}) }))
+vi.mock('../lib/auth.js', () => {
+  class LoginError extends Error {
+    constructor(code, message, retryAfter = null) { super(message); this.code = code; this.retryAfter = retryAfter }
+  }
+  return {
+    login: vi.fn(),
+    loginByName: vi.fn(),
+    verifyPinOffline: vi.fn(),
+    dropForeignSession: vi.fn(async () => {}),
+    noteLoginFailure: vi.fn(),
+    knownAccounts: vi.fn(),
+    forgetAccount: vi.fn(async () => {}),
+    LoginError,
+  }
+})
+vi.mock('../lib/joinRequest.js', async (orig) => {
+  const real = await orig()
+  return { ...real, loadPending: vi.fn(() => null), savePending: vi.fn(), clearPending: vi.fn(), pollJoin: vi.fn(), submitJoin: vi.fn() }
 })
 
-describe('LoginScreen: выборка ростера', () => {
-  it('спрашивает sex и кэширует строки как есть', async () => {
-    results = [{ data: ROSTER, error: null }]
-    render(<LoginScreen onLogin={() => {}} />)
+const DIMA = { id: 'u1', name: 'Дима', role: 'member' }
 
-    await waitFor(() => expect(cacheUsers).toHaveBeenCalledWith(ROSTER))
-    expect(selects[0]).toContain('sex')
+beforeEach(() => {
+  vi.mocked(auth.knownAccounts).mockResolvedValue([DIMA])
+  vi.mocked(join.loadPending).mockReturnValue(null)
+  Object.defineProperty(navigator, 'onLine', { value: true, configurable: true })
+})
+afterEach(() => vi.clearAllMocks())
+
+const typePin = (digits) => { for (const d of digits) fireEvent.click(screen.getByRole('button', { name: d })) }
+
+describe('LoginScreen', () => {
+  it('пикер показывает только учетки устройства', async () => {
+    render(<LoginScreen onLogin={() => {}} />)
     expect(await screen.findByText('Дима')).toBeInTheDocument()
+    expect(screen.queryByText('Чужой')).not.toBeInTheDocument()
+    expect(auth.knownAccounts).toHaveBeenCalledWith([{ id: 'u1', name: 'Дима' }, { id: 'u9', name: 'Чужой' }])
   })
 
-  it('если сервер не знает колонку sex — берет прежний набор полей, а не падает', async () => {
-    const legacy = [{ id: 'u1', name: 'Дима', avatar_url: null, sort_order: 1 }]
-    results = [
-      { data: null, error: { message: 'column login_users.sex does not exist' } },
-      { data: legacy, error: null },
-    ]
-    render(<LoginScreen onLogin={() => {}} />)
-
-    await waitFor(() => expect(cacheUsers).toHaveBeenCalledWith(legacy))
-    expect(selects).toHaveLength(2)
-    expect(selects[1]).not.toContain('sex')
-    expect(await screen.findByText('Дима')).toBeInTheDocument()
-    expect(screen.queryByText(/Не удалось загрузить/)).not.toBeInTheDocument()
+  it('учетка устройства: PIN по кэшу открывает приложение', async () => {
+    vi.mocked(auth.verifyPinOffline).mockResolvedValue(DIMA)
+    vi.mocked(auth.login).mockResolvedValue(DIMA)
+    const onLogin = vi.fn()
+    render(<LoginScreen onLogin={onLogin} />)
+    fireEvent.click(await screen.findByText('Дима'))
+    typePin('1234')
+    await waitFor(() => expect(onLogin).toHaveBeenCalledWith(DIMA))
+    expect(auth.verifyPinOffline).toHaveBeenCalledWith('u1', '1234')
   })
 
-  it('оба select упали и кэша нет — показывает ошибку, кэш не пишем', async () => {
-    results = [
-      { data: null, error: { message: 'boom' } },
-      { data: null, error: { message: 'boom' } },
-    ]
-    render(<LoginScreen onLogin={() => {}} />)
+  it('новое устройство (никто не входил) — сразу форма имени, вход по имени', async () => {
+    vi.mocked(auth.knownAccounts).mockResolvedValue([])
+    vi.mocked(auth.loginByName).mockResolvedValue({ id: 'u2', name: 'Анечка (ничего не делала)', role: 'member' })
+    const onLogin = vi.fn()
+    render(<LoginScreen onLogin={onLogin} />)
+    fireEvent.change(await screen.findByLabelText('Имя'), { target: { value: 'анечка' } })
+    fireEvent.change(screen.getByLabelText('PIN — 4 цифры'), { target: { value: '12a34' } })
+    fireEvent.click(screen.getByRole('button', { name: 'Войти' }))
+    await waitFor(() => expect(onLogin).toHaveBeenCalled())
+    expect(auth.loginByName).toHaveBeenCalledWith('анечка', '1234')
+    expect(screen.queryByRole('button', { name: /К списку/ })).not.toBeInTheDocument()
+  })
 
-    expect(await screen.findByText(/Не удалось загрузить/)).toBeInTheDocument()
-    expect(cacheUsers).not.toHaveBeenCalled()
+  it('вход по имени: неверно — одна и та же ошибка, PIN очищается', async () => {
+    vi.mocked(auth.loginByName).mockRejectedValue(new auth.LoginError('invalid', 'Имя или PIN не подходят'))
+    render(<LoginScreen onLogin={() => {}} />)
+    fireEvent.click(await screen.findByRole('button', { name: 'Войти под другим именем' }))
+    fireEvent.change(screen.getByLabelText('Имя'), { target: { value: 'Кто-то' } })
+    fireEvent.change(screen.getByLabelText('PIN — 4 цифры'), { target: { value: '0000' } })
+    fireEvent.click(screen.getByRole('button', { name: 'Войти' }))
+    expect(await screen.findByRole('alert')).toHaveTextContent('Имя или PIN не подходят')
+    expect(screen.getByLabelText('PIN — 4 цифры')).toHaveValue('')
+  })
+
+  it('вход по имени офлайн — сразу понятный отказ, без запроса', async () => {
+    Object.defineProperty(navigator, 'onLine', { value: false, configurable: true })
+    vi.mocked(auth.knownAccounts).mockResolvedValue([])
+    render(<LoginScreen onLogin={() => {}} />)
+    fireEvent.change(await screen.findByLabelText('Имя'), { target: { value: 'Дима' } })
+    fireEvent.change(screen.getByLabelText('PIN — 4 цифры'), { target: { value: '1234' } })
+    fireEvent.click(screen.getByRole('button', { name: 'Войти' }))
+    expect(await screen.findByRole('alert')).toHaveTextContent(/только онлайн/)
+    expect(auth.loginByName).not.toHaveBeenCalled()
+  })
+
+  it('«Забыть на этом устройстве» — с подтверждением, потом список без учетки', async () => {
+    render(<LoginScreen onLogin={() => {}} />)
+    fireEvent.click(await screen.findByText('Дима'))
+    fireEvent.click(screen.getByRole('button', { name: 'Забыть на этом устройстве' }))
+    expect(auth.forgetAccount).not.toHaveBeenCalled()
+    vi.mocked(auth.knownAccounts).mockResolvedValue([])
+    fireEvent.click(screen.getByRole('button', { name: 'Точно убрать из списка?' }))
+    await waitFor(() => expect(auth.forgetAccount).toHaveBeenCalledWith('u1'))
+    expect(await screen.findByLabelText('Имя')).toBeInTheDocument()
+  })
+
+  it('«Хочу в круг»: форма → заявка отправлена, кнопка исчезает', async () => {
+    vi.mocked(join.submitJoin).mockResolvedValue({ id: 'r1', secret: 's', name: 'Вася', at: 1 })
+    render(<LoginScreen onLogin={() => {}} />)
+    fireEvent.click(await screen.findByRole('button', { name: 'Хочу в круг' }))
+    fireEvent.change(screen.getByLabelText('Как тебя зовут'), { target: { value: 'Вася' } })
+    fireEvent.change(screen.getByLabelText('Пара слов о себе'), { target: { value: 'друг Димы' } })
+    fireEvent.click(screen.getByRole('button', { name: 'Отправить заявку' }))
+    expect(await screen.findByText('Заявка отправлена')).toBeInTheDocument()
+    expect(join.submitJoin).toHaveBeenCalledWith({ name: 'Вася', about: 'друг Димы', website: '' })
+    expect(screen.queryByRole('button', { name: 'Хочу в круг' })).not.toBeInTheDocument()
+  })
+
+  it('заявку одобрили — экран отдает токен приглашения и запоминает его', async () => {
+    vi.mocked(join.loadPending).mockReturnValue({ id: 'r1', secret: 's', name: 'Вася' })
+    vi.mocked(join.pollJoin).mockResolvedValue({ status: 'approved', token: 'TOKEN' })
+    const onInvite = vi.fn()
+    render(<LoginScreen onLogin={() => {}} onInvite={onInvite} />)
+    await waitFor(() => expect(onInvite).toHaveBeenCalledWith('TOKEN'))
+    expect(join.savePending).toHaveBeenCalledWith({ id: 'r1', secret: 's', name: 'Вася', token: 'TOKEN' })
+    expect(await screen.findByRole('button', { name: 'Зарегистрироваться' })).toBeInTheDocument()
+  })
+
+  it('заявку отклонили — сообщение, локальная заявка стерта', async () => {
+    vi.mocked(join.loadPending).mockReturnValue({ id: 'r1', secret: 's', name: 'Вася' })
+    vi.mocked(join.pollJoin).mockResolvedValue({ status: 'declined' })
+    render(<LoginScreen onLogin={() => {}} />)
+    expect(await screen.findByText(/не принял заявку/)).toBeInTheDocument()
+    expect(join.clearPending).toHaveBeenCalled()
   })
 })

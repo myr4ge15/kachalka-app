@@ -25,6 +25,8 @@ import TimeInput from '../components/TimeInput.jsx'
 // Дефолтный целевой план по типу упражнения: 3 подхода × 10 повторов (время —
 // 1:00 = 60 с), без целевого веса. Используется для новых и легаси-упражнений.
 function defaultTarget(metric) {
+  // Дистанция (v6.12.0): один подход на 30:00, км — по желанию.
+  if (metric === 'distance') return { sets: 1, reps: 1800, weight: 0 }
   return { sets: 3, reps: metric === 'time' ? 60 : 10, weight: 0 }
 }
 
@@ -449,7 +451,8 @@ function TemplateEditor({ user, templateId, onBack }) {
 
           {items.map((it, idx) => {
             const metric = exerciseMetric(it.exercise)
-            const isTime = metric === 'time'
+            const isDistance = metric === 'distance'
+            const isTime = metric === 'time' || isDistance
             const count = isCountMetric(metric) // свой вес / на время — без столбца «кг»
             return (
             <div
@@ -503,7 +506,7 @@ function TemplateEditor({ user, templateId, onBack }) {
                     <>
                       <span className="tpl-target-x" aria-hidden="true">×</span>
                       <label className="tpl-target">
-                        <span className="tpl-target-lab">кг</span>
+                        <span className="tpl-target-lab">{isDistance ? 'км' : 'кг'}</span>
                         <input
                           type="text" inputMode="decimal"
                           value={it.weight}

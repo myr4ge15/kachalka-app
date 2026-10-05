@@ -19,7 +19,8 @@ export function templateExercisesFromWorkout(entries) {
       const ex = e.exercise ?? (e.exercise_id ? { id: e.exercise_id } : null)
       const sets = (e.sets ?? []).filter(Boolean)
       if (!ex?.id || sets.length === 0) return null
-      const weighted = exerciseMetric(ex) === 'weight'
+      const m = exerciseMetric(ex)
+      const weighted = m === 'weight' || m === 'distance' // у дистанции цель — км
       // Лучший подход по ведущей метрике.
       let top = sets[0]
       let topLead = -Infinity

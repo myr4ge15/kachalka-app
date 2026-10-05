@@ -24,7 +24,8 @@ export const TIME_MAX = 86400 // секунд = 24 ч (планка/кардио
 // Верхняя граница «повторного» поля с учетом метрики: у time-упражнений reps
 // хранит секунды (граница TIME_MAX), у остальных — повторы (REPS_MAX).
 export function repsMax(metric) {
-  return normMetric(metric) === 'time' ? TIME_MAX : REPS_MAX
+  const m = normMetric(metric)
+  return m === 'time' || m === 'distance' ? TIME_MAX : REPS_MAX
 }
 
 // Клампинг веса. У не-весовых метрик вес не хранится → всегда 0 (инвариант).

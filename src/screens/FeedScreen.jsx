@@ -334,10 +334,12 @@ export default function FeedScreen({ user, onOpenMember, flashId = null }) {
         {/* Лидерборд приватному не показываем: в общий рейтинг он не входит. */}
         {!myPrivate && (
           <aside className="feed-rail" data-open={railOpen ? '1' : '0'}>
-            <button type="button" className="group-toggle feed-rail-toggle" aria-expanded={railOpen}
+            {/* v6.12.0: строка-кнопка как «Настройки»/«Пригласить» в Профиле — мелкий
+                серый заголовок с треугольником было еле видно. */}
+            <button type="button" className="settings-toggle feed-rail-toggle" aria-expanded={railOpen}
               onClick={toggleRail}>
-              <span className="group-caret" aria-hidden="true">{railOpen ? '▾' : '▸'}</span>
-              <span className="group-toggle-title">Рейтинг</span>
+              <span className="settings-title"><span aria-hidden="true">🏆</span> Рейтинг</span>
+              <span className="settings-chev" aria-hidden="true">{railOpen ? '⌄' : '›'}</span>
             </button>
             {/* Свернутый рейтинг не размонтируем: данные уже подгружены, раскрытие
                 мгновенное, а на десктопе он виден всегда. */}

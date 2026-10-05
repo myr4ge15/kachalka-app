@@ -32,6 +32,11 @@ function renderPicker(over = {}) {
 const type = (input, value) => fireEvent.change(input, { target: { value } })
 
 describe('ExercisePicker — умный поиск', () => {
+  it('при открытии поиск не в фокусе — клавиатура не закрывает справочник (v6.12.0)', () => {
+    const { search } = renderPicker()
+    expect(search).not.toHaveFocus()
+  })
+
   it('находит упражнение по мышце и объясняет это заголовком', async () => {
     const { search } = renderPicker()
     type(search, 'плеч')

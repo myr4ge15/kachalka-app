@@ -2,6 +2,7 @@ import { describe, expect, it } from 'vitest'
 import {
   bodyProblem, buildContext, cleanBody, contextLine, describeDevice, feedbackErrorText, isWebKit26Plus,
   fmtFeedbackDate, hasUnreadReply, isOpenStatus, openCount, unreadReplies, FEEDBACK_MAX,
+  canReopen, hasReply, isStaleReply, reopenProblem, REOPEN_LIMIT, REOPEN_MAX,
 } from './feedback.js'
 
 const IPHONE = 'Mozilla/5.0 (iPhone; CPU iPhone OS 17_5 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/17.5 Mobile/15E148 Safari/604.1'
@@ -114,5 +115,32 @@ describe('isWebKit26Plus', () => {
     expect(isWebKit26Plus({ supports: () => false })).toBe(false)
     expect(isWebKit26Plus(undefined)).toBe(false)
     expect(isWebKit26Plus({ supports: () => { throw new Error('x') } })).toBe(false)
+  })
+})
+
+describe('ответ из Telegram и переоткрытие (v6.12.0)', () => {
+  const R = { status: 'resolved', reply: null, reply_photos: 0, replied_at: '2026-10-05T12:00:00Z', reply_seen_at: null }
+  it('hasReply: текст или фото; фото-ответ тоже «непрочитан»', () => {
+    expect(hasReply(R)).toBe(false)
+    expect(hasReply({ ...R, reply_photos: 1 })).toBe(true)
+    expect(hasReply({ ...R, reply: 'да' })).toBe(true)
+    expect(hasUnreadReply({ ...R, reply_photos: 2 })).toBe(true)
+    expect(hasUnreadReply(R)).toBe(false)
+  })
+  it('canReopen: только решенное/отклоненное и до лимита', () => {
+    expect(canReopen(R)).toBe(true)
+    expect(canReopen({ ...R, status: 'declined', reopen_count: 2 })).toBe(true)
+    expect(canReopen({ ...R, reopen_count: REOPEN_LIMIT })).toBe(false)
+    expect(canReopen({ ...R, status: 'in_progress' })).toBe(false)
+    expect(canReopen(null)).toBe(false)
+  })
+  it('reopenProblem и isStaleReply', () => {
+    expect(reopenProblem('  ')).toBe('empty')
+    expect(reopenProblem('x'.repeat(REOPEN_MAX + 1))).toBe('too_long')
+    expect(reopenProblem('не помогло')).toBeNull()
+    expect(isStaleReply({ replied_at: '2026-10-05T12:00:00Z', reopened_at: '2026-10-05T13:00:00Z' })).toBe(true)
+    expect(isStaleReply({ replied_at: '2026-10-05T14:00:00Z', reopened_at: '2026-10-05T13:00:00Z' })).toBe(false)
+    expect(isStaleReply({ replied_at: '2026-10-05T14:00:00Z' })).toBe(false)
+    expect(feedbackErrorText('reopen_limit')).toContain('3 раза')
   })
 })

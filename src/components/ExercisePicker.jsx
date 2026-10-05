@@ -263,6 +263,13 @@ export default function ExercisePicker({
             >
               На время
             </button>
+            {/* v6.12.0: бег, ходьба, эллипс, велотренажер — км и время, темп считается. */}
+            <button
+              className={newMetric === 'distance' ? 'chip active' : 'chip'}
+              onClick={() => setNewMetric('distance')}
+            >
+              Дистанция и время
+            </button>
           </div>
 
           <div className="create-label">Группа мышц</div>
@@ -337,13 +344,14 @@ export default function ExercisePicker({
   // ---------------------------- список/поиск --------------------------------
   return (
     <SheetDialog title={title} onDismiss={onClose}>
+        {/* Без автофокуса (v6.12.0): клавиатура закрывала пол-экрана справочника, а
+            чаще упражнение выбирают из списка или чипом группы, а не поиском.
+            Нужен поиск — один тап по полю. */}
         <input
           className="search"
-          data-autofocus
           placeholder="Поиск по названию…"
           value={query}
           onChange={(e) => changeQuery(e.target.value)}
-          autoFocus
         />
 
         <div className="chips">

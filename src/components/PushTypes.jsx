@@ -1,11 +1,26 @@
 // Тумблеры «какие пуши присылать» (v6.7.0) — под главным переключателем
 // «Пуш-уведомления», только когда он включен. Состояние — в hooks/usePushToggle.js.
 // prefs: null — еще грузятся (или не загрузились — тогда есть error).
+// v6.12.0: свернуты в одну строку-аккордеон «Какие присылать · N из M» — раскрытый
+// список занимал пол-экрана Настроек. Ошибка сохранения видна и в свернутом виде.
+import { useState } from 'react'
 import { PUSH_TYPES, isPushTypeOn } from '../lib/pushSupport.js'
 
 export default function PushTypes({ prefs = null, busyType = null, error = '', onChange }) {
+  const [open, setOpen] = useState(false)
   const loading = prefs === null
+  const onCount = PUSH_TYPES.filter((t) => isPushTypeOn(prefs, t.type)).length
   return (
+    <>
+    <button type="button" className="act push-types-toggle" aria-expanded={open} onClick={() => setOpen((v) => !v)}>
+      <span className="toggle-act-txt">
+        Какие присылать
+        <span className="toggle-act-sub">{loading ? 'загружаю…' : `включено ${onCount} из ${PUSH_TYPES.length}`}</span>
+      </span>
+      <span className="settings-chev" aria-hidden="true">{open ? '⌄' : '›'}</span>
+    </button>
+    {!open && error && <p className="push-err" role="alert">{error}</p>}
+    {open && (
     <div className="push-types" role="group" aria-label="Какие уведомления присылать">
       {PUSH_TYPES.map((t) => {
         // Пока настройки грузятся — показываем умолчание («включено», как на
@@ -33,5 +48,7 @@ export default function PushTypes({ prefs = null, busyType = null, error = '', o
       })}
       {error && <p className="push-err" role="alert">{error}</p>}
     </div>
+    )}
+    </>
   )
 }

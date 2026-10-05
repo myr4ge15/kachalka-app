@@ -15,6 +15,12 @@ export const STATUS_LABEL = {
   declined: 'Не будем делать',
 }
 export const isOpenStatus = (s) => s === 'new' || s === 'in_progress'
+export const isFinalStatus = (s) => s === 'resolved' || s === 'declined'
+
+// Переоткрытие автором (v6.12.0): комментарий до 1000 символов, не больше 3 раз
+// (те же пороги проверяет reopen_my_feedback на сервере).
+export const REOPEN_MAX = 1000
+export const REOPEN_LIMIT = 3
 
 // Экран, с которого пишут, — человеческим словом (в Telegram и в админке).
 const SCREEN_LABEL = {
@@ -103,9 +109,48 @@ export function bodyProblem(text) {
   return null
 }
 
+// Ответ — текст и/или фото из Telegram (v6.12.0: ответ может быть одними картинками).
+export function hasReply(row) {
+  return Boolean(row?.reply) || Number(row?.reply_photos) > 0
+}
+
+// Можно ли открыть обращение снова: решено/отклонено и лимит не исчерпан.
+export function canReopen(row) {
+  return isFinalStatus(row?.status) && Number(row?.reopen_count ?? 0) < REOPEN_LIMIT
+}
+
+export function reopenProblem(text) {
+  const t = cleanBody(text)
+  if (!t) return 'empty'
+  if (t.length > REOPEN_MAX) return 'too_long'
+  return null
+}
+
+// Ответы разработчика как пункты «Уведомлений» (v6.12.0). Источник — свои
+// обращения (my_feedback), закэшированные на устройстве (db/feedbackReplies.js).
+export function feedbackReplyNotifs(rows) {
+  return (rows ?? [])
+    .filter((r) => r?.id && r.replied_at && hasReply(r))
+    .map((r) => ({
+      id: `feedback:${r.id}`,
+      type: 'feedback',
+      feedbackId: r.id,
+      at: r.replied_at,
+      status: r.status,
+      text: r.reply ? (r.reply.length > 140 ? r.reply.slice(0, 139) + '…' : r.reply) : '',
+      photos: Number(r.reply_photos) || 0,
+    }))
+}
+
+// Ответ дан ДО последнего переоткрытия — это «прошлый ответ», а не решение.
+export function isStaleReply(row) {
+  if (!row?.reopened_at || !row?.replied_at) return false
+  return new Date(row.replied_at) < new Date(row.reopened_at)
+}
+
 // Ответ есть и автор его еще не видел.
 export function hasUnreadReply(row) {
-  if (!row?.reply || !row.replied_at) return false
+  if (!hasReply(row) || !row.replied_at) return false
   if (!row.reply_seen_at) return true
   return new Date(row.reply_seen_at) < new Date(row.replied_at)
 }
@@ -130,6 +175,8 @@ export function feedbackErrorText(code) {
     case 'not_deployed': return 'Обратная связь пока не включена на сервере.'
     case 'offline': return 'Нет связи. Отправь, когда появится интернет.'
     case 'shot_failed': return 'Не удалось загрузить скриншот. Попробуй без него или другой файл.'
+    case 'reopen_limit': return `Обращение уже открывали снова ${REOPEN_LIMIT} раза — напиши новое.`
+    case 'not_closed': return 'Обращение еще в работе — дождись ответа.'
     default: return 'Не получилось отправить. Проверь связь и попробуй еще раз.'
   }
 }

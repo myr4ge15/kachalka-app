@@ -211,6 +211,13 @@ export async function getLoginMeta(key) {
 export async function setLoginMeta(key, value) {
   await loginDb.meta.put({ key, value })
 }
+// Все записи login-meta с ключом на префикс (v6.12.0: учетки устройства — `pin_*`).
+export async function listLoginMeta(prefix) {
+  return loginDb.meta.where('key').startsWith(prefix).toArray()
+}
+export async function deleteLoginMeta(key) {
+  await loginDb.meta.delete(key)
+}
 
 // ------------------------------ миграция ------------------------------------
 

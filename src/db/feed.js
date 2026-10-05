@@ -14,7 +14,7 @@ import { withTimeout } from '../lib/withTimeout.js'
 import { db, getMeta, setMeta } from './local.js'
 import { getCachedUser } from './repo.js'
 import { cmpIsoAsc, cmpIsoDesc } from '../lib/cmp.js'
-import { leadingValue, normMetric } from '../lib/metric.js'
+import { leadingValue, normMetric, setTonnage } from '../lib/metric.js'
 import { applyReactionQueue } from '../lib/reactions.js'
 import { rosterSignature } from '../lib/pullWatermark.js'
 
@@ -62,7 +62,8 @@ export function rowToItem(w) {
   const exCount = entries.length
   const setCount = entries.reduce((n, e) => n + e.sets.length, 0)
   const tonnage = entries.reduce(
-    (sum, e) => sum + e.sets.reduce((s, x) => s + x.weight * x.reps, 0),
+    // Только весовые подходы: у reps/time weight=0, а у дистанции в weight км (v6.12.0).
+    (sum, e) => sum + e.sets.reduce((s, x) => s + setTonnage(e.metric, x), 0),
     0
   )
 

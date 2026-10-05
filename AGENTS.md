@@ -169,7 +169,8 @@
 
 Персональный `meta` в Dexie: `goal_${userId}` (**синкается** через таблицу `goals`);
 `prog_${userId}`, `badges_${userId}`, `notif_seen_at_${userId}` (**синкаются с v5.5.0** через таблицу
-`user_meta`, см. ниже); `priv_${userId}`, `wm_*`/`sig_*`, `user_meta_state`, `merge_conflicts` —
+`user_meta`, см. ниже); `priv_${userId}`, `wm_*`/`sig_*`, `user_meta_state`, `merge_conflicts`, `fb_replies_${userId}` (v6.12.0, кэш
+ответов разработчика из `my_feedback` для «Уведомлений», `db/feedbackReplies.js`) —
 **не синкаются** (служебное/устройство-специфичное). Черновик НОВОЙ тренировки (состав, оценки
 RPE) — в `localStorage` под `gym_app_workout_{draft,feel}_new_${userId}` (отметки «подход выполнен» и их
 ключ `…_done_new_…` убраны в v6.1.0: что в строках — то и записывается, лишний подход удаляется ✕)
@@ -245,7 +246,8 @@ updated_at)` + `upsert_user_meta` (`supabase/user-meta.sql`, RLS «только 
   задан» у всех и **затирает его в БД** при сохранении участника (инцидент «у всех слетел пол»,
   29.07.2026; устаревшие блоки в старых файлах закомментированы с маркером). `login_users` менять
   только через `create or replace` **без `drop view`** — `drop` снимает grant для `anon`, а вью
-  читает пикер входа ДО авторизации; колонки можно только дописывать в конец.
+  читал пикер входа ДО авторизации (до 6.12.0; дальше — только вошедшие, см. «Вход по имени»), а
+  `drop` снимает и грант `authenticated`; колонки можно только дописывать в конец.
 - **`leaderboard_bench`** → канон `server-hardening-2026-10.sql` (v6.7.6: SECURITY DEFINER + видимость
   `can_see_user` + Эпли только до 12 повторов; собран поверх живого тела из `leaderboard-actual-weight.sql`).
   После него `is_private_user`/`are_connected` у `authenticated` ОТОЗВАНЫ: новая функция, доступная клиенту
@@ -281,6 +283,28 @@ updated_at)` + `upsert_user_meta` (`supabase/user-meta.sql`, RLS «только 
   он всегда включен); решение «слать ли» — поле `notify` из `admin_update_feedback`. Скриншоты — приватный
   bucket `feedback`, запись только в `<app_uid>/`, чтение только `is_admin()`. Онлайн-операции —
   `lib/feedbackApi.js`, исключение из очередей синка, как приглашения.
+  **v6.12.0 — ответ из Telegram** → канон `feedback-tg.sql`: `my_feedback`/`admin_list_feedback`/
+  `admin_update_feedback` (новые колонки в конце контракта; `feedback.sql` после него НЕ перезапускать),
+  `reopen_my_feedback`/`feedback_media_ref` (authenticated), `bot_*` (в т.ч. `bot_feedback_note`) — EXECUTE только `service_role`.
+  Edge `tg-bot` — `--no-verify-jwt`, вход только с `X-Telegram-Bot-Api-Secret-Token` = `TELEGRAM_WEBHOOK_SECRET`,
+  принимает лишь `TELEGRAM_OWNER_ID` в `TELEGRAM_FEEDBACK_CHAT_ID`, update_id — через `bot_claim_update`.
+  Картинки обращений в Supabase не храним: `file_id` Telegram, байты клиенту — только через `feedback`
+  action=media после `feedback_media_ref`; токен бота клиенту не отдается. Вебхук у бота один — `getUpdates`
+  нигде не использовать.
+- **Дистанция (v6.12.0)** → канон `metric-distance.sql`: `admin_update_exercise`, `new_prs_for_workout`,
+  `push_beaten_for_workout`, `admin_save_discipline` (поверх живых тел 05.10). НЕ перезапускать их тела из
+  `admin-exercise-metric.sql` / `telegram.sql` / `push-types.sql` / `rating-disciplines.sql` — там нет
+  `distance`. Подход дистанции — `{weight: км, reps: секунды}`; ведущий показатель рекорда — `weight` (км);
+  тоннаж, цели, 1ПМ, прогрессия и дисциплины рейтинга дистанцию не учитывают (`lib/metric.js setTonnage`).
+- **Вход по имени и «Хочу в круг» (v6.12.0)** → `login-join.sql`: `auth_find_user` (ключ `login_name_key` —
+  `user_name_key` + только буквы/цифры; точное или однозначное начало ≥3), `join_requests` и `join_*`/
+  `bot_join_decide` — ТОЛЬКО `service_role`. Edge `auth-login` принимает `{name, pin}`: не найдено — тот же
+  401 и та же цена PBKDF2 (пустышка). Edge `join-request` — `--no-verify-jwt`, лимит 3/сутки на IP-хэш и 20
+  ожидающих, honeypot; приглашение создается в `join_poll` один раз (в базе только хэш токена). Кнопки —
+  `jr:<id>:a|d` в `tg-bot`. Экран входа ростер НЕ читает: пикер = учетки с `pin_*` в `loginDb.meta`
+  (`auth.knownAccounts`). **`login_users` с `login-users-close.sql` закрыт от anon** (только authenticated) —
+  накатывать сразу ПОСЛЕ тега клиента, не до (6.11.x живет на кэше ростера, ошибку показывает лишь при пустом
+  кэше); правило «create or replace без drop view» остается.
 - **Приглашения участников (v6.10.0)** → добавочный канон `member-invites.sql`: `create_my_invite`,
   `my_invites`, `revoke_my_invite` проверяют `app_uid()` и владельца; лимит 3 активных ссылок
   сериализован на автора, срок 7 дней. Онлайн-операции в `lib/memberInvites.js` — исключение

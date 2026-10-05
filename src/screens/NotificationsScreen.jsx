@@ -14,7 +14,8 @@ import { plural } from '../lib/plural.js'
 // Экран «Уведомления»: личные рекорды и кто обходит тебя в кругу (ТЗ §4.5, MVP).
 // Вложенный роут — шапка с общей круглой BackButton, как у остальных вложенных
 // экранов (РЕВЬЮ-КОДА-2026-10-02). onBack — вернуться туда, откуда открыли.
-export default function NotificationsScreen({ user, onBack }) {
+// onOpenFeedback(id) — ответ разработчика ведет на свое обращение (v6.12.0).
+export default function NotificationsScreen({ user, onBack, onOpenFeedback }) {
   const list = useLiveQuery(() => getNotifications(user.id), [user.id], undefined)
   // Пол участников из ростера — род глаголов («оценила», «обошла», «дотянула»), v6.2.5.
   const roster = useLiveQuery(() => getUsers(), [], [])
@@ -105,6 +106,7 @@ export default function NotificationsScreen({ user, onBack }) {
           : n.type === 'reaction' ? (n.emojis?.[0] ?? '👏')
           : n.type === 'insight' ? (n.emoji ?? '💡')
           : n.type === 'badge' ? (n.emoji ?? '🏅')
+          : n.type === 'feedback' ? '💬'
           : '🔥'
         const cls = 'notif ' + n.type + (unread ? ' unread' : ' read')
         return (
@@ -154,6 +156,21 @@ export default function NotificationsScreen({ user, onBack }) {
                     Новое достижение · <span className="hl">{n.name}</span>
                   </div>
                   <div className="n-text">Бейдж получен 🎉</div>
+                </>
+              )}
+              {n.type === 'feedback' && (
+                <>
+                  <div className="n-title">
+                    Ответ разработчика{n.status === 'resolved' ? ' · решено' : n.status === 'declined' ? ' · не будем делать' : ''}
+                  </div>
+                  <div className="n-text">
+                    {n.text || (n.photos > 0 ? '📎 Ответ со скриншотом' : '')}
+                  </div>
+                  {onOpenFeedback && (
+                    <button type="button" className="link-btn n-open" onClick={() => onOpenFeedback(n.feedbackId)}>
+                      Открыть обращение ›
+                    </button>
+                  )}
                 </>
               )}
               {n.type === 'beaten' && (

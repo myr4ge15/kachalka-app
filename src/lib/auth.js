@@ -2,7 +2,7 @@
 // Логин-мост к Supabase Auth (PLAN-auth §1, §5).
 //
 // Вход больше НЕ проверяет PIN на клиенте против публичной БД. Вместо этого:
-//   - онлайн: шлем { user_id, pin } в Edge Function auth-login по TLS. Она
+//   - онлайн: шлем { user_id, pin } (или { name, pin } с нового устройства, v6.12.0) в Edge Function auth-login по TLS. Она
 //     сверяет PIN service-ролью, мостит к скрытой учетке Supabase Auth и
 //     возвращает настоящую сессию (access+refresh) + наши pin_hash/pin_salt.
 //     setSession сохраняет сессию (supabase-js сам обновляет токен);
@@ -15,7 +15,7 @@
 // запасной путь молчаливого перевыпуска сессии.
 // ============================================================================
 import { supabase, isSessionOf, hasSession } from '../db/supabase.js'
-import { getLoginMeta, setLoginMeta } from '../db/local.js'
+import { getLoginMeta, setLoginMeta, listLoginMeta, deleteLoginMeta } from '../db/local.js'
 import { verifyPin } from './hash.js'
 import { DB_TIMEOUT_MS, withTimeout } from './withTimeout.js'
 
@@ -93,6 +93,23 @@ async function doLogin(userId, pin) {
   lastLoginUserId = userId
   const generation = authGeneration
   const stale = () => generation !== authGeneration
+  const body = await postLogin({ user_id: userId, pin })
+  return adoptSession(body, userId, pin, stale)
+}
+
+// Вход по имени (v6.12.0) — новое устройство, учетки еще нет в пикере. Сервер
+// прощает регистр, пробелы, знаки и узнает однозначное начало имени; «нет такого
+// имени» и «неверный PIN» для него одно и то же (LoginError 'invalid').
+// Офлайн невозможен: хэша этой учетки на устройстве еще нет.
+export async function loginByName(name, pin) {
+  const generation = authGeneration
+  const stale = () => generation !== authGeneration
+  const body = await postLogin({ name: String(name ?? '').trim(), pin })
+  lastLoginUserId = body.user.id
+  return adoptSession(body, body.user.id, pin, stale)
+}
+
+async function postLogin(payload) {
   let res
   try {
     res = await fetchWithTimeout(FN_URL, {
@@ -102,7 +119,7 @@ async function doLogin(userId, pin) {
         apikey: ANON,
         authorization: `Bearer ${ANON}`,
       },
-      body: JSON.stringify({ user_id: userId, pin }),
+      body: JSON.stringify(payload),
     })
   } catch {
     throw new LoginError('network', 'Нет сети — попробуй позже.')
@@ -115,12 +132,15 @@ async function doLogin(userId, pin) {
     throw new LoginError('locked', 'Слишком много попыток. Подожди немного.', body?.retry_after ?? null)
   }
   if (res.status === 401) {
-    throw new LoginError('invalid', 'Неверный PIN')
+    throw new LoginError('invalid', payload.name != null ? 'Имя или PIN не подходят' : 'Неверный PIN')
   }
-  if (!res.ok || !body?.session) {
+  if (res.status === 400 && payload.name != null) {
+    throw new LoginError('invalid', 'Имя или PIN не подходят')
+  }
+  if (!res.ok || !body?.session || !body?.user?.id) {
     throw new LoginError('server', body?.error ?? 'Не удалось войти.')
   }
-  return adoptSession(body, userId, pin, stale)
+  return body
 }
 
 // Ответ сервера вида { session, user, pin_hash, pin_salt } (auth-login и
@@ -206,6 +226,33 @@ export async function verifyPinOffline(userId, pin) {
   if (!ok) return false
   rememberPin(userId, pin)
   return { id: userId, name: cached.name, role: cached.role }
+}
+
+// Учетки, уже входившие на этом устройстве (v6.12.0): у них есть офлайн-кэш
+// pin_${id} в общей loginDb. Только они показываются в пикере входа — список всех
+// участников экран входа больше не запрашивает. Порядок — как в roster (если
+// передан), иначе по имени. Возвращает [{ id, name, role }].
+export async function knownAccounts(roster = []) {
+  const entries = await listLoginMeta('pin_')
+  const byId = new Map(entries.map(({ key, value }) => [key.slice(4), value ?? {}]))
+  const out = []
+  for (const u of roster) {
+    if (!byId.has(u.id)) continue
+    const c = byId.get(u.id)
+    out.push({ ...u, name: u.name ?? c.name ?? '', role: c.role ?? null })
+    byId.delete(u.id)
+  }
+  const rest = [...byId].map(([id, c]) => ({ id, name: c.name ?? '', role: c.role ?? null }))
+  rest.sort((a, b) => a.name.localeCompare(b.name, 'ru'))
+  return [...out, ...rest]
+}
+
+// «Забыть на этом устройстве»: убрать учетку из пикера. Стирает только офлайн-кэш
+// PIN (личная база и неотправленные правки остаются — при следующем входе по имени
+// учетка вернется со всем, что было). Активную сессию не трогает.
+export async function forgetAccount(userId) {
+  if (!userId) return
+  await deleteLoginMeta(pinCacheKey(userId))
 }
 
 // Профиль из офлайн-кэша PIN (loginDb.meta pin_${id}) для восстановления сессии

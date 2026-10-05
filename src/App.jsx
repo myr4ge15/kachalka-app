@@ -12,7 +12,8 @@ import { getCachedUser } from './db/repo.js'
 import { openUserDb, closeUserDb } from './db/local.js'
 import { syncBadgeState } from './lib/syncStatus.js'
 import { readStoredUserId, hydrateProfile } from './lib/sessionProfile.js'
-import { emitReselect } from './lib/appEvents.js'
+import { emitReselect, onResume } from './lib/appEvents.js'
+import { myUnreadReplies } from './lib/feedbackApi.js'
 import { markAppReady } from './lib/splash.js'
 import { fabState } from './lib/quickAdd.js'
 import { useTabDot } from './hooks/useTabDot.js'
@@ -24,6 +25,7 @@ import { useAccentSync } from './hooks/useAccentSync.js'
 import LoginScreen from './screens/LoginScreen.jsx'
 import InviteScreen from './screens/InviteScreen.jsx'
 import { inviteFromUrl, stripInvite } from './lib/invite.js'
+import { clearPending } from './lib/joinRequest.js'
 import Toast, { showToast } from './components/Toast.jsx'
 import AddFab from './components/AddFab.jsx'
 import Avatar from './components/Avatar.jsx'
@@ -524,8 +526,8 @@ export default function App() {
       case 'notif': return backFromNotif()
       case 'member': return backFromMember()
       case 'freshness': return goTab('home')
-      case 'admin': case 'achievements': return goTab('profile')
-      case 'myex': case 'whatsnew': case 'appearance': case 'feedback': return backToSettings()
+      case 'admin': case 'achievements': case 'feedback': return goTab('profile')
+      case 'myex': case 'whatsnew': case 'appearance': return backToSettings()
       default: return undefined
     }
   }
@@ -592,6 +594,16 @@ export default function App() {
   useEffect(() => {
     userIdRef.current = user?.id ?? null
     if (user?.id) reconcilePushOwner(user.id)
+  }, [user?.id])
+  // Ответы разработчика для «Уведомлений» (v6.12.0): проверяем при входе и при
+  // возврате в приложение — myUnreadReplies заодно кладет их в локальный кэш.
+  // Тихо: нет сети или сессии — просто без обновления.
+  useEffect(() => {
+    if (!user?.id) return undefined
+    const uid = user.id
+    const check = () => { if (navigator.onLine !== false) myUnreadReplies(uid) }
+    check()
+    return onResume(check)
   }, [user?.id])
   useEffect(() => {
     const { data } = supabase.auth.onAuthStateChange((event) => {
@@ -661,7 +673,7 @@ export default function App() {
       <InviteScreen
         token={inviteToken}
         signedInAs={user ? (user.name || 'без имени') : null}
-        onRegistered={async (u) => { await handleLogin(u); setInviteToken(null) }}
+        onRegistered={async (u) => { clearPending(); await handleLogin(u); setInviteToken(null) }}
         onCancel={() => setInviteToken(null)}
         onSignOut={handleLogout}
       />
@@ -669,7 +681,7 @@ export default function App() {
   }
 
   if (!user) {
-    return <LoginScreen onLogin={handleLogin} />
+    return <LoginScreen onLogin={handleLogin} onInvite={setInviteToken} />
   }
 
   return (
@@ -730,7 +742,10 @@ export default function App() {
                   onOpenGoals={() => goTab('profile')}
                 />
               )}
-              {route === 'notif' && <NotificationsScreen user={user} onBack={backFromNotif} />}
+              {route === 'notif' && (
+                <NotificationsScreen user={user} onBack={backFromNotif}
+                  onOpenFeedback={(id) => { setFeedbackFocus(id); goTab('feedback') }} />
+              )}
               {route === 'profile' && (
                 <ProfileScreen
                   user={user}
@@ -769,7 +784,7 @@ export default function App() {
                 <AppearanceScreen user={user} onBack={backToSettings} />
               )}
               {route === 'feedback' && (
-                <FeedbackScreen user={user} focusId={feedbackFocus} onBack={backToSettings}
+                <FeedbackScreen user={user} focusId={feedbackFocus} onBack={() => goTab('profile')}
                   fromScreen={routeAnim.stack.find((t) => !isNested(t)) ?? null} />
               )}
             </ErrorBoundary>

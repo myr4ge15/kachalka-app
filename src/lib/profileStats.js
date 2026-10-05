@@ -14,7 +14,7 @@
 // records.js, формулу не дублируем.
 // ============================================================================
 import { myBestByExercise, bestWeight } from './records.js'
-import { isCountMetric, leadingValue, normMetric } from './metric.js'
+import { isCountMetric, leadingValue, normMetric, setTonnage, bestPace } from './metric.js'
 import { entryExId, currentExerciseShapes, entryUnitMetric } from './entries.js'
 
 // Число тренировок в текущем КАЛЕНДАРНОМ месяце (по дате тренировки).
@@ -48,6 +48,18 @@ export function personalRecords(workouts) {
       if (exId && e.exercise?.is_bench_lift) bench.add(exId)
     }
   }
+  // Дистанция (v6.12.0): рекорд — самая длинная дистанция, лучший темп (от 1 км) — сноской.
+  const paceSets = new Map()
+  for (const w of workouts ?? []) {
+    for (const e of w.entries ?? []) {
+      const exId = entryExId(e)
+      if (!exId || best.get(exId)?.metric !== 'distance') continue
+      if (normMetric(e.metric ?? e.exercise?.metric) !== 'distance') continue
+      paceSets.set(exId, [...(paceSets.get(exId) ?? []), ...(e.sets ?? [])])
+    }
+  }
+  // Группы единиц: кг → км → повторы/время (разные единицы не сравниваем напрямую).
+  const group = (m) => (m === 'distance' ? 1 : isCountMetric(m) ? 2 : 0)
   return [...best.entries()]
     .map(([exId, v]) => ({
       exId,
@@ -55,13 +67,14 @@ export function personalRecords(workouts) {
       value: v.value,
       metric: v.metric,
       isBench: bench.has(exId),
+      ...(v.metric === 'distance' ? { pace: bestPace(paceSets.get(exId)) } : {}),
     }))
     .sort(
       (a, b) =>
         Number(b.isBench) - Number(a.isBench) ||
         // весовые выше не-весовых (их значения в разных единицах — не сравниваем
         // напрямую), внутри группы — по убыванию значения, затем по имени.
-        Number(isCountMetric(a.metric)) - Number(isCountMetric(b.metric)) ||
+        group(a.metric) - group(b.metric) ||
         b.value - a.value ||
         String(a.name).localeCompare(String(b.name), 'ru')
     )
@@ -109,9 +122,7 @@ export function totalTonnage(workouts) {
   for (const w of workouts ?? []) {
     for (const e of w.entries ?? []) {
       for (const s of e.sets ?? []) {
-        const wt = Number(s.weight) || 0
-        const reps = Number(s.reps) || 0
-        if (wt > 0 && reps > 0) kg += wt * reps
+        kg += setTonnage(normMetric(e.metric ?? e.exercise?.metric), s) // км дистанции — не кг
       }
     }
   }

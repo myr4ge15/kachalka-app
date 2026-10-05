@@ -19,7 +19,7 @@
 import { GROUP_ORDER } from './dayTags.js'
 import { lastTrainedBySubmuscle } from './freshness.js'
 import { labelAccusativeOf } from './muscles.js'
-import { leadingValue, fmtMetricValue } from './metric.js'
+import { leadingValue, fmtMetricValue, setTonnage } from './metric.js'
 import { myBestByExercise } from './records.js'
 import { detectPlateau } from './progression.js'
 import { currentStreak } from './profileStats.js'
@@ -44,9 +44,7 @@ export function workoutTonnage(w) {
   let t = 0
   for (const e of w.entries ?? []) {
     for (const s of e.sets ?? []) {
-      const wt = Number(s.weight) || 0
-      const reps = Number(s.reps) || 0
-      if (wt > 0 && reps > 0) t += wt * reps
+      t += setTonnage(entryMetric(e), s) // дистанция (км) в тоннаж не идет
     }
   }
   return t
@@ -58,9 +56,7 @@ function groupTonnage(w, group) {
   for (const e of w.entries ?? []) {
     if (groupOf(e) !== group) continue
     for (const s of e.sets ?? []) {
-      const wt = Number(s.weight) || 0
-      const reps = Number(s.reps) || 0
-      if (wt > 0 && reps > 0) t += wt * reps
+      t += setTonnage(entryMetric(e), s) // дистанция (км) в тоннаж не идет
     }
   }
   return t

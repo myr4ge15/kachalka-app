@@ -238,3 +238,31 @@ describe('ExerciseCard — оценка «Как пошло?» (RPE)', () => {
     expect(screen.getByRole('group', { name: 'Как пошло: Жим лежа' })).toBeInTheDocument()
   })
 })
+
+describe('ExerciseCard — дистанция (v6.12.0)', () => {
+  const runEntry = (sets) => ({ exercise: { id: 'run', name: 'Бег', metric: 'distance' }, sets })
+
+  it('столбцы «км» и «мин:сек», поле км и время, темп лучшего подхода', () => {
+    const { container } = renderCard(runEntry([{ weight: 5, reps: 1500, _k: 'a' }]))
+    expect(container.querySelector('.sets-head').textContent).toBe('#кммин:сек')
+    expect(screen.getByLabelText('Дистанция, км, подход 1')).toHaveValue('5')
+    expect(screen.getByLabelText('Время, подход 1')).toBeInTheDocument()
+    expect(screen.getByText('Темп: 5:00 /км')).toBeInTheDocument()
+  })
+
+  it('без км — подсказка вместо темпа; короткий отрезок — темп для ориентира', () => {
+    const { rerender } = renderCard(runEntry([{ weight: '', reps: 1800, _k: 'a' }]))
+    expect(screen.getByText('Укажи км и время — посчитаю темп')).toBeInTheDocument()
+    rerender(<ExerciseCard entry={runEntry([{ weight: 0.4, reps: 72, _k: 'a' }])} ei={0} prog={null}
+      onReplace={vi.fn()} onRemove={vi.fn()} onRevertProg={vi.fn()} onApplyProg={vi.fn()}
+      onToggleProgSettings={vi.fn()} onChangeProgSettings={vi.fn()} onUpdateSet={vi.fn()}
+      onStep={vi.fn()} onAddSet={vi.fn()} onRemoveSet={vi.fn()} />)
+    expect(screen.getByText('Темп: 3:00 /км')).toBeInTheDocument()
+  })
+
+  it('ввод км с запятой уходит точкой', () => {
+    const { cbs } = renderCard(runEntry([{ weight: '', reps: 1800, _k: 'a' }]))
+    fireEvent.change(screen.getByLabelText('Дистанция, км, подход 1'), { target: { value: '5,5' } })
+    expect(cbs.onUpdateSet).toHaveBeenCalledWith(0, 0, 'weight', '5.5')
+  })
+})

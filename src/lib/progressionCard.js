@@ -19,6 +19,8 @@ export const sk = () => `s${++_setKeySeq}`
 // время хранится секундами в reps).
 export function defaultSet(ex) {
   const m = exerciseMetric(ex)
+  // Дистанция (v6.12.0): км не угадываем — пусто, время по умолчанию 30:00.
+  if (m === 'distance') return { weight: '', reps: 1800, _k: sk() }
   if (m === 'time') return { weight: 0, reps: 60, _k: sk() }
   if (m === 'reps') return { weight: 0, reps: 10, _k: sk() }
   return { weight: 20, reps: 10, _k: sk() }
@@ -88,8 +90,9 @@ export function buildRecommendation(ex, allSessions, progState) {
   const last = sessions[0]?.sets ?? null
   const copyOrDefault = () =>
     last?.length ? last.map((s) => ({ weight: Number(s.weight), reps: Number(s.reps), _k: sk() })) : [defaultSet(ex)]
-  // Глобально выключено → никаких панелей.
-  if (!progState?.enabled) return { sets: copyOrDefault(), meta: null }
+  // Глобально выключено → никаких панелей. Для дистанции прогрессию не считаем
+  // (v6.12.0): «+шаг» к километрам или секундам — не рекомендация, а шум.
+  if (!progState?.enabled || metric === 'distance') return { sets: copyOrDefault(), meta: null }
 
   const settings = resolveProgSettings(progState, ex.id, metric)
   // Ручной/выкл на упражнение: подсказку не даем, но показываем компактную

@@ -1,6 +1,6 @@
 import { test, expect } from '@playwright/test'
 
-test('участник открывает «Написать разработчику» из Настроек, офлайн видит пояснение', async ({ page, context }) => {
+test('участник открывает «Написать разработчику» из Профиля, офлайн видит пояснение', async ({ page, context }) => {
   await context.addInitScript(() => Object.defineProperty(navigator, 'onLine', { get: () => false }))
   await context.route(/supabase\.co/, route => route.abort())
   await page.goto('/kachalka-app/')
@@ -9,7 +9,7 @@ test('участник открывает «Написать разработч�
   await page.getByRole('button', { name: user.name }).click()
   for (const digit of user.pin) await page.locator('.keypad .key', { hasText: new RegExp(`^${digit}$`) }).click()
   await page.getByRole('button', { name: 'Открыть профиль' }).click()
-  await page.getByRole('button', { name: /Настройки/ }).first().click()
+  // v6.12.0: пункт в корне Профиля, а не в Настройках.
   await page.getByRole('button', { name: /Написать разработчику/ }).click()
   await expect(page.getByRole('heading', { name: 'Обратная связь' })).toBeVisible()
   await page.getByLabel('Что случилось?').fill('Не открывается прогресс')
@@ -17,7 +17,8 @@ test('участник открывает «Написать разработч�
   await expect(page.getByRole('button', { name: 'Отправить' })).toBeDisabled()
   await page.setViewportSize({ width: 320, height: 740 })
   await expect.poll(() => page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth)).toBe(true)
-  // «Назад» возвращает в Настройки (как у других экранов оттуда).
+  // «Назад» возвращает в Профиль, откуда открывали.
   await page.getByRole('button', { name: /Назад/ }).first().click()
   await expect(page.getByRole('button', { name: /Написать разработчику/ })).toBeVisible()
+  await expect(page.getByRole('button', { name: 'Настройки', exact: true })).toBeVisible()
 })

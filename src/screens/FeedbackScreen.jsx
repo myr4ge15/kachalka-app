@@ -2,15 +2,19 @@ import { useEffect, useRef, useState } from 'react'
 import BackButton from '../components/BackButton.jsx'
 import CardsSkeleton from '../components/CardsSkeleton.jsx'
 import { showToast } from '../components/Toast.jsx'
+import FeedbackPhotos from '../components/FeedbackPhotos.jsx'
 import { useSyncStatus } from '../db/sync.js'
 import {
-  bodyProblem, buildContext, fmtFeedbackDate, hasUnreadReply, isWebKit26Plus, FEEDBACK_MAX, STATUS_LABEL,
+  bodyProblem, buildContext, canReopen, fmtFeedbackDate, hasReply, hasUnreadReply, isStaleReply, isWebKit26Plus,
+  reopenProblem, FEEDBACK_MAX, REOPEN_MAX, STATUS_LABEL,
 } from '../lib/feedback.js'
 import {
-  ackMyFeedback, listMyFeedback, submitFeedback as defaultSubmit, FeedbackError,
+  ackMyFeedback, feedbackMedia, listMyFeedback, reopenFeedback, submitFeedback as defaultSubmit, FeedbackError,
 } from '../lib/feedbackApi.js'
 
-const defaultApi = { submit: defaultSubmit, list: listMyFeedback, ack: ackMyFeedback }
+const defaultApi = {
+  submit: defaultSubmit, list: listMyFeedback, ack: ackMyFeedback, reopen: reopenFeedback, media: feedbackMedia,
+}
 
 // «Написать разработчику» (v6.11.0, Профиль → Настройки). Обращение уходит
 // разработчику в Telegram; ответ и статус видны здесь и приходят пушем
@@ -168,19 +172,78 @@ export default function FeedbackScreen({ user, onBack, focusId = null, fromScree
               </div>
               <p className="fb-body">{r.body}</p>
               {r.has_screenshot && <span className="admin-ex-meta">📎 со скриншотом</span>}
-              {r.reply && (
-                <div className={'fb-reply' + (fresh.has(r.id) ? ' new' : '')}>
+              {r.reopened_at && r.reopen_note && (
+                <p className="fb-reopen"><span aria-hidden="true">🔁 </span>Открыто снова: {r.reopen_note}</p>
+              )}
+              {hasReply(r) && (
+                <div className={'fb-reply' + (fresh.has(r.id) ? ' new' : '') + (isStaleReply(r) ? ' stale' : '')}>
                   <div className="fb-reply-head">
-                    <span>Ответ разработчика · {fmtFeedbackDate(r.replied_at)}</span>
+                    <span>{isStaleReply(r) ? 'Прошлый ответ' : 'Ответ разработчика'} · {fmtFeedbackDate(r.replied_at)}</span>
                     {fresh.has(r.id) && <span className="act-badge">новый</span>}
                   </div>
-                  <p className="fb-body">{r.reply}</p>
+                  {r.reply && <p className="fb-body">{r.reply}</p>}
+                  {r.reply_photos > 0 && (
+                    <FeedbackPhotos id={r.id} kind="reply" count={r.reply_photos} load={api.media}
+                      label="Скриншот от разработчика" />
+                  )}
                 </div>
               )}
+              {canReopen(r) && <ReopenForm row={r} online={online} api={api} onDone={() => reload()} />}
             </li>
           ))}
         </ul>
       )}
+    </div>
+  )
+}
+
+// «Не помогло — открыть снова» (v6.12.0): комментарий обязателен — без него
+// разработчику непонятно, что именно не так. Статус возвращается в «новое».
+function ReopenForm({ row, online, api, onDone }) {
+  const [open, setOpen] = useState(false)
+  const [note, setNote] = useState('')
+  const [busy, setBusy] = useState(false)
+  const problem = reopenProblem(note)
+  const len = note.trim().length
+
+  async function send() {
+    if (busy || problem || !online) return
+    setBusy(true)
+    try {
+      await api.reopen(row.id, note)
+      showToast({ emoji: '🔁', title: 'Обращение открыто снова', sub: 'Разработчик увидит твой комментарий.' })
+      setOpen(false)
+      setNote('')
+      onDone()
+    } catch (e) {
+      showToast({ emoji: '⚠️', title: 'Не отправилось', sub: e instanceof FeedbackError ? e.message : 'Попробуй еще раз.' })
+    } finally {
+      setBusy(false)
+    }
+  }
+
+  if (!open) {
+    return (
+      <button type="button" className="btn ghost fb-reopen-btn" onClick={() => setOpen(true)} disabled={!online}>
+        Не помогло — открыть снова
+      </button>
+    )
+  }
+  return (
+    <div className="fb-reopen-form">
+      <label className="field">
+        <span className="field-lab">Что не так?</span>
+        <textarea className="admin-input fb-text" rows={3} maxLength={REOPEN_MAX + 100} value={note} disabled={busy}
+          placeholder="Например: после обновления подход все равно пропадает" autoFocus
+          onChange={(e) => setNote(e.target.value)} />
+      </label>
+      <div className={'fb-count' + (len > REOPEN_MAX ? ' over' : '')} aria-live="polite">{len} / {REOPEN_MAX}</div>
+      <div className="invite-fresh-actions">
+        <button className="btn primary" onClick={send} disabled={busy || !!problem || !online}>
+          {busy ? 'Отправляю…' : 'Открыть снова'}
+        </button>
+        <button className="btn ghost" onClick={() => { setOpen(false); setNote('') }} disabled={busy}>Отмена</button>
+      </div>
     </div>
   )
 }

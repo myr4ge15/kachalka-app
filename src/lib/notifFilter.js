@@ -20,6 +20,7 @@ export const NOTIF_CATEGORIES = [
   { key: 'beaten', label: 'побитые' },
   { key: 'reactions', label: 'реакции' },
   { key: 'insights', label: 'наблюдения' },
+  { key: 'feedback', label: 'ответы' },
 ]
 
 // Тип уведомления → ключ категории. Неизвестный тип относим к 'records'
@@ -36,6 +37,8 @@ export function notifCategory(type) {
       return 'reactions'
     case 'insight':
       return 'insights'
+    case 'feedback':
+      return 'feedback'
     default:
       return 'records'
   }
