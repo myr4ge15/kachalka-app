@@ -17,6 +17,15 @@
 
 export const WHATS_NEW = [
   {
+    version: '6.10.2',
+    date: '2026-10-05',
+    headline: 'Мелкие правки',
+    main: [
+      { e: '✉️', t: '...' },
+    ],
+    minor: [],
+  },
+  {
     version: '6.10.1',
     date: '2026-10-02',
     headline: 'Рейтинг по выбранным упражнениям',

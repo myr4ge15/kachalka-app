@@ -52,7 +52,7 @@ export default function AdminScreen({ user, onBack }) {
         <button className={'admin-nav-btn' + (open === 'disciplines' ? ' open' : '')}
           onClick={() => toggle('disciplines')} aria-expanded={open === 'disciplines'}>
           <span className="admin-nav-name">Дисциплины рейтинга</span>
-          <span className="admin-nav-chev" aria-hidden="true">{open === 'disciplines' ? '⌄' : '›'}</span>
+          <span className="admin-nav-chev" aria-hidden="true" />
         </button>
         {open === 'disciplines' && <div className="admin-panel"><AdminDisciplines userId={user.id} exercises={exercises ?? []} online={online} /></div>}
         <button
@@ -61,7 +61,7 @@ export default function AdminScreen({ user, onBack }) {
           aria-expanded={open === 'exercises'}
         >
           <span className="admin-nav-name">Справочник упражнений</span>
-          <span className="admin-nav-chev" aria-hidden="true">{open === 'exercises' ? '⌄' : '›'}</span>
+          <span className="admin-nav-chev" aria-hidden="true" />
         </button>
         {open === 'exercises' && (
           <div className="admin-panel">
@@ -79,7 +79,7 @@ export default function AdminScreen({ user, onBack }) {
           aria-expanded={open === 'users'}
         >
           <span className="admin-nav-name">Пользователи</span>
-          <span className="admin-nav-chev" aria-hidden="true">{open === 'users' ? '⌄' : '›'}</span>
+          <span className="admin-nav-chev" aria-hidden="true" />
         </button>
         {open === 'users' && (
           <div className="admin-panel">
@@ -97,7 +97,7 @@ export default function AdminScreen({ user, onBack }) {
           aria-expanded={open === 'invites'}
         >
           <span className="admin-nav-name">Приглашения</span>
-          <span className="admin-nav-chev" aria-hidden="true">{open === 'invites' ? '⌄' : '›'}</span>
+          <span className="admin-nav-chev" aria-hidden="true" />
         </button>
         {open === 'invites' && (
           <div className="admin-panel">
@@ -111,7 +111,7 @@ export default function AdminScreen({ user, onBack }) {
           aria-expanded={open === 'access'}
         >
           <span className="admin-nav-name">Доступ к тренировкам</span>
-          <span className="admin-nav-chev" aria-hidden="true">{open === 'access' ? '⌄' : '›'}</span>
+          <span className="admin-nav-chev" aria-hidden="true" />
         </button>
         {open === 'access' && (
           <div className="admin-panel">

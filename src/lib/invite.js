@@ -89,6 +89,17 @@ export function inviteErrorText(code) {
 }
 
 // Строка статуса в списке приглашений админки.
+// Кто и когда создал ссылку (admin_list_invites → created_by_name, created_at).
+// Создатель мог быть удален (FK on delete set null) — тогда имя неизвестно.
+export function inviteCreatorLabel(inv) {
+  if (!inv) return ''
+  const who = inv.created_by_name ?? 'удаленный участник'
+  if (!inv.created_at) return `Создал: ${who}`
+  const x = new Date(inv.created_at)
+  const dd = `${String(x.getDate()).padStart(2, '0')}.${String(x.getMonth() + 1).padStart(2, '0')}`
+  return `Создал: ${who} · ${dd}`
+}
+
 export function inviteListLabel(inv, now = new Date()) {
   const d = (iso) => {
     const x = new Date(iso)

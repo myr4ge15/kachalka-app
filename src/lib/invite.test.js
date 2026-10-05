@@ -1,7 +1,7 @@
 import { describe, it, expect } from 'vitest'
 import {
   inviteFromUrl, stripInvite, inviteUrl, validateRegistration,
-  inviteDeadText, inviteErrorText, inviteListLabel, inviteMessage,
+  inviteDeadText, inviteErrorText, inviteListLabel, inviteCreatorLabel, inviteMessage,
 } from './invite.js'
 
 const TOKEN = 'a_tiNNP3RyzFJHQdG_xlbBkLpflaqExEUJzq2xU0eXo'
@@ -73,6 +73,11 @@ describe('тексты', () => {
     expect(inviteListLabel({ status: 'used', used_by_name: 'Маша', used_at: '2026-10-03T10:00:00' })).toBe('✅ Маша · 03.10')
     expect(inviteListLabel({ status: 'used', used_by_name: null, used_at: '2026-10-03T10:00:00' })).toMatch(/удален/)
     expect(inviteListLabel({ status: 'revoked' })).toMatch(/отозвана/)
+  })
+  it('создатель ссылки в админке', () => {
+    expect(inviteCreatorLabel({ created_by_name: 'Дима', created_at: '2026-10-02T10:00:00' })).toBe('Создал: Дима · 02.10')
+    expect(inviteCreatorLabel({ created_by_name: null, created_at: '2026-10-02T10:00:00' })).toMatch(/удаленный/)
+    expect(inviteCreatorLabel({ created_by_name: 'Дима' })).toBe('Создал: Дима')
   })
 })
 

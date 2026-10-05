@@ -2394,8 +2394,17 @@ label.act.busy { opacity: .55; pointer-events: none; }
 }
 .admin-nav-btn:active { background: var(--surface-2); }
 .admin-nav-btn.open { border-color: color-mix(in srgb, var(--acc) 55%, transparent); background: var(--acc-soft); }
-.admin-nav-chev { flex: 0 0 auto; font-size: 18px; color: var(--muted); }
-.admin-nav-btn.open .admin-nav-chev { color: var(--acc-2); }
+/* Шеврон рисуем рамкой, а не глифом: у «⌄»/«›» своя базовая линия, и в раскрытом
+   состоянии стрелка проседала ниже центра строки. Квадрат 8×8 поворачивается вокруг
+   своего центра: -45° — «вправо», 45° — «вниз»; translate компенсирует сдвиг
+   оптического центра уголка. */
+.admin-nav-chev {
+  flex: 0 0 auto; width: 8px; height: 8px; margin-right: 4px; box-sizing: border-box;
+  border-right: 2px solid var(--muted); border-bottom: 2px solid var(--muted);
+  transform: translateX(-2px) rotate(-45deg); transition: transform .18s ease;
+}
+.admin-nav-btn.open .admin-nav-chev { border-color: var(--acc-2); transform: translateY(-2px) rotate(45deg); }
+@media (prefers-reduced-motion: reduce) { .admin-nav-chev { transition: none; } }
 .admin-panel { padding: 2px 0 4px; }
 .admin-panel .sec { margin-bottom: 0; }
 

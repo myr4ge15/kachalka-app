@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from 'react'
 import { adminCreateInvite, adminListInvites, adminRevokeInvite } from '../lib/admin.js'
-import { inviteUrl, inviteListLabel, inviteMessage } from '../lib/invite.js'
+import { inviteUrl, inviteListLabel, inviteCreatorLabel, inviteMessage } from '../lib/invite.js'
 import { showToast } from './Toast.jsx'
 import CardsSkeleton from './CardsSkeleton.jsx'
 const adminApi = { create: adminCreateInvite, list: adminListInvites, revoke: adminRevokeInvite }
@@ -129,6 +129,8 @@ export default function InvitesSection({ online, errMsg, api = adminApi, limit =
                 <div className="admin-ex-main">
                   <span className="admin-ex-name">{inv.note || 'Без пометки'}</span>
                   <span className="admin-ex-meta">{limit && inv.status === 'used' ? '✅ Участник зарегистрировался' : inviteListLabel(inv)}</span>
+                  {/* Создатель — только в админском списке (там ссылки всех); в Профиле они свои. */}
+                  {limit === null && 'created_by_name' in inv && <span className="admin-ex-meta">{inviteCreatorLabel(inv)}</span>}
                 </div>
                 {inv.status === 'ok' && (
                   <div className="admin-ex-btns">
