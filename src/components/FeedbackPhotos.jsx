@@ -1,10 +1,11 @@
-import { useEffect, useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import SheetDialog from './SheetDialog.jsx'
+import { dragOpacity, shouldDismiss } from '../lib/swipeDismiss.js'
 
 // Картинки обращения из Telegram (v6.12.0): фото ответа разработчика или скриншот
 // участника. Хранятся в Telegram, байты отдает Edge `feedback` — load(id, kind, n)
 // возвращает object URL (lib/feedbackApi.js feedbackMedia, с кэшем на сессию).
-// Тап по превью — картинка на весь экран.
+// Тап по превью — картинка на весь экран; закрыть — «закрыть» или свайпом вверх/вниз.
 //
 // lazy — сначала кнопка «Показать», грузим по нажатию (Админка: не тянуть байты
 // всех обращений сразу). label — подпись кнопки и alt.
@@ -52,11 +53,54 @@ export default function FeedbackPhotos({ id, kind = 'reply', count = 1, load, la
       </div>
       {open && (
         <SheetDialog title={label} onDismiss={() => setOpen(null)} className="fb-viewer">
-          <div className="fb-viewer-body">
+          <SwipeToClose onClose={() => setOpen(null)}>
             <img src={open} alt={label} />
-          </div>
+          </SwipeToClose>
         </SheetDialog>
       )}
     </>
+  )
+}
+
+// Картинка тянется за пальцем по вертикали; отпустили далеко или резко — закрыть,
+// иначе вернуть на место. Один палец; щипок (два пальца) не перехватываем.
+function SwipeToClose({ onClose, children }) {
+  const start = useRef(null)
+  const [dy, setDy] = useState(0)
+  const [dragging, setDragging] = useState(false)
+
+  function onTouchStart(e) {
+    if (e.touches.length !== 1) { start.current = null; return }
+    const t = e.touches[0]
+    start.current = { x: t.clientX, y: t.clientY, at: Date.now() }
+    setDragging(true)
+  }
+  function onTouchMove(e) {
+    if (!start.current || e.touches.length !== 1) return
+    const t = e.touches[0]
+    const dx = t.clientX - start.current.x
+    const y = t.clientY - start.current.y
+    if (Math.abs(y) > Math.abs(dx)) setDy(y)
+  }
+  function onTouchEnd(e) {
+    const s = start.current
+    start.current = null
+    setDragging(false)
+    if (!s) return
+    const t = e.changedTouches?.[0]
+    const dx = t ? t.clientX - s.x : 0
+    const y = t ? t.clientY - s.y : dy
+    if (shouldDismiss({ dx, dy: y, dt: Date.now() - s.at })) onClose()
+    else setDy(0)
+  }
+
+  return (
+    <div className="fb-viewer-body" onTouchStart={onTouchStart} onTouchMove={onTouchMove}
+      onTouchEnd={onTouchEnd} onTouchCancel={() => { start.current = null; setDragging(false); setDy(0) }}>
+      <div className={dragging ? 'fb-viewer-drag' : 'fb-viewer-drag fb-viewer-drag--settle'}
+        style={{ transform: dy ? `translateY(${dy}px)` : undefined, opacity: dy ? dragOpacity(dy) : undefined }}>
+        {children}
+      </div>
+    </div>
   )
 }

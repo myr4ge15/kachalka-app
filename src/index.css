@@ -2462,8 +2462,12 @@ label.act.busy { opacity: .55; pointer-events: none; }
 }
 .fb-photo img { width: 100%; height: 100%; object-fit: cover; display: block; }
 .fb-photo--gone { opacity: .6; }
-.fb-viewer-body { flex: 1; min-height: 0; display: grid; place-items: center; overflow: auto; }
+.fb-viewer-body { flex: 1; min-height: 0; display: grid; place-items: center; overflow: auto; touch-action: pinch-zoom; }
 .fb-viewer-body img { max-width: 100%; max-height: 100%; object-fit: contain; border-radius: 12px; }
+/* свайп вверх/вниз закрывает просмотр (v6.12.1): вертикаль ведет JS, щипок — браузер */
+.fb-viewer-drag { display: grid; place-items: center; width: 100%; height: 100%; }
+.fb-viewer-drag--settle { transition: transform 200ms var(--ease-out, ease-out), opacity 200ms ease; }
+@media (prefers-reduced-motion: reduce) { .fb-viewer-drag--settle { transition: none; } }
 .fb-reply-head { display: flex; align-items: center; justify-content: space-between; gap: 8px; font-size: 12px; color: var(--muted); }
 .fb-admin { display: flex; flex-direction: column; gap: 10px; }
 .fb-filter .seg-item { min-height: 44px; }
@@ -3076,6 +3080,34 @@ label.act.busy { opacity: .55; pointer-events: none; }
   100% { transform: none; }
 }
 @keyframes splash-rise { from { opacity: 0; transform: translateY(8px); } to { opacity: 1; transform: none; } }
+/* Обновление при запуске (v6.13.0): «Обновляем до v…» + прогресс под знаком.
+   Абсолютно — чтобы знак не прыгал, когда блок появляется. */
+.splash-upd {
+  position: absolute; left: 0; right: 0; top: calc(50% + 120px); margin: 0 auto;
+  width: min(262px, calc(100% - 32px));
+  display: flex; flex-direction: column; align-items: center; gap: 10px; text-align: center;
+  animation: splash-rise 400ms var(--ease-out) both;
+}
+.splash-upd[hidden] { display: none; }
+.splash-upd-title { margin: 0; font-size: 16px; font-weight: 700; }
+.splash-upd-bar {
+  position: relative; width: 100%; height: 8px; border-radius: 99px; overflow: hidden;
+  background: var(--surface-2);
+}
+.splash-upd-fill {
+  position: absolute; left: 0; top: 0; bottom: 0; width: 0; border-radius: 99px;
+  background: var(--acc); transition: width 200ms linear;
+}
+/* Сколько всего — неизвестно (манифест не разобран): «бегущая» полоска. */
+.splash-upd-bar--busy .splash-upd-fill { width: 35%; animation: splash-upd-run 1.3s var(--ease-in-out) infinite; }
+.splash-upd-cap { margin: 0; font-size: 12px; color: var(--muted); font-variant-numeric: tabular-nums; line-height: 1.4; }
+.splash-upd--note .splash-upd-bar { display: none; }
+.splash-upd--note .splash-upd-cap { font-size: 13px; }
+@keyframes splash-upd-run { from { transform: translateX(-100%); } to { transform: translateX(290%); } }
+@media (prefers-reduced-motion: reduce) {
+  .splash-upd { animation: none; }
+  .splash-upd-bar--busy .splash-upd-fill { animation: none; width: 100%; opacity: .5; }
+}
 @media (prefers-reduced-motion: reduce) {
   .splash, .splash--out .splash-logo { transition: none; }
   .splash-bar, .splash-plate, .splash-lift, .splash-title { animation: none; }

@@ -49,6 +49,14 @@
         </g>
       </svg>
       <p class="splash-title">kachalka-app</p>
+      <!-- Обновление при запуске (v6.13.0, lib/launchUpdate.js): показывает main.jsx. -->
+      <div class="splash-upd" id="splash-upd" role="status" hidden>
+        <p class="splash-upd-title" id="splash-upd-title"></p>
+        <div class="splash-upd-bar" id="splash-upd-bar" role="progressbar" aria-label="Загрузка обновления" aria-valuemin="0" aria-valuemax="100">
+          <div class="splash-upd-fill" id="splash-upd-fill"></div>
+        </div>
+        <p class="splash-upd-cap" id="splash-upd-cap"></p>
+      </div>
     </div>
     <div id="root"></div>
     <script type="module" src="/src/main.jsx"></script>

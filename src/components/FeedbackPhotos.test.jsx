@@ -33,6 +33,21 @@ describe('FeedbackPhotos', () => {
     expect(await screen.findByRole('button', { name: 'Скриншот' })).toBeInTheDocument()
   })
 
+  it('просмотр закрывается свайпом вверх; короткое движение — нет', async () => {
+    render(<FeedbackPhotos id="f1" load={async () => 'blob:1'} label="Фото" />)
+    fireEvent.click(await screen.findByRole('button', { name: 'Фото' }))
+    const img = screen.getByRole('dialog', { name: 'Фото' }).querySelector('img')
+    const touch = (y) => ({ touches: [{ clientX: 100, clientY: y }], changedTouches: [{ clientX: 100, clientY: y }] })
+    fireEvent.touchStart(img, touch(400))
+    fireEvent.touchMove(img, touch(380))
+    fireEvent.touchEnd(img, { changedTouches: [{ clientX: 100, clientY: 390 }] })
+    expect(screen.getByRole('dialog', { name: 'Фото' })).toBeInTheDocument()
+    fireEvent.touchStart(img, touch(400))
+    fireEvent.touchMove(img, touch(250))
+    fireEvent.touchEnd(img, { changedTouches: [{ clientX: 100, clientY: 250 }] })
+    expect(screen.queryByRole('dialog')).not.toBeInTheDocument()
+  })
+
   it('нет картинок — ничего', () => {
     const { container } = render(<FeedbackPhotos id="f1" count={0} load={vi.fn()} />)
     expect(container).toBeEmptyDOMElement()

@@ -125,4 +125,4 @@ kachalka-app работает как закрытый клуб. Само при�
 
 ---
 
-**kachalka-app · v6.12.0**
+**kachalka-app · v6.13.0**
