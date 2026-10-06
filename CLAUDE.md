@@ -14,5 +14,8 @@
 - Read-only git — только с `export GIT_OPTIONAL_LOCKS=0`: удалить `.git/index.lock` из песочницы
   я не могу (подробности — `AGENTS.md`, «Особенности среды»).
 - Файлы в папке — CRLF. Правлю, сохраняя CRLF; попутно не «нормализую».
+- `node_modules` в папке собраны под Windows: `npm test`/`build`/`test:e2e` и `npm run shots:readme`
+  гоняю в облачной копии проекта (`npm ci` там), Playwright — с `PW_CHROMIUM=/opt/pw-browsers/chromium`
+  (для e2e — конфиг с `launchOptions.executablePath`). Пересъемку кладу обратно в `docs/screenshots/`.
 - Субагентов зову только по просьбе пользователя. Skills для офисных форматов здесь не нужны —
   документация в markdown.
