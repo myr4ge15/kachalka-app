@@ -1,60 +1,43 @@
 import { plural } from '../lib/plural.js'
 import { useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react'
 import { useLiveQuery } from 'dexie-react-hooks'
-import {
-  getWorkouts, getCachedUser, setCachedAvatar, setCachedName, setCachedSex, softDeleteMyWorkouts,
-  deadLetterCount, retryDeadLetter, discardDeadLetter,
-  getProgSettings, setProgEnabled, getPrivacyFlag } from '../db/repo.js'
-import { readGoals, writeGoals } from '../db/notifications.js'
-import { exportAllMyData, importAllMyData } from '../db/backup.js'
-import { describeImport, BackupError } from '../lib/backup.js'
-import { syncNow } from '../db/sync.js'
+import { getWorkouts, getCachedUser, setCachedSex, getProgSettings, setProgEnabled, getPrivacyFlag } from '../db/repo.js'
+import { readGoals } from '../db/notifications.js'
 import { getCachedLeaderboard } from '../db/leaderboard.js'
 import { summarize } from '../lib/profileStats.js'
 import { currentValues, evaluateBadges, BADGES } from '../lib/badges.js'
-import { normMetric, parseTime, fmtTime } from '../lib/metric.js'
-import { setPin, setName, setSex, LoginError } from '../lib/auth.js'
+import { setSex, LoginError } from '../lib/auth.js'
 import LogoutButton from '../components/LogoutButton.jsx'
 import MemberInvites from '../components/MemberInvites.jsx'
 import SexPicker from '../components/SexPicker.jsx'
 import PushToggle from '../components/PushToggle.jsx'
 import PushTypes from '../components/PushTypes.jsx'
 import { usePushToggle } from '../hooks/usePushToggle.js'
-import { uploadMyAvatar } from '../lib/avatar.js'
 import { myUnreadReplies } from '../lib/feedbackApi.js'
-import { onlyDigits } from '../lib/text.js'
-import { isWeakPin, WEAK_PIN_TEXT } from '../lib/pinPolicy.js'
-import { showToast } from '../components/Toast.jsx'
-import HoldButton from '../components/HoldButton.jsx'
-import Avatar from '../components/Avatar.jsx'
 import CardsSkeleton from '../components/CardsSkeleton.jsx'
 import StatGrid from '../components/StatGrid.jsx'
 import PersonalRecords from '../components/PersonalRecords.jsx'
-import GoalsList from '../components/GoalsList.jsx'
-import PencilIcon from '../components/PencilIcon.jsx'
 import BackButton from '../components/BackButton.jsx'
 import { useEdgeSwipeBack } from '../hooks/useEdgeSwipeBack.js'
-import { useRevealFocus } from '../hooks/useRevealFocus.js'
 import { WHATS_NEW } from '../content/whatsNew.js'
 import { hasUnopened, readMark, fmtWhatsNewDate, OPENED_KEY } from '../lib/whatsNew.js'
+import { useAliveRef } from '../hooks/useAliveRef.js'
+import ProfileHeader from '../components/profile/ProfileHeader.jsx'
+import GoalsSection from '../components/profile/GoalsSection.jsx'
+import DeadLetterAlert from '../components/profile/DeadLetterAlert.jsx'
+import PinChangeForm from '../components/profile/PinChangeForm.jsx'
+import BackupActions from '../components/profile/BackupActions.jsx'
+import DeleteMyData from '../components/profile/DeleteMyData.jsx'
+import AppVersionLink from '../components/profile/AppVersionLink.jsx'
 
 // Экран «Профиль» (ЛК). Все про самого пользователя; пер-упражненческую
 // аналитику не дублируем — рекорды уводят в «Прогресс». Считаем на клиенте из
 // уже имеющихся денормализованных тренировок. Цель (фаза 2b) дополнительно
 // уходит на сервер при сохранении, чтобы достижение увидел Telegram-бот.
 //
-// Степпер значения цели: −/+ с удержанием и слот под инпут+единицу (children).
-// Раньше верстка .goal-stepper дублировалась для веса/повторов/времени.
-function GoalStepper({ onDec, onInc, children }) {
-  return (
-    <div className="goal-stepper">
-      <HoldButton onTrigger={onDec}>−</HoldButton>
-      <span className="val">{children}</span>
-      <HoldButton onTrigger={onInc}>+</HoldButton>
-    </div>
-  )
-}
-
+// Блоки со своим состоянием (шапка, цели, PIN, бэкап, удаление, dead-letter) —
+// components/profile/* (v6.14.1); здесь — сводка, навигация и слой Настроек.
+//
 // Пропсы: user, onLogout, onOpenProgress(exerciseId), onOpenFeed().
 export default function ProfileScreen({ user, onLogout, onOpenProgress, onOpenFeed, onRenamed, onOpenAdmin, onOpenMyExercises, onOpenAchievements, onOpenAppearance, onOpenWhatsNew, onOpenFeedback, startInSettings = false, onStartInSettingsConsumed, contentRef, edgeSwipeOn = false }) {
   const workouts = useLiveQuery(() => getWorkouts(user.id), [user.id])
@@ -66,14 +49,7 @@ export default function ProfileScreen({ user, onLogout, onOpenProgress, onOpenFe
   const push = usePushToggle(user.id)
   const loading = workouts === undefined
 
-  // Гард от setState после размонтирования. Экран профиля уходит при смене нижней
-  // вкладки, а async-обработчики (загрузка аватара, RPC смены имени/PIN, удаление
-  // данных, повтор/отклонение dead-letter) делают setState в try/finally уже ПОСЛЕ
-  // await — уход с профиля в процессе иначе дает React-варн «update on unmounted».
-  // Как в UsersSection/AccessSection (AdminScreen); ссылка «гард как в Profile»
-  // из AdminScreen теперь не вводит в заблуждение.
-  const aliveRef = useRef(true)
-  useEffect(() => { aliveRef.current = true; return () => { aliveRef.current = false } }, [])
+  const aliveRef = useAliveRef()
 
   const summary = useMemo(() => summarize(workouts ?? []), [workouts])
   const records = summary.personalRecords
@@ -101,28 +77,6 @@ export default function ProfileScreen({ user, onLogout, onOpenProgress, onOpenFe
     } catch { return null }
   }, [user.id], null)
 
-  // ── Редактор целей (мульти-цели, фаза 2c) ──────────────────────────────────
-  const [editing, setEditing] = useState(false)
-  const [edExId, setEdExId] = useState(null)
-  // Цель любой метрики: edMetric — тип ('weight'/'reps'/'time'), edVal — целевое
-  // ведущее значение в единицах метрики (кг / повторы / секунды). edTimeStr —
-  // отдельная строка ввода для time (мм:сс), чтобы не реформатить при наборе.
-  const [edMetric, setEdMetric] = useState('weight')
-  const [edVal, setEdVal] = useState(100)
-  const [edTimeStr, setEdTimeStr] = useState('1:00')
-  // Необязательные повторы при целевом весе (PLAN-goal-reps) — только у весовой
-  // цели. 0/'' → требования по повторам нет (старое поведение).
-  const [edReps, setEdReps] = useState(0)
-  const [edIsNew, setEdIsNew] = useState(false) // добавляем новую (можно выбрать упражнение) или правим цель существующей
-
-  // Редактор рендерится инлайн в секции «Мои цели» (вверху экрана). Если открыть
-  // его, проскроллив вниз (кнопка «+ Добавить цель»), форма встает на месте секции
-  // — выше видимой области. Доводим форму до экрана после ее появления.
-  const editorRef = useRef(null)
-  useEffect(() => {
-    if (editing) editorRef.current?.scrollIntoView({ behavior: 'smooth', block: 'center' })
-  }, [editing])
-
   // «Настройки» — отдельный под-экран Профиля (v6.3.3): список сразу сверху, со
   // стрелкой «назад». Состояние (PIN-форма, пол, бэкап) живет здесь же, поэтому это
   // вид внутри ProfileScreen, а не отдельный роут App.
@@ -143,64 +97,6 @@ export default function ProfileScreen({ user, onLogout, onOpenProgress, onOpenFe
     if (startInSettings) onStartInSettingsConsumed?.()
   }, [startInSettings, onStartInSettingsConsumed])
 
-  // ── Смена PIN (фаза 2c) ─────────────────────────────────────────────────
-  const [pinOpen, setPinOpen] = useState(false)
-  // Раскрытая форма смены PIN — в центр экрана (v6.3.5), иначе поля уезжают под клавиатуру/меню.
-  const pinFormRef = useRevealFocus(pinOpen)
-  const [curPin, setCurPin] = useState('')
-  const [newPin, setNewPin] = useState('')
-  const [rptPin, setRptPin] = useState('')
-  const [pinErr, setPinErr] = useState('')
-  const [pinBusy, setPinBusy] = useState(false)
-
-  function resetPinForm() {
-    setCurPin(''); setNewPin(''); setRptPin(''); setPinErr(''); setPinBusy(false)
-  }
-  function closePinForm() { setPinOpen(false); resetPinForm() }
-
-  async function submitPin() {
-    setPinErr('')
-    if (curPin.length !== 4 || newPin.length !== 4 || rptPin.length !== 4) {
-      setPinErr('PIN — 4 цифры.'); return
-    }
-    if (newPin !== rptPin) { setPinErr('Новый PIN и повтор не совпадают.'); return }
-    if (newPin === curPin) { setPinErr('Новый PIN совпадает с текущим.'); return }
-    if (isWeakPin(newPin)) { setPinErr(WEAK_PIN_TEXT); return }
-    setPinBusy(true)
-    try {
-      await setPin(user.id, curPin, newPin)
-      if (aliveRef.current) closePinForm()
-      showToast({ emoji: '🔑', title: 'PIN обновлен', sub: 'Вход — уже новым PIN.' })
-    } catch (e) {
-      if (!aliveRef.current) return
-      setPinBusy(false)
-      setPinErr(e instanceof LoginError ? e.message : 'Не удалось сменить PIN.')
-    }
-  }
-
-  // ── Аватар (фаза 2c) ────────────────────────────────────────────────────
-  const [avBusy, setAvBusy] = useState(false)
-  async function onPickAvatar(e) {
-    const file = e.target.files?.[0]
-    e.target.value = '' // позволить выбрать тот же файл повторно
-    if (!file) return
-    if (!navigator.onLine) {
-      showToast({ emoji: '📷', title: 'Нужна сеть', sub: 'Аватар загружается онлайн.' })
-      return
-    }
-    setAvBusy(true)
-    try {
-      const url = await uploadMyAvatar(user.id, file)
-      await setCachedAvatar(user.id, url) // мгновенно обновить шапку/ЛК до pull
-      showToast({ emoji: '📷', title: 'Аватар обновлен' })
-    } catch (err) {
-      showToast({ emoji: '⚠️', title: 'Не удалось загрузить', sub: String(err?.message ?? err) })
-    } finally {
-      if (aliveRef.current) setAvBusy(false)
-    }
-  }
-
-  // ── Смена имени (фаза 2c) ───────────────────────────────────────────────
   // Свой пол (v6.2.0): оптимистично показываем выбор, откатываем при ошибке.
   const [sexPending, setSexPending] = useState(undefined) // undefined — нет правки
   const [sexErr, setSexErr] = useState('')
@@ -216,251 +112,6 @@ export default function ProfileScreen({ user, onLogout, onOpenProgress, onOpenFe
     } finally {
       if (aliveRef.current) setSexPending(undefined)
     }
-  }
-
-  const [nameEditing, setNameEditing] = useState(false)
-  const [nameVal, setNameVal] = useState('')
-  const [nameErr, setNameErr] = useState('')
-  const [nameBusy, setNameBusy] = useState(false)
-
-  function openName() { setNameVal(user.name ?? ''); setNameErr(''); setNameEditing(true) }
-  async function saveName() {
-    setNameErr('')
-    const clean = nameVal.trim()
-    if (clean.length < 1 || clean.length > 40) { setNameErr('Имя — от 1 до 40 символов.'); return }
-    if (clean === user.name) { setNameEditing(false); return }
-    setNameBusy(true)
-    try {
-      const saved = await setName(user.id, clean)
-      await setCachedName(user.id, saved) // пикер входа/кэш — сразу новое имя
-      onRenamed?.(saved)                  // шапка + localStorage профиля
-      if (aliveRef.current) setNameEditing(false)
-      showToast({ emoji: '✏️', title: 'Имя обновлено' })
-      // Имя в Ленте/лидерборде приходит join'ом с сервера — освежим на pull.
-      if (navigator.onLine) syncNow(user.id)
-    } catch (e) {
-      if (aliveRef.current) setNameErr(e instanceof LoginError ? e.message : 'Не удалось сменить имя.')
-    } finally {
-      if (aliveRef.current) setNameBusy(false)
-    }
-  }
-
-  // ── Удалить мои данные (фаза 2c, soft-delete) ───────────────────────────
-  const [delArm, setDelArm] = useState(false)
-  const [delBusy, setDelBusy] = useState(false)
-  async function confirmDelete() {
-    setDelBusy(true)
-    try {
-      const n = await softDeleteMyWorkouts(user.id)
-      if (aliveRef.current) setDelArm(false)
-      showToast({
-        emoji: '🗑',
-        title: 'Данные удалены',
-        sub: n ? `Помечено тренировок: ${n}` : 'Удалять было нечего.',
-      })
-      if (navigator.onLine) syncNow(user.id) // отправить удаления на сервер
-    } catch (e) {
-      showToast({ emoji: '⚠️', title: 'Не удалось удалить', sub: String(e?.message ?? e) })
-    } finally {
-      if (aliveRef.current) setDelBusy(false)
-    }
-  }
-
-  // ── Застрявшие изменения (dead-letter) ─────────────────────────────────
-  // Операции, провалившие все попытки отправки. Обычно — затянувшийся холодный
-  // старт/обрыв; даем пересобрать или отклонить, чтобы не копились молча.
-  const deadCount = useLiveQuery(() => deadLetterCount(), [], 0)
-  const [dlBusy, setDlBusy] = useState(false)
-  const [dlArm, setDlArm] = useState(false) // подтверждение «отклонить» (теряет правки)
-  async function retryDead() {
-    setDlBusy(true)
-    try {
-      const n = await retryDeadLetter()
-      showToast({ emoji: '🔄', title: 'Повторная отправка', sub: `Операций в очереди: ${n}` })
-      if (navigator.onLine) syncNow(user.id)
-    } catch (e) {
-      showToast({ emoji: '⚠️', title: 'Не удалось', sub: String(e?.message ?? e) })
-    } finally {
-      if (aliveRef.current) setDlBusy(false)
-    }
-  }
-  async function discardDead() {
-    setDlBusy(true)
-    try {
-      const n = await discardDeadLetter()
-      if (aliveRef.current) setDlArm(false)
-      showToast({ emoji: '🧹', title: 'Изменения отклонены', sub: `Удалено операций: ${n}` })
-      if (navigator.onLine) syncNow(user.id)
-    } catch (e) {
-      showToast({ emoji: '⚠️', title: 'Не удалось', sub: String(e?.message ?? e) })
-    } finally {
-      if (aliveRef.current) setDlBusy(false)
-    }
-  }
-
-  // ── Все мои данные: выгрузка и восстановление ──────────────────────────
-  // Часть личных сущностей (бейджи, настройки прогрессии) живет ТОЛЬКО локально
-  // и умирает вместе с чисткой браузера — файл-снимок закрывает этот риск.
-  // Восстановление намеренно ТОЛЬКО ДОБАВЛЯЕТ недостающее: затереть свежие
-  // данные старым файлом невозможно (см. lib/backup.js planImport).
-  const [bkBusy, setBkBusy] = useState(false)
-  async function doExportAll() {
-    setBkBusy(true)
-    try {
-      const n = await exportAllMyData(user.id, APP_VERSION)
-      showToast({ emoji: '💾', title: 'Файл сохранен', sub: `Тренировок в выгрузке: ${n}` })
-    } catch (e) {
-      showToast({ emoji: '⚠️', title: 'Не удалось выгрузить', sub: String(e?.message ?? e) })
-    } finally {
-      if (aliveRef.current) setBkBusy(false)
-    }
-  }
-  async function onPickBackup(e) {
-    const file = e.target.files?.[0]
-    e.target.value = '' // позволить выбрать тот же файл повторно
-    if (!file) return
-    setBkBusy(true)
-    try {
-      const c = await importAllMyData(user.id, await file.text())
-      showToast({ emoji: '📥', title: 'Восстановлено', sub: describeImport(c) })
-      if (c.failed) {
-        showToast({ emoji: '⚠️', title: 'Часть записей пропущена', sub: `Не удалось добавить: ${c.failed}` })
-      }
-      if (navigator.onLine) syncNow(user.id) // отправить восстановленное на сервер
-    } catch (err) {
-      showToast({
-        emoji: '⚠️',
-        title: err instanceof BackupError ? 'Не тот файл' : 'Не удалось восстановить',
-        sub: String(err?.message ?? err),
-      })
-    } finally {
-      if (aliveRef.current) setBkBusy(false)
-    }
-  }
-
-  // Видимые цели (без tombstone'ов) и упражнения, по которым цели еще нет
-  // (для пикера «добавить»). Имя редактируемой цели — из самого списка.
-  const goalList = (goals ?? []).filter((g) => !g._deleted)
-  // Цели — по любой метрике (вес/повторы/время): предлагаем все упражнения из
-  // рекордов, по которым цели еще нет.
-  // Дистанцию (бег, эллипс) в цели не берем (v6.12.0): серверные цели знают
-  // только вес/повторы/время, а «пробежать N км» — отдельная история.
-  const addOptions = records.filter(
-    (r) => r.metric !== 'distance' && !goalList.some((g) => g.exerciseId === r.exId)
-  )
-  const edName = edExId
-    ? (goalList.find((g) => g.exerciseId === edExId)?.exerciseName ??
-       records.find((r) => r.exId === edExId)?.name ?? '—')
-    : '—'
-
-  // Разумный дефолт цели «чуть выше текущего» по метрике (base — текущий рекорд).
-  function goalDefault(metric, base) {
-    const b = Number(base) || 0
-    const m = normMetric(metric)
-    if (m === 'time') return Math.max(Math.round(b) + 15, 30)   // +15 с, минимум 0:30
-    if (m === 'reps') return Math.max(Math.round(b) + 2, 5)     // +2 повтора, минимум 5
-    return Math.max(b + 5, 20)                                  // +5 кг, минимум 20
-  }
-  // Установить редактируемое значение (секунды для time дублируем в строку мм:сс).
-  function setEdValue(metric, v) {
-    const m = normMetric(metric)
-    const n = m === 'weight' ? v : Math.max(0, Math.round(Number(v) || 0))
-    setEdVal(n)
-    if (m === 'time') setEdTimeStr(fmtTime(n))
-  }
-
-  // Открыть редактор: новая цель (выбор упражнения из еще-без-цели) или правка
-  // существующей (упражнение фиксировано).
-  function openAddGoal() {
-    if (addOptions.length === 0) {
-      showToast({ emoji: '🎯', title: 'Цели уже на всех упражнениях' })
-      return
-    }
-    const base = addOptions.find((r) => r.isBench) || addOptions[0]
-    const m = normMetric(base?.metric)
-    setEdIsNew(true)
-    setEdExId(base?.exId ?? null)
-    setEdMetric(m)
-    setEdValue(m, goalDefault(m, base?.value ?? 0))
-    setEdReps(0) // повторы по умолчанию не требуем
-    setEditing(true)
-  }
-  // Смена упражнения в пикере новой цели → подхватываем его метрику и дефолт.
-  function chooseGoalExercise(exId) {
-    const r = addOptions.find((x) => String(x.exId) === String(exId))
-    const m = normMetric(r?.metric)
-    setEdExId(r?.exId ?? exId)
-    setEdMetric(m)
-    setEdValue(m, goalDefault(m, r?.value ?? 0))
-    setEdReps(0)
-  }
-  function openEditGoal(g) {
-    const m = normMetric(g.metric)
-    setEdIsNew(false)
-    setEdExId(g.exerciseId)
-    setEdMetric(m)
-    setEdValue(m, g.targetWeight)
-    setEdReps(Number(g.targetReps) > 0 ? Math.round(Number(g.targetReps)) : 0)
-    setEditing(true)
-  }
-
-  async function saveGoal() {
-    if (!edExId) return
-    const ex = records.find((r) => r.exId === edExId)
-    const metric = normMetric(edMetric)
-    // целевое значение в единицах метрики: вес — десятые, повторы/время — целое.
-    const target =
-      metric === 'weight' ? Math.round((Number(edVal) || 0) * 10) / 10 : Math.max(0, Math.round(Number(edVal) || 0))
-    // Защита от «сохранил с непрожатым полем»: на мобильной клавиатуре тап по
-    // «Сохранить» без blur оставляет edVal пустой строкой → Number('')→0 молча
-    // записал бы бессмысленную цель в 0. Цель ≤ 0 не сохраняем (оставляем диалог).
-    if (!(target > 0)) return
-    // Повторы при целевом весе — только у весовой цели; 0/'' → нет требования (null).
-    const reps = metric === 'weight' && Number(edReps) > 0 ? Math.round(Number(edReps)) : null
-    const list = await readGoals(user.id) // свежий массив (вкл. tombstone'ы)
-    const idx = list.findIndex((g) => g.exerciseId === edExId)
-    let next
-    if (idx >= 0) {
-      const prevW = Number(list[idx].targetWeight)
-      const prevR = Number(list[idx].targetReps) || 0
-      // смена веса ИЛИ повторов → цель можно достичь заново; иначе не сбрасываем.
-      const changed = prevW !== target || prevR !== (reps || 0)
-      next = list.map((g, i) =>
-        i === idx
-          ? {
-              ...g,
-              exerciseName: ex?.name ?? g.exerciseName ?? '—',
-              metric,
-              targetWeight: target,
-              targetReps: reps,
-              _dirty: 1,
-              _deleted: 0,
-              achievedAt: changed ? null : g.achievedAt ?? null,
-            }
-          : g
-      )
-    } else {
-      next = [
-        ...list,
-        { exerciseId: edExId, exerciseName: ex?.name ?? '—', metric, targetWeight: target, targetReps: reps, achievedAt: null, _dirty: 1 },
-      ]
-    }
-    await writeGoals(user.id, next)
-    if (aliveRef.current) setEditing(false)
-    // Сразу пушим (если онлайн), чтобы бот увидел цель до ближайшей тренировки.
-    if (navigator.onLine) syncNow(user.id)
-  }
-
-  // Удалить цель: tombstone (_deleted+_dirty) — синк отправит delete_my_goal и
-  // выкинет ее из массива; из списка пропадает сразу.
-  async function deleteGoal(exerciseId) {
-    const list = await readGoals(user.id)
-    const next = list.map((g) =>
-      g.exerciseId === exerciseId ? { ...g, _deleted: 1, _dirty: 1 } : g
-    )
-    await writeGoals(user.id, next)
-    if (aliveRef.current) setEditing(false)
-    if (navigator.onLine) syncNow(user.id)
   }
 
   const settingsSurfaceRef = useRef(null)
@@ -485,9 +136,7 @@ export default function ProfileScreen({ user, onLogout, onOpenProgress, onOpenFe
     document.querySelector('.content')?.scrollTo({ top: 0 })
   }
   function closeSettings() {
-    setSettingsOpen(false)
-    setPinOpen(false)
-    setDelArm(false)
+    setSettingsOpen(false) // PIN-форма и подтверждение удаления размонтируются вместе с Настройками
     document.querySelector('.content')?.scrollTo({ top: Number(profileSurfaceRef.current?.dataset.scrollTop || 0) })
   }
 
@@ -500,29 +149,7 @@ export default function ProfileScreen({ user, onLogout, onOpenProgress, onOpenFe
           <h2 className="screen-title detail-title">Настройки</h2>
         </div>
         {/* Проблема с отправкой — важный алерт: виден всегда, даже когда свернуто. */}
-        {deadCount > 0 && (
-          <div className="danger-confirm">
-            <p className="danger-text">
-              ⚠️ Не удалось отправить изменений: {deadCount}. Обычно помогает повторить
-              (например, после восстановления связи).
-            </p>
-            {dlArm ? (
-              <div className="danger-actions">
-                <button className="btn ghost" onClick={() => setDlArm(false)} disabled={dlBusy}>Отмена</button>
-                <button className="btn danger" onClick={discardDead} disabled={dlBusy}>
-                  {dlBusy ? 'Отклоняю…' : 'Да, отклонить (потерять правки)'}
-                </button>
-              </div>
-            ) : (
-              <div className="danger-actions">
-                <button className="btn primary" onClick={retryDead} disabled={dlBusy}>
-                  {dlBusy ? 'Отправляю…' : '🔄 Повторить отправку'}
-                </button>
-                <button className="btn ghost" onClick={() => setDlArm(true)} disabled={dlBusy}>Отклонить</button>
-              </div>
-            )}
-          </div>
-        )}
+        <DeadLetterAlert userId={user.id} />
 
           <div className="actions">
             {/* «Что нового» (v6.4.0) — история обновлений; «новое», пока свежая запись не открыта. */}
@@ -569,94 +196,14 @@ export default function ProfileScreen({ user, onLogout, onOpenProgress, onOpenFe
                 onChange={push.setType}
               />
             )}
-            {pinOpen ? (
-              <div className="pin-form" ref={pinFormRef}>
-                <p className="pin-form-title">Смена PIN</p>
-                <label className="field">
-                  <span className="field-lab">Текущий PIN</span>
-                  <input
-                    className="pin-input" type="password" inputMode="numeric"
-                    autoComplete="off" name="cur-code" data-lpignore="true" data-1p-ignore
-                    placeholder="••••"
-                    value={curPin} onChange={(e) => setCurPin(onlyDigits(e.target.value))}
-                  />
-                </label>
-                <label className="field">
-                  <span className="field-lab">Новый PIN</span>
-                  <input
-                    className="pin-input" type="password" inputMode="numeric"
-                    autoComplete="off" name="new-code" data-lpignore="true" data-1p-ignore
-                    placeholder="4 цифры"
-                    value={newPin} onChange={(e) => setNewPin(onlyDigits(e.target.value))}
-                  />
-                </label>
-                <label className="field">
-                  <span className="field-lab">Повтор нового PIN</span>
-                  <input
-                    className="pin-input" type="password" inputMode="numeric"
-                    autoComplete="off" name="rpt-code" data-lpignore="true" data-1p-ignore
-                    placeholder="еще раз"
-                    value={rptPin} onChange={(e) => setRptPin(onlyDigits(e.target.value))}
-                  />
-                </label>
-                {pinErr && <p className="pin-err" role="alert">{pinErr}</p>}
-                <div className="pin-form-actions">
-                  <button className="btn ghost" onClick={closePinForm} disabled={pinBusy}>Отмена</button>
-                  <button className="btn primary" onClick={submitPin} disabled={pinBusy}>
-                    {pinBusy ? 'Сохраняю…' : 'Сменить PIN'}
-                  </button>
-                </div>
-              </div>
-            ) : (
-              <button className="act" onClick={() => setPinOpen(true)}>🔑 Сменить PIN</button>
-            )}
+            <PinChangeForm userId={user.id} />
             {user.role !== 'admin' && (
               <button className="act" onClick={() => onOpenMyExercises?.()}>🏋 Каталог упражнений</button>
             )}
-            <button className="act" onClick={doExportAll} disabled={bkBusy}>
-              <span className="act-txt">
-                💾 Скачать все мои данные
-                <span className="act-sub">один JSON: тренировки, цели, достижения, настройки</span>
-              </span>
-            </button>
-            {/* Восстановление — <label> вместо <button>: нативный выбор файла, как
-                у смены аватара выше. Стиль .act работает и на label. */}
-            <label className={'act' + (bkBusy ? ' busy' : '')}>
-              <span className="act-txt">
-                📥 Восстановить из файла
-                <span className="act-sub">добавит только то, чего сейчас нет</span>
-              </span>
-              <input
-                type="file"
-                accept="application/json,.json"
-                onChange={onPickBackup}
-                disabled={bkBusy}
-                hidden
-              />
-            </label>
-            {delArm ? (
-              <div className="danger-confirm">
-                <p className="danger-text">
-                  Удалить все свои тренировки? Отменить это нельзя — если не уверен,
-                  сначала нажми «Скачать все мои данные». Учетная запись, цель и шаблоны останутся.
-                </p>
-                <div className="danger-actions">
-                  <button className="btn ghost" onClick={() => setDelArm(false)} disabled={delBusy}>Отмена</button>
-                  <button className="btn danger" onClick={confirmDelete} disabled={delBusy}>
-                    {delBusy ? 'Удаляю…' : 'Да, удалить'}
-                  </button>
-                </div>
-              </div>
-            ) : (
-              <button className="act danger" onClick={() => setDelArm(true)}>🗑 Удалить мои данные</button>
-            )}
+            <BackupActions userId={user.id} />
+            <DeleteMyData userId={user.id} />
           </div>
-        <p className="app-version">
-          <a className="repo-link" href="https://github.com/myr4ge15/kachalka-app" target="_blank" rel="noopener noreferrer">
-            kachalka-app
-          </a>
-          {' · '}v{APP_VERSION}
-        </p>
+        <AppVersionLink />
       </div>
   )
 
@@ -665,41 +212,7 @@ export default function ProfileScreen({ user, onLogout, onOpenProgress, onOpenFe
     <div ref={profileSurfaceRef} className={settingsOpen ? "nav-layer nav-underlay" : "nav-layer nav-current"} inert={settingsOpen} aria-hidden={settingsOpen ? true : undefined}>
     <div className="screen profile">
       {/* шапка профиля */}
-      <div className="prof-head">
-        <label className={'avatar-edit' + (avBusy ? ' busy' : '')} title="Сменить аватар">
-          <Avatar name={user.name} url={myCached?.avatar_url} className="avatar-lg" />
-          <span className="avatar-cam" aria-hidden="true">{avBusy ? '…' : '📷'}</span>
-          <input type="file" accept="image/*" onChange={onPickAvatar} disabled={avBusy} hidden />
-        </label>
-        <div className="prof-id">
-          {nameEditing ? (
-            <div className="name-editor">
-              <input
-                className="name-input"
-                type="text"
-                maxLength={40}
-                value={nameVal}
-                onChange={(e) => setNameVal(e.target.value)}
-                aria-label="Новое имя"
-                autoFocus
-              />
-              {nameErr && <p className="name-err" role="alert">{nameErr}</p>}
-              <div className="name-editor-actions">
-                <button className="btn ghost" onClick={() => setNameEditing(false)} disabled={nameBusy}>Отмена</button>
-                <button className="btn primary" onClick={saveName} disabled={nameBusy}>
-                  {nameBusy ? 'Сохраняю…' : 'Сохранить'}
-                </button>
-              </div>
-            </div>
-          ) : (
-            <div className="prof-name">
-              <span className="txt">{user.name}</span>
-              <button className="name-edit" onClick={openName} aria-label="Изменить имя"><PencilIcon size={18} /></button>
-            </div>
-          )}
-          {user.role === 'admin' && <span className="role-badge">админ</span>}
-        </div>
-      </div>
+      <ProfileHeader user={user} avatarUrl={myCached?.avatar_url} onRenamed={onRenamed} />
 
       {loading && <CardsSkeleton cards={3} />}
 
@@ -727,131 +240,7 @@ export default function ProfileScreen({ user, onLogout, onOpenProgress, onOpenFe
           </section>
 
           {/* личные цели (мульти-цели) */}
-          <section className="sec">
-            <p className="sec-title">Мои цели</p>
-            {editing ? (
-              <div className="goal">
-                <div className="goal-editor" ref={editorRef}>
-                  {edIsNew ? (
-                    <label className="field">
-                      <span className="field-lab">Упражнение</span>
-                      <select
-                        className="prog-select"
-                        value={String(edExId ?? '')}
-                        onChange={(e) => chooseGoalExercise(e.target.value)}
-                      >
-                        {addOptions.map((r) => (
-                          <option key={r.exId} value={String(r.exId)}>
-                            {r.name}{r.isBench ? ' 🏅' : ''}
-                          </option>
-                        ))}
-                      </select>
-                    </label>
-                  ) : (
-                    <div className="field">
-                      <span className="field-lab">Упражнение</span>
-                      <div className="goal-editor-ex">{edName}</div>
-                    </div>
-                  )}
-                  <label className="field">
-                    <span className="field-lab">
-                      {edMetric === 'time' ? 'Цель (время)' : edMetric === 'reps' ? 'Цель (повторения)' : 'Целевой вес'}
-                    </span>
-                    {edMetric === 'weight' ? (
-                      <GoalStepper
-                        onDec={() => setEdVal((w) => Math.max(1.5, Math.round((Number(w) - 1.5) * 10) / 10))}
-                        onInc={() => setEdVal((w) => Math.round((Number(w) + 1.5) * 10) / 10)}
-                      >
-                        <input
-                          className="val-field"
-                          type="text"
-                          inputMode="decimal"
-                          value={edVal}
-                          onChange={(e) =>
-                            setEdVal(e.target.value.replace(',', '.').replace(/[^\d.]/g, ''))
-                          }
-                          onBlur={() =>
-                            setEdVal((w) => {
-                              const n = Number(w)
-                              return n > 0 ? Math.round(n * 10) / 10 : 2.5
-                            })
-                          }
-                          aria-label="Целевой вес в килограммах"
-                        />
-                        <span className="u">кг</span>
-                      </GoalStepper>
-                    ) : edMetric === 'reps' ? (
-                      <GoalStepper
-                        onDec={() => setEdVal((v) => Math.max(1, Math.round(Number(v) || 0) - 1))}
-                        onInc={() => setEdVal((v) => Math.round(Number(v) || 0) + 1)}
-                      >
-                        <input
-                          className="val-field"
-                          type="text"
-                          inputMode="numeric"
-                          value={edVal}
-                          onChange={(e) => setEdVal(e.target.value.replace(/[^\d]/g, ''))}
-                          onBlur={() => setEdVal((v) => Math.max(1, Math.round(Number(v) || 0)))}
-                          aria-label="Целевое число повторений"
-                        />
-                        <span className="u">повт.</span>
-                      </GoalStepper>
-                    ) : (
-                      <GoalStepper
-                        onDec={() => setEdVal((v) => { const n = Math.max(5, Math.round(Number(v) || 0) - 5); setEdTimeStr(fmtTime(n)); return n })}
-                        onInc={() => setEdVal((v) => { const n = Math.round(Number(v) || 0) + 5; setEdTimeStr(fmtTime(n)); return n })}
-                      >
-                        <input
-                          className="val-field"
-                          type="text"
-                          inputMode="numeric"
-                          value={edTimeStr}
-                          onChange={(e) => { setEdTimeStr(e.target.value); setEdVal(parseTime(e.target.value)) }}
-                          onBlur={() => { const n = parseTime(edTimeStr); setEdVal(n); setEdTimeStr(fmtTime(n)) }}
-                          aria-label="Целевое время в формате минуты:секунды"
-                        />
-                        <span className="u">мин:сек</span>
-                      </GoalStepper>
-                    )}
-                  </label>
-                  {edMetric === 'weight' && (
-                    <label className="field">
-                      <span className="field-lab">Повторения при этом весе <span className="muted">(необязательно)</span></span>
-                      <GoalStepper
-                        onDec={() => setEdReps((v) => Math.max(0, Math.round(Number(v) || 0) - 1))}
-                        onInc={() => setEdReps((v) => Math.round(Number(v) || 0) + 1)}
-                      >
-                        <input
-                          className="val-field"
-                          type="text"
-                          inputMode="numeric"
-                          value={edReps ? String(edReps) : ''}
-                          placeholder="—"
-                          onChange={(e) => setEdReps(e.target.value.replace(/[^\d]/g, ''))}
-                          onBlur={() => setEdReps((v) => Math.max(0, Math.round(Number(v) || 0)))}
-                          aria-label="Повторения при целевом весе (необязательно)"
-                        />
-                        <span className="u">повт.</span>
-                      </GoalStepper>
-                    </label>
-                  )}
-                  <div className="goal-editor-actions">
-                    {!edIsNew && (
-                      <button className="btn danger-ghost" onClick={() => deleteGoal(edExId)}>Удалить</button>
-                    )}
-                    <button className="btn ghost" onClick={() => setEditing(false)}>Отмена</button>
-                    <button className="btn primary" onClick={saveGoal} disabled={!edExId}>Сохранить</button>
-                  </div>
-                </div>
-              </div>
-            ) : goalList.length === 0 ? (
-              <div className="goal">
-                <button className="goal-edit set" onClick={openAddGoal}>+ Поставить цель</button>
-              </div>
-            ) : (
-              <GoalsList goalList={goalList} workouts={workouts} onEdit={openEditGoal} onAdd={openAddGoal} />
-            )}
-          </section>
+          <GoalsSection userId={user.id} goals={goals} records={records} workouts={workouts} />
 
           {/* личные рекорды → Прогресс */}
           <PersonalRecords records={records} onOpenProgress={onOpenProgress} />
@@ -891,29 +280,7 @@ export default function ProfileScreen({ user, onLogout, onOpenProgress, onOpenFe
           «Любимое». Выход — на виду в Профиле, как раньше. */}
       <section className="sec settings-sec">
         {/* Проблема с отправкой — важный алерт: виден всегда, даже когда свернуто. */}
-        {deadCount > 0 && (
-          <div className="danger-confirm">
-            <p className="danger-text">
-              ⚠️ Не удалось отправить изменений: {deadCount}. Обычно помогает повторить
-              (например, после восстановления связи).
-            </p>
-            {dlArm ? (
-              <div className="danger-actions">
-                <button className="btn ghost" onClick={() => setDlArm(false)} disabled={dlBusy}>Отмена</button>
-                <button className="btn danger" onClick={discardDead} disabled={dlBusy}>
-                  {dlBusy ? 'Отклоняю…' : 'Да, отклонить (потерять правки)'}
-                </button>
-              </div>
-            ) : (
-              <div className="danger-actions">
-                <button className="btn primary" onClick={retryDead} disabled={dlBusy}>
-                  {dlBusy ? 'Отправляю…' : '🔄 Повторить отправку'}
-                </button>
-                <button className="btn ghost" onClick={() => setDlArm(true)} disabled={dlBusy}>Отклонить</button>
-              </div>
-            )}
-          </div>
-        )}
+        <DeadLetterAlert userId={user.id} />
 
         <MemberInvites key={user.id} userId={user.id} />
         {/* «Написать разработчику» (v6.11.0; в корне Профиля с v6.12.0 — в Настройках
@@ -938,27 +305,10 @@ export default function ProfileScreen({ user, onLogout, onOpenProgress, onOpenFe
         </div>
       </section>
 
-      {/* версия приложения — подставляется на сборке из package.json (vite define).
-          Название — ссылка на репозиторий проекта (открывается в новой вкладке). */}
-      <p className="app-version">
-        <a
-          className="repo-link"
-          href="https://github.com/myr4ge15/kachalka-app"
-          target="_blank"
-          rel="noopener noreferrer"
-        >
-          kachalka-app
-        </a>
-        {' · '}v{APP_VERSION}
-      </p>
+      <AppVersionLink />
     </div>
     </div>
     {settingsOpen && <div className="nav-layer nav-current" ref={settingsSurfaceRef}>{settingsView}</div>}
     </div>
   )
 }
-
-// Версия из package.json, прокинутая через vite define. Fallback на случай
-// запуска без define (напр. тесты) — чтобы не падать на ReferenceError.
-const APP_VERSION =
-  typeof __APP_VERSION__ !== 'undefined' ? __APP_VERSION__ : 'dev'

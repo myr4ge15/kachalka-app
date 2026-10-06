@@ -1,6 +1,6 @@
 // @vitest-environment jsdom
 // Экран входа (v6.12.0): пикер — только учетки устройства, вход по имени,
-// «Забыть на этом устройстве», статус заявки «Попросить приглашение». Список участников
+// «Забыть на этом устройстве», статус заявки «Запросить приглашение». Список участников
 // экран больше не запрашивает (кто случайно открыл ссылку, круг не видит).
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { fireEvent, render, screen, waitFor } from '@testing-library/react'
@@ -154,16 +154,16 @@ describe('LoginScreen', () => {
     expect(await screen.findByLabelText('Имя')).toBeInTheDocument()
   })
 
-  it('«Попросить приглашение»: форма → заявка отправлена, кнопка исчезает', async () => {
+  it('«Запросить приглашение»: форма → заявка отправлена, кнопка исчезает', async () => {
     vi.mocked(join.submitJoin).mockResolvedValue({ id: 'r1', secret: 's', name: 'Вася', at: 1 })
     render(<LoginScreen onLogin={() => {}} />)
-    fireEvent.click(await screen.findByRole('button', { name: 'Попросить приглашение' }))
+    fireEvent.click(await screen.findByRole('button', { name: 'Запросить приглашение' }))
     fireEvent.change(screen.getByLabelText('Как тебя зовут'), { target: { value: 'Вася' } })
     fireEvent.change(screen.getByLabelText('Пара слов о себе'), { target: { value: 'друг Димы' } })
     fireEvent.click(screen.getByRole('button', { name: 'Отправить заявку' }))
     expect(await screen.findByText('Заявка отправлена')).toBeInTheDocument()
     expect(join.submitJoin).toHaveBeenCalledWith({ name: 'Вася', about: 'друг Димы', website: '' })
-    expect(screen.queryByRole('button', { name: 'Попросить приглашение' })).not.toBeInTheDocument()
+    expect(screen.queryByRole('button', { name: 'Запросить приглашение' })).not.toBeInTheDocument()
   })
 
   it('заявку одобрили — экран отдает токен приглашения и запоминает его', async () => {

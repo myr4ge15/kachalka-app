@@ -1,41 +1,35 @@
-import { useState, useEffect, useLayoutEffect, useRef, Suspense } from 'react'
+import { useState, useEffect, useRef, Suspense } from 'react'
 import { useLiveQuery } from 'dexie-react-hooks'
-import { isConfigured, warmup, supabase } from './db/supabase.js'
-import { logout as authLogout, getCachedProfile } from './lib/auth.js'
-import { releasePushOnLogout, getPushState, enablePush, wasPushAsked, markPushAsked, reconcilePushOwner } from './db/push.js'
-import { shouldAskPush } from './lib/pushSupport.js'
-import { pushIntentFromUrl, stripPushParam } from './lib/pushIntent.js'
+import { isConfigured, warmup } from './db/supabase.js'
+import { enablePush } from './db/push.js'
+import { stripPushParam } from './lib/pushIntent.js'
 import PushAskSheet from './components/PushAskSheet.jsx'
-import { startSync, useSyncStatus } from './db/sync.js'
+import { startSync } from './db/sync.js'
 import { countUnread } from './db/notifications.js'
 import { getCachedUser } from './db/repo.js'
-import { openUserDb, closeUserDb } from './db/local.js'
-import { syncBadgeState } from './lib/syncStatus.js'
-import { readStoredUserId, hydrateProfile } from './lib/sessionProfile.js'
-import { emitReselect, onResume } from './lib/appEvents.js'
+import { onResume } from './lib/appEvents.js'
 import { myUnreadReplies } from './lib/feedbackApi.js'
-import { markAppReady } from './lib/splash.js'
 import { fabState } from './lib/quickAdd.js'
 import { useTabDot } from './hooks/useTabDot.js'
-import { useEdgeSwipeBack } from './hooks/useEdgeSwipeBack.js'
-import { transitionKind, isNested, edgeSwipeSupported, nextScreenStack, initialScreenStack } from './lib/screenNav.js'
-import { isIOSDevice } from './lib/pushSupport.js'
-import { captureAnchor, useScrollAnchorRestore } from './hooks/useScrollAnchor.js'
+import { isNested } from './lib/screenNav.js'
 import { useAccentSync } from './hooks/useAccentSync.js'
 import LoginScreen from './screens/LoginScreen.jsx'
 import InviteScreen from './screens/InviteScreen.jsx'
 import { inviteFromUrl, stripInvite } from './lib/invite.js'
 import { clearPending } from './lib/joinRequest.js'
-import Toast, { showToast } from './components/Toast.jsx'
+import Toast from './components/Toast.jsx'
 import AddFab from './components/AddFab.jsx'
 import Avatar from './components/Avatar.jsx'
 import ScreenSkeleton from './components/ScreenSkeleton.jsx'
 import ErrorBoundary from './components/ErrorBoundary.jsx'
 import { lazyScreen } from './components/lazyScreen.jsx'
-import { useSpinPhase } from './hooks/useSpinPhase.js'
 import WhatsNewSheet from './components/WhatsNewSheet.jsx'
-import { WHATS_NEW } from './content/whatsNew.js'
-import { pendingWhatsNew, mergeForSheet, readMark, writeMark, SEEN_KEY } from './lib/whatsNew.js'
+import SyncTools from './components/SyncTools.jsx'
+import TabIcon from './components/TabIcon.jsx'
+import ScreenCrash from './components/ScreenCrash.jsx'
+import { useSession } from './hooks/useSession.js'
+import { useAppNav } from './hooks/useAppNav.js'
+import { useLaunchSheets } from './hooks/useLaunchSheets.js'
 
 // Экраны-вкладки грузим лениво: код активной вкладки подтягивается по требованию.
 // Главный выигрыш — «Прогресс» тянет тяжелый recharts, который теперь не попадает
@@ -59,212 +53,22 @@ const WhatsNewScreen = lazyScreen(() => import('./screens/WhatsNewScreen.jsx'))
 const FeedbackScreen = lazyScreen(() => import('./screens/FeedbackScreen.jsx'))
 const MemberScreen = lazyScreen(() => import('./screens/MemberScreen.jsx'))
 
-// Иконка состояния синхронизации — инлайн-SVG (без зависимостей), как TabIcon.
-// Красится через currentColor (цвет задает класс .sync-badge.<cls>), спиннер
-// крутит CSS (.sync-ico.spin).
-function SyncIcon({ name }) {
-  const spinStyle = useSpinPhase(name === 'syncing')
-  const p = {
-    className: name === 'syncing' ? 'sync-ico spin' : 'sync-ico',
-    style: spinStyle,
-    viewBox: '0 0 24 24', fill: 'none', stroke: 'currentColor', strokeWidth: 2.2,
-    strokeLinecap: 'round', strokeLinejoin: 'round', 'aria-hidden': true,
-  }
-  if (name === 'ok') return <svg {...p}><path d="M4 12.5l5 5L20 6" /></svg>
-  if (name === 'syncing') return <svg {...p}><path d="M21 12a9 9 0 1 1-2.64-6.36" /><path d="M21 4v5h-5" /></svg>
-  if (name === 'pending') return <svg {...p}><path d="M12 19V6" /><path d="M6 11l6-6 6 6" /></svg>
-  if (name === 'offline') return (
-    <svg {...p}>
-      <path d="M6.657 18c-2.572 0-4.657-2.007-4.657-4.483 0-2.475 2.085-4.482 4.657-4.482.393-1.762 1.794-3.2 3.675-3.773 1.88-.572 3.956-.193 5.444 1 1.488 1.19 2.162 3.007 1.77 4.769h.99c1.913 0 3.464 1.56 3.464 3.483 0 1.921-1.551 3.481-3.464 3.481h-11.878" />
-      <path d="M3 3l18 18" />
-    </svg>
-  )
-  // warn
-  return <svg {...p}><path d="M12 4l9 16H3z" /><path d="M12 10v4" /><path d="M12 17h.01" /></svg>
-}
-
-// Индикатор состояния синхронизации в шапке.
-function SyncBadge() {
-  const { online, syncing, pending, dead, netError } = useSyncStatus()
-  // Класс/иконка/текст — чистой логикой (см. lib/syncStatus.js). Иконка есть всегда,
-  // текст — только когда есть что чинить (очередь/офлайн/застряло). Застрявшие
-  // изменения (dead) делают бейдж предупреждающим, а не «синхронизировано», пока
-  // карточки висят с желтым кружком. netError — последний прогон синка упал по сети
-  // (напр. таймаут в авиарежиме при online=true): тоже предупреждение, а не галочка.
-  const { cls, icon, text, title } = syncBadgeState({ online, syncing, pending, dead, netError })
-  return (
-    <span className={`sync-badge ${cls}`} role="status" aria-label={title} title={title}>
-      <SyncIcon name={icon} />
-      {text && <span className="sync-badge-txt">{text}</span>}
-    </span>
-  )
-}
-
-// Статус синхронизации + колокольчик уведомлений — единый блок. Живет и в шапке
-// (мобайл), и в сайдбаре (десктоп); раньше разметка колокольчика дублировалась.
-function SyncTools({ unread, onOpenNotif }) {
-  return (
-    <>
-      <SyncBadge />
-      <button
-        className={'bell' + (unread > 0 ? ' has' : '')}
-        onClick={onOpenNotif}
-        aria-label={unread > 0 ? `Уведомления: ${unread} новых` : 'Уведомления'}
-      >
-        <svg
-          className="bell-ico" viewBox="0 0 24 24" fill="none" stroke="currentColor"
-          strokeWidth="1.7" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true"
-        >
-          <path d="M18 8a6 6 0 0 0-12 0c0 7-3 9-3 9h18s-3-2-3-9" />
-          <path d="M13.73 21a2 2 0 0 1-3.46 0" />
-        </svg>
-        {unread > 0 && (
-          <span className="bell-count">{unread > 9 ? '9+' : unread}</span>
-        )}
-      </button>
-    </>
-  )
-}
-
-// Иконки нижней панели — инлайн-SVG (без зависимостей), красятся через currentColor,
-// плавную смену цвета и легкое увеличение активной задает CSS (.tab / .tab-ico).
-function TabIcon({ name }) {
-  const p = {
-    className: 'tab-ico', viewBox: '0 0 24 24', width: 24, height: 24,
-    fill: 'none', stroke: 'currentColor', strokeWidth: 2,
-    strokeLinecap: 'round', strokeLinejoin: 'round', 'aria-hidden': true,
-  }
-  if (name === 'home') return (
-    <svg {...p}>
-      <path d="M3 11l9-8 9 8" />
-      <path d="M5 10v10h14V10" />
-      <path d="M9 20v-6h6v6" />
-    </svg>
-  )
-  if (name === 'history') return (
-    <svg {...p}>
-      {/* Lucide Dumbbell — ISC, см. public/licenses/lucide.txt. */}
-      <path d="M17.596 12.768a2 2 0 1 0 2.829-2.829l-1.768-1.767a2 2 0 0 0 2.828-2.829l-2.828-2.828a2 2 0 0 0-2.829 2.828l-1.767-1.768a2 2 0 1 0-2.829 2.829z" />
-      <path d="m2.5 21.5 1.4-1.4" />
-      <path d="m20.1 3.9 1.4-1.4" />
-      <path d="M5.343 21.485a2 2 0 1 0 2.829-2.828l1.767 1.768a2 2 0 1 0 2.829-2.829l-6.364-6.364a2 2 0 1 0-2.829 2.829l1.768 1.767a2 2 0 0 0-2.828 2.829z" />
-      <path d="m9.6 14.4 4.8-4.8" />
-    </svg>
-  )
-  if (name === 'feed') return (
-    <svg {...p}>
-      <path d="M16 6h3a1 1 0 0 1 1 1v11a2 2 0 0 1-4 0v-13a1 1 0 0 0-1-1h-10a1 1 0 0 0-1 1v12a3 3 0 0 0 3 3h11" />
-      <path d="M8 8h4M8 12h4M8 16h4" />
-    </svg>
-  )
-  return (
-    <svg {...p}>
-      <path d="M3 17l6-6 4 4 8-8" />
-      <path d="M14 7h7v7" />
-    </svg>
-  )
-}
-
-// Компактный фолбэк пер-экранного ErrorBoundary: рухнул рендер одной вкладки.
-// Живет внутри <main>, поэтому шапка и таббар остаются — можно уйти на другую
-// вкладку (это сбросит ошибку через remount по key={tab}) или повторить рендер.
-function ScreenCrash({ onRetry }) {
-  return (
-    <div className="screen center">
-      <div className="card warn">
-        <h2>Экран не открылся</h2>
-        <p>
-          Что-то пошло не так на этой вкладке. Данные тренировок сохранены
-          локально — открой другую вкладку или попробуй снова.
-        </p>
-        <button className="btn primary" onClick={onRetry}>
-          Попробовать снова
-        </button>
-      </div>
-    </div>
-  )
-}
-
-// В localStorage держим ТОЛЬКО id вошедшего (не имя/роль): на общих телефонах
-// профиль лежал открыто и читался через devtools. Имя/роль восстанавливаем из
-// loginDb (ростер + офлайн-кэш PIN, см. handleLogin/restore). id переживает
-// перезапуск, как и сессия Supabase Auth (persistSession); PIN спрашивается
-// заново лишь когда refresh-токен умрет (~7 дней) или после logout.
-const SESSION_KEY = 'gym_app_user'
-// Сколько горит подсветка карточки, к которой привел пуш (мс).
-const FEED_FLASH_MS = 2400
-// Якорь «к тренировке из пуша»: карточка встает чуть ниже верха экрана. Ждем ее
-// дольше обычного возврата — при холодном старте Лента еще грузит экран и кэш.
-const pushAnchor = (workoutId) => ({ anchor: `feed-${workoutId}`, offset: 12, scrollTop: 0, ms: 2500 })
-const TAB_KEY = 'gym_app_tab'
-
-// Безопасный доступ к Web Storage (РЕВЬЮ-КОДА-2026-10-02): в Safari с блокировкой
-// cookie/«Частном доступе» уже ОБРАЩЕНИЕ к window.localStorage бросает
-// SecurityError. Без обертки падал эффект восстановления сессии — markAppReady не
-// звался, и заставка висела до страховочного таймера, а запись вкладки роняла
-// рендер. Хранилище тут — удобство: при отказе ведем себя как «пусто».
-function storageGet(area, key) {
-  try { return window[area]?.getItem(key) ?? null } catch { return null }
-}
-function storageSet(area, key, value) {
-  try { window[area]?.setItem(key, value) } catch { /* хранилище недоступно — живем без него */ }
-}
-function storageRemove(area, key) {
-  try { window[area]?.removeItem(key) } catch { /* хранилище недоступно — живем без него */ }
-}
-
 export default function App() {
-  const [user, setUser] = useState(null)
-  // Нажатие на пуш (v6.7.2): service worker открывает приложение с `?push=<tag>`
-  // или, если оно уже открыто, присылает сообщение. Намерение ждет входа и
-  // применяется один раз (см. эффект ниже); до входа просто лежит.
-  const [pushIntent, setPushIntent] = useState(() => pushIntentFromUrl(window.location.href))
+  // Сессия (вход/выход/восстановление) — hooks/useSession.js.
+  const { user, handleLogin, handleRenamed, handleLogout } = useSession(() => setTab('home'))
+  // Навигация (вкладки, стек экранов, интенты, пуш) — hooks/useAppNav.js.
+  const {
+    tab, setTab, routeAnim, contentRef, screenRef, edgeSwipeOn,
+    memberId, progressExId, setProgressExId, openNewWorkout, setOpenNewWorkout,
+    calendarIntent, setCalendarIntent, feedFlashId, feedbackFocus, setFeedbackFocus,
+    focusRhythm, setFocusRhythm, openSettings, setOpenSettings,
+    goTab, openNotif, backFromNotif, openProgressFor, openCalendarAt, openMember, backFromMember,
+    backToRhythm, backToSettings, startNewWorkout,
+  } = useAppNav(user)
   // Ссылка-приглашение (v6.8.0): токен из #invite=… живет только в памяти —
   // из адреса стираем сразу (эффект ниже), чтобы он не остался в истории и закладках.
   // Пока токен есть, вместо входа показываем регистрацию.
   const [inviteToken, setInviteToken] = useState(() => inviteFromUrl(window.location.href))
-  // Активная вкладка переживает F5 (sessionStorage). Дефолт — 'home' (Главная,
-  // «5 секунд после открытия»). Старое значение 'workout' (вкладки больше нет)
-  // проваливается в дефолт.
-  const [tab, setTab] = useState(() => {
-    // Холодный старт с пуша о реакции — сразу Лента, без кадра Главной.
-    if (pushIntentFromUrl(window.location.href)?.type === 'reaction') return 'feed'
-    const saved = storageGet('sessionStorage', TAB_KEY)
-    if (saved === 'member') return 'feed' // id участника не переживает F5 → назад в Ленту
-    return saved && saved !== 'workout' ? saved : 'home'
-  }) // 'home' | 'history' | 'feed' | 'progress' | 'notif' | 'profile' | 'admin' | 'freshness' | 'myex' | 'achievements' | 'appearance'
-
-  // Чей профиль открыт на вложенном роуте 'member' (v6.7.0, тап по участнику в Ленте/рейтинге).
-  const [memberId, setMemberId] = useState(null)
-  // Откуда ушли в профиль (v6.7.1): якорь прокрутки Ленты — «Назад» возвращает к той
-  // же карточке/строке рейтинга, а не в начало Ленты.
-  const feedAnchorRef = useRef(null)
-  const [feedRestore, setFeedRestore] = useState(null)
-
-  // Упражнение, с которым открыть «Прогресс» (проброс из ЛК по тапу на рекорд).
-  const [progressExId, setProgressExId] = useState(null)
-
-  // Интент «открой сразу новую тренировку» для хаба «Тренировки» (тот же прием,
-  // что и progressExId: одноразовый флаг, хаб его считывает и гасит через
-  // onOpenNewConsumed). Взводится плавающей кнопкой «+» и кнопками Главной —
-  // так запись начинается в ОДИН тап, минуя список.
-  const [openNewWorkout, setOpenNewWorkout] = useState(false)
-
-  // Интент «открой календарь тренировок» (v6.3.0, ссылка из Ритма Главной).
-  // false — нет интента; null — календарь на сегодня; 'YYYY-MM-DD' — сразу этот день.
-  const [calendarIntent, setCalendarIntent] = useState(false)
-
-  // Подсветка карточки Ленты, к которой привел пуш о реакции (v6.7.3): id
-  // тренировки на пару секунд, потом гаснет сама.
-  const [feedFlashId, setFeedFlashId] = useState(null)
-  // Обращение, к которому привел пуш с ответом разработчика (v6.11.0).
-  const [feedbackFocus, setFeedbackFocus] = useState(null)
-  useEffect(() => {
-    if (!feedFlashId) return
-    const t = setTimeout(() => setFeedFlashId(null), FEED_FLASH_MS)
-    return () => clearTimeout(t)
-  }, [feedFlashId])
-
   // Параметр `push` из адреса убираем сразу: иначе F5 снова открыл бы тренировку.
   useEffect(() => {
     const clean = stripPushParam(window.location.href)
@@ -284,75 +88,13 @@ export default function App() {
     return () => window.removeEventListener('hashchange', onHash)
   }, [])
 
-  // Уже открытое приложение: адрес не меняется, service worker шлет сообщение.
-  useEffect(() => {
-    const sw = navigator.serviceWorker
-    if (!sw) return
-    const onMessage = (e) => {
-      if (e.data?.type !== 'push-open') return
-      const intent = pushIntentFromUrl(e.data.url)
-      if (intent) setPushIntent(intent)
-      // Подтверждение для SW (v6.7.4): без него он перезагрузит окно на адрес пуша.
-      e.ports?.[0]?.postMessage('ok')
-    }
-    sw.addEventListener('message', onMessage)
-    return () => sw.removeEventListener('message', onMessage)
-  }, [])
-
-  // Вернуться из календаря/тренировки обратно к Ритму Главной (v6.3.5): Главная
-  // докручивает до блока «Ритм» и гасит флаг.
-  const [focusRhythm, setFocusRhythm] = useState(false)
-
-  // Под-экраны Настроек (Оформление, Каталог, Админка) возвращают к списку Настроек,
-  // а не в корень Профиля (v6.3.5). Одноразовый интент, Профиль его гасит.
-  const [openSettings, setOpenSettings] = useState(false)
-
   // Хаб «Тренировки» ушел в свой под-вид (композер/деталь/шаблоны или режим
   // выбора для экспорта) — тогда FAB прячем: он там либо не нужен, либо налезает
   // на нижнюю панель («Сохранить» / бар экспорта). Хаб сообщает об этом сам.
   const [historyBusy, setHistoryBusy] = useState(false)
 
-  // «Что нового» (v6.4.0): лист один раз после обновления. knownDevice — сессия
-  // была ДО запуска (тут уже входили): тогда при пустой отметке покажем свежую
-  // запись, а новичку/новому телефону — молча запомним версию (lib/whatsNew.js).
-  const knownDeviceRef = useRef(null)
-  if (knownDeviceRef.current === null) {
-    knownDeviceRef.current = Boolean(readStoredUserId(storageGet('localStorage', SESSION_KEY)))
-  }
-  const [whatsNew, setWhatsNew] = useState(null)
-  useEffect(() => {
-    if (!user?.id) return
-    const { show, markSeen } = pendingWhatsNew(WHATS_NEW, readMark(SEEN_KEY), __APP_VERSION__, {
-      knownDevice: knownDeviceRef.current,
-    })
-    if (markSeen) writeMark(SEEN_KEY, markSeen)
-    setWhatsNew(mergeForSheet(show))
-  }, [user?.id])
-  function closeWhatsNew() {
-    writeMark(SEEN_KEY, __APP_VERSION__)
-    setWhatsNew(null)
-  }
-  // Разовый вопрос «Включить уведомления?» (v6.6.1): после входа/обновления, когда
-  // лист «Что нового» уже закрыт и человек не пишет тренировку. Один раз на учетку
-  // на этом устройстве; «Не сейчас» — больше не спрашиваем (есть тумблер в Настройках).
-  const [pushAsk, setPushAsk] = useState(false)
-  useEffect(() => {
-    if (!user?.id || whatsNew || historyBusy || pushAsk) return
-    if (wasPushAsked(user.id)) return
-    let alive = true
-    const t = setTimeout(async () => {
-      try {
-        const s = await getPushState(user.id)
-        if (alive && shouldAskPush({ ...s, asked: wasPushAsked(user.id) })) setPushAsk(true)
-      } catch { /* не спросим сейчас — спросим при следующем запуске */ }
-    }, 1200)
-    return () => { alive = false; clearTimeout(t) }
-  }, [user?.id, whatsNew, historyBusy, pushAsk])
-  function closePushAsk(enabled) {
-    if (user?.id) markPushAsked(user.id)
-    setPushAsk(false)
-    if (enabled) showToast({ emoji: '🔔', title: 'Уведомления включены' })
-  }
+  // «Что нового» и вопрос про уведомления — hooks/useLaunchSheets.js.
+  const { whatsNew, closeWhatsNew, pushAsk, closePushAsk } = useLaunchSheets(user, historyBusy)
   // Строка новой версии (UpdatePrompt, вне App) не показывается посреди записи
   // тренировки — сообщаем ей через атрибут на <html> (CSS прячет).
   useEffect(() => {
@@ -382,7 +124,7 @@ export default function App() {
   useEffect(() => {
     const fresh = myCached?.name
     if (fresh && user?.id && fresh !== user.name) handleRenamed(fresh)
-  }, [myCached?.name, user?.id, user?.name])
+  }, [myCached?.name, user?.id, user?.name, handleRenamed])
 
   // Будим базу заранее, как только приложение открылось
   useEffect(() => { warmup() }, [])
@@ -392,9 +134,6 @@ export default function App() {
     if (!user?.id) return
     return startSync(() => user.id)
   }, [user?.id])
-
-  // Запоминаем активную вкладку
-  useEffect(() => { storageSet('sessionStorage', TAB_KEY, tab) }, [tab])
 
   // Префетч экранов остальных вкладок в простое после входа: активная вкладка уже
   // грузится, а прочие подтягиваем заранее, чтобы их открытие было мгновенным и не
@@ -416,185 +155,11 @@ export default function App() {
     return () => clearTimeout(id)
   }, [user?.id, user?.role])
 
-  // Скроллится не окно, а внутренняя .content (overflow-y:auto, см. index.css).
-  // Тап по кнопке вкладки всегда возвращает ее контент в самый верх — в т.ч.
-  // повторный тап по уже активной вкладке (как «прокрутка наверх» в iOS).
-  const contentRef = useRef(null)
-  // Текущий экран (.screen-anim) — его двигает свайп назад от края.
-  const screenRef = useRef(null)
-  // Вкладки — fade, вход во вложенный экран — сдвиг справа. Предки остаются
-  // смонтированными для свайпа: возврат раскрывает их без новой анимации входа.
-  // Производное от прошлого рендера храним в состоянии, без чтения ref в рендере.
-  const [routeAnim, setRouteAnim] = useState({ tab, kind: 'fade', stack: initialScreenStack(tab) })
-  if (routeAnim.tab !== tab) setRouteAnim({ tab, kind: routeAnim.stack.includes(tab) ? 'pop' : transitionKind(routeAnim.tab, tab), stack: nextScreenStack(routeAnim.stack, tab) })
-  // Свайп назад — только iOS «на экране Домой»: там у системы своего жеста нет.
-  const [edgeSwipeOn] = useState(() => {
-    try {
-      const standalone = window.matchMedia?.('(display-mode: standalone)').matches || navigator.standalone === true
-      return edgeSwipeSupported({ isIOS: isIOSDevice(navigator), standalone })
-    } catch { return false }
-  })
   // Нижнее меню: переезжающая точка активной вкладки (hooks/useTabDot.js).
   const navRef = useRef(null)
   useTabDot(navRef, tab)
   // Акцент учетки с других устройств (v6.2.0): применить и запомнить для сплэша.
   useAccentSync(user?.id ?? null)
-  // Сбрасываем позицию ПОСЛЕ React-commit нового экрана. requestAnimationFrame
-  // из обработчика мог сработать еще на длинном Профиле до commit вкладки, и
-  // «Прогресс» наследовал нижнюю позицию скролла.
-  useLayoutEffect(() => {
-    const top = routeAnim.kind === 'pop' ? Number(screenRef.current?.dataset.scrollTop || 0) : 0
-    contentRef.current?.scrollTo({ top })
-  }, [tab, routeAnim.kind])
-  // …кроме возврата из профиля участника: Лента встает туда, откуда ушли.
-  useScrollAnchorRestore(contentRef, tab === 'feed' ? feedRestore : null, () => setFeedRestore(null))
-
-  function goTab(next) {
-    if (screenRef.current) screenRef.current.dataset.scrollTop = String(contentRef.current?.scrollTop || 0)
-    // Повторный тап по уже открытой вкладке — контент не меняется: плавно
-    // возвращаем его наверх (как «прокрутка к началу» в iOS) + сигнал «обнови меня»
-    // (напр. Лента перезапрашивает посты).
-    if (next === tab) {
-      contentRef.current?.scrollTo({ top: 0, behavior: 'smooth' })
-      emitReselect(next)
-      return
-    }
-    // Переход на другую вкладку. Прокрутку после commit делает layout-effect
-    // выше: обработчик не пытается угадать момент рендера через rAF.
-    setTab(next)
-  }
-
-  // «Уведомления» открываются колокольчиком с любой вкладки — «назад» ведет туда,
-  // откуда пришли (РЕВЬЮ-КОДА-2026-10-02: у экрана не было общей BackButton).
-  // После F5 на самом экране источника нет — на Главную.
-  const notifFromRef = useRef(null)
-  function openNotif() {
-    if (tab !== 'notif') notifFromRef.current = tab
-    goTab('notif')
-  }
-  function backFromNotif() {
-    goTab(notifFromRef.current ?? 'home')
-    notifFromRef.current = null
-  }
-
-  // Связка ЛК → «Прогресс»: открыть вкладку с заранее выбранным упражнением.
-  function openProgressFor(exerciseId) {
-    setProgressExId(exerciseId)
-    goTab('progress')
-  }
-
-  // «Записать тренировку» откуда угодно: взводим интент и уходим на вкладку
-  // «Тренировки» — хаб при монтировании/обновлении сразу откроет композер.
-  // Порядок важен: интент ставим ДО смены вкладки, иначе хаб успеет отрисовать
-  // список и мелькнет лишний кадр.
-  // Если вкладка «Тренировки» уже открыта (FAB висит над списком), идем в обход
-  // goTab: тот на повторном тапе шлет `reselect`, а хаб теперь понимает его как
-  // «вернись к списку» и погасил бы только что взведенный интент. Прокрутку
-  // наверх делаем сами — смены вкладки, а значит и layout-эффекта, не будет.
-  function openCalendarAt(day) {
-    setCalendarIntent(day ?? null)
-    goTab('history')
-  }
-
-  // Профиль участника из Ленты/рейтинга. Свой — это обычный «Профиль».
-  function openMember(id, anchor) {
-    if (!id) return
-    if (id === user?.id) { goTab('profile'); return }
-    feedAnchorRef.current = tab === 'feed' ? captureAnchor(contentRef.current, anchor) : null
-    setMemberId(id)
-    goTab('member')
-  }
-
-  function backFromMember() {
-    setFeedRestore(feedAnchorRef.current)
-    goTab('feed')
-  }
-
-  function backToRhythm() {
-    setFocusRhythm(true)
-    goTab('home')
-  }
-
-  function backToSettings() {
-    setOpenSettings(true)
-    goTab('profile')
-  }
-
-  // «Назад» вложенного экрана — тот же, что у его кнопки «‹» (см. рендер ниже).
-  function nestedBack() {
-    switch (tab) {
-      case 'notif': return backFromNotif()
-      case 'member': return backFromMember()
-      case 'freshness': return goTab('home')
-      case 'admin': case 'achievements': case 'feedback': return goTab('profile')
-      case 'myex': case 'whatsnew': case 'appearance': return backToSettings()
-      default: return undefined
-    }
-  }
-  useEdgeSwipeBack(contentRef, screenRef, nestedBack, edgeSwipeOn && Boolean(user) && isNested(tab))
-
-  // Применяем намерение пуша, когда человек вошел: Лента + прокрутка к оцененной
-  // тренировке тем же якорем, что «Назад» из профиля друга. Карточки нет (старше
-  // окна Ленты) — якорь не найдется, и Лента встанет в начало. Идем в обход goTab:
-  // на уже открытой Ленте тот прислал бы `reselect` и уехал бы наверх.
-  useEffect(() => {
-    if (!user?.id || !pushIntent) return
-    if (pushIntent.type === 'reaction') {
-      setFeedRestore(pushAnchor(pushIntent.workoutId))
-      setFeedFlashId(pushIntent.workoutId)
-      setTab('feed')
-    }
-    // Ответ на обращение (v6.11.0) — экран обратной связи с подсветкой этого обращения.
-    if (pushIntent.type === 'feedback') {
-      setFeedbackFocus(pushIntent.feedbackId)
-      setTab('feedback')
-    }
-    setPushIntent(null)
-  }, [user?.id, pushIntent])
-
-  function startNewWorkout() {
-    setOpenNewWorkout(true)
-    if (tab === 'history') {
-      contentRef.current?.scrollTo({ top: 0 })
-      return
-    }
-    goTab('history')
-  }
-
-  // Восстановление профиля после перезапуска. В localStorage лежит только id;
-  // имя берем из ростера (loginDb.users, свежий после pull), роль — из офлайн-
-  // кэша PIN (в ростер роль не отдается). Работает офлайн (оба источника
-  // локальные). Персональную базу открываем ДО setUser, иначе экраны/синк
-  // прочитают еще закрытый `db`. Старый «толстый» блок {id,name,role} читаем по
-  // id и тут же перезаписываем тонким — стираем утекшие имя/роль.
-  // Готовность для сплэша (markAppReady) — по итогу восстановления: без этого
-  // сплэш снимался по таймеру и мельком показывал экран входа, пока база открывалась.
-  useEffect(() => {
-    const id = readStoredUserId(storageGet('localStorage', SESSION_KEY))
-    if (!id) { markAppReady(); return }
-    ;(async () => {
-      const [roster, cache] = await Promise.all([getCachedUser(id), getCachedProfile(id)])
-      await openUserDb(id)
-      storageSet('localStorage', SESSION_KEY, JSON.stringify({ id }))
-      setUser(hydrateProfile(id, roster, cache))
-    })()
-      // Не глушим молча: человек окажется на экране входа, и без следа в консоли
-      // такие случаи (напр. не открылась персональная база) не разобрать.
-      .catch((err) => console.error('Не удалось восстановить сессию:', err))
-      .finally(markAppReady)
-  }, [])
-
-  // Если сессия Supabase завершилась (refresh-токен истек через ~7 дней или
-  // logout) — возвращаем на экран входа. Офлайн событие не приходит, поэтому
-  // UI остается доступным до появления сети (тогда либо тихий перевыпуск, либо
-  // SIGNED_OUT → PIN заново).
-  // Подписка на пуши — за той учеткой, что вошла (общий телефон): сверка при
-  // входе и, раз уж серверной части нужна своя сессия, еще раз, когда она поднялась.
-  const userIdRef = useRef(null)
-  useEffect(() => {
-    userIdRef.current = user?.id ?? null
-    if (user?.id) reconcilePushOwner(user.id)
-  }, [user?.id])
   // Ответы разработчика для «Уведомлений» (v6.12.0): проверяем при входе и при
   // возврате в приложение — myUnreadReplies заодно кладет их в локальный кэш.
   // Тихо: нет сети или сессии — просто без обновления.
@@ -605,54 +170,6 @@ export default function App() {
     check()
     return onResume(check)
   }, [user?.id])
-  useEffect(() => {
-    const { data } = supabase.auth.onAuthStateChange((event) => {
-      if (event === 'SIGNED_IN' && userIdRef.current) reconcilePushOwner(userIdRef.current)
-      if (event === 'SIGNED_OUT') {
-        storageRemove('localStorage', SESSION_KEY)
-        setUser(null)
-        closeUserDb()
-      }
-    })
-    return () => data?.subscription?.unsubscribe?.()
-  }, [])
-
-  async function handleLogin(u) {
-    // Открываем ПЕРСОНАЛЬНУЮ базу пользователя ДО показа экранов (изоляция данных:
-    // у каждого своя физическая IndexedDB, чужое в принципе не видно). openUserDb
-    // закроет базу предыдущей учетки и перенесет несинхрон. правки со старой общей
-    // базы. Чистка кросс-пользовательских кэшей больше не нужна — изоляция физическая.
-    await openUserDb(u.id)
-    storageSet('localStorage', SESSION_KEY, JSON.stringify({ id: u.id }))
-    setUser(u)
-    setTab('home')
-  }
-
-  // Имя сменили в ЛК — обновляем профиль в стейте, чтобы шапка и инициал-аватар
-  // сразу показали новое имя. Персистить в localStorage не нужно (там только id):
-  // новое имя переживет перезапуск через ростер/офлайн-кэш PIN (setName их пишет).
-  function handleRenamed(name) {
-    setUser((u) => (u ? { ...u, name } : u))
-  }
-
-  // Выход уже идет (до ~7 с: пуш-подписка + signOut). Второй вызов — no-op,
-  // индикацию «Выхожу…» рисует LogoutButton (РЕВЬЮ-КОДА-2026-10-02).
-  const logoutRef = useRef(null)
-  function handleLogout() {
-    if (!logoutRef.current) {
-      logoutRef.current = (async () => {
-        // Пуши этой учетки на устройство больше не нужны (общий телефон). Пока сессия
-        // жива — снимаем подписку и на сервере; никогда не бросает, ждет не дольше 4 с.
-        if (user?.id) await releasePushOnLogout(user.id)
-        await authLogout()
-        storageRemove('localStorage', SESSION_KEY)
-        setUser(null)      // сначала размонтируем экраны и их live-queries…
-        closeUserDb()      // …затем закрываем персональную базу
-      })().finally(() => { logoutRef.current = null })
-    }
-    return logoutRef.current
-  }
-
   if (!isConfigured) {
     return (
       <div className="screen center">
@@ -793,7 +310,6 @@ export default function App() {
           ))}
         </div>
       </main>
-
 
       <nav className="tabbar" ref={navRef}>
         {/* Общая точка активной вкладки — переезжает (hooks/useTabDot.js). */}

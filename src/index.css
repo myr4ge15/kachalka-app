@@ -766,14 +766,15 @@ input { font-family: inherit; }
 }
 .set-add:active { background: var(--surface-2); }
 /* Темп дистанции под подходами (v6.12.0, ExerciseCard). */
-.set-pace { margin: 2px 2px 8px; font-size: 13px; font-variant-numeric: tabular-nums; }
+/* Строки-подписи — пропорциональные цифры (v6.14.1): моноширинные в Onest дают «7:1 0» с дырой. */
+.set-pace { margin: 2px 2px 8px; font-size: 13px; font-variant-numeric: lining-nums proportional-nums; }
 .pr-pace { font-size: 12px; font-weight: 400; }
 
 /* Панель автопрогрессии: прошлая мелко, рекомендация крупно, причина строкой. */
 .ap { margin-top: 8px; padding: 10px 12px; border-radius: 13px; background: var(--bg); }
 .ap-row { display: flex; justify-content: space-between; align-items: baseline; }
 .ap-lbl, .ap-when { color: var(--muted); font-size: 12px; }
-.ap-prev { color: var(--muted); font-size: 13px; font-weight: 600; margin-top: 2px; font-variant-numeric: tabular-nums; }
+.ap-prev { color: var(--muted); font-size: 13px; font-weight: 600; margin-top: 2px; font-variant-numeric: lining-nums proportional-nums; }
 .ap-rec-lbl { font-size: 12px; font-weight: 600; display: flex; align-items: center; gap: 4px; margin-top: 8px; }
 .ap-rec-lbl.up { color: var(--acc-2); }
 .ap-rec-lbl.same { color: var(--muted); }
@@ -2681,7 +2682,12 @@ label.act.busy { opacity: .55; pointer-events: none; }
 /* Числа над столбиками — обычным шрифтом и мельче: крупный display-шрифт у Ритма
    один — итог слева. Нули не пишем: пустая неделя и так видна по плоской черточке
    (отзыв, v6.3.0). */
-.rh-num { height: var(--rh-num-h); font-size: 13px; font-weight: 600; line-height: var(--rh-num-h); color: var(--muted); font-variant-numeric: tabular-nums; }
+.rh-num { height: var(--rh-num-h); font-size: 13px; font-weight: 600; line-height: var(--rh-num-h); color: var(--muted); font-variant-numeric: tabular-nums;
+  /* v6.14.1: цифра садится прямо над своим столбиком, а не в общий ряд по верху —
+     сдвиг вниз на «пустую» часть высоты графика. Высота колонки не меняется. */
+  position: relative; z-index: 2;
+  transform: translateY(calc(var(--rh-h) - var(--rh-h) * var(--rh-n) / var(--rh-max)));
+}
 .rh-col.current .rh-num { color: var(--acc); }
 .rh-plot { height: var(--rh-h); width: 100%; display: flex; align-items: flex-end; justify-content: center; }
 .rh-bar {
