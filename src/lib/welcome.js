@@ -52,6 +52,10 @@ export const WELCOME_STEPS = [
   },
 ]
 
+// «Быстрый старт» — полная инструкция (docs/quick-start.md в публичном репозитории).
+// Ссылка — только на последней карточке листа, без отдельной кнопки.
+export const QUICK_START_URL = 'https://github.com/myr4ge15/kachalka-app/blob/main/docs/quick-start.md'
+
 // Следующий шаг по свайпу: dx < 0 — влево (вперед). Короткий жест — на месте.
 export function stepAfterSwipe(step, dx, total, threshold = 40) {
   if (Math.abs(dx) < threshold) return step

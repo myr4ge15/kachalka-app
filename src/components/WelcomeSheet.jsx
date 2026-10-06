@@ -1,10 +1,11 @@
 import { useRef, useState } from 'react'
 import SheetDialog from './SheetDialog.jsx'
-import { WELCOME_STEPS, stepAfterSwipe } from '../lib/welcome.js'
+import { QUICK_START_URL, WELCOME_STEPS, stepAfterSwipe } from '../lib/welcome.js'
 
 // Лист «Добро пожаловать» (v6.15.0): один раз после регистрации по приглашению —
 // 4 карточки о главном (lib/welcome.js WELCOME_STEPS), листаются «Дальше», свайпом
-// или точками. На последней — «Записать первую тренировку» (сразу композер).
+// или точками. На последней — «Записать первую тренировку» (сразу композер) и
+// неприметная ссылка на «Быстрый старт».
 // Пропсы: onStart() — закрыть и открыть новую тренировку; onClose() — закрыть.
 export default function WelcomeSheet({ onStart, onClose }) {
   const [step, setStep] = useState(0)
@@ -26,6 +27,11 @@ export default function WelcomeSheet({ onStart, onClose }) {
         <span className="welcome-em" aria-hidden="true">{s.e}</span>
         <p className="welcome-title">{s.title}</p>
         <p className="welcome-text">{s.text}</p>
+        {last && (
+          <a className="welcome-more" href={QUICK_START_URL} target="_blank" rel="noopener noreferrer">
+            Подробная инструкция ›
+          </a>
+        )}
       </div>
       <div className="welcome-dots">
         {WELCOME_STEPS.map((it, i) => (

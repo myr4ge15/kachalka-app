@@ -17,6 +17,7 @@ import { defaultTemplateName, templateExercisesFromWorkout } from '../lib/templa
 import { HAPTIC, vibrate } from '../lib/haptics.js'
 import { onReselect } from '../lib/appEvents.js'
 import { fmtCardDate } from '../lib/dates.js'
+import { settleScroll } from '../lib/scrollBox.js'
 
 
 function summarize(w) {
@@ -214,7 +215,7 @@ export default function HistoryScreen({
   // (кнопка внизу редактора) пользователь возвращался к списку, прокрученному вниз.
   // На десктопе (master-detail) список остается на месте — прыжок к верху не нужен.
   useEffect(() => {
-    if (!isDesktop) document.querySelector('.content')?.scrollTo({ top: 0 })
+    if (!isDesktop) return settleScroll(document.querySelector('.content'), 0)
   }, [selected, isDesktop])
 
   // Список тренировок + управление (кнопки, фильтр, экспорт). Переиспользуется

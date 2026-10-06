@@ -29,6 +29,7 @@ import PinChangeForm from '../components/profile/PinChangeForm.jsx'
 import BackupActions from '../components/profile/BackupActions.jsx'
 import DeleteMyData from '../components/profile/DeleteMyData.jsx'
 import AppVersionLink from '../components/profile/AppVersionLink.jsx'
+import { settleScroll } from '../lib/scrollBox.js'
 
 // Экран «Профиль» (ЛК). Все про самого пользователя; пер-упражненческую
 // аналитику не дублируем — рекорды уводят в «Прогресс». Считаем на клиенте из
@@ -119,25 +120,19 @@ export default function ProfileScreen({ user, onLogout, onOpenProgress, onOpenFe
   useLayoutEffect(() => {
     const box = contentRef?.current
     if (!box) return undefined
-    const top = () => (settingsOpen ? 0 : Number(profileSurfaceRef.current?.dataset.scrollTop || 0))
-    box.scrollTo({ top: top() })
-    // v6.12.0: на iPhone Настройки, закрытые свайпом прокрученными вниз, при повторном
-    // открытии вставали внизу — позицию после commit перебивала инерция/восстановление
-    // прокрутки WebKit. Повторяем установку в следующем кадре, когда разметка устоялась.
-    const raf = typeof requestAnimationFrame === 'function'
-      ? requestAnimationFrame(() => box.scrollTo({ top: top() }))
-      : null
-    return () => { if (raf != null) cancelAnimationFrame(raf) }
+    const top = settingsOpen ? 0 : Number(profileSurfaceRef.current?.dataset.scrollTop || 0)
+    // v6.12.0 → v6.15.0: на iPhone позицию после commit перебивала инерция WebKit —
+    // Настройки открывались внизу или пустыми до тапа. settleScroll гасит инерцию
+    // и повторяет установку в следующем кадре (lib/scrollBox.js).
+    return settleScroll(box, top)
   }, [settingsOpen, contentRef])
 
   function openSettings() {
     if (profileSurfaceRef.current) profileSurfaceRef.current.dataset.scrollTop = String(contentRef?.current?.scrollTop || 0)
-    setSettingsOpen(true)
-    document.querySelector('.content')?.scrollTo({ top: 0 })
+    setSettingsOpen(true) // позицию ставит layout-эффект выше, уже после commit
   }
   function closeSettings() {
     setSettingsOpen(false) // PIN-форма и подтверждение удаления размонтируются вместе с Настройками
-    document.querySelector('.content')?.scrollTo({ top: Number(profileSurfaceRef.current?.dataset.scrollTop || 0) })
   }
 
   useEdgeSwipeBack(contentRef, settingsSurfaceRef, closeSettings, edgeSwipeOn && settingsOpen)

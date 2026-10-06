@@ -6,6 +6,7 @@ import { isIOSDevice } from '../lib/pushSupport.js'
 import { storageGet, storageSet } from '../lib/safeStorage.js'
 import { captureAnchor, useScrollAnchorRestore } from './useScrollAnchor.js'
 import { useEdgeSwipeBack } from './useEdgeSwipeBack.js'
+import { settleScroll } from '../lib/scrollBox.js'
 
 // Навигация приложения (вынесено из App.jsx в v6.14.1, код — дословно): активная
 // вкладка и стек вложенных экранов (анимация, прокрутка, свайп «назад»), одноразовые
@@ -115,9 +116,11 @@ export function useAppNav(user) {
   // Сбрасываем позицию ПОСЛЕ React-commit нового экрана. requestAnimationFrame
   // из обработчика мог сработать еще на длинном Профиле до commit вкладки, и
   // «Прогресс» наследовал нижнюю позицию скролла.
+  // settleScroll (v6.15.0): на iPhone обычный scrollTo во время инерции игнорировался —
+  // новый экран вставал внизу или пустым до тапа.
   useLayoutEffect(() => {
     const top = routeAnim.kind === 'pop' ? Number(screenRef.current?.dataset.scrollTop || 0) : 0
-    contentRef.current?.scrollTo({ top })
+    return settleScroll(contentRef.current, top)
   }, [tab, routeAnim.kind])
   // …кроме возврата из профиля участника: Лента встает туда, откуда ушли.
   useScrollAnchorRestore(contentRef, tab === 'feed' ? feedRestore : null, () => setFeedRestore(null))
@@ -228,7 +231,7 @@ export function useAppNav(user) {
   function startNewWorkout() {
     setOpenNewWorkout(true)
     if (tab === 'history') {
-      contentRef.current?.scrollTo({ top: 0 })
+      settleScroll(contentRef.current, 0)
       return
     }
     goTab('history')

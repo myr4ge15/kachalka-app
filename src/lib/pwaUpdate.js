@@ -16,6 +16,17 @@ export function shouldReshowUpdate({ hasWaiting, snoozedAt, now, ttl }) {
   return now - snoozedAt >= ttl        // прошло достаточно с момента «Позже»
 }
 
+// Новая версия уже ждет, а плашки нет и ее никто не прятал (v6.15.0). Событие `waiting`
+// от workbox приходит один раз, и только если страница его видит. Пуш «вышла версия»
+// качает новый sw.js прямо в service worker (push-sw.js), а свернутое приложение на
+// iPhone заморожено — событие теряется; registration.update() тот же ждущий SW
+// второй раз не «находит». Итог: обновление висело до перезапуска, нажатие на пуш при
+// открытом приложении ничего не делало. Тогда поднимаем плашку сами. «Позже» и
+// «та же версия» (quiet) обслуживают shouldReshowUpdate и перепроверка в UpdatePrompt.
+export function shouldSurfaceWaiting({ hasWaiting, shown, snoozedAt, quiet }) {
+  return Boolean(hasWaiting) && !shown && !snoozedAt && !quiet
+}
+
 // Реальное ли это обновление (v5.14.2). Плашка поднимается по событию `waiting`
 // от workbox, а оно приходит не только на свежий деплой: workbox шлет `waiting`
 // ПРИ КАЖДОЙ загрузке страницы, если ждущий SW уже висит (wasWaitingBeforeRegister),

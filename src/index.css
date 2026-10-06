@@ -1075,7 +1075,9 @@ select, textarea { font-variant-numeric: inherit; font-feature-settings: inherit
 .catalog-empty { padding: 10px 0 2px; font-size: 14px; }
 /* Каталог упражнений (v6.2.1): заголовки разделов — общий .sec-title, список —
    карточкой, а не голыми строками на фоне. */
-.catalog-title { margin-top: 18px; display: flex; align-items: center; gap: 8px; }
+/* .sec-title.catalog-title, а не .catalog-title (v6.15.0): общий `.sec-title { margin: 0 0 10px }`
+   ниже по файлу перебивал отступ сверху, и заголовок раздела прилипал к карточке над ним. */
+.sec-title.catalog-title { margin-top: 22px; display: flex; align-items: center; gap: 8px; }
 .catalog-count {
   font-family: Onest, sans-serif; font-size: 11px; font-weight: 600; color: var(--muted);
   padding: 2px 8px; border-radius: 999px; background: var(--surface); letter-spacing: 0;
@@ -3352,6 +3354,10 @@ html[data-sheet-open] .content { overflow-y: hidden; }
   line-height: 1.1; text-wrap: balance;
 }
 .welcome-text { margin: 0; max-width: 34ch; font-size: var(--fs-body); line-height: 1.45; color: var(--muted); }
+.welcome-more {
+  margin-top: 10px; min-height: 44px; display: inline-flex; align-items: center;
+  color: var(--acc-2); font-size: var(--fs-label); font-weight: var(--fw-strong); text-decoration: none;
+}
 .welcome-dots { display: flex; justify-content: center; margin: 4px 0 0; flex-shrink: 0; }
 .welcome-dot {
   width: 36px; height: 44px; padding: 0; border: none; background: none; cursor: pointer;

@@ -134,7 +134,6 @@ kachalka-app работает как закрытый клуб. Само при�
 
 - Карта тела: SVG-пути адаптированы из [react-native-body-highlighter](https://github.com/HichamELBSI/react-native-body-highlighter), MIT, © 2022 ELABBASSI Hicham.
 - Шрифты: [Onest](https://github.com/RTDeluxe/onest) и [Sofia Sans Condensed](https://github.com/lettersoup/Sofia-Sans), SIL Open Font License 1.1.
-- Иконка гантели: [Lucide](https://lucide.dev), ISC; текст лицензии — [public/licenses/lucide.txt](public/licenses/lucide.txt).
 
 ---
 

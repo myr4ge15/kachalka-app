@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useRef, useState } from 'react'
 import { useRegisterSW } from 'virtual:pwa-register/react'
 import { onOnline, onResume } from '../lib/appEvents.js'
-import { shouldReshowUpdate, makeReloadOnce, isRealUpdate, shouldAutoApply } from '../lib/pwaUpdate.js'
+import { shouldReshowUpdate, makeReloadOnce, isRealUpdate, shouldAutoApply, shouldSurfaceWaiting } from '../lib/pwaUpdate.js'
 import { pushIntentFromUrl } from '../lib/pushIntent.js'
 
 // Открыли нажатием на пуш «вышла новая версия»? Читаем адрес в момент монтирования:
@@ -107,6 +107,36 @@ export default function UpdatePrompt() {
   })
   needRefreshRef.current = needRefresh
 
+  // Новый SW дошел до «ждет» — поднять плашку (v6.15.0): событие workbox мы могли
+  // пропустить (см. shouldSurfaceWaiting), поэтому смотрим на регистрацию сами.
+  // force — человек нажал пуш о новой версии: «Позже» и «та же версия» не в счет.
+  const surfaceWaiting = useCallback((r, force = false) => {
+    if (!r?.waiting) return false
+    if (force) { snoozedAtRef.current = 0; quietRef.current = false }
+    if (!shouldSurfaceWaiting({
+      hasWaiting: true, shown: needRefreshRef.current, snoozedAt: snoozedAtRef.current, quiet: quietRef.current,
+    })) return false
+    setNeedRefresh(true)
+    return true
+  }, [setNeedRefresh])
+  // Проверить сервер и, если новая версия скачается, показать плашку, не дожидаясь
+  // события workbox (оно может не прийти, см. выше).
+  const updateAndSurface = useCallback((r, force = false) => {
+    if (!r) return
+    r.update()
+      .then(() => {
+        if (surfaceWaiting(r, force)) return
+        const inst = r.installing
+        if (!inst) return
+        const onState = () => {
+          if (inst.state === 'installed' || inst.state === 'redundant') inst.removeEventListener('statechange', onState)
+          if (inst.state === 'installed') surfaceWaiting(r, force)
+        }
+        inst.addEventListener('statechange', onState)
+      })
+      .catch(() => { /* офлайн/сеть — не критично */ })
+  }, [surfaceWaiting])
+
   useEffect(() => {
     const check = () => {
       const r = regRef.current
@@ -136,13 +166,15 @@ export default function UpdatePrompt() {
         setNeedRefresh(true)
         return
       }
-      if (navigator.onLine) r.update().catch(() => { /* офлайн/сеть — не критично */ })
+      // Новая версия скачалась, пока приложение было свернуто, — плашка сразу.
+      if (surfaceWaiting(r)) return
+      if (navigator.onLine) updateAndSurface(r)
     }
     const id = setInterval(check, UPDATE_CHECK_MS)
     const offResume = onResume(check)
     const offOnline = onOnline(check)
     return () => { clearInterval(id); offResume(); offOnline() }
-  }, [setNeedRefresh])
+  }, [setNeedRefresh, surfaceWaiting, updateAndSurface])
 
   // Плашка поднялась — прежде чем показывать, убедимся, что на сервере правда
   // другая версия. Событие `waiting` от workbox приходит и без нового деплоя
@@ -184,11 +216,12 @@ export default function UpdatePrompt() {
     const onMessage = (e) => {
       if (e.data?.type !== 'push-open' || pushIntentFromUrl(e.data.url)?.type !== 'update') return
       setAutoAt(Date.now())
-      regRef.current?.update().catch(() => {})
+      // Версию SW мог скачать еще при получении пуша — тогда она уже ждет (v6.15.0).
+      if (!surfaceWaiting(regRef.current, true)) updateAndSurface(regRef.current, true)
     }
     sw.addEventListener('message', onMessage)
     return () => sw.removeEventListener('message', onMessage)
-  }, [])
+  }, [surfaceWaiting, updateAndSurface])
 
   const snooze = () => {
     snoozedAtRef.current = Date.now()

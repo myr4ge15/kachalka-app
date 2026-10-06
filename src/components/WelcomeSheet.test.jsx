@@ -15,8 +15,14 @@ describe('WelcomeSheet', () => {
     for (let i = 0; i < last; i++) fireEvent.click(screen.getByRole('button', { name: 'Дальше' }))
     expect(screen.getByText(WELCOME_STEPS[last].title)).toBeInTheDocument()
     expect(screen.queryByRole('button', { name: 'Дальше' })).toBeNull()
+    expect(screen.getByRole('link', { name: /Подробная инструкция/ })).toHaveAttribute('href', expect.stringContaining('docs/quick-start.md'))
     fireEvent.click(screen.getByRole('button', { name: 'Записать первую тренировку' }))
     expect(onStart).toHaveBeenCalledOnce()
+  })
+
+  it('ссылка на инструкцию — только на последней карточке', () => {
+    render(<WelcomeSheet onStart={vi.fn()} onClose={vi.fn()} />)
+    expect(screen.queryByRole('link', { name: /Подробная инструкция/ })).toBeNull()
   })
 
   it('«Пропустить» закрывает лист с любой карточки', () => {
