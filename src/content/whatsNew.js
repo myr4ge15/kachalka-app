@@ -17,7 +17,7 @@
 
 export const WHATS_NEW = [
   {
-    version: '6.13.3',
+    version: '6.13.4',
     date: '2026-10-06',
     headline: 'Ровные цифры загрузки обновления',
     main: [

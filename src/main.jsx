@@ -92,17 +92,11 @@ function splashUpdateUi(root) {
   const fill = document.getElementById('splash-upd-fill')
   const cap = document.getElementById('splash-upd-cap')
   if (!box || !title || !bar || !fill || !cap) return {}
-  // Подпись: либо фраза по центру («Загружаем…»), либо счетчик слева и процент
-  // справа — так строка не дергается от смены ширины цифр (v6.13.2).
-  const say = (text) => {
-    cap.classList.remove('splash-upd-cap--count')
-    cap.textContent = text
-  }
   return {
     start(version) {
       root.removeAttribute('aria-hidden') // статус должен услышать и скринридер
       title.textContent = `Обновляем до v${version}`
-      say('Загружаем…')
+      cap.textContent = 'Загружаем…'
       bar.classList.add('splash-upd-bar--busy')
       box.hidden = false
     },
@@ -111,24 +105,18 @@ function splashUpdateUi(root) {
       bar.classList.remove('splash-upd-bar--busy')
       fill.style.width = `${p.pct}%`
       bar.setAttribute('aria-valuenow', String(p.pct))
-      const count = document.createElement('span')
-      count.textContent = `Загружено ${p.done} из ${p.total}`
-      const pct = document.createElement('span')
-      pct.className = 'splash-upd-pct'
-      pct.textContent = `${p.pct}%`
-      cap.classList.add('splash-upd-cap--count')
-      cap.replaceChildren(count, pct)
+      cap.textContent = `Загружено ${p.done} из ${p.total} · ${p.pct}%`
     },
     installing() {
       bar.classList.remove('splash-upd-bar--busy')
       fill.style.width = '100%'
       bar.setAttribute('aria-valuenow', '100')
-      say('Устанавливаем…')
+      cap.textContent = 'Устанавливаем…'
     },
     fallback() {
       box.classList.add('splash-upd--note')
       title.textContent = 'Связь слабая'
-      say('Открываем текущую версию — обновление докачается само.')
+      cap.textContent = 'Открываем текущую версию — обновление докачается само.'
     },
   }
 }
