@@ -1,14 +1,19 @@
-import { useRef, useState } from 'react'
+import { Suspense, lazy, useRef, useState } from 'react'
 import SheetDialog from './SheetDialog.jsx'
-import { QUICK_START_URL, WELCOME_STEPS, stepAfterSwipe } from '../lib/welcome.js'
+import { WELCOME_STEPS, stepAfterSwipe } from '../lib/welcome.js'
+
+// Инструкция — отдельный чанк: текст нужен, только если ее открыли.
+const QuickStartSheet = lazy(() => import('./QuickStartSheet.jsx'))
 
 // Лист «Добро пожаловать» (v6.15.0): один раз после регистрации по приглашению —
 // 4 карточки о главном (lib/welcome.js WELCOME_STEPS), листаются «Дальше», свайпом
 // или точками. На последней — «Записать первую тренировку» (сразу композер) и
-// неприметная ссылка на «Быстрый старт».
+// неприметная ссылка на «Быстрый старт» — с v6.16.0 он открывается листом внутри
+// приложения (QuickStartSheet), а не страницей на GitHub.
 // Пропсы: onStart() — закрыть и открыть новую тренировку; onClose() — закрыть.
 export default function WelcomeSheet({ onStart, onClose }) {
   const [step, setStep] = useState(0)
+  const [guide, setGuide] = useState(false)
   const touchX = useRef(null)
   const total = WELCOME_STEPS.length
   const s = WELCOME_STEPS[step]
@@ -22,15 +27,16 @@ export default function WelcomeSheet({ onStart, onClose }) {
   }
 
   return (
+    <>
     <SheetDialog title="Добро пожаловать" actionLabel="закрыть" onDismiss={() => onClose?.()} className="sheet--compact">
       <div className="welcome-card" onTouchStart={onTouchStart} onTouchEnd={onTouchEnd} aria-live="polite">
         <span className="welcome-em" aria-hidden="true">{s.e}</span>
         <p className="welcome-title">{s.title}</p>
         <p className="welcome-text">{s.text}</p>
         {last && (
-          <a className="welcome-more" href={QUICK_START_URL} target="_blank" rel="noopener noreferrer">
+          <button type="button" className="link-btn welcome-more" onClick={() => setGuide(true)}>
             Подробная инструкция ›
-          </a>
+          </button>
         )}
       </div>
       <div className="welcome-dots">
@@ -58,5 +64,11 @@ export default function WelcomeSheet({ onStart, onClose }) {
         {last ? 'Осмотрюсь сам' : 'Пропустить'}
       </button>
     </SheetDialog>
+    {guide && (
+      <Suspense fallback={null}>
+        <QuickStartSheet onClose={() => setGuide(false)} />
+      </Suspense>
+    )}
+    </>
   )
 }

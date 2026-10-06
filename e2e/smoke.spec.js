@@ -75,7 +75,8 @@ test('вход → запись тренировки → она в истори�
   await expect(page.locator('.exercise-card--compact')).toContainText(EXERCISE)
 
   const pullupSet = page.locator('.exercise-card--active .set-row')
-  await pullupSet.locator('input').fill('10')
+  // v6.16.0: у упражнений с весом тела есть и колонка «+кг» — пустая, без доп. веса.
+  await pullupSet.getByLabel(/^Повторения/).fill('10')
 
   await page.locator('.exercise-card--compact .exercise-compact-toggle').click()
   await expect(page.locator('.exercise-card--active')).toContainText(EXERCISE)

@@ -7,6 +7,7 @@ import {
 } from '../lib/auth.js'
 import { loadPending, savePending, clearPending, pollJoin, joinPollDelay } from '../lib/joinRequest.js'
 import { onlyDigits } from '../lib/text.js'
+import AppMark from '../components/AppMark.jsx'
 import BackButton from '../components/BackButton.jsx'
 import JoinRequestForm from '../components/JoinRequestForm.jsx'
 
@@ -205,18 +206,7 @@ export default function LoginScreen({ onLogin, onInvite }) {
     setMode(list.length ? 'pick' : 'name')
   }
 
-  const mark = (
-    <div className="login-mark" aria-hidden="true">
-      {/* Знак приложения — та же штанга, что на сплэше (index.html #splash), без анимации. */}
-      <svg viewBox="37 62 126 76" width="84" height="51" focusable="false">
-        <rect className="login-mark-bar" x="37.5" y="93.75" width="125" height="12.5" rx="6.25" />
-        <rect x="59.4" y="68.75" width="13.3" height="62.5" rx="4.7" />
-        <rect x="127.3" y="68.75" width="13.3" height="62.5" rx="4.7" />
-        <rect x="43.75" y="76.6" width="13.3" height="46.9" rx="4.7" />
-        <rect x="143" y="76.6" width="13.3" height="46.9" rx="4.7" />
-      </svg>
-    </div>
-  )
+  const mark = <AppMark />
 
   // Статус заявки «Запросить приглашение» (над формами входа).
   let joinCard = null

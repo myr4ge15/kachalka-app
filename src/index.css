@@ -3359,6 +3359,22 @@ html[data-sheet-open], html[data-sheet-open] body { overscroll-behavior: none; }
   margin-top: 10px; min-height: 44px; display: inline-flex; align-items: center;
   color: var(--acc-2); font-size: var(--fs-label); font-weight: var(--fw-strong); text-decoration: none;
 }
+/* Встроенный «Быстрый старт» (components/QuickStartSheet.jsx, v6.16.0). */
+.qs-doc { font-size: var(--fs-body); line-height: 1.5; padding-bottom: 12px; }
+.qs-doc h3 {
+  margin: 22px 0 8px; font-family: var(--font-display); font-weight: 800; font-size: 20px; line-height: 1.15;
+}
+.qs-doc h3:first-child { margin-top: 4px; }
+.qs-doc h4 { margin: 16px 0 6px; font-size: var(--fs-body); font-weight: var(--fw-strong); }
+.qs-doc p { margin: 0 0 10px; }
+.qs-doc ul, .qs-doc ol { margin: 0 0 10px; padding-left: 22px; }
+.qs-doc li { margin: 4px 0; }
+.qs-doc blockquote {
+  margin: 0 0 12px; padding: 10px 12px; border-radius: 12px; background: var(--acc-soft);
+  color: var(--text); font-size: var(--fs-label);
+}
+.qs-doc hr { border: none; border-top: 1px solid var(--border); margin: 18px 0; }
+.qs-doc strong { font-weight: var(--fw-strong); }
 .welcome-dots { display: flex; justify-content: center; margin: 4px 0 0; flex-shrink: 0; }
 .welcome-dot {
   width: 36px; height: 44px; padding: 0; border: none; background: none; cursor: pointer;

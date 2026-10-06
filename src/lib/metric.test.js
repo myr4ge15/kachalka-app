@@ -1,5 +1,6 @@
 import { describe, it, expect } from 'vitest'
 import {
+  hasExtraWeight,
   normMetric,
   exerciseMetric,
   isCountMetric,
@@ -149,5 +150,12 @@ describe('fmtSet', () => {
   it('reps → повторы, time → м:сс', () => {
     expect(fmtSet('reps', { weight: 0, reps: 12 })).toBe('12')
     expect(fmtSet('time', { weight: 0, reps: 90 })).toBe('1:30')
+  })
+  it('свой вес с доп. весом → «+10 кг × 8» (v6.16.0)', () => {
+    expect(fmtSet('reps', { weight: 10, reps: 8 })).toBe('+10 кг × 8')
+    expect(fmtSet('reps', { weight: 2.5, reps: 12 })).toBe('+2.5 кг × 12')
+    expect(hasExtraWeight('reps')).toBe(true)
+    expect(hasExtraWeight('time')).toBe(false)
+    expect(hasExtraWeight('weight')).toBe(false)
   })
 })

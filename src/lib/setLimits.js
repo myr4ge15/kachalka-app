@@ -13,7 +13,7 @@
 // поэтому верхняя граница reps зависит от метрики (см. repsMax).
 // ============================================================================
 
-import { normMetric, isCountMetric } from './metric.js'
+import { normMetric, isCountMetric, hasExtraWeight } from './metric.js'
 
 // Верхние границы. Подобраны с большим запасом над человеческими рекордами,
 // чтобы не резать реальные данные, но отсекать явный мусор/переполнение.
@@ -32,7 +32,8 @@ export function repsMax(metric) {
 // Возвращает число в [0, WEIGHT_MAX] (2 знака — шаг 1.25 кг) либо null, если
 // значение нечисловое (подход невалиден, отбрасываем).
 export function clampWeight(weight, metric = 'weight') {
-  if (isCountMetric(metric)) return 0
+  // У «своего веса» weight — необязательный доп. вес (v6.16.0); у «на время» — всегда 0.
+  if (isCountMetric(metric) && !hasExtraWeight(metric)) return 0
   const n = Number(weight)
   if (!Number.isFinite(n)) return null
   const c = Math.min(WEIGHT_MAX, Math.max(0, n))

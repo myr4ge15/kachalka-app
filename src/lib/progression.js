@@ -237,12 +237,14 @@ export function recommendProgression({ metric, lastSets, recentSessions, setting
     prev.map((s) =>
       s.weight === a.workWeight ? { weight: roundW(newWeight), reps: newReps } : { weight: s.weight, reps: s.reps }
     )
-  const buildCountSets = (val) => prev.map(() => ({ weight: 0, reps: Math.max(1, val) }))
+  // Доп. вес «своего веса» (v6.16.0) переносим как был — подсказка растит повторы.
+  const extraOf = (s) => (m === 'reps' ? s.weight : 0)
+  const buildCountSets = (val) => prev.map((s) => ({ weight: extraOf(s), reps: Math.max(1, val) }))
   // Ветка «вверх» у count-метрик: шаг прибавляем к КАЖДОМУ подходу (не ниже плана
   // R). Раньше все подходы выравнивались по первому: 30, 45, 60 с → «35, 35, 35»,
   // то есть ниже уже сделанного (РЕВЬЮ-КОДА-2026-10-02, «Тексты и расчеты»).
   const buildCountSetsUp = (add) =>
-    prev.map((s) => ({ weight: 0, reps: Math.max(1, Math.max(s.reps, R) + add) }))
+    prev.map((s) => ({ weight: extraOf(s), reps: Math.max(1, Math.max(s.reps, R) + add) }))
 
   // ---- Весовые упражнения, стратегия '+вес' -------------------------------
   if (m === 'weight' && cfg.strategy === 'weight') {

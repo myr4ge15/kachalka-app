@@ -27,6 +27,8 @@ export function markWelcomeDone(userId, storage = globalThis.localStorage) {
   if (userId) write(storage, welcomeKey(userId), 'done')
 }
 
+// «Быстрый старт» (docs/quick-start.md) — ссылкой на последней карточке; с v6.16.0
+// открывается внутри приложения (components/QuickStartSheet.jsx).
 // Карточки листа. Тексты сверены с приложением (docs/quick-start.md): «+» в меню,
 // рекомендация и «Как пошло?» в композере, Прогресс/цели, Восстановление, Лента.
 export const WELCOME_STEPS = [
@@ -51,10 +53,6 @@ export const WELCOME_STEPS = [
     text: 'В «Ленте» — тренировки твоего круга и реакции на них. С кем ты в круге, решает админ.',
   },
 ]
-
-// «Быстрый старт» — полная инструкция (docs/quick-start.md в публичном репозитории).
-// Ссылка — только на последней карточке листа, без отдельной кнопки.
-export const QUICK_START_URL = 'https://github.com/myr4ge15/kachalka-app/blob/main/docs/quick-start.md'
 
 // Следующий шаг по свайпу: dx < 0 — влево (вперед). Короткий жест — на месте.
 export function stepAfterSwipe(step, dx, total, threshold = 40) {

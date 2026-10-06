@@ -4,7 +4,9 @@
 // metric — атрибут УПРАЖНЕНИЯ (одинаков для всех подходов и зрителей, как
 // is_bench_lift), а не подхода. Говорит UI/рекордам, как трактовать подход:
 //   weight — вес × повторы (как раньше); ведущая метрика — макс. фактический вес;
-//   reps   — свой вес, считаем повторы (weight=0, reps=повторы);
+//   reps   — свой вес, считаем повторы (reps=повторы); weight — необязательный
+//            ДОП. вес (пояс, жилет; v6.16.0), 0 — без отягощения. Рекорд пока по
+//            повторам (сервер new_prs_for_workout), доп. вес — в записи и подписи;
 //   time   — на время, считаем секунды (weight=0, reps=секунды);
 //   distance — дистанция и время (v6.12.0: бег, ходьба, эллипс, велотренажер):
 //            weight=КИЛОМЕТРЫ, reps=СЕКУНДЫ. Ведущий показатель (рекорд) —
@@ -40,6 +42,10 @@ export function isCountMetric(metric) {
 }
 
 export const isDistanceMetric = (metric) => normMetric(metric) === 'distance'
+
+// Доп. вес у упражнений «свой вес» (v6.16.0): брусья, подтягивания с поясом.
+// Колонка «+кг» в карточке, вес не обнуляется при сохранении; в тоннаж не идет.
+export const hasExtraWeight = (metric) => normMetric(metric) === 'reps'
 
 // Время хранится в reps (секунды) у 'time' и 'distance'.
 export const hasTimeReps = (metric) => {
@@ -162,7 +168,7 @@ export function fmtTemplateTarget(metric, t) {
 
 // Короткая запись ОДНОГО подхода для списков (история/лента/прогресс):
 //   weight → '80×8' (или просто '8', если веса нет);
-//   reps   → '12'; time → '1:30';
+//   reps   → '12' или '+10 кг × 8' (с доп. весом, v6.16.0); time → '1:30';
 //   distance → '5 км · 25:00' (старые записи бега без км — только время).
 export function fmtSet(metric, s) {
   const reps = Number(s?.reps) || 0
@@ -173,6 +179,6 @@ export function fmtSet(metric, s) {
     return weight > 0 ? `${fmtKm(weight)} км` : fmtTime(reps)
   }
   if (m === 'time') return fmtTime(reps)
-  if (m === 'reps') return String(reps)
+  if (m === 'reps') return weight > 0 ? `+${weight} кг × ${reps}` : String(reps)
   return weight > 0 ? `${weight}×${reps}` : String(reps)
 }

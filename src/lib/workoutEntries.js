@@ -11,7 +11,7 @@
 // остаются в WorkoutScreen. `sk()` — модульный счетчик стабильных ключей строк
 // подхода (общий с progressionCard), поэтому новые подходы получают уникальный _k.
 // ============================================================================
-import { exerciseMetric, isCountMetric } from './metric.js'
+import { exerciseMetric, isCountMetric, hasExtraWeight } from './metric.js'
 import { WEIGHT_MAX, repsMax, savableSet } from './setLimits.js'
 import { defaultSet, sk } from './progressionCard.js'
 
@@ -48,7 +48,11 @@ export function replaceExerciseIn(entries, idx, ex) {
     // поле weight тоже обнуляем, иначе «80 кг» становились «80 км».
     const prev = exerciseMetric(e.exercise)
     const unitChanged = prev !== next && (prev === 'distance' || next === 'distance')
-    const sets = count || unitChanged ? e.sets.map((s) => ({ ...s, weight: count ? 0 : '' })) : e.sets
+    // Доп. вес «своего веса» переживает замену только на такое же упражнение
+    // (брусья → подтягивания); 60 кг жима не должны стать «+60 кг» на брусьях.
+    const keepExtra = hasExtraWeight(next) && hasExtraWeight(prev)
+    const zero = count && !keepExtra
+    const sets = zero || unitChanged ? e.sets.map((s) => ({ ...s, weight: zero ? 0 : '' })) : e.sets
     return { exercise: ex, sets }
   })
 }
@@ -145,6 +149,8 @@ export function setsFromTemplate(ex, item) {
   if (!item?.sets) return [defaultSet(ex)]
   const count = isCountMetric(exerciseMetric(ex))
   const reps = Math.max(1, Math.round(Number(item.reps)) || defaultSet(ex).reps)
+  // Шаблон доп. вес «своего веса» не задает (редактор его не показывает): вес в плане
+  // такого упражнения — хвост прежнего типа, его не переносим.
   const weight = count ? 0 : (Number(item.weight) || 0)
   return Array.from({ length: n }, () => ({ weight, reps, _k: sk() }))
 }

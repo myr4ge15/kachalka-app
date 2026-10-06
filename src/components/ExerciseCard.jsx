@@ -1,6 +1,6 @@
 import HoldButton from './HoldButton.jsx'
 import TimeInput from './TimeInput.jsx'
-import { exerciseMetric, isCountMetric, fmtSet, bestPace, fmtPace, paceSecPerKm } from '../lib/metric.js'
+import { exerciseMetric, isCountMetric, hasExtraWeight, fmtSet, bestPace, fmtPace, paceSecPerKm } from '../lib/metric.js'
 import { resolveProgSettings } from '../lib/progression.js'
 import {
   daysAgoLabel, progArrow, progTone, nextProgStep, fmtProgStep,
@@ -28,7 +28,9 @@ export default function ExerciseCard({
   onUpdateSet, onStep, onAddSet, onRemoveSet,
 }) {
   const metric = exerciseMetric(entry.exercise)
-  const count = isCountMetric(metric) // своего веса / на время — без столбца «кг»
+  // «На время» — без столбца веса; у «своего веса» (v6.16.0) — столбец «+кг» доп. веса.
+  const extra = hasExtraWeight(metric)
+  const count = isCountMetric(metric) && !extra
   // Дистанция (v6.12.0): столбцы «км» и «мин:сек»; темп считаем по ходу ввода.
   const isDistance = metric === 'distance'
   const isTime = metric === 'time' || isDistance
@@ -165,7 +167,7 @@ export default function ExerciseCard({
       <div className="sets-head">
         {count
           ? <><span>#</span><span>{valLabel}</span><span></span></>
-          : <><span>#</span><span>{isDistance ? 'км' : 'кг'}</span><span>{isDistance ? 'мин:сек' : 'повт.'}</span><span></span></>}
+          : <><span>#</span><span>{isDistance ? 'км' : extra ? '+кг' : 'кг'}</span><span>{isDistance ? 'мин:сек' : 'повт.'}</span><span></span></>}
       </div>
 
       {entry.sets.map((s, si) => (
@@ -175,15 +177,15 @@ export default function ExerciseCard({
           <span className="set-no" aria-hidden="true">{si + 1}</span>
 
           {!count && (
-            <div className="stepper" role="group" aria-label={`Подход ${si + 1}, ${isDistance ? 'дистанция' : 'вес'}`}>
-              <HoldButton onTrigger={() => onStep(ei, si, 'weight', isDistance ? -0.5 : -1.25)}>−</HoldButton>
+            <div className="stepper" role="group" aria-label={`Подход ${si + 1}, ${isDistance ? 'дистанция' : extra ? 'доп. вес' : 'вес'}`}>
+              <HoldButton onTrigger={() => onStep(ei, si, 'weight', isDistance ? -0.5 : extra ? -2.5 : -1.25)}>−</HoldButton>
               <input
-                type="text" inputMode="decimal" value={s.weight}
-                aria-label={`${isDistance ? 'Дистанция, км' : 'Вес'}, подход ${si + 1}`}
-                placeholder={isDistance ? 'км' : undefined}
+                type="text" inputMode="decimal" value={extra && !Number(s.weight) ? '' : s.weight}
+                aria-label={`${isDistance ? 'Дистанция, км' : extra ? 'Доп. вес' : 'Вес'}, подход ${si + 1}`}
+                placeholder={isDistance ? 'км' : extra ? '0' : undefined}
                 onChange={(e) => onUpdateSet(ei, si, 'weight', e.target.value.replace(',', '.'))}
               />
-              <HoldButton onTrigger={() => onStep(ei, si, 'weight', isDistance ? 0.5 : 1.25)}>+</HoldButton>
+              <HoldButton onTrigger={() => onStep(ei, si, 'weight', isDistance ? 0.5 : extra ? 2.5 : 1.25)}>+</HoldButton>
             </div>
           )}
 

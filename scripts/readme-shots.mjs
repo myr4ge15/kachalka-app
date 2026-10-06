@@ -1,7 +1,7 @@
 // ============================================================================
 // Скриншоты для README (docs/screenshots/*.png) одной командой:
 //
-//   npm run shots:readme            — все 10 экранов
+//   npm run shots:readme            — все 11 экранов
 //   npm run shots:readme -- feed run — только перечисленные
 //
 // Что делает: поднимает vite dev-сервер (с фиктивными ключами Supabase, как e2e),
@@ -39,7 +39,7 @@ const VIEWPORT = { width: 393, height: 769 }
 const SCALE = 2
 const ACCENT = { id: 'custom', hue: 205 } // бирюзовый, как на прежних скриншотах
 const ALL = ['home', 'recovery', 'workout', 'progress-overview', 'progress-chart',
-  'feed', 'rating', 'run', 'achievements', 'login']
+  'feed', 'rating', 'run', 'achievements', 'login', 'join-pending']
 const only = process.argv.slice(2)
 for (const n of only) if (!ALL.includes(n)) throw new Error(`Неизвестный экран «${n}». Есть: ${ALL.join(', ')}`)
 const want = (n) => only.length === 0 || only.includes(n)
@@ -334,6 +334,21 @@ async function main() {
       await p2.screenshot({ path: path.join(OUT, 'login.png') })
       saved.push('login')
       console.log('  ✓ login.png')
+    }
+
+    if (want('join-pending')) {
+      // Заявка «Запросить приглашение» отправлена и ждет ответа владельца (v6.16.0).
+      // Сеть режется — автопроверка молча ждет, карточка стоит как у живого человека.
+      const c3 = await newContext(browser)
+      await c3.addInitScript((p) => { try { localStorage.setItem('gym_app_join_request', JSON.stringify(p)) } catch { /* приватный режим */ } },
+        { id: 'demo-join', secret: 'demo-secret', name: 'Андрей' })
+      const p3 = await c3.newPage()
+      await p3.goto(base)
+      await p3.locator('.join-status').waitFor()
+      await p3.waitForTimeout(3000)
+      await p3.screenshot({ path: path.join(OUT, 'join-pending.png') })
+      saved.push('join-pending')
+      console.log('  ✓ join-pending.png')
     }
   } finally {
     await browser.close()

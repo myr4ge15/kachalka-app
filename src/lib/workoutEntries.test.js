@@ -60,6 +60,11 @@ describe('replaceExerciseIn', () => {
     const out = replaceExerciseIn(cur, 0, rEx('b'))
     expect(out[0].sets[0]).toMatchObject({ weight: 0, reps: 10 })
   })
+  it('свой вес → свой вес: доп. вес сохраняется (брусья → подтягивания, v6.16.0)', () => {
+    const cur = [entry(rEx('a'), [s(10, 8)])]
+    const out = replaceExerciseIn(cur, 0, rEx('b'))
+    expect(out[0].sets[0]).toMatchObject({ weight: 10, reps: 8 })
+  })
 })
 
 describe('updateSetIn', () => {

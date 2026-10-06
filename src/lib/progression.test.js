@@ -181,6 +181,12 @@ describe('recommendProgression — count-метрики', () => {
     expect(r.sets).toEqual([s(0, 13), s(0, 13)])
   })
 
+  it('свой вес с доп. весом: вес переносится как был, растут повторы (v6.16.0)', () => {
+    const r = recommendProgression({ metric: 'reps', lastSets: [s(10, 8), s(10, 8)], settings: resolveProgSettings(null, 'e', 'reps') })
+    expect(r.kind).toBe('up')
+    expect(r.sets).toEqual([s(10, 9), s(10, 9)])
+  })
+
   it('время: не добил в пределах допуска → тот же ориентир', () => {
     const r = recommendProgression({ metric: 'time', lastSets: [s(0, 60), s(0, 55)], settings: resolveProgSettings(null, 'e', 'time') })
     expect(r.kind).toBe('same')

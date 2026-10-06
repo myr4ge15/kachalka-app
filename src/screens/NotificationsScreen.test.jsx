@@ -64,8 +64,9 @@ describe('NotificationsScreen', () => {
     expect(screen.getByText('Бейдж получен 🎉')).toBeInTheDocument()
     expect(container.querySelectorAll('.notif.unread')).toHaveLength(3)
     expect(container.querySelectorAll('.n-dot')).toHaveLength(3)
-    // Помечаем прочитанным один раз — по полному списку.
-    expect(markAllSeen).toHaveBeenCalledTimes(1)
+    // Помечаем прочитанным один раз — по полному списку. Пометка — в эффекте после
+    // рендера: ждем ее, а не проверяем сразу (на нагруженном CI эффект мог не успеть).
+    await waitFor(() => expect(markAllSeen).toHaveBeenCalledTimes(1))
     expect(markAllSeen).toHaveBeenCalledWith('me', mocks.list)
   })
 

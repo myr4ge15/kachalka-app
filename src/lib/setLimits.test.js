@@ -1,6 +1,6 @@
 import { describe, it, expect } from 'vitest'
 import {
-  clampWeight, clampReps, clampSet, repsMax,
+  clampWeight, clampReps, clampSet, repsMax, savableSet,
   WEIGHT_MAX, REPS_MAX, TIME_MAX,
 } from './setLimits.js'
 
@@ -19,9 +19,13 @@ describe('clampWeight', () => {
     expect(clampWeight(NaN, 'weight')).toBe(null)
     expect(clampWeight('abc', 'weight')).toBe(null)
   })
-  it('у не-весовых метрик вес всегда 0 (инвариант)', () => {
-    expect(clampWeight(50, 'reps')).toBe(0)
+  it('«на время» — вес всегда 0; «свой вес» — доп. вес сохраняется (v6.16.0)', () => {
     expect(clampWeight(50, 'time')).toBe(0)
+    expect(clampWeight(10, 'reps')).toBe(10)
+    expect(clampWeight('', 'reps')).toBe(0)
+    expect(clampWeight(-5, 'reps')).toBe(0)
+    expect(savableSet({ weight: '', reps: 12 }, 'reps')).toEqual({ weight: 0, reps: 12 })
+    expect(savableSet({ weight: '7.5', reps: 8 }, 'reps')).toEqual({ weight: 7.5, reps: 8 })
   })
   it('округление до 2 знаков (лишние доли отбрасываются)', () => {
     expect(clampWeight(82.129, 'weight')).toBe(82.13)

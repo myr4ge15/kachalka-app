@@ -3,6 +3,7 @@ import { checkInvite, registerByInvite, LoginError } from '../lib/auth.js'
 import { validateRegistration, inviteDeadText, inviteErrorText, DEAD_STATUSES } from '../lib/invite.js'
 import { onlyDigits } from '../lib/text.js'
 import SexPicker from '../components/SexPicker.jsx'
+import AppMark from '../components/AppMark.jsx'
 
 // Регистрация по ссылке-приглашению (v6.8.0, supabase/invites.sql). Показывается
 // вместо экрана входа, пока в App висит токен из адреса (#invite=…).
@@ -73,10 +74,7 @@ export default function InviteScreen({ token, signedInAs = null, onRegistered, o
 
   const head = (
     <>
-      <div className="login-mark" aria-hidden="true">
-        <svg viewBox="0 0 24 24" width="30" height="30" fill="none" stroke="currentColor"
-          strokeWidth="2.2" strokeLinecap="round"><path d="M1.5 12h21" /><rect x="3" y="8.5" width="2.6" height="7" rx="1" fill="currentColor" stroke="none" /><rect x="6.4" y="6" width="3" height="12" rx="1.2" fill="currentColor" stroke="none" /><rect x="14.6" y="6" width="3" height="12" rx="1.2" fill="currentColor" stroke="none" /><rect x="18.4" y="8.5" width="2.6" height="7" rx="1" fill="currentColor" stroke="none" /></svg>
-      </div>
+      <AppMark />
       <h1 className="title">Журнал тренировок</h1>
     </>
   )
