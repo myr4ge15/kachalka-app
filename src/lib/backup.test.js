@@ -4,9 +4,12 @@ import {
   parseBackup, assertSameOwner, planImport, describeImport,
 } from './backup.js'
 
+const W1 = '7b0c1d2e-0000-4000-8000-000000000001'
+const W5 = '7b0c1d2e-0000-4000-8000-000000000005'
+
 const workouts = [
   {
-    id: 'w1', user_id: 'u1', performed_at: '2026-01-10', created_at: '2026-01-09',
+    id: W1, user_id: 'u1', performed_at: '2026-01-10', created_at: '2026-01-09',
     updated_at: '2026-01-11', _dirty: 1, _deleted: 0,
     entries: [
       { exercise: { id: 'ex1', name: 'Жим', muscle_group: 'грудь', metric: 'weight' }, sets: [{ weight: 100, reps: 5 }] },
@@ -111,13 +114,13 @@ describe('planImport', () => {
     expect(p.workouts[0].entries[0].exercise.is_bench_lift).toBe(true)
     expect(p.workouts[0].entries[0].exercise.secondary).toEqual(['трицепс'])
     // упражнения нет локально → фолбэк на снимок
-    expect(p.workouts[0].entries[1].exercise).toEqual({ id: 'ex2', name: 'Планка', muscle_group: 'пресс', metric: 'time' })
-    expect(p.workouts[0].id).toBe('w1')
+    expect(p.workouts[0].entries[1].exercise).toMatchObject({ id: 'ex2', name: 'Планка', muscle_group: 'пресс', metric: 'time' })
+    expect(p.workouts[0].id).toBe(W1)
   })
 
   it('идемпотентность: повторный импорт того же файла ничего не добавляет', () => {
     const b = snap()
-    const cur = { workoutIds: ['w1'], goals, badges, prog: { enabled: false, byExercise: { ex1: { step: 2.5 } } }, exercises }
+    const cur = { workoutIds: [W1], goals, badges, prog: { enabled: false, byExercise: { ex1: { step: 2.5 } } }, exercises }
     const p = planImport(b, cur)
     expect(p.counts).toEqual({ workouts: 0, workoutsSkipped: 0, goals: 0, badges: 0, prog: 0, rpe: 0, fav: 0, accent: 0 })
     expect(p.goals).toBe(null)
@@ -128,7 +131,7 @@ describe('planImport', () => {
   it('ничего не перезаписывает: существующая тренировка и цель остаются как есть', () => {
     const b = snap()
     b.workouts[0].entries[0].sets = [{ weight: 999, reps: 99 }] // «испорченный» старый файл
-    const p = planImport(b, { workoutIds: ['w1'], goals, badges: {}, exercises })
+    const p = planImport(b, { workoutIds: [W1], goals, badges: {}, exercises })
     expect(p.workouts).toEqual([])
     expect(p.goals).toBe(null) // цель на ex1 уже есть — не трогаем
   })
@@ -170,9 +173,41 @@ describe('planImport', () => {
     expect(p.counts.workoutsSkipped).toBe(4)
   })
 
+  it('id не UUID и негодная дата — тренировка пропускается (ревью 06.10.2026, п. 7)', () => {
+    const b = snap()
+    const ok = (over) => ({ id: W5, performed_at: '2026-02-01', entries: [{ exercise: { id: 'ex1' }, sets: [{ weight: 50, reps: 5 }] }], ...over })
+    b.workouts = [
+      ok({ id: 'w5' }),                         // не UUID — сервер бы отверг
+      ok({ performed_at: 'вчера' }),            // не дата
+      ok({ performed_at: '1970-01-01' }),       // неправдоподобно рано
+      ok({ performed_at: '2030-01-01' }),       // в будущем
+      ok({ performed_at: 12345 }),              // не строка
+    ]
+    const now = Date.UTC(2026, 9, 6)
+    const p = planImport(b, { workoutIds: [], goals: [], badges: {}, exercises, now })
+    expect(p.workouts).toEqual([])
+    expect(p.counts.workoutsSkipped).toBe(5)
+    // без даты — как раньше (null), годная — как есть
+    const q = planImport({ ...b, workouts: [ok({ performed_at: undefined }), ok({ id: W1 })] }, { workoutIds: [], goals: [], badges: {}, exercises, now })
+    expect(q.workouts.map((w) => w.performed_at)).toEqual([null, '2026-02-01'])
+  })
+
+  it('упражнение не из справочника: из файла берутся только известные поля', () => {
+    const b = snap()
+    b.workouts = [{ id: W5, performed_at: '2026-02-01', entries: [{
+      exercise: { id: 'ex-new', name: '  Тяга  '.padEnd(200, 'я'), metric: 'чушь', is_bench_lift: 'да', role: 'admin', user_id: 'чужой' },
+      sets: [{ weight: 60, reps: 8 }],
+    }] }]
+    const ex = planImport(b, { workoutIds: [], goals: [], badges: {}, exercises }).workouts[0].entries[0].exercise
+    expect(Object.keys(ex).sort()).toEqual(['id', 'is_bench_lift', 'metric', 'muscle_group', 'name', 'secondary', 'submuscle'])
+    expect(ex.name.length).toBeLessThanOrEqual(80)
+    expect(ex.metric).toBe('weight')
+    expect(ex.is_bench_lift).toBe(false)
+  })
+
   it('упражнение без веса: подход 0×повторы сохраняется (не считается пустым)', () => {
     const b = snap()
-    b.workouts = [{ id: 'w5', performed_at: '2026-02-01', entries: [{ exercise: { id: 'ex2', name: 'Планка', metric: 'time' }, sets: [{ weight: 0, reps: 45 }] }] }]
+    b.workouts = [{ id: W5, performed_at: '2026-02-01', entries: [{ exercise: { id: 'ex2', name: 'Планка', metric: 'time' }, sets: [{ weight: 0, reps: 45 }] }] }]
     const p = planImport(b, { workoutIds: [], goals: [], badges: {}, exercises })
     expect(p.workouts[0].entries[0].sets).toEqual([{ weight: 0, reps: 45 }])
   })

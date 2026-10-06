@@ -17,10 +17,13 @@ import { DB_TIMEOUT_MS, withTimeout } from './withTimeout.js'
 import { defaultSubmuscleFor, cleanSecondary } from './muscles.js'
 import { humanRpc } from './adminMessages.js'
 import { normMetric } from './metric.js'
+import { isWeakPin, WEAK_PIN_TEXT } from './pinPolicy.js'
 
 const RESET_PIN_URL = (import.meta.env.VITE_SUPABASE_URL ?? '') + '/functions/v1/admin-reset-pin'
 const CREATE_USER_URL = (import.meta.env.VITE_SUPABASE_URL ?? '') + '/functions/v1/admin-create-user'
 const ANON = import.meta.env.VITE_SUPABASE_KEY ?? ''
+// 2FA (v6.14.0): Edge admin-* отказывают сессии без кода, если защита включена.
+export const MFA_REQUIRED_TEXT = 'Нужен код 2FA — выйди из Админки и открой ее заново.'
 
 // Ошибка админ-операции с человекочитаемым сообщением для тоста.
 export class AdminError extends Error {
@@ -128,6 +131,7 @@ export async function adminDeleteUser(id) {
 // Возвращает установленный PIN (для передачи человеку).
 export async function adminResetPin(targetUserId, newPin = '') {
   if (newPin && !/^\d{4}$/.test(newPin)) throw new AdminError('PIN — 4 цифры.')
+  if (newPin && isWeakPin(newPin)) throw new AdminError(WEAK_PIN_TEXT)
   const token = await accessToken()
   if (!token) throw new AdminError('Сессия не найдена — войди заново.')
   const body = { target_user_id: targetUserId }
@@ -145,9 +149,11 @@ export async function adminResetPin(targetUserId, newPin = '') {
   }
   let payload = null
   try { payload = await res.json() } catch { /* нестандартное тело */ }
+  if (payload?.error === 'mfa_required') throw new AdminError(MFA_REQUIRED_TEXT)
   if (res.status === 403) throw new AdminError('Нужны права админа.')
   if (res.status === 401) throw new AdminError('Сессия истекла — войди заново.')
   if (res.status === 404) throw new AdminError('Участник не найден.')
+  if (payload?.error === 'weak_pin') throw new AdminError(WEAK_PIN_TEXT)
   if (!res.ok || !payload?.ok || !payload?.pin) {
     throw new AdminError(payload?.error ?? 'Не удалось сбросить PIN.')
   }
@@ -160,6 +166,7 @@ export async function adminCreateUser(name, role, pin) {
   if (clean.length < 1 || clean.length > 40) throw new AdminError('Имя — от 1 до 40 символов.')
   if (role !== 'admin' && role !== 'member') throw new AdminError('Недопустимая роль.')
   if (!/^\d{4}$/.test(pin)) throw new AdminError('PIN — 4 цифры.')
+  if (isWeakPin(pin)) throw new AdminError(WEAK_PIN_TEXT)
   const token = await accessToken()
   if (!token) throw new AdminError('Сессия не найдена — войди заново.')
 
@@ -175,9 +182,11 @@ export async function adminCreateUser(name, role, pin) {
   }
   let payload = null
   try { payload = await res.json() } catch { /* нестандартное тело */ }
+  if (payload?.error === 'mfa_required') throw new AdminError(MFA_REQUIRED_TEXT)
   if (res.status === 403) throw new AdminError('Нужны права админа.')
   if (res.status === 401) throw new AdminError('Сессия истекла — войди заново.')
   if (res.status === 409) throw new AdminError('Имя уже занято.')
+  if (payload?.error === 'weak_pin') throw new AdminError(WEAK_PIN_TEXT)
   if (!res.ok || !payload?.ok || !payload?.user) {
     throw new AdminError(payload?.error ?? 'Не удалось создать участника.')
   }

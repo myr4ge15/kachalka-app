@@ -49,15 +49,63 @@ describe('LoginScreen', () => {
     expect(auth.knownAccounts).toHaveBeenCalledWith([{ id: 'u1', name: 'Дима' }, { id: 'u9', name: 'Чужой' }])
   })
 
-  it('учетка устройства: PIN по кэшу открывает приложение', async () => {
-    vi.mocked(auth.verifyPinOffline).mockResolvedValue(DIMA)
+  it('учетка устройства онлайн: PIN проверяет сервер, кэш не нужен', async () => {
     vi.mocked(auth.login).mockResolvedValue(DIMA)
     const onLogin = vi.fn()
     render(<LoginScreen onLogin={onLogin} />)
     fireEvent.click(await screen.findByText('Дима'))
     typePin('1234')
     await waitFor(() => expect(onLogin).toHaveBeenCalledWith(DIMA))
+    expect(auth.login).toHaveBeenCalledWith('u1', '1234', { timeoutMs: 8000 })
+    expect(auth.verifyPinOffline).not.toHaveBeenCalled()
+  })
+
+  it('онлайн, старый PIN из кэша: сервер отказал — приложение НЕ открывается', async () => {
+    // ревью 06.10.2026, п. 6: раньше кэш пускал до ответа сервера
+    vi.mocked(auth.verifyPinOffline).mockResolvedValue(DIMA)
+    const err = new auth.LoginError('invalid', 'Неверный PIN')
+    vi.mocked(auth.login).mockRejectedValue(err)
+    const onLogin = vi.fn()
+    render(<LoginScreen onLogin={onLogin} />)
+    fireEvent.click(await screen.findByText('Дима'))
+    typePin('1234')
+    expect(await screen.findByText('Неверный PIN')).toBeInTheDocument()
+    expect(onLogin).not.toHaveBeenCalled()
+    expect(auth.verifyPinOffline).not.toHaveBeenCalled()
+    expect(auth.noteLoginFailure).toHaveBeenCalledWith(err)
+  })
+
+  it('онлайн, сервер запер попытки — кэш блокировку не обходит', async () => {
+    vi.mocked(auth.verifyPinOffline).mockResolvedValue(DIMA)
+    vi.mocked(auth.login).mockRejectedValue(new auth.LoginError('locked', 'x', 900))
+    const onLogin = vi.fn()
+    render(<LoginScreen onLogin={onLogin} />)
+    fireEvent.click(await screen.findByText('Дима'))
+    typePin('1234')
+    expect(await screen.findByText(/через 15 мин/)).toBeInTheDocument()
+    expect(onLogin).not.toHaveBeenCalled()
+  })
+
+  it('сервер не ответил (сеть/таймаут) — вход по кэшу, как офлайн', async () => {
+    vi.mocked(auth.login).mockRejectedValue(new auth.LoginError('network', 'Нет сети'))
+    vi.mocked(auth.verifyPinOffline).mockResolvedValue(DIMA)
+    const onLogin = vi.fn()
+    render(<LoginScreen onLogin={onLogin} />)
+    fireEvent.click(await screen.findByText('Дима'))
+    typePin('1234')
+    await waitFor(() => expect(onLogin).toHaveBeenCalledWith(DIMA))
     expect(auth.verifyPinOffline).toHaveBeenCalledWith('u1', '1234')
+    expect(auth.dropForeignSession).toHaveBeenCalledWith('u1')
+  })
+
+  it('офлайн — сразу по кэшу, без запроса', async () => {
+    Object.defineProperty(navigator, 'onLine', { value: false, configurable: true })
+    vi.mocked(auth.verifyPinOffline).mockResolvedValue(false)
+    render(<LoginScreen onLogin={() => {}} />)
+    fireEvent.click(await screen.findByText('Дима'))
+    typePin('1234')
+    expect(await screen.findByText('Неверный PIN')).toBeInTheDocument()
+    expect(auth.login).not.toHaveBeenCalled()
   })
 
   it('новое устройство (никто не входил) — сразу форма имени, вход по имени', async () => {

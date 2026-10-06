@@ -17,6 +17,7 @@
 import { supabase, isSessionOf, hasSession } from '../db/supabase.js'
 import { getLoginMeta, setLoginMeta, listLoginMeta, deleteLoginMeta } from '../db/local.js'
 import { verifyPin } from './hash.js'
+import { WEAK_PIN_TEXT } from './pinPolicy.js'
 import { DB_TIMEOUT_MS, withTimeout } from './withTimeout.js'
 
 // fetch с жестким таймаутом через AbortController: подвисшая сеть (корпоративный
@@ -76,8 +77,10 @@ export class LoginError extends Error {
 }
 
 // Онлайн-вход через auth-login. Возвращает { id, name, role }.
-export function login(userId, pin) {
-  const promise = doLogin(userId, pin).catch((err) => {
+// opts.timeoutMs — свой таймаут запроса (экран входа с офлайн-кэшем ждет сервер
+// недолго и при сбое сети открывается по кэшу; по умолчанию — DB_TIMEOUT_MS).
+export function login(userId, pin, opts = {}) {
+  const promise = doLogin(userId, pin, opts.timeoutMs).catch((err) => {
     // Чья это неудача — знает сама ошибка (noteLoginFailure не гадает по глобалу).
     if (err && typeof err === 'object') err.userId = userId
     throw err
@@ -89,11 +92,11 @@ export function login(userId, pin) {
   return promise
 }
 
-async function doLogin(userId, pin) {
+async function doLogin(userId, pin, timeoutMs) {
   lastLoginUserId = userId
   const generation = authGeneration
   const stale = () => generation !== authGeneration
-  const body = await postLogin({ user_id: userId, pin })
+  const body = await postLogin({ user_id: userId, pin }, timeoutMs)
   return adoptSession(body, userId, pin, stale)
 }
 
@@ -109,7 +112,7 @@ export async function loginByName(name, pin) {
   return adoptSession(body, body.user.id, pin, stale)
 }
 
-async function postLogin(payload) {
+async function postLogin(payload, timeoutMs = DB_TIMEOUT_MS) {
   let res
   try {
     res = await fetchWithTimeout(FN_URL, {
@@ -120,7 +123,7 @@ async function postLogin(payload) {
         authorization: `Bearer ${ANON}`,
       },
       body: JSON.stringify(payload),
-    })
+    }, timeoutMs)
   } catch {
     throw new LoginError('network', 'Нет сети — попробуй позже.')
   }
@@ -311,6 +314,9 @@ export async function setPin(userId, currentPin, newPin) {
   }
   if (res.status === 403) {
     throw new LoginError('server', 'Нельзя сменить чужой PIN.')
+  }
+  if (res.status === 400 && body?.error === 'weak_pin') {
+    throw new LoginError('invalid', WEAK_PIN_TEXT)
   }
   if (!res.ok || !body?.ok) {
     throw new LoginError('server', body?.error ?? 'Не удалось сменить PIN.')

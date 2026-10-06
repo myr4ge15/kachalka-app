@@ -44,7 +44,7 @@ describe('inviteUrl', () => {
 })
 
 describe('validateRegistration', () => {
-  const ok = { name: 'Маша', pin: '1234', pin2: '1234' }
+  const ok = { name: 'Маша', pin: '4826', pin2: '4826' }
   it('валидная форма', () => expect(validateRegistration(ok)).toBe(''))
   it('пустое и длинное имя', () => {
     expect(validateRegistration({ ...ok, name: '   ' })).toMatch(/как тебя зовут/)
@@ -52,7 +52,11 @@ describe('validateRegistration', () => {
   })
   it('PIN не 4 цифры и несовпадение', () => {
     expect(validateRegistration({ ...ok, pin: '123', pin2: '123' })).toMatch(/4 цифры/)
-    expect(validateRegistration({ ...ok, pin2: '4321' })).toMatch(/не совпадают/)
+    expect(validateRegistration({ ...ok, pin2: '4821' })).toMatch(/не совпадают/)
+  })
+  it('слишком простой PIN — сразу подсказка, без похода в сеть', () => {
+    expect(validateRegistration({ ...ok, pin: '1234', pin2: '1234' })).toMatch(/простой PIN/)
+    expect(inviteErrorText('weak_pin')).toMatch(/простой PIN/)
   })
 })
 

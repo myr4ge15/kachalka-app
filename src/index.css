@@ -59,6 +59,8 @@
      стекла). Акцент выбирает пользователь: значения — в html[data-accent] ниже,
      «свой оттенок» — инлайном на <html> (lib/accent.js, public/accent-boot.js). */
   color-scheme: dark;
+  /* Подложка QR-кода 2FA (v6.14.0): сканеру нужен светлый фон в любой теме. */
+  --qr-bg: #ffffff;
   /* ── Типографика (v6.3.1, макет prototypes/typography.html, вариант A) ──
      Две жирности обычного шрифта: 600 — у всего, что НАЗЫВАЕТ (заголовок раздела и
      карточки, подпись поля, ссылка, кнопка), 400 — у содержимого. Крупный сжатый
@@ -2571,6 +2573,19 @@ label.act.busy { opacity: .55; pointer-events: none; }
     color: var(--text);
 }
 .admin-hint { margin: 0; font-size: 12px; color: var(--muted); line-height: 1.4; }
+
+/* 2FA админки (v6.14.0, components/AdminMfa.jsx). QR читается только темным по
+   светлому — подложка отдельным токеном --qr-bg, не акцент и не поверхность. */
+.mfa-gate { margin-top: 12px; }
+.mfa-code { letter-spacing: .4em; text-align: center; }
+.mfa-qr {
+  align-self: center; width: 180px; height: 180px; padding: 10px; box-sizing: content-box;
+  background: var(--qr-bg); border-radius: 12px;
+}
+.mfa-secret {
+  margin: 0; text-align: center; font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+  font-size: 15px; letter-spacing: .06em; color: var(--text); word-break: break-all; user-select: all;
+}
 .admin-add-link {
   margin-top: 10px; width: 100%; background: transparent; border: 1.5px dashed var(--border);
   border-radius: 14px; color: var(--acc-2); font-size: 14px; font-weight: 600; padding: 12px; min-height: 50px; cursor: pointer;

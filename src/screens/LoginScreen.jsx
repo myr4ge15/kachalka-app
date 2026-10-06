@@ -19,6 +19,11 @@ import JoinRequestForm from '../components/JoinRequestForm.jsx'
 //   • «Забыть на этом устройстве» — убрать учетку из пикера (на экране PIN).
 //   • «Попросить приглашение» (до 6.13.3 — «Хочу в круг») — заявка владельцу; одобрено → регистрация по приглашению
 //     (onInvite(token) → InviteScreen).
+// Сколько ждать сервер при входе с пикера, прежде чем открыть приложение по кэшу.
+const LOGIN_ONLINE_TIMEOUT_MS = 8000
+// Коды LoginError, при которых сервер «не ответил» (а не «отказал»).
+const SERVER_DOWN = new Set(['network', 'server'])
+
 export default function LoginScreen({ onLogin, onInvite }) {
   const [known, setKnown] = useState([])
   const [mode, setMode] = useState('loading') // 'loading' | 'pick' | 'pin' | 'name' | 'join'
@@ -109,29 +114,38 @@ export default function LoginScreen({ onLogin, onInvite }) {
     inFlight.current = true
     setBusy(true)
     try {
-      // 1) Офлайн-разблокировка по локальному кэшу своего хэша (мгновенно).
+      // Онлайн — СНАЧАЛА сервер (ревью 06.10.2026, п. 6). Раньше кэш хэша открывал
+      // приложение мгновенно, а сервер проверял уже в фоне: после сброса PIN админом
+      // или смены PIN на другом телефоне старый PIN продолжал пускать на этом.
+      // Теперь кэш — только запасной путь, когда сервер недоступен (сеть, таймаут,
+      // 5xx). «Неверный PIN» и «слишком много попыток» от сервера кэшем не обойти.
+      if (navigator.onLine) {
+        try {
+          const user = await authLogin(selected.id, pin, { timeoutMs: LOGIN_ONLINE_TIMEOUT_MS })
+          onLogin(user)
+          return
+        } catch (e) {
+          if (!(e instanceof LoginError) || !SERVER_DOWN.has(e.code)) {
+            noteLoginFailure(e) // неверный PIN — стереть устаревший кэш хэша
+            throw e
+          }
+          // сервер недоступен — ниже вход по кэшу, как офлайн
+        }
+      }
+      // Офлайн (или сервер не ответил) — по локальному кэшу своего хэша.
       //    {id,name,role} — PIN совпал; false — не совпал; null — кэша нет.
       const offline = await verifyPinOffline(selected.id, pin)
       if (offline) {
         // Чужую сессию снимаем ДО входа (ее SIGNED_OUT должен отработать здесь).
         await dropForeignSession(selected.id)
-        // UI открываем сразу; сессию перевыпускаем в фоне, причину сбоя запоминаем.
-        if (navigator.onLine) authLogin(selected.id, pin).catch(noteLoginFailure)
+        // Сессию синк поднимет сам, когда сервер ответит (refreshSessionSilently).
         onLogin(offline)
         return
       }
-      // 2) Офлайн — судим по локальному вердикту.
-      if (!navigator.onLine) {
-        setError(offline === false
-          ? 'Неверный PIN'
-          : 'Нет сети. Подключись к интернету, чтобы войти.')
-        setPin('')
-        return
-      }
-      // 3) Онлайн — сверяем на сервере, не отбивая по устаревшему кэшу (PIN меняли
-      //    на другом устройстве): успех перезапишет кэш свежим хэшем.
-      const user = await authLogin(selected.id, pin)
-      onLogin(user)
+      setError(offline === false
+        ? 'Неверный PIN'
+        : 'Нет связи с сервером. Подключись к интернету, чтобы войти.')
+      setPin('')
     } catch (e) {
       showError(e)
       setPin('')

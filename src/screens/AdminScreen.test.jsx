@@ -7,6 +7,7 @@ import { beforeEach, describe, expect, it, vi } from 'vitest'
 import { render, screen, waitFor } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import AdminScreen from './AdminScreen.jsx'
+import { mfaState, verifyCode } from '../lib/adminMfa.js'
 import { useLiveQuery } from 'dexie-react-hooks'
 import {
   adminListUsers, adminSetUser, adminSetPrivate, adminSetSex, adminUpdateExercise,
@@ -18,6 +19,15 @@ vi.mock('dexie-react-hooks', () => ({ useLiveQuery: vi.fn(() => []) }))
 vi.mock('../db/repo.js', () => ({ getAllExercisesForAdmin: vi.fn(() => Promise.resolve([])) }))
 vi.mock('../db/sync.js', () => ({ useSyncStatus: () => ({ online: true }) }))
 vi.mock('../components/Toast.jsx', () => ({ showToast: vi.fn() }))
+// 2FA (v6.14.0): по умолчанию выключена — Админка открывается сразу.
+vi.mock('../lib/adminMfa.js', async (orig) => {
+  const real = await orig()
+  return {
+    ...real,
+    mfaState: vi.fn(async () => ({ enabled: false, factorId: null, level: 'aal1', pending: [] })),
+    verifyCode: vi.fn(async () => true),
+  }
+})
 vi.mock('../lib/admin.js', () => ({
   AdminError: class AdminError extends Error {},
   adminListUsers: vi.fn(),
@@ -243,5 +253,25 @@ describe('AdminScreen: приглашения', () => {
     expect(link.value).toMatch(new RegExp(`#invite=${TOKEN}$`))
     await user.click(screen.getByRole('button', { name: 'Готово' }))
     expect(screen.queryByLabelText('Ссылка-приглашение')).toBeNull()
+  })
+})
+
+describe('2FA перед Админкой (v6.14.0)', () => {
+  it('2FA включена, сессия без кода — сначала экран кода, разделов не видно', async () => {
+    vi.mocked(mfaState).mockResolvedValueOnce({ enabled: true, factorId: 'f1', level: 'aal1', pending: [] })
+      .mockResolvedValueOnce({ enabled: true, factorId: 'f1', level: 'aal2', pending: [] })
+    render(<AdminScreen user={ME} onBack={() => {}} />)
+    const field = await screen.findByLabelText('Код из приложения')
+    expect(screen.queryByRole('button', { name: /Пользователи/ })).not.toBeInTheDocument()
+    await userEvent.type(field, '123 456')
+    await userEvent.click(screen.getByRole('button', { name: 'Войти в Админку' }))
+    expect(verifyCode).toHaveBeenCalledWith('f1', '123456')
+    expect(await screen.findByRole('button', { name: /Пользователи/ })).toBeInTheDocument()
+  })
+
+  it('2FA выключена — разделы сразу, в списке есть «Защита (2FA)»', async () => {
+    render(<AdminScreen user={ME} onBack={() => {}} />)
+    expect(await screen.findByRole('button', { name: /Защита \(2FA\)/ })).toBeInTheDocument()
+    expect(screen.queryByLabelText('Код из приложения')).not.toBeInTheDocument()
   })
 })

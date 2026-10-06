@@ -14,7 +14,7 @@ vi.mock('../lib/auth.js', () => {
 
 const TOKEN = 'a_tiNNP3RyzFJHQdG_xlbBkLpflaqExEUJzq2xU0eXo'
 
-function fill({ name = 'Маша', pin = '1234', pin2 = '1234' } = {}) {
+function fill({ name = 'Маша', pin = '4826', pin2 = '4826' } = {}) {
   fireEvent.change(screen.getByLabelText('Имя'), { target: { value: name } })
   fireEvent.change(screen.getByLabelText('PIN — 4 цифры'), { target: { value: pin } })
   fireEvent.change(screen.getByLabelText('PIN еще раз'), { target: { value: pin2 } })
@@ -37,7 +37,7 @@ describe('InviteScreen', () => {
     fireEvent.click(screen.getByRole('radio', { name: 'Женский' }))
     fireEvent.click(screen.getByRole('button', { name: 'Зарегистрироваться' }))
     await waitFor(() => expect(onRegistered).toHaveBeenCalledWith(user))
-    expect(registerByInvite).toHaveBeenCalledWith(TOKEN, { name: 'Маша', pin: '1234', sex: 'f' })
+    expect(registerByInvite).toHaveBeenCalledWith(TOKEN, { name: 'Маша', pin: '4826', sex: 'f' })
   })
 
   it('PIN-коды не совпали — на сервер не идем', async () => {

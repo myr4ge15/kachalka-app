@@ -115,7 +115,11 @@
   она мостит к скрытой учётке Supabase Auth и выдаёт настоящую сессию. RLS-идентичность —
   `app_uid()` из claim `app_metadata.app_user_id` + сверка `session_epoch` на каждый запрос
   (kill switch сессий). Офлайн-анлок сверяет PIN с локально кэшированным хэшем (`lib/hash.js`,
-  constant-time). Видимость чужих данных — серверная `can_see_user()` (приватность + связи
+  constant-time) — **только когда сервер недоступен** (v6.14.0): онлайн экран входа сначала ждет
+  `auth-login` (8 с), кэш — запасной путь при сети/таймауте/5xx; «неверный PIN» и «лок» сервера кэшем
+  не обходятся (иначе старый PIN пускает после сброса/смены). Новый PIN — не из слабых:
+  `lib/pinPolicy.js` ↔ `_shared/pin.ts` `isWeakPin` (одинаковые списки примеров в тестах); новый путь
+  задания PIN обязан проверять на сервере. Админка с 2FA — сессия `aal2` (см. «2FA админки»). Видимость чужих данных — серверная `can_see_user()` (приватность + связи
   «избранного круга»); гейт админки — серверный `is_admin()`.
 - **Чистая логика — в `src/lib/`** (без Dexie/React/сети), покрывается тестами; DB-обвязка — в
   `src/db/`; презентационные куски экранов — в `src/components/` (props-driven, состояние остаётся
@@ -322,9 +326,30 @@ updated_at)` + `upsert_user_meta` (`supabase/user-meta.sql`, RLS «только 
   workouts триггеры Telegram и пушей — старые рекорды объявились бы заново); клиент сам перечитывает по id
   свои чистые тренировки с изменившимися упражнениями (`db/sync/pull.js refreshWorkoutsForExercises`).
 - **Лимит попыток PIN** → канон `auth-rate-claim.sql` (v6.7.5): попытка ЗАНИМАЕТСЯ `auth_rate_claim`
-  до проверки PIN, под блокировкой строки; лок растет 15 мин → 1 ч → 4 ч. Не возвращать в Edge
+  до проверки PIN, под блокировкой строки; лок растет 15 мин → 1 ч → 4 ч. С v6.14.0 — только вход по id
+  и смена PIN; вход по имени — корзины `login-throttle.sql` (см. ниже). Не возвращать в Edge
   Functions схему «`auth_rate_guard` → проверка → `auth_rate_fail`»: параллельные запросы обходят
   ее (перебор PIN пачками). Ошибка RPC лимита = отказ (500), не пропуск.
+- **Лимиты входа по имени и IP (v6.14.0)** → канон `login-throttle.sql`: корзины `auth_throttle`
+  (`auth_throttle_claim/_reset`, лок растет и затухает через сутки), `auth_ip_claim` (30 попыток/15 мин с
+  адреса, оба пути), `auth_login_name_claim` (имя → id + корзины `name:<ключ>:<IP>` 5/15 мин и
+  `nameuser:<учетка>` 30/сутки — ОДИНАКОВО для существующих и несуществующих имен). Вход по имени
+  `auth_rate_claim` НЕ трогает: иначе по 429 выясняется, кто в круге, и чужую учетку можно запереть.
+  Решение «пустить/401/429» — чистая `decideLogin` (`functions/auth-login/logic.ts`, тест —
+  `logic_test.ts`: ненайденное имя проходит те же шаги). IP — только `_shared/ip.ts`: `cf-connecting-ip` →
+  ПОСЛЕДНИЙ `x-forwarded-for` (первый подставляет клиент), IPv6 — по /64, в базу — HMAC. Канон
+  `join_submit` — тоже здесь (потолок 20 ожидающих — только заявки моложе 7 дней).
+- **2FA админки (v6.14.0)** → канон `is_admin()` в `admin-mfa.sql`: роль admin И (`auth.jwt()->>'aal' =
+  'aal2'` ИЛИ у auth-учетки нет подтвержденного фактора в `auth.mfa_factors`). НЕ пересоздавать
+  `is_admin()` из `admin.sql`/`bootstrap.sql` — 2FA молча перестанет действовать. Edge, проверяющая
+  `users.role` сама (`admin-create-user`, `admin-reset-pin`), обязана звать `mfaRequired`
+  (`_shared/mfa.ts`) → 403 `mfa_required`. Клиент: `lib/adminMfa.js` + `components/AdminMfa.jsx` (код
+  перед Админкой, включение/отключение) — онлайн, вне очередей синка. Нужен включенный TOTP в
+  Supabase → Authentication → Multi-Factor. Аварийное снятие — SQL из шапки `admin-mfa.sql`.
+- **Зависимости Edge Functions (v6.14.0):** только `npm:<пакет>@<точная версия>` (не `esm.sh`, не
+  плавающие `@2`); транзитивные — в `supabase/functions/deno.lock` (`deno.json` рядом). Поднял версию —
+  во ВСЕХ импортах сразу и `deno cache */index.ts` из `supabase/functions`. Тесты Edge:
+  `DENO_NO_PACKAGE_JSON=1 deno test --allow-env` оттуда же (иначе Deno цепляет `package.json` клиента).
 - **ACL после каждого `create/create or replace` проверять отрицательно.** В Supabase default
   privileges могут снова выдать `ALL/EXECUTE` клиентским ролям. Канон `login_users`: сначала
   `revoke all` у `PUBLIC`/`anon`/`authenticated`, затем только явно нужный `SELECT`; простой view

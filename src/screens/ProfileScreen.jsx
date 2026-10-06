@@ -23,6 +23,7 @@ import { usePushToggle } from '../hooks/usePushToggle.js'
 import { uploadMyAvatar } from '../lib/avatar.js'
 import { myUnreadReplies } from '../lib/feedbackApi.js'
 import { onlyDigits } from '../lib/text.js'
+import { isWeakPin, WEAK_PIN_TEXT } from '../lib/pinPolicy.js'
 import { showToast } from '../components/Toast.jsx'
 import HoldButton from '../components/HoldButton.jsx'
 import Avatar from '../components/Avatar.jsx'
@@ -164,6 +165,7 @@ export default function ProfileScreen({ user, onLogout, onOpenProgress, onOpenFe
     }
     if (newPin !== rptPin) { setPinErr('Новый PIN и повтор не совпадают.'); return }
     if (newPin === curPin) { setPinErr('Новый PIN совпадает с текущим.'); return }
+    if (isWeakPin(newPin)) { setPinErr(WEAK_PIN_TEXT); return }
     setPinBusy(true)
     try {
       await setPin(user.id, curPin, newPin)

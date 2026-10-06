@@ -166,9 +166,24 @@ function lookupExercise(exercises, id) {
 // Одна запись снимка → запись для saveWorkout. Упражнение берем из ЛОКАЛЬНОГО
 // справочника (там полная форма: submuscle/secondary/is_bench_lift), снимок —
 // фолбэк для упражнений, которых на устройстве нет.
+// Поля упражнения из ФАЙЛА — только по белому списку и с обрезкой (ревью 06.10.2026,
+// п. 7): файл мог быть отредактирован руками, а запись пойдет в справочник и синк.
+function sanitizeFileExercise(x, id) {
+  const str = (v, max) => (typeof v === 'string' && v.trim() ? v.trim().slice(0, max) : null)
+  return {
+    id,
+    name: str(x?.name, 80) ?? '—',
+    muscle_group: str(x?.muscle_group, 40),
+    submuscle: str(x?.submuscle, 40),
+    secondary: Array.isArray(x?.secondary) ? x.secondary.filter((v) => typeof v === 'string').slice(0, 8) : [],
+    metric: normMetric(x?.metric),
+    is_bench_lift: x?.is_bench_lift === true,
+  }
+}
+
 function importEntry(e, exercises) {
   const id = e?.exercise?.id ?? e?.exercise_id ?? null
-  if (!id) return null
+  if (!id || typeof id !== 'string' || id.length > 64) return null
   const sets = (e?.sets ?? [])
     .map((s) => ({ weight: Number(s?.weight) || 0, reps: Number(s?.reps) || 0 }))
     // Пустой подход (0×0) роняет тренировку в «пустую» — отсеиваем здесь, чтобы
@@ -176,14 +191,27 @@ function importEntry(e, exercises) {
     .filter((s) => s.weight > 0 || s.reps > 0)
   if (sets.length === 0) return null
   const local = lookupExercise(exercises, id)
-  return { exercise: local ?? { ...e.exercise, id }, sets }
+  return { exercise: local ?? sanitizeFileExercise(e?.exercise, id), sets }
+}
+
+const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i
+const MIN_DATE_MS = Date.UTC(2000, 0, 1)
+
+// Дата тренировки из файла: null — нет даты (как раньше); false — мусор или вне
+// диапазона 2000-01-01 … завтра; иначе исходная строка.
+function importDate(v, now = Date.now()) {
+  if (v == null || v === '') return null
+  if (typeof v !== 'string') return false
+  const t = Date.parse(v)
+  if (!Number.isFinite(t) || t < MIN_DATE_MS || t > now + 86400000) return false
+  return v
 }
 
 // План импорта «только добавить недостающее». Ничего не перезаписывает.
 //
 // snapshot — результат parseBackup; current — текущее состояние:
 //   { workoutIds: Set|Array, goals: [], badges: {}, prog: undefined|obj,
-//     rpe: {}, fav: [], accent: obj|null, userId, exercises: Map|obj }
+//     rpe: {}, fav: [], accent: obj|null, userId, exercises: Map|obj, now?: ms }
 //
 // Возвращает готовые к записи куски (null — «менять нечего») и счетчики для
 // тоста. `workouts` идут в repo.saveWorkout КАК ЕСТЬ, с исходным id — поэтому
@@ -198,13 +226,17 @@ export function planImport(snapshot, current = {}) {
   let workoutsSkipped = 0
   for (const w of snapshot?.workouts ?? []) {
     // Без id дедуп невозможен: повторный импорт плодил бы копии. Пропускаем.
-    if (!w?.id) { workoutsSkipped++; continue }
+    // id — только UUID (на сервере id тренировки — uuid: иное легло бы в dead-letter).
+    if (!w?.id || !UUID_RE.test(String(w.id))) { workoutsSkipped++; continue }
+    // Дата — читаемая и правдоподобная, иначе тренировка уедет в Invalid Date.
+    const when = importDate(w.performed_at, current.now)
+    if (when === false) { workoutsSkipped++; continue }
     if (have.has(w.id)) continue // уже есть — НЕ трогаем (в т.ч. локально измененную)
     const entries = (w.entries ?? [])
       .map((e) => importEntry(e, current.exercises))
       .filter(Boolean)
     if (entries.length === 0) { workoutsSkipped++; continue }
-    workouts.push({ id: w.id, performed_at: w.performed_at ?? null, entries })
+    workouts.push({ id: w.id, performed_at: when, entries })
   }
 
   // ── цели ─────────────────────────────────────────────────────────────────

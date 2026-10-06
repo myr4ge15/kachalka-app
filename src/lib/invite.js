@@ -6,6 +6,8 @@
 // нет), а приложению не нужен роутер: App читает его при старте и сразу стирает.
 // ============================================================================
 
+import { isWeakPin, WEAK_PIN_TEXT } from './pinPolicy.js'
+
 export const INVITE_TOKEN_RE = /^[A-Za-z0-9_-]{43}$/
 
 // Токен из адреса или null.
@@ -59,6 +61,7 @@ export function validateRegistration({ name, pin, pin2 }) {
   if (n.length < 1) return 'Напиши, как тебя зовут.'
   if (n.length > 40) return 'Имя — до 40 символов.'
   if (!/^\d{4}$/.test(String(pin ?? ''))) return 'PIN — ровно 4 цифры.'
+  if (isWeakPin(pin)) return WEAK_PIN_TEXT
   if (pin !== pin2) return 'PIN-коды не совпадают.'
   return ''
 }
@@ -82,6 +85,7 @@ export function inviteErrorText(code) {
     case 'name_taken': return 'Это имя уже занято — добавь фамилию или инициал.'
     case 'bad_name': return 'Имя — от 1 до 40 символов.'
     case 'bad_pin': return 'PIN — ровно 4 цифры.'
+    case 'weak_pin': return WEAK_PIN_TEXT
     case 'network': return 'Нет сети — попробуй позже.'
     case 'registered_login_failed': return 'Учетка создана, но войти сразу не получилось. Вернись к входу и войди по своему PIN.'
     default: return 'Не получилось зарегистрироваться. Попробуй еще раз чуть позже.'
