@@ -62,6 +62,8 @@ export function validateRegistration({ name, pin, pin2 }) {
   if (n.length > 40) return 'Имя — до 40 символов.'
   if (!/^\d{4}$/.test(String(pin ?? ''))) return 'PIN — ровно 4 цифры.'
   if (isWeakPin(pin)) return WEAK_PIN_TEXT
+  // Повтор еще не набран — просим набрать, а не пугаем «не совпадают» (v6.15.4).
+  if (!String(pin2 ?? '')) return 'Введи PIN еще раз.'
   if (pin !== pin2) return 'PIN-коды не совпадают.'
   return ''
 }

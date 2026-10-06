@@ -2053,7 +2053,6 @@ img.avatar-lg.has-img {
 /* Выбор своего пола (components/SexPicker.jsx, v6.2.0). */
 .sex-picker { background: var(--surface); border: 1px solid var(--border); border-radius: 14px; padding: 12px 14px; }
 .sex-picker-lab { font-weight: 600; font-size: 15px; margin-bottom: 8px; }
-.sex-picker-sub { color: var(--muted); font-size: 12px; line-height: 1.4; margin: 8px 0 0; }
 .sex-picker-err { color: var(--red); font-size: 13px; font-weight: 600; margin: 6px 0 0; }
 /* Пуш-уведомления (components/PushToggle.jsx, v6.6.0). Без переключателя — строка-подсказка
    (iPhone вне экрана «Домой», запрет в браузере): не кнопка, курсор и нажатие не нужны. */

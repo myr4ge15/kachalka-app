@@ -30,9 +30,6 @@ export default function SexPicker({ value = null, busy = false, error = '', onCh
           )
         })}
       </div>
-      <p className="sex-picker-sub">
-        Чтобы приложение обращалось к тебе в правильном роде.
-      </p>
       {error && <p className="sex-picker-err" role="alert">{error}</p>}
     </div>
   )

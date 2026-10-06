@@ -134,7 +134,6 @@ export async function runLaunchUpdate({
       if (reg.waiting) { worker = reg.waiting; break }
       const inst = reg.installing
       if (inst && needed === null && fetchFn) {
-        needed = []
         try {
           const res = await fetchFn(inst.scriptURL, { cache: 'no-store' })
           const text = res.ok ? await res.text() : ''

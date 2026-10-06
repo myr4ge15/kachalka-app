@@ -1,7 +1,7 @@
 {
   "name": "kachalka-app",
   "private": true,
-  "version": "6.15.3",
+  "version": "6.15.4",
   "type": "module",
   "description": "PWA для учёта силовых тренировок (MVP, первый проход)",
   "scripts": {
@@ -17,29 +17,29 @@
     "shots:readme": "node scripts/readme-shots.mjs"
   },
   "dependencies": {
-    "@supabase/supabase-js": "^2.45.4",
-    "dexie": "^4.4.4",
+    "@supabase/supabase-js": "^2.117.2",
+    "dexie": "^4.4.6",
     "dexie-react-hooks": "^4.4.0",
     "heic2any": "^0.0.4",
-    "react": "^19.2.7",
-    "react-dom": "^19.2.7",
-    "recharts": "^3.9.2"
+    "react": "^19.3.0",
+    "react-dom": "^19.3.0",
+    "recharts": "^3.10.1"
   },
   "devDependencies": {
-    "@eslint/js": "^9.17.0",
-    "@playwright/test": "^1.60.0",
-    "@testing-library/dom": "^10.4.0",
-    "@testing-library/jest-dom": "^6.6.3",
-    "@testing-library/react": "^16.1.0",
-    "@testing-library/user-event": "^14.5.2",
+    "@eslint/js": "^10.0.1",
+    "@playwright/test": "^1.63.0",
+    "@testing-library/dom": "^10.4.2",
+    "@testing-library/jest-dom": "^7.0.1",
+    "@testing-library/react": "^16.3.3",
+    "@testing-library/user-event": "^14.6.7",
     "@vitejs/plugin-react": "^6.0.3",
-    "eslint": "^9.17.0",
-    "eslint-plugin-react-hooks": "^5.1.0",
+    "eslint": "^10.12.0",
+    "eslint-plugin-react-hooks": "^7.1.1",
     "fake-indexeddb": "^6.2.5",
-    "globals": "^15.14.0",
-    "jsdom": "^25.0.1",
-    "vite": "^8.1.4",
-    "vite-plugin-pwa": "^1.3.0",
-    "vitest": "^4.1.10"
+    "globals": "^17.13.0",
+    "jsdom": "^29.1.1",
+    "vite": "^8.3.3",
+    "vite-plugin-pwa": "^2.0.0",
+    "vitest": "^5.0.3"
   }
 }

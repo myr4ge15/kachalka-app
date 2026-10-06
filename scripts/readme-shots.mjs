@@ -25,7 +25,7 @@
 // бинарник можно указать в PW_CHROMIUM.
 // ============================================================================
 // Часть функций выполняется В СТРАНИЦЕ (page.evaluate / addInitScript) — там есть DOM.
-/* global document, localStorage */
+/* global document */ // localStorage — уже глобал в globals.node (ESLint 10 / globals 17)
 import { createServer } from 'vite'
 import { chromium } from '@playwright/test'
 import { spawnSync } from 'node:child_process'

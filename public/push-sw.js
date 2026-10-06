@@ -10,7 +10,7 @@
 /* global self, clients, URL, MessageChannel, setTimeout, clearTimeout */
 
 self.addEventListener('push', (event) => {
-  let data = {}
+  let data
   try {
     data = event.data ? event.data.json() : {}
   } catch {

@@ -30,7 +30,7 @@ export default function JoinRequestForm({ onSubmitted, onBack }) {
   return (
     <form className="invite-form" onSubmit={submit} noValidate>
       <p className="invite-lead">
-        Это приложение закрытого круга друзей. Напиши, кто ты, — владелец решит и пришлет приглашение сюда же.
+        Пока это приложение для закрытого круга лиц. Введи данные о себе — после одобрения владелец пришлет приглашение сюда же.
       </p>
       <label className="field">
         <span className="field-lab">Как тебя зовут</span>

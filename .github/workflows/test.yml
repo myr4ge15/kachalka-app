@@ -20,7 +20,7 @@ jobs:
     # Образ Playwright: Chromium и системные библиотеки уже внутри (v6.3.3).
     # Версия = @playwright/test из package-lock.json (см. deploy.yml).
     container:
-      image: mcr.microsoft.com/playwright:v1.61.1-noble
+      image: mcr.microsoft.com/playwright:v1.63.0-noble
     steps:
       - uses: actions/checkout@v5
 

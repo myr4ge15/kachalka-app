@@ -53,6 +53,8 @@ describe('validateRegistration', () => {
   it('PIN не 4 цифры и несовпадение', () => {
     expect(validateRegistration({ ...ok, pin: '123', pin2: '123' })).toMatch(/4 цифры/)
     expect(validateRegistration({ ...ok, pin2: '4821' })).toMatch(/не совпадают/)
+    expect(validateRegistration({ ...ok, pin2: '' })).toBe('Введи PIN еще раз.')
+    expect(validateRegistration({ ...ok, pin2: undefined })).toBe('Введи PIN еще раз.')
   })
   it('слишком простой PIN — сразу подсказка, без похода в сеть', () => {
     expect(validateRegistration({ ...ok, pin: '1234', pin2: '1234' })).toMatch(/простой PIN/)
