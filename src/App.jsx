@@ -16,7 +16,7 @@ import { useAccentSync } from './hooks/useAccentSync.js'
 import LoginScreen from './screens/LoginScreen.jsx'
 import InviteScreen from './screens/InviteScreen.jsx'
 import { inviteFromUrl, stripInvite } from './lib/invite.js'
-import { clearPending } from './lib/joinRequest.js'
+import { captureSource, clearPending } from './lib/joinRequest.js'
 import Toast from './components/Toast.jsx'
 import AddFab from './components/AddFab.jsx'
 import Avatar from './components/Avatar.jsx'
@@ -77,6 +77,9 @@ export default function App() {
     if (clean) window.history.replaceState(window.history.state, '', clean)
     const noInvite = stripInvite(window.location.href)
     if (noInvite) window.history.replaceState(window.history.state, '', noInvite)
+    // Метка источника ?src= (v6.15.3): запомнить для заявки и убрать из адреса.
+    const noSrc = captureSource(window.location.href)
+    if (noSrc) window.history.replaceState(window.history.state, '', noSrc)
     // Ссылку открыли во вкладке, где приложение уже загружено: меняется только
     // фрагмент, страница не перезагружается — подхватываем токен здесь.
     const onHash = () => {

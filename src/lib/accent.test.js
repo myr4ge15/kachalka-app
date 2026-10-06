@@ -8,9 +8,9 @@ import {
 } from './accent.js'
 
 describe('accent: справочник', () => {
-  it('семь готовых акцентов, по умолчанию — вольт', () => {
+  it('семь готовых акцентов, по умолчанию — фиолет (v6.15.3)', () => {
     expect(ACCENTS.map((a) => a.id)).toEqual(['volt', 'teal', 'red', 'yellow', 'pink', 'violet', 'peach'])
-    expect(DEFAULT_ACCENT).toBe('volt')
+    expect(DEFAULT_ACCENT).toBe('violet')
     expect(new Set(ACCENTS.map((a) => a.id)).size).toBe(ACCENTS.length)
   })
 })

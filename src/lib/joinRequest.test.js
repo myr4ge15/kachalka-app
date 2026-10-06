@@ -1,6 +1,6 @@
 import { describe, expect, it, vi } from 'vitest'
 import {
-  JOIN_KEY, JoinError, clearPending, joinErrorText, joinPollDelay, loadPending, pollJoin, randomSecret, savePending,
+  JOIN_KEY, JoinError, SOURCE_KEY, captureSource, clearPending, loadSource, normSource, joinErrorText, joinPollDelay, loadPending, pollJoin, randomSecret, savePending,
   submitJoin, validateJoin,
 } from './joinRequest.js'
 
@@ -72,5 +72,28 @@ describe('joinRequest', () => {
     expect(joinPollDelay(599_999)).toBe(15_000)
     expect(joinPollDelay(600_000)).toBe(60_000)
     expect(joinPollDelay(24 * 3600_000)).toBe(60_000)
+  })
+
+  it('метка источника ?src=: запоминается, убирается из адреса, мусор отбрасывается (v6.15.3)', () => {
+    const st = memStorage()
+    expect(captureSource('https://x.io/kachalka-app/?src=TG#a', st)).toBe('/kachalka-app/#a')
+    expect(loadSource(st)).toBe('tg')
+    expect(captureSource('https://x.io/kachalka-app/?push=update&src=ig', st)).toBe('/kachalka-app/?push=update')
+    expect(loadSource(st)).toBe('ig')
+    expect(captureSource('https://x.io/kachalka-app/?src=%3Cscript%3E', st)).toBe('/kachalka-app/')
+    expect(loadSource(st)).toBe('ig') // мусор не перезаписывает
+    expect(captureSource('https://x.io/kachalka-app/', st)).toBeNull()
+    expect(normSource('a'.repeat(21))).toBeNull()
+    st.setItem(SOURCE_KEY, 'плохо'); expect(loadSource(st)).toBeNull()
+  })
+
+  it('заявка уходит с меткой источника, без метки — null', async () => {
+    const st = memStorage()
+    const fetchImpl = reply(200, { id: 'r1' })
+    await submitJoin({ name: 'Вася', about: '' }, { fetchImpl, storage: st })
+    expect(JSON.parse(fetchImpl.mock.calls[0][1].body).source).toBeNull()
+    st.setItem(SOURCE_KEY, 'tg')
+    await submitJoin({ name: 'Вася', about: '' }, { fetchImpl, storage: st })
+    expect(JSON.parse(fetchImpl.mock.calls[1][1].body).source).toBe('tg')
   })
 })

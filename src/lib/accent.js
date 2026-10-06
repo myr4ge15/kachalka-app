@@ -14,7 +14,8 @@
 // Чистый модуль: без React, Dexie и сети.
 
 export const ACCENT_KEY = 'gym_app_accent'
-export const DEFAULT_ACCENT = 'volt'
+// v6.15.3: по умолчанию — фиолет (в цвет логотипа и анонсов), до этого — вольт.
+export const DEFAULT_ACCENT = 'violet'
 export const CUSTOM = 'custom'
 export const DEFAULT_HUE = 200
 

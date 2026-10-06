@@ -13,9 +13,9 @@ function memStorage(init) {
 }
 
 describe('AppearanceScreen', () => {
-  it('по умолчанию выбран вольт', () => {
+  it('по умолчанию выбран фиолет (v6.15.3)', () => {
     render(<AppearanceScreen onBack={() => {}} storage={memStorage()} root={document.createElement('div')} />)
-    expect(screen.getByRole('radio', { name: 'Вольт' })).toHaveAttribute('aria-checked', 'true')
+    expect(screen.getByRole('radio', { name: 'Фиолет' })).toHaveAttribute('aria-checked', 'true')
     expect(screen.getAllByRole('radio')).toHaveLength(8)
   })
 

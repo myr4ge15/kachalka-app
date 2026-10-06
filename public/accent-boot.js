@@ -7,7 +7,7 @@
 (function () {
   var root = document.documentElement
   var PRESETS = ['volt', 'teal', 'red', 'yellow', 'pink', 'violet', 'peach']
-  var id = 'volt'
+  var id = 'violet' // = DEFAULT_ACCENT в src/lib/accent.js (v6.15.3; до этого — volt)
   var hue = 200
   try {
     var v = JSON.parse(localStorage.getItem('gym_app_accent') || 'null')

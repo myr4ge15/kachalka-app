@@ -48,6 +48,39 @@ export function randomSecret() {
   return btoa(s).replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/, '')
 }
 
+// --- откуда пришел человек (v6.15.3) ---
+// Метка в ссылке анонса: …/kachalka-app/?src=tg (Telegram), ?src=ig (Instagram) и т.п.
+// При открытии запоминаем ее на устройстве и убираем из адреса; с заявкой она уходит
+// владельцу строкой «Откуда: …» в Telegram. Без метки — «напрямую». Только латиница,
+// цифры, _ и -, до 20 символов: это подпись, а не данные.
+export const SOURCE_KEY = 'gym_app_src'
+export const SOURCE_PARAM = 'src'
+const SOURCE_RE = /^[a-z0-9_-]{1,20}$/
+
+export function normSource(v) {
+  const s = String(v ?? '').trim().toLowerCase()
+  return SOURCE_RE.test(s) ? s : null
+}
+
+// Запомнить метку из адреса. Возвращает адрес без нее (для history.replaceState)
+// или null, если метки не было. Последняя метка побеждает: важнее, откуда пришли сейчас.
+export function captureSource(href, storage = globalThis.localStorage) {
+  try {
+    const url = new URL(href)
+    if (!url.searchParams.has(SOURCE_PARAM)) return null
+    const src = normSource(url.searchParams.get(SOURCE_PARAM))
+    if (src) { try { storage?.setItem(SOURCE_KEY, src) } catch { /* приватный режим */ } }
+    url.searchParams.delete(SOURCE_PARAM)
+    return url.pathname + url.search + url.hash
+  } catch {
+    return null
+  }
+}
+
+export function loadSource(storage = globalThis.localStorage) {
+  try { return normSource(storage?.getItem(SOURCE_KEY)) } catch { return null }
+}
+
 // --- локальная заявка (localStorage может быть недоступен — тогда просто нет) ---
 export function loadPending(storage = globalThis.localStorage) {
   try {
@@ -90,7 +123,8 @@ async function call(payload, fetchImpl = fetch) {
 // Возвращает сохраненную заявку { id, secret, name, at }.
 export async function submitJoin({ name, about, website = '' }, { fetchImpl, storage, now = Date.now } = {}) {
   const secret = randomSecret()
-  const body = await call({ action: 'submit', name: String(name).trim(), about: String(about ?? '').trim(), website, secret }, fetchImpl)
+  const source = loadSource(storage) // откуда пришел (метка ?src= из ссылки анонса), null — напрямую
+  const body = await call({ action: 'submit', name: String(name).trim(), about: String(about ?? '').trim(), website, secret, source }, fetchImpl)
   if (typeof body.id !== 'string') throw new JoinError('server')
   const pending = { id: body.id, secret, name: String(name).trim(), at: now() }
   savePending(pending, storage)

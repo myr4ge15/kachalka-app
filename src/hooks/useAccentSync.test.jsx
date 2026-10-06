@@ -24,13 +24,13 @@ describe('useAccentSync (v6.2.4: только свой выбор)', () => {
     expect(stored(storage)).toEqual({ id: 'peach', hue: 200, by: 'u1' })
   })
 
-  it('значение без владельца (залито v6.2.0) игнорируется, чужой цвет устройства → вольт', () => {
+  it('значение без владельца (залито v6.2.0) игнорируется, чужой цвет устройства → акцент по умолчанию', () => {
     vi.mocked(useLiveQuery).mockReturnValue({ id: 'pink', hue: 200 })
     const storage = mem('{"id":"teal","hue":200,"by":"u2"}')
     const root = document.createElement('div')
     renderHook(() => useAccentSync('u1', { storage, root }))
-    expect(root.dataset.accent).toBe('volt')
-    expect(stored(storage).id).toBe('volt')
+    expect(root.dataset.accent).toBe('violet')
+    expect(stored(storage).id).toBe('violet')
     expect(stored(storage).by).toBeUndefined()
   })
 
@@ -38,7 +38,7 @@ describe('useAccentSync (v6.2.4: только свой выбор)', () => {
     vi.mocked(useLiveQuery).mockReturnValue({ id: 'pink', hue: 200, by: 'u2' })
     const root = document.createElement('div')
     renderHook(() => useAccentSync('u1', { storage: mem(), root }))
-    expect(root.dataset.accent).toBe('volt')
+    expect(root.dataset.accent).toBe('violet')
   })
 
   it('в учетке пусто, на устройстве свой выбор — оставляем как есть', () => {
