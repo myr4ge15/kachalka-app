@@ -3100,7 +3100,11 @@ label.act.busy { opacity: .55; pointer-events: none; }
 }
 /* Сколько всего — неизвестно (манифест не разобран): «бегущая» полоска. */
 .splash-upd-bar--busy .splash-upd-fill { width: 35%; animation: splash-upd-run 1.3s var(--ease-in-out) infinite; }
-.splash-upd-cap { margin: 0; font-size: 12px; color: var(--muted); font-variant-numeric: tabular-nums; line-height: 1.4; }
+/* Цифры пропорциональные: моноширинные (tabular-nums) в Onest дают «1 6» с дырой.
+   Счетчик прижат влево, процент вправо — строка не скачет при смене цифр. */
+.splash-upd-cap { margin: 0; font-size: 12px; color: var(--muted); font-variant-numeric: lining-nums proportional-nums; line-height: 1.4; }
+.splash-upd-cap--count { align-self: stretch; display: flex; justify-content: space-between; gap: 12px; }
+.splash-upd-pct { color: var(--text); font-weight: 600; }
 .splash-upd--note .splash-upd-bar { display: none; }
 .splash-upd--note .splash-upd-cap { font-size: 13px; }
 @keyframes splash-upd-run { from { transform: translateX(-100%); } to { transform: translateX(290%); } }
