@@ -146,6 +146,10 @@
   Шрифты: Onest (текст) + Sofia Sans Condensed 800/900 (`--font-display`: цифры и заголовки экранов),
   оба самохостинг. `backdrop-filter` — только на липких слоях, НЕ на карточках длинных списков
   (перф). Уважать `prefers-reduced-motion`.
+  **Цифры Onest (v6.14.2):** в моноширинных цифрах (`tabular-nums`) «1» стоит в широкой клетке («1ПМ 1 3 3»),
+  а двоеточие сидит на высоте строчных («5:27»). Поэтому на `body` — `lining-nums proportional-nums` и
+  `font-feature-settings: "case" 1` (у Onest «case» меняет только `-:–—·`), кнопки и поля наследуют.
+  `tabular-nums` локально НЕ включать для Onest; допустим только на `--font-display` (там «1» ровная).
   - **Пользовательское раскрытие не должно теряться после изменения высоты:** раскрытая карточка,
     строка аккордеона или явно выбранный элемент после React-commit центрируется в ближайшем
     скроллере через общий `hooks/useRevealFocus.js` (`block:'center'`; при `reduced-motion` —
@@ -357,6 +361,11 @@ updated_at)` + `upsert_user_meta` (`supabase/user-meta.sql`, RLS «только 
   плавающие `@2`); транзитивные — в `supabase/functions/deno.lock` (`deno.json` рядом). Поднял версию —
   во ВСЕХ импортах сразу и `deno cache */index.ts` из `supabase/functions`. Тесты Edge:
   `DENO_NO_PACKAGE_JSON=1 deno test --allow-env` оттуда же (иначе Deno цепляет `package.json` клиента).
+- **Тесты сервера в CI (v6.14.2)** — только в ПРИВАТНОМ репо: `.github/workflows/server-tests.yml`
+  (публичный `.gitignore` его исключает; в приватный — `pgit add -f`). Джобы: SQL-тесты
+  `supabase/tests/*.test.mjs` на PGlite через `node supabase/tests/run-all.mjs <pglite/dist/index.js>`
+  и `deno test` + `deno check */index.ts` в `supabase/functions` (`--frozen`: lock обязан быть свежим).
+  Правка SQL-канона → свой `*.test.mjs` (синтетика, повторный накат, ACL); новый файл подхватывается сам.
 - **ACL после каждого `create/create or replace` проверять отрицательно.** В Supabase default
   privileges могут снова выдать `ALL/EXECUTE` клиентским ролям. Канон `login_users`: сначала
   `revoke all` у `PUBLIC`/`anon`/`authenticated`, затем только явно нужный `SELECT`; простой view

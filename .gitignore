@@ -47,5 +47,9 @@ supabase/
 # git-каталог того самого приватного репозитория (рабочая папка у них общая)
 .private-git/
 
+# CI приватного репозитория (тесты SQL на PGlite + Edge Functions на Deno) — лежит в общем
+# .github/, но коммитится только туда (pgit add -f); публичному CI сервер недоступен.
+.github/workflows/server-tests.yml
+
 # разовый локальный генератор PNG-иконок (рецепт пересборки — в docs/ПАСПОРТ.md), в репо не нужен
 scripts/gen-icons.mjs

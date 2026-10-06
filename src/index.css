@@ -165,10 +165,21 @@ body {
   margin: 0;
   background: var(--bg);
   color: var(--text);
+  /* Цифры Onest (v6.14.2) — для всего приложения одно правило, а не по месту:
+     • пропорциональные: моноширинная «1» у Onest стоит в широкой ячейке — «1ПМ 1 3 3»,
+       «7:1 0» (раньше tabular-nums стоял на десятке элементов, правки шли по одной);
+     • case: двоеточие, тире и «·» встают по центру цифр — иначе в «5:27» двоеточие
+       проваливается на уровень строчных букв.
+     Моноширинные цифры — только там, где столбец обязан стоять ровно И шрифт их держит
+     (крупные цифры рейтинга на --font-display). */
+  font-variant-numeric: lining-nums proportional-nums;
+  font-feature-settings: "case" 1;
 }
 
-button { font-family: inherit; cursor: pointer; }
-input { font-family: inherit; }
+/* Поля и кнопки шрифтовые настройки по умолчанию не наследуют — берем у body. */
+button { font-family: inherit; font-variant-numeric: inherit; font-feature-settings: inherit; cursor: pointer; }
+input { font-family: inherit; font-variant-numeric: inherit; font-feature-settings: inherit; }
+select, textarea { font-variant-numeric: inherit; font-feature-settings: inherit; }
 
 /* ---------- layout ---------- */
 /* Приложение занимает ровно динамическую высоту вьюпорта (100dvh, без учета
@@ -766,15 +777,14 @@ input { font-family: inherit; }
 }
 .set-add:active { background: var(--surface-2); }
 /* Темп дистанции под подходами (v6.12.0, ExerciseCard). */
-/* Строки-подписи — пропорциональные цифры (v6.14.1): моноширинные в Onest дают «7:1 0» с дырой. */
-.set-pace { margin: 2px 2px 8px; font-size: 13px; font-variant-numeric: lining-nums proportional-nums; }
+.set-pace { margin: 2px 2px 8px; font-size: 13px; }
 .pr-pace { font-size: 12px; font-weight: 400; }
 
 /* Панель автопрогрессии: прошлая мелко, рекомендация крупно, причина строкой. */
 .ap { margin-top: 8px; padding: 10px 12px; border-radius: 13px; background: var(--bg); }
 .ap-row { display: flex; justify-content: space-between; align-items: baseline; }
 .ap-lbl, .ap-when { color: var(--muted); font-size: 12px; }
-.ap-prev { color: var(--muted); font-size: 13px; font-weight: 600; margin-top: 2px; font-variant-numeric: lining-nums proportional-nums; }
+.ap-prev { color: var(--muted); font-size: 13px; font-weight: 600; margin-top: 2px; }
 .ap-rec-lbl { font-size: 12px; font-weight: 600; display: flex; align-items: center; gap: 4px; margin-top: 8px; }
 .ap-rec-lbl.up { color: var(--acc-2); }
 .ap-rec-lbl.same { color: var(--muted); }
@@ -1466,7 +1476,7 @@ html[data-update]:not([data-composer]) .content { padding-top: 64px; }
   color: var(--muted); font-family: inherit; font-size: var(--fs-meta); font-weight: var(--fw-strong); padding-top: 0;
 }
 .prog-sets { line-height: 1.4; word-break: break-word; }
-.prog-val { text-align: right; font-weight: var(--fw-strong); white-space: nowrap; font-variant-numeric: tabular-nums; }
+.prog-val { text-align: right; font-weight: var(--fw-strong); white-space: nowrap; }
 .prog-orm { display: block; font-size: var(--fs-meta); font-weight: 400; color: var(--muted); }
 .prog-row.pr .prog-val { color: var(--g4); }
 .prog-row.pr .prog-orm { color: var(--muted); }
@@ -1693,7 +1703,7 @@ img.avatar-lg.has-img {
   color: var(--text); font-variant-numeric: tabular-nums;
 }
 .lb-row.me .lb-weight { color: var(--acc-2); }
-.lb-sub { font-size: 12px; line-height: 1.2; font-variant-numeric: tabular-nums; }
+.lb-sub { font-size: 12px; line-height: 1.2; }
 .lb-note { margin: 8px 2px 0; font-size: 11px; line-height: 1.4; }
 .lb-empty { margin: 4px 2px 0; font-size: 13px; line-height: 1.4; }
 
@@ -1750,7 +1760,7 @@ img.avatar-lg.has-img {
   min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
 }
 .rival-detail-row strong { font-family: var(--font-display); font-size: 17px; font-weight: 900; font-variant-numeric: tabular-nums; }
-.rival-detail-row .muted { font-size: 11px; font-variant-numeric: tabular-nums; }
+.rival-detail-row .muted { font-size: 11px; }
 @media (prefers-reduced-motion: reduce) {
   .rival-progress { transition: none; }
 }
@@ -1946,7 +1956,7 @@ img.avatar-lg.has-img {
 .goal-stepper .val .val-field {
   width: 4ch; min-width: 0; padding: 0; border: none; background: none;
   color: var(--text); font-size: 20px; font-weight: 400; text-align: center;
-  font-variant-numeric: tabular-nums; -moz-appearance: textfield;
+  -moz-appearance: textfield;
   /* Ширина по содержимому — число с единицей стоит ровно по центру ячейки (v6.3.5);
      где field-sizing нет, остается 4ch с текстом по центру. */
   field-sizing: content; min-width: 1ch; max-width: 6ch;
@@ -1988,7 +1998,7 @@ img.avatar-lg.has-img {
   min-width: 25px; margin-bottom: 9px; padding: 2px 8px;
   border: 1px solid var(--border); border-radius: 999px;
   color: var(--muted); background: var(--surface); font-size: 11px; font-weight: 600;
-  text-align: center; font-variant-numeric: tabular-nums;
+  text-align: center;
 }
 .pr-list { list-style: none; margin: 0; padding: 0; background: var(--surface); border: 1px solid var(--border); border-radius: 16px; overflow: hidden; }
 .pr-list li { border-top: 1px solid var(--border); }
@@ -2428,7 +2438,7 @@ label.act.busy { opacity: .55; pointer-events: none; }
 /* «Написать разработчику» (v6.11.0): экран участника и раздел «Обращения» в админке. */
 .fb-intro { margin: 0 2px 12px; line-height: 1.45; }
 .fb-text { min-height: 112px; resize: vertical; font: inherit; line-height: 1.4; }
-.fb-count { align-self: flex-end; margin-top: -4px; font-size: 12px; color: var(--muted); font-variant-numeric: tabular-nums; }
+.fb-count { align-self: flex-end; margin-top: -4px; font-size: 12px; color: var(--muted); }
 .fb-count.over { color: var(--red); }
 .fb-attach { min-height: 46px; }
 .fb-shot { display: flex; flex-direction: column; gap: 8px; }
@@ -2682,7 +2692,7 @@ label.act.busy { opacity: .55; pointer-events: none; }
 /* Числа над столбиками — обычным шрифтом и мельче: крупный display-шрифт у Ритма
    один — итог слева. Нули не пишем: пустая неделя и так видна по плоской черточке
    (отзыв, v6.3.0). */
-.rh-num { height: var(--rh-num-h); font-size: 13px; font-weight: 600; line-height: var(--rh-num-h); color: var(--muted); font-variant-numeric: tabular-nums;
+.rh-num { height: var(--rh-num-h); font-size: 13px; font-weight: 600; line-height: var(--rh-num-h); color: var(--muted);
   /* v6.14.1: цифра садится прямо над своим столбиком, а не в общий ряд по верху —
      сдвиг вниз на «пустую» часть высоты графика. Высота колонки не меняется. */
   position: relative; z-index: 2;
@@ -3215,7 +3225,7 @@ label.act.busy { opacity: .55; pointer-events: none; }
 .cal-day {
   position: relative; width: 42px; height: 42px; border-radius: 50%;
   display: grid; place-items: center; border: 1px solid transparent; background: none;
-  color: var(--text); font-size: 15px; font-variant-numeric: tabular-nums; cursor: pointer;
+  color: var(--text); font-size: 15px; cursor: pointer;
 }
 .cal-day:not(.trained):not(:disabled) { color: var(--muted); }
 .cal-day.trained { background: var(--acc); color: var(--on-acc); font-weight: 600; }

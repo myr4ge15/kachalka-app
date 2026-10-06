@@ -107,10 +107,10 @@ export function paceSecPerKm(km, sec) {
   return t / d
 }
 
-// '5:12 /км'. null/мусор → ''.
+// '5:12 мин/км' (v6.14.2: было «/км» — одинокая косая читалась как сбой). null/мусор → ''.
 export function fmtPace(secPerKm) {
   if (!Number.isFinite(secPerKm) || secPerKm <= 0) return ''
-  return `${fmtTime(secPerKm)} /км`
+  return `${fmtTime(secPerKm)} мин/км`
 }
 
 // Минимальная дистанция для «лучшего темпа»: 200 м рывком не должны давать рекорд.

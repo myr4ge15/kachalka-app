@@ -38,7 +38,7 @@ describe('metric: дистанция', () => {
   it('темп: сек/км, лучший — только от 1 км', () => {
     expect(paceSecPerKm(5, 1500)).toBe(300)
     expect(paceSecPerKm(0, 1500)).toBeNull()
-    expect(fmtPace(312)).toBe('5:12 /км')
+    expect(fmtPace(312)).toBe('5:12 мин/км')
     expect(fmtPace(null)).toBe('')
     // 0,4 км за 60 с (2:30/км) — рывок, рекорд темпа не дает
     expect(bestPace([{ weight: 0.4, reps: 60 }, { weight: 5, reps: 1550 }, { weight: 2, reps: 560 }])).toBe(280)

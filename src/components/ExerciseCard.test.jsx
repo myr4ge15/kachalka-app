@@ -247,7 +247,7 @@ describe('ExerciseCard — дистанция (v6.12.0)', () => {
     expect(container.querySelector('.sets-head').textContent).toBe('#кммин:сек')
     expect(screen.getByLabelText('Дистанция, км, подход 1')).toHaveValue('5')
     expect(screen.getByLabelText('Время, подход 1')).toBeInTheDocument()
-    expect(screen.getByText('Темп: 5:00 /км')).toBeInTheDocument()
+    expect(screen.getByText('Темп: 5:00 мин/км')).toBeInTheDocument()
   })
 
   it('без км — подсказка вместо темпа; короткий отрезок — темп для ориентира', () => {
@@ -257,7 +257,7 @@ describe('ExerciseCard — дистанция (v6.12.0)', () => {
       onReplace={vi.fn()} onRemove={vi.fn()} onRevertProg={vi.fn()} onApplyProg={vi.fn()}
       onToggleProgSettings={vi.fn()} onChangeProgSettings={vi.fn()} onUpdateSet={vi.fn()}
       onStep={vi.fn()} onAddSet={vi.fn()} onRemoveSet={vi.fn()} />)
-    expect(screen.getByText('Темп: 3:00 /км')).toBeInTheDocument()
+    expect(screen.getByText('Темп: 3:00 мин/км')).toBeInTheDocument()
   })
 
   it('ввод км с запятой уходит точкой', () => {
