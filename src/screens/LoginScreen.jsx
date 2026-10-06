@@ -17,7 +17,7 @@ import JoinRequestForm from '../components/JoinRequestForm.jsx'
 //   • Новое устройство (или другой человек) — «Войти по имени»: имя + PIN, онлайн.
 //     Сервер прощает регистр, пробелы и знаки и узнает однозначное начало имени.
 //   • «Забыть на этом устройстве» — убрать учетку из пикера (на экране PIN).
-//   • «Хочу в круг» — заявка владельцу; одобрено → регистрация по приглашению
+//   • «Попросить приглашение» (до 6.13.3 — «Хочу в круг») — заявка владельцу; одобрено → регистрация по приглашению
 //     (onInvite(token) → InviteScreen).
 export default function LoginScreen({ onLogin, onInvite }) {
   const [known, setKnown] = useState([])
@@ -52,7 +52,7 @@ export default function LoginScreen({ onLogin, onInvite }) {
     load()
   }, [])
 
-  // Ожидающая заявка «Хочу в круг»: при открытии экрана спрашиваем статус.
+  // Ожидающая заявка «Попросить приглашение»: при открытии экрана спрашиваем статус.
   async function checkJoin(p = pending) {
     if (!p || p.token || !navigator.onLine) return
     try {
@@ -157,12 +157,18 @@ export default function LoginScreen({ onLogin, onInvite }) {
 
   const mark = (
     <div className="login-mark" aria-hidden="true">
-      <svg viewBox="0 0 24 24" width="30" height="30" fill="none" stroke="currentColor"
-        strokeWidth="2.2" strokeLinecap="round"><path d="M1.5 12h21" /><rect x="3" y="8.5" width="2.6" height="7" rx="1" fill="currentColor" stroke="none" /><rect x="6.4" y="6" width="3" height="12" rx="1.2" fill="currentColor" stroke="none" /><rect x="14.6" y="6" width="3" height="12" rx="1.2" fill="currentColor" stroke="none" /><rect x="18.4" y="8.5" width="2.6" height="7" rx="1" fill="currentColor" stroke="none" /></svg>
+      {/* Знак приложения — та же штанга, что на сплэше (index.html #splash), без анимации. */}
+      <svg viewBox="37 62 126 76" width="84" height="51" focusable="false">
+        <rect className="login-mark-bar" x="37.5" y="93.75" width="125" height="12.5" rx="6.25" />
+        <rect x="59.4" y="68.75" width="13.3" height="62.5" rx="4.7" />
+        <rect x="127.3" y="68.75" width="13.3" height="62.5" rx="4.7" />
+        <rect x="43.75" y="76.6" width="13.3" height="46.9" rx="4.7" />
+        <rect x="143" y="76.6" width="13.3" height="46.9" rx="4.7" />
+      </svg>
     </div>
   )
 
-  // Статус заявки «Хочу в круг» (над формами входа).
+  // Статус заявки «Попросить приглашение» (над формами входа).
   let joinCard = null
   if (pending?.token) {
     joinCard = (
@@ -200,7 +206,7 @@ export default function LoginScreen({ onLogin, onInvite }) {
       <div className="screen center">
         <div className="card login-card invite-card">
           {mark}
-          <h1 className="title">Хочу в круг</h1>
+          <h1 className="title">Попросить приглашение</h1>
           <JoinRequestForm
             onBack={goPick}
             onSubmitted={(p) => { setPending(p); setJoinNote(null); goPick() }}
@@ -219,12 +225,12 @@ export default function LoginScreen({ onLogin, onInvite }) {
           )}
           {mark}
           <h1 className="title">Журнал тренировок</h1>
-          <p className="muted login-sub">Введи свое имя и PIN — как в приложении у друзей.</p>
+          <p className="muted login-sub">Введи свое имя и PIN</p>
           {joinCard}
           <NameLoginForm onLogin={onLogin} showError={showError} error={error} setError={setError} />
           {!pending && (
             <div className="login-alt">
-              <button className="link-btn" onClick={() => { setError(''); setMode('join') }}>Хочу в круг</button>
+              <button className="link-btn" onClick={() => { setError(''); setMode('join') }}>Попросить приглашение</button>
             </div>
           )}
         </div>
@@ -251,7 +257,7 @@ export default function LoginScreen({ onLogin, onInvite }) {
           </div>
           <div className="login-alt">
             <button className="link-btn" onClick={() => { setError(''); setMode('name') }}>Войти под другим именем</button>
-            {!pending && <button className="link-btn" onClick={() => { setError(''); setMode('join') }}>Хочу в круг</button>}
+            {!pending && <button className="link-btn" onClick={() => { setError(''); setMode('join') }}>Попросить приглашение</button>}
           </div>
         </div>
       </div>

@@ -400,9 +400,12 @@ input { font-family: inherit; }
 }
 .login-sub { margin-top: 6px; }
 .login-mark {
-  width: 60px; height: 60px; margin: 0 auto 14px; border-radius: 18px;
-  display: grid; place-items: center; background: var(--acc); color: var(--on-acc);
+  width: 84px; margin: 0 auto 16px;
+  display: grid; place-items: center; color: var(--acc);
 }
+/* Знак как на сплэше: блины — акцент, гриф — светлый. */
+.login-mark svg { display: block; fill: currentColor; }
+.login-mark .login-mark-bar { fill: var(--text); }
 .user-list { display: flex; flex-direction: column; gap: 8px; margin-top: 18px; text-align: left; }
 .user-btn {
   display: flex; align-items: center; gap: 12px; min-height: 56px; padding: 10px 16px;
