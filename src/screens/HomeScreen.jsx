@@ -13,6 +13,7 @@ import { byGender } from '../lib/gender.js'
 import { rhythmChart, fmtAvg, avgWord, mondayLabel } from '../lib/rhythmChart.js'
 import { useRevealFocus } from '../hooks/useRevealFocus.js'
 import CardsSkeleton from '../components/CardsSkeleton.jsx'
+import EmptyHint from '../components/EmptyHint.jsx'
 
 // Полоска свежести в тизере — в каноническом порядке групп (стабильно), не по
 // приоритету «пора». Группы вне канона уезжают в конец.
@@ -51,6 +52,13 @@ const dayLabel = (ymd) => localDate(ymd).toLocaleDateString('ru-RU', { day: 'num
 //
 // Пропсы: user, onNavigate(tab), onNewWorkout() — прямой вход в композер новой
 // тренировки (минуя список хаба), общий с «+» в нижнем меню.
+// Что появится на Главной после первой тренировки (пустое состояние, v6.15.0).
+const HOME_EMPTY_ITEMS = [
+  { e: '🔥', t: 'Серия недель и тоннаж за месяц' },
+  { e: '🔋', t: 'Какие мышцы восстановились, а какие пора нагрузить' },
+  { e: '🏆', t: 'Рекорды и выводы по твоим тренировкам' },
+]
+
 export default function HomeScreen({ user, onNavigate, onNewWorkout, onOpenProgress, onOpenCalendar, focusRhythm = false, onFocusRhythmConsumed }) {
   const [openWeek, setOpenWeek] = useState(null)
   const [rhHelp, setRhHelp] = useState(false) // пояснение к Ритму свернуто (v6.5.1)
@@ -85,10 +93,13 @@ export default function HomeScreen({ user, onNavigate, onNewWorkout, onOpenProgr
     return (
       <div className="screen home">
         <h2 className="screen-title">{fmtHomeTitle()}</h2>
-        <p className="muted empty">
-          Здесь будет твоя сводка: последняя тренировка, серия, рекорды и авто-выводы.
-          Запиши первую тренировку 💪
-        </p>
+        <EmptyHint
+          emoji="💪"
+          title="Начни с первой тренировки"
+          items={HOME_EMPTY_ITEMS}
+        >
+          Запиши ее прямо в зале — после нее здесь появятся:
+        </EmptyHint>
         <button className="btn primary home-cta" onClick={() => onNewWorkout?.()}>
           + Записать тренировку
         </button>

@@ -7,11 +7,13 @@ import { showToast } from '../components/Toast.jsx'
 import { WHATS_NEW } from '../content/whatsNew.js'
 import { pendingWhatsNew, mergeForSheet, readMark, writeMark, SEEN_KEY } from '../lib/whatsNew.js'
 import { SESSION_KEY } from './useSession.js'
+import { isWelcomePending, markWelcomeDone } from '../lib/welcome.js'
 
 // Листы после входа/обновления (вынесено из App.jsx в v6.14.1, код — дословно):
-// «Что нового» и разовый вопрос «Включить уведомления?». Вопрос ждет, пока лист
-// закрыт и человек не пишет тренировку (historyBusy).
-// Возвращает { whatsNew, closeWhatsNew, pushAsk, closePushAsk }.
+// «Добро пожаловать» (v6.15.0, только новичку после регистрации), «Что нового» и
+// разовый вопрос «Включить уведомления?». Вопрос ждет, пока листы закрыты и
+// человек не пишет тренировку (historyBusy).
+// Возвращает { welcome, closeWelcome, whatsNew, closeWhatsNew, pushAsk, closePushAsk }.
 export function useLaunchSheets(user, historyBusy) {
   // «Что нового» (v6.4.0): лист один раз после обновления. knownDevice — сессия
   // была ДО запуска (тут уже входили): тогда при пустой отметке покажем свежую
@@ -19,6 +21,14 @@ export function useLaunchSheets(user, historyBusy) {
   const knownDeviceRef = useRef(null)
   if (knownDeviceRef.current === null) {
     knownDeviceRef.current = Boolean(readStoredUserId(storageGet('localStorage', SESSION_KEY)))
+  }
+  // «Добро пожаловать» (v6.15.0): отметку «pending» ставит регистрация по
+  // приглашению (App → markWelcomePending), закрытие листа — «done».
+  const [welcome, setWelcome] = useState(false)
+  useEffect(() => { setWelcome(isWelcomePending(user?.id)) }, [user?.id])
+  function closeWelcome() {
+    markWelcomeDone(user?.id)
+    setWelcome(false)
   }
   const [whatsNew, setWhatsNew] = useState(null)
   useEffect(() => {
@@ -38,7 +48,7 @@ export function useLaunchSheets(user, historyBusy) {
   // на этом устройстве; «Не сейчас» — больше не спрашиваем (есть тумблер в Настройках).
   const [pushAsk, setPushAsk] = useState(false)
   useEffect(() => {
-    if (!user?.id || whatsNew || historyBusy || pushAsk) return
+    if (!user?.id || welcome || whatsNew || historyBusy || pushAsk) return
     if (wasPushAsked(user.id)) return
     let alive = true
     const t = setTimeout(async () => {
@@ -48,12 +58,12 @@ export function useLaunchSheets(user, historyBusy) {
       } catch { /* не спросим сейчас — спросим при следующем запуске */ }
     }, 1200)
     return () => { alive = false; clearTimeout(t) }
-  }, [user?.id, whatsNew, historyBusy, pushAsk])
+  }, [user?.id, welcome, whatsNew, historyBusy, pushAsk])
   function closePushAsk(enabled) {
     if (user?.id) markPushAsked(user.id)
     setPushAsk(false)
     if (enabled) showToast({ emoji: '🔔', title: 'Уведомления включены' })
   }
 
-  return { whatsNew, closeWhatsNew, pushAsk, closePushAsk }
+  return { welcome, closeWelcome, whatsNew, closeWhatsNew, pushAsk, closePushAsk }
 }

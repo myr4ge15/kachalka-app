@@ -11,6 +11,7 @@ import { collectExercises, buildSeries, seriesValueSpread } from '../lib/progres
 import { buildGoalGuide, selectProgressGoal } from '../lib/progressGoal.js'
 import { localYmd, toDate } from '../lib/calendar.js'
 import CardsSkeleton from '../components/CardsSkeleton.jsx'
+import EmptyHint from '../components/EmptyHint.jsx'
 
 function fmtDate(iso) {
   const d = toDate(iso) // 'YYYY-MM-DD' — местный день, а не UTC-полночь
@@ -235,7 +236,9 @@ export default function ProgressScreen({
       {loading && <CardsSkeleton cards={3} />}
 
       {!loading && list.length === 0 && (
-        <p className="muted empty">Пока нет данных. Запиши тренировку.</p>
+        <EmptyHint emoji="📈" title="Здесь будет твой прогресс">
+          После первой тренировки выбери упражнение — увидишь график, лучший результат и личные рекорды.
+        </EmptyHint>
       )}
 
       {!loading && list.length > 0 && selected && (

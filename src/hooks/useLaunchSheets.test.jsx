@@ -14,6 +14,7 @@ vi.mock('../components/Toast.jsx', () => ({ showToast: vi.fn() }))
 import { useLaunchSheets } from './useLaunchSheets.js'
 import { SESSION_KEY } from './useSession.js'
 import { SEEN_KEY } from '../lib/whatsNew.js'
+import { markWelcomePending, welcomeKey } from '../lib/welcome.js'
 import { markPushAsked } from '../db/push.js'
 
 const ME = { id: 'u1', name: 'Дима' }
@@ -47,5 +48,23 @@ describe('useLaunchSheets', () => {
     act(() => result.current.closePushAsk(false))
     expect(result.current.pushAsk).toBe(false)
     expect(markPushAsked).toHaveBeenCalledWith('u1')
+  })
+
+  it('новичок после регистрации — «Добро пожаловать»; вопрос про пуши ждет, пока лист открыт', async () => {
+    markWelcomePending('u1')
+    const { result } = renderHook(() => useLaunchSheets(ME, false))
+    expect(result.current.welcome).toBe(true)
+    await act(async () => { await vi.advanceTimersByTimeAsync(2000) })
+    expect(result.current.pushAsk).toBe(false)
+    act(() => result.current.closeWelcome())
+    expect(result.current.welcome).toBe(false)
+    expect(localStorage.getItem(welcomeKey('u1'))).toBe('done')
+    await act(async () => { await vi.advanceTimersByTimeAsync(1300) })
+    expect(result.current.pushAsk).toBe(true)
+  })
+
+  it('без отметки регистрации (старый участник) приветствия нет', () => {
+    const { result } = renderHook(() => useLaunchSheets(ME, false))
+    expect(result.current.welcome).toBe(false)
   })
 })

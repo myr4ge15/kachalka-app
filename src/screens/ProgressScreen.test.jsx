@@ -87,4 +87,11 @@ describe('ProgressScreen — рекорд и форма (v6.5.1)', () => {
     expect(screen.getByText('Форма сейчас')).toBeInTheDocument()
     expect(screen.getByText('Рекорд')).toBeInTheDocument()
   })
+
+  it('без тренировок — подсказка, что здесь появится', () => {
+    vi.mocked(useLiveQuery).mockReturnValueOnce([]).mockReturnValueOnce([])
+    render(<ProgressScreen user={{ id: 'u1' }} />)
+    expect(screen.getByText('Здесь будет твой прогресс')).toBeInTheDocument()
+    expect(screen.getByText(/личные рекорды/)).toBeInTheDocument()
+  })
 })

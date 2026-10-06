@@ -122,6 +122,7 @@ describe('FeedScreen', () => {
     mocks.priv = true
     renderFeed()
     expect(screen.getByText(/Попроси админа добавить друзей/)).toBeInTheDocument()
+    expect(screen.getByText('Лента твоего круга')).toBeInTheDocument()
     expect(screen.getByText(/Приватный режим/)).toBeInTheDocument()
     expect(screen.queryByTestId('leaderboard')).toBeNull()
   })

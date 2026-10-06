@@ -24,6 +24,8 @@ import ScreenSkeleton from './components/ScreenSkeleton.jsx'
 import ErrorBoundary from './components/ErrorBoundary.jsx'
 import { lazyScreen } from './components/lazyScreen.jsx'
 import WhatsNewSheet from './components/WhatsNewSheet.jsx'
+import WelcomeSheet from './components/WelcomeSheet.jsx'
+import { markWelcomePending } from './lib/welcome.js'
 import SyncTools from './components/SyncTools.jsx'
 import TabIcon from './components/TabIcon.jsx'
 import ScreenCrash from './components/ScreenCrash.jsx'
@@ -93,8 +95,8 @@ export default function App() {
   // на нижнюю панель («Сохранить» / бар экспорта). Хаб сообщает об этом сам.
   const [historyBusy, setHistoryBusy] = useState(false)
 
-  // «Что нового» и вопрос про уведомления — hooks/useLaunchSheets.js.
-  const { whatsNew, closeWhatsNew, pushAsk, closePushAsk } = useLaunchSheets(user, historyBusy)
+  // «Добро пожаловать», «Что нового» и вопрос про уведомления — hooks/useLaunchSheets.js.
+  const { welcome, closeWelcome, whatsNew, closeWhatsNew, pushAsk, closePushAsk } = useLaunchSheets(user, historyBusy)
   // Строка новой версии (UpdatePrompt, вне App) не показывается посреди записи
   // тренировки — сообщаем ей через атрибут на <html> (CSS прячет).
   useEffect(() => {
@@ -190,7 +192,7 @@ export default function App() {
       <InviteScreen
         token={inviteToken}
         signedInAs={user ? (user.name || 'без имени') : null}
-        onRegistered={async (u) => { clearPending(); await handleLogin(u); setInviteToken(null) }}
+        onRegistered={async (u) => { clearPending(); markWelcomePending(u?.id); await handleLogin(u); setInviteToken(null) }}
         onCancel={() => setInviteToken(null)}
         onSignOut={handleLogout}
       />
@@ -394,14 +396,18 @@ export default function App() {
 
       <Toast />
       {/* «Что нового» — не поверх записи тренировки: дождемся выхода из композера. */}
-      {whatsNew && !historyBusy && (
+      {/* Новичку — сначала приветствие (v6.15.0); «Что нового» ему и так не показываем. */}
+      {welcome && !historyBusy && (
+        <WelcomeSheet onClose={closeWelcome} onStart={() => { closeWelcome(); startNewWorkout() }} />
+      )}
+      {whatsNew && !welcome && !historyBusy && (
         <WhatsNewSheet
           release={whatsNew}
           onDone={closeWhatsNew}
           onOpenAll={() => { closeWhatsNew(); goTab('whatsnew') }}
         />
       )}
-      {pushAsk && !whatsNew && !historyBusy && (
+      {pushAsk && !welcome && !whatsNew && !historyBusy && (
         <PushAskSheet onEnable={() => enablePush(user.id)} onClose={closePushAsk} />
       )}
     </div>

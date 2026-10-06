@@ -183,4 +183,35 @@ describe('LoginScreen', () => {
     expect(await screen.findByText(/не принял заявку/)).toBeInTheDocument()
     expect(join.clearPending).toHaveBeenCalled()
   })
+
+  it('заявка ждет — экран переспрашивает сам и открывает регистрацию без «Проверить»', async () => {
+    vi.useFakeTimers({ shouldAdvanceTime: true })
+    try {
+      vi.mocked(join.loadPending).mockReturnValue({ id: 'r1', secret: 's', name: 'Вася' })
+      vi.mocked(join.pollJoin).mockResolvedValue({ status: 'new' })
+      const onInvite = vi.fn()
+      render(<LoginScreen onLogin={() => {}} onInvite={onInvite} />)
+      expect(await screen.findByText('Заявка отправлена')).toBeInTheDocument()
+      await waitFor(() => expect(join.pollJoin).toHaveBeenCalledTimes(1))
+      vi.mocked(join.pollJoin).mockResolvedValue({ status: 'approved', token: 'TOKEN' })
+      await vi.advanceTimersByTimeAsync(5_000)
+      await waitFor(() => expect(onInvite).toHaveBeenCalledWith('TOKEN'))
+      expect(join.pollJoin).toHaveBeenCalledTimes(2)
+      // Токен получен — дальше не спрашиваем.
+      await vi.advanceTimersByTimeAsync(60_000)
+      expect(join.pollJoin).toHaveBeenCalledTimes(2)
+    } finally {
+      vi.useRealTimers()
+    }
+  })
+
+  it('заявка ждет — при возврате в приложение проверяет сразу', async () => {
+    vi.mocked(join.loadPending).mockReturnValue({ id: 'r1', secret: 's', name: 'Вася' })
+    vi.mocked(join.pollJoin).mockResolvedValue({ status: 'new' })
+    render(<LoginScreen onLogin={() => {}} />)
+    expect(await screen.findByText('Заявка отправлена')).toBeInTheDocument()
+    await waitFor(() => expect(join.pollJoin).toHaveBeenCalledTimes(1))
+    window.dispatchEvent(new Event('focus'))
+    await waitFor(() => expect(join.pollJoin).toHaveBeenCalledTimes(2))
+  })
 })

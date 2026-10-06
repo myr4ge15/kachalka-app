@@ -3337,6 +3337,48 @@ html[data-sheet-open] .content { overflow-y: hidden; }
 .push-ask-later { align-self: center; margin-top: 6px; min-height: 44px; font-weight: var(--fw-strong); flex-shrink: 0; }
 .push-ask-hint { color: var(--muted); font-size: 12px; text-align: center; margin: 2px 0 0; }
 .sheet .push-err { margin: 0 0 10px; }
+/* Лист «Добро пожаловать» (components/WelcomeSheet.jsx, v6.15.0) — сетка «Что нового»;
+   карточка держит высоту, чтобы кнопки не прыгали при листании. */
+.welcome-card {
+  display: flex; flex-direction: column; align-items: center; text-align: center;
+  min-height: 200px; padding: 6px 4px 0; touch-action: pan-y;
+}
+.welcome-em {
+  width: 64px; height: 64px; border-radius: 18px; background: var(--acc-soft);
+  display: grid; place-items: center; font-size: 32px; margin-bottom: 14px;
+}
+.welcome-title {
+  margin: 0 0 8px; font-family: var(--font-display); font-weight: 800; font-size: 26px;
+  line-height: 1.1; text-wrap: balance;
+}
+.welcome-text { margin: 0; max-width: 34ch; font-size: var(--fs-body); line-height: 1.45; color: var(--muted); }
+.welcome-dots { display: flex; justify-content: center; margin: 4px 0 0; flex-shrink: 0; }
+.welcome-dot {
+  width: 36px; height: 44px; padding: 0; border: none; background: none; cursor: pointer;
+  display: grid; place-items: center;
+}
+.welcome-dot::before {
+  content: ''; width: 8px; height: 8px; border-radius: 999px; background: var(--border);
+  transition: width var(--dur-fast), background-color var(--dur-fast);
+}
+.welcome-dot.on::before { width: 22px; background: var(--acc); }
+.welcome-go { margin-top: 6px; flex-shrink: 0; }
+.welcome-skip { align-self: center; margin-top: 6px; min-height: 44px; font-weight: var(--fw-strong); flex-shrink: 0; }
+/* Пустое состояние с подсказкой (components/EmptyHint.jsx, v6.15.0): Главная, Прогресс, Лента. */
+.empty-hint { display: flex; flex-direction: column; align-items: center; text-align: center; padding: 28px 0 4px; }
+.empty-hint-em {
+  width: 56px; height: 56px; border-radius: 16px; background: var(--surface);
+  display: grid; place-items: center; font-size: 28px; margin-bottom: 12px;
+}
+.empty-hint-title { margin: 0 0 6px; font-size: var(--fs-title); font-weight: var(--fw-strong); color: var(--text); text-wrap: balance; }
+.empty-hint-text { margin: 0; max-width: 36ch; font-size: var(--fs-label); line-height: 1.45; color: var(--muted); }
+.empty-hint-list {
+  list-style: none; margin: 14px 0 0; padding: 6px 14px; width: 100%; max-width: 380px; text-align: left;
+  background: var(--surface); border: 1px solid var(--border); border-radius: 14px;
+}
+.empty-hint-list li { display: flex; gap: 12px; align-items: center; padding: 8px 0; font-size: var(--fs-label); line-height: 1.35; }
+.empty-hint-list li + li { border-top: 1px solid color-mix(in srgb, var(--border) 60%, transparent); }
+.empty-hint-list .wn-em { background: var(--surface-2); }
 
 /* Экран «Обновления». */
 .wn-rel {

@@ -5,7 +5,7 @@ import {
   login as authLogin, loginByName, verifyPinOffline, dropForeignSession, noteLoginFailure,
   knownAccounts, forgetAccount, LoginError,
 } from '../lib/auth.js'
-import { loadPending, savePending, clearPending, pollJoin } from '../lib/joinRequest.js'
+import { loadPending, savePending, clearPending, pollJoin, joinPollDelay } from '../lib/joinRequest.js'
 import { onlyDigits } from '../lib/text.js'
 import BackButton from '../components/BackButton.jsx'
 import JoinRequestForm from '../components/JoinRequestForm.jsx'
@@ -58,8 +58,11 @@ export default function LoginScreen({ onLogin, onInvite }) {
   }, [])
 
   // Ожидающая заявка «Запросить приглашение»: при открытии экрана спрашиваем статус.
+  // Один запрос за раз: таймер, возврат во вкладку и «Проверить» могут совпасть.
+  const joinPolling = useRef(false)
   async function checkJoin(p = pending) {
-    if (!p || p.token || !navigator.onLine) return
+    if (!p || p.token || !navigator.onLine || joinPolling.current) return
+    joinPolling.current = true
     try {
       const res = await pollJoin(p)
       if (!alive.current) return
@@ -73,10 +76,43 @@ export default function LoginScreen({ onLogin, onInvite }) {
       } else if (res.status !== 'new' && res.status !== 'approved') {
         clearPending(); setPending(null) // claimed без токена / invalid — забыть молча
       }
-    } catch { /* нет сети — проверим в следующий раз */ }
+    } catch { /* нет сети — проверим в следующий раз */ } finally {
+      joinPolling.current = false
+    }
   }
   // eslint-disable-next-line react-hooks/exhaustive-deps
   useEffect(() => { checkJoin() }, [])
+
+  // Пока заявка ждет ответа, экран переспрашивает сам (v6.14.3): владелец нажал
+  // «Пригласить» — регистрация открывается без кнопки «Проверить». Часто первые
+  // минуты, потом реже (joinPollDelay); при возврате во вкладку, фокусе и появлении
+  // сети — сразу. Скрытую вкладку не дергаем.
+  const waitingJoinId = pending && !pending.token ? pending.id : null
+  useEffect(() => {
+    if (!waitingJoinId) return
+    const started = Date.now()
+    let timer = null
+    let stopped = false
+    const schedule = () => {
+      timer = setTimeout(async () => {
+        if (!document.hidden) await checkJoin()
+        if (!stopped) schedule()
+      }, joinPollDelay(Date.now() - started))
+    }
+    const checkNow = () => { if (!document.hidden) checkJoin() }
+    schedule()
+    document.addEventListener('visibilitychange', checkNow)
+    window.addEventListener('focus', checkNow)
+    window.addEventListener('online', checkNow)
+    return () => {
+      stopped = true
+      clearTimeout(timer)
+      document.removeEventListener('visibilitychange', checkNow)
+      window.removeEventListener('focus', checkNow)
+      window.removeEventListener('online', checkNow)
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [waitingJoinId])
 
   function goPick() {
     setSelected(null); setPin(''); setError(''); setConfirmForget(false)

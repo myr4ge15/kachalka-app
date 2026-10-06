@@ -136,6 +136,8 @@ describe('HomeScreen', () => {
     const onNewWorkout = vi.fn()
     render(<HomeScreen user={user} onNewWorkout={onNewWorkout} />)
 
+    expect(screen.getByText('Начни с первой тренировки')).toBeInTheDocument()
+    expect(screen.getByText(/пора нагрузить/)).toBeInTheDocument()
     fireEvent.click(screen.getByRole('button', { name: '+ Записать тренировку' }))
     expect(onNewWorkout).toHaveBeenCalledOnce()
   })

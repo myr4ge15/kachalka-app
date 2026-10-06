@@ -1,6 +1,6 @@
 import { describe, expect, it, vi } from 'vitest'
 import {
-  JOIN_KEY, JoinError, clearPending, joinErrorText, loadPending, pollJoin, randomSecret, savePending,
+  JOIN_KEY, JoinError, clearPending, joinErrorText, joinPollDelay, loadPending, pollJoin, randomSecret, savePending,
   submitJoin, validateJoin,
 } from './joinRequest.js'
 
@@ -63,5 +63,14 @@ describe('joinRequest', () => {
     storage.setItem(JOIN_KEY, '{"id":1}'); expect(loadPending(storage)).toBeNull()
     savePending({ id: 'a', secret: 'b' }, storage); expect(loadPending(storage)).toEqual({ id: 'a', secret: 'b' })
     expect(loadPending(null)).toBeNull()
+  })
+
+  it('joinPollDelay: часто первые 2 минуты, потом реже, дальше раз в минуту', () => {
+    expect(joinPollDelay(0)).toBe(5_000)
+    expect(joinPollDelay(119_999)).toBe(5_000)
+    expect(joinPollDelay(120_000)).toBe(15_000)
+    expect(joinPollDelay(599_999)).toBe(15_000)
+    expect(joinPollDelay(600_000)).toBe(60_000)
+    expect(joinPollDelay(24 * 3600_000)).toBe(60_000)
   })
 })

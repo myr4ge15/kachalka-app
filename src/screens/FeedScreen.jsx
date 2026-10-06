@@ -14,6 +14,7 @@ import CardsSkeleton from '../components/CardsSkeleton.jsx'
 import FeedPrBadge from '../components/FeedPrBadge.jsx'
 import ReactionBar from '../components/ReactionBar.jsx'
 import { useSpinPhase } from '../hooks/useSpinPhase.js'
+import EmptyHint from '../components/EmptyHint.jsx'
 
 // Рейтинг над постами на телефоне — свернут по умолчанию (v6.11.1): раньше он
 // всегда стоял раскрытым и отодвигал саму ленту. Выбор помним на устройстве для
@@ -260,9 +261,10 @@ export default function FeedScreen({ user, onOpenMember, flashId = null }) {
 
           {!loading && list.length === 0 && !error && (
             myPrivate ? (
-              <p className="muted empty">
-                Пока пусто. Попроси админа добавить друзей в твой круг.
-              </p>
+              <EmptyHint emoji="👥" title="Лента твоего круга">
+                Здесь появляются тренировки друзей — на них можно ставить реакции. Пока пусто.
+                Попроси админа добавить друзей в твой круг.
+              </EmptyHint>
             ) : (
               <p className="muted empty">Пока никто ничего не записал. Будь первым 💪</p>
             )
