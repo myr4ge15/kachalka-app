@@ -17,7 +17,7 @@
 
 export const WHATS_NEW = [
   {
-    version: '6.15.0',
+    version: '6.15.1',
     date: '2026-10-06',
     headline: 'Защита входа и 2FA для админки',
     main: [
