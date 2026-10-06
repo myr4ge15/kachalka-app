@@ -18,7 +18,7 @@ import JoinRequestForm from '../components/JoinRequestForm.jsx'
 //   • Новое устройство (или другой человек) — «Войти по имени»: имя + PIN, онлайн.
 //     Сервер прощает регистр, пробелы и знаки и узнает однозначное начало имени.
 //   • «Забыть на этом устройстве» — убрать учетку из пикера (на экране PIN).
-//   • «Запросить приглашение» (до 6.14.1 — «Попросить приглашение», до 6.13.3 — «Хочу в круг») — заявка владельцу; одобрено → регистрация по приглашению
+//   • «Запросить доступ» (до 6.16.0 — «Запросить приглашение», до 6.14.1 — «Попросить приглашение», до 6.13.3 — «Хочу в круг») — заявка владельцу; одобрено → регистрация по приглашению
 //     (onInvite(token) → InviteScreen).
 // Сколько ждать сервер при входе с пикера, прежде чем открыть приложение по кэшу.
 const LOGIN_ONLINE_TIMEOUT_MS = 8000
@@ -58,7 +58,7 @@ export default function LoginScreen({ onLogin, onInvite }) {
     load()
   }, [])
 
-  // Ожидающая заявка «Запросить приглашение»: при открытии экрана спрашиваем статус.
+  // Ожидающая заявка «Запросить доступ»: при открытии экрана спрашиваем статус.
   // Один запрос за раз: таймер, возврат во вкладку и «Проверить» могут совпасть.
   const joinPolling = useRef(false)
   async function checkJoin(p = pending) {
@@ -208,7 +208,7 @@ export default function LoginScreen({ onLogin, onInvite }) {
 
   const mark = <AppMark />
 
-  // Статус заявки «Запросить приглашение» (над формами входа).
+  // Статус заявки «Запросить доступ» (над формами входа).
   let joinCard = null
   if (pending?.token) {
     joinCard = (
@@ -246,7 +246,7 @@ export default function LoginScreen({ onLogin, onInvite }) {
       <div className="screen center">
         <div className="card login-card invite-card">
           {mark}
-          <h1 className="title">Запросить приглашение</h1>
+          <h1 className="title">Запросить доступ</h1>
           <JoinRequestForm
             onBack={goPick}
             onSubmitted={(p) => { setPending(p); setJoinNote(null); goPick() }}
@@ -270,7 +270,7 @@ export default function LoginScreen({ onLogin, onInvite }) {
           <NameLoginForm onLogin={onLogin} showError={showError} error={error} setError={setError} />
           {!pending && (
             <div className="login-alt">
-              <button className="link-btn" onClick={() => { setError(''); setMode('join') }}>Запросить приглашение</button>
+              <button className="link-btn" onClick={() => { setError(''); setMode('join') }}>Запросить доступ</button>
             </div>
           )}
         </div>
@@ -297,7 +297,7 @@ export default function LoginScreen({ onLogin, onInvite }) {
           </div>
           <div className="login-alt">
             <button className="link-btn" onClick={() => { setError(''); setMode('name') }}>Войти под другим именем</button>
-            {!pending && <button className="link-btn" onClick={() => { setError(''); setMode('join') }}>Запросить приглашение</button>}
+            {!pending && <button className="link-btn" onClick={() => { setError(''); setMode('join') }}>Запросить доступ</button>}
           </div>
         </div>
       </div>

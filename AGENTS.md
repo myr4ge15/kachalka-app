@@ -490,7 +490,7 @@ updated_at)` + `upsert_user_meta` (`supabase/user-meta.sql`, RLS «только 
    `feed` — Лента (`FeedScreen.jsx`, `ReactionBar.jsx`, `FeedPrBadge.jsx`); `rating` — рейтинг в Ленте
    (`DisciplineLeaderboard.jsx`, `RivalryCard.jsx`); `run` — подход бега в тренировке (`ExerciseCard.jsx`,
    `TimeInput.jsx`); `achievements` — Достижения (`AchievementsScreen.jsx`); `login` — вход на новом
-   телефоне (`LoginScreen.jsx`, `AppMark.jsx`); `join-pending` — заявка «Запросить приглашение» ждет
+   телефоне (`LoginScreen.jsx`, `AppMark.jsx`); `join-form` — форма «Запросить доступ» (`JoinRequestForm.jsx`); `join-pending` — заявка «Запросить доступ» ждет
    ответа (`LoginScreen.jsx`, карточка `.join-status`). Общее для всех кадров (шапка, таббар, `index.css`-токены, акцент) —
    визуально заметная правка → переснять все. Сценарий и данные съемки — `scripts/readme-shots.mjs`;
    новый экран в README — добавить его туда же. Скрипт упал на «подмена не нашла строку» — поправить

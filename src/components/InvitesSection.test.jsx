@@ -50,6 +50,25 @@ describe('InvitesSection (админка)', () => {
     await waitFor(() => expect(showToast).toHaveBeenLastCalledWith(expect.objectContaining({ title: 'Не скопировалось' })))
   })
 
+  it('«Поделиться» отдает текст приглашения со ссылкой внутри, без отдельного url (v6.16.1)', async () => {
+    api.create.mockResolvedValue({ id: 'i1', token: TOKEN, expires_at: '2026-10-12T00:00:00Z' })
+    const share = vi.fn().mockResolvedValue()
+    Object.defineProperty(navigator, 'share', { value: share, configurable: true })
+    try {
+      renderSec()
+      fireEvent.click(screen.getByRole('button', { name: 'Создать ссылку' }))
+      await screen.findByLabelText('Ссылка-приглашение')
+      fireEvent.click(screen.getByRole('button', { name: 'Поделиться' }))
+      await waitFor(() => expect(share).toHaveBeenCalledTimes(1))
+      const arg = share.mock.calls[0][0]
+      expect(arg.url).toBeUndefined()
+      expect(arg.text).toContain('Зову тебя')
+      expect(arg.text).toContain(`#invite=${TOKEN}`)
+    } finally {
+      delete navigator.share
+    }
+  })
+
   it('ошибка создания — тост, кнопка снова активна', async () => {
     api.create.mockRejectedValue(new Error('Нет прав'))
     renderSec()

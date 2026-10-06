@@ -59,7 +59,9 @@ export default function InvitesSection({ online, errMsg, api = adminApi, limit =
 
   async function share() {
     try {
-      await navigator.share({ title: 'Журнал тренировок', text: inviteMessage({ expiresAt: fresh.expiresAt }), url: fresh.url })
+      // Ссылка — внутри текста, без отдельного url (v6.16.1): Телеграм, WhatsApp и др. при
+      // заданном url берут только его и выкидывают text — друг получал голую ссылку.
+      await navigator.share({ title: 'Журнал тренировок', text: inviteMessage(fresh) })
     } catch { /* закрыли меню «Поделиться» — ничего не делаем */ }
   }
 

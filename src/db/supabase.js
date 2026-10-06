@@ -9,7 +9,9 @@ const url = import.meta.env.VITE_SUPABASE_URL
 // Publishable key (sb_publishable_...): публичный клиентский ключ, безопасен в коде.
 const key = import.meta.env.VITE_SUPABASE_KEY
 
-if (!url || !key) {
+// В тестах (Vitest, MODE=test) молчим (v6.16.0): там .env намеренно нет (CI), клиент не
+// нужен, а строка в каждом прогоне только шумит.
+if ((!url || !key) && import.meta.env.MODE !== 'test') {
   // Явная ошибка лучше тихих 401-х при отсутствии .env
   console.error(
     'Не заданы VITE_SUPABASE_URL / VITE_SUPABASE_KEY. ' +

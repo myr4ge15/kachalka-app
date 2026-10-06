@@ -1,7 +1,7 @@
 // ============================================================================
 // Скриншоты для README (docs/screenshots/*.png) одной командой:
 //
-//   npm run shots:readme            — все 11 экранов
+//   npm run shots:readme            — все 12 экранов
 //   npm run shots:readme -- feed run — только перечисленные
 //
 // Что делает: поднимает vite dev-сервер (с фиктивными ключами Supabase, как e2e),
@@ -39,7 +39,7 @@ const VIEWPORT = { width: 393, height: 769 }
 const SCALE = 2
 const ACCENT = { id: 'custom', hue: 205 } // бирюзовый, как на прежних скриншотах
 const ALL = ['home', 'recovery', 'workout', 'progress-overview', 'progress-chart',
-  'feed', 'rating', 'run', 'achievements', 'login', 'join-pending']
+  'feed', 'rating', 'run', 'achievements', 'login', 'join-form', 'join-pending']
 const only = process.argv.slice(2)
 for (const n of only) if (!ALL.includes(n)) throw new Error(`Неизвестный экран «${n}». Есть: ${ALL.join(', ')}`)
 const want = (n) => only.length === 0 || only.includes(n)
@@ -336,8 +336,22 @@ async function main() {
       console.log('  ✓ login.png')
     }
 
+    if (want('join-form')) {
+      // Форма «Запросить доступ» с вписанными именем и парой слов (v6.16.0).
+      const c4 = await newContext(browser)
+      const p4 = await c4.newPage()
+      await p4.goto(base)
+      await p4.getByRole('button', { name: 'Запросить доступ' }).click()
+      await p4.getByLabel('Как тебя зовут').fill('Андрей')
+      await p4.getByLabel('Пара слов о себе').fill('Друг Бориса, хожу в зал три раза в неделю')
+      await p4.waitForTimeout(800)
+      await p4.screenshot({ path: path.join(OUT, 'join-form.png') })
+      saved.push('join-form')
+      console.log('  ✓ join-form.png')
+    }
+
     if (want('join-pending')) {
-      // Заявка «Запросить приглашение» отправлена и ждет ответа владельца (v6.16.0).
+      // Заявка «Запросить доступ» отправлена и ждет ответа владельца (v6.16.0).
       // Сеть режется — автопроверка молча ждет, карточка стоит как у живого человека.
       const c3 = await newContext(browser)
       await c3.addInitScript((p) => { try { localStorage.setItem('gym_app_join_request', JSON.stringify(p)) } catch { /* приватный режим */ } },
