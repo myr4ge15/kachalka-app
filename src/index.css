@@ -3305,6 +3305,8 @@ label > span.muted:first-child, .date-field > .muted, .create-label, .field-lab,
 /* Открыт лист — фон стоит (v6.11.1, SheetDialog ставит data-sheet-open). Позиция
    прокрутки при overflow:hidden сохраняется — после закрытия экран там же. */
 html[data-sheet-open] .content { overflow-y: hidden; }
+/* v6.15.1: и сама страница не пружинит, пока открыт лист (основная защита — жест в SheetDialog). */
+html[data-sheet-open], html[data-sheet-open] body { overscroll-behavior: none; }
 .wn-kicker {
   display: flex; align-items: center; gap: 8px; margin: -4px 0 10px; flex-shrink: 0;
   font-size: var(--fs-meta); color: var(--muted); font-weight: var(--fw-strong);

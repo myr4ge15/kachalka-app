@@ -1,5 +1,6 @@
 import { useEffect, useId, useRef } from 'react'
 import { createPortal } from 'react-dom'
+import { scrollableAncestor, shouldBlockSheetTouch } from '../lib/sheetTouch.js'
 
 const FOCUSABLE = [
   'button:not([disabled])',
@@ -88,15 +89,26 @@ export default function SheetDialog({
       dismissRef.current()
     }
     document.addEventListener('keydown', onDocKeyDown)
-    // Жест по затемнению (вне листа) не должен уходить в прокрутку страницы.
-    // Только по самой подложке: внутри листа свои прокручиваемые списки.
+    // Жест не должен уходить в прокрутку страницы: по затемнению — никогда, внутри
+    // листа — только если под пальцем есть что прокручивать в эту сторону (v6.15.1,
+    // lib/sheetTouch.js). Раньше гасился лишь жест по затемнению, и на iPhone жест по
+    // короткому листу «Что нового» тянул всю оболочку с верхним меню.
+    let lastY = null
+    function onTouchStart(event) { lastY = event.touches?.[0]?.clientY ?? null }
     function onBackdropMove(event) {
-      if (event.target === overlay && event.cancelable) event.preventDefault()
+      if (!event.cancelable) return
+      if (event.target === overlay) { event.preventDefault(); return }
+      const y = event.touches?.[0]?.clientY
+      const dy = y != null && lastY != null ? y - lastY : 0
+      if (y != null) lastY = y
+      if (shouldBlockSheetTouch(scrollableAncestor(event.target, overlay), dy)) event.preventDefault()
     }
+    overlay?.addEventListener('touchstart', onTouchStart, { passive: true })
     overlay?.addEventListener('touchmove', onBackdropMove, { passive: false })
 
     return () => {
       document.removeEventListener('keydown', onDocKeyDown)
+      overlay?.removeEventListener('touchstart', onTouchStart)
       overlay?.removeEventListener('touchmove', onBackdropMove)
       const at = openStack.indexOf(token)
       if (at !== -1) openStack.splice(at, 1)

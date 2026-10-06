@@ -148,4 +148,32 @@ describe('SheetDialog', () => {
     screen.getByTestId('inside').dispatchEvent(inside)
     expect(inside.defaultPrevented).toBe(false)
   })
+
+  // v6.15.1: жест по короткому листу (прокручивать нечего) тянул на iPhone всю страницу.
+  it('жест внутри листа гасится, если прокручивать нечего; в прокручиваемом списке — проходит', () => {
+    render(
+      <SheetDialog title="Лист" onDismiss={() => {}}>
+        <div data-testid="short">коротко</div>
+        <div data-testid="list" style={{ overflowY: 'auto' }}><span data-testid="row">строка</span></div>
+      </SheetDialog>
+    )
+    const swipe = (el, from, to) => {
+      const start = new Event('touchstart', { bubbles: true })
+      start.touches = [{ clientY: from }]
+      el.dispatchEvent(start)
+      const move = new Event('touchmove', { bubbles: true, cancelable: true })
+      move.touches = [{ clientY: to }]
+      el.dispatchEvent(move)
+      return move.defaultPrevented
+    }
+    expect(swipe(screen.getByTestId('short'), 300, 360)).toBe(true)
+    const list = screen.getByTestId('list')
+    Object.defineProperty(list, 'scrollHeight', { value: 900, configurable: true })
+    Object.defineProperty(list, 'clientHeight', { value: 300, configurable: true })
+    list.scrollTop = 100
+    expect(swipe(screen.getByTestId('row'), 300, 360)).toBe(false) // есть куда вверх
+    list.scrollTop = 0
+    expect(swipe(screen.getByTestId('row'), 300, 360)).toBe(true) // уперлись в начало
+    expect(swipe(screen.getByTestId('row'), 360, 300)).toBe(false) // а вниз — можно
+  })
 })
