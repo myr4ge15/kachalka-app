@@ -357,6 +357,9 @@ updated_at)` + `upsert_user_meta` (`supabase/user-meta.sql`, RLS «только 
   (`_shared/mfa.ts`) → 403 `mfa_required`. Клиент: `lib/adminMfa.js` + `components/AdminMfa.jsx` (код
   перед Админкой, включение/отключение) — онлайн, вне очередей синка. Нужен включенный TOTP в
   Supabase → Authentication → Multi-Factor. Аварийное снятие — SQL из шапки `admin-mfa.sql`.
+- **Деплой Edge Functions — с `--use-api`** (06.10.2026, CLI ≥ 2.119): сборка на стороне Supabase, Docker
+  не нужен и не всплывает «Docker is not running». Пример: `supabase functions deploy --use-api tg-bot --no-verify-jwt`.
+  Так же — в `supabase/*-deploy.md`, шапках функций и git-блоках для пользователя.
 - **Зависимости Edge Functions (v6.14.0):** только `npm:<пакет>@<точная версия>` (не `esm.sh`, не
   плавающие `@2`); транзитивные — в `supabase/functions/deno.lock` (`deno.json` рядом). Поднял версию —
   во ВСЕХ импортах сразу и `deno cache */index.ts` из `supabase/functions`. Тесты Edge:
