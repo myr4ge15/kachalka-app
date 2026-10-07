@@ -3525,6 +3525,37 @@ html[data-sheet-open], html[data-sheet-open] body { overscroll-behavior: none; }
   .toast.raised { bottom: calc(72px + env(safe-area-inset-bottom)); }
 }
 
+/* ================= Телефон лежа: листы во всю высоту (v6.16.4) =================
+   Отзыв 07.10: в горизонтали ширина ≥ 600px, и пикер упражнений открывался
+   десктопной модалкой 80vh (~310px при высоте 390). Шапка, поиск, чипы и «+ свое»
+   съедали ее целиком — список упражнений сжимался в ноль. Здесь лист занимает всю
+   высоту, а в пикере поиск и чипы встают одной строкой: под список остается ~2/3
+   экрана. Компактные листы («Что нового» и т.п.) остаются по высоте содержимого. */
+@media (orientation: landscape) and (max-height: 520px) {
+  .overlay { align-items: stretch; }
+  .sheet:not(.sheet--compact) {
+    width: min(640px, calc(100vw - 32px));
+    height: 100dvh; max-height: 100dvh;
+    border-radius: 0; border-top: 0; border-bottom: 0;
+    padding: calc(8px + env(safe-area-inset-top)) 16px calc(10px + env(safe-area-inset-bottom));
+  }
+  .sheet.sheet--compact { max-height: calc(100dvh - 16px); }
+  .sheet-head { margin-bottom: 4px; }
+  .sheet-head > strong { font-size: 20px; }
+  .sheet--picker {
+    display: grid;
+    grid-template-columns: minmax(180px, 2fr) 3fr;
+    grid-template-rows: auto auto minmax(0, 1fr) auto;
+    column-gap: 12px;
+  }
+  .sheet--picker > .sheet-head,
+  .sheet--picker > .picker-list,
+  .sheet--picker > .create-open { grid-column: 1 / -1; }
+  .sheet--picker > .search { padding: 10px 12px; }
+  .sheet--picker > .chips { min-width: 0; align-self: center; padding: 6px 0; }
+  .sheet--picker > .create-open { margin-top: 8px; min-height: 44px; }
+}
+
 /* вход по имени, «Хочу в круг» (v6.12.0) */
 .login-alt { display: flex; flex-wrap: wrap; justify-content: center; gap: 4px 16px; margin-top: 14px; }
 .login-alt .link-btn { min-height: 44px; font-weight: 600; }

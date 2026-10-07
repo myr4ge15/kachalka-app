@@ -294,6 +294,12 @@ updated_at)` + `upsert_user_meta` (`supabase/user-meta.sql`, RLS «только 
   без фильтра (колонки те же, `create or replace` без `drop`). Листинг бакета `avatars` — только своей папки
   (публичные ссылки бакет отдает сам). `user_meta` клиенту — только `SELECT`, запись — DEFINER `upsert_user_meta`.
   Запись в упражнения — канон `exercise-owner.sql` (только `owner_id = app_uid()`, ничье = общее).
+- **Правило видимости — одно ядро `user_can_see(viewer, owner)`** → канон `visibility-core.sql` (07.10.2026, П5
+  `PLAN-friend-code.md`): `can_see_user(p) = user_can_see(app_uid(), p)`, `push_can_see = user_can_see`. Ветки
+  `is_admin()` в видимости НЕТ — админ видит контент как участник (свои связи + общее), Админка — под `is_admin()`
+  с `aal2`. Новую ветку видимости (круги) — ТОЛЬКО в ядро. НЕ пересоздавать `can_see_user` из `connections.sql` /
+  `private-user.sql`, `push_can_see` — из `push-types.sql`. Ядру EXECUTE только `service_role` (иначе клиент
+  спрашивает про чужие пары).
 - **Приватность:** в `leaderboard_bench`, `tg_*` и `goal_reached_for_workout` обязателен фильтр
   `not is_private_user(...)` — бот и лидерборд ходят под service_role в обход RLS.
 - **`goal_reached_for_workout`** → канон `goal-reached-private.sql` (v6.7.5: фильтр приватности +

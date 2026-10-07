@@ -343,7 +343,7 @@ export default function ExercisePicker({
 
   // ---------------------------- список/поиск --------------------------------
   return (
-    <SheetDialog title={title} onDismiss={onClose}>
+    <SheetDialog title={title} onDismiss={onClose} className="sheet--picker">
         {/* Без автофокуса (v6.12.0): клавиатура закрывала пол-экрана справочника, а
             чаще упражнение выбирают из списка или чипом группы, а не поиском.
             Нужен поиск — один тап по полю. */}
