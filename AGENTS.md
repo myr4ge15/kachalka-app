@@ -286,6 +286,14 @@ updated_at)` + `upsert_user_meta` (`supabase/user-meta.sql`, RLS «только 
   НЕ возвращать `can_see_user(...)` на каждую строку (`auth-harden.sql` / `private-user.sql`): Лента на
   77 тренировках шла 3,8 с и падала по statement timeout (57014 → 500). Логика видимости — по-прежнему
   только в `can_see_user()`; новая политика по владельцу — тем же приемом.
+- **Пути чтения вне Ленты** (`users_read`, вью `login_users`, `exercises_read`, `wt_select`/`te_select`,
+  `reactions_select`, `avatars_owner_read`, гранты `user_meta`) → канон `privacy-read-paths.sql` (07.10.2026, П2
+  `PLAN-friend-code.md`): «чье-то» видно, только если владелец в `visible_user_ids()`; упражнение невидимого
+  владельца видно, если стоит в видимой тренировке/шаблоне. НЕ пересоздавать эти политики из
+  `server-hardening-2026-10.sql` / `auth-harden.sql` / `reactions.sql`, а `login_users` — из `roster-contract.sql`
+  без фильтра (колонки те же, `create or replace` без `drop`). Листинг бакета `avatars` — только своей папки
+  (публичные ссылки бакет отдает сам). `user_meta` клиенту — только `SELECT`, запись — DEFINER `upsert_user_meta`.
+  Запись в упражнения — канон `exercise-owner.sql` (только `owner_id = app_uid()`, ничье = общее).
 - **Приватность:** в `leaderboard_bench`, `tg_*` и `goal_reached_for_workout` обязателен фильтр
   `not is_private_user(...)` — бот и лидерборд ходят под service_role в обход RLS.
 - **`goal_reached_for_workout`** → канон `goal-reached-private.sql` (v6.7.5: фильтр приватности +
