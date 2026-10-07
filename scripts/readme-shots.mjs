@@ -1,7 +1,7 @@
 // ============================================================================
 // Скриншоты для README (docs/screenshots/*.png) одной командой:
 //
-//   npm run shots:readme            — все 13 экранов
+//   npm run shots:readme            — все 14 экранов
 //   npm run shots:readme -- feed run — только перечисленные
 //
 // Что делает: поднимает vite dev-сервер (с фиктивными ключами Supabase, как e2e),
@@ -39,7 +39,7 @@ const VIEWPORT = { width: 393, height: 769 }
 const SCALE = 2
 const ACCENT = { id: 'custom', hue: 205 } // бирюзовый, как на прежних скриншотах
 const ALL = ['home', 'recovery', 'workout', 'progress-overview', 'progress-chart',
-  'feed', 'rating', 'run', 'achievements', 'login', 'forgot-pin', 'join-form', 'join-pending']
+  'feed', 'rating', 'run', 'achievements', 'login', 'forgot-pin', 'join-form', 'join-pending', 'circle']
 const only = process.argv.slice(2)
 for (const n of only) if (!ALL.includes(n)) throw new Error(`Неизвестный экран «${n}». Есть: ${ALL.join(', ')}`)
 const want = (n) => only.length === 0 || only.includes(n)
@@ -197,8 +197,27 @@ async function seedData({ uid, EXERCISES, FRIENDS, AVATARS, ACCENT }) {
 }
 
 // ---------- подмены «как в сети» (только для съемки) ------------------------
+// «Мой круг» (v7.0.0) живет только онлайн: ответы fc_* подставляем, а экрану и
+// lib/friendCircles.js говорим, что сеть и сессия есть (см. PATCHES ниже).
+const inDays = (n) => new Date(Date.now() + n * 864e5).toISOString()
+const FAKE_RPC = {
+  fc_my_circles: [{ circle_id: 'c1', name: 'Зал на Ленина', is_owner: true, my_status: 'active', auto_approve: true, owner_name: 'Андрей', members: 4, pending: 1 }],
+  fc_my_code: [{ code: '7F3Q9XWD', expires_at: inDays(6), uses: 3, max_uses: 10 }],
+  fc_members: [
+    { user_id: 'demo', name: 'Андрей', status: 'active', is_owner: true },
+    { user_id: 'f1', name: 'Борис', status: 'active', is_owner: false, invited_by_name: 'Андрей' },
+    { user_id: 'f3', name: 'Аня', status: 'active', is_owner: false, invited_by_name: 'Борис' },
+    { user_id: 'f4', name: 'Макс', status: 'active', is_owner: false, invited_by_name: 'Андрей' },
+    { user_id: 'f2', name: 'Сергей', status: 'pending', is_owner: false, invited_by_name: 'Аня' },
+  ],
+  fc_codes: [],
+  fc_rating_catalog: [],
+}
+
 const PATCHES = [
   { url: /\/src\/db\/sync\.js(\?|$)/, find: /online: navigator\.onLine,/, put: 'online: true,', what: 'статус синка' },
+  { url: /\/src\/lib\/friendCircles\.js(\?|$)/, find: [/if \(!navigator\.onLine\) throw/, /if \(!await hasSession\(userId\)\) throw/], put: ['if (false) throw', 'if (false) throw'], what: 'круг: сеть и сессия' },
+  { url: /\/src\/screens\/CircleScreen\.jsx(\?|$)/, find: /if \(!navigator\.onLine\) return/, put: 'if (false) return', what: 'круг: загрузка' },
   { url: /\/src\/screens\/DisciplineLeaderboard\.jsx(\?|$)/, find: /navigator\.onLine \? "Обновлено"/, put: 'true ? "Обновлено"', what: 'подпись рейтинга' },
 ]
 
@@ -208,13 +227,25 @@ async function newContext(browser) {
   const ctx = await browser.newContext({ viewport: VIEWPORT, deviceScaleFactor: SCALE, locale: 'ru-RU', timezoneId: 'Europe/Moscow' })
   await ctx.addInitScript(() => Object.defineProperty(navigator, 'onLine', { get: () => false, configurable: true }))
   await ctx.addInitScript((a) => { try { localStorage.setItem('gym_app_accent', JSON.stringify(a)) } catch { /* приватный режим */ } }, ACCENT)
-  await ctx.route(/supabase\.co/, (r) => r.abort())
+  await ctx.route(/supabase\.co/, (r) => {
+    const m = r.request().url().match(/\/rest\/v1\/rpc\/(fc_[a-z_]+)/)
+    if (m && FAKE_RPC[m[1]] !== undefined) {
+      return r.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify(FAKE_RPC[m[1]]) })
+    }
+    return r.abort()
+  })
   for (const p of PATCHES) {
     await ctx.route(p.url, async (route) => {
       const res = await route.fetch()
       const body = await res.text()
-      if (!p.find.test(body)) patchMisses.add(p.what) // отдаем как есть, упадем после съемки
-      await route.fulfill({ response: res, body: body.replace(p.find, p.put) })
+      // find/put — одна замена или массивы замен в одном модуле.
+      const finds = [p.find].flat(), puts = [p.put].flat()
+      let out = body
+      finds.forEach((f, i) => {
+        if (!f.test(out)) patchMisses.add(p.what) // отдаем как есть, упадем после съемки
+        out = out.replace(f, puts[i])
+      })
+      await route.fulfill({ response: res, body: out })
     })
   }
   return ctx
@@ -323,6 +354,18 @@ async function main() {
       await page.getByRole('button', { name: 'Открыть профиль' }).click()
       await page.locator('.leader-link').filter({ hasText: 'Достижения' }).click()
       await shot('achievements')
+    }
+
+    if (want('circle')) {
+      // «Мой круг» владельца: код, заявка, кто кого привел (v7.0.0).
+      const roster = await page.evaluate(async () => (await import('/kachalka-app/src/db/local.js')).loginDb.users.toArray())
+      const av = new Map(roster.map((u) => [u.id, u.avatar_url]))
+      FAKE_RPC.fc_members = FAKE_RPC.fc_members.map((m) => ({ ...m, avatar_url: av.get(m.user_id) ?? null }))
+      await page.getByRole('button', { name: 'Открыть профиль' }).click()
+      await page.getByRole('button', { name: /Мой круг/ }).click()
+      await page.getByTestId('fc-code').waitFor()
+      await page.evaluate(() => document.querySelectorAll('.content').forEach((e) => { e.scrollTop = 0 }))
+      await shot('circle')
     }
 
     if (want('login')) {

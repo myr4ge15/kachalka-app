@@ -3,13 +3,13 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 import { render, screen, fireEvent, waitFor } from '@testing-library/react'
 import InviteScreen from './InviteScreen.jsx'
-import { checkInvite, checkLoginForInvite, registerByInvite, createRecoveryCode, LoginError } from '../lib/auth.js'
+import { checkInvite, checkCircleCode, checkLoginForInvite, registerByInvite, createRecoveryCode, LoginError } from '../lib/auth.js'
 
 vi.mock('../lib/auth.js', () => {
   class LoginError extends Error {
     constructor(code, message) { super(message); this.code = code }
   }
-  return { checkInvite: vi.fn(), checkLoginForInvite: vi.fn(async () => 'ok'), registerByInvite: vi.fn(), createRecoveryCode: vi.fn(), LoginError }
+  return { checkInvite: vi.fn(), checkCircleCode: vi.fn(), checkLoginForInvite: vi.fn(async () => 'ok'), registerByInvite: vi.fn(), createRecoveryCode: vi.fn(), LoginError }
 })
 
 const TOKEN = 'a_tiNNP3RyzFJHQdG_xlbBkLpflaqExEUJzq2xU0eXo'
@@ -160,5 +160,25 @@ describe('InviteScreen', () => {
     expect(onRegistered).not.toHaveBeenCalled()
     fireEvent.click(screen.getByRole('button', { name: 'Сохранил, дальше' }))
     expect(onRegistered).toHaveBeenCalledWith(user)
+  })
+
+  it('по коду круга («Мой круг»): превью «кто зовет и куда», регистрация с кодом', async () => {
+    vi.mocked(checkCircleCode).mockResolvedValue({ status: 'ok', circle_name: 'Зал', inviter_name: 'Сега' })
+    const user = { id: 'u9', name: 'Маша', role: 'member' }
+    vi.mocked(registerByInvite).mockResolvedValue(user)
+    const onRegistered = vi.fn()
+    render(<InviteScreen code="7F3Q9XWD" onRegistered={onRegistered} onCancel={vi.fn()} />)
+    expect(await screen.findByText(/зовет тебя в круг/)).toHaveTextContent('Сега зовет тебя в круг «Зал»')
+    expect(checkInvite).not.toHaveBeenCalled()
+    fill()
+    fireEvent.click(screen.getByRole('button', { name: 'Зарегистрироваться' }))
+    await waitFor(() => expect(onRegistered).toHaveBeenCalledWith(user))
+    expect(registerByInvite).toHaveBeenCalledWith({ code: '7F3Q9XWD' }, expect.objectContaining({ login: 'masha' }))
+  })
+
+  it('по коду: код мертв — текст про код, не про ссылку', async () => {
+    vi.mocked(checkCircleCode).mockResolvedValue({ status: 'invalid' })
+    render(<InviteScreen code="7F3Q9XWD" onRegistered={vi.fn()} onCancel={vi.fn()} />)
+    expect(await screen.findByRole('alert')).toHaveTextContent('Код не подходит')
   })
 })

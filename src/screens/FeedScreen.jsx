@@ -29,7 +29,7 @@ function writeRailOpen(userId, open) {
 
 // flashId — id тренировки, к которой привел пуш о реакции (v6.7.3): ее карточка
 // коротко подсвечивается акцентом, чтобы было видно, какую оценили.
-export default function FeedScreen({ user, onOpenMember, flashId = null }) {
+export default function FeedScreen({ user, onOpenMember, flashId = null, onOpenCircle }) {
   // Кэш ленты (офлайн-доступен, обновляется мгновенно при фоновой подтяжке).
   const feed = useLiveQuery(() => getCachedFeed(), [], undefined)
 
@@ -260,12 +260,13 @@ export default function FeedScreen({ user, onOpenMember, flashId = null }) {
           {loading && <CardsSkeleton cards={3} height={120} />}
 
           {!loading && list.length === 0 && !error && (
-            myPrivate ? (
+            myPrivate ? (<>
               <EmptyHint emoji="👥" title="Лента твоего круга">
-                Здесь появляются тренировки друзей — на них можно ставить реакции. Пока пусто.
-                Попроси админа добавить друзей в твой круг.
+                Здесь появляются тренировки друзей — на них можно ставить реакции. Пока пусто:
+                создай свой круг и позови друзей кодом или вступи в круг друга.
               </EmptyHint>
-            ) : (
+              {onOpenCircle && <button type="button" className="btn primary fc-feed-cta" onClick={onOpenCircle}>Мой круг</button>}
+            </>) : (
               <p className="muted empty">Пока никто ничего не записал. Будь первым 💪</p>
             )
           )}
@@ -333,9 +334,9 @@ export default function FeedScreen({ user, onOpenMember, flashId = null }) {
           })}
         </div>
 
-        {/* Лидерборд приватному не показываем: в общий рейтинг он не входит. */}
-        {!myPrivate && (
-          <aside className="feed-rail" data-open={railOpen ? '1' : '0'}>
+        {/* Рейтинг: общий — не приватным, доски кругов — участникам кругов, приватному без
+            круга — подсказка «Мой круг» (DisciplineLeaderboard, «Мой круг» 07.10.2026). */}
+        <aside className="feed-rail" data-open={railOpen ? '1' : '0'}>
             {/* v6.12.0: строка-кнопка как «Настройки»/«Пригласить» в Профиле — мелкий
                 серый заголовок с треугольником было еле видно. */}
             <button type="button" className="settings-toggle feed-rail-toggle" aria-expanded={railOpen}
@@ -346,10 +347,9 @@ export default function FeedScreen({ user, onOpenMember, flashId = null }) {
             {/* Свернутый рейтинг не размонтируем: данные уже подгружены, раскрытие
                 мгновенное, а на десктопе он виден всегда. */}
             <div className="feed-rail-body">
-              <Leaderboard user={user} onOpenMember={onOpenMember} />
+              <Leaderboard user={user} onOpenMember={onOpenMember} onOpenCircle={onOpenCircle} />
             </div>
-          </aside>
-        )}
+        </aside>
       </div>
     </div>
   )

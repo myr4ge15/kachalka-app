@@ -1,0 +1,20 @@
+# Еженедельная сводка админу в Telegram (П10 «Моего круга», 07.10.2026): Edge tg-summary.
+# Понедельник 09:00 МСК = 06:00 UTC. Секреты репозитория: SUMMARY_URL
+# (https://<REF>.functions.supabase.co/tg-summary) и WEBHOOK_SECRET (тот же, что у tg-digest).
+# Секретов нет — шаг пропускается, workflow не падает.
+name: tg-summary
+on:
+  schedule:
+    - cron: "0 6 * * 1"
+  workflow_dispatch:
+jobs:
+  ping:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Сводка
+        env:
+          URL: ${{ secrets.SUMMARY_URL }}
+          SECRET: ${{ secrets.WEBHOOK_SECRET }}
+        run: |
+          if [ -z "$URL" ] || [ -z "$SECRET" ]; then echo "Нет SUMMARY_URL/WEBHOOK_SECRET — пропускаю"; exit 0; fi
+          curl -fsS -X POST -H "x-webhook-secret: $SECRET" "$URL"

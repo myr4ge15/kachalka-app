@@ -197,6 +197,16 @@ async function callInvite(payload) {
   return { res, body }
 }
 
+// Приглашение — ссылка (строка-токен) или личный код круга ({ code }, «Мой круг», 07.10.2026).
+const inviteRef = (ref) => (ref && typeof ref === 'object' ? { code: ref.code } : { token: ref })
+
+// Превью кода круга до регистрации: { status: ok|invalid|limited, circle_name, inviter_name }.
+export async function checkCircleCode(code) {
+  const { res, body } = await callInvite({ action: 'circle_check', code })
+  if (!res.ok || !body?.status) throw new LoginError('server', 'Не удалось проверить код.')
+  return body
+}
+
 // Жива ли ссылка: 'ok' | 'used' | 'revoked' | 'expired' | 'invalid'. Сбой — LoginError.
 export async function checkInvite(token) {
   const { res, body } = await callInvite({ action: 'check', token })
@@ -208,7 +218,7 @@ export async function checkInvite(token) {
 // 'ok' | 'bad' | 'reserved' | 'taken' | 'limited' | 'invalid' (ссылка умерла). Только
 // по живой ссылке и с лимитом на IP (login_check_claim). Сбой — LoginError.
 export async function checkLoginForInvite(token, login) {
-  const { res, body } = await callInvite({ action: 'check_login', token, login })
+  const { res, body } = await callInvite({ action: 'check_login', ...inviteRef(token), login })
   if (!res.ok || !body?.status) throw new LoginError('server', 'Не удалось проверить логин.')
   return body.status
 }
@@ -219,7 +229,7 @@ export async function checkLoginForInvite(token, login) {
 export async function registerByInvite(token, { name, pin, sex = null, login = null }) {
   const generation = authGeneration
   const stale = () => generation !== authGeneration
-  const { res, body } = await callInvite({ action: 'redeem', token, name, pin, sex, login })
+  const { res, body } = await callInvite({ action: 'redeem', ...inviteRef(token), name, pin, sex, login })
   if (!res.ok || !body?.session) {
     const code = body?.error ?? 'server'
     const err = new LoginError(code, code)

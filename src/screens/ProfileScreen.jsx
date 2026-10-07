@@ -43,7 +43,7 @@ import { settleScroll } from '../lib/scrollBox.js'
 // components/profile/* (v6.14.1); здесь — сводка, навигация и слой Настроек.
 //
 // Пропсы: user, onLogout, onOpenProgress(exerciseId), onOpenFeed().
-export default function ProfileScreen({ user, onLogout, onAccountDeleted, onOpenProgress, onOpenFeed, onRenamed, onOpenAdmin, onOpenMyExercises, onOpenAchievements, onOpenAppearance, onOpenWhatsNew, onOpenFeedback, startInSettings = false, onStartInSettingsConsumed, contentRef, edgeSwipeOn = false }) {
+export default function ProfileScreen({ user, onLogout, onAccountDeleted, onOpenCircle, onOpenProgress, onOpenFeed, onRenamed, onOpenAdmin, onOpenMyExercises, onOpenAchievements, onOpenAppearance, onOpenWhatsNew, onOpenFeedback, startInSettings = false, onStartInSettingsConsumed, contentRef, edgeSwipeOn = false }) {
   const workouts = useLiveQuery(() => getWorkouts(user.id), [user.id])
   const goals = useLiveQuery(() => readGoals(user.id), [user.id])
   const myCached = useLiveQuery(() => getCachedUser(user.id), [user.id])
@@ -283,6 +283,11 @@ export default function ProfileScreen({ user, onLogout, onAccountDeleted, onOpen
         {/* Проблема с отправкой — важный алерт: виден всегда, даже когда свернуто. */}
         <DeadLetterAlert userId={user.id} />
 
+        {/* «Мой круг» (07.10.2026): свой круг, личный код, участники, рейтинг круга. */}
+        <button className="settings-toggle" onClick={() => onOpenCircle?.()}>
+          <span className="settings-title"><span aria-hidden="true">⭕</span> Мой круг</span>
+          <span className="settings-chev" aria-hidden="true">›</span>
+        </button>
         <MemberInvites key={user.id} userId={user.id} />
         {/* «Написать разработчику» (v6.11.0; в корне Профиля с v6.12.0 — в Настройках
             его не находили): ошибка, идея, вопрос — сразу разработчику. */}

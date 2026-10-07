@@ -202,7 +202,7 @@ export function useAppNav(user) {
       case 'notif': return backFromNotif()
       case 'member': return backFromMember()
       case 'freshness': return goTab('home')
-      case 'admin': case 'achievements': case 'feedback': return goTab('profile')
+      case 'admin': case 'achievements': case 'feedback': case 'circle': return goTab('profile')
       case 'myex': case 'whatsnew': case 'appearance': return backToSettings()
       default: return undefined
     }

@@ -297,7 +297,8 @@ updated_at)` + `upsert_user_meta` (`supabase/user-meta.sql`, RLS «только 
 - **Правило видимости — одно ядро `user_can_see(viewer, owner)`** → канон `visibility-core.sql` (07.10.2026, П5
   `PLAN-friend-code.md`): `can_see_user(p) = user_can_see(app_uid(), p)`, `push_can_see = user_can_see`. Ветки
   `is_admin()` в видимости НЕТ — админ видит контент как участник (свои связи + общее), Админка — под `is_admin()`
-  с `aal2`. Новую ветку видимости (круги) — ТОЛЬКО в ядро. НЕ пересоздавать `can_see_user` из `connections.sql` /
+  с `aal2`. Новую ветку видимости — ТОЛЬКО в ядро. С 07.10 (круги) канон ТЕЛА ядра — `friend-circles.sql`
+  (ветка `fc_share_active`); `visibility-core.sql` — только для `can_see_user`/`push_can_see`, ядро из него не перезапускать. НЕ пересоздавать `can_see_user` из `connections.sql` /
   `private-user.sql`, `push_can_see` — из `push-types.sql`. Ядру EXECUTE только `service_role` (иначе клиент
   спрашивает про чужие пары).
 - **Приватность:** в `leaderboard_bench`, `tg_*` и `goal_reached_for_workout` обязателен фильтр
@@ -341,6 +342,22 @@ updated_at)` + `upsert_user_meta` (`supabase/user-meta.sql`, RLS «только 
   учеток БЕЗ логина и только целиком (поиск по началу убран). Вход по id — `auth_login_id_claim` (корзины
   `id:<учетка>:<IP>` 5/15 мин + `iduser:<учетка>` 30/сутки, лок на адрес, не на учетку); сброс всех корзин
   входа учетки — `auth_login_id_reset` (сброс PIN). `login` в `touch_users_updated_at` — служебная колонка.
+- **«Мой круг» (этапы 4–6, 07.10.2026)** → канон `friend-circles.sql` (+ `friend-circle-rating.sql`,
+  `weekly-summary.sql`). Видимость круга — ТОЛЬКО ветка `fc_share_active` в ядре `user_can_see` (канон тела
+  ядра переехал сюда из `visibility-core.sql`): оба `active` в одном круге. `pending` не видит никого. Код —
+  личный, многоразовый, 8 знаков Crockford; хранится и хэш (поиск), и сам код (повторный показ держателю) —
+  таблица закрыта, только DEFINER. Все невалидные коды — ОДИН ответ `invalid`; попытки — `fc_attempt`
+  (`auth_throttle`: `fcuser:<uid>` / `fcip:<ip>`, 10/час). Регистрация новичка по коду — только штатным
+  каналом: `fc_issue_invite` (строка `invites` от держателя на 30 мин, держит слот) → `invite_redeem` (тело не
+  менять; гасит `used_by` → newcomer-private) → `fc_after_redeem`. `invites.fc_code_id` — служебные, в «Мои
+  приглашения» и лимит 3 не входят (канон `create_my_invite`/`my_invites` — здесь, не `member-invites.sql`).
+  П10: `fc_config` (суточный лимит регистраций по кодам, потолок круга). Владелец круга — НЕ админ: права только
+  в своем круге. Удаление учетки — `fc_on_account_delete` (владение самому раннему active, пустой круг —
+  удалить) из `account_delete`. Рейтинг круга — свой каталог `friend_circle_disciplines` (копия общего при
+  создании), доска — по active-участникам, приватные внутри круга видны; общий рейтинг/Telegram — без
+  изменений. Клиент: `lib/friendCircles.js`, `screens/CircleScreen.jsx`, `components/circle/*`, `#join=<код>`
+  в App (без учетки — InviteScreen `code`, с учеткой — «Мой круг»); доски — `DisciplineLeaderboard`
+  (`db/disciplines.js` с `circle`, `db/circles.js`). Пуши — Edge `push-circle` (тип `circle`, всегда вкл.).
 - **Удаление аккаунта (П7, 07.10.2026)** → канон `account-delete.sql` (`account_delete(p_uid, p_actor)`, только
   service_role) + Edge `account-delete` (`{pin}` — себя, с `auth_rate_claim` до сверки PIN; `{target_user_id}` —
   админ с 2FA, 10/час). Сразу и насовсем. Учетки `role = admin` так не удаляются (409). Порядок: SQL одной

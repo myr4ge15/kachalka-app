@@ -18,6 +18,7 @@ import InviteScreen from './screens/InviteScreen.jsx'
 import LoginSetupScreen from './screens/LoginSetupScreen.jsx'
 import { inviteFromUrl, stripInvite } from './lib/invite.js'
 import { resetFromUrl, stripReset } from './lib/recovery.js'
+import { joinFromUrl, stripJoin } from './lib/friendCircles.js'
 import ResetPinScreen from './screens/ResetPinScreen.jsx'
 import { captureSource, clearPending } from './lib/joinRequest.js'
 import Toast from './components/Toast.jsx'
@@ -54,6 +55,7 @@ const ProfileScreen = lazyScreen(() => import('./screens/ProfileScreen.jsx'))
 const AdminScreen = lazyScreen(() => import('./screens/AdminScreen.jsx'))
 const FreshnessScreen = lazyScreen(() => import('./screens/FreshnessScreen.jsx'))
 const MyExercisesScreen = lazyScreen(() => import('./screens/MyExercisesScreen.jsx'))
+const CircleScreen = lazyScreen(() => import('./screens/CircleScreen.jsx'))
 const AchievementsScreen = lazyScreen(() => import('./screens/AchievementsScreen.jsx'))
 const AppearanceScreen = lazyScreen(() => import('./screens/AppearanceScreen.jsx'))
 const WhatsNewScreen = lazyScreen(() => import('./screens/WhatsNewScreen.jsx'))
@@ -78,6 +80,9 @@ export default function App() {
   const [inviteToken, setInviteToken] = useState(() => inviteFromUrl(window.location.href))
   // Ссылка «новый PIN» от бота (П1, v6.18.0): #reset=… — так же, только в памяти.
   const [resetToken, setResetToken] = useState(() => resetFromUrl(window.location.href))
+  // Личный код круга из ссылки #join=… («Мой круг», 07.10.2026): без учетки — регистрация
+  // по коду, с учеткой — экран «Мой круг» с превью и «Вступить».
+  const [joinCode, setJoinCode] = useState(() => joinFromUrl(window.location.href))
   // Параметр `push` из адреса убираем сразу: иначе F5 снова открыл бы тренировку.
   useEffect(() => {
     const clean = stripPushParam(window.location.href)
@@ -86,12 +91,21 @@ export default function App() {
     if (noInvite) window.history.replaceState(window.history.state, '', noInvite)
     const noReset = stripReset(window.location.href)
     if (noReset) window.history.replaceState(window.history.state, '', noReset)
+    const noJoin = stripJoin(window.location.href)
+    if (noJoin) window.history.replaceState(window.history.state, '', noJoin)
     // Метка источника ?src= (v6.15.3): запомнить для заявки и убрать из адреса.
     const noSrc = captureSource(window.location.href)
     if (noSrc) window.history.replaceState(window.history.state, '', noSrc)
     // Ссылку открыли во вкладке, где приложение уже загружено: меняется только
     // фрагмент, страница не перезагружается — подхватываем токен здесь.
     const onHash = () => {
+      const j = joinFromUrl(window.location.href)
+      if (j) {
+        setJoinCode(j)
+        const clean = stripJoin(window.location.href)
+        if (clean) window.history.replaceState(window.history.state, '', clean)
+        return
+      }
       const r = resetFromUrl(window.location.href)
       if (r) {
         setResetToken(r)
@@ -162,11 +176,17 @@ export default function App() {
   // грузится, а прочие подтягиваем заранее, чтобы их открытие было мгновенным и не
   // мелькал Suspense-скелетон. Повторный preload — no-op (общий промис).
   // Ошибки глотаем: префетч — оптимизация, не критичен.
+  // Вошедший открыл ссылку #join=… — сразу «Мой круг» с превью кода.
+  useEffect(() => {
+    if (user?.id && joinCode) goTab('circle')
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [user?.id, joinCode])
+
   useEffect(() => {
     if (!user?.id) return
     const screens = [HomeScreen, HistoryScreen, FeedScreen, ProgressScreen, FreshnessScreen,
       NotificationsScreen, ProfileScreen, MyExercisesScreen, AchievementsScreen, AppearanceScreen,
-      MemberScreen, FeedbackScreen]
+      MemberScreen, FeedbackScreen, CircleScreen]
     if (user.role === 'admin') screens.push(AdminScreen)
     const prefetch = () => { for (const s of screens) s.preload().catch(() => {}) }
     const ric = window.requestIdleCallback
@@ -232,6 +252,17 @@ export default function App() {
     )
   }
 
+  if (!user && joinCode) {
+    return (
+      <InviteScreen
+        code={joinCode}
+        onRegistered={async (u) => { clearPending(); markWelcomePending(u?.id); await handleLogin(u); setJoinCode(null) }}
+        onCancel={() => setJoinCode(null)}
+        onSignOut={handleLogout}
+      />
+    )
+  }
+
   if (!user) {
     return <LoginScreen onLogin={handleLogin} onInvite={setInviteToken} />
   }
@@ -287,7 +318,7 @@ export default function App() {
                   onOpenProgress={openProgressFor}
                 />
               )}
-              {route === 'feed' && <FeedScreen user={user} onOpenMember={openMember} flashId={feedFlashId} />}
+              {route === 'feed' && <FeedScreen user={user} onOpenMember={openMember} flashId={feedFlashId} onOpenCircle={() => goTab('circle')} />}
               {route === 'member' && memberId && (
                 <MemberScreen user={user} memberId={memberId} onBack={backFromMember} />
               )}
@@ -313,6 +344,7 @@ export default function App() {
                   onRenamed={handleRenamed}
                   onOpenAdmin={() => goTab('admin')}
                   onOpenMyExercises={() => goTab('myex')}
+                  onOpenCircle={() => goTab('circle')}
                   onOpenAchievements={() => goTab('achievements')}
                   onOpenAppearance={() => goTab('appearance')}
                   onOpenWhatsNew={() => goTab('whatsnew')}
@@ -328,6 +360,10 @@ export default function App() {
               )}
               {route === 'freshness' && (
                 <FreshnessScreen user={user} onBack={() => goTab('home')} />
+              )}
+              {route === 'circle' && (
+                <CircleScreen user={user} onBack={() => goTab('profile')}
+                  joinCode={joinCode} onJoinCodeConsumed={() => setJoinCode(null)} />
               )}
               {route === 'myex' && (
                 <MyExercisesScreen user={user} onBack={backToSettings} />

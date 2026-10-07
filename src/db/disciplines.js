@@ -7,12 +7,16 @@ import { shouldRefetchLeaderboard } from '../lib/leaderboardCache.js'
 import { disciplineSignature, compareDisciplineRows } from '../lib/disciplines.js'
 
 const CATALOG = 'rating_catalog'
+// Рейтинг круга («Мой круг», этап 5): свой каталог на круг, доски — по id дисциплины
+// (id дисциплин круга и общих не пересекаются). Префикс rating_ — invalidateRatingCache
+// сносит и их.
+const catalogKey = circle => (circle ? `rating_fc_${circle}` : CATALOG)
 const boardKey = id => `rating_board_${id}`
 const pending = new WeakMap()
 const revisions = new WeakMap()
 
-export function getRatingCatalog() {
-  return db ? getMeta(CATALOG, db).then(v => v ?? null) : Promise.resolve(null)
+export function getRatingCatalog(circle = null) {
+  return db ? getMeta(catalogKey(circle), db).then(v => v ?? null) : Promise.resolve(null)
 }
 
 export async function getRatingBoard(discipline) {
@@ -37,23 +41,26 @@ async function identity(userId) {
   return result.known && result.id === userId
 }
 
-export async function fetchRatingCatalog(userId, { force = false } = {}) {
+export async function fetchRatingCatalog(userId, { force = false, circle = null } = {}) {
   const d = db
   if (!d || !isConfigured || !navigator.onLine) return
-  return once(d, CATALOG, async () => {
+  const key = catalogKey(circle)
+  return once(d, key, async () => {
     const revision = revisions.get(d)
     if (!(await identity(userId)) || db !== d) return
-    const old = await getMeta(CATALOG, d)
+    const old = await getMeta(key, d)
     if (!force && old && !shouldRefetchLeaderboard(old.fetchedAt, Date.now())) return
-    const { data, error } = await withTimeout(supabase.rpc('rating_catalog'))
+    const { data, error } = await withTimeout(circle
+      ? supabase.rpc('fc_rating_catalog', { p_circle: circle })
+      : supabase.rpc('rating_catalog'))
     if (error) throw error
     if (db !== d || !(await identity(userId)) || revision !== revisions.get(d)) return
     if (!Array.isArray(data)) throw new Error('Не удалось прочитать список дисциплин')
-    await setMeta(CATALOG, { items: data, fetchedAt: new Date().toISOString() }, d)
+    await setMeta(key, { items: data, fetchedAt: new Date().toISOString() }, d)
   })
 }
 
-export async function fetchRatingBoard(userId, discipline, { force = false } = {}) {
+export async function fetchRatingBoard(userId, discipline, { force = false, circle = null } = {}) {
   const d = db
   if (!d || !discipline || !isConfigured || !navigator.onLine) return
   return once(d, boardKey(discipline.id), async () => {
@@ -62,15 +69,17 @@ export async function fetchRatingBoard(userId, discipline, { force = false } = {
     const old = await getMeta(boardKey(discipline.id), d)
     if (!force && old?.signature === disciplineSignature(discipline)
       && !shouldRefetchLeaderboard(old.fetchedAt, Date.now())) return
-    const { data, error } = await withTimeout(supabase.rpc('rating_board', { p_discipline_id: discipline.id }))
+    const { data, error } = await withTimeout(circle
+      ? supabase.rpc('fc_rating_board', { p_circle: circle, p_discipline_id: discipline.id })
+      : supabase.rpc('rating_board', { p_discipline_id: discipline.id }))
     if (error) throw error
     if (db !== d || !(await identity(userId)) || revision !== revisions.get(d)) return
     if (!data?.discipline || !Array.isArray(data.rows)) throw new Error('Не удалось прочитать рейтинг')
     // Метрика и настройки приходят с результатами одним снимком. Нельзя показать
     // секунды из нового контракта как килограммы старой записи каталога.
     await d.transaction('rw', d.meta, async () => {
-      const catalog = await getMeta(CATALOG, d)
-      if (catalog) await setMeta(CATALOG, { ...catalog,
+      const catalog = await getMeta(catalogKey(circle), d)
+      if (catalog) await setMeta(catalogKey(circle), { ...catalog,
         items: catalog.items.map(item => item.id === data.discipline.id ? data.discipline : item) }, d)
       await setMeta(boardKey(discipline.id), {
         signature: disciplineSignature(data.discipline),

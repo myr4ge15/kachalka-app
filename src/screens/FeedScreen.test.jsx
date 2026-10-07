@@ -114,17 +114,21 @@ describe('FeedScreen', () => {
     expect(fetchFeed).toHaveBeenCalledTimes(2)
   })
 
-  it('пустая лента: обычному — «Будь первым», приватному — свой текст и без рейтинга', () => {
+  it('пустая лента: обычному — «Будь первым», приватному — свой текст и «Мой круг»', () => {
     mocks.feed = []
     const { unmount } = renderFeed()
     expect(screen.getByText(/Будь первым/)).toBeInTheDocument()
     unmount()
     mocks.priv = true
-    renderFeed()
-    expect(screen.getByText(/Попроси админа добавить друзей/)).toBeInTheDocument()
+    const onOpenCircle = vi.fn()
+    renderFeed({ onOpenCircle })
+    expect(screen.getByText(/создай свой круг/)).toBeInTheDocument()
     expect(screen.getByText('Лента твоего круга')).toBeInTheDocument()
     expect(screen.getByText(/Приватный режим/)).toBeInTheDocument()
-    expect(screen.queryByTestId('leaderboard')).toBeNull()
+    fireEvent.click(screen.getByRole('button', { name: 'Мой круг' }))
+    expect(onOpenCircle).toHaveBeenCalled()
+    // Рейтинг есть и у приватного: доски кругов или подсказка (DisciplineLeaderboard).
+    expect(screen.getByTestId('leaderboard')).toBeInTheDocument()
   })
 
   it('рейтинг свернут по умолчанию; раскрытие запоминается для учетки', () => {

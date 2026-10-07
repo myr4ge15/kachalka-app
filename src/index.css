@@ -3613,3 +3613,57 @@ html[data-sheet-open], html[data-sheet-open] body { overscroll-behavior: none; }
 @media (prefers-reduced-motion: reduce) {
   .avatar-lightbox, .avatar-lightbox-img { animation: none; }
 }
+
+/* «Мой круг» (07.10.2026): экран круга, код, участники, настройки владельца. */
+.fc-screen .card { margin-bottom: 12px; }
+.fc-h { margin: 0 0 10px; font-size: 16px; font-weight: 700; color: var(--text); }
+.fc-sub { margin: 14px 0 6px; font-size: 12px; color: var(--muted); text-transform: uppercase; letter-spacing: .04em; }
+.fc-sub-inline { font-size: 13px; }
+.fc-lead { margin: 0 0 8px; font-size: 15px; line-height: 1.45; color: var(--text); }
+.fc-msg { margin: 8px 0 0; font-size: 13px; }
+.fc-tabs { margin-bottom: 12px; }
+.fc-title-row { display: flex; flex-direction: column; gap: 2px; margin: 4px 0 12px; }
+.fc-circle-name { margin: 0; font-family: var(--font-display); font-weight: 900; font-size: 22px; text-transform: uppercase; letter-spacing: .02em; }
+.fc-code {
+  margin: 6px 0 4px; text-align: center; color: var(--text);
+  font: 700 30px/1.2 ui-monospace, SFMono-Regular, Menlo, monospace; letter-spacing: .12em; user-select: all;
+}
+.fc-code-meta { margin: 0 0 12px; text-align: center; font-size: 13px; }
+.fc-code-input { font-family: ui-monospace, SFMono-Regular, Menlo, monospace; letter-spacing: .08em; text-transform: uppercase; }
+.fc-actions { display: flex; gap: 10px; margin-top: 8px; }
+.fc-actions .btn { flex: 1; margin-top: 0; }
+.fc-join-row { display: flex; gap: 8px; align-items: stretch; }
+.fc-join-row .admin-input { flex: 1; min-width: 0; }
+.fc-join-row .btn { margin-top: 0; flex: none; }
+.fc-preview { margin-top: 12px; padding: 12px; border-radius: 12px; background: color-mix(in srgb, var(--acc) 12%, transparent); }
+.fc-preview p { margin: 0 0 10px; line-height: 1.4; }
+.fc-preview .btn { width: 100%; margin-top: 0; }
+.fc-list { list-style: none; margin: 0; padding: 0; }
+.fc-row { display: flex; align-items: center; gap: 10px; padding: 8px 0; border-top: 1px solid var(--border); }
+.fc-list .fc-row:first-child { border-top: 0; }
+.fc-who { flex: 1; min-width: 0; display: flex; flex-direction: column; }
+.fc-name { font-weight: 600; display: flex; align-items: center; gap: 6px; min-width: 0; overflow-wrap: anywhere; }
+.fc-by { font-size: 12px; }
+.fc-badge { font-size: 11px; font-weight: 600; padding: 1px 7px; border-radius: 999px; background: color-mix(in srgb, var(--acc) 20%, transparent); color: var(--acc); }
+.fc-row-acts { display: flex; flex-wrap: wrap; justify-content: flex-end; gap: 4px 10px; }
+.fc-row-acts .link-btn { font-size: 13px; }
+.fc-list .fc-row { flex-wrap: wrap; }
+.fc-row-acts.fc-under { flex-basis: 100%; justify-content: flex-start; gap: 4px 18px; padding-left: 46px; margin-top: -4px; }
+.fc-mini { margin-top: 0; padding: 0; min-height: 0; height: 36px; width: 92px; font-size: 13px; display: inline-flex; align-items: center; justify-content: center; box-sizing: border-box; }
+/* «Принять» и «Нет» — одного размера: выбор равноправный, акцент только цветом. */
+.btn.primary.fc-mini { box-shadow: none; }
+.fc-row-acts .btn.fc-mini { height: 36px; min-height: 0; padding: 0; margin: 0; transform: none; }
+/* «Новый код» — подальше от «Скопировать» и по центру: случайный тап по нему все равно
+   только спрашивает подтверждение. */
+.fc-new-code { display: block; margin: 18px auto 0; }
+.fc-pending { margin-bottom: 8px; }
+.fc-toggle { display: flex; align-items: center; gap: 10px; padding: 8px 0; cursor: pointer; }
+.fc-toggle input { width: 20px; height: 20px; accent-color: var(--acc); flex: none; }
+.fc-grow { flex: 1; min-width: 0; }
+.fc-small { font-size: 13px; color: var(--muted); }
+.fc-disc .fc-join-row { margin-top: 8px; }
+.fc-danger { margin: 16px 0 12px; }
+.fc-create-btn { width: 100%; margin-bottom: 12px; }
+.fc-feed-cta { display: block; margin: 12px auto 0; }
+.lb-boards { margin-bottom: 10px; }
+.fc-empty .btn { margin-top: 10px; }

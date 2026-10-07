@@ -211,3 +211,25 @@ describe('сессия на общем телефоне', () => {
     expect(auth.canRefreshSilently('u1')).toBe(false)
   })
 })
+
+describe('«Мой круг»: регистрация по коду', () => {
+  it('превью кода и регистрация шлют code вместо token', async () => {
+    fetchMock.mockResolvedValueOnce(res(200, { status: 'ok', circle_name: 'Зал', inviter_name: 'Сега' }))
+    expect(await auth.checkCircleCode('7F3Q9XWD')).toMatchObject({ status: 'ok', circle_name: 'Зал' })
+    expect(JSON.parse(fetchMock.mock.calls[0][1].body)).toEqual({ action: 'circle_check', code: '7F3Q9XWD' })
+    fetchMock.mockResolvedValueOnce(res(200, { status: 'ok' }))
+    await auth.checkLoginForInvite({ code: '7F3Q9XWD' }, 'masha')
+    expect(JSON.parse(fetchMock.mock.calls[1][1].body)).toEqual({ action: 'check_login', code: '7F3Q9XWD', login: 'masha' })
+    fetchMock.mockResolvedValueOnce(res(200, {
+      session: { access_token: 'a', refresh_token: 'r' }, pin_hash: 'hash-4826', pin_salt: 's',
+      user: { id: 'n2', name: 'Маша', role: 'member' }, circle: { status: 'active' },
+    }))
+    expect(await auth.registerByInvite({ code: '7F3Q9XWD' }, { name: 'Маша', pin: '4826', login: 'masha' })).toMatchObject({ id: 'n2' })
+    expect(JSON.parse(fetchMock.mock.calls[2][1].body)).toMatchObject({ action: 'redeem', code: '7F3Q9XWD', login: 'masha' })
+    expect(JSON.parse(fetchMock.mock.calls[2][1].body).token).toBeUndefined()
+  })
+  it('отказы по коду — понятный текст', async () => {
+    fetchMock.mockResolvedValueOnce(res(503, { error: 'busy' }))
+    await expect(auth.registerByInvite({ code: '7F3Q9XWD' }, { name: 'М', pin: '4826' })).rejects.toMatchObject({ code: 'busy' })
+  })
+})

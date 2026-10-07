@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useRef, useState } from 'react'
-import { checkInvite, checkLoginForInvite, registerByInvite, createRecoveryCode, LoginError } from '../lib/auth.js'
+import { checkInvite, checkCircleCode, checkLoginForInvite, registerByInvite, createRecoveryCode, LoginError } from '../lib/auth.js'
+import { joinStatusText } from '../lib/friendCircles.js'
 import RecoveryCodeView from '../components/recovery/RecoveryCodeView.jsx'
 import { normalizeLogin } from '../lib/login.js'
 import LoginField from '../components/LoginField.jsx'
@@ -20,7 +21,14 @@ import AppMark from '../components/AppMark.jsx'
 //   onSignOut()      — выйти из текущей учетки, ссылку сохранить.
 //
 // До регистрации экран не знает и не показывает ничего о круге и его участниках.
-export default function InviteScreen({ token, signedInAs = null, onRegistered, onCancel, onSignOut }) {
+//
+// «Мой круг» (07.10.2026): вместо token — code (личный код из ссылки #join=…). Тогда
+// превью «Сега зовет в круг «Зал»» (имя пригласившего и круга — больше ничего), та же
+// форма, после регистрации человек сразу в круге (вошедшего на устройстве App сразу
+// ведет в «Мой круг», сюда он не попадает).
+export default function InviteScreen({ token = null, code = null, signedInAs = null, onRegistered, onCancel, onSignOut }) {
+  const ref = code ? { code } : token
+  const [preview, setPreview] = useState(null) // { circle_name, inviter_name }
   // 'checking' | 'form' | 'dead' | 'check-failed' | 'login-failed' | 'code'
   const [phase, setPhase] = useState('checking')
   const [dead, setDead] = useState('invalid')
@@ -42,7 +50,14 @@ export default function InviteScreen({ token, signedInAs = null, onRegistered, o
   async function check() {
     setPhase('checking')
     try {
-      const status = await checkInvite(token)
+      let status
+      if (code) {
+        const p = await checkCircleCode(code)
+        status = p.status
+        if (alive.current && status === 'ok') setPreview(p)
+      } else {
+        status = await checkInvite(token)
+      }
       if (!alive.current) return
       if (status === 'ok') setPhase('form')
       else { setDead(status); setPhase('dead') }
@@ -51,9 +66,10 @@ export default function InviteScreen({ token, signedInAs = null, onRegistered, o
     }
   }
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  useEffect(() => { if (!signedInAs) check() }, [token, signedInAs])
+  useEffect(() => { if (!signedInAs) check() }, [token, code, signedInAs])
 
-  const checkLogin = useCallback((v) => checkLoginForInvite(token, v), [token])
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  const checkLogin = useCallback((v) => checkLoginForInvite(ref, v), [token, code])
 
   async function submit(e) {
     e.preventDefault()
@@ -63,7 +79,7 @@ export default function InviteScreen({ token, signedInAs = null, onRegistered, o
     setBusy(true)
     setError('')
     try {
-      const user = await registerByInvite(token, { name: name.trim(), pin, sex, login: normalizeLogin(login) })
+      const user = await registerByInvite(ref, { name: name.trim(), pin, sex, login: normalizeLogin(login) })
       // Не вышло выпустить код — не держим человека: получит в Профиле → Настройки.
       let code = null
       try { code = await createRecoveryCode(user.id) } catch { /* позже в Профиле */ }
@@ -71,10 +87,10 @@ export default function InviteScreen({ token, signedInAs = null, onRegistered, o
       onRegistered?.(user)
     } catch (err) {
       if (!alive.current) return
-      const code = err instanceof LoginError ? err.code : 'server'
-      if (DEAD_STATUSES.has(code)) { setDead(code); setPhase('dead') }
-      else if (code === 'registered_login_failed') setPhase('login-failed')
-      else setError(inviteErrorText(code))
+      const errCode = err instanceof LoginError ? err.code : 'server'
+      if (DEAD_STATUSES.has(errCode)) { setDead(errCode); setPhase('dead') }
+      else if (errCode === 'registered_login_failed') setPhase('login-failed')
+      else setError(inviteErrorText(errCode))
     } finally {
       if (alive.current) setBusy(false)
     }
@@ -128,7 +144,7 @@ export default function InviteScreen({ token, signedInAs = null, onRegistered, o
   } else if (phase === 'dead') {
     body = (
       <>
-        <p className="invite-lead" role="alert">{inviteDeadText(dead)}</p>
+        <p className="invite-lead" role="alert">{code ? joinStatusText(dead) : inviteDeadText(dead)}</p>
         <div className="invite-actions">
           <button className="btn primary" onClick={onCancel}>К входу</button>
         </div>
@@ -154,7 +170,11 @@ export default function InviteScreen({ token, signedInAs = null, onRegistered, o
   } else {
     body = (
       <form className="invite-form" onSubmit={submit} noValidate>
-        <p className="invite-lead">Тебя пригласили. Придумай логин и PIN для входа и имя, которое увидят друзья.</p>
+        {preview ? (
+          <p className="invite-lead"><b>{preview.inviter_name}</b> зовет тебя в круг <b>«{preview.circle_name}»</b>. Придумай логин и PIN для входа и имя, которое увидят друзья.</p>
+        ) : (
+          <p className="invite-lead">Тебя пригласили. Придумай логин и PIN для входа и имя, которое увидят друзья.</p>
+        )}
         <LoginField value={login} check={checkLogin} disabled={busy}
           onChange={(v) => { setLogin(v); setError('') }} />
         <label className="field">

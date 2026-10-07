@@ -94,6 +94,9 @@ export function inviteErrorText(code) {
     case 'bad_pin': return 'PIN — ровно 4 цифры.'
     case 'weak_pin': return WEAK_PIN_TEXT
     case 'network': return 'Нет сети — попробуй позже.'
+    case 'limited': return 'Слишком много попыток — подожди час.'
+    case 'busy': return 'Сегодня по кодам пришло слишком много людей — попробуй завтра.'
+    case 'full': return 'В этом круге больше нет мест — попроси у друга обычную ссылку-приглашение.'
     case 'registered_login_failed': return 'Учетка создана, но войти сразу не получилось. Вернись к входу и войди по своему PIN.'
     default: return 'Не получилось зарегистрироваться. Попробуй еще раз чуть позже.'
   }
