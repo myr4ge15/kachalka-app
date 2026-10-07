@@ -51,8 +51,8 @@ const FRIENDS = [
   { id: 'f3', name: 'Аня' }, { id: 'f4', name: 'Макс' },
 ]
 const AVATARS = {
-  demo: ['🦁', '#F59E0B', '#B45309'], f1: ['🐻', '#8B5CF6', '#5B21B6'],
-  f2: ['🐺', '#3B82F6', '#1E40AF'], f3: ['🦊', '#EC4899', '#9D174D'], f4: ['🐯', '#10B981', '#047857'],
+  demo: ['🐯', '#10B981', '#047857'], f1: ['🐻', '#8B5CF6', '#5B21B6'],
+  f2: ['🐺', '#3B82F6', '#1E40AF'], f3: ['🦊', '#EC4899', '#9D174D'], f4: ['🦁', '#F59E0B', '#B45309'],
 }
 const ex = (id, name, muscle_group, submuscle, secondary, metric, is_bench_lift = false) =>
   ({ id, name, muscle_group, submuscle, secondary, metric, is_bench_lift, is_hidden: false })
@@ -82,14 +82,14 @@ async function seedData({ uid, EXERCISES, FRIENDS, AVATARS, ACCENT }) {
   const at = (daysAgo, h = 19) => { const d = new Date(now - daysAgo * day); d.setHours(h, 10, 0, 0); return d.toISOString() }
 
   const avatar = ([emoji, c1, c2]) => {
-    const S = 256
+    const S = 512 // как новые аватары (v6.18.0)
     const c = document.createElement('canvas'); c.width = S; c.height = S
     const g = c.getContext('2d')
     const grad = g.createLinearGradient(0, 0, 0, S); grad.addColorStop(0, c1); grad.addColorStop(1, c2)
     g.fillStyle = grad; g.fillRect(0, 0, S, S)
-    g.font = '150px "Apple Color Emoji","Segoe UI Emoji","Noto Color Emoji",sans-serif'
+    g.font = '300px "Apple Color Emoji","Segoe UI Emoji","Noto Color Emoji",sans-serif'
     g.textAlign = 'center'; g.textBaseline = 'middle'
-    g.fillText(emoji, S / 2, S / 2 + 10)
+    g.fillText(emoji, S / 2, S / 2 + 20)
     return c.toDataURL('image/png')
   }
 
