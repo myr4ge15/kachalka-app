@@ -106,9 +106,8 @@ describe('setName', () => {
     expect(rpc).toHaveBeenCalledWith('set_my_name', { p_name: 'Дмитрий' })
     expect(meta.get('pin_u1')).toEqual({ pin_hash: 'h', name: 'Дмитрий' })
   })
-  it('тезка — «имя занято»; нет прав — подсказка админу; JWT — перевойти', async () => {
-    rpc.mockResolvedValueOnce({ error: { code: '23505', message: 'duplicate key users_name_key_uidx' } })
-    await expect(auth.setName('u1', 'Маша')).rejects.toThrow('Это имя уже занято')
+  it('имя до 30 (П4); нет прав — подсказка админу; JWT — перевойти', async () => {
+    await expect(auth.setName('u1', 'я'.repeat(31))).rejects.toThrow('от 1 до 30')
     rpc.mockResolvedValueOnce({ error: { code: '42501', message: 'permission denied' } })
     await expect(auth.setName('u1', 'Маша')).rejects.toThrow('напиши админу')
     rpc.mockResolvedValueOnce({ error: { message: 'JWT expired' } })
@@ -118,6 +117,41 @@ describe('setName', () => {
     sessionOwner = 'someone-else'
     await expect(auth.setName('u1', 'Дима')).rejects.toMatchObject({ code: 'session' })
     expect(rpc).not.toHaveBeenCalled()
+  })
+})
+
+// П4 (07.10.2026): свой логин для входа (my_login / set_my_login).
+describe('логин', () => {
+  it('getMyLogin: свой логин или null; офлайн — без запроса', async () => {
+    rpc.mockResolvedValueOnce({ data: 'sega', error: null })
+    expect(await auth.getMyLogin('u1')).toBe('sega')
+    expect(rpc).toHaveBeenCalledWith('my_login')
+    rpc.mockResolvedValueOnce({ data: null, error: null })
+    expect(await auth.getMyLogin('u1')).toBe(null)
+    vi.stubGlobal('navigator', { onLine: false })
+    rpc.mockClear()
+    await expect(auth.getMyLogin('u1')).rejects.toMatchObject({ code: 'network' })
+    expect(rpc).not.toHaveBeenCalled()
+  })
+  it('setMyLogin: формат проверяется до сети, сохраняется в нижнем регистре', async () => {
+    await expect(auth.setMyLogin('u1', 'сега')).rejects.toMatchObject({ code: 'bad' })
+    expect(rpc).not.toHaveBeenCalled()
+    rpc.mockResolvedValueOnce({ data: 'ok', error: null })
+    expect(await auth.setMyLogin('u1', '  Sega ')).toBe('sega')
+    expect(rpc).toHaveBeenCalledWith('set_my_login', { p_login: 'sega' })
+  })
+  it('setMyLogin: занят / лимит — код сервера и понятный текст', async () => {
+    rpc.mockResolvedValueOnce({ data: 'taken', error: null })
+    await expect(auth.setMyLogin('u1', 'masha')).rejects.toMatchObject({ code: 'taken', message: expect.stringMatching(/занят/) })
+    rpc.mockResolvedValueOnce({ data: 'limited', error: null })
+    await expect(auth.setMyLogin('u1', 'masha')).rejects.toMatchObject({ code: 'limited' })
+  })
+  it('проверка логина при регистрации — по ссылке', async () => {
+    fetchMock.mockResolvedValueOnce(res(200, { status: 'taken' }))
+    expect(await auth.checkLoginForInvite('T', 'sega')).toBe('taken')
+    expect(JSON.parse(fetchMock.mock.calls[0][1].body)).toEqual({ action: 'check_login', token: 'T', login: 'sega' })
+    fetchMock.mockResolvedValueOnce(res(500, {}))
+    await expect(auth.checkLoginForInvite('T', 'sega')).rejects.toBeInstanceOf(LoginError)
   })
 })
 
@@ -135,9 +169,9 @@ describe('приглашение', () => {
       session: { access_token: 'a', refresh_token: 'r' }, pin_hash: 'hash-4826', pin_salt: 's',
       user: { id: 'n1', name: 'Вася', role: 'member' },
     }))
-    const u = await auth.registerByInvite('T', { name: 'Вася', pin: '4826', sex: 'm' })
+    const u = await auth.registerByInvite('T', { name: 'Вася', pin: '4826', sex: 'm', login: 'vasya' })
     expect(u).toEqual({ id: 'n1', name: 'Вася', role: 'member' })
-    expect(JSON.parse(fetchMock.mock.calls[0][1].body)).toEqual({ action: 'redeem', token: 'T', name: 'Вася', pin: '4826', sex: 'm' })
+    expect(JSON.parse(fetchMock.mock.calls[0][1].body)).toEqual({ action: 'redeem', token: 'T', name: 'Вася', pin: '4826', sex: 'm', login: 'vasya' })
     expect(meta.get('pin_n1')).toMatchObject({ pin_hash: 'hash-4826', name: 'Вася' })
     expect(await auth.getCachedProfile('n1')).toEqual({ id: 'n1', name: 'Вася', role: 'member' })
   })

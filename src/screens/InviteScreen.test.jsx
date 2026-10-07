@@ -3,19 +3,20 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 import { render, screen, fireEvent, waitFor } from '@testing-library/react'
 import InviteScreen from './InviteScreen.jsx'
-import { checkInvite, registerByInvite, LoginError } from '../lib/auth.js'
+import { checkInvite, checkLoginForInvite, registerByInvite, LoginError } from '../lib/auth.js'
 
 vi.mock('../lib/auth.js', () => {
   class LoginError extends Error {
     constructor(code, message) { super(message); this.code = code }
   }
-  return { checkInvite: vi.fn(), registerByInvite: vi.fn(), LoginError }
+  return { checkInvite: vi.fn(), checkLoginForInvite: vi.fn(async () => 'ok'), registerByInvite: vi.fn(), LoginError }
 })
 
 const TOKEN = 'a_tiNNP3RyzFJHQdG_xlbBkLpflaqExEUJzq2xU0eXo'
 
-function fill({ name = 'Маша', pin = '4826', pin2 = '4826' } = {}) {
-  fireEvent.change(screen.getByLabelText('Имя'), { target: { value: name } })
+function fill({ login = 'masha', name = 'Маша', pin = '4826', pin2 = '4826' } = {}) {
+  fireEvent.change(screen.getByLabelText('Логин (для входа)'), { target: { value: login } })
+  fireEvent.change(screen.getByLabelText('Имя (как тебя увидят)'), { target: { value: name } })
   fireEvent.change(screen.getByLabelText('PIN — 4 цифры'), { target: { value: pin } })
   fireEvent.change(screen.getByLabelText('PIN еще раз'), { target: { value: pin2 } })
 }
@@ -32,18 +33,18 @@ describe('InviteScreen', () => {
     vi.mocked(registerByInvite).mockResolvedValue(user)
     const onRegistered = vi.fn()
     render(<InviteScreen token={TOKEN} onRegistered={onRegistered} onCancel={vi.fn()} />)
-    await screen.findByLabelText('Имя')
+    await screen.findByLabelText('Имя (как тебя увидят)')
     fill({ name: '  Маша ' })
     fireEvent.click(screen.getByRole('radio', { name: 'Женский' }))
     fireEvent.click(screen.getByRole('button', { name: 'Зарегистрироваться' }))
     await waitFor(() => expect(onRegistered).toHaveBeenCalledWith(user))
-    expect(registerByInvite).toHaveBeenCalledWith(TOKEN, { name: 'Маша', pin: '4826', sex: 'f' })
+    expect(registerByInvite).toHaveBeenCalledWith(TOKEN, { name: 'Маша', pin: '4826', sex: 'f', login: 'masha' })
   })
 
   it('PIN-коды не совпали — на сервер не идем', async () => {
     vi.mocked(checkInvite).mockResolvedValue('ok')
     render(<InviteScreen token={TOKEN} onRegistered={vi.fn()} onCancel={vi.fn()} />)
-    await screen.findByLabelText('Имя')
+    await screen.findByLabelText('Имя (как тебя увидят)')
     fill({ pin2: '4321' })
     fireEvent.click(screen.getByRole('button', { name: 'Зарегистрироваться' }))
     expect(await screen.findByRole('alert')).toHaveTextContent('не совпадают')
@@ -58,15 +59,53 @@ describe('InviteScreen', () => {
     expect(pin.value).toBe('1234')
   })
 
-  it('имя занято — понятная ошибка, форма остается', async () => {
+  it('логин заняли — понятная ошибка, форма остается', async () => {
     vi.mocked(checkInvite).mockResolvedValue('ok')
-    vi.mocked(registerByInvite).mockRejectedValue(new LoginError('name_taken', 'name_taken'))
+    vi.mocked(registerByInvite).mockRejectedValue(new LoginError('login_taken', 'login_taken'))
     render(<InviteScreen token={TOKEN} onRegistered={vi.fn()} onCancel={vi.fn()} />)
-    await screen.findByLabelText('Имя')
+    await screen.findByLabelText('Имя (как тебя увидят)')
     fill()
     fireEvent.click(screen.getByRole('button', { name: 'Зарегистрироваться' }))
-    expect(await screen.findByRole('alert')).toHaveTextContent('занято')
-    expect(screen.getByLabelText('Имя')).toBeInTheDocument()
+    expect(await screen.findByRole('alert')).toHaveTextContent('логин занят')
+    expect(screen.getByLabelText('Имя (как тебя увидят)')).toBeInTheDocument()
+  })
+
+  // П4 (07.10.2026, решение владельца): логин — первым полем, из имени НЕ подставляется.
+  it('логин: первым полем, сам не подставляется, занятость — сразу', async () => {
+    vi.mocked(checkInvite).mockResolvedValue('ok')
+    vi.mocked(checkLoginForInvite).mockImplementation(async (t, v) => (v === 'sega' ? 'taken' : 'ok'))
+    const { container } = render(<InviteScreen token={TOKEN} onRegistered={vi.fn()} onCancel={vi.fn()} />)
+    await screen.findByLabelText('Логин (для входа)')
+    const inputs = [...container.querySelectorAll('input')]
+    expect(inputs[0]).toBe(screen.getByLabelText('Логин (для входа)'))
+    expect(inputs[1]).toBe(screen.getByLabelText('Имя (как тебя увидят)'))
+    fireEvent.change(screen.getByLabelText('Имя (как тебя увидят)'), { target: { value: 'Сега' } })
+    const login = screen.getByLabelText('Логин (для входа)')
+    expect(login.value).toBe('')
+    fireEvent.change(login, { target: { value: 'sega' } })
+    expect(await screen.findByText('Этот логин занят — придумай другой.', {}, { timeout: 2000 })).toBeInTheDocument()
+    expect(checkLoginForInvite).toHaveBeenCalledWith(TOKEN, 'sega')
+    fireEvent.change(login, { target: { value: 'sega77' } })
+    expect(await screen.findByText('Свободен ✓', {}, { timeout: 2000 })).toBeInTheDocument()
+  })
+
+  it('без логина — на сервер не идем', async () => {
+    vi.mocked(checkInvite).mockResolvedValue('ok')
+    render(<InviteScreen token={TOKEN} onRegistered={vi.fn()} onCancel={vi.fn()} />)
+    await screen.findByLabelText('Логин (для входа)')
+    fill({ login: '' })
+    fireEvent.click(screen.getByRole('button', { name: 'Зарегистрироваться' }))
+    expect(await screen.findByRole('alert')).toHaveTextContent('Придумай логин')
+    expect(registerByInvite).not.toHaveBeenCalled()
+  })
+
+  it('кириллица в логине — подсказка сразу, на сервер не идем', async () => {
+    vi.mocked(checkInvite).mockResolvedValue('ok')
+    vi.mocked(checkLoginForInvite).mockClear()
+    render(<InviteScreen token={TOKEN} onRegistered={vi.fn()} onCancel={vi.fn()} />)
+    fireEvent.change(await screen.findByLabelText('Логин (для входа)'), { target: { value: 'сега' } })
+    expect(screen.getByText(/латиницей/)).toBeInTheDocument()
+    expect(checkLoginForInvite).not.toHaveBeenCalled()
   })
 
   it('использованная ссылка — объяснение и выход к входу', async () => {
@@ -74,7 +113,7 @@ describe('InviteScreen', () => {
     const onCancel = vi.fn()
     render(<InviteScreen token={TOKEN} onRegistered={vi.fn()} onCancel={onCancel} />)
     expect(await screen.findByRole('alert')).toHaveTextContent('уже зарегистрировались')
-    expect(screen.queryByLabelText('Имя')).toBeNull()
+    expect(screen.queryByLabelText('Имя (как тебя увидят)')).toBeNull()
     fireEvent.click(screen.getByRole('button', { name: 'К входу' }))
     expect(onCancel).toHaveBeenCalled()
   })
@@ -83,7 +122,7 @@ describe('InviteScreen', () => {
     vi.mocked(checkInvite).mockResolvedValue('ok')
     vi.mocked(registerByInvite).mockRejectedValue(new LoginError('used', 'used'))
     render(<InviteScreen token={TOKEN} onRegistered={vi.fn()} onCancel={vi.fn()} />)
-    await screen.findByLabelText('Имя')
+    await screen.findByLabelText('Имя (как тебя увидят)')
     fill()
     fireEvent.click(screen.getByRole('button', { name: 'Зарегистрироваться' }))
     expect(await screen.findByRole('alert')).toHaveTextContent('одноразовая')
@@ -102,6 +141,6 @@ describe('InviteScreen', () => {
     vi.mocked(checkInvite).mockRejectedValueOnce(new Error('net')).mockResolvedValueOnce('ok')
     render(<InviteScreen token={TOKEN} onRegistered={vi.fn()} onCancel={vi.fn()} />)
     fireEvent.click(await screen.findByRole('button', { name: 'Еще раз' }))
-    expect(await screen.findByLabelText('Имя')).toBeInTheDocument()
+    expect(await screen.findByLabelText('Имя (как тебя увидят)')).toBeInTheDocument()
   })
 })

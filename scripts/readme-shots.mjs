@@ -326,7 +326,7 @@ async function main() {
     }
 
     if (want('login')) {
-      // Новый телефон: чистое устройство, вход по имени и PIN.
+      // Новый телефон: чистое устройство, вход по логину и PIN (v6.17.0).
       const c2 = await newContext(browser)
       const p2 = await c2.newPage()
       await p2.goto(base)

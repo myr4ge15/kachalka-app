@@ -46,7 +46,7 @@ export default function ProfileHeader({ user, avatarUrl, onRenamed }) {
   async function saveName() {
     setNameErr('')
     const clean = nameVal.trim()
-    if (clean.length < 1 || clean.length > 40) { setNameErr('Имя — от 1 до 40 символов.'); return }
+    if (clean.length < 1 || clean.length > 30) { setNameErr('Имя — от 1 до 30 символов.'); return }
     if (clean === user.name) { setNameEditing(false); return }
     setNameBusy(true)
     try {
@@ -77,7 +77,7 @@ export default function ProfileHeader({ user, avatarUrl, onRenamed }) {
             <input
               className="name-input"
               type="text"
-              maxLength={40}
+              maxLength={30}
               value={nameVal}
               onChange={(e) => setNameVal(e.target.value)}
               aria-label="Новое имя"

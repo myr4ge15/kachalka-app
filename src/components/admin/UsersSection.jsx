@@ -1,5 +1,7 @@
 // Секция Админки «Пользователи» (вынесена из screens/AdminScreen.jsx, v6.14.1).
 import { useEffect, useRef, useState } from 'react'
+import { normalizeLogin, loginProblem } from '../../lib/login.js'
+import LoginField from '../LoginField.jsx'
 import { adminListUsers, adminSetUser, adminSetPrivate, adminSetSex, adminResetPin, adminCreateUser, adminDeleteUser, adminSetUserOrder } from '../../lib/admin.js'
 import { onlyDigits } from '../../lib/text.js'
 import { showToast } from '../Toast.jsx'
@@ -46,6 +48,8 @@ export default function UsersSection({ meId, online, errMsg }) {
   const [addName, setAddName] = useState('')
   const [addRole, setAddRole] = useState('member')
   const [addPin, setAddPin] = useState('')
+  // Логин для входа (П4, 07.10.2026) — первым полем, из имени не подставляется.
+  const [addLogin, setAddLogin] = useState('')
   const [addPrivate, setAddPrivate] = useState(false)
   const [addSex, setAddSex] = useState('') // '' | 'm' | 'f'
   const [addBusy, setAddBusy] = useState(false)
@@ -158,13 +162,13 @@ export default function UsersSection({ meId, online, errMsg }) {
   async function addUser() {
     setAddBusy(true)
     try {
-      const u = await adminCreateUser(addName, addRole, addPin)
+      const u = await adminCreateUser(addName, addRole, addPin, addLogin)
       // Приватность/пол ставим отдельными шагами (создание идет через Edge
       // Function, флаги — через RPC), чтобы не трогать серверную функцию создания.
       if (addPrivate) await adminSetPrivate(u.id, true)
       if (addSex) await adminSetSex(u.id, addSex)
-      showToast({ emoji: '🎉', title: 'Участник добавлен', sub: `${u.name} может входить PIN ${addPin}.` })
-      if (alive.current) { setAddOpen(false); setAddName(''); setAddRole('member'); setAddPin(''); setAddPrivate(false); setAddSex('') }
+      showToast({ emoji: '🎉', title: 'Участник добавлен', sub: `Вход: логин ${normalizeLogin(addLogin)}, PIN ${addPin}.` })
+      if (alive.current) { setAddOpen(false); setAddName(''); setAddLogin(''); setAddRole('member'); setAddPin(''); setAddPrivate(false); setAddSex('') }
       reload()
     } catch (e) {
       showToast({ emoji: '⚠️', title: 'Не удалось', sub: errMsg(e) })
@@ -203,7 +207,7 @@ export default function UsersSection({ meId, online, errMsg }) {
               <div className="admin-user-edit">
                 <label className="field">
                   <span className="field-lab">Имя</span>
-                  <input className="admin-input" type="text" maxLength={40}
+                  <input className="admin-input" type="text" maxLength={30}
                     value={edName} onChange={(e) => setEdName(e.target.value)} />
                 </label>
                 <label className="field">
@@ -318,9 +322,10 @@ export default function UsersSection({ meId, online, errMsg }) {
       {addOpen ? (
         <div className="admin-add">
           <p className="admin-merge-title">Новый участник</p>
+          <LoginField value={addLogin} onChange={setAddLogin} />
           <label className="field">
-            <span className="field-lab">Имя</span>
-            <input className="admin-input" type="text" maxLength={40}
+            <span className="field-lab">Имя (как увидят друзья)</span>
+            <input className="admin-input" type="text" maxLength={30}
               value={addName} onChange={(e) => setAddName(e.target.value)} />
           </label>
           <label className="field">
@@ -351,7 +356,7 @@ export default function UsersSection({ meId, online, errMsg }) {
           <div className="admin-ex-actions">
             <button className="btn ghost" onClick={() => setAddOpen(false)} disabled={addBusy}>Отмена</button>
             <button className="btn primary" onClick={addUser}
-              disabled={addBusy || !online || addName.trim().length < 1 || addPin.length !== 4}>
+              disabled={addBusy || !online || addName.trim().length < 1 || addPin.length !== 4 || Boolean(loginProblem(addLogin))}>
               {addBusy ? 'Создаю…' : 'Добавить'}
             </button>
           </div>

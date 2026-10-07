@@ -15,6 +15,7 @@ import { isNested } from './lib/screenNav.js'
 import { useAccentSync } from './hooks/useAccentSync.js'
 import LoginScreen from './screens/LoginScreen.jsx'
 import InviteScreen from './screens/InviteScreen.jsx'
+import LoginSetupScreen from './screens/LoginSetupScreen.jsx'
 import { inviteFromUrl, stripInvite } from './lib/invite.js'
 import { captureSource, clearPending } from './lib/joinRequest.js'
 import Toast from './components/Toast.jsx'
@@ -32,6 +33,7 @@ import ScreenCrash from './components/ScreenCrash.jsx'
 import { useSession } from './hooks/useSession.js'
 import { useAppNav } from './hooks/useAppNav.js'
 import { useLaunchSheets } from './hooks/useLaunchSheets.js'
+import { useLoginSetup } from './hooks/useLoginSetup.js'
 
 // Экраны-вкладки грузим лениво: код активной вкладки подтягивается по требованию.
 // Главный выигрыш — «Прогресс» тянет тяжелый recharts, который теперь не попадает
@@ -100,6 +102,8 @@ export default function App() {
 
   // «Добро пожаловать», «Что нового» и вопрос про уведомления — hooks/useLaunchSheets.js.
   const { welcome, closeWelcome, whatsNew, closeWhatsNew, pushAsk, closePushAsk } = useLaunchSheets(user, historyBusy)
+  // «Придумай логин» (П4, v6.17.0): у старых учеток логина нет — обязательный шаг онлайн.
+  const loginSetup = useLoginSetup(user)
   // Строка новой версии (UpdatePrompt, вне App) не показывается посреди записи
   // тренировки — сообщаем ей через атрибут на <html> (CSS прячет).
   useEffect(() => {
@@ -204,6 +208,11 @@ export default function App() {
 
   if (!user) {
     return <LoginScreen onLogin={handleLogin} onInvite={setInviteToken} />
+  }
+
+  // Посреди записи тренировки не перебиваем — дождемся выхода из композера.
+  if (loginSetup.needed && !historyBusy) {
+    return <LoginSetupScreen user={user} onDone={loginSetup.done} onLogout={handleLogout} />
   }
 
   return (

@@ -18,6 +18,7 @@ import { supabase, isSessionOf, hasSession } from '../db/supabase.js'
 import { getLoginMeta, setLoginMeta, listLoginMeta, deleteLoginMeta } from '../db/local.js'
 import { verifyPin } from './hash.js'
 import { WEAK_PIN_TEXT } from './pinPolicy.js'
+import { normalizeLogin, loginProblem, loginStatusText } from './login.js'
 import { DB_TIMEOUT_MS, withTimeout } from './withTimeout.js'
 
 // fetch с жестким таймаутом через AbortController: подвисшая сеть (корпоративный
@@ -135,10 +136,10 @@ async function postLogin(payload, timeoutMs = DB_TIMEOUT_MS) {
     throw new LoginError('locked', 'Слишком много попыток. Подожди немного.', body?.retry_after ?? null)
   }
   if (res.status === 401) {
-    throw new LoginError('invalid', payload.name != null ? 'Имя или PIN не подходят' : 'Неверный PIN')
+    throw new LoginError('invalid', payload.name != null ? 'Логин или PIN не подходят' : 'Неверный PIN')
   }
   if (res.status === 400 && payload.name != null) {
-    throw new LoginError('invalid', 'Имя или PIN не подходят')
+    throw new LoginError('invalid', 'Логин или PIN не подходят')
   }
   if (!res.ok || !body?.session || !body?.user?.id) {
     throw new LoginError('server', body?.error ?? 'Не удалось войти.')
@@ -201,13 +202,22 @@ export async function checkInvite(token) {
   return body.status
 }
 
+// Свободен ли логин (П4, 07.10.2026) — пока человек заполняет форму регистрации.
+// 'ok' | 'bad' | 'reserved' | 'taken' | 'limited' | 'invalid' (ссылка умерла). Только
+// по живой ссылке и с лимитом на IP (login_check_claim). Сбой — LoginError.
+export async function checkLoginForInvite(token, login) {
+  const { res, body } = await callInvite({ action: 'check_login', token, login })
+  if (!res.ok || !body?.status) throw new LoginError('server', 'Не удалось проверить логин.')
+  return body.status
+}
+
 // Зарегистрироваться и сразу войти. Возвращает { id, name, role }. Ошибка —
-// LoginError с code = код сервера ('name_taken', 'used', 'expired', …) или
+// LoginError с code = код сервера ('login_taken', 'used', 'expired', …) или
 // 'network' / 'server'; текст для экрана — inviteErrorText (lib/invite.js).
-export async function registerByInvite(token, { name, pin, sex = null }) {
+export async function registerByInvite(token, { name, pin, sex = null, login = null }) {
   const generation = authGeneration
   const stale = () => generation !== authGeneration
-  const { res, body } = await callInvite({ action: 'redeem', token, name, pin, sex })
+  const { res, body } = await callInvite({ action: 'redeem', token, name, pin, sex, login })
   if (!res.ok || !body?.session) {
     const code = body?.error ?? 'server'
     const err = new LoginError(code, code)
@@ -349,8 +359,8 @@ export async function setPin(userId, currentPin, newPin) {
 // очищенное имя; ошибки — LoginError ('network' | 'invalid' | 'server').
 export async function setName(userId, name) {
   const clean = String(name ?? '').trim()
-  if (clean.length < 1 || clean.length > 40) {
-    throw new LoginError('invalid', 'Имя — от 1 до 40 символов.')
+  if (clean.length < 1 || clean.length > 30) {
+    throw new LoginError('invalid', 'Имя — от 1 до 30 символов.')
   }
   if (!navigator.onLine) {
     throw new LoginError('network', 'Смена имени — только онлайн.')
@@ -366,6 +376,41 @@ export async function setName(userId, name) {
   // Обновляем имя в офлайн-кэше своего профиля (хэш/соль/роль сохраняем).
   const cached = (await getLoginMeta(pinCacheKey(userId))) ?? {}
   await setLoginMeta(pinCacheKey(userId), { ...cached, name: clean })
+  return clean
+}
+
+// Свой логин для входа (П4, 07.10.2026; supabase/login-separate.sql my_login). Виден
+// только владельцу. null — логина еще нет (старая учетка) → шаг «Придумай логин».
+// Только онлайн под своей сессией; сбой — LoginError.
+export async function getMyLogin(userId) {
+  if (!navigator.onLine) throw new LoginError('network', 'Нет сети.')
+  await ensureOwnSession(userId)
+  let res
+  try {
+    res = await withTimeout(supabase.rpc('my_login'))
+  } catch {
+    throw new LoginError('network', 'Нет сети — попробуй позже.')
+  }
+  if (res.error) throw rpcError(res.error, 'my_login', 'Не удалось узнать логин.')
+  return res.data ?? null
+}
+
+// Задать/сменить свой логин. Возвращает сохраненный (нормализованный) логин; отказ —
+// LoginError с code = статусом сервера ('taken' | 'bad' | 'limited') и текстом для формы.
+export async function setMyLogin(userId, login) {
+  const clean = normalizeLogin(login)
+  const problem = loginProblem(clean)
+  if (problem) throw new LoginError('bad', problem)
+  if (!navigator.onLine) throw new LoginError('network', 'Логин задается только онлайн.')
+  await ensureOwnSession(userId)
+  let res
+  try {
+    res = await withTimeout(supabase.rpc('set_my_login', { p_login: clean }))
+  } catch {
+    throw new LoginError('network', 'Нет сети — попробуй позже.')
+  }
+  if (res.error) throw rpcError(res.error, 'set_my_login', 'Не удалось сохранить логин.')
+  if (res.data !== 'ok') throw new LoginError(String(res.data ?? 'server'), loginStatusText(res.data))
   return clean
 }
 
@@ -403,10 +448,6 @@ const NO_SESSION_MSG = 'Нет связи с сервером под твоей 
 function rpcError(err, fn, fallback) {
   const m = String(err?.message ?? '')
   if (/JWT|not authenticated/i.test(m)) return new LoginError('session', NO_SESSION_MSG)
-  // Уникальный индекс имен users_name_key_uidx (invites.sql, v6.8.0).
-  if (err?.code === '23505' || /users_name_key/.test(m)) {
-    return new LoginError('invalid', 'Это имя уже занято — добавь фамилию или инициал.')
-  }
   if (err?.code === '42501' || /permission denied/i.test(m)) {
     return new LoginError('server', `Сервер не дал прав на ${fn} — напиши админу. (${m || err?.code})`)
   }

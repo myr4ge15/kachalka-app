@@ -36,7 +36,7 @@ describe('участники (RPC)', () => {
   })
 
   it('имя/роль: проверка ДО сети, ошибки сервера по-человечески', async () => {
-    await expect(admin.adminSetUser('u1', ' ', 'member')).rejects.toThrow('Имя — от 1 до 40')
+    await expect(admin.adminSetUser('u1', ' ', 'member')).rejects.toThrow('Имя — от 1 до 30')
     await expect(admin.adminSetUser('u1', 'Дима', 'boss')).rejects.toThrow('Недопустимая роль')
     expect(rpc).not.toHaveBeenCalled()
     rpc.mockReturnValueOnce(ok(null))
@@ -44,8 +44,8 @@ describe('участники (RPC)', () => {
     expect(rpc).toHaveBeenCalledWith('admin_set_user', { p_id: 'u1', p_name: 'Дима', p_role: 'admin' })
     rpc.mockReturnValueOnce(err('cannot demote last admin'))
     await expect(admin.adminSetUser('u1', 'Дима', 'member')).rejects.toThrow('Нельзя снять роль с последнего админа')
-    rpc.mockReturnValueOnce(err('duplicate key value violates users_name_key_uidx'))
-    await expect(admin.adminSetUser('u1', 'Маша', 'member')).rejects.toThrow('Это имя уже занято')
+    // П4: тезки разрешены — сервер больше не отвечает «имя занято».
+    await expect(admin.adminSetUser('u1', 'я'.repeat(31), 'member')).rejects.toThrow('от 1 до 30')
   })
 
   it('приватность, пол, порядок, удаление', async () => {
@@ -101,22 +101,24 @@ describe('сброс PIN (Edge)', () => {
 
 describe('создание участника (Edge)', () => {
   it('проверки ввода до сети', async () => {
-    await expect(admin.adminCreateUser('', 'member', '4826')).rejects.toThrow('Имя')
-    await expect(admin.adminCreateUser('Вася', 'god', '4826')).rejects.toThrow('роль')
-    await expect(admin.adminCreateUser('Вася', 'member', '12a4')).rejects.toThrow('4 цифры')
-    await expect(admin.adminCreateUser('Вася', 'member', '1234')).rejects.toThrow(WEAK_PIN_TEXT)
+    await expect(admin.adminCreateUser('', 'member', '4826', 'vasya')).rejects.toThrow('Имя')
+    await expect(admin.adminCreateUser('Вася', 'member', '4826', 'вася')).rejects.toThrow('латиницей')
+    await expect(admin.adminCreateUser('Вася', 'member', '4826', '')).rejects.toThrow('Придумай логин')
+    await expect(admin.adminCreateUser('Вася', 'god', '4826', 'vasya')).rejects.toThrow('роль')
+    await expect(admin.adminCreateUser('Вася', 'member', '12a4', 'vasya')).rejects.toThrow('4 цифры')
+    await expect(admin.adminCreateUser('Вася', 'member', '1234', 'vasya')).rejects.toThrow(WEAK_PIN_TEXT)
     expect(fetch).not.toHaveBeenCalled()
   })
   it('успех и коды ошибок', async () => {
     fetch.mockReturnValueOnce(reply(200, { ok: true, user: { id: 'n1', name: 'Вася', role: 'member' } }))
-    expect(await admin.adminCreateUser(' Вася ', 'member', '4826')).toEqual({ id: 'n1', name: 'Вася', role: 'member' })
-    expect(JSON.parse(fetch.mock.calls[0][1].body)).toEqual({ name: 'Вася', role: 'member', pin: '4826' })
-    fetch.mockReturnValueOnce(reply(409, { error: 'name_taken' }))
-    await expect(admin.adminCreateUser('Вася', 'member', '4826')).rejects.toThrow('Имя уже занято')
+    expect(await admin.adminCreateUser(' Вася ', 'member', '4826', ' Vasya ')).toEqual({ id: 'n1', name: 'Вася', role: 'member' })
+    expect(JSON.parse(fetch.mock.calls[0][1].body)).toEqual({ name: 'Вася', role: 'member', pin: '4826', login: 'vasya' })
+    fetch.mockReturnValueOnce(reply(409, { error: 'login_taken' }))
+    await expect(admin.adminCreateUser('Вася', 'member', '4826', 'vasya')).rejects.toThrow('логин занят')
     fetch.mockReturnValueOnce(reply(403, { error: 'mfa_required' }))
-    await expect(admin.adminCreateUser('Вася', 'member', '4826')).rejects.toThrow(MFA_REQUIRED_TEXT)
+    await expect(admin.adminCreateUser('Вася', 'member', '4826', 'vasya')).rejects.toThrow(MFA_REQUIRED_TEXT)
     fetch.mockReturnValueOnce(reply(500, null))
-    await expect(admin.adminCreateUser('Вася', 'member', '4826')).rejects.toThrow('Не удалось создать участника')
+    await expect(admin.adminCreateUser('Вася', 'member', '4826', 'vasya')).rejects.toThrow('Не удалось создать участника')
   })
 })
 

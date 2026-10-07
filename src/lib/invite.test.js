@@ -44,11 +44,15 @@ describe('inviteUrl', () => {
 })
 
 describe('validateRegistration', () => {
-  const ok = { name: 'Маша', pin: '4826', pin2: '4826' }
+  const ok = { name: 'Маша', login: 'masha', pin: '4826', pin2: '4826' }
   it('валидная форма', () => expect(validateRegistration(ok)).toBe(''))
   it('пустое и длинное имя', () => {
     expect(validateRegistration({ ...ok, name: '   ' })).toMatch(/как тебя зовут/)
-    expect(validateRegistration({ ...ok, name: 'я'.repeat(41) })).toMatch(/40/)
+    expect(validateRegistration({ ...ok, name: 'я'.repeat(31) })).toMatch(/30/)
+    // П4: логин — те же правила, что у сервера.
+    expect(validateRegistration({ ...ok, login: '' })).toMatch(/Придумай логин/)
+    expect(validateRegistration({ ...ok, login: 'маша' })).toMatch(/латиницей/)
+    expect(validateRegistration({ ...ok, login: 'admin' })).toMatch(/занят/)
   })
   it('PIN не 4 цифры и несовпадение', () => {
     expect(validateRegistration({ ...ok, pin: '123', pin2: '123' })).toMatch(/4 цифры/)
@@ -68,7 +72,8 @@ describe('тексты', () => {
     expect(new Set(texts).size).toBe(4)
   })
   it('коды ошибок регистрации', () => {
-    expect(inviteErrorText('name_taken')).toMatch(/занято/)
+    expect(inviteErrorText('login_taken')).toMatch(/логин занят/)
+    expect(inviteErrorText('bad_login')).toMatch(/a–z/)
     expect(inviteErrorText('used')).toBe(inviteDeadText('used'))
     expect(inviteErrorText('registered_login_failed')).toMatch(/войди/)
     expect(inviteErrorText('что-то')).toMatch(/Не получилось/)

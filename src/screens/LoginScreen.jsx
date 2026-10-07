@@ -265,7 +265,7 @@ export default function LoginScreen({ onLogin, onInvite }) {
           )}
           {mark}
           <h1 className="title">Журнал тренировок</h1>
-          <p className="muted login-sub">Введи свое имя и PIN</p>
+          <p className="muted login-sub">Введи логин и PIN</p>
           {joinCard}
           <NameLoginForm onLogin={onLogin} showError={showError} error={error} setError={setError} />
           {!pending && (
@@ -296,7 +296,7 @@ export default function LoginScreen({ onLogin, onInvite }) {
             ))}
           </div>
           <div className="login-alt">
-            <button className="link-btn" onClick={() => { setError(''); setMode('name') }}>Войти под другим именем</button>
+            <button className="link-btn" onClick={() => { setError(''); setMode('name') }}>Войти в другую учетку</button>
             {!pending && <button className="link-btn" onClick={() => { setError(''); setMode('join') }}>Запросить доступ</button>}
           </div>
         </div>
@@ -354,7 +354,9 @@ export default function LoginScreen({ onLogin, onInvite }) {
   )
 }
 
-// Вход по имени + PIN (новое устройство). Только онлайн: хэша учетки тут еще нет.
+// Вход по логину + PIN (новое устройство). Только онлайн: хэша учетки тут еще нет.
+// П4 (07.10.2026): поле одно — «Логин». Сервер ищет точный логин, а у учеток, где
+// логина еще нет, — старое имя (переходный период; потом этот путь выключат).
 function NameLoginForm({ onLogin, showError, error, setError }) {
   const [name, setName] = useState('')
   const [pin, setPin] = useState('')
@@ -363,7 +365,7 @@ function NameLoginForm({ onLogin, showError, error, setError }) {
   async function submit(e) {
     e.preventDefault()
     if (busy) return
-    if (!name.trim()) { setError('Напиши свое имя.'); return }
+    if (!name.trim()) { setError('Напиши логин.'); return }
     if (pin.length !== 4) { setError('PIN — 4 цифры.'); return }
     if (!navigator.onLine) { setError('Нет сети. Первый вход на устройстве — только онлайн.'); return }
     setBusy(true)
@@ -380,11 +382,13 @@ function NameLoginForm({ onLogin, showError, error, setError }) {
 
   return (
     <form className="invite-form" onSubmit={submit} noValidate>
-      <label className="field">
-        <span className="field-lab">Имя</span>
-        <input className="admin-input" type="text" maxLength={60} autoComplete="username" autoCapitalize="words"
+      <div className="field">
+        <label className="field-lab" htmlFor="login-name">Логин</label>
+        <input id="login-name" className="admin-input" type="text" maxLength={60} autoComplete="username"
+          autoCapitalize="none" autoCorrect="off" spellCheck={false} aria-describedby="login-hint"
           value={name} disabled={busy} onChange={(e) => { setName(e.target.value); setError('') }} />
-      </label>
+        <span className="field-hint" id="login-hint">Еще нет логина — введи свое имя, как раньше.</span>
+      </div>
       <label className="field">
         <span className="field-lab">PIN — 4 цифры</span>
         <input className="pin-input" type="password" inputMode="numeric" maxLength={4}

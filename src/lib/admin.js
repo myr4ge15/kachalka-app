@@ -18,6 +18,7 @@ import { defaultSubmuscleFor, cleanSecondary } from './muscles.js'
 import { humanRpc } from './adminMessages.js'
 import { normMetric } from './metric.js'
 import { isWeakPin, WEAK_PIN_TEXT } from './pinPolicy.js'
+import { loginProblem, normalizeLogin } from './login.js'
 
 const RESET_PIN_URL = (import.meta.env.VITE_SUPABASE_URL ?? '') + '/functions/v1/admin-reset-pin'
 const CREATE_USER_URL = (import.meta.env.VITE_SUPABASE_URL ?? '') + '/functions/v1/admin-create-user'
@@ -105,7 +106,7 @@ export async function adminSetSex(id, sex) {
 // Сменить имя/роль участника. Сервер бережет последнего админа от разжалования.
 export async function adminSetUser(id, name, role) {
   const clean = String(name ?? '').trim()
-  if (clean.length < 1 || clean.length > 40) throw new AdminError('Имя — от 1 до 40 символов.')
+  if (clean.length < 1 || clean.length > 30) throw new AdminError('Имя — от 1 до 30 символов.')
   if (role !== 'admin' && role !== 'member') throw new AdminError('Недопустимая роль.')
   const res = await withTimeout(
     supabase.rpc('admin_set_user', { p_id: id, p_name: clean, p_role: role })
@@ -161,9 +162,12 @@ export async function adminResetPin(targetUserId, newPin = '') {
 }
 
 // Создать нового участника (Edge Function). Возвращает { id, name, role }.
-export async function adminCreateUser(name, role, pin) {
+// login — для входа (П4, 07.10.2026); имена с П4 не уникальны, логины — да.
+export async function adminCreateUser(name, role, pin, login) {
   const clean = String(name ?? '').trim()
-  if (clean.length < 1 || clean.length > 40) throw new AdminError('Имя — от 1 до 40 символов.')
+  if (clean.length < 1 || clean.length > 30) throw new AdminError('Имя — от 1 до 30 символов.')
+  const lp = loginProblem(login)
+  if (lp) throw new AdminError(lp)
   if (role !== 'admin' && role !== 'member') throw new AdminError('Недопустимая роль.')
   if (!/^\d{4}$/.test(pin)) throw new AdminError('PIN — 4 цифры.')
   if (isWeakPin(pin)) throw new AdminError(WEAK_PIN_TEXT)
@@ -175,7 +179,7 @@ export async function adminCreateUser(name, role, pin) {
     res = await fetchWithTimeout(CREATE_USER_URL, {
       method: 'POST',
       headers: { 'content-type': 'application/json', apikey: ANON, authorization: `Bearer ${token}` },
-      body: JSON.stringify({ name: clean, role, pin }),
+      body: JSON.stringify({ name: clean, role, pin, login: normalizeLogin(login) }),
     })
   } catch {
     throw new AdminError('Нет сети — попробуй позже.')
@@ -185,7 +189,8 @@ export async function adminCreateUser(name, role, pin) {
   if (payload?.error === 'mfa_required') throw new AdminError(MFA_REQUIRED_TEXT)
   if (res.status === 403) throw new AdminError('Нужны права админа.')
   if (res.status === 401) throw new AdminError('Сессия истекла — войди заново.')
-  if (res.status === 409) throw new AdminError('Имя уже занято.')
+  if (res.status === 409) throw new AdminError('Этот логин занят — придумай другой.')
+  if (payload?.error === 'bad_login') throw new AdminError(loginProblem(login) || 'Логин: латиница, цифры, точка и _.')
   if (payload?.error === 'weak_pin') throw new AdminError(WEAK_PIN_TEXT)
   if (!res.ok || !payload?.ok || !payload?.user) {
     throw new AdminError(payload?.error ?? 'Не удалось создать участника.')

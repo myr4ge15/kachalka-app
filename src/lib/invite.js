@@ -7,6 +7,7 @@
 // ============================================================================
 
 import { isWeakPin, WEAK_PIN_TEXT } from './pinPolicy.js'
+import { loginProblem, loginStatusText } from './login.js'
 
 export const INVITE_TOKEN_RE = /^[A-Za-z0-9_-]{43}$/
 
@@ -45,7 +46,7 @@ export function inviteUrl(token, origin, base = '/') {
 export function inviteMessage({ url = '', expiresAt = null } = {}) {
   const lines = [
     'Привет! Зову тебя в наш журнал тренировок 💪',
-    'Открой ссылку, придумай имя и PIN из 4 цифр — и ты в деле.',
+    'Открой ссылку, придумай логин, имя и PIN из 4 цифр — и ты в деле.',
   ]
   const until = expiresAt ? new Date(expiresAt) : null
   lines.push(until && !Number.isNaN(until.getTime())
@@ -56,10 +57,13 @@ export function inviteMessage({ url = '', expiresAt = null } = {}) {
 }
 
 // Проверка формы до запроса. Пустая строка — все в порядке.
-export function validateRegistration({ name, pin, pin2 }) {
+// login — П4 (07.10.2026): логин для входа, проверка формата та же, что у сервера.
+export function validateRegistration({ name, login, pin, pin2 }) {
   const n = String(name ?? '').trim()
   if (n.length < 1) return 'Напиши, как тебя зовут.'
-  if (n.length > 40) return 'Имя — до 40 символов.'
+  if (n.length > 30) return 'Имя — до 30 символов.'
+  const lp = loginProblem(login)
+  if (lp) return lp
   if (!/^\d{4}$/.test(String(pin ?? ''))) return 'PIN — ровно 4 цифры.'
   if (isWeakPin(pin)) return WEAK_PIN_TEXT
   // Повтор еще не набран — просим набрать, а не пугаем «не совпадают» (v6.15.4).
@@ -84,8 +88,9 @@ export const DEAD_STATUSES = new Set(['used', 'expired', 'revoked', 'invalid'])
 export function inviteErrorText(code) {
   if (DEAD_STATUSES.has(code)) return inviteDeadText(code)
   switch (code) {
-    case 'name_taken': return 'Это имя уже занято — добавь фамилию или инициал.'
-    case 'bad_name': return 'Имя — от 1 до 40 символов.'
+    case 'login_taken':
+    case 'bad_login': return loginStatusText(code)
+    case 'bad_name': return 'Имя — от 1 до 30 символов.'
     case 'bad_pin': return 'PIN — ровно 4 цифры.'
     case 'weak_pin': return WEAK_PIN_TEXT
     case 'network': return 'Нет сети — попробуй позже.'

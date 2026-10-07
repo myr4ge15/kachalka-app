@@ -46,7 +46,10 @@ vi.mock('../db/repo.js', () => ({
 }))
 vi.mock('../lib/auth.js', async (orig) => {
   const real = await orig()
-  return { ...real, setPin: vi.fn(async () => true), setName: vi.fn(async (_id, n) => n), setSex: vi.fn() }
+  return {
+    ...real, setPin: vi.fn(async () => true), setName: vi.fn(async (_id, n) => n), setSex: vi.fn(),
+    getMyLogin: vi.fn(async () => 'dima'), setMyLogin: vi.fn(async (_id, l) => l.trim().toLowerCase()),
+  }
 })
 
 const BENCH = { id: 'ex1', name: 'Жим лежа', muscle_group: 'грудь', metric: 'weight', is_bench_lift: true }
@@ -67,6 +70,32 @@ const openSettings = async () => fireEvent.click(await screen.findByRole('button
 
 beforeEach(() => { Element.prototype.scrollTo = vi.fn(); Element.prototype.scrollIntoView = vi.fn() })
 afterEach(() => vi.clearAllMocks())
+
+// П4 (07.10.2026): логин виден и меняется в Настройках.
+describe('Профиль: логин для входа', () => {
+  it('показывает свой логин и меняет его', async () => {
+    render(<Harness />)
+    await openSettings()
+    const row = await screen.findByRole('button', { name: /Логин для входа/ })
+    await waitFor(() => expect(row).toHaveTextContent('dima'))
+    fireEvent.click(row)
+    const input = screen.getByLabelText('Новый логин')
+    expect(input.value).toBe('dima')
+    fireEvent.change(input, { target: { value: 'Dima.K' } })
+    fireEvent.click(screen.getByRole('button', { name: 'Сохранить' }))
+    await waitFor(() => expect(auth.setMyLogin).toHaveBeenCalledWith('me', 'Dima.K'))
+    expect(await screen.findByRole('button', { name: /Логин для входа/ })).toHaveTextContent('dima.k')
+  })
+  it('занят — ошибка в форме', async () => {
+    vi.mocked(auth.setMyLogin).mockRejectedValueOnce(new auth.LoginError('taken', 'Этот логин занят — придумай другой.'))
+    render(<Harness />)
+    await openSettings()
+    fireEvent.click(await screen.findByRole('button', { name: /Логин для входа/ }))
+    fireEvent.change(screen.getByLabelText('Новый логин'), { target: { value: 'masha' } })
+    fireEvent.click(screen.getByRole('button', { name: 'Сохранить' }))
+    expect(await screen.findByRole('alert')).toHaveTextContent('занят')
+  })
+})
 
 describe('Профиль: смена PIN', () => {
   it('проверки формы и успешная смена', async () => {

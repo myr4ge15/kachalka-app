@@ -44,9 +44,9 @@ describe('loginByName', () => {
     expect(setSession).toHaveBeenCalled()
   })
 
-  it('неизвестное имя и неверный PIN — одна ошибка «Имя или PIN не подходят»', async () => {
+  it('неизвестный логин и неверный PIN — одна ошибка «Логин или PIN не подходят»', async () => {
     fetchMock.mockResolvedValue(res(401, { error: 'invalid_credentials' }))
-    await expect(loginByName('кто-то', '0000')).rejects.toMatchObject({ code: 'invalid', message: 'Имя или PIN не подходят' })
+    await expect(loginByName('кто-то', '0000')).rejects.toMatchObject({ code: 'invalid', message: 'Логин или PIN не подходят' })
     fetchMock.mockResolvedValue(res(400, { error: 'bad_request' }))
     await expect(loginByName('x'.repeat(80), '0000')).rejects.toMatchObject({ code: 'invalid' })
     expect(setSession).not.toHaveBeenCalled()

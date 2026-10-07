@@ -1,5 +1,7 @@
-import { useEffect, useRef, useState } from 'react'
-import { checkInvite, registerByInvite, LoginError } from '../lib/auth.js'
+import { useCallback, useEffect, useRef, useState } from 'react'
+import { checkInvite, checkLoginForInvite, registerByInvite, LoginError } from '../lib/auth.js'
+import { normalizeLogin } from '../lib/login.js'
+import LoginField from '../components/LoginField.jsx'
 import { validateRegistration, inviteDeadText, inviteErrorText, DEAD_STATUSES } from '../lib/invite.js'
 import { onlyDigits } from '../lib/text.js'
 import SexPicker from '../components/SexPicker.jsx'
@@ -22,6 +24,9 @@ export default function InviteScreen({ token, signedInAs = null, onRegistered, o
   const [phase, setPhase] = useState('checking')
   const [dead, setDead] = useState('invalid')
   const [name, setName] = useState('')
+  // Логин для входа (П4, 07.10.2026) — первым полем, из имени НЕ подставляется
+  // (решение владельца 07.10): человек придумывает его сам.
+  const [login, setLogin] = useState('')
   const [pin, setPin] = useState('')
   const [pin2, setPin2] = useState('')
   const [sex, setSex] = useState(null)
@@ -45,15 +50,17 @@ export default function InviteScreen({ token, signedInAs = null, onRegistered, o
   // eslint-disable-next-line react-hooks/exhaustive-deps
   useEffect(() => { if (!signedInAs) check() }, [token, signedInAs])
 
+  const checkLogin = useCallback((v) => checkLoginForInvite(token, v), [token])
+
   async function submit(e) {
     e.preventDefault()
     if (busy) return
-    const problem = validateRegistration({ name, pin, pin2 })
+    const problem = validateRegistration({ name, login, pin, pin2 })
     if (problem) { setError(problem); return }
     setBusy(true)
     setError('')
     try {
-      const user = await registerByInvite(token, { name: name.trim(), pin, sex })
+      const user = await registerByInvite(token, { name: name.trim(), pin, sex, login: normalizeLogin(login) })
       onRegistered?.(user)
     } catch (err) {
       if (!alive.current) return
@@ -61,7 +68,6 @@ export default function InviteScreen({ token, signedInAs = null, onRegistered, o
       if (DEAD_STATUSES.has(code)) { setDead(code); setPhase('dead') }
       else if (code === 'registered_login_failed') setPhase('login-failed')
       else setError(inviteErrorText(code))
-      if (code === 'name_taken') setPin2('')
     } finally {
       if (alive.current) setBusy(false)
     }
@@ -133,10 +139,12 @@ export default function InviteScreen({ token, signedInAs = null, onRegistered, o
   } else {
     body = (
       <form className="invite-form" onSubmit={submit} noValidate>
-        <p className="invite-lead">Тебя пригласили. Придумай, как тебя показывать друзьям, и PIN для входа.</p>
+        <p className="invite-lead">Тебя пригласили. Придумай логин и PIN для входа и имя, которое увидят друзья.</p>
+        <LoginField value={login} check={checkLogin} disabled={busy}
+          onChange={(v) => { setLogin(v); setError('') }} />
         <label className="field">
-          <span className="field-lab">Имя</span>
-          <input className="admin-input" type="text" maxLength={40} autoComplete="off"
+          <span className="field-lab">Имя (как тебя увидят)</span>
+          <input className="admin-input" type="text" maxLength={30} autoComplete="off"
             value={name} onChange={(e) => { setName(e.target.value); setError('') }} disabled={busy} />
         </label>
         <label className="field">
@@ -152,7 +160,7 @@ export default function InviteScreen({ token, signedInAs = null, onRegistered, o
             value={pin2} onChange={(e) => { setPin2(onlyDigits(e.target.value).slice(0, 4)); setError('') }} disabled={busy} />
         </label>
         <SexPicker value={sex} busy={busy} onChange={setSex} />
-        <p className="muted invite-note">Запомни PIN: по нему ты будешь входить. Сменить его можно в Профиле.</p>
+        <p className="muted invite-note">Запомни логин и PIN: по ним ты будешь входить. Сменить их можно в Профиле → Настройки.</p>
         {error && <p className="error" role="alert">{error}</p>}
         <button className="btn primary" type="submit" disabled={busy}>
           {busy ? 'Регистрирую…' : 'Зарегистрироваться'}

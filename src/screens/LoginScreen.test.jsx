@@ -113,7 +113,7 @@ describe('LoginScreen', () => {
     vi.mocked(auth.loginByName).mockResolvedValue({ id: 'u2', name: 'Анечка (ничего не делала)', role: 'member' })
     const onLogin = vi.fn()
     render(<LoginScreen onLogin={onLogin} />)
-    fireEvent.change(await screen.findByLabelText('Имя'), { target: { value: 'анечка' } })
+    fireEvent.change(await screen.findByLabelText('Логин'), { target: { value: 'анечка' } })
     fireEvent.change(screen.getByLabelText('PIN — 4 цифры'), { target: { value: '12a34' } })
     fireEvent.click(screen.getByRole('button', { name: 'Войти' }))
     await waitFor(() => expect(onLogin).toHaveBeenCalled())
@@ -122,13 +122,13 @@ describe('LoginScreen', () => {
   })
 
   it('вход по имени: неверно — одна и та же ошибка, PIN очищается', async () => {
-    vi.mocked(auth.loginByName).mockRejectedValue(new auth.LoginError('invalid', 'Имя или PIN не подходят'))
+    vi.mocked(auth.loginByName).mockRejectedValue(new auth.LoginError('invalid', 'Логин или PIN не подходят'))
     render(<LoginScreen onLogin={() => {}} />)
-    fireEvent.click(await screen.findByRole('button', { name: 'Войти под другим именем' }))
-    fireEvent.change(screen.getByLabelText('Имя'), { target: { value: 'Кто-то' } })
+    fireEvent.click(await screen.findByRole('button', { name: 'Войти в другую учетку' }))
+    fireEvent.change(screen.getByLabelText('Логин'), { target: { value: 'Кто-то' } })
     fireEvent.change(screen.getByLabelText('PIN — 4 цифры'), { target: { value: '0000' } })
     fireEvent.click(screen.getByRole('button', { name: 'Войти' }))
-    expect(await screen.findByRole('alert')).toHaveTextContent('Имя или PIN не подходят')
+    expect(await screen.findByRole('alert')).toHaveTextContent('Логин или PIN не подходят')
     expect(screen.getByLabelText('PIN — 4 цифры')).toHaveValue('')
   })
 
@@ -136,7 +136,7 @@ describe('LoginScreen', () => {
     Object.defineProperty(navigator, 'onLine', { value: false, configurable: true })
     vi.mocked(auth.knownAccounts).mockResolvedValue([])
     render(<LoginScreen onLogin={() => {}} />)
-    fireEvent.change(await screen.findByLabelText('Имя'), { target: { value: 'Дима' } })
+    fireEvent.change(await screen.findByLabelText('Логин'), { target: { value: 'Дима' } })
     fireEvent.change(screen.getByLabelText('PIN — 4 цифры'), { target: { value: '1234' } })
     fireEvent.click(screen.getByRole('button', { name: 'Войти' }))
     expect(await screen.findByRole('alert')).toHaveTextContent(/только онлайн/)
@@ -151,7 +151,7 @@ describe('LoginScreen', () => {
     vi.mocked(auth.knownAccounts).mockResolvedValue([])
     fireEvent.click(screen.getByRole('button', { name: 'Точно убрать из списка?' }))
     await waitFor(() => expect(auth.forgetAccount).toHaveBeenCalledWith('u1'))
-    expect(await screen.findByLabelText('Имя')).toBeInTheDocument()
+    expect(await screen.findByLabelText('Логин')).toBeInTheDocument()
   })
 
   it('«Запросить доступ»: форма → заявка отправлена, кнопка исчезает', async () => {
