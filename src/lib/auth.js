@@ -39,6 +39,7 @@ const FN_URL = (import.meta.env.VITE_SUPABASE_URL ?? '') + '/functions/v1/auth-l
 const SET_PIN_URL = (import.meta.env.VITE_SUPABASE_URL ?? '') + '/functions/v1/auth-set-pin'
 const INVITE_URL = (import.meta.env.VITE_SUPABASE_URL ?? '') + '/functions/v1/invite-redeem'
 const ANON = import.meta.env.VITE_SUPABASE_KEY ?? ''
+const RESET_URL = (import.meta.env.VITE_SUPABASE_URL ?? '') + '/functions/v1/pin-reset'
 
 // Ключ локального кэша офлайн-разблокировки (свои хэш+соль+имя+роль).
 // Кэш лежит в ОБЩЕЙ login-базе (loginDb.meta), а не в персональной: офлайн-
@@ -227,6 +228,108 @@ export async function registerByInvite(token, { name, pin, sex = null, login = n
   lastLoginUserId = body.user.id
   return adoptSession(body, body.user.id, pin, stale)
 }
+
+// ----------------------- «Забыл PIN» (П1, 07.10.2026) -----------------------
+// Edge pin-reset без сессии (человек как раз не может войти); SQL — pin-recovery.sql.
+
+async function callReset(payload) {
+  let res
+  try {
+    res = await fetchWithTimeout(RESET_URL, {
+      method: 'POST',
+      headers: { 'content-type': 'application/json', apikey: ANON, authorization: `Bearer ${ANON}` },
+      body: JSON.stringify(payload),
+    })
+  } catch {
+    throw new LoginError('network', 'Нет сети — попробуй позже.')
+  }
+  let body = null
+  try { body = await res.json() } catch { /* нестандартное тело */ }
+  return { res, body }
+}
+
+// Попросить ссылку в Telegram. Ответ один и тот же, есть ли логин и привязан ли
+// Telegram (по нему ничего не выяснить); 429 — LoginError('locked').
+export async function requestPinReset(login) {
+  const { res, body } = await callReset({ action: 'request', login: String(login ?? '').trim() })
+  if (res.status === 429) throw new LoginError('locked', 'Слишком много попыток — подожди немного.', body?.retry_after ?? null)
+  if (!res.ok) throw new LoginError('server', 'Не получилось — попробуй позже.')
+  return true
+}
+
+// Жива ли ссылка сброса: 'ok' | 'invalid'.
+export async function checkPinReset(token) {
+  const { res, body } = await callReset({ action: 'check', token })
+  if (!res.ok || !body?.status) throw new LoginError('server', 'Не удалось проверить ссылку.')
+  return body.status
+}
+
+async function adoptReset(res, body, pin, stale) {
+  if (res.status === 429) throw new LoginError('locked', 'Слишком много попыток — подожди немного.', body?.retry_after ?? null)
+  if (res.status === 410) throw new LoginError('expired', 'expired')
+  if (res.status === 401) throw new LoginError('invalid', 'invalid')
+  if (!res.ok || !body?.session) throw new LoginError(body?.error ?? 'server', body?.error ?? 'server')
+  lastLoginUserId = body.user.id
+  return adoptSession(body, body.user.id, pin, stale)
+}
+
+// Новый PIN по ссылке из бота → сразу вход ({ id, name, role }).
+export async function applyPinReset(token, pin) {
+  const generation = authGeneration
+  const stale = () => generation !== authGeneration
+  const { res, body } = await callReset({ action: 'apply', token, pin })
+  return adoptReset(res, body, pin, stale)
+}
+
+// Новый PIN по коду восстановления → сразу вход. Код после этого погашен.
+export async function resetPinByCode(login, code, pin) {
+  const generation = authGeneration
+  const stale = () => generation !== authGeneration
+  const { res, body } = await callReset({ action: 'code', login: String(login ?? '').trim(), code: String(code ?? '').trim(), pin })
+  return adoptReset(res, body, pin, stale)
+}
+
+// Имя бота для ссылки привязки (Edge спрашивает getMe). Кэш на сессию страницы.
+let botUsernameCache = null
+export async function getBotUsername() {
+  if (botUsernameCache) return botUsernameCache
+  const { res, body } = await callReset({ action: 'bot' })
+  if (!res.ok || !body?.username) throw new LoginError('server', 'Бот сейчас недоступен — попробуй позже.')
+  botUsernameCache = body.username
+  return botUsernameCache
+}
+
+// Свое (под своей сессией, только онлайн): статус, новый код, токен привязки, отвязка.
+async function myRpc(userId, fn, args) {
+  if (!navigator.onLine) throw new LoginError('network', 'Только онлайн.')
+  await ensureOwnSession(userId)
+  let res
+  try {
+    res = await withTimeout(args ? supabase.rpc(fn, args) : supabase.rpc(fn))
+  } catch {
+    throw new LoginError('network', 'Нет сети — попробуй позже.')
+  }
+  if (res.error) {
+    if (/rate limited/.test(String(res.error.message ?? ''))) {
+      throw new LoginError('limited', 'Слишком часто — попробуй завтра.')
+    }
+    throw rpcError(res.error, fn, 'Не получилось — попробуй позже.')
+  }
+  return res.data
+}
+
+// { hasCode, codeCreatedAt, tgLinked, tgLinkedAt }
+export async function getRecoveryStatus(userId) {
+  const data = await myRpc(userId, 'my_recovery_status')
+  const row = Array.isArray(data) ? data[0] : data
+  return {
+    hasCode: Boolean(row?.has_code), codeCreatedAt: row?.code_created_at ?? null,
+    tgLinked: Boolean(row?.tg_linked), tgLinkedAt: row?.tg_linked_at ?? null,
+  }
+}
+export const createRecoveryCode = (userId) => myRpc(userId, 'create_my_recovery_code')
+export const createTgLinkToken = (userId) => myRpc(userId, 'create_my_tg_link_token')
+export const unlinkTg = (userId) => myRpc(userId, 'unlink_my_tg')
 
 // Офлайн-проверка PIN по локальному кэшу. Возвращает:
 //   { id, name, role } — кэш есть и PIN верный (можно открыть UI);

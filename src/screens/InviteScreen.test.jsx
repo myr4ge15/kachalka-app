@@ -3,13 +3,13 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 import { render, screen, fireEvent, waitFor } from '@testing-library/react'
 import InviteScreen from './InviteScreen.jsx'
-import { checkInvite, checkLoginForInvite, registerByInvite, LoginError } from '../lib/auth.js'
+import { checkInvite, checkLoginForInvite, registerByInvite, createRecoveryCode, LoginError } from '../lib/auth.js'
 
 vi.mock('../lib/auth.js', () => {
   class LoginError extends Error {
     constructor(code, message) { super(message); this.code = code }
   }
-  return { checkInvite: vi.fn(), checkLoginForInvite: vi.fn(async () => 'ok'), registerByInvite: vi.fn(), LoginError }
+  return { checkInvite: vi.fn(), checkLoginForInvite: vi.fn(async () => 'ok'), registerByInvite: vi.fn(), createRecoveryCode: vi.fn(), LoginError }
 })
 
 const TOKEN = 'a_tiNNP3RyzFJHQdG_xlbBkLpflaqExEUJzq2xU0eXo'
@@ -24,6 +24,7 @@ function fill({ login = 'masha', name = 'Маша', pin = '4826', pin2 = '4826' 
 beforeEach(() => {
   vi.mocked(checkInvite).mockReset()
   vi.mocked(registerByInvite).mockReset()
+  vi.mocked(createRecoveryCode).mockReset().mockRejectedValue(new Error('нет'))
 })
 
 describe('InviteScreen', () => {
@@ -142,5 +143,22 @@ describe('InviteScreen', () => {
     render(<InviteScreen token={TOKEN} onRegistered={vi.fn()} onCancel={vi.fn()} />)
     fireEvent.click(await screen.findByRole('button', { name: 'Еще раз' }))
     expect(await screen.findByLabelText('Имя (как тебя увидят)')).toBeInTheDocument()
+  })
+
+  it('после регистрации — код восстановления один раз, потом наверх (П1)', async () => {
+    vi.mocked(checkInvite).mockResolvedValue('ok')
+    const user = { id: 'u9', name: 'Маша', role: 'member' }
+    vi.mocked(registerByInvite).mockResolvedValue(user)
+    vi.mocked(createRecoveryCode).mockResolvedValue('ABCD-EFGH-JKMN-PQRS')
+    const onRegistered = vi.fn()
+    render(<InviteScreen token={TOKEN} onRegistered={onRegistered} onCancel={vi.fn()} />)
+    await screen.findByLabelText('Имя (как тебя увидят)')
+    fill()
+    fireEvent.click(screen.getByRole('button', { name: 'Зарегистрироваться' }))
+    expect(await screen.findByTestId('recovery-code')).toHaveTextContent('ABCD-EFGH-JKMN-PQRS')
+    expect(createRecoveryCode).toHaveBeenCalledWith('u9')
+    expect(onRegistered).not.toHaveBeenCalled()
+    fireEvent.click(screen.getByRole('button', { name: 'Сохранил, дальше' }))
+    expect(onRegistered).toHaveBeenCalledWith(user)
   })
 })

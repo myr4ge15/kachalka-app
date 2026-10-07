@@ -1,7 +1,7 @@
 // ============================================================================
 // Скриншоты для README (docs/screenshots/*.png) одной командой:
 //
-//   npm run shots:readme            — все 12 экранов
+//   npm run shots:readme            — все 13 экранов
 //   npm run shots:readme -- feed run — только перечисленные
 //
 // Что делает: поднимает vite dev-сервер (с фиктивными ключами Supabase, как e2e),
@@ -39,7 +39,7 @@ const VIEWPORT = { width: 393, height: 769 }
 const SCALE = 2
 const ACCENT = { id: 'custom', hue: 205 } // бирюзовый, как на прежних скриншотах
 const ALL = ['home', 'recovery', 'workout', 'progress-overview', 'progress-chart',
-  'feed', 'rating', 'run', 'achievements', 'login', 'join-form', 'join-pending']
+  'feed', 'rating', 'run', 'achievements', 'login', 'forgot-pin', 'join-form', 'join-pending']
 const only = process.argv.slice(2)
 for (const n of only) if (!ALL.includes(n)) throw new Error(`Неизвестный экран «${n}». Есть: ${ALL.join(', ')}`)
 const want = (n) => only.length === 0 || only.includes(n)
@@ -334,6 +334,21 @@ async function main() {
       await p2.screenshot({ path: path.join(OUT, 'login.png') })
       saved.push('login')
       console.log('  ✓ login.png')
+    }
+
+    if (want('forgot-pin')) {
+      // «Забыл PIN» (v6.18.0): восстановление по коду — логин и код вписаны.
+      const c5 = await newContext(browser)
+      const p5 = await c5.newPage()
+      await p5.goto(base)
+      await p5.getByRole('button', { name: 'Забыл PIN?' }).click()
+      await p5.getByRole('button', { name: 'Нет Telegram? Восстановить кодом' }).click()
+      await p5.getByLabel('Логин').fill('andrey')
+      await p5.getByLabel('Код восстановления').fill('7KQ2-M9XD-4HPA-W3NR')
+      await p5.waitForTimeout(800)
+      await p5.screenshot({ path: path.join(OUT, 'forgot-pin.png') })
+      saved.push('forgot-pin')
+      console.log('  ✓ forgot-pin.png')
     }
 
     if (want('join-form')) {

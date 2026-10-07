@@ -17,6 +17,8 @@ import LoginScreen from './screens/LoginScreen.jsx'
 import InviteScreen from './screens/InviteScreen.jsx'
 import LoginSetupScreen from './screens/LoginSetupScreen.jsx'
 import { inviteFromUrl, stripInvite } from './lib/invite.js'
+import { resetFromUrl, stripReset } from './lib/recovery.js'
+import ResetPinScreen from './screens/ResetPinScreen.jsx'
 import { captureSource, clearPending } from './lib/joinRequest.js'
 import Toast from './components/Toast.jsx'
 import AddFab from './components/AddFab.jsx'
@@ -73,18 +75,29 @@ export default function App() {
   // из адреса стираем сразу (эффект ниже), чтобы он не остался в истории и закладках.
   // Пока токен есть, вместо входа показываем регистрацию.
   const [inviteToken, setInviteToken] = useState(() => inviteFromUrl(window.location.href))
+  // Ссылка «новый PIN» от бота (П1, v6.18.0): #reset=… — так же, только в памяти.
+  const [resetToken, setResetToken] = useState(() => resetFromUrl(window.location.href))
   // Параметр `push` из адреса убираем сразу: иначе F5 снова открыл бы тренировку.
   useEffect(() => {
     const clean = stripPushParam(window.location.href)
     if (clean) window.history.replaceState(window.history.state, '', clean)
     const noInvite = stripInvite(window.location.href)
     if (noInvite) window.history.replaceState(window.history.state, '', noInvite)
+    const noReset = stripReset(window.location.href)
+    if (noReset) window.history.replaceState(window.history.state, '', noReset)
     // Метка источника ?src= (v6.15.3): запомнить для заявки и убрать из адреса.
     const noSrc = captureSource(window.location.href)
     if (noSrc) window.history.replaceState(window.history.state, '', noSrc)
     // Ссылку открыли во вкладке, где приложение уже загружено: меняется только
     // фрагмент, страница не перезагружается — подхватываем токен здесь.
     const onHash = () => {
+      const r = resetFromUrl(window.location.href)
+      if (r) {
+        setResetToken(r)
+        const clean = stripReset(window.location.href)
+        if (clean) window.history.replaceState(window.history.state, '', clean)
+        return
+      }
       const t = inviteFromUrl(window.location.href)
       if (!t) return
       setInviteToken(t)
@@ -191,6 +204,18 @@ export default function App() {
           </p>
         </div>
       </div>
+    )
+  }
+
+  if (resetToken) {
+    return (
+      <ResetPinScreen
+        token={resetToken}
+        signedInAs={user ? (user.name || 'без имени') : null}
+        onDone={async (u) => { await handleLogin(u); setResetToken(null) }}
+        onCancel={() => setResetToken(null)}
+        onSignOut={handleLogout}
+      />
     )
   }
 

@@ -27,6 +27,7 @@ import GoalsSection from '../components/profile/GoalsSection.jsx'
 import DeadLetterAlert from '../components/profile/DeadLetterAlert.jsx'
 import PinChangeForm from '../components/profile/PinChangeForm.jsx'
 import LoginChangeForm from '../components/profile/LoginChangeForm.jsx'
+import RecoverySection from '../components/profile/RecoverySection.jsx'
 import BackupActions from '../components/profile/BackupActions.jsx'
 import DeleteMyData from '../components/profile/DeleteMyData.jsx'
 import AppVersionLink from '../components/profile/AppVersionLink.jsx'
@@ -194,6 +195,7 @@ export default function ProfileScreen({ user, onLogout, onOpenProgress, onOpenFe
             )}
             <LoginChangeForm userId={user.id} />
             <PinChangeForm userId={user.id} />
+            <RecoverySection userId={user.id} />
             {user.role !== 'admin' && (
               <button className="act" onClick={() => onOpenMyExercises?.()}>🏋 Каталог упражнений</button>
             )}

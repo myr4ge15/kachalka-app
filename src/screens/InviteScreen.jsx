@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useRef, useState } from 'react'
-import { checkInvite, checkLoginForInvite, registerByInvite, LoginError } from '../lib/auth.js'
+import { checkInvite, checkLoginForInvite, registerByInvite, createRecoveryCode, LoginError } from '../lib/auth.js'
+import RecoveryCodeView from '../components/recovery/RecoveryCodeView.jsx'
 import { normalizeLogin } from '../lib/login.js'
 import LoginField from '../components/LoginField.jsx'
 import { validateRegistration, inviteDeadText, inviteErrorText, DEAD_STATUSES } from '../lib/invite.js'
@@ -20,7 +21,7 @@ import AppMark from '../components/AppMark.jsx'
 //
 // До регистрации экран не знает и не показывает ничего о круге и его участниках.
 export default function InviteScreen({ token, signedInAs = null, onRegistered, onCancel, onSignOut }) {
-  // 'checking' | 'form' | 'dead' | 'check-failed' | 'login-failed'
+  // 'checking' | 'form' | 'dead' | 'check-failed' | 'login-failed' | 'code'
   const [phase, setPhase] = useState('checking')
   const [dead, setDead] = useState('invalid')
   const [name, setName] = useState('')
@@ -33,6 +34,8 @@ export default function InviteScreen({ token, signedInAs = null, onRegistered, o
   const [error, setError] = useState('')
   const [busy, setBusy] = useState(false)
   const [outBusy, setOutBusy] = useState(false)
+  // Код восстановления (П1, v6.18.0) — сразу после регистрации, один раз.
+  const [fresh, setFresh] = useState(null) // { user, code }
   const alive = useRef(true)
   useEffect(() => { alive.current = true; return () => { alive.current = false } }, [])
 
@@ -61,6 +64,10 @@ export default function InviteScreen({ token, signedInAs = null, onRegistered, o
     setError('')
     try {
       const user = await registerByInvite(token, { name: name.trim(), pin, sex, login: normalizeLogin(login) })
+      // Не вышло выпустить код — не держим человека: получит в Профиле → Настройки.
+      let code = null
+      try { code = await createRecoveryCode(user.id) } catch { /* позже в Профиле */ }
+      if (code && alive.current) { setFresh({ user, code }); setPhase('code'); return }
       onRegistered?.(user)
     } catch (err) {
       if (!alive.current) return
@@ -125,6 +132,14 @@ export default function InviteScreen({ token, signedInAs = null, onRegistered, o
         <div className="invite-actions">
           <button className="btn primary" onClick={onCancel}>К входу</button>
         </div>
+      </>
+    )
+  } else if (phase === 'code' && fresh) {
+    body = (
+      <>
+        <p className="invite-lead">Готово, учетка создана 🎉 Последний шаг — код на случай, если забудешь PIN.</p>
+        <RecoveryCodeView code={fresh.code} doneLabel="Сохранил, дальше" onDone={() => onRegistered?.(fresh.user)} />
+        <p className="muted invite-note">Еще можно привязать Telegram: Профиль → Настройки → Восстановление доступа.</p>
       </>
     )
   } else if (phase === 'login-failed') {

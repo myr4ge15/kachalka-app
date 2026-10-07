@@ -22,6 +22,7 @@ vi.mock('../lib/auth.js', () => {
     noteLoginFailure: vi.fn(),
     knownAccounts: vi.fn(),
     forgetAccount: vi.fn(async () => {}),
+    requestPinReset: vi.fn(async () => true),
     LoginError,
   }
 })
@@ -213,5 +214,18 @@ describe('LoginScreen', () => {
     await waitFor(() => expect(join.pollJoin).toHaveBeenCalledTimes(1))
     window.dispatchEvent(new Event('focus'))
     await waitFor(() => expect(join.pollJoin).toHaveBeenCalledTimes(2))
+  })
+
+  it('«Забыл PIN?» с экрана PIN → ссылка в Telegram (П1)', async () => {
+    render(<LoginScreen onLogin={vi.fn()} onInvite={vi.fn()} />)
+    fireEvent.click(await screen.findByRole('button', { name: /Дима/ }))
+    fireEvent.click(screen.getByRole('button', { name: 'Забыл PIN?' }))
+    expect(screen.getByRole('heading', { name: 'Забыл PIN' })).toBeInTheDocument()
+    fireEvent.change(screen.getByLabelText('Логин'), { target: { value: ' Masha ' } })
+    fireEvent.click(screen.getByRole('button', { name: 'Прислать ссылку в Telegram' }))
+    expect(await screen.findByText(/бот уже прислал ссылку/)).toBeInTheDocument()
+    expect(auth.requestPinReset).toHaveBeenCalledWith('masha')
+    fireEvent.click(screen.getByRole('button', { name: 'К входу' }))
+    expect(await screen.findByRole('button', { name: /Дима/ })).toBeInTheDocument()
   })
 })

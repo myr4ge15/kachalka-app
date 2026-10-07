@@ -10,6 +10,7 @@ import { onlyDigits } from '../lib/text.js'
 import AppMark from '../components/AppMark.jsx'
 import BackButton from '../components/BackButton.jsx'
 import JoinRequestForm from '../components/JoinRequestForm.jsx'
+import ForgotPin from '../components/recovery/ForgotPin.jsx'
 
 // Экран входа (v6.12.0).
 //   • Пикер показывает ТОЛЬКО учетки, уже входившие на этом устройстве (есть
@@ -20,6 +21,8 @@ import JoinRequestForm from '../components/JoinRequestForm.jsx'
 //   • «Забыть на этом устройстве» — убрать учетку из пикера (на экране PIN).
 //   • «Запросить доступ» (до 6.16.0 — «Запросить приглашение», до 6.14.1 — «Попросить приглашение», до 6.13.3 — «Хочу в круг») — заявка владельцу; одобрено → регистрация по приглашению
 //     (onInvite(token) → InviteScreen).
+//   • «Забыл PIN?» (П1, v6.18.0) — ссылка от бота в Telegram или код восстановления
+//     (components/recovery/ForgotPin.jsx), без админа.
 // Сколько ждать сервер при входе с пикера, прежде чем открыть приложение по кэшу.
 const LOGIN_ONLINE_TIMEOUT_MS = 8000
 // Коды LoginError, при которых сервер «не ответил» (а не «отказал»).
@@ -27,7 +30,7 @@ const SERVER_DOWN = new Set(['network', 'server'])
 
 export default function LoginScreen({ onLogin, onInvite }) {
   const [known, setKnown] = useState([])
-  const [mode, setMode] = useState('loading') // 'loading' | 'pick' | 'pin' | 'name' | 'join'
+  const [mode, setMode] = useState('loading') // 'loading' | 'pick' | 'pin' | 'name' | 'join' | 'forgot'
   const [selected, setSelected] = useState(null)
   const [pin, setPin] = useState('')
   const [error, setError] = useState('')
@@ -256,6 +259,18 @@ export default function LoginScreen({ onLogin, onInvite }) {
     )
   }
 
+  if (mode === 'forgot') {
+    return (
+      <div className="screen center">
+        <div className="card login-card invite-card">
+          {mark}
+          <h1 className="title">Забыл PIN</h1>
+          <ForgotPin onBack={goPick} onLogin={onLogin} />
+        </div>
+      </div>
+    )
+  }
+
   if (mode === 'name') {
     return (
       <div className="screen center">
@@ -268,11 +283,10 @@ export default function LoginScreen({ onLogin, onInvite }) {
           <p className="muted login-sub">Введи логин и PIN</p>
           {joinCard}
           <NameLoginForm onLogin={onLogin} showError={showError} error={error} setError={setError} />
-          {!pending && (
-            <div className="login-alt">
-              <button className="link-btn" onClick={() => { setError(''); setMode('join') }}>Запросить доступ</button>
-            </div>
-          )}
+          <div className="login-alt">
+            <button className="link-btn" onClick={() => { setError(''); setMode('forgot') }}>Забыл PIN?</button>
+            {!pending && <button className="link-btn" onClick={() => { setError(''); setMode('join') }}>Запросить доступ</button>}
+          </div>
         </div>
       </div>
     )
@@ -342,6 +356,7 @@ export default function LoginScreen({ onLogin, onInvite }) {
           </button>
         </div>
         <div className="login-alt">
+          <button className="link-btn" disabled={busy} onClick={() => { setError(''); setConfirmForget(false); setMode('forgot') }}>Забыл PIN?</button>
           <button className={confirmForget ? 'link-btn danger' : 'link-btn'} disabled={busy} onClick={forget}>
             {confirmForget ? 'Точно убрать из списка?' : 'Забыть на этом устройстве'}
           </button>

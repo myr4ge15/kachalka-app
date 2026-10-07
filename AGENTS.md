@@ -341,6 +341,17 @@ updated_at)` + `upsert_user_meta` (`supabase/user-meta.sql`, RLS «только 
   учеток БЕЗ логина и только целиком (поиск по началу убран). Вход по id — `auth_login_id_claim` (корзины
   `id:<учетка>:<IP>` 5/15 мин + `iduser:<учетка>` 30/сутки, лок на адрес, не на учетку); сброс всех корзин
   входа учетки — `auth_login_id_reset` (сброс PIN). `login` в `touch_users_updated_at` — служебная колонка.
+- **«Забыл PIN» без админа (П1, 07.10.2026)** → канон `pin-recovery.sql` + Edge `pin-reset` (`--no-verify-jwt`)
+  + ветка в `tg-bot`. Два пути: Telegram (привязка — одноразовый `t.me/<бот>?start=<токен>`, хранится ТОЛЬКО
+  chat id в `tg_links`; ссылка сброса `…#reset=<токен>`, 10 мин, один раз) и код восстановления (16 знаков
+  Crockford, показ один раз, новый гасит старый). В базе только SHA-256 секретов (`invite_token_hash`).
+  `pin_reset_request` отвечает ОДИНАКОВО для любого логина и учетки без Telegram — не добавлять в ответ
+  «нет такого»/«не привязан». Финал сброса один — `pin_reset_finish` (PIN, `admin_kill_sessions`,
+  `auth_rate_reset`, `auth_login_id_reset`, остальные ссылки гаснут). Адрес в ссылке — только `APP_URL` /
+  `CORS_ALLOWED_ORIGINS`, не из запроса. `tg-bot` принимает от НЕ-владельца лишь `/start <токен>` и `/stop`
+  в личке (`_shared/tgLink.ts`), все прочее — по-старому только владелец. Сброс владельцем круга — НЕ делать.
+  Клиент: `lib/recovery.js` (токен из `#reset=` стирается из адреса сразу, как приглашение),
+  `components/recovery/*`, `screens/ResetPinScreen.jsx`, `profile/RecoverySection.jsx`.
 - **Вход по имени и «Хочу в круг» (v6.12.0)** → `login-join.sql`: `auth_find_user` (с П4 — канон
   `login-separate.sql`, см. выше), `join_requests` и `join_*`/
   `bot_join_decide` — ТОЛЬКО `service_role`. Edge `auth-login` принимает `{name, pin}`: не найдено — тот же
