@@ -341,6 +341,17 @@ updated_at)` + `upsert_user_meta` (`supabase/user-meta.sql`, RLS «только 
   учеток БЕЗ логина и только целиком (поиск по началу убран). Вход по id — `auth_login_id_claim` (корзины
   `id:<учетка>:<IP>` 5/15 мин + `iduser:<учетка>` 30/сутки, лок на адрес, не на учетку); сброс всех корзин
   входа учетки — `auth_login_id_reset` (сброс PIN). `login` в `touch_users_updated_at` — служебная колонка.
+- **Удаление аккаунта (П7, 07.10.2026)** → канон `account-delete.sql` (`account_delete(p_uid, p_actor)`, только
+  service_role) + Edge `account-delete` (`{pin}` — себя, с `auth_rate_claim` до сверки PIN; `{target_user_id}` —
+  админ с 2FA, 10/час). Сразу и насовсем. Учетки `role = admin` так не удаляются (409). Порядок: SQL одной
+  транзакцией → Storage `avatars/<id>/`, `feedback/<id>/` → `auth.admin.deleteUser`; сбой последних двух
+  удаление не откатывает. Шаблоны удалять ЯВНО (`workout_templates.user_id` — set null, иначе остались бы
+  ничьими). Свои упражнения: неиспользуемые — удалить, остальные → общими (триггер `exercise-owner.sql`);
+  `rating_disciplines.exercise_id` — CASCADE, поэтому проверка «никем не используется» явная, иначе удаление
+  снесло бы дисциплину. Обращения и `audit_log` — обезличить (не стирать). Новая таблица со ссылкой на
+  `users` — решить ее судьбу здесь (cascade/обезличить) и добавить в тест. Клиент: `profile/DeleteAccount.jsx`,
+  после ответа — выход и `db/local.js wipeLocalAccount` (персональная база, ростер, кэш PIN, ключи localStorage).
+  Старый `admin_delete_user` (Админка до 6.18) — не использовать.
 - **«Забыл PIN» без админа (П1, 07.10.2026)** → канон `pin-recovery.sql` + Edge `pin-reset` (`--no-verify-jwt`)
   + ветка в `tg-bot`. Два пути: Telegram (привязка — одноразовый `t.me/<бот>?start=<токен>`, хранится ТОЛЬКО
   chat id в `tg_links`; ссылка сброса `…#reset=<токен>`, 10 мин, один раз) и код восстановления (16 знаков

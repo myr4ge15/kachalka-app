@@ -57,10 +57,38 @@ describe('участники (RPC)', () => {
     await expect(admin.adminSetUserOrder([])).rejects.toThrow('Пустой список')
     expect(await admin.adminSetUserOrder(['a', 'b'])).toBe(true)
     expect(rpc).toHaveBeenLastCalledWith('admin_set_user_order', { p_ids: ['a', 'b'] })
-    rpc.mockReturnValueOnce(err('cannot delete yourself'))
-    await expect(admin.adminDeleteUser('me')).rejects.toThrow('Нельзя удалить самого себя')
     rpc.mockReturnValueOnce(err('forbidden: admin only'))
     await expect(admin.adminSetPrivate('u1', false)).rejects.toThrow('Нужны права админа')
+  })
+})
+
+describe('удаление участника (Edge account-delete, П7)', () => {
+  it('себя — отказ без сети', async () => {
+    await expect(admin.adminDeleteUser('me', 'me')).rejects.toThrow('Нельзя удалить самого себя')
+    expect(fetch).not.toHaveBeenCalled()
+  })
+  it('успех: Bearer сессии админа, тело — только цель', async () => {
+    fetch.mockReturnValueOnce(reply(200, { ok: true }))
+    expect(await admin.adminDeleteUser('u1', 'me')).toBe(true)
+    const [url, opts] = fetch.mock.calls[0]
+    expect(url).toMatch(/\/functions\/v1\/account-delete$/)
+    expect(opts.headers.authorization).toBe('Bearer tok')
+    expect(JSON.parse(opts.body)).toEqual({ target_user_id: 'u1' })
+  })
+  it('частичная уборка файлов — все равно успех', async () => {
+    fetch.mockReturnValueOnce(reply(200, { ok: true, cleanup: 'partial' }))
+    expect(await admin.adminDeleteUser('u1')).toBe(true)
+  })
+  it.each([
+    [409, { error: 'admin_account' }, 'Учетку админа так не удалить'],
+    [403, { error: 'mfa_required' }, MFA_REQUIRED_TEXT],
+    [403, { error: 'forbidden' }, 'Нужны права админа.'],
+    [404, {}, 'уже удален'],
+    [429, {}, 'подожди час'],
+    [500, {}, 'Не удалось удалить участника.'],
+  ])('ответ %s %j → «%s»', async (status, body, text) => {
+    fetch.mockReturnValueOnce(reply(status, body))
+    await expect(admin.adminDeleteUser('u1')).rejects.toThrow(text)
   })
 })
 

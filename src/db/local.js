@@ -175,6 +175,25 @@ export function closeUserDb() {
   })
 }
 
+// Аккаунт удален (П7, 07.10.2026): стереть с устройства все его следы — персональную
+// базу, строку ростера, офлайн-кэш PIN и ключи localStorage с его id. Зовется ПОСЛЕ
+// выхода (база уже закрыта). Ошибки глотаем: удаление на сервере уже случилось.
+export async function wipeLocalAccount(userId) {
+  if (!userId) return
+  await closeUserDb()
+  try { await Dexie.delete('gym_app_' + userId) } catch { /* занята другой вкладкой — уйдет при следующей чистке */ }
+  try { await loginDb.users.delete(userId) } catch { /* ignore */ }
+  try { await loginDb.meta.delete('pin_' + userId) } catch { /* ignore */ }
+  try {
+    const keys = []
+    for (let i = 0; i < localStorage.length; i++) {
+      const k = localStorage.key(i)
+      if (k && k.includes(userId)) keys.push(k)
+    }
+    for (const k of keys) localStorage.removeItem(k)
+  } catch { /* приватный режим */ }
+}
+
 // Текущее серверное (UTC) время в ISO. crypto.randomUUID доступен на https и localhost.
 export const nowIso = () => new Date().toISOString()
 export const newId = () =>

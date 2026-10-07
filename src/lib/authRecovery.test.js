@@ -121,3 +121,29 @@ describe('свое восстановление — RPC под своей сес
     expect(rpc).not.toHaveBeenCalled()
   })
 })
+
+describe('удаление своего аккаунта (П7, Edge account-delete)', () => {
+  it('офлайн — без запроса', async () => {
+    vi.stubGlobal('navigator', { onLine: false })
+    await expect(auth.deleteMyAccount('u1', '4826')).rejects.toMatchObject({ code: 'network' })
+    expect(fetchMock).not.toHaveBeenCalled()
+  })
+  it('успех: Bearer своей сессии, в теле только PIN', async () => {
+    fetchMock.mockResolvedValueOnce(res(200, { ok: true }))
+    expect(await auth.deleteMyAccount('u1', '4826')).toBe(true)
+    const [url, opts] = fetchMock.mock.calls[0]
+    expect(url).toMatch(/functions\/v1\/account-delete$/)
+    expect(opts.headers.authorization).toBe('Bearer tok')
+    expect(JSON.parse(opts.body)).toEqual({ pin: '4826' })
+  })
+  it.each([
+    [401, { error: 'invalid_credentials' }, 'invalid'],
+    [401, { error: 'invalid_session' }, 'server'],
+    [429, { error: 'locked', retry_after: 900 }, 'locked'],
+    [409, { error: 'admin_account' }, 'admin'],
+    [500, {}, 'server'],
+  ])('ответ %s %j → %s', async (status, body, code) => {
+    fetchMock.mockResolvedValueOnce(res(status, body))
+    await expect(auth.deleteMyAccount('u1', '4826')).rejects.toMatchObject({ code })
+  })
+})

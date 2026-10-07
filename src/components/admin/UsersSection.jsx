@@ -132,7 +132,7 @@ export default function UsersSection({ meId, online, errMsg }) {
     setDeleteBusy(true)
 
     try {
-      await adminDeleteUser(deleteUser.id)
+      await adminDeleteUser(deleteUser.id, meId)
 
       showToast({
         emoji: '🗑️',
@@ -256,7 +256,7 @@ export default function UsersSection({ meId, online, errMsg }) {
                   <button className="admin-mini" onClick={() => openEdit(u)} disabled={!online} aria-label="Изменить"><PencilIcon size={16} /></button>
                   <button className="admin-mini" onClick={() => resetPin(u)}
                     disabled={!online || (pinBusy && pinForId === u.id)} aria-label="Сбросить PIN">🔑</button>
-                  {u.id !== meId && <button className="admin-mini" onClick={() => { setDeleteUser(u); setDeleteConfirm('') }} disabled={!online} aria-label={`Удалить ${u.name}`} title="Удалить участника">🗑️</button>}
+                  {u.id !== meId && u.role !== 'admin' && <button className="admin-mini" onClick={() => { setDeleteUser(u); setDeleteConfirm('') }} disabled={!online} aria-label={`Удалить ${u.name}`} title="Удалить участника">🗑️</button>}
                 </div>
               </div>
             )}
@@ -274,9 +274,9 @@ export default function UsersSection({ meId, online, errMsg }) {
         <div className="admin-merge">
           <p className="admin-merge-title">Удалить участника?</p>
           <p className="admin-hint">
-            Будет удалена учётная запись <b>{deleteUser.name}</b>, её тренировки,
-            цели, реакции и связанные пользовательские данные.
-            Публичные шаблоны и созданные упражнения останутся без владельца.
+            Учетка <b>{deleteUser.name}</b> удалится насовсем: тренировки, шаблоны, цели,
+            аватар, реакции, привязка Telegram. Ее упражнения из тренировок других
+            останутся у них общими, обращения и журнал — без имени.
           </p>
 
           <label className="field">

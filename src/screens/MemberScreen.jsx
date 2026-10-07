@@ -9,7 +9,7 @@ import { buildMemberView, MEMBER_LIMIT } from '../lib/memberProfile.js'
 import { fmtWhen } from '../lib/dates.js'
 import { fmtSet, fmtMetricValue } from '../lib/metric.js'
 import { plural } from '../lib/plural.js'
-import Avatar from '../components/Avatar.jsx'
+import AvatarZoom from '../components/AvatarZoom.jsx'
 import BackButton from '../components/BackButton.jsx'
 import CardsSkeleton from '../components/CardsSkeleton.jsx'
 import FeedPrBadge from '../components/FeedPrBadge.jsx'
@@ -113,7 +113,7 @@ export default function MemberScreen({ user, memberId, onBack }) {
       </div>
 
       <div className="prof-head">
-        <Avatar name={name} url={roster?.avatar_url} className="avatar-lg" />
+        <AvatarZoom name={name} url={roster?.avatar_url} className="avatar-lg" />
         <div className="prof-id">
           <div className="prof-name"><span className="txt">{name}</span></div>
           {view?.lastAt && (

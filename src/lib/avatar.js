@@ -1,14 +1,16 @@
 // ============================================================================
 // Аватар (ЛК фаза 2c) — клиентское сжатие + загрузка в Supabase Storage.
 //
-// Обязательное сжатие на клиенте: ≤256px по большей стороне, JPEG ~0.8
-// (~30–50 КБ). Public bucket `avatars`, путь `${userId}/avatar.jpg` (RLS пускает
+// Обязательное сжатие на клиенте: ≤512px по большей стороне (до v6.18.0 — 256), JPEG ~0.8
+// (~50–120 КБ). Public bucket `avatars`, путь `${userId}/avatar.jpg` (RLS пускает
 // запись только владельцу по первому сегменту пути == app_uid()). После аплоада
 // публичный URL пишем в users.avatar_url через SECURITY DEFINER set_my_avatar_url.
 //
 // fitDimensions вынесена отдельно (чистая, без DOM) — ее и юнит-тестим.
 // ============================================================================
 import { supabase } from '../db/supabase.js'
+
+export const AVATAR_UPLOAD_PX = 512
 
 // Вписать (w,h) в квадрат max, сохраняя пропорции; апскейл не делаем (scale≤1).
 export function fitDimensions(w, h, max = 256) {
@@ -99,7 +101,9 @@ export async function compressToJpeg(file, max = 256, quality = 0.8) {
 // К URL добавляем ?v=<ts> — путь фиксированный (upsert), и без этого CDN/браузер
 // показывали бы старую картинку после замены.
 export async function uploadMyAvatar(userId, file) {
-  const blob = await compressToJpeg(file)
+  // 512 px (v6.18.0, было 256): аватар теперь раскрывается крупно (AvatarZoom). JPEG 0.8
+  // такого размера — ~50–120 КБ, в лимит бакета (256 КБ) входит с запасом.
+  const blob = await compressToJpeg(file, AVATAR_UPLOAD_PX)
   const path = `${userId}/avatar.jpg`
   const up = await supabase.storage
     .from('avatars')

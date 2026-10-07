@@ -28,6 +28,7 @@ import DeadLetterAlert from '../components/profile/DeadLetterAlert.jsx'
 import PinChangeForm from '../components/profile/PinChangeForm.jsx'
 import LoginChangeForm from '../components/profile/LoginChangeForm.jsx'
 import RecoverySection from '../components/profile/RecoverySection.jsx'
+import DeleteAccount from '../components/profile/DeleteAccount.jsx'
 import BackupActions from '../components/profile/BackupActions.jsx'
 import DeleteMyData from '../components/profile/DeleteMyData.jsx'
 import AppVersionLink from '../components/profile/AppVersionLink.jsx'
@@ -42,7 +43,7 @@ import { settleScroll } from '../lib/scrollBox.js'
 // components/profile/* (v6.14.1); здесь — сводка, навигация и слой Настроек.
 //
 // Пропсы: user, onLogout, onOpenProgress(exerciseId), onOpenFeed().
-export default function ProfileScreen({ user, onLogout, onOpenProgress, onOpenFeed, onRenamed, onOpenAdmin, onOpenMyExercises, onOpenAchievements, onOpenAppearance, onOpenWhatsNew, onOpenFeedback, startInSettings = false, onStartInSettingsConsumed, contentRef, edgeSwipeOn = false }) {
+export default function ProfileScreen({ user, onLogout, onAccountDeleted, onOpenProgress, onOpenFeed, onRenamed, onOpenAdmin, onOpenMyExercises, onOpenAchievements, onOpenAppearance, onOpenWhatsNew, onOpenFeedback, startInSettings = false, onStartInSettingsConsumed, contentRef, edgeSwipeOn = false }) {
   const workouts = useLiveQuery(() => getWorkouts(user.id), [user.id])
   const goals = useLiveQuery(() => readGoals(user.id), [user.id])
   const myCached = useLiveQuery(() => getCachedUser(user.id), [user.id])
@@ -201,6 +202,7 @@ export default function ProfileScreen({ user, onLogout, onOpenProgress, onOpenFe
             )}
             <BackupActions userId={user.id} />
             <DeleteMyData userId={user.id} />
+            <DeleteAccount user={user} onDeleted={onAccountDeleted} />
           </div>
         <AppVersionLink />
       </div>

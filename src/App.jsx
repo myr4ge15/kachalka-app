@@ -33,6 +33,7 @@ import SyncTools from './components/SyncTools.jsx'
 import TabIcon from './components/TabIcon.jsx'
 import ScreenCrash from './components/ScreenCrash.jsx'
 import { useSession } from './hooks/useSession.js'
+import { wipeLocalAccount } from './db/local.js'
 import { useAppNav } from './hooks/useAppNav.js'
 import { useLaunchSheets } from './hooks/useLaunchSheets.js'
 import { useLoginSetup } from './hooks/useLoginSetup.js'
@@ -306,6 +307,7 @@ export default function App() {
                 <ProfileScreen
                   user={user}
                   onLogout={handleLogout}
+                  onAccountDeleted={async () => { const id = user.id; await handleLogout(); await wipeLocalAccount(id) }}
                   onOpenProgress={openProgressFor}
                   onOpenFeed={() => goTab('feed')}
                   onRenamed={handleRenamed}

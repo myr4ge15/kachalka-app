@@ -3585,3 +3585,11 @@ html[data-sheet-open], html[data-sheet-open] body { overscroll-behavior: none; }
 .join-status .link-btn { min-height: 44px; }
 .join-about { min-height: 84px; }
 .hp { position: absolute; left: -10000px; width: 1px; height: 1px; overflow: hidden; }
+
+/* Аватар крупно (v6.18.0): тап по аватару в профиле участника → лист с картинкой. */
+.avatar-zoom-btn { padding: 0; margin: 0; border: 0; background: none; border-radius: 50%; cursor: zoom-in; flex: none; }
+.avatar-zoom-btn:focus-visible { outline: 2px solid var(--acc); outline-offset: 3px; }
+.avatar-zoom-sheet .avatar-zoom-img {
+  display: block; width: min(100%, 360px); aspect-ratio: 1; margin: 4px auto 12px;
+  object-fit: cover; border-radius: 20px; background: var(--bg);
+}

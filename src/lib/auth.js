@@ -40,6 +40,7 @@ const SET_PIN_URL = (import.meta.env.VITE_SUPABASE_URL ?? '') + '/functions/v1/a
 const INVITE_URL = (import.meta.env.VITE_SUPABASE_URL ?? '') + '/functions/v1/invite-redeem'
 const ANON = import.meta.env.VITE_SUPABASE_KEY ?? ''
 const RESET_URL = (import.meta.env.VITE_SUPABASE_URL ?? '') + '/functions/v1/pin-reset'
+const DELETE_URL = (import.meta.env.VITE_SUPABASE_URL ?? '') + '/functions/v1/account-delete'
 
 // Ключ локального кэша офлайн-разблокировки (свои хэш+соль+имя+роль).
 // Кэш лежит в ОБЩЕЙ login-базе (loginDb.meta), а не в персональной: офлайн-
@@ -452,6 +453,41 @@ export async function setPin(userId, currentPin, newPin) {
     if (error) throw new LoginError('session', 'PIN сменен. Войди заново с новым PIN.')
   }
   rememberPin(userId, newPin)
+  return true
+}
+
+// Удалить СВОЙ аккаунт насовсем (П7, 07.10.2026; Edge account-delete). Только онлайн,
+// с верным PIN (попытки считаются, как при смене PIN). Сервер стирает учетку и все свое;
+// локальную зачистку устройства делает вызывающий (db/local.js wipeLocalAccount) уже
+// после выхода. Ошибки — LoginError: invalid (неверный PIN) | locked | admin | network | server.
+export async function deleteMyAccount(userId, pin) {
+  if (!navigator.onLine) throw new LoginError('network', 'Удалить аккаунт можно только онлайн.')
+  let accessToken = null
+  try {
+    await ensureOwnSession(userId)
+    const { data } = await supabase.auth.getSession()
+    accessToken = data?.session?.access_token ?? null
+  } catch { /* ниже — как отсутствие сессии */ }
+  if (!accessToken) throw new LoginError('server', 'Сессия не найдена — войди заново.')
+  let res
+  try {
+    res = await fetchWithTimeout(DELETE_URL, {
+      method: 'POST',
+      headers: { 'content-type': 'application/json', apikey: ANON, authorization: `Bearer ${accessToken}` },
+      body: JSON.stringify({ pin }),
+    })
+  } catch {
+    throw new LoginError('network', 'Нет сети — попробуй позже.')
+  }
+  let body = null
+  try { body = await res.json() } catch { /* нестандартное тело */ }
+  if (res.status === 429) {
+    throw new LoginError('locked', 'Слишком много попыток. Подожди немного.', body?.retry_after ?? null)
+  }
+  if (res.status === 401 && body?.error === 'invalid_credentials') throw new LoginError('invalid', 'Неверный PIN')
+  if (res.status === 401) throw new LoginError('server', 'Сессия истекла — войди заново.')
+  if (res.status === 409) throw new LoginError('admin', 'Учетку админа так не удалить.')
+  if (!res.ok || !body?.ok) throw new LoginError('server', 'Не удалось удалить аккаунт — попробуй позже.')
   return true
 }
 

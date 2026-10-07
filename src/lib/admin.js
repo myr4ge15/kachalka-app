@@ -22,6 +22,7 @@ import { loginProblem, normalizeLogin } from './login.js'
 
 const RESET_PIN_URL = (import.meta.env.VITE_SUPABASE_URL ?? '') + '/functions/v1/admin-reset-pin'
 const CREATE_USER_URL = (import.meta.env.VITE_SUPABASE_URL ?? '') + '/functions/v1/admin-create-user'
+const DELETE_URL = (import.meta.env.VITE_SUPABASE_URL ?? '') + '/functions/v1/account-delete'
 const ANON = import.meta.env.VITE_SUPABASE_KEY ?? ''
 // 2FA (v6.14.0): Edge admin-* отказывают сессии без кода, если защита включена.
 export const MFA_REQUIRED_TEXT = 'Нужен код 2FA — выйди из Админки и открой ее заново.'
@@ -115,18 +116,6 @@ export async function adminSetUser(id, name, role) {
   return { id, name: clean, role }
 }
 
-// Удалить пользователя
-export async function adminDeleteUser(id) {
-  const res = await withTimeout(
-    supabase.rpc('admin_delete_user', { p_user_id: id })
-  )
-
-  if (res.error) {
-    throw new AdminError(humanRpc(res.error.message))
-  }
-
-  return true
-}
 
 // Сбросить PIN участнику (Edge Function). new_pin опционален — сервер сгенерит.
 // Возвращает установленный PIN (для передачи человеку).
@@ -159,6 +148,35 @@ export async function adminResetPin(targetUserId, newPin = '') {
     throw new AdminError(payload?.error ?? 'Не удалось сбросить PIN.')
   }
   return payload.pin
+}
+
+// Удалить участника насовсем (П7, 07.10.2026; Edge account-delete). Тренировки, шаблоны,
+// цели и прочее его — стираются; обращения и журнал обезличиваются; его упражнения в
+// чужих тренировках становятся общими. Админов так не удалить (409).
+export async function adminDeleteUser(targetUserId, meId = null) {
+  if (meId && targetUserId === meId) throw new AdminError('Нельзя удалить самого себя.')
+  const token = await accessToken()
+  if (!token) throw new AdminError('Сессия не найдена — войди заново.')
+  let res
+  try {
+    res = await fetchWithTimeout(DELETE_URL, {
+      method: 'POST',
+      headers: { 'content-type': 'application/json', apikey: ANON, authorization: `Bearer ${token}` },
+      body: JSON.stringify({ target_user_id: targetUserId }),
+    })
+  } catch {
+    throw new AdminError('Нет сети — попробуй позже.')
+  }
+  let payload = null
+  try { payload = await res.json() } catch { /* нестандартное тело */ }
+  if (payload?.error === 'mfa_required') throw new AdminError(MFA_REQUIRED_TEXT)
+  if (res.status === 409) throw new AdminError('Учетку админа так не удалить — сначала смени ей роль.')
+  if (res.status === 403) throw new AdminError('Нужны права админа.')
+  if (res.status === 401) throw new AdminError('Сессия истекла — войди заново.')
+  if (res.status === 404) throw new AdminError('Участник не найден — возможно, уже удален.')
+  if (res.status === 429) throw new AdminError('Слишком много удалений подряд — подожди час.')
+  if (!res.ok || !payload?.ok) throw new AdminError('Не удалось удалить участника.')
+  return true
 }
 
 // Создать нового участника (Edge Function). Возвращает { id, name, role }.

@@ -156,12 +156,12 @@ describe('AdminScreen: удаление участника', () => {
 
     await waitFor(() => {
       expect(adminDeleteUser).toHaveBeenCalledTimes(1)
-      expect(adminDeleteUser).toHaveBeenCalledWith('u1')
+      expect(adminDeleteUser).toHaveBeenCalledWith('u1', 'me')
     })
   })
 
-  it('не показывает удаление для текущего пользователя', async () => {
-    vi.mocked(adminListUsers).mockResolvedValue([ME, DIMA])
+  it('не показывает удаление для себя и других админов (П7: админов так не удалить)', async () => {
+    vi.mocked(adminListUsers).mockResolvedValue([ME, DIMA, { id: 'a2', name: 'Петя', role: 'admin' }])
     const user = userEvent.setup()
 
     render(<AdminScreen user={ME} onBack={() => {}} />)
@@ -171,6 +171,10 @@ describe('AdminScreen: удаление участника', () => {
 
     expect(
       screen.queryByRole('button', { name: 'Удалить Саня' })
+    ).not.toBeInTheDocument()
+
+    expect(
+      screen.queryByRole('button', { name: 'Удалить Петя' })
     ).not.toBeInTheDocument()
 
     expect(
