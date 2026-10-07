@@ -17,4 +17,7 @@ jobs:
           SECRET: ${{ secrets.WEBHOOK_SECRET }}
         run: |
           if [ -z "$URL" ] || [ -z "$SECRET" ]; then echo "Нет SUMMARY_URL/WEBHOOK_SECRET — пропускаю"; exit 0; fi
-          curl -fsS -X POST -H "x-webhook-secret: $SECRET" "$URL"
+          echo "sha256 секрета: $(printf %s "$SECRET" | sha256sum | cut -c1-64), длина ${#SECRET}"
+          code=$(curl -sS -o resp.txt -w '%{http_code}' -X POST -H "x-webhook-secret: $SECRET" "$URL")
+          echo "HTTP $code: $(cat resp.txt)"
+          [ "$code" = "200" ]
