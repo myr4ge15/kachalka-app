@@ -281,6 +281,11 @@ updated_at)` + `upsert_user_meta` (`supabase/user-meta.sql`, RLS «только 
   женский рейтинг (ягодичный мостик) на сервере не существует, а клиент молча мапит отсутствующий
   `board` в `'m'`. Канон выше собран поверх РЕАЛЬНОГО тела; гендерный борд — отдельная задача
   (меняет тип возврата → `drop` + повторные гранты + `security definer` из-за чтения `u.sex`).
+- **Политики чтения тренировок** (`workouts_select`/`we_select`/`sets_select`) → канон `feed-rls-speed.sql`
+  (07.10.2026): `user_id in (select visible_user_ids())` — список видимых считается один раз на запрос.
+  НЕ возвращать `can_see_user(...)` на каждую строку (`auth-harden.sql` / `private-user.sql`): Лента на
+  77 тренировках шла 3,8 с и падала по statement timeout (57014 → 500). Логика видимости — по-прежнему
+  только в `can_see_user()`; новая политика по владельцу — тем же приемом.
 - **Приватность:** в `leaderboard_bench`, `tg_*` и `goal_reached_for_workout` обязателен фильтр
   `not is_private_user(...)` — бот и лидерборд ходят под service_role в обход RLS.
 - **`goal_reached_for_workout`** → канон `goal-reached-private.sql` (v6.7.5: фильтр приватности +
