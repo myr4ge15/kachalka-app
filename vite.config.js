@@ -1,9 +1,10 @@
-import { defineConfig } from 'vite'
+import { defineConfig, loadEnv } from 'vite'
 import react from '@vitejs/plugin-react'
 import { VitePWA } from 'vite-plugin-pwa'
 import { readFileSync } from 'node:fs'
 import { WHATS_NEW } from './src/content/whatsNew.js'
 import { updateHeadline } from './src/lib/whatsNew.js'
+import { avatarCachePattern, withBackendCsp } from './src/lib/backendOrigin.js'
 
 // Версия приложения — единый источник правды package.json; показывается внизу
 // «Профиля» (см. ProfileScreen). Подставляется на сборке в __APP_VERSION__,
@@ -32,8 +33,17 @@ const versionJson = () => ({
   },
 })
 
+// Адрес бэкенда на сборке (v6.16.2): VITE_SUPABASE_URL из .env или окружения CI. Это может
+// быть прокси вместо *.supabase.co (supabase/proxy-deploy.md) — его origin дописывается в
+// CSP index.html и в кэш аватаров, иначе браузер режет запросы к нему.
+const backendUrl = (mode) => loadEnv(mode, process.cwd(), 'VITE_').VITE_SUPABASE_URL
+const backendCsp = (url) => ({
+  name: 'backend-csp',
+  transformIndexHtml: (html) => withBackendCsp(html, url),
+})
+
 // base must match your GitHub Pages repo name: '/<repo>/'
-export default defineConfig({
+export default defineConfig(({ mode }) => ({
   base: '/kachalka-app/',
   define: {
     __APP_VERSION__: JSON.stringify(pkg.version),
@@ -53,6 +63,7 @@ export default defineConfig({
   plugins: [
     react(),
     versionJson(),
+    backendCsp(backendUrl(mode)),
     VitePWA({
       registerType: 'prompt',
       includeAssets: ['favicon.svg'],
@@ -85,9 +96,10 @@ export default defineConfig({
         // паттерн /\/storage\/…\/avatars\// совпадал в СЕРЕДИНЕ (после
         // https://<ref>.supabase.co) → для кросс-домена игнорировался, аватары
         // никогда не кэшировались (онлайн — грузились заново, офлайн — серый кружок).
+        // Шаблон собирает lib/backendOrigin.js: *.supabase.co + прокси, если он задан.
         runtimeCaching: [
           {
-            urlPattern: /^https:\/\/[^/]+\.supabase\.co\/storage\/v1\/object\/public\/avatars\//,
+            urlPattern: avatarCachePattern(backendUrl(mode)),
             handler: 'CacheFirst',
             options: {
               cacheName: 'avatars',
@@ -146,4 +158,4 @@ export default defineConfig({
       }
     }
   }
-})
+}))

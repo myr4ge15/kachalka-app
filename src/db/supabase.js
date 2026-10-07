@@ -1,5 +1,6 @@
 import { createClient } from '@supabase/supabase-js'
 import { withTimeout } from '../lib/withTimeout.js'
+import { authStorageKey } from '../lib/backendOrigin.js'
 
 // Проверка личности — один крошечный RPC перед каждым прогоном синка; ждать его
 // дольше не стоит: не ответил → «неизвестно», прогон идет с предохранителем.
@@ -8,6 +9,9 @@ const IDENTITY_TIMEOUT_MS = 10000
 const url = import.meta.env.VITE_SUPABASE_URL
 // Publishable key (sb_publishable_...): публичный клиентский ключ, безопасен в коде.
 const key = import.meta.env.VITE_SUPABASE_KEY
+// Ключ сессии в localStorage — от ref проекта, а не от адреса (v6.16.2): иначе переезд
+// на прокси (supabase/proxy-deploy.md) сменил бы ключ и разлогинил всех.
+const storageKey = authStorageKey(import.meta.env.VITE_SUPABASE_REF)
 
 // В тестах (Vitest, MODE=test) молчим (v6.16.0): там .env намеренно нет (CI), клиент не
 // нужен, а строка в каждом прогоне только шумит.
@@ -38,6 +42,7 @@ export const supabase = createClient(
       persistSession: true,
       autoRefreshToken: true,
       detectSessionInUrl: false,
+      ...(storageKey ? { storageKey } : {}),
     },
   }
 )

@@ -6,7 +6,7 @@
       Content-Security-Policy (defense-in-depth на статике GitHub Pages, где
       HTTP-заголовки задать нельзя). 'unsafe-inline' для style — из-за inline-
       стилей recharts/SVG; скрипты — только со своего origin. connect-src открыт
-      на Supabase: если используете СВОЙ домен Supabase, добавьте его сюда.
+      на Supabase; свой адрес (прокси в VITE_SUPABASE_URL) vite.config дописывает сам.
       img-src: blob: — для object-URL при выборе аватара (иначе декод файла через
       <img> рубится CSP → «Не удалось прочитать изображение» на ЛЮБОМ фото);
       https://*.supabase.co — чтобы показывать загруженный аватар из Storage.
