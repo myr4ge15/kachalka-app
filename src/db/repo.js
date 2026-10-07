@@ -225,10 +225,12 @@ export async function getUsers() {
 // мержатся поверх кэша, удаляются только id, которых в выборке больше нет.
 // Возвращает число записанных строк — pullRoster по нему решает, двигать ли
 // сигнатуру ростера.
-export async function cacheUsers(list) {
+// keepIds — учетки этого устройства (офлайн-кэш PIN): их строки не удаляем, даже если
+// вошедшему они не видны (lib/roster.js planRosterWrite).
+export async function cacheUsers(list, keepIds = []) {
   if (!Array.isArray(list)) return 0
   return loginDb.transaction('rw', loginDb.users, async () => {
-    const { puts, deleteIds } = planRosterWrite(await loginDb.users.toArray(), list)
+    const { puts, deleteIds } = planRosterWrite(await loginDb.users.toArray(), list, keepIds)
     if (deleteIds.length) await loginDb.users.bulkDelete(deleteIds)
     if (puts.length) await loginDb.users.bulkPut(puts)
     return puts.length
@@ -816,7 +818,7 @@ export async function discardDeadLetter() {
       }
       const deadEx = await db.ex_outbox.filter((x) => x._dead).count()
       const deadTpl = await db.tpl_outbox.filter((x) => x._dead).count()
-      if (deadEx) await db.meta.delete('wm_exercises')
+      if (deadEx) { await db.meta.delete('wm_exercises'); await db.meta.delete('sig_exercises') }
       if (deadTpl) await db.meta.delete('sig_templates')
       for (const o of await db.ex_outbox.filter((x) => x._dead).toArray()) {
         await db.exercises.update(o.exerciseId, { _dirty: 0 })

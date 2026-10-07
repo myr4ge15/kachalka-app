@@ -24,6 +24,11 @@ describe('pickRosterShape', () => {
 })
 
 describe('planRosterWrite', () => {
+  it('невидимого убирает, но учетку устройства из keepIds — нет (П3, v6.16.4)', () => {
+    const { deleteIds } = planRosterWrite([DIMA, OLYA, { id: 'u3', name: 'Женя' }], [DIMA], ['u2'])
+    expect(deleteIds).toEqual(['u3'])
+  })
+
   it('выборка БЕЗ sex не обнуляет пол в кэше (кейс инцидента 29.07.2026)', () => {
     // Ровно то, что делал экран входа: select('id, name, avatar_url, sort_order').
     const incoming = [

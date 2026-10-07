@@ -31,11 +31,9 @@ vi.mock('./supabase.js', () => {
   function resolveFrom(b) {
     if (b._table === 'exercises') {
       if (b._upsert) return { error: null } // pushExercises upsert
-      // проба инкрементального pull: select только updated_at (order desc limit 1)
-      if (b._select === 'updated_at') {
-        const rows = [...state.exercises].filter((e) => e.updated_at)
-          .sort((a, c) => (a.updated_at < c.updated_at ? 1 : -1))
-        return { data: rows.slice(0, 1), error: null }
+      // проба инкрементального pull (v6.16.4): id + updated_at всех видимых строк
+      if (b._select === 'id, updated_at') {
+        return { data: state.exercises.map((e) => ({ id: e.id, updated_at: e.updated_at })), error: null }
       }
       state.exFullFetches++ // ПОЛНЫЙ select (id, name, ...) — считаем для теста «skip»
       return { data: state.exercises, error: null }
@@ -356,7 +354,7 @@ describe('pull: инкрементальный watermark', () => {
     expect((await db.workouts.get('w2')).entries[0].sets[0].weight).toBe(80)
   })
 
-  it('справочник: не перекачивается, если max(updated_at) не вырос', async () => {
+  it('справочник: не перекачивается, если набор и max(updated_at) те же', async () => {
     srv.state.exercises = [{ ...bench, updated_at: T1 }]
     await syncNow(userId)
     const after1 = srv.state.exFullFetches

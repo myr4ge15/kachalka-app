@@ -34,15 +34,20 @@ export function pickRosterShape(row) {
 // План записи ростера: что положить (мержем поверх кэша) и что удалить.
 //   - ключ, ПРИСУТСТВУЮЩИЙ во входящей строке, всегда перекрывает кэш — в т.ч.
 //     null (снятый аватар, сброшенный пол); сохраняются только ОТСУТСТВУЮЩИЕ;
-//   - удаляем только id, которых во входящем списке нет (админ убрал участника);
+//   - удаляем только id, которых во входящем списке нет (админ убрал участника или
+//     человек перестал быть виден — с v6.16.4 ростер отдает только видимых);
+//   - id из keepIds не удаляем никогда: это учетки ЭТОГО устройства (у них офлайн-кэш
+//     PIN). Ростер общий для устройства, а видимость у учеток разная: приватная A не
+//     видит B, и pull A стирал бы аватар и пол B — пикер входа терял аватар, офлайн-
+//     рейтинг B падал в мужской борд до ее собственного синка (П3, 07.10.2026);
 //   - пустой (но не ошибочный) список ростер НЕ затирает и ничего не удаляет: тот
 //     же принцип, что в fetchLeaderboard — единичный сбой прав/RLS иначе оставил бы
 //     устройство без пикера входа, т.е. без возможности войти офлайн.
-export function planRosterWrite(existing, incoming) {
+export function planRosterWrite(existing, incoming, keepIds = []) {
   const rows = (incoming ?? []).filter((u) => u?.id).map(pickRosterShape)
   if (rows.length === 0) return { puts: [], deleteIds: [] }
   const cache = new Map((existing ?? []).filter((u) => u?.id).map((u) => [u.id, pickRosterShape(u)]))
-  const keep = new Set(rows.map((u) => u.id))
+  const keep = new Set([...rows.map((u) => u.id), ...(keepIds ?? [])])
   return {
     puts: rows.map((u) => ({ ...cache.get(u.id), ...u })),
     deleteIds: (existing ?? []).map((u) => u?.id).filter((id) => id && !keep.has(id)),

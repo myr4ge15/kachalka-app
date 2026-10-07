@@ -12,7 +12,7 @@
 // ============================================================================
 import { supabase } from '../supabase.js'
 import { withTimeout } from '../../lib/withTimeout.js'
-import { db, nowIso, setMeta, getMeta, getLoginMeta, setLoginMeta } from '../local.js'
+import { db, nowIso, setMeta, getMeta, getLoginMeta, setLoginMeta, listLoginMeta } from '../local.js'
 import { cacheUsers } from '../repo.js'
 import { readGoals, writeGoals } from '../notifications.js'
 import { getUserMetaState, readSyncedMeta, acceptSyncedMeta } from '../userMeta.js'
@@ -34,7 +34,8 @@ import { pickExerciseShape } from '../../lib/entries.js'
 // ПОЛНОМУ дешевому списку серверных id (select id), как и раньше (см.
 // lib/pullReconcile.js, «зазор реконсиляции»).
 const WM_WORKOUTS = 'wm_workouts'   // max updated_at принятых тренировок
-const WM_EXERCISES = 'wm_exercises' // max updated_at справочника
+const WM_EXERCISES = 'wm_exercises' // max updated_at справочника (база для «что изменилось»)
+const SIG_EXERCISES = 'sig_exercises' // сигнатура справочника (id + max updated_at), v6.16.4
 // Сигнатура ростера живет РЯДОМ С ДАННЫМИ — в login-meta ОБЩЕЙ базы (loginDb), а не
 // в персональной. «Сигнатура в чужом хранилище» уже стоила данных: экран входа портил
 // ростер в loginDb, сигнатура в персональной meta при этом не менялась → usChanged
@@ -220,23 +221,23 @@ async function refreshWorkoutsForExercises(userId, exerciseIds, d = db) {
 // --------------------------- pull: справочник ------------------------------
 async function pullExercises(d = db, changedExerciseIds = new Set()) {
   const warnings = []
-  // справочник упражнений. Инкрементально: сперва дешевая проба самого свежего
-  // updated_at (1 строка). Не вырос с прошлого раза → пропускаем целиком (ни
-  // трансфера, ни churn'а Dexie). Удаления справочника не бывает (soft-hide через
-  // is_hidden — строка остается, триггер двигает updated_at), поэтому max-watermark
-  // ПОЛНЫЙ: пропущенного нет. Проба упала (старый сервер без колонки / сеть) →
-  // деградируем к прежнему полному refetch, чтобы синк справочника не встал.
-  const exProbe = await withTimeout(
-    // nullsFirst:false — иначе при descending Postgres ставит NULL первым, и если
-    // хоть у одной строки updated_at пуст, проба вернет null → changedSince(null,…)
-    // === false → полный refetch справочника пропускается, новые упражнения не
-    // подтянутся. Нужен именно МАКСИМАЛЬНЫЙ непустой updated_at.
-    supabase.from('exercises').select('updated_at')
-      .order('updated_at', { ascending: false, nullsFirst: false }).limit(1)
-  )
-  const exServerMax = exProbe.error ? null : (exProbe.data?.[0]?.updated_at ?? null)
+  // справочник упражнений. Инкрементально: сперва дешевая проба (id + updated_at).
+  // Набор и максимум не изменились с прошлого раза → пропускаем целиком (ни
+  // трансфера, ни churn'а Dexie). Удаления строк справочник не знает (soft-hide через
+  // is_hidden двигает updated_at), но с v6.16.4 строки появляются/пропадают по
+  // ВИДИМОСТИ владельца — это ловит набор id в сигнатуре. Проба упала (сеть) →
+  // деградируем к полному refetch, чтобы синк справочника не встал.
+  // v6.16.4 (П3 «Мой круг»): проба — СИГНАТУРА (набор id + max updated_at), а не один
+  // максимум. С privacy-read-paths.sql справочник зависит от видимости: стал виден
+  // новый сосед — появились его старые личные упражнения (updated_at НИЖЕ метки, max
+  // не растет), перестал быть виден — исчезли. Один максимум не видел ни того, ни
+  // другого. Проба легкая: id и время, ~сотня строк, без сортировки на сервере.
+  const exProbe = await withTimeout(supabase.from('exercises').select('id, updated_at'))
+  const exServerMax = exProbe.error ? null : maxUpdatedAt(exProbe.data ?? [])
+  const exSig = exProbe.error ? null : rosterSignature(exProbe.data ?? [])
   const prevWm = await getMeta(WM_EXERCISES, d)
-  const exChanged = exProbe.error ? true : changedSince(exServerMax, prevWm)
+  const exChanged = exProbe.error ? true
+    : exSig !== (await getMeta(SIG_EXERCISES, d)) || changedSince(exServerMax, prevWm)
   if (exChanged) {
     // НЕ затираем локально созданные упражнения, которые еще не доехали до сервера
     // (_dirty=1) — иначе свое упражнение пропадет из пикера до завершения синка.
@@ -275,6 +276,9 @@ async function pullExercises(d = db, changedExerciseIds = new Set()) {
       // watermark = max по фактически принятым строкам (safe против лага реплики:
       // если проба видела свежее, чем refetch, следующий прогон дотянет).
       await setMeta(WM_EXERCISES, maxUpdatedAt(ex.data) ?? exServerMax, d)
+      // Сигнатура — по фактически принятому набору: если проба и выборка разошлись
+      // (лаг реплики), следующий прогон увидит разницу и дотянет.
+      await setMeta(SIG_EXERCISES, rosterSignature(ex.data), d)
     }
   }
   return warnings
@@ -303,7 +307,10 @@ async function pullRoster() {
     // Пустой, но не ошибочный ответ ростер не затирает И сигнатуру не двигает —
     // следующий прогон попробует снова, вместо того чтобы «запомнить» пустоту.
     else if (us.data?.length) {
-      await cacheUsers(us.data)
+      // Учетки этого устройства не стираем, даже если вошедшему они не видны (П3).
+      let deviceIds = []
+      try { deviceIds = (await listLoginMeta('pin_')).map(({ key }) => key.slice(4)) } catch { /* нет кэша PIN */ }
+      await cacheUsers(us.data, deviceIds)
       if (usSig !== null) await setLoginMeta(SIG_USERS, usSig)
     }
   }

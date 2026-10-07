@@ -300,7 +300,8 @@ describe('dead-letter: pendingCount / retry / discard', () => {
   })
 
   it('discardDeadLetter сбрасывает метки шаблонов и справочника — pull перечитает их целиком', async () => {
-    await db.meta.bulkPut([{ key: 'sig_templates', value: 'sig' }, { key: 'wm_exercises', value: 'wm' }, { key: 'wm_workouts', value: 'keep' }])
+    await db.meta.bulkPut([{ key: 'sig_templates', value: 'sig' }, { key: 'wm_exercises', value: 'wm' },
+      { key: 'sig_exercises', value: 'sig' }, { key: 'wm_workouts', value: 'keep' }])
     await db.templates.put({ id: 't1', name: 'T-правка', user_id: userId, _dirty: 1, _deleted: 0, exercises: [] })
     await db.tpl_outbox.add({ templateId: 't1', type: 'upsert', attempts: 5, _dead: 1 })
     await db.exercises.put({ id: 'e1', name: 'Свое', _dirty: 1 })
@@ -308,6 +309,7 @@ describe('dead-letter: pendingCount / retry / discard', () => {
     expect(await discardDeadLetter()).toBe(2)
     expect(await db.meta.get('sig_templates')).toBeUndefined()
     expect(await db.meta.get('wm_exercises')).toBeUndefined()
+    expect(await db.meta.get('sig_exercises')).toBeUndefined()
     expect((await db.meta.get('wm_workouts')).value).toBe('keep')
     expect((await db.templates.get('t1'))._dirty).toBe(0)
   })

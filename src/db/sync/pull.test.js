@@ -70,7 +70,7 @@ vi.mock('../supabase.js', () => {
   return { supabase: { from, rpc } }
 })
 
-import { openUserDb, closeUserDb, db, loginDb, getMeta, setMeta, getLoginMeta } from '../local.js'
+import { openUserDb, closeUserDb, db, loginDb, getMeta, setMeta, getLoginMeta, setLoginMeta } from '../local.js'
 import { readGoals, writeGoals } from '../notifications.js'
 import {
   getUserMetaState,
@@ -106,7 +106,7 @@ function workoutRow(id, userId) {
 }
 
 function defaultResponse(call) {
-  if (call.table === 'exercises' && call.select === 'updated_at') {
+  if (call.table === 'exercises' && call.select === 'id, updated_at') {
     return { data: [], error: null }
   }
   if (call.table === 'login_users' && call.select === 'id, updated_at') {
@@ -138,7 +138,7 @@ afterEach(async () => {
 describe('pull — граница критичности', () => {
   it('мягко деградирует при сбое справочника, но принимает тренировки', async () => {
     server.from = (call) => {
-      if (call.table === 'exercises' && call.select !== 'updated_at') {
+      if (call.table === 'exercises' && call.select !== 'id, updated_at') {
         return { data: null, error: { message: 'exercises unavailable' } }
       }
       if (call.table === 'workouts' && call.select === 'id') {
@@ -260,11 +260,50 @@ describe('pullGoal', () => {
 describe('pull справочника упражнений', () => {
   function exercisesServer(rows) {
     return (call) => {
-      if (call.table === 'exercises' && call.select === 'updated_at') return { data: [{ updated_at: T3 }], error: null }
+      if (call.table === 'exercises' && call.select === 'id, updated_at') {
+        return { data: rows.map((e) => ({ id: e.id, updated_at: e.updated_at })), error: null }
+      }
       if (call.table === 'exercises') return { data: rows, error: null }
       return defaultResponse(call)
     }
   }
+  const exFullFetches = () =>
+    server.calls.filter((c) => c.table === 'exercises' && c.select !== 'id, updated_at').length
+
+  // П3 «Мой круг» (v6.16.4): справочник зависит от видимости владельца личных упражнений.
+  it('стал виден сосед: его СТАРОЕ упражнение (updated_at ниже метки) подтягивается', async () => {
+    const own = { id: 'ex1', name: 'Жим', updated_at: T3 }
+    server.from = exercisesServer([own])
+    await pull(userId, new Set(), db)
+    server.calls.length = 0
+
+    server.from = exercisesServer([own, { id: 'nb', name: 'Сосед: тяга', updated_at: T1 }])
+    await pull(userId, new Set(), db)
+
+    expect(exFullFetches()).toBe(1)
+    expect((await db.exercises.get('nb')).name).toBe('Сосед: тяга')
+  })
+
+  it('сосед перестал быть виден: его упражнение уходит из справочника', async () => {
+    const own = { id: 'ex1', name: 'Жим', updated_at: T1 }
+    server.from = exercisesServer([own, { id: 'nb', name: 'Сосед: тяга', updated_at: T3 }])
+    await pull(userId, new Set(), db)
+    expect(await db.exercises.get('nb')).toBeTruthy()
+
+    server.from = exercisesServer([own])
+    await pull(userId, new Set(), db)
+
+    expect(await db.exercises.get('nb')).toBeUndefined()
+    expect(await db.exercises.get('ex1')).toBeTruthy()
+  })
+
+  it('набор и время те же → полной выборки нет', async () => {
+    server.from = exercisesServer([{ id: 'ex1', name: 'Жим', updated_at: T1 }])
+    await pull(userId, new Set(), db)
+    server.calls.length = 0
+    await pull(userId, new Set(), db)
+    expect(exFullFetches()).toBe(0)
+  })
 
   it('правка известного серверу упражнения с живой операцией не затирается', async () => {
     await db.exercises.put({ id: 'ex1', name: 'Тяга блока', _dirty: 1 })
@@ -422,6 +461,30 @@ describe('pullRoster', () => {
 
     expect(fullFetches()).toBe(1)
     expect(await loginDb.users.count()).toBe(3)
+  })
+
+  // П3 (v6.16.4): ростер отдает только видимых. Учетка этого устройства, которую
+  // вошедший не видит, остается в кэше — иначе пикер входа терял ее аватар и пол.
+  it('учетку устройства не стираем, даже если вошедшему она не видна', async () => {
+    serveRoster()
+    await pull(userId, new Set(), db)
+    await setLoginMeta('pin_r2', { pin_hash: 'h', pin_salt: 's', name: 'Оля' })
+
+    serveRoster([ROSTER[0]]) // r2 вошедшему больше не видна
+    await pull(userId, new Set(), db)
+
+    expect((await loginDb.users.get('r2')).sex).toBe('f')
+    expect(await loginDb.users.get('r1')).toBeTruthy()
+  })
+
+  it('чужую (не этого устройства) невидимую учетку из кэша убираем', async () => {
+    serveRoster()
+    await pull(userId, new Set(), db)
+
+    serveRoster([ROSTER[0]])
+    await pull(userId, new Set(), db)
+
+    expect(await loginDb.users.get('r2')).toBeUndefined()
   })
 
   it('пустой (не ошибочный) ответ не затирает ростер и не сохраняет сигнатуру', async () => {
