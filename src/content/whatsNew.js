@@ -20,7 +20,7 @@
 
 export const WHATS_NEW = [
   {
-    version: '6.16.2',
+    version: '6.16.3',
     date: '2026-10-07',
     headline: 'Запасной путь к серверу',
     main: [
