@@ -157,6 +157,18 @@ describe('FeedScreen', () => {
     expect(fetchFeed).toHaveBeenCalledTimes(2)
   })
 
+  it.each([-100, 100])('горизонтальный жест %s не перехватывается обновлением Ленты', async (dx) => {
+    mocks.feed = [post()]
+    const { container } = renderFeed()
+    await waitFor(() => expect(screen.getByText(/^обновлено /)).toBeInTheDocument())
+    const sc = container.querySelector('.content')
+    fireEvent.touchStart(sc, { touches: [{ clientX: 200, clientY: 100 }] })
+    expect(fireEvent.touchMove(sc, { touches: [{ clientX: 200 + dx, clientY: 105 }] })).toBe(true)
+    expect(fireEvent.touchMove(sc, { touches: [{ clientX: 200 + dx, clientY: 500 }] })).toBe(true)
+    fireEvent.touchEnd(sc)
+    expect(fetchFeed).toHaveBeenCalledTimes(1)
+  })
+
   it('pull-to-refresh у верха: дотянул до порога — обновление с вибро; не дотянул — нет', async () => {
     mocks.feed = [post()]
     const { container } = renderFeed()

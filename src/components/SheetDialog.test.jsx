@@ -5,6 +5,38 @@ import { fireEvent, render, screen } from '@testing-library/react'
 import SheetDialog from './SheetDialog.jsx'
 
 describe('SheetDialog', () => {
+  it('пропускает свайпы чипов с дрожанием по Y, но блокирует края и фон', () => {
+    render(<SheetDialog title="Чипы" onDismiss={() => {}}>
+      <div data-testid="chips" style={{ overflowX: 'auto', overflowY: 'hidden' }}><button>Грудь</button></div>
+    </SheetDialog>)
+    const chips = screen.getByTestId('chips')
+    Object.defineProperties(chips, {
+      scrollWidth: { value: 900 }, clientWidth: { value: 300 },
+    })
+    const chip = screen.getByRole('button', { name: 'Грудь' })
+    const touch = (type, x, y, target = chip) => {
+      const event = new Event(type, { bubbles: true, cancelable: true })
+      event.touches = [{ clientX: x, clientY: y }]
+      target.dispatchEvent(event)
+      return event.defaultPrevented
+    }
+    touch('touchstart', 200, 100)
+    expect(touch('touchmove', 160, 103)).toBe(false)
+    chips.scrollLeft = 40
+    expect(touch('touchmove', 159, 110)).toBe(false) // ось не меняется от дрожания
+    touch('touchstart', 160, 100)
+    expect(touch('touchmove', 200, 98)).toBe(false) // обратно
+    chips.scrollLeft = 0
+    touch('touchstart', 160, 100)
+    expect(touch('touchmove', 200, 102)).toBe(true)
+    chips.scrollLeft = 600
+    touch('touchstart', 200, 100)
+    expect(touch('touchmove', 160, 102)).toBe(true)
+    const head = screen.getByText('Чипы')
+    touch('touchstart', 200, 100, head)
+    expect(touch('touchmove', 160, 102, head)).toBe(true)
+  })
+
   it('дает листу modal-семантику и закрывается по Escape', () => {
     const onDismiss = vi.fn()
     render(

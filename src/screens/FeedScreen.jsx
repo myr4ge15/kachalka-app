@@ -142,18 +142,26 @@ export default function FeedScreen({ user, onOpenMember, flashId = null, onOpenC
     const sc = root?.closest('.content')
     if (!sc) return
     let startY = null
+    let startX = null
     let active = false
     const setPx = (v) => { pullRef.current = v; setPull(v) }
 
     const onStart = (e) => {
       // Начинаем следить за жестом только у самого верха и не во время обновления.
       startY = (!refreshingRef.current && sc.scrollTop <= 0) ? e.touches[0].clientY : null
+      startX = e.touches[0].clientX ?? 0
       active = false
     }
     const onMove = (e) => {
       if (startY == null) return
       if (sc.scrollTop > 0) { startY = null; active = false; setDragging(false); setPx(0); return }
       const raw = e.touches[0].clientY - startY
+      if (!active) {
+        const dx = (e.touches[0].clientX ?? 0) - startX
+        if (Math.max(Math.abs(dx), Math.abs(raw)) < 4) return
+        // Горизонтальная прокрутка не должна запускать обновление Ленты.
+        if (Math.abs(dx) > Math.abs(raw)) { startY = null; return }
+      }
       if (raw <= 0) { if (active) { active = false; setDragging(false); setPx(0) } return }
       if (!active) { active = true; setDragging(true) }
       // Забираем жест у нативного оверскролла, чтобы тянулся наш индикатор.

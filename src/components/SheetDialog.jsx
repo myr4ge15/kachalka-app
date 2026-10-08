@@ -93,15 +93,26 @@ export default function SheetDialog({
     // листа — только если под пальцем есть что прокручивать в эту сторону (v6.15.1,
     // lib/sheetTouch.js). Раньше гасился лишь жест по затемнению, и на iPhone жест по
     // короткому листу «Что нового» тянул всю оболочку с верхним меню.
-    let lastY = null
-    function onTouchStart(event) { lastY = event.touches?.[0]?.clientY ?? null }
+    let last = null
+    let origin = null
+    let axis = null
+    function onTouchStart(event) {
+      last = origin = event.touches?.[0] ?? null
+      axis = null
+    }
     function onBackdropMove(event) {
       if (!event.cancelable) return
       if (event.target === overlay) { event.preventDefault(); return }
-      const y = event.touches?.[0]?.clientY
-      const dy = y != null && lastY != null ? y - lastY : 0
-      if (y != null) lastY = y
-      if (shouldBlockSheetTouch(scrollableAncestor(event.target, overlay), dy)) event.preventDefault()
+      const point = event.touches?.[0]
+      if (!point || !last) return
+      const dx = (point.clientX ?? 0) - (origin.clientX ?? 0)
+      const dy = point.clientY - origin.clientY
+      // Ось фиксируем на весь жест: дрожание пальца не должно прерывать скролл чипов.
+      if (!axis && Math.max(Math.abs(dx), Math.abs(dy)) < 4) return
+      axis ??= Math.abs(dx) > Math.abs(dy) ? 'x' : 'y'
+      const delta = axis === 'x' ? point.clientX - last.clientX : point.clientY - last.clientY
+      last = point
+      if (shouldBlockSheetTouch(scrollableAncestor(event.target, overlay, undefined, axis), delta, axis)) event.preventDefault()
     }
     overlay?.addEventListener('touchstart', onTouchStart, { passive: true })
     overlay?.addEventListener('touchmove', onBackdropMove, { passive: false })
