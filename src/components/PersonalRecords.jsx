@@ -1,3 +1,4 @@
+import Chevron from './Chevron.jsx'
 import { useState } from 'react'
 import { fmtMetricValue, fmtPace } from '../lib/metric.js'
 
@@ -36,7 +37,7 @@ export default function PersonalRecords({ records, onOpenProgress }) {
               <span className="pr-val">
                 {fmtMetricValue(r.metric, r.value)}
                 {r.pace ? <span className="pr-pace muted"> · {fmtPace(r.pace)}</span> : null}
-                {' '}<span className="arr">›</span>
+                {' '}<Chevron className="arr" />
               </span>
             </button>
           </li>

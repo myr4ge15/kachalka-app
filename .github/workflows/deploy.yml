@@ -103,8 +103,10 @@ jobs:
           path: playwright-report/
           retention-days: 7
 
+      # Set repository variable VITE_APP_BASE to / only when switching the custom domain.
       - name: Build
         env:
+          VITE_APP_BASE: ${{ vars.VITE_APP_BASE }}
           VITE_SUPABASE_URL: ${{ secrets.VITE_SUPABASE_URL }}
           VITE_SUPABASE_KEY: ${{ secrets.VITE_SUPABASE_KEY }}
           VITE_SUPABASE_REF: ${{ secrets.VITE_SUPABASE_REF }}

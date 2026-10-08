@@ -1,3 +1,4 @@
+import Chevron from './Chevron.jsx'
 import HoldButton from './HoldButton.jsx'
 import TimeInput from './TimeInput.jsx'
 import { exerciseMetric, isCountMetric, hasExtraWeight, fmtSet, bestPace, fmtPace, paceSecPerKm } from '../lib/metric.js'
@@ -57,10 +58,7 @@ export default function ExerciseCard({
             <strong>{entry.exercise.name}</strong>
             <span className={`muted${summary.setCount === 0 ? ' warn' : ''}`}>{summary.text}</span>
           </span>
-          <svg className="exercise-compact-chevron" viewBox="0 0 24 24" width="18" height="18" fill="none"
-            stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
-            <path d="M9 6l6 6-6 6" />
-          </svg>
+          <Chevron className="exercise-compact-chevron" />
         </button>
       </div>
     )
@@ -76,7 +74,7 @@ export default function ExerciseCard({
       onFocusCapture={() => onActivate(entry.exercise.id)}
     >
       <div className="exercise-head">
-        <span className="exercise-title">
+        <span className="exercise-title" tabIndex={0} aria-label={`${entry.exercise.name}. Изменить порядок: Alt и стрелки вверх или вниз`}>
           <span className="exercise-name">{entry.exercise.name}</span>
         </span>
         <span className="exercise-actions">

@@ -1,3 +1,4 @@
+import Chevron from '../components/Chevron.jsx'
 import { useEffect, useRef, useState, useCallback, useMemo } from 'react'
 import { useLiveQuery } from 'dexie-react-hooks'
 import { getCachedFeed, fetchFeed } from '../db/feed.js'
@@ -350,7 +351,7 @@ export default function FeedScreen({ user, onOpenMember, flashId = null, onOpenC
             <button type="button" className="settings-toggle feed-rail-toggle" aria-expanded={railOpen}
               onClick={toggleRail}>
               <span className="settings-title"><span aria-hidden="true">🏆</span> Рейтинг</span>
-              <span className="settings-chev" aria-hidden="true">{railOpen ? '⌄' : '›'}</span>
+              <Chevron className="settings-chev" open={railOpen} />
             </button>
             {/* Свернутый рейтинг не размонтируем: данные уже подгружены, раскрытие
                 мгновенное, а на десктопе он виден всегда. */}

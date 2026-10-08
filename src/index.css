@@ -717,6 +717,11 @@ select, textarea { font-variant-numeric: inherit; font-feature-settings: inherit
 }
 .exercise-compact-copy .muted.warn { color: var(--yellow); }
 .exercise-compact-chevron { flex: none; color: var(--muted); }
+.exercise-reorder-hint { font-size: var(--fs-meta); margin: 12px 0; }
+.exercise-title, .exercise-compact-toggle { -webkit-user-select: none; user-select: none; -webkit-touch-callout: none; }
+.exercise-dragging { opacity: .55; outline: 2px solid var(--acc); }
+.exercise-drop-before { box-shadow: 0 -4px 0 var(--acc); }
+.exercise-drop-after { box-shadow: 0 4px 0 var(--acc); }
 
 /* Строки подходов: узкий номер + 1–2 степпера + ✕. */
 .sets-head, .set-row {
@@ -1891,13 +1896,14 @@ img.avatar-lg.has-img {
 }
 .settings-toggle:active { background: var(--surface-2); }
 .settings-toggle + .settings-toggle { margin-top: 12px; }
-.member-invites { margin-bottom: 12px; }
+.member-invites { margin-block: 12px; }
 .member-invites > .invite-sec { margin-top: 12px; }
 .settings-title {
   display: inline-flex; align-items: center; gap: 9px;
   font-size: 15px; font-weight: 600; color: var(--text);
 }
-.settings-chev { font-size: 20px; line-height: 1; color: var(--muted); }
+.ui-chevron { display: inline-block; flex: none; vertical-align: middle; color: var(--muted); }
+.settings-chev { align-self: center; }
 
 /* шапка профиля */
 .prof-head { display: flex; align-items: center; gap: 14px; margin-bottom: 16px; }
@@ -3333,7 +3339,7 @@ html[data-sheet-open], html[data-sheet-open] body { overscroll-behavior: none; }
 }
 .wn-list { list-style: none; margin: 0; padding: 0; }
 .wn-list li {
-  display: flex; gap: 12px; align-items: flex-start; padding: 9px 0;
+  display: flex; gap: 12px; align-items: center; padding: 9px 0;
   font-size: var(--fs-body); line-height: 1.35;
 }
 .wn-list li + li { border-top: 1px solid color-mix(in srgb, var(--border) 60%, transparent); }

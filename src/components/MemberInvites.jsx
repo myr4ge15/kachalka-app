@@ -1,3 +1,4 @@
+import Chevron from './Chevron.jsx'
 import { useMemo, useState } from 'react'
 import { useSyncStatus } from '../db/sync.js'
 import { memberInviteApi } from '../lib/memberInvites.js'
@@ -16,7 +17,7 @@ export default function MemberInvites({ userId }) {
   return <div className="member-invites" ref={revealRef}>
     <button className="settings-toggle" aria-expanded={open} onClick={() => setOpen(v => !v)}>
       <span className="settings-title"><span aria-hidden="true">✉️</span> Пригласить участника</span>
-      <span className="settings-chev" aria-hidden="true">{open ? '⌄' : '›'}</span>
+      <Chevron className="settings-chev" open={open} />
     </button>
     {open && <Panel key={userId} userId={userId} />}
   </div>

@@ -51,15 +51,16 @@ export default function LoginChangeForm({ userId }) {
     return (
       <button className="act" onClick={openForm}>
         <span className="act-txt">
-          🔤 Логин для входа
-          <span className="act-sub">{sub}</span>
+          🔤 Сменить логин для входа
+          <span className="act-sub">Текущий логин: {sub}</span>
         </span>
       </button>
     )
   }
   return (
     <div className="pin-form" ref={formRef}>
-      <p className="pin-form-title">Логин для входа</p>
+      <p className="pin-form-title">Сменить логин для входа</p>
+      {current && <p className="muted">Текущий логин: {current}</p>}
       <LoginField value={value} disabled={busy} label="Новый логин" onChange={(v) => { setValue(v); setErr('') }} />
       {err && <p className="pin-err" role="alert">{err}</p>}
       <div className="pin-form-actions">

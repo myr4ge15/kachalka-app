@@ -1,3 +1,4 @@
+import Chevron from '../components/Chevron.jsx'
 import { useState, useMemo, useEffect } from 'react'
 import { useLiveQuery } from 'dexie-react-hooks'
 import { getWorkouts, saveTemplate } from '../db/repo.js'
@@ -345,10 +346,7 @@ export default function HistoryScreen({
                     {picked.has(w.id) ? '✓' : ''}
                   </span>
                 ) : (
-                  <svg className="history-chevron" viewBox="0 0 24 24" width="18" height="18" fill="none"
-                    stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
-                    <path d="M9 6l6 6-6 6" />
-                  </svg>
+                  <Chevron className="history-chevron" />
                 )}
               </div>
 

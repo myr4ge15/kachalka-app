@@ -23,7 +23,7 @@ import globals from 'globals'
 import reactHooks from 'eslint-plugin-react-hooks'
 
 export default [
-  { ignores: ['dist/**', 'dev-dist/**', 'node_modules/**', 'coverage/**', 'test-results/**', 'playwright-report/**', '.local/**'] },
+  { ignores: ['dist/**', 'dev-dist/**', 'node_modules/**', 'coverage/**', 'test-results/**', 'playwright-report/**', '.local/**', 'work/**', 'debug/**'] },
 
   js.configs.recommended,
 
@@ -71,9 +71,15 @@ export default [
     },
   },
 
-  // Конфиги в корне и служебные scripts/ — node-окружение.
+  // addInitScript выполняется в браузере; остальные скрипты остаются Node-only.
   {
-    files: ['*.{js,cjs,mjs}', 'scripts/**/*.{js,cjs,mjs}'],
+    files: ['scripts/readme-shots.mjs'],
+    languageOptions: { globals: { localStorage: 'readonly' } },
+  },
+
+  // Конфиги, служебные скрипты и серверные JS-тесты — node-окружение.
+  {
+    files: ['*.{js,cjs,mjs}', 'scripts/**/*.{js,cjs,mjs}', 'supabase/tests/**/*.mjs'],
     languageOptions: {
       ecmaVersion: 'latest',
       sourceType: 'module',

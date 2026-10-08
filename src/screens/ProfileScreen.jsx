@@ -1,3 +1,4 @@
+import Chevron from '../components/Chevron.jsx'
 import { plural } from '../lib/plural.js'
 import { useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react'
 import { useLiveQuery } from 'dexie-react-hooks'
@@ -286,24 +287,24 @@ export default function ProfileScreen({ user, onLogout, onAccountDeleted, onOpen
         {/* «Мой круг» (07.10.2026): свой круг, личный код, участники, рейтинг круга. */}
         <button className="settings-toggle" onClick={() => onOpenCircle?.()}>
           <span className="settings-title"><span aria-hidden="true">⭕</span> Мой круг</span>
-          <span className="settings-chev" aria-hidden="true">›</span>
+          <Chevron className="settings-chev" />
         </button>
         <MemberInvites key={user.id} userId={user.id} />
         {/* «Написать разработчику» (v6.11.0; в корне Профиля с v6.12.0 — в Настройках
             его не находили): ошибка, идея, вопрос — сразу разработчику. */}
         <button className={'settings-toggle fb-entry' + (fbUnread ? ' act-new' : '')} onClick={() => onOpenFeedback?.()}>
           <span className="settings-title"><span aria-hidden="true">💬</span> Написать разработчику</span>
-          {fbUnread > 0 ? <span className="act-badge">ответ</span> : <span className="settings-chev" aria-hidden="true">›</span>}
+          {fbUnread > 0 ? <span className="act-badge">ответ</span> : <Chevron className="settings-chev" />}
         </button>
         {user.role === 'admin' && (
           <button className="settings-toggle" onClick={() => onOpenAdmin?.()}>
             <span className="settings-title"><span aria-hidden="true">🛠</span> Админка</span>
-            <span className="settings-chev" aria-hidden="true">›</span>
+            <Chevron className="settings-chev" />
           </button>
         )}
         <button className="settings-toggle" onClick={openSettings}>
           <span className="settings-title"><span aria-hidden="true">⚙️</span> Настройки</span>
-          <span className="settings-chev" aria-hidden="true">›</span>
+          <Chevron className="settings-chev" />
         </button>
         <div className="actions">
           {/* Занятость и защита от двойного тапа — в LogoutButton (РЕВЬЮ-КОДА-2026-10-02). */}

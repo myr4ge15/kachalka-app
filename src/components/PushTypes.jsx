@@ -1,3 +1,4 @@
+import Chevron from './Chevron.jsx'
 // Тумблеры «какие пуши присылать» (v6.7.0) — под главным переключателем
 // «Пуш-уведомления», только когда он включен. Состояние — в hooks/usePushToggle.js.
 // prefs: null — еще грузятся (или не загрузились — тогда есть error).
@@ -17,7 +18,7 @@ export default function PushTypes({ prefs = null, busyType = null, error = '', o
         Какие присылать
         <span className="toggle-act-sub">{loading ? 'загружаю…' : `включено ${onCount} из ${PUSH_TYPES.length}`}</span>
       </span>
-      <span className="settings-chev" aria-hidden="true">{open ? '⌄' : '›'}</span>
+      <Chevron className="settings-chev" open={open} />
     </button>
     {!open && error && <p className="push-err" role="alert">{error}</p>}
     {open && (

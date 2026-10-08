@@ -19,6 +19,8 @@ import { templateExercisesFromWorkout, defaultTemplateName } from '../lib/templa
 import { vibrate, HAPTIC } from '../lib/haptics.js'
 import { exerciseUsageSections } from '../lib/exerciseUsage.js'
 import { useWorkoutFocus } from '../hooks/useWorkoutFocus.js'
+import { useExerciseReorder } from '../hooks/useExerciseReorder.js'
+import { reorderExercises } from '../lib/reorderExercises.js'
 import CardsSkeleton from '../components/CardsSkeleton.jsx'
 import ExercisePicker from '../components/ExercisePicker.jsx'
 import TemplatePicker from '../components/TemplatePicker.jsx'
@@ -69,6 +71,10 @@ export default function WorkoutScreen({ user, workoutId = null, onBack, onSaved 
   const FEEL_KEY = `workout_feel_new_${user.id}`
 
   const [entries, setEntries] = useState(() => (isNew ? readDraft(DRAFT_KEY) ?? [] : []))
+  const reorderRef = useExerciseReorder((id, beforeId) => {
+    activateExercise(activeExerciseId)
+    setEntries(prev => reorderExercises(prev, id, beforeId))
+  })
   // { [exerciseId]: 'easy'|'ok'|'hard' } — только за эту тренировку.
   const [feels, setFeels] = useState(() => (isNew ? readDraft(FEEL_KEY) ?? {} : {}))
   const { activeExerciseId, activeCardRef, activateExercise } = useWorkoutFocus(entries, {
@@ -627,7 +633,7 @@ export default function WorkoutScreen({ user, workoutId = null, onBack, onSaved 
   )
 
   return (
-    <div className="screen workout-screen">
+    <div className="screen workout-screen" ref={reorderRef}>
       {/* Шапка (v6.1.0): круглая «назад», заголовок, дата чипом под ним (тап —
           пикер, так начинается запись задним числом), «Очистить» справа — только
           у новой тренировки с составом; подтверждение раскрывается под шапкой. */}
@@ -676,6 +682,7 @@ export default function WorkoutScreen({ user, workoutId = null, onBack, onSaved 
             </div>
           )}
 
+          {entries.length > 1 && <p className="muted exercise-reorder-hint">Зажми название упражнения и перетащи, чтобы изменить порядок.</p>}
           {entries.map((entry, ei) => (
             <ExerciseCard
               key={entry.exercise.id}

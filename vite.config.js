@@ -42,9 +42,9 @@ const backendCsp = (url) => ({
   transformIndexHtml: (html) => withBackendCsp(html, url),
 })
 
-// base must match your GitHub Pages repo name: '/<repo>/'
+// VITE_APP_BASE=/ for the custom domain; keep the existing Pages path by default.
 export default defineConfig(({ mode }) => ({
-  base: '/kachalka-app/',
+  base: loadEnv(mode, process.cwd(), 'VITE_').VITE_APP_BASE || '/kachalka-app/',
   define: {
     __APP_VERSION__: JSON.stringify(pkg.version),
   },

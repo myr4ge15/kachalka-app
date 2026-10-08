@@ -381,6 +381,12 @@ updated_at)` + `upsert_user_meta` (`supabase/user-meta.sql`, RLS «только 
   в личке (`_shared/tgLink.ts`), все прочее — по-старому только владелец. Сброс владельцем круга — НЕ делать.
   Клиент: `lib/recovery.js` (токен из `#reset=` стирается из адреса сразу, как приглашение),
   `components/recovery/*`, `screens/ResetPinScreen.jsx`, `profile/RecoverySection.jsx`.
+  **Очистка сообщений со ссылками (08.10.2026, подготовлена локально):** добавочная
+  `pin-reset-messages.sql` + `_shared/resetMessages.ts`, Edge `pin-reset-cleanup`
+  (внешний POST раз в минуту, `x-webhook-secret` = `WEBHOOK_SECRET`). Очередь без FK на
+  токен/учетку: сброс PIN удаляет токены раньше удаления сообщения. Клиенты без доступа,
+  только service_role; сырых токенов нет. Срок очереди 10 минут должен совпадать с TTL
+  `pin_reset_request`. Накат — `pin-reset-messages-deploy.md`; сам автоматически не выполняется.
 - **Вход по имени и «Хочу в круг» (v6.12.0)** → `login-join.sql`: `auth_find_user` (с П4 — канон
   `login-separate.sql`, см. выше), `join_requests` и `join_*`/
   `bot_join_decide` — ТОЛЬКО `service_role`. Edge `auth-login` принимает `{name, pin}`: не найдено — тот же
