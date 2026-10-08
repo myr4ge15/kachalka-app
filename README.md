@@ -97,9 +97,6 @@ kachalka-app можно использовать не только как лич
 
 <p align="center">
   <a href="#вместе-с-друзьями"><img src="docs/screenshots/circle.png" width="320" alt="Мой круг: личный код и участники"></a>
-</p>
-
-<p align="center">
   <a href="#вместе-с-друзьями"><img src="docs/screenshots/rating.png" width="320" alt="Рейтинг по жиму лёжа"></a>
 </p>
 
