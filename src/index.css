@@ -3473,7 +3473,7 @@ html[data-sheet-open], html[data-sheet-open] body { overscroll-behavior: none; }
   display: flex; align-items: baseline; justify-content: space-between; gap: 8px; width: 100%;
   min-height: 44px; padding: 10px 0 4px; background: none; border: none; color: var(--text); text-align: left;
 }
-.wn-rel-v { font-size: var(--fs-title); font-weight: var(--fw-strong); }
+.wn-rel-v { font-size: var(--fs-title); font-weight: var(--fw-strong); letter-spacing: -0.035em; }
 .wn-rel-d { color: var(--muted); font-size: var(--fs-meta); }
 .wn-big {
   margin-left: 6px; padding: 2px 7px; border-radius: 999px; vertical-align: 1px;
