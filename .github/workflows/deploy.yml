@@ -75,21 +75,36 @@ jobs:
             console.log('Выкат ' + v + ': тег и версия совпадают, секреты на месте.');
           "
 
-      # Ищем успешный прогон test.yml ровно на этом SHA. Не нашли (тег на
-      # непроверенном коммите, Tests еще идет или упал, старый тег для отката) —
-      # проверки прогонит задача tests ниже. Сбой самого запроса = «не нашли»:
-      # лучше лишний прогон, чем выкат без проверок.
-      - name: Tests уже зеленый на этом коммите?
+      # Ищем прогон test.yml ровно на этом SHA. Тег можно ставить сразу после пуша в
+      # main: если Tests на этом коммите еще идет — ждем его (до 15 мин), а не гоняем
+      # проверки второй раз. Зеленый — сразу сборка. Упал, отменен или его нет вовсе
+      # (тег на непроверенном коммите, старый тег для отката) — проверки прогонит
+      # задача tests ниже. Сбой самого запроса = «не нашли»: лучше лишний прогон,
+      # чем выкат без проверок.
+      - name: Tests зеленый на этом коммите? (подождать, если еще идет)
         id: tested
+        timeout-minutes: 16
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
-          n=$(gh api "repos/$GITHUB_REPOSITORY/actions/workflows/test.yml/runs?head_sha=$GITHUB_SHA&status=success&per_page=1" --jq '.total_count' 2>/dev/null || echo 0)
-          if [ "${n:-0}" -gt 0 ]; then
-            echo "tested=true" >> "$GITHUB_OUTPUT"
-            echo "::notice title=Проверки не повторяем::Tests уже зеленый на ${GITHUB_SHA:0:7} — сразу сборка."
+          api="repos/$GITHUB_REPOSITORY/actions/workflows/test.yml/runs?head_sha=$GITHUB_SHA&per_page=20"
+          tested=false
+          for i in $(seq 1 60); do
+            json=$(gh api "$api" 2>/dev/null || echo '{}')
+            total=$(echo "$json" | jq '[.workflow_runs[]?] | length')
+            ok=$(echo "$json" | jq '[.workflow_runs[]? | select(.conclusion == "success")] | length')
+            live=$(echo "$json" | jq '[.workflow_runs[]? | select(.status != "completed")] | length')
+            if [ "${ok:-0}" -gt 0 ]; then tested=true; break; fi
+            # Пуш в main и тег почти одновременно: прогон Tests может появиться не сразу.
+            if [ "${total:-0}" -eq 0 ] && [ "$i" -gt 4 ]; then break; fi
+            if [ "${total:-0}" -gt 0 ] && [ "${live:-0}" -eq 0 ]; then break; fi
+            [ "$i" -eq 1 ] && echo "Жду Tests на ${GITHUB_SHA:0:7}…"
+            sleep 15
+          done
+          echo "tested=$tested" >> "$GITHUB_OUTPUT"
+          if [ "$tested" = true ]; then
+            echo "::notice title=Проверки не повторяем::Tests зеленый на ${GITHUB_SHA:0:7} — сразу сборка."
           else
-            echo "tested=false" >> "$GITHUB_OUTPUT"
             echo "::notice title=Гоняем проверки::Зеленого Tests на ${GITHUB_SHA:0:7} нет — запускаю test.yml."
           fi
 
