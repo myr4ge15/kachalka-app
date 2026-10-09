@@ -30,12 +30,29 @@ test('удержание → новый порядок → черновик по
   const session = await context.newCDPSession(page)
   const x = box.x + box.width / 2, y = box.y + box.height / 2
   await session.send('Input.dispatchTouchEvent', { type: 'touchStart', touchPoints: [{ x, y }] })
-  await expect(rows.last()).toHaveClass(/exercise-dragging/)
-  await session.send('Input.dispatchTouchEvent', { type: 'touchMove', touchPoints: [{ x, y: Math.max(130, firstBox.y + 15) }] })
-  await expect(rows.first()).toHaveClass(/exercise-drop-before/)
+  // Удержание → строка «поднялась» (тень, крупнее) и едет за пальцем.
+  await expect(rows.last()).toHaveClass(/sort-lifted/)
+  const ty = Math.max(130, firstBox.y + 15)
+  await session.send('Input.dispatchTouchEvent', { type: 'touchMove', touchPoints: [{ x, y: ty }] })
+  await expect.poll(() => rows.last().evaluate(el => new DOMMatrix(getComputedStyle(el).transform).m42)).toBeLessThan(-50)
+  // Первая карточка расступилась вниз — место видно до отпускания, порядок еще прежний.
+  await expect.poll(() => rows.first().evaluate(el => new DOMMatrix(getComputedStyle(el).transform).m42)).toBeGreaterThan(30)
+  await expect(rows.first()).toHaveAttribute('data-exercise-id', original[0])
   await session.send('Input.dispatchTouchEvent', { type: 'touchEnd', touchPoints: [] })
   await expect(rows.first()).toHaveAttribute('data-exercise-id', original[1])
   await expect(page.locator('.exercise-card--active')).toHaveAttribute('data-exercise-id', original[0])
+  await expect(page.locator('.sort-lifted, .sort-shift')).toHaveCount(0)
+
+  // Раскрытую карточку на время перетаскивания сворачиваем в строку, после — снова раскрыта.
+  const title = page.locator('.exercise-card--active .exercise-title')
+  const tb = await title.boundingBox()
+  const tx = tb.x + 20, tyy = tb.y + tb.height / 2
+  await session.send('Input.dispatchTouchEvent', { type: 'touchStart', touchPoints: [{ x: tx, y: tyy }] })
+  await expect(page.locator(`[data-exercise-id="${original[0]}"]`)).toHaveClass(/exercise-card--compact/)
+  await expect(page.locator(`[data-exercise-id="${original[0]}"]`)).toHaveClass(/sort-lifted/)
+  await session.send('Input.dispatchTouchEvent', { type: 'touchEnd', touchPoints: [] })
+  await expect(page.locator('.exercise-card--active')).toHaveAttribute('data-exercise-id', original[0])
+  await expect(rows.first()).toHaveAttribute('data-exercise-id', original[1])
   await page.reload()
   await page.getByRole('button', { name: 'Записать тренировку' }).click()
   await expect(rows.first()).toHaveAttribute('data-exercise-id', original[1])

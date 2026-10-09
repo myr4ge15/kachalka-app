@@ -1,4 +1,6 @@
-import { useState, useEffect, useRef } from 'react'
+import { useState, useEffect } from 'react'
+import { useSortable } from '../hooks/useSortable.js'
+import { reorderById } from '../lib/reorderById.js'
 import { useLiveQuery } from 'dexie-react-hooks'
 import {
   getExercises,
@@ -293,55 +295,12 @@ function TemplateEditor({ user, templateId, onBack }) {
     setItems((prev) => prev.map((it, i) => (i === idx ? { ...it, [field]: value } : it)))
   }
 
-  // ------------------------ drag-n-drop реордер ----------------------------
-  // Pointer-события (работают и на тач, в отличие от HTML5 dragstart).
-  const rowRefs = useRef([])
-  const dragRef = useRef(null) // индекс перетаскиваемого элемента
-  const [dragIndex, setDragIndex] = useState(null)
-
-  function move(from, to) {
-    setItems((prev) => {
-      if (to < 0 || to >= prev.length || from === to) return prev
-      const next = [...prev]
-      const [moved] = next.splice(from, 1)
-      next.splice(to, 0, moved)
-      return next
-    })
-  }
-
-  function onHandleDown(e, idx) {
-    e.preventDefault()
-    dragRef.current = idx
-    setDragIndex(idx)
-    e.currentTarget.setPointerCapture?.(e.pointerId)
-  }
-
-  function onHandleMove(e) {
-    if (dragRef.current == null) return
-    const y = e.clientY
-    // ищем строку, над которой находится палец, — она и есть целевая позиция
-    let target = dragRef.current
-    for (let i = 0; i < rowRefs.current.length; i++) {
-      const el = rowRefs.current[i]
-      if (!el) continue
-      const r = el.getBoundingClientRect()
-      if (y >= r.top && y <= r.bottom) {
-        target = i
-        break
-      }
-    }
-    if (target !== dragRef.current) {
-      move(dragRef.current, target)
-      dragRef.current = target
-      setDragIndex(target)
-    }
-  }
-
-  function onHandleUp(e) {
-    dragRef.current = null
-    setDragIndex(null)
-    e.currentTarget.releasePointerCapture?.(e.pointerId)
-  }
+  // ------------------------ перестановка упражнений ------------------------
+  // Общая механика hooks/useSortable (v7.1.2): за ☰ строка поднимается и едет за
+  // пальцем, соседи расступаются, порядок применяется на отпускании. Alt+↑/↓ на ☰.
+  const sortRef = useSortable((id, beforeId) => {
+    setItems((prev) => reorderById(prev, id, beforeId, (it) => it.exercise.id))
+  }, { attr: 'data-tpl-id', handle: '.tpl-handle' })
 
   const canSave = name.trim().length > 0 && items.length > 0 && !saving
   const needName = !name.trim() && items.length > 0
@@ -449,6 +408,7 @@ function TemplateEditor({ user, templateId, onBack }) {
             <p className="muted empty">В шаблоне пока нет упражнений</p>
           )}
 
+          <div className="tpl-rows" ref={sortRef}>
           {items.map((it, idx) => {
             const metric = exerciseMetric(it.exercise)
             const isDistance = metric === 'distance'
@@ -457,16 +417,14 @@ function TemplateEditor({ user, templateId, onBack }) {
             return (
             <div
               key={it.exercise.id}
-              ref={(el) => (rowRefs.current[idx] = el)}
-              className={dragIndex === idx ? 'tpl-row dragging' : 'tpl-row'}
+              data-tpl-id={it.exercise.id}
+              className="tpl-row"
             >
               <button
+                type="button"
                 className="tpl-handle"
                 aria-label="Перетащить"
-                onPointerDown={(e) => onHandleDown(e, idx)}
-                onPointerMove={onHandleMove}
-                onPointerUp={onHandleUp}
-                onPointerCancel={onHandleUp}
+                title="Перетащить (или Alt + ↑/↓)"
               >
                 ☰
               </button>
@@ -520,6 +478,7 @@ function TemplateEditor({ user, templateId, onBack }) {
             </div>
             )
           })}
+          </div>
 
           <button className="btn outline full" onClick={() => setPickerOpen(true)}>
             + Добавить упражнение

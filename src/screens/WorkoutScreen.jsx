@@ -19,7 +19,7 @@ import { templateExercisesFromWorkout, defaultTemplateName } from '../lib/templa
 import { vibrate, HAPTIC } from '../lib/haptics.js'
 import { exerciseUsageSections } from '../lib/exerciseUsage.js'
 import { useWorkoutFocus } from '../hooks/useWorkoutFocus.js'
-import { useExerciseReorder } from '../hooks/useExerciseReorder.js'
+import { useSortable } from '../hooks/useSortable.js'
 import { reorderExercises } from '../lib/reorderExercises.js'
 import CardsSkeleton from '../components/CardsSkeleton.jsx'
 import ExercisePicker from '../components/ExercisePicker.jsx'
@@ -71,9 +71,19 @@ export default function WorkoutScreen({ user, workoutId = null, onBack, onSaved 
   const FEEL_KEY = `workout_feel_new_${user.id}`
 
   const [entries, setEntries] = useState(() => (isNew ? readDraft(DRAFT_KEY) ?? [] : []))
-  const reorderRef = useExerciseReorder((id, beforeId) => {
+  // Перестановка (v7.1.2, общий hooks/useSortable): удержание заголовка → строка
+  // поднимается и едет за пальцем. Раскрытая карточка на время жеста сворачивается
+  // в строку — тащить высокую карточку неудобно; активной она остается.
+  const [dragFolded, setDragFolded] = useState(null)
+  const reorderRef = useSortable((id, beforeId) => {
     activateExercise(activeExerciseId)
     setEntries(prev => reorderExercises(prev, id, beforeId))
+  }, {
+    attr: 'data-exercise-id',
+    handle: '.exercise-compact-toggle, .exercise-title',
+    holdMs: 350,
+    onLift: id => { if (id === activeExerciseId) setDragFolded(id) },
+    onDrop: () => setDragFolded(null),
   })
   // { [exerciseId]: 'easy'|'ok'|'hard' } — только за эту тренировку.
   const [feels, setFeels] = useState(() => (isNew ? readDraft(FEEL_KEY) ?? {} : {}))
@@ -689,8 +699,8 @@ export default function WorkoutScreen({ user, workoutId = null, onBack, onSaved 
               entry={entry}
               ei={ei}
               prog={prog}
-              active={entry.exercise.id === activeExerciseId}
-              cardRef={entry.exercise.id === activeExerciseId ? activeCardRef : null}
+              active={entry.exercise.id === activeExerciseId && dragFolded !== entry.exercise.id}
+              cardRef={entry.exercise.id === activeExerciseId && dragFolded !== entry.exercise.id ? activeCardRef : null}
               onActivate={activateExercise}
               feel={feels[entry.exercise.id] ?? null}
               onSetFeel={setFeel}

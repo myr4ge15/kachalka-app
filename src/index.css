@@ -719,9 +719,27 @@ select, textarea { font-variant-numeric: inherit; font-feature-settings: inherit
 .exercise-compact-chevron { flex: none; color: var(--muted); }
 .exercise-reorder-hint { font-size: var(--fs-meta); margin: 12px 0; }
 .exercise-title, .exercise-compact-toggle { -webkit-user-select: none; user-select: none; -webkit-touch-callout: none; }
-.exercise-dragging { opacity: .55; outline: 2px solid var(--acc); }
-.exercise-drop-before { box-shadow: 0 -4px 0 var(--acc); }
-.exercise-drop-after { box-shadow: 0 4px 0 var(--acc); }
+
+/* Перестановка перетаскиванием (v7.1.2, hooks/useSortable) — одна для тренировки,
+   шаблонов и порядка учеток. Взятая строка «поднимается» (scale + тень + обводка
+   акцентом) и едет за пальцем (transform пишет JS, без перехода), соседи
+   расступаются переходом transform, на отпускании строка доезжает до места.
+   Длительности — токены: под reduced-motion они нулевые, место все равно раскрывается. */
+.sort-active { -webkit-user-select: none; user-select: none; }
+.sort-shift { transition: transform var(--dur-base) var(--ease-out); }
+.sort-lifted {
+  position: relative; z-index: 6; will-change: transform;
+  scale: 1.03; background: var(--surface-2);
+  box-shadow: 0 14px 32px rgba(0, 0, 0, .5), 0 0 0 2px var(--acc);
+  transition: scale var(--dur-fast) var(--ease-out), box-shadow var(--dur-fast) var(--ease-out),
+    background-color var(--dur-fast) var(--ease-out);
+}
+.sort-lifted.sort-dropping {
+  scale: 1;
+  box-shadow: 0 0 0 0 transparent;
+  transition: transform var(--dur-base) var(--ease-out), scale var(--dur-base) var(--ease-out),
+    box-shadow var(--dur-base) var(--ease-out);
+}
 
 /* Строки подходов: узкий номер + 1–2 степпера + ✕. */
 .sets-head, .set-row {
@@ -1275,7 +1293,6 @@ select, textarea { font-variant-numeric: inherit; font-feature-settings: inherit
   background: var(--surface); border: 1px solid var(--border);
   border-radius: 12px; padding: 8px 12px; margin-bottom: 10px;
 }
-.tpl-row.dragging { background: var(--surface-2); border-color: var(--acc); opacity: .9; }
 .tpl-handle {
   flex-shrink: 0; width: 44px; height: 44px; font-size: 20px;
   background: none; border: none; color: var(--muted);
@@ -2632,7 +2649,6 @@ label.act.busy { opacity: .55; pointer-events: none; }
 .user-reorder .admin-ex-actions { margin-top: 16px; margin-bottom: 8px; }
 .admin-list.reorder { margin-top: 8px; gap: 10px; }
 .reorder-row { display: flex; align-items: center; gap: 12px; padding: 6px 13px; }
-.reorder-row.dragging { background: var(--surface); border-color: var(--acc); opacity: .9; }
 .user-drag-handle {
   display: inline-flex; align-items: center; justify-content: center;
   min-width: 44px; min-height: 44px; flex: 0 0 auto;

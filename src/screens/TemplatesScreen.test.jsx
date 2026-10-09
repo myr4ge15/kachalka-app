@@ -251,21 +251,21 @@ describe('TemplatesScreen — редактор', () => {
       fireEvent.click(screen.getByRole('button', { name: '+ Добавить упражнение' }))
       fireEvent.click(screen.getByRole('button', { name: `выбрать ${n}` }))
     }
-    const rows = document.querySelectorAll('.tpl-row')
+    window.matchMedia = vi.fn(() => ({ matches: true })) // без анимации приземления
+    const rows = [...document.querySelectorAll('.tpl-row')]
     rows.forEach((row, i) => {
-      row.getBoundingClientRect = () => ({ top: i * 100, bottom: i * 100 + 99 })
+      row.getBoundingClientRect = () => ({ top: i * 110, height: 100, bottom: i * 110 + 100 })
     })
     const handle = screen.getAllByRole('button', { name: 'Перетащить' })[0]
-    // В jsdom нет PointerEvent: fireEvent.pointer* теряет clientY. MouseEvent с
-    // типом pointer* React принимает как pointer-событие.
-    const pointer = (type, clientY) => fireEvent(handle, new MouseEvent(type, { bubbles: true, cancelable: true, clientY }))
-    pointer('pointerdown', 10)
-    expect(rows[0]).toHaveClass('dragging')
-    pointer('pointermove', 150)
-    pointer('pointerup', 150)
-    expect(document.querySelector('.tpl-row.dragging')).toBeNull()
+    fireEvent.touchStart(handle, { touches: [{ clientX: 5, clientY: 10 }] })
+    expect(rows[0]).toHaveClass('sort-lifted')
+    fireEvent.touchMove(handle, { touches: [{ clientX: 5, clientY: 150 }] })
+    expect(rows[1].style.transform).toBe('translate3d(0, -110px, 0)') // соседка уступила место
+    fireEvent.touchEnd(handle)
+    expect(document.querySelector('.tpl-row.sort-lifted')).toBeNull()
     save()
     await waitFor(() => expect(saveTemplate).toHaveBeenCalled())
     expect(vi.mocked(saveTemplate).mock.calls[0][0].exercises.map((e) => e.exercise.id)).toEqual(['pull', 'bench'])
+    delete window.matchMedia
   })
 })

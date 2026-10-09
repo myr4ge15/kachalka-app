@@ -1,7 +1,7 @@
 // @vitest-environment jsdom
 // Админка: «Доступ к тренировкам» и перетаскивание порядка учеток (v6.14.1 вынесены
 // из AdminScreen, до v6.14.2 без тестов). RPC — заглушки lib/admin.js.
-import { describe, it, expect, vi, beforeEach } from 'vitest'
+import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest'
 import { act, fireEvent, render, screen, waitFor } from '@testing-library/react'
 
 const adminListUsers = vi.fn()
@@ -98,13 +98,25 @@ describe('AccessSection', () => {
 
 describe('UserReorderList', () => {
   const list = users.slice(0, 3)
-  // jsdom не считает раскладку — задаем строкам высоту 40px по порядку в DOM.
+  // jsdom не считает раскладку — строки по 40px с зазором 8px, по порядку в DOM.
   function layout() {
-    screen.getAllByRole('listitem').forEach((li, i) => {
-      li.getBoundingClientRect = () => ({ top: i * 40, height: 40, bottom: i * 40 + 40 })
+    screen.getAllByRole('listitem').forEach((li) => {
+      li.getBoundingClientRect = () => {
+        const i = [...li.parentNode.children].indexOf(li)
+        return { top: i * 48, height: 40, bottom: i * 48 + 40 }
+      }
     })
   }
+  // «Уменьшить движение» — строка встает на место без анимации, порядок применяется сразу.
+  beforeEach(() => { window.matchMedia = vi.fn(() => ({ matches: true })) })
+  afterEach(() => { delete window.matchMedia })
   const handle = (name) => screen.getByRole('button', { name: `Перетащить ${name}` })
+  const names = () => screen.getAllByRole('listitem').map((li) => li.textContent.replace('☰', ''))
+  const drag = (name, from, to) => {
+    fireEvent.touchStart(handle(name), { touches: [{ clientX: 5, clientY: from }] })
+    fireEvent.touchMove(handle(name), { touches: [{ clientX: 5, clientY: to }] })
+    fireEvent.touchEnd(handle(name))
+  }
 
   it('порядок не менялся — «Сохранить» неактивна; перетаскивание вниз → новый порядок в onSave', async () => {
     const onSave = vi.fn(async () => {})
@@ -113,28 +125,31 @@ describe('UserReorderList', () => {
     expect(save).toBeDisabled()
 
     layout()
-    fireEvent.pointerDown(handle('Андрей'), { pointerId: 1, clientY: 10 })
-    fireEvent.pointerMove(handle('Андрей'), { pointerId: 1, clientY: 200 }) // ниже всех
-    fireEvent.pointerUp(handle('Андрей'), { pointerId: 1 })
-    expect(screen.getAllByRole('listitem').map((li) => li.textContent.replace('☰', ''))).toEqual(['Боря', 'Вера', 'Андрейя'])
+    fireEvent.touchStart(handle('Андрей'), { touches: [{ clientX: 5, clientY: 20 }] })
+    expect(screen.getAllByRole('listitem')[0]).toHaveClass('sort-lifted') // за ручку — сразу
+    fireEvent.touchMove(handle('Андрей'), { touches: [{ clientX: 5, clientY: 200 }] }) // ниже всех
+    expect(names()).toEqual(['Андрейя', 'Боря', 'Вера']) // пока едет — порядок прежний
+    fireEvent.touchEnd(handle('Андрей'))
+    expect(names()).toEqual(['Боря', 'Вера', 'Андрейя'])
     expect(save).toBeEnabled()
     await act(async () => { fireEvent.click(save) })
     expect(onSave).toHaveBeenCalledWith(['b', 'c', 'a'])
   })
 
-  it('перетаскивание вверх; движение без захвата игнорируется; «Отмена»', () => {
+  it('перетаскивание вверх; отмена касания возвращает строку; Alt+↑; «Отмена»', () => {
     const onCancel = vi.fn()
     render(<UserReorderList users={list} meId="a" onCancel={onCancel} onSave={vi.fn()} errMsg={errMsg} />)
     layout()
-    fireEvent.pointerMove(handle('Вера'), { clientY: 0 })
-    expect(screen.getAllByRole('listitem')[0]).toHaveTextContent('Андрей')
+    fireEvent.touchStart(handle('Вера'), { touches: [{ clientX: 5, clientY: 116 }] })
+    fireEvent.touchMove(handle('Вера'), { touches: [{ clientX: 5, clientY: 0 }] })
+    fireEvent.touchCancel(handle('Вера'))
+    expect(names()[0]).toBe('Андрейя')
+    expect(screen.getAllByRole('listitem')[2]).not.toHaveClass('sort-lifted')
 
-    fireEvent.pointerDown(handle('Вера'), { pointerId: 1, clientY: 100 })
-    expect(screen.getAllByRole('listitem')[2]).toHaveClass('dragging')
-    fireEvent.pointerMove(handle('Вера'), { pointerId: 1, clientY: 5 })
-    fireEvent.pointerCancel(handle('Вера'), { pointerId: 1 })
-    expect(screen.getAllByRole('listitem')[0]).toHaveTextContent('Вера')
-    expect(screen.getAllByRole('listitem')[0]).not.toHaveClass('dragging')
+    drag('Вера', 116, 0)
+    expect(names()).toEqual(['Вера', 'Андрейя', 'Боря'])
+    fireEvent.keyDown(handle('Боря'), { altKey: true, key: 'ArrowUp' })
+    expect(names()).toEqual(['Вера', 'Боря', 'Андрейя'])
     fireEvent.click(screen.getByRole('button', { name: 'Отмена' }))
     expect(onCancel).toHaveBeenCalledOnce()
   })
@@ -143,9 +158,7 @@ describe('UserReorderList', () => {
     const onSave = vi.fn(async () => { throw new Error('нет сети') })
     render(<UserReorderList users={list} meId="a" onCancel={vi.fn()} onSave={onSave} errMsg={errMsg} />)
     layout()
-    fireEvent.pointerDown(handle('Андрей'), { pointerId: 1, clientY: 10 })
-    fireEvent.pointerMove(handle('Андрей'), { pointerId: 1, clientY: 60 })
-    fireEvent.pointerUp(handle('Андрей'), { pointerId: 1 })
+    drag('Андрей', 20, 70)
     await act(async () => { fireEvent.click(screen.getByRole('button', { name: 'Сохранить порядок' })) })
     expect(showToast).toHaveBeenCalledWith(expect.objectContaining({ sub: 'ERR: нет сети' }))
     expect(screen.getByRole('button', { name: 'Отмена' })).toBeEnabled()
