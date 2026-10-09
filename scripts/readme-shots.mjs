@@ -365,6 +365,8 @@ async function main() {
       await page.getByRole('button', { name: /Мой круг/ }).click()
       await page.getByTestId('fc-code').waitFor()
       await page.evaluate(() => document.querySelectorAll('.content').forEach((e) => { e.scrollTop = 0 }))
+      // В README не показываем название конкретного зала; приложение не меняем.
+      await page.locator('.fc-circle-name').evaluate((el) => { el.hidden = true })
       await shot('circle')
     }
 
