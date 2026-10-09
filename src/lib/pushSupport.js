@@ -17,6 +17,18 @@ export function pushAvailability({ configured, supported, isIOS, standalone, per
   return 'ok'
 }
 
+// Компьютер (v7.1.4): пуши там — дубль телефона, поэтому строку в Настройках и
+// стартовый лист «Включить уведомления?» не показываем ('off'). Исключение —
+// пуши в ЭТОМ браузере уже включены: строка остается, чтобы их можно было
+// выключить. Типы пушей хранятся на сервере на всю учетку — их настраивают с телефона.
+export function desktopAvailability(availability, { desktop = false, enabled = false } = {}) {
+  return desktop && !enabled ? 'off' : availability
+}
+
+// Признак компьютера — основной указатель мышь (а не ширина окна): планшет в
+// альбомной ориентации и телефон остаются «телефоном».
+export const DESKTOP_QUERY = '(hover: hover) and (pointer: fine)'
+
 // iPhone/iPad. iPadOS 13+ в Safari представляется «Macintosh», отличаем по тачу.
 export function isIOSDevice({ userAgent = '', platform = '', maxTouchPoints = 0 } = {}) {
   if (/iPhone|iPad|iPod/i.test(userAgent)) return true
@@ -83,6 +95,23 @@ export function pushSubtitle(availability) {
       return 'Запрещены в настройках браузера или телефона — разреши там и вернись сюда'
     default:
       return ''
+  }
+}
+
+// Подпись строки «Пуш-уведомления» в Настройках (v7.1.4): сами тумблеры живут на
+// отдельном экране, а строка коротко говорит, что там сейчас.
+export function pushRowSubtitle({ availability, enabled = false, prefs = null } = {}) {
+  switch (availability) {
+    case 'ios-install': return 'на iPhone — из приложения на экране «Домой»'
+    case 'unsupported': return 'этот браузер их не умеет'
+    case 'denied': return 'запрещены в настройках браузера или телефона'
+    case 'ok': {
+      if (!enabled) return 'выключены'
+      if (prefs === null) return 'включены'
+      const on = PUSH_TYPES.filter((t) => isPushTypeOn(prefs, t.type)).length
+      return `включены · ${on} из ${PUSH_TYPES.length}`
+    }
+    default: return ''
   }
 }
 

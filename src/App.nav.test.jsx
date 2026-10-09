@@ -41,6 +41,7 @@ vi.mock('./screens/FreshnessScreen.jsx', () => stub('freshness'))
 vi.mock('./screens/MyExercisesScreen.jsx', () => stub('myex'))
 vi.mock('./screens/AchievementsScreen.jsx', () => stub('achievements'))
 vi.mock('./screens/AppearanceScreen.jsx', () => stub('appearance'))
+vi.mock('./screens/PushSettingsScreen.jsx', () => stub('pushset'))
 vi.mock('./screens/WhatsNewScreen.jsx', () => stub('whatsnew'))
 vi.mock('./screens/FeedbackScreen.jsx', () => stub('feedback'))
 vi.mock('./screens/MemberScreen.jsx', () => stub('member'))
@@ -157,7 +158,7 @@ describe('App: вложенные экраны и «назад»', () => {
   it('под-экраны Настроек возвращают в Настройки (одноразовый интент)', async () => {
     await boot()
     fireEvent.click(screen.getAllByRole('button', { name: 'Открыть профиль' })[0]); await settle()
-    for (const [open, name] of [['onOpenAppearance', 'appearance'], ['onOpenMyExercises', 'myex'], ['onOpenWhatsNew', 'whatsnew']]) {
+    for (const [open, name] of [['onOpenAppearance', 'appearance'], ['onOpenPushSettings', 'pushset'], ['onOpenMyExercises', 'myex'], ['onOpenWhatsNew', 'whatsnew']]) {
       act(() => seen.profile[open]()); await settle()
       expect(current()).toBe(name)
       act(() => seen[name].onBack()); await settle()

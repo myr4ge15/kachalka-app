@@ -30,7 +30,7 @@ describe('transitionKind', () => {
     expect(transitionKind('notif', 'member')).toBe('push')
   })
   it('все экраны с кнопкой «Назад» считаются вложенными', () => {
-    for (const t of ['notif', 'member', 'freshness', 'achievements', 'admin', 'myex', 'whatsnew', 'appearance']) {
+    for (const t of ['notif', 'member', 'freshness', 'achievements', 'admin', 'myex', 'whatsnew', 'appearance', 'pushset']) {
       expect(isNested(t)).toBe(true)
     }
     for (const t of ['home', 'history', 'feed', 'progress', 'profile']) expect(isNested(t)).toBe(false)

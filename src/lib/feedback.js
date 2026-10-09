@@ -26,7 +26,7 @@ export const REOPEN_LIMIT = 3
 const SCREEN_LABEL = {
   home: 'Главная', history: 'Тренировки', feed: 'Лента', progress: 'Прогресс',
   profile: 'Профиль', notif: 'Уведомления', admin: 'Админка', freshness: 'Восстановление',
-  myex: 'Каталог', achievements: 'Достижения', appearance: 'Оформление',
+  myex: 'Каталог', achievements: 'Достижения', appearance: 'Оформление', pushset: 'Пуш-уведомления',
   whatsnew: 'Что нового', member: 'Профиль друга', feedback: 'Обратная связь',
 }
 

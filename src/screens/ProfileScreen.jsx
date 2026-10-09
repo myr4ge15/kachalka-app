@@ -11,8 +11,7 @@ import { setSex, LoginError } from '../lib/auth.js'
 import LogoutButton from '../components/LogoutButton.jsx'
 import MemberInvites from '../components/MemberInvites.jsx'
 import SexPicker from '../components/SexPicker.jsx'
-import PushToggle from '../components/PushToggle.jsx'
-import PushTypes from '../components/PushTypes.jsx'
+import { pushRowSubtitle } from '../lib/pushSupport.js'
 import { usePushToggle } from '../hooks/usePushToggle.js'
 import { myUnreadReplies } from '../lib/feedbackApi.js'
 import CardsSkeleton from '../components/CardsSkeleton.jsx'
@@ -44,13 +43,14 @@ import { settleScroll } from '../lib/scrollBox.js'
 // components/profile/* (v6.14.1); здесь — сводка, навигация и слой Настроек.
 //
 // Пропсы: user, onLogout, onOpenProgress(exerciseId), onOpenFeed().
-export default function ProfileScreen({ user, onLogout, onAccountDeleted, onOpenCircle, onOpenProgress, onOpenFeed, onRenamed, onOpenAdmin, onOpenMyExercises, onOpenAchievements, onOpenAppearance, onOpenWhatsNew, onOpenFeedback, startInSettings = false, onStartInSettingsConsumed, contentRef, edgeSwipeOn = false }) {
+export default function ProfileScreen({ user, onLogout, onAccountDeleted, onOpenCircle, onOpenProgress, onOpenFeed, onRenamed, onOpenAdmin, onOpenMyExercises, onOpenAchievements, onOpenAppearance, onOpenPushSettings, onOpenWhatsNew, onOpenFeedback, startInSettings = false, onStartInSettingsConsumed, contentRef, edgeSwipeOn = false }) {
   const workouts = useLiveQuery(() => getWorkouts(user.id), [user.id])
   const goals = useLiveQuery(() => readGoals(user.id), [user.id])
   const myCached = useLiveQuery(() => getCachedUser(user.id), [user.id])
   // Тумблер автопрогрессии (рекомендации весов/повторов в тренировке).
   const progEnabled = useLiveQuery(() => getProgSettings(user.id).then((p) => p.enabled), [user.id], true)
-  // Пуш-уведомления этого браузера (v6.6.0): состояние, переключение, ошибка.
+  // Пуш-уведомления этого браузера (v6.6.0): здесь — только статус для строки
+  // Настроек (v7.1.4), переключение — на экране «Пуш-уведомления».
   const push = usePushToggle(user.id)
   const loading = workouts === undefined
 
@@ -180,20 +180,15 @@ export default function ProfileScreen({ user, onLogout, onAccountDeleted, onOpen
                 <span className="toggle-knob" />
               </span>
             </button>
-            <PushToggle
-              availability={push.availability}
-              enabled={push.enabled}
-              busy={push.busy}
-              error={push.error}
-              onToggle={push.toggle}
-            />
-            {push.availability === 'ok' && push.enabled && (
-              <PushTypes
-                prefs={push.prefs}
-                busyType={push.prefsBusy}
-                error={push.prefsError}
-                onChange={push.setType}
-              />
+            {/* v7.1.4: тумблеры пушей — на своем экране; здесь строка со статусом.
+                'off' — функции нет или это компьютер (lib/pushSupport.js desktopAvailability). */}
+            {push.availability && push.availability !== 'off' && (
+              <button className="act" onClick={() => onOpenPushSettings?.()}>
+                <span className="act-txt">
+                  🔔 Пуш-уведомления
+                  <span className="act-sub">{pushRowSubtitle(push)}</span>
+                </span>
+              </button>
             )}
             <LoginChangeForm userId={user.id} />
             <PinChangeForm userId={user.id} />

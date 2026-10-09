@@ -6,11 +6,20 @@
 import { useCallback, useEffect, useRef, useState } from 'react'
 import { getPushState, enablePush, disablePush, getPushPrefs, setPushPref } from '../db/push.js'
 
+// v7.1.4: тумблеры переехали на свой экран, а строка Настроек под ним остается
+// смонтированной (стек экранов) и показывает статус. Экземпляры хука сообщают
+// друг другу об изменениях, иначе по «Назад» строка показывала бы старое.
+export const PUSH_CHANGED_EVENT = 'gym:push-changed'
+function announce(detail) {
+  if (typeof window !== 'undefined') window.dispatchEvent(new CustomEvent(PUSH_CHANGED_EVENT, { detail }))
+}
+
 export function usePushToggle(userId) {
   const [state, setState] = useState({ availability: null, enabled: false })
   const [busy, setBusy] = useState(false)
   const [error, setError] = useState('')
   const aliveRef = useRef(true)
+  const selfRef = useRef({})
 
   const refresh = useCallback(async () => {
     try {
@@ -47,6 +56,7 @@ export function usePushToggle(userId) {
     try {
       if (next) await enablePush(userId)
       else await disablePush(userId, { background: true })
+      announce({ userId, source: selfRef.current, enabled: next })
     } catch (e) {
       if (aliveRef.current) {
         setState((s) => ({ ...s, enabled: !next }))
@@ -81,6 +91,7 @@ export function usePushToggle(userId) {
     try {
       const saved = await setPushPref(userId, type, on)
       if (aliveRef.current) setPrefs(saved)
+      announce({ userId, source: selfRef.current, prefs: saved })
     } catch (e) {
       if (aliveRef.current) {
         // Откатываем ТОЛЬКО свой тумблер: снимок всех настроек из замыкания при
@@ -91,6 +102,18 @@ export function usePushToggle(userId) {
     } finally {
       if (aliveRef.current) setPrefsBusy(null)
     }
+  }, [userId])
+
+  // Изменение из другого экземпляра (экран «Пуш-уведомления» ↔ строка Настроек).
+  useEffect(() => {
+    const onChanged = (e) => {
+      const d = e.detail ?? {}
+      if (d.source === selfRef.current || d.userId !== userId || !aliveRef.current) return
+      if (typeof d.enabled === 'boolean') setState((s) => ({ ...s, enabled: d.enabled }))
+      if (d.prefs) setPrefs(d.prefs)
+    }
+    window.addEventListener(PUSH_CHANGED_EVENT, onChanged)
+    return () => window.removeEventListener(PUSH_CHANGED_EVENT, onChanged)
   }, [userId])
 
   return { ...state, busy, error, toggle, prefs, prefsError, prefsBusy, setType }

@@ -24,7 +24,7 @@ describe('useAppNav: nestedBack', () => {
   it.each([
     ['freshness', 'home'],
     ['admin', 'profile'], ['achievements', 'profile'], ['feedback', 'profile'],
-    ['myex', 'profile'], ['whatsnew', 'profile'], ['appearance', 'profile'],
+    ['myex', 'profile'], ['whatsnew', 'profile'], ['appearance', 'profile'], ['pushset', 'profile'],
   ])('%s → %s', (start, back) => {
     expect(from(start).current.tab).toBe(back)
   })

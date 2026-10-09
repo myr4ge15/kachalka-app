@@ -418,7 +418,7 @@ select, textarea { font-variant-numeric: inherit; font-feature-settings: inherit
 }
 /* Знак как на сплэше: блины — акцент, гриф — светлый. */
 .login-mark svg { display: block; fill: currentColor; }
-.login-mark .login-mark-bar { fill: var(--text); }
+.login-mark .app-mark-bar { fill: var(--text); }
 .user-list { display: flex; flex-direction: column; gap: 8px; margin-top: 18px; text-align: left; }
 .user-btn {
   display: flex; align-items: center; gap: 12px; min-height: 56px; padding: 10px 16px;
@@ -2091,11 +2091,26 @@ img.avatar-lg.has-img {
 .toggle-act-status { color: var(--muted); font-size: 12px; font-weight: 400; }
 .toggle-pill.pending { opacity: .7; }
 .push-err { color: var(--red); font-size: 13px; font-weight: 600; margin: -4px 2px 0; }
-/* Типы пушей (components/PushTypes.jsx, v6.7.0): вложенный список под главным тумблером. */
-.push-types { display: flex; flex-direction: column; gap: 6px; padding-left: 14px; border-left: 2px solid var(--border); margin-left: 6px; }
-/* v6.12.0: типы свернуты в строку-аккордеон под главным тумблером. */
-.push-types-toggle { min-height: 48px; padding: 10px 12px; font-size: 14px; margin-left: 6px; width: calc(100% - 6px); }
-.push-types-toggle .settings-chev { margin-left: auto; }
+/* Типы пушей (components/PushTypes.jsx) — v7.1.4: на экране «Пуш-уведомления» одной
+   карточкой, строки через разделитель (до этого — «дерево» с отступом в Настройках). */
+.push-group {
+  display: flex; flex-direction: column; overflow: hidden;
+  background: var(--surface); border: 1px solid var(--border); border-radius: 14px;
+}
+.push-row {
+  display: flex; align-items: center; gap: 11px; width: 100%; min-height: 52px; padding: 12px 14px;
+  background: none; border: none; color: var(--text); text-align: left;
+  font-size: 15px; font-weight: 600; cursor: pointer;
+}
+.push-row + .push-row { border-top: 1px solid var(--border); }
+.push-row:active:not(:disabled) { background: var(--surface-2); }
+.push-row:focus-visible { outline: 3px solid var(--acc-2); outline-offset: -3px; }
+.push-row .toggle-act-txt { flex: 1; }
+.push-note { margin: 8px 2px 0; font-size: var(--fs-meta); color: var(--muted); }
+.push-screen .sec + .sec { margin-top: 18px; }
+/* Под карточкой на своем экране — обычный отступ, а не «впритык» (-4px — для строки в Настройках). */
+.push-screen .push-err { margin: 10px 4px 0; line-height: 1.35; }
+.push-screen .push-err + .push-note, .push-screen .push-note { margin: 8px 4px 0; line-height: 1.35; }
 .push-type { min-height: 48px; padding: 10px 12px; font-size: 14px; }
 .push-type:disabled { opacity: .6; }
 /* блоки .actions/danger-confirm под тогглом «Настройки» идут встык — разводим
@@ -2287,11 +2302,15 @@ label.act.busy { opacity: .55; pointer-events: none; }
     cursor: pointer; text-align: left; color: inherit;
   }
   .side-brand:hover .side-brand-txt { color: var(--acc-2); }
+  /* Лого = иконка приложения (v7.1.4): та же штанга, что на экране «Домой»,
+     сплэше и входе (AppMarkGlyph) — темная плашка, блины акцентом, гриф светлый. */
   .side-logo {
     width: 36px; height: 36px; flex-shrink: 0; border-radius: 11px;
     display: flex; align-items: center; justify-content: center;
-    background: var(--acc); color: var(--on-acc); border: none;
+    background: var(--surface); border: 1px solid var(--stroke); color: var(--acc);
   }
+  .side-logo svg { display: block; fill: currentColor; }
+  .side-logo .app-mark-bar { fill: var(--text); }
   .side-brand-txt {
     font-family: var(--font-display); font-weight: 900; font-size: 17px;
     text-transform: uppercase; letter-spacing: .02em; line-height: 1.05;

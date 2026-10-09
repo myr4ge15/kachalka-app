@@ -14,7 +14,7 @@
 import { supabase, hasSession } from './supabase.js'
 import { ensureOwnSession } from '../lib/auth.js'
 import { withTimeout } from '../lib/withTimeout.js'
-import { pushAvailability, isIOSDevice, urlB64ToUint8Array, subscriptionArgs, isStaleServerKey } from '../lib/pushSupport.js'
+import { pushAvailability, desktopAvailability, DESKTOP_QUERY, isIOSDevice, urlB64ToUint8Array, subscriptionArgs, isStaleServerKey } from '../lib/pushSupport.js'
 
 const VAPID_PUBLIC_KEY = import.meta.env.VITE_VAPID_PUBLIC_KEY ?? ''
 
@@ -38,6 +38,7 @@ function browserFacts() {
     supported,
     isIOS: isIOSDevice(nav),
     standalone,
+    desktop: typeof win.matchMedia === 'function' && win.matchMedia(DESKTOP_QUERY).matches,
     permission: supported ? win.Notification.permission : 'default',
   }
 }
@@ -126,9 +127,10 @@ export async function getPushState(userId) {
   const facts = browserFacts()
   const { permission } = facts
   const availability = pushAvailability(facts)
-  if (availability !== 'ok') return { availability, enabled: false, permission }
+  const { desktop } = facts
+  if (availability !== 'ok') return { availability: desktopAvailability(availability, { desktop }), enabled: false, permission }
   const { reg, sub } = await currentSubscription()
-  if (!reg) return { availability: 'unsupported', enabled: false, permission }
+  if (!reg) return { availability: desktopAvailability('unsupported', { desktop }), enabled: false, permission }
   // Подписка другой учетки этого устройства — не «включено» для текущей и не
   // перепривязываем ее молча (включит тумблером — тогда заберет себе).
   const owner = getOwner()
@@ -138,7 +140,7 @@ export async function getPushState(userId) {
     if (!owner) setOwner(userId)
     saveOnServer(sub).catch(() => { /* не критично: повторим при следующем открытии */ })
   }
-  return { availability, enabled, permission }
+  return { availability: desktopAvailability(availability, { desktop, enabled }), enabled, permission }
 }
 
 // Включить: разрешение → подписка браузера → привязка на сервере. Разрешение

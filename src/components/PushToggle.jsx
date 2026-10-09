@@ -4,7 +4,8 @@
 // — см. lib/pushSupport.js pushAvailability.
 import { pushSubtitle } from '../lib/pushSupport.js'
 
-export default function PushToggle({ availability = null, enabled = false, busy = false, error = '', onToggle }) {
+// label (v7.1.4): на своем экране строка называется иначе, чем заголовок экрана.
+export default function PushToggle({ availability = null, enabled = false, busy = false, error = '', onToggle, label = '🔔 Пуш-уведомления' }) {
   if (!availability || availability === 'off') return null
   const sub = pushSubtitle(availability)
 
@@ -13,7 +14,7 @@ export default function PushToggle({ availability = null, enabled = false, busy 
     return (
       <div className="act push-act push-act-info">
         <span className="toggle-act-txt">
-          🔔 Пуш-уведомления
+          {label}
           <span className="toggle-act-sub">{sub}</span>
         </span>
       </div>
@@ -33,7 +34,7 @@ export default function PushToggle({ availability = null, enabled = false, busy 
         disabled={busy}
         onClick={() => onToggle?.(!enabled)}
       >
-        <span className="toggle-act-txt">🔔 Пуш-уведомления</span>
+        <span className="toggle-act-txt">{label}</span>
         <span className="toggle-act-end">
           {busy && <span className="toggle-act-status">{enabled ? 'Включаю…' : 'Выключаю…'}</span>}
           <span className={'toggle-pill' + (enabled ? ' on' : '') + (busy ? ' pending' : '')} aria-hidden="true">

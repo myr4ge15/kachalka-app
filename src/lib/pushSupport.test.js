@@ -7,6 +7,8 @@ import {
   subscriptionArgs,
   pushSubtitle,
   shouldAskPush,
+  desktopAvailability,
+  pushRowSubtitle,
   PUSH_TYPES,
   isPushTypeOn,
 } from './pushSupport.js'
@@ -143,5 +145,39 @@ describe('isStaleServerKey', () => {
   it('принимает и типизированные массивы-срезы', () => {
     const big = new Uint8Array([9, 4, 1, 2, 3])
     expect(isStaleServerKey(big.subarray(1), key)).toBe(false)
+  })
+})
+
+describe('desktopAvailability (v7.1.4)', () => {
+  it('на компьютере пуши скрыты, пока не включены в этом браузере', () => {
+    expect(desktopAvailability('ok', { desktop: true })).toBe('off')
+    expect(desktopAvailability('denied', { desktop: true })).toBe('off')
+    expect(desktopAvailability('unsupported', { desktop: true })).toBe('off')
+  })
+  it('уже включенные на компьютере — строка остается, чтобы выключить', () => {
+    expect(desktopAvailability('ok', { desktop: true, enabled: true })).toBe('ok')
+  })
+  it('телефон — без изменений', () => {
+    expect(desktopAvailability('ok', { desktop: false })).toBe('ok')
+    expect(desktopAvailability('ios-install')).toBe('ios-install')
+  })
+  it('скрытые на компьютере пуши не зовут стартовый лист', () => {
+    const availability = desktopAvailability('ok', { desktop: true })
+    expect(shouldAskPush({ availability, permission: 'default', enabled: false, asked: false })).toBe(false)
+  })
+})
+
+describe('pushRowSubtitle (v7.1.4)', () => {
+  it('включены — со счетчиком типов, пока грузятся — без него', () => {
+    expect(pushRowSubtitle({ availability: 'ok', enabled: true, prefs: { reminder: false } })).toBe('включены · 4 из 5')
+    expect(pushRowSubtitle({ availability: 'ok', enabled: true, prefs: {} })).toBe('включены · 5 из 5')
+    expect(pushRowSubtitle({ availability: 'ok', enabled: true })).toBe('включены')
+  })
+  it('выключены и случаи, когда включить нельзя', () => {
+    expect(pushRowSubtitle({ availability: 'ok', enabled: false })).toBe('выключены')
+    expect(pushRowSubtitle({ availability: 'denied' })).toMatch(/запрещены/)
+    expect(pushRowSubtitle({ availability: 'ios-install' })).toMatch(/«Домой»/)
+    expect(pushRowSubtitle({ availability: 'unsupported' })).toMatch(/не умеет/)
+    expect(pushRowSubtitle({ availability: 'off' })).toBe('')
   })
 })

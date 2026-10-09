@@ -36,7 +36,7 @@ export function useAppNav(user) {
     const saved = storageGet('sessionStorage', TAB_KEY)
     if (saved === 'member') return 'feed' // id участника не переживает F5 → назад в Ленту
     return saved && saved !== 'workout' ? saved : 'home'
-  }) // 'home' | 'history' | 'feed' | 'progress' | 'notif' | 'profile' | 'admin' | 'freshness' | 'myex' | 'achievements' | 'appearance'
+  }) // 'home' | 'history' | 'feed' | 'progress' | 'notif' | 'profile' | 'admin' | 'freshness' | 'myex' | 'achievements' | 'appearance' | 'pushset'
 
   // Чей профиль открыт на вложенном роуте 'member' (v6.7.0, тап по участнику в Ленте/рейтинге).
   const [memberId, setMemberId] = useState(null)
@@ -203,7 +203,7 @@ export function useAppNav(user) {
       case 'member': return backFromMember()
       case 'freshness': return goTab('home')
       case 'admin': case 'achievements': case 'feedback': case 'circle': return goTab('profile')
-      case 'myex': case 'whatsnew': case 'appearance': return backToSettings()
+      case 'myex': case 'whatsnew': case 'appearance': case 'pushset': return backToSettings()
       default: return undefined
     }
   }

@@ -32,6 +32,7 @@ import WelcomeSheet from './components/WelcomeSheet.jsx'
 import { markWelcomePending } from './lib/welcome.js'
 import SyncTools from './components/SyncTools.jsx'
 import TabIcon from './components/TabIcon.jsx'
+import { AppMarkGlyph } from './components/AppMark.jsx'
 import ScreenCrash from './components/ScreenCrash.jsx'
 import { useSession } from './hooks/useSession.js'
 import { wipeLocalAccount } from './db/local.js'
@@ -58,6 +59,7 @@ const MyExercisesScreen = lazyScreen(() => import('./screens/MyExercisesScreen.j
 const CircleScreen = lazyScreen(() => import('./screens/CircleScreen.jsx'))
 const AchievementsScreen = lazyScreen(() => import('./screens/AchievementsScreen.jsx'))
 const AppearanceScreen = lazyScreen(() => import('./screens/AppearanceScreen.jsx'))
+const PushSettingsScreen = lazyScreen(() => import('./screens/PushSettingsScreen.jsx'))
 const WhatsNewScreen = lazyScreen(() => import('./screens/WhatsNewScreen.jsx'))
 const FeedbackScreen = lazyScreen(() => import('./screens/FeedbackScreen.jsx'))
 const MemberScreen = lazyScreen(() => import('./screens/MemberScreen.jsx'))
@@ -185,7 +187,7 @@ export default function App() {
   useEffect(() => {
     if (!user?.id) return
     const screens = [HomeScreen, HistoryScreen, FeedScreen, ProgressScreen, FreshnessScreen,
-      NotificationsScreen, ProfileScreen, MyExercisesScreen, AchievementsScreen, AppearanceScreen,
+      NotificationsScreen, ProfileScreen, MyExercisesScreen, AchievementsScreen, AppearanceScreen, PushSettingsScreen,
       MemberScreen, FeedbackScreen, CircleScreen]
     if (user.role === 'admin') screens.push(AdminScreen)
     const prefetch = () => { for (const s of screens) s.preload().catch(() => {}) }
@@ -347,6 +349,7 @@ export default function App() {
                   onOpenCircle={() => goTab('circle')}
                   onOpenAchievements={() => goTab('achievements')}
                   onOpenAppearance={() => goTab('appearance')}
+                  onOpenPushSettings={() => goTab('pushset')}
                   onOpenWhatsNew={() => goTab('whatsnew')}
                   onOpenFeedback={() => goTab('feedback')}
                   contentRef={contentRef}
@@ -377,6 +380,9 @@ export default function App() {
               {route === 'appearance' && (
                 <AppearanceScreen user={user} onBack={backToSettings} />
               )}
+              {route === 'pushset' && (
+                <PushSettingsScreen user={user} onBack={backToSettings} />
+              )}
               {route === 'feedback' && (
                 <FeedbackScreen user={user} focusId={feedbackFocus} onBack={() => goTab('profile')}
                   fromScreen={routeAnim.stack.find((t) => !isNested(t)) ?? null} />
@@ -400,8 +406,7 @@ export default function App() {
           aria-label="На главную"
         >
           <span className="side-logo" aria-hidden="true">
-            <svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor"
-              strokeWidth="2.2" strokeLinecap="round"><path d="M1.5 12h21" /><rect x="3" y="8.5" width="2.6" height="7" rx="1" fill="currentColor" stroke="none" /><rect x="6.4" y="6" width="3" height="12" rx="1.2" fill="currentColor" stroke="none" /><rect x="14.6" y="6" width="3" height="12" rx="1.2" fill="currentColor" stroke="none" /><rect x="18.4" y="8.5" width="2.6" height="7" rx="1" fill="currentColor" stroke="none" /></svg>
+            <AppMarkGlyph width="24" height="15" />
           </span>
           <span className="side-brand-txt">Журнал тренировок</span>
         </button>
