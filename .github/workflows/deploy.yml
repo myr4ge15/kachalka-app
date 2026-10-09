@@ -133,8 +133,11 @@ jobs:
         with:
           path: dist
 
+  # Условие обязательно: без него действует неявный success(), а он учитывает и
+  # пропущенную задачу tests (Tests уже был зеленым) — выкат молча пропускался (09.10).
   deploy:
     needs: build
+    if: ${{ !cancelled() && needs.build.result == 'success' }}
     runs-on: ubuntu-latest
     permissions:
       pages: write
