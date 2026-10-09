@@ -181,6 +181,14 @@ button { font-family: inherit; font-variant-numeric: inherit; font-feature-setti
 input { font-family: inherit; font-variant-numeric: inherit; font-feature-settings: inherit; }
 select, textarea { font-variant-numeric: inherit; font-feature-settings: inherit; }
 
+/* Номера версий: общий стиль, только для числового фрагмента. */
+.version-number {
+  font-family: system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+  font-weight: 600;
+  font-variant-numeric: lining-nums proportional-nums;
+  letter-spacing: normal;
+}
+
 /* ---------- layout ---------- */
 /* Приложение занимает ровно динамическую высоту вьюпорта (100dvh, без учета
    адресной строки) и само не скроллится — иначе на мобиле появлялся «резиновый»
@@ -3370,7 +3378,7 @@ html[data-sheet-open], html[data-sheet-open] body { overscroll-behavior: none; }
 }
 .wn-ver {
   padding: 3px 9px; border-radius: 999px; background: var(--acc-soft); color: var(--acc-2);
-  font-size: 12px; font-weight: 700;
+  font-size: 12px;
 }
 .wn-list { list-style: none; margin: 0; padding: 0; }
 .wn-list li {
@@ -3473,7 +3481,7 @@ html[data-sheet-open], html[data-sheet-open] body { overscroll-behavior: none; }
   display: flex; align-items: baseline; justify-content: space-between; gap: 8px; width: 100%;
   min-height: 44px; padding: 10px 0 4px; background: none; border: none; color: var(--text); text-align: left;
 }
-.wn-rel-v { font-size: var(--fs-title); font-weight: var(--fw-strong); letter-spacing: -0.035em; }
+.wn-rel-v { font-size: var(--fs-title); font-weight: var(--fw-strong); }
 .wn-rel-d { color: var(--muted); font-size: var(--fs-meta); }
 .wn-big {
   margin-left: 6px; padding: 2px 7px; border-radius: 999px; vertical-align: 1px;

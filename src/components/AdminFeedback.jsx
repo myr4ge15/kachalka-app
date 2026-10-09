@@ -86,7 +86,8 @@ export default function AdminFeedback({ online, api = defaultApi }) {
 function FeedbackCard({ row, online, api, editing, onEdit, onSaved }) {
   const [shotUrl, setShotUrl] = useState(null)
   const [shotBusy, setShotBusy] = useState(false)
-  const ctx = contextLine(row.context ?? {})
+  const version = row.context?.version
+  const ctx = contextLine({ ...row.context, version: null })
 
   async function showShot() {
     if (shotBusy) return
@@ -108,7 +109,12 @@ function FeedbackCard({ row, online, api, editing, onEdit, onSaved }) {
       </div>
       <span className="admin-ex-meta">{fmtFeedbackDate(row.created_at)}</span>
       <p className="fb-body">{row.body}</p>
-      {ctx && <p className="admin-ex-meta fb-ctx">{ctx}</p>}
+      {(version || ctx) && (
+        <p className="admin-ex-meta fb-ctx">
+          {version && <span className="version-number">v{version}</span>}
+          {version && ctx ? ' · ' : ''}{ctx}
+        </p>
+      )}
       {row.reopened_at && row.reopen_note && (
         <p className="fb-reopen">
           <span aria-hidden="true">🔁 </span>Открыто снова{row.reopen_count > 1 ? ` (${row.reopen_count}-й раз)` : ''}: {row.reopen_note}

@@ -32,7 +32,7 @@ export default function WhatsNewScreen({ onBack, entries = WHATS_NEW }) {
           <section key={e.version} className={'wn-rel' + (i === 0 ? ' new' : '') + (isOpen ? ' open' : '')}>
             <button type="button" className="wn-rel-h" onClick={() => toggle(e.version)} aria-expanded={isOpen}>
               <span className="wn-rel-v">
-                {e.version}
+                <span className="version-number">{e.version}</span>
                 {e.big && <span className="wn-big">большое</span>}
               </span>
               <span className="wn-rel-d">{fmtWhatsNewDate(e.date)}</span>

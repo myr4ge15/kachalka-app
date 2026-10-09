@@ -155,7 +155,7 @@ export default function ProfileScreen({ user, onLogout, onAccountDeleted, onOpen
             <button className={'act' + (wnUnopened ? ' act-new' : '')} onClick={() => onOpenWhatsNew?.()}>
               <span className="act-txt">
                 🆕 Что нового
-                <span className="act-sub">v{WHATS_NEW[0]?.version} · {fmtWhatsNewDate(WHATS_NEW[0]?.date)}</span>
+                <span className="act-sub"><span className="version-number">v{WHATS_NEW[0]?.version}</span> · {fmtWhatsNewDate(WHATS_NEW[0]?.date)}</span>
               </span>
               {wnUnopened && <span className="act-badge">новое</span>}
             </button>

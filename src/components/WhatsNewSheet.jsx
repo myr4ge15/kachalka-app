@@ -15,7 +15,7 @@ export default function WhatsNewSheet({ release, onDone, onOpenAll }) {
   return (
     <SheetDialog title="Что нового" actionLabel="закрыть" onDismiss={onDone} className="sheet--compact">
       <p className="wn-kicker">
-        <span className="wn-ver">v{release.version}</span>
+        <span className="wn-ver version-number">v{release.version}</span>
         {fmtWhatsNewDate(release.date)}
         {release.count > 1 ? ` · за ${release.count} ${plural(release.count, 'обновление', 'обновления', 'обновлений')}` : ''}
       </p>

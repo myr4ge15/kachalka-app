@@ -264,7 +264,7 @@ export default function UpdatePrompt() {
     <div className="update-banner" role="alert">
       <span className="update-banner-dot" aria-hidden="true" />
       <div className="update-banner-txt">
-        <b>{nextVersion ? `Обновление ${nextVersion}` : 'Новая версия'}</b>
+        <b>{nextVersion ? <>Обновление <span className="version-number">{nextVersion}</span></> : 'Новая версия'}</b>
         {nextHeadline && <small>{nextHeadline}</small>}
       </div>
       <button className="update-banner-go" onClick={applyUpdate}>

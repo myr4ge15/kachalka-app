@@ -95,7 +95,10 @@ function splashUpdateUi(root) {
   return {
     start(version) {
       root.removeAttribute('aria-hidden') // статус должен услышать и скринридер
-      title.textContent = `Обновляем до v${version}`
+      const versionLabel = document.createElement('span')
+      versionLabel.className = 'version-number'
+      versionLabel.textContent = `v${version}`
+      title.replaceChildren('Обновляем до ', versionLabel)
       cap.textContent = 'Загружаем…'
       bar.classList.add('splash-upd-bar--busy')
       box.hidden = false

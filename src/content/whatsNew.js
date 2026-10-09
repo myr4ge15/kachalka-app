@@ -20,7 +20,7 @@
 
 export const WHATS_NEW = [
   {
-    version: '7.1.5',
+    version: '7.1.6',
     date: '2026-10-09',
     headline: 'Косметические правки',
     main: [

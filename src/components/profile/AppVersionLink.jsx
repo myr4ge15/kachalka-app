@@ -13,7 +13,7 @@ export default function AppVersionLink() {
       >
         kachalka-app
       </a>
-      {' · '}v{APP_VERSION}
+      {' · '}<span className="version-number">v{APP_VERSION}</span>
     </p>
   )
 }
