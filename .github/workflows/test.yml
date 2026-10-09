@@ -13,7 +13,7 @@ name: Tests
 # Проверки описаны только здесь: deploy.yml своих шагов lint/test/e2e не держит.
 on:
   push:
-    branches: ['**']
+    branches: [main]
   pull_request:
   workflow_call:
 

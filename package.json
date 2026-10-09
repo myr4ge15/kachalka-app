@@ -1,9 +1,9 @@
 {
   "name": "kachalka-app",
   "private": true,
-  "version": "7.1.4",
+  "version": "7.1.5",
   "type": "module",
-  "description": "PWA для учёта силовых тренировок (MVP, первый проход)",
+  "description": "kachalka-app — приложение для планирования тренировок, отслеживания прогресса и анализа результатов.",
   "scripts": {
     "dev": "vite",
     "build": "vite build",
