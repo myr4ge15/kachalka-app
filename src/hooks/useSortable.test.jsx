@@ -126,6 +126,19 @@ describe('useSortable — удержание (тренировка)', () => {
     expect(onMove).not.toHaveBeenCalled()
   })
 
+  it('скролл страницы гасит и корень — даже если элемента под пальцем уже нет (iOS, свернутая карточка)', () => {
+    const { grip, row } = setup()
+    fireEvent.touchStart(grip('c'), touch(20, 245))
+    // До подъема скролл свободный: обычный свайп по списку прокручивает страницу.
+    expect(fireEvent.touchMove(row('a'), touch(20, 240))).toBe(true)
+    fireEvent.touchEnd(grip('c'))
+    fireEvent.touchStart(grip('c'), touch(20, 245))
+    act(() => vi.advanceTimersByTime(350))
+    // После подъема touchmove, всплывший до корня с ЛЮБОГО места списка, отменен.
+    expect(fireEvent.touchMove(row('a'), touch(20, 200))).toBe(false)
+    fireEvent.touchEnd(grip('c'))
+  })
+
   it('клик сразу после перетаскивания гасится (не раскрывает карточку)', () => {
     const { grip } = setup()
     const onClick = vi.fn()

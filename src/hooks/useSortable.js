@@ -21,7 +21,7 @@ import { flushSync } from 'react-dom'
 //              (сдвиг пальца > 8px отменяет). 0 — за ручку (touch-action: none) берется сразу;
 //   onLift(id) / onDrop() — до замера раскладки и после конца жеста (тренировка на это
 //              время сворачивает раскрытую карточку).
-// Тач — touch-события (non-passive, чтобы гасить скролл только ПОСЛЕ подъема), мышь — pointer.
+// Тач — touch-события (touchmove non-passive, чтобы гасить скролл только ПОСЛЕ подъема), мышь — pointer.
 // Клавиатура: Alt+↑/↓ на ручке переставляет на одну позицию сразу.
 
 const DROP_MS = 180 // = --dur-base; «подъем» (scale, тень) — в index.css, .sort-lifted
@@ -201,6 +201,10 @@ export function useSortable(onMove, { attr, handle, holdMs = 0, onLift, onDrop }
       const t = e.touches[0]; move(e, t.clientX, t.clientY)
     }
     const touchEnd = e => { if (g?.active && e.cancelable) e.preventDefault(); finish(true) }
+    // Non-passive слушатель на КОРНЕ обязателен: iOS решает, можно ли гасить скролл,
+    // по слушателям в точке касания на touchstart. Слушатель на элементе пропадает
+    // вместе с ним (свернутая карточка), и без этого iOS тащит всю страницу (09.10).
+    const blockScroll = e => { if (g?.active && e.cancelable) e.preventDefault() }
     const cancel = () => finish(false)
     const pointerDown = e => {
       if (e.pointerType !== 'mouse' || e.button !== 0) return
@@ -227,6 +231,7 @@ export function useSortable(onMove, { attr, handle, holdMs = 0, onLift, onDrop }
     }
 
     root.addEventListener('touchstart', touchStart, { passive: true }) // ручка — touch-action: none
+    root.addEventListener('touchmove', blockScroll, { passive: false })
     root.addEventListener('pointerdown', pointerDown)
     window.addEventListener('pointermove', pointerMove)
     window.addEventListener('pointerup', pointerUp)
@@ -241,6 +246,7 @@ export function useSortable(onMove, { attr, handle, holdMs = 0, onLift, onDrop }
       clear()
       g = null
       root.removeEventListener('touchstart', touchStart)
+      root.removeEventListener('touchmove', blockScroll)
       detach()
       root.removeEventListener('pointerdown', pointerDown)
       window.removeEventListener('pointermove', pointerMove)

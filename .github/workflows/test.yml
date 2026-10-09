@@ -1,6 +1,6 @@
 name: Tests
 
-# Юнит-тесты чистого слоя (Vitest) + smoke-сборка + smoke-e2e (Playwright).
+# Lint + юнит-тесты (Vitest, два пояса) + smoke-сборка и smoke-e2e (Playwright).
 # CI на GitHub Actions делает чистый npm ci, поэтому проблемы песочницы с битым
 # node_modules здесь нет. См. docs/PLAN-tests.md.
 
@@ -18,10 +18,49 @@ on:
   workflow_call:
 
 jobs:
-  test:
+  # С 09.10.2026 — три параллельные задачи вместо одной цепочки (было ~3 мин подряд):
+  # lint, юнит-тесты в двух поясах (matrix) и сборка + e2e. Ждать — по самой долгой.
+
+  lint:
     runs-on: ubuntu-latest
-    # Образ Playwright: Chromium и системные библиотеки уже внутри (v6.3.3).
-    # Версия = @playwright/test из package-lock.json — единственное место, где она записана.
+    steps:
+      - uses: actions/checkout@v5
+      - uses: actions/setup-node@v5
+        with:
+          node-version: 22
+          cache: npm
+      - run: npm ci
+      - name: Lint (ESLint)
+        run: npm run lint
+
+  # Юнит-тесты дважды, ПАРАЛЛЕЛЬНО, в поясах по обе стороны от UTC: Москва (+3, где
+  # живут участники) и Лос-Анджелес (−8/−7). Поясные регрессии (день по UTC вместо
+  # местного, фикстуры с голой датой) в UTC не видны — РЕВЬЮ-КОДА-2026-10-02, п. 12.
+  # Node берет tz-данные из своего ICU, системный tzdata не нужен.
+  unit:
+    name: unit (${{ matrix.tz }})
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        tz: [Europe/Moscow, America/Los_Angeles]
+    steps:
+      - uses: actions/checkout@v5
+      - uses: actions/setup-node@v5
+        with:
+          node-version: 22
+          cache: npm
+      - run: npm ci
+      - name: Unit tests (Vitest)
+        env:
+          TZ: ${{ matrix.tz }}
+        run: npx vitest run
+
+  # Сборка и сквозной путь «вход → тренировка → она в истории после перезагрузки».
+  # Образ Playwright: Chromium и системные библиотеки уже внутри (v6.3.3).
+  # Версия = @playwright/test из package-lock.json — единственное место, где она записана.
+  e2e:
+    runs-on: ubuntu-latest
     container:
       image: mcr.microsoft.com/playwright:v1.63.0-noble
     steps:
@@ -37,23 +76,9 @@ jobs:
       - name: Версия Playwright совпадает с образом
         run: node -e "const v=require('./node_modules/@playwright/test/package.json').version; if (v !== '1.63.0') { console.error('Образ Playwright 1.63.0, а пакет ' + v + ' — обнови image в test.yml'); process.exit(1) }"
 
-      - name: Lint (ESLint)
-        run: npm run lint
-
-      - name: Unit tests (Vitest)
-        run: npm test
-
-      # Второй прогон под чужим поясом (UTC−8/−7): раннер CI живет в UTC, и
-      # поясные регрессии (день по UTC вместо местного, фикстуры с голой датой)
-      # иначе не ловятся — РЕВЬЮ-КОДА-2026-10-02, п. 12 и «Мелочи». Node берет
-      # tz-данные из своего ICU, системный tzdata в образе не нужен.
-      - name: Unit tests (Vitest, TZ=America/Los_Angeles)
-        run: TZ=America/Los_Angeles npx vitest run
-
       - name: Smoke build
         run: npx vite build
 
-      # Сквозной путь «вход → тренировка → она в истории после перезагрузки».
       # Сети тесту не нужно (офлайн-ветка входа), ключи Supabase подставляет
       # playwright.config.js — секреты в CI не требуются.
       - name: Smoke e2e (Playwright)
