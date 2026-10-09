@@ -32,34 +32,33 @@ on:
     tags: ['v*']
   workflow_dispatch:
 
+# Права — по задачам (ниже); по умолчанию только чтение.
 permissions:
   contents: read
-  pages: write
-  id-token: write
 
 concurrency:
   group: pages
   cancel-in-progress: true
 
 jobs:
-  # Проверки и production-сборка — ОДНОЙ задачей (v6.3.3): раньше сборка ждала
-  # новую машину и заново делала npm ci (~40–60 с). Контейнер Playwright уже
-  # содержит Chromium со всеми системными библиотеками — не качаем его каждый раз.
-  # ⚠️ Версия образа = версия @playwright/test в package-lock.json. Обновил пакет —
-  # обнови тег образа здесь и в test.yml (шаг «Версия Playwright» это проверяет).
-  build:
+  # Предохранитель ДО всего остального (РЕВЬЮ-КОДА-2026-10-02, п. 22):
+  #  - выкат только с тега v* — кнопка «Run workflow» по умолчанию стартует с
+  #    main и выкатила бы друзьям невыпущенный код (откат = запуск НА ТЕГЕ);
+  #  - тег обязан равняться версии из package.json, иначе плашка обновления и
+  #    пуш «вышла версия» покажут не ту версию;
+  #  - без секретов сборка проходит, но друзья получают экран «Нужна настройка».
+  # Плюс (09.10.2026): был ли уже зеленый прогон Tests на этом коммите. Обычно тег
+  # ставится на проверенный коммит main — тогда проверки второй раз не гоняем.
+  preflight:
     runs-on: ubuntu-latest
-    container:
-      image: mcr.microsoft.com/playwright:v1.63.0-noble
+    permissions:
+      contents: read
+      actions: read
+    outputs:
+      tested: ${{ steps.tested.outputs.tested }}
     steps:
       - uses: actions/checkout@v5
 
-      # Предохранитель ДО всего остального (РЕВЬЮ-КОДА-2026-10-02, п. 22):
-      #  - выкат только с тега v* — кнопка «Run workflow» по умолчанию стартует с
-      #    main и выкатила бы друзьям невыпущенный код (откат = запуск НА ТЕГЕ);
-      #  - тег обязан равняться версии из package.json, иначе плашка обновления и
-      #    пуш «вышла версия» покажут не ту версию;
-      #  - без секретов сборка проходит, но друзья получают экран «Нужна настройка».
       - name: Тег = версия, секреты заданы
         env:
           VITE_SUPABASE_URL: ${{ secrets.VITE_SUPABASE_URL }}
@@ -76,32 +75,49 @@ jobs:
             console.log('Выкат ' + v + ': тег и версия совпадают, секреты на месте.');
           "
 
-      - uses: actions/cache@v5
+      # Ищем успешный прогон test.yml ровно на этом SHA. Не нашли (тег на
+      # непроверенном коммите, Tests еще идет или упал, старый тег для отката) —
+      # проверки прогонит задача tests ниже. Сбой самого запроса = «не нашли»:
+      # лучше лишний прогон, чем выкат без проверок.
+      - name: Tests уже зеленый на этом коммите?
+        id: tested
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          n=$(gh api "repos/$GITHUB_REPOSITORY/actions/workflows/test.yml/runs?head_sha=$GITHUB_SHA&status=success&per_page=1" --jq '.total_count' 2>/dev/null || echo 0)
+          if [ "${n:-0}" -gt 0 ]; then
+            echo "tested=true" >> "$GITHUB_OUTPUT"
+            echo "::notice title=Проверки не повторяем::Tests уже зеленый на ${GITHUB_SHA:0:7} — сразу сборка."
+          else
+            echo "tested=false" >> "$GITHUB_OUTPUT"
+            echo "::notice title=Гоняем проверки::Зеленого Tests на ${GITHUB_SHA:0:7} нет — запускаю test.yml."
+          fi
+
+  # Те же проверки, что на пуш в main, — из одного файла, без копипасты.
+  tests:
+    needs: preflight
+    if: needs.preflight.outputs.tested != 'true'
+    permissions:
+      contents: read
+    uses: ./.github/workflows/test.yml
+
+  # Только production-сборка: проверки уже пройдены (здесь или в Tests на main).
+  # Контейнер Playwright не нужен — обычный раннер и Node.
+  build:
+    needs: [preflight, tests]
+    if: ${{ !cancelled() && needs.preflight.result == 'success' && (needs.tests.result == 'success' || needs.tests.result == 'skipped') }}
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@v5
+
+      - uses: actions/setup-node@v5
         with:
-          path: ~/.npm
-          key: npm-${{ hashFiles('package-lock.json') }}
+          node-version: 22
+          cache: npm
 
       - run: npm ci
-
-      - name: Версия Playwright совпадает с образом
-        run: node -e "const v=require('./node_modules/@playwright/test/package.json').version; if (v !== '1.63.0') { console.error('Образ Playwright 1.63.0, а пакет ' + v + ' — обнови image в deploy.yml и test.yml'); process.exit(1) }"
-
-      - name: Lint (ESLint)
-        run: npm run lint
-
-      - name: Unit tests (Vitest)
-        run: npm test
-
-      - name: Smoke e2e (Playwright)
-        run: npm run test:e2e
-
-      - name: Upload e2e report
-        if: failure()
-        uses: actions/upload-artifact@v5
-        with:
-          name: playwright-report
-          path: playwright-report/
-          retention-days: 7
 
       # Set repository variable VITE_APP_BASE to / only when switching the custom domain.
       - name: Build
@@ -120,6 +136,9 @@ jobs:
   deploy:
     needs: build
     runs-on: ubuntu-latest
+    permissions:
+      pages: write
+      id-token: write
     environment:
       name: github-pages
       url: ${{ steps.deployment.outputs.page_url }}

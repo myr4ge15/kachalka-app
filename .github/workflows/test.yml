@@ -7,18 +7,21 @@ name: Tests
 # С 03.08.2026 `main` НЕ исключается. Раньше его проверял deploy.yml (он же и
 # публиковал), но публикация переехала на теги — и без этой правки пуш в main
 # остался бы вообще без проверок.
-# Теги (v*) не гоняем: их проверяет deploy.yml перед выкладкой — раньше на пуш тега
-# запускались оба workflow с одними и теми же проверками (v6.3.3).
+# Теги (v*) сами по себе не гоняем. С 09.10.2026 deploy.yml вызывает ЭТОТ workflow
+# (workflow_call) только если на коммите тега еще нет зеленого прогона Tests —
+# обычно тег ставится на уже проверенный коммит main, и проверки не повторяются.
+# Проверки описаны только здесь: deploy.yml своих шагов lint/test/e2e не держит.
 on:
   push:
     branches: ['**']
   pull_request:
+  workflow_call:
 
 jobs:
   test:
     runs-on: ubuntu-latest
     # Образ Playwright: Chromium и системные библиотеки уже внутри (v6.3.3).
-    # Версия = @playwright/test из package-lock.json (см. deploy.yml).
+    # Версия = @playwright/test из package-lock.json — единственное место, где она записана.
     container:
       image: mcr.microsoft.com/playwright:v1.63.0-noble
     steps:
@@ -32,7 +35,7 @@ jobs:
       - run: npm ci
 
       - name: Версия Playwright совпадает с образом
-        run: node -e "const v=require('./node_modules/@playwright/test/package.json').version; if (v !== '1.63.0') { console.error('Образ Playwright 1.63.0, а пакет ' + v + ' — обнови image в deploy.yml и test.yml'); process.exit(1) }"
+        run: node -e "const v=require('./node_modules/@playwright/test/package.json').version; if (v !== '1.63.0') { console.error('Образ Playwright 1.63.0, а пакет ' + v + ' — обнови image в test.yml'); process.exit(1) }"
 
       - name: Lint (ESLint)
         run: npm run lint
