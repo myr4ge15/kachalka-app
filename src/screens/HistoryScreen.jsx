@@ -5,7 +5,7 @@ import { getWorkouts, saveTemplate } from '../db/repo.js'
 import { syncNow } from '../db/sync.js'
 import { daySubTags, tagSlug, matchesGroup, availableGroups } from '../lib/dayTags.js'
 import { labelOf, majorOf } from '../lib/muscles.js'
-import { exerciseMetric, fmtSet } from '../lib/metric.js'
+import { exerciseMetric, fmtSetList } from '../lib/metric.js'
 import { exportWorkouts } from '../lib/exportWorkout.js'
 import { useExportSelection } from '../hooks/useExportSelection.js'
 import WorkoutScreen from './WorkoutScreen.jsx'
@@ -363,7 +363,7 @@ export default function HistoryScreen({
                   <li key={e.exercise_id ?? e.exercise?.id ?? i} className="history-ex">
                     <span className="history-ex-name">{e.exercise?.name ?? '—'}</span>
                     <span className="history-ex-sets">
-                      {(e.sets ?? []).map((s) => fmtSet(exerciseMetric(e.exercise), s)).join(', ') || '—'}
+                      {fmtSetList(exerciseMetric(e.exercise), e.sets) || '—'}
                     </span>
                   </li>
                 ))}

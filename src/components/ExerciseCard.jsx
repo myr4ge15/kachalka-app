@@ -1,7 +1,7 @@
 import Chevron from './Chevron.jsx'
 import HoldButton from './HoldButton.jsx'
 import TimeInput from './TimeInput.jsx'
-import { exerciseMetric, isCountMetric, hasExtraWeight, fmtSet, bestPace, fmtPace, paceSecPerKm } from '../lib/metric.js'
+import { exerciseMetric, isCountMetric, hasExtraWeight, fmtSetList, bestPace, fmtPace, paceSecPerKm } from '../lib/metric.js'
 import { resolveProgSettings } from '../lib/progression.js'
 import {
   daysAgoLabel, progArrow, progTone, nextProgStep, fmtProgStep,
@@ -105,13 +105,13 @@ export default function ExerciseCard({
                 <span className="ap-when">{daysAgoLabel(entry.prog.whenIso)}</span>
               </div>
               <div className="ap-prev">
-                {entry.prog.prev.map((s) => fmtSet(metric, s)).join(' · ')}
+                {fmtSetList(metric, entry.prog.prev, ' · ')}
               </div>
               <div className={`ap-rec-lbl ${progTone(entry.prog.kind)}`}>
                 {progArrow(entry.prog.kind)} Рекомендуем сегодня
               </div>
               <div className="ap-rec">
-                {entry.prog.recSets.map((s) => fmtSet(metric, s)).join(' · ')}
+                {fmtSetList(metric, entry.prog.recSets, ' · ')}
               </div>
               <span className={`reason ${progTone(entry.prog.kind)}`}>{entry.prog.reason}</span>
               <div className="ap-actions">

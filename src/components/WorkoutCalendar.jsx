@@ -5,7 +5,7 @@ import {
 } from '../lib/calendar.js'
 import { daySubTags, tagSlug } from '../lib/dayTags.js'
 import { labelOf, majorOf } from '../lib/muscles.js'
-import { exerciseMetric, fmtSet } from '../lib/metric.js'
+import { exerciseMetric, fmtSetList } from '../lib/metric.js'
 import { plural } from '../lib/plural.js'
 
 const DAY_TITLE = new Intl.DateTimeFormat('ru-RU', { weekday: 'long', day: 'numeric', month: 'long' })
@@ -138,7 +138,7 @@ export default function WorkoutCalendar({ workouts, filter = null, initialDate =
                         <li key={e.exercise_id ?? e.exercise?.id ?? i} className="history-ex">
                           <span className="history-ex-name">{e.exercise?.name ?? '—'}</span>
                           <span className="history-ex-sets">
-                            {(e.sets ?? []).map((s) => fmtSet(exerciseMetric(e.exercise), s)).join(', ') || '—'}
+                            {fmtSetList(exerciseMetric(e.exercise), e.sets) || '—'}
                           </span>
                         </li>
                       ))}

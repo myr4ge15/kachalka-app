@@ -6,7 +6,7 @@ import { getUsers, toggleReaction, getPrivacyFlag } from '../db/repo.js'
 import { syncNow } from '../db/sync.js'
 import { onOnline, onResume, onReselect } from '../lib/appEvents.js'
 import { fmtWhen, fmtAgo } from '../lib/dates.js'
-import { fmtSet } from '../lib/metric.js'
+import { fmtSetList } from '../lib/metric.js'
 import { vibrate, HAPTIC } from '../lib/haptics.js'
 import { pullDistance, shouldTriggerRefresh, PULL_THRESHOLD } from '../lib/pullRefresh.js'
 import Leaderboard from './Leaderboard.jsx'
@@ -322,14 +322,16 @@ export default function FeedScreen({ user, onOpenMember, flashId = null, onOpenC
                 <li key={e.exercise_id ?? e.name ?? i} className="history-ex">
                   <span className="history-ex-name">{e.name}</span>
                   <span className="history-ex-sets">
-                    {e.sets.map((s) => fmtSet(e.metric, s)).join(', ') || '—'}
+                    {fmtSetList(e.metric, e.sets) || '—'}
                   </span>
                 </li>
               ))}
             </ul>
 
             <div className="muted feed-foot">
-              {w.exCount} упр. · {w.setCount} подх. · {w.tonnage.toLocaleString('ru-RU')} кг тоннаж
+              {/* Тоннаж — только если он есть: у тренировки из одних подтягиваний/планки
+                  «0 кг тоннаж» выглядит как ошибка (v7.2.1). */}
+              {w.exCount} упр. · {w.setCount} подх.{w.tonnage > 0 ? ` · ${w.tonnage.toLocaleString('ru-RU')} кг тоннаж` : ''}
             </div>
 
             <ReactionBar

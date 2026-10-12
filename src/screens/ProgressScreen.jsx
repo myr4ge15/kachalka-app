@@ -6,7 +6,7 @@ import {
 import { useLiveQuery } from 'dexie-react-hooks'
 import { getWorkouts } from '../db/repo.js'
 import { readGoals } from '../db/notifications.js'
-import { fmtMetricValue, fmtSet as fmtSetMetric, fmtTime } from '../lib/metric.js'
+import { fmtMetricValue, fmtSetList, fmtTime } from '../lib/metric.js'
 import { collectExercises, buildSeries, seriesValueSpread } from '../lib/progressSeries.js'
 import { buildGoalGuide, selectProgressGoal } from '../lib/progressGoal.js'
 import { localYmd, toDate } from '../lib/calendar.js'
@@ -457,7 +457,7 @@ export default function ProgressScreen({
                     <div key={r.day} className={`prog-row${r.isPr ? ' pr' : ''}`}>
                       <span>{fmtDate(r.day)}</span>
                       <span className="prog-sets">
-                        {r.sets.map((s) => fmtSetMetric(metric, s)).join(', ')}
+                        {fmtSetList(metric, r.sets)}
                       </span>
                       <span className="prog-val">
                         {metric === 'time' ? fmtTime(r.value) : r.value}{r.isPr ? ' 🏆' : ''}

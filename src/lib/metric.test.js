@@ -2,6 +2,7 @@ import { describe, it, expect } from 'vitest'
 import {
   hasExtraWeight,
   fmtExtraWeight,
+  fmtSetList,
   normMetric,
   exerciseMetric,
   isCountMetric,
@@ -160,6 +161,20 @@ describe('fmtSet', () => {
     expect(fmtSet('reps', { weight: -17.5, reps: 10 })).toBe('−17.5 кг × 10')
     expect(fmtExtraWeight(0)).toBe('')
     expect(fmtExtraWeight('abc')).toBe('')
+  })
+  it('fmtSetList: одинаковая помощь/доп. вес выносится один раз (v7.2.1)', () => {
+    const s = (weight, reps) => ({ weight, reps })
+    expect(fmtSetList('reps', [s(-20, 12), s(-20, 12), s(-20, 10)])).toBe('12, 12, 10 (−20 кг)')
+    expect(fmtSetList('reps', [s(10, 8), s(10, 6)], ' · ')).toBe('8 · 6 (+10 кг)')
+    // разный вес — по подходам, как раньше
+    expect(fmtSetList('reps', [s(-20, 12), s(-10, 8)])).toBe('−20 кг × 12, −10 кг × 8')
+    // один подход и без веса — без скобок
+    expect(fmtSetList('reps', [s(-20, 12)])).toBe('−20 кг × 12')
+    expect(fmtSetList('reps', [s(0, 12), s(0, 10)])).toBe('12, 10')
+    // весовые не трогаем
+    expect(fmtSetList('weight', [s(80, 8), s(80, 8)])).toBe('80×8, 80×8')
+    expect(fmtSetList('weight', [])).toBe('')
+    expect(fmtSetList('reps', undefined)).toBe('')
     expect(hasExtraWeight('reps')).toBe(true)
     expect(hasExtraWeight('time')).toBe(false)
     expect(hasExtraWeight('weight')).toBe(false)

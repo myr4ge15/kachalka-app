@@ -193,3 +193,19 @@ export function fmtSet(metric, s) {
   if (m === 'reps') return weight ? `${fmtExtraWeight(weight)} × ${reps}` : String(reps)
   return weight > 0 ? `${weight}×${reps}` : String(reps)
 }
+
+// Подходы упражнения одной строкой для списков (Лента, История, Прогресс).
+// У «своего веса» с ОДИНАКОВЫМ доп. весом/помощью во всех подходах вес выносим
+// в конец один раз: «12, 12, 12 (−20 кг)» вместо «−20 кг × 12, −20 кг × 12, …»
+// (v7.2.1: в Ленте три подхода в гравитроне переносились на две строки). Разный
+// вес по подходам — как раньше, через fmtSet. sep — разделитель подходов. Пусто → ''.
+export function fmtSetList(metric, sets, sep = ', ') {
+  const list = sets ?? []
+  if (normMetric(metric) === 'reps' && list.length > 1) {
+    const w0 = Number(list[0]?.weight) || 0
+    if (w0 && list.every((s) => (Number(s?.weight) || 0) === w0)) {
+      return `${list.map((s) => Number(s?.reps) || 0).join(sep)} (${fmtExtraWeight(w0)})`
+    }
+  }
+  return list.map((s) => fmtSet(metric, s)).join(sep)
+}

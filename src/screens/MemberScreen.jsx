@@ -7,7 +7,7 @@ import { getCachedUser } from '../db/repo.js'
 import { onOnline, onResume } from '../lib/appEvents.js'
 import { buildMemberView, MEMBER_LIMIT } from '../lib/memberProfile.js'
 import { fmtWhen } from '../lib/dates.js'
-import { fmtSet, fmtMetricValue } from '../lib/metric.js'
+import { fmtSetList, fmtMetricValue } from '../lib/metric.js'
 import { plural } from '../lib/plural.js'
 import AvatarZoom from '../components/AvatarZoom.jsx'
 import BackButton from '../components/BackButton.jsx'
@@ -227,7 +227,7 @@ export default function MemberScreen({ user, memberId, onBack }) {
                       <li key={e.exercise_id ?? e.name ?? i} className="history-ex">
                         <span className="history-ex-name">{e.name}</span>
                         <span className="history-ex-sets">
-                          {e.sets.map((s) => fmtSet(e.metric, s)).join(', ') || '—'}
+                          {fmtSetList(e.metric, e.sets) || '—'}
                         </span>
                       </li>
                     ))}
