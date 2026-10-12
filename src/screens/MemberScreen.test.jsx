@@ -3,6 +3,7 @@ import { beforeEach, describe, expect, it, vi } from 'vitest'
 import { render, screen, fireEvent, act } from '@testing-library/react'
 import { useLiveQuery } from 'dexie-react-hooks'
 import MemberScreen from './MemberScreen.jsx'
+import { MEMBER_GRACE_MS } from '../lib/memberProfile.js'
 import { fetchMember, toggleMemberReaction } from '../db/memberProfile.js'
 
 vi.mock('dexie-react-hooks', () => ({ useLiveQuery: vi.fn() }))
@@ -64,7 +65,9 @@ describe('MemberScreen', () => {
       mockQueries({ at: null, total: null, items: [workout('w1', new Date().toISOString(), [bench(70, 5)])], source: 'feed' })
       const { container } = render(<MemberScreen user={viewer} memberId="dima" onBack={() => {}} />)
       expect(container.querySelector('.stat-num')).toBeNull() // цифры не «прыгают»
-      act(() => { vi.advanceTimersByTime(1500) })
+      act(() => { vi.advanceTimersByTime(MEMBER_GRACE_MS - 1) })
+      expect(container.querySelector('.stat-num')).toBeNull() // ~2 с ответа по LTE — еще заглушка
+      act(() => { vi.advanceTimersByTime(1) })
       expect(container.querySelector('.stat-num').textContent).toBe('1+')
       expect(screen.getByText(/Загружаю полный профиль/)).toBeTruthy()
       expect(container.querySelector('.member-pr-partial')).toBeTruthy()
