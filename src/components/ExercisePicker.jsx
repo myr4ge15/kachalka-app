@@ -372,16 +372,16 @@ export default function ExercisePicker({
             чаще упражнение выбирают из списка или чипом группы, а не поиском.
             Нужен поиск — один тап по полю. */}
         <div className="scanner-search-row">
-        <input
-          className="search"
-          placeholder="Поиск по названию…"
-          value={query}
-          onChange={(e) => changeQuery(e.target.value)}
-        />
+          <input
+            className="search"
+            placeholder="Поиск по названию…"
+            value={query}
+            onChange={(e) => changeQuery(e.target.value)}
+          />
 
-        <button type="button" className="btn scanner-open" aria-label="Сканировать название" title="Сканировать название" onClick={() => setScanning(true)}>
-          <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" aria-hidden="true"><path d="M8 5l2-2h4l2 2h4v15H4V5z" /><circle cx="12" cy="12" r="4" /></svg>
-        </button>
+          <button type="button" className="btn scanner-open" aria-label="Сканировать название" title="Сканировать название" onClick={() => setScanning(true)}>
+            <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true"><path d="M3 7V5a2 2 0 0 1 2-2h2M17 3h2a2 2 0 0 1 2 2v2M21 17v2a2 2 0 0 1-2 2h-2M7 21H5a2 2 0 0 1-2-2v-2" /><circle cx="11.5" cy="11.5" r="4.5" /><path d="m15 15 4 4" /></svg>
+          </button>
         </div>
 
         <div className="chips">
