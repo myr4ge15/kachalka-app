@@ -266,3 +266,26 @@ describe('ExerciseCard — дистанция (v6.12.0)', () => {
     expect(cbs.onUpdateSet).toHaveBeenCalledWith(0, 0, 'weight', '5.5')
   })
 })
+
+describe('ExerciseCard — свой вес: доп. вес и помощь (v7.2.0)', () => {
+  const pullups = (sets) => ({ exercise: { id: 'pu', name: 'Подтягивания', metric: 'reps' }, sets })
+
+  it('столбец «±кг»; ноль — пустое поле, помощь видна со знаком', () => {
+    const { container } = renderCard(pullups([{ weight: 0, reps: 8, _k: 'a' }, { weight: -20, reps: 8, _k: 'b' }]))
+    expect(container.querySelector('.sets-head').textContent).toBe('#±кгповт.')
+    expect(screen.getByLabelText('Доп. вес, подход 1')).toHaveValue('')
+    expect(screen.getByLabelText('Доп. вес, подход 2')).toHaveValue('-20')
+  })
+
+  it('недописанный ввод («-», «0.») не стирается — минус и дробь можно набрать', () => {
+    renderCard(pullups([{ weight: '-', reps: 8, _k: 'a' }, { weight: '0.', reps: 8, _k: 'b' }]))
+    expect(screen.getByLabelText('Доп. вес, подход 1')).toHaveValue('-')
+    expect(screen.getByLabelText('Доп. вес, подход 2')).toHaveValue('0.')
+  })
+
+  it('типографский минус и запятая уходят как «-» и «.»', () => {
+    const { cbs } = renderCard(pullups([{ weight: 0, reps: 8, _k: 'a' }]))
+    fireEvent.change(screen.getByLabelText('Доп. вес, подход 1'), { target: { value: '−12,5' } })
+    expect(cbs.onUpdateSet).toHaveBeenCalledWith(0, 0, 'weight', '-12.5')
+  })
+})

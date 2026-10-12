@@ -11,6 +11,9 @@
 // Модель БД: подход всегда {weight, reps}. У не-весовых упражнений (reps/time)
 // weight не хранится (инвариант 0), а reps несет повторы или СЕКУНДЫ (time),
 // поэтому верхняя граница reps зависит от метрики (см. repsMax).
+// Исключение — «свой вес» (reps, v6.16.0): weight — доп. вес, а с v7.2.0 он может
+// быть ОТРИЦАТЕЛЬНЫМ — это помощь (гравитрон, резина): «−20 кг» снимают 20 кг
+// веса тела. Нижняя граница веса зависит от метрики (см. weightMin).
 // ============================================================================
 
 import { normMetric, isCountMetric, hasExtraWeight } from './metric.js'
@@ -20,6 +23,15 @@ import { normMetric, isCountMetric, hasExtraWeight } from './metric.js'
 export const WEIGHT_MAX = 1000 // кг (мировые рекорды тяг < 500 кг)
 export const REPS_MAX = 1000 // повторов на подход
 export const TIME_MAX = 86400 // секунд = 24 ч (планка/кардио на время)
+// Наибольшая помощь у «своего веса» (гравитрон, резина), кг. Больше веса тела
+// помочь нельзя; 200 — с запасом. Та же граница в CHECK сервера (assist-weight.sql).
+export const ASSIST_MAX = 200
+
+// Нижняя граница веса с учетом метрики: у «своего веса» — помощь до −ASSIST_MAX,
+// у остальных — 0 (штанга в минусе смысла не имеет, км тем более).
+export function weightMin(metric) {
+  return hasExtraWeight(metric) ? -ASSIST_MAX : 0
+}
 
 // Верхняя граница «повторного» поля с учетом метрики: у time-упражнений reps
 // хранит секунды (граница TIME_MAX), у остальных — повторы (REPS_MAX).
@@ -29,15 +41,17 @@ export function repsMax(metric) {
 }
 
 // Клампинг веса. У не-весовых метрик вес не хранится → всегда 0 (инвариант).
-// Возвращает число в [0, WEIGHT_MAX] (2 знака — шаг 1.25 кг) либо null, если
-// значение нечисловое (подход невалиден, отбрасываем).
+// Возвращает число в [weightMin(metric), WEIGHT_MAX] (2 знака — шаг 1.25 кг) либо
+// null, если значение нечисловое (подход невалиден, отбрасываем).
 export function clampWeight(weight, metric = 'weight') {
   // У «своего веса» weight — необязательный доп. вес (v6.16.0); у «на время» — всегда 0.
   if (isCountMetric(metric) && !hasExtraWeight(metric)) return 0
   const n = Number(weight)
-  if (!Number.isFinite(n)) return null
-  const c = Math.min(WEIGHT_MAX, Math.max(0, n))
-  return Math.round(c * 100) / 100
+  // Доп. вес необязателен: недописанный ввод («-», «.») — без отягощения, а не
+  // повод молча выбросить подход с повторами.
+  if (!Number.isFinite(n)) return hasExtraWeight(metric) ? 0 : null
+  const c = Math.min(WEIGHT_MAX, Math.max(weightMin(metric), n))
+  return Math.round(c * 100) / 100 || 0 // || 0: без «−0»
 }
 
 // Клампинг повторов/секунд. Округляем до целого; < 1 → null (пустой/нулевой

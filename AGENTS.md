@@ -105,8 +105,8 @@
 - **Документ тренировки денормализован:**
   `{ id, user_id, performed_at, created_at, updated_at, _base_updated_at, _dirty, _deleted,
      entries: [ { exercise_id, exercise:{id,name,muscle_group,submuscle,secondary,metric,is_bench_lift}, sets:[{weight,reps}] } ] }`
-- **Метрики упражнения** (`exercises.metric`): `weight` (вес × повторы), `reps` (свой вес — повторы,
-  `weight:0`), `time` (секунды лежат в `reps`, ввод мм:сс). Подход в БД всегда `{weight,reps}`.
+- **Метрики упражнения** (`exercises.metric`): `weight` (вес × повторы), `reps` (свой вес — повторы;
+  `weight` — доп. вес, может быть ОТРИЦАТЕЛЬНЫМ = помощь гравитрона, до −200 — `setLimits.weightMin`, сервер `assist-weight.sql`), `time` (секунды лежат в `reps`, ввод мм:сс). Подход в БД всегда `{weight,reps}`.
   **Рекорд = лучший ЕДИНИЧНЫЙ подход** по ведущей метрике (`lib/metric.js` `leadingValue`);
   расчётный 1ПМ (Эпли, `lib/oneRepMax.js`) — вторично, сноской. Для упражнений без веса считаем
   повторы, а не 1ПМ.

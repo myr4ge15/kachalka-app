@@ -5,7 +5,7 @@ import {
   revertProgIn, applyProgIn, toggleProgSettingsIn, setsFromTemplate,
   countSavable,
 } from './workoutEntries.js'
-import { WEIGHT_MAX, TIME_MAX } from './setLimits.js'
+import { WEIGHT_MAX, TIME_MAX, ASSIST_MAX } from './setLimits.js'
 
 const wEx = (id = 'e1', over = {}) => ({ id, name: 'Жим', metric: 'weight', ...over })
 const rEx = (id = 'e2') => ({ id, name: 'Подтягивания', metric: 'reps' })
@@ -92,6 +92,17 @@ describe('stepSetIn — клампинг границ', () => {
   it('вес не уходит ниже 0', () => {
     const out = stepSetIn([entry(wEx(), [s(0, 10)])], 0, 0, 'weight', -1.25)
     expect(out[0].sets[0].weight).toBe(0)
+  })
+  it('«свой вес»: «−» уходит ниже 0 — в помощь гравитрона (v7.2.0)', () => {
+    let out = stepSetIn([entry(rEx(), [s(0, 8)])], 0, 0, 'weight', -2.5)
+    expect(out[0].sets[0].weight).toBe(-2.5)
+    out = stepSetIn([entry(rEx(), [s(-2.5, 8)])], 0, 0, 'weight', 2.5)
+    expect(out[0].sets[0].weight).toBe(0)
+    out = stepSetIn([entry(rEx(), [s(-ASSIST_MAX, 8)])], 0, 0, 'weight', -2.5)
+    expect(out[0].sets[0].weight).toBe(-ASSIST_MAX)
+    // недописанный «-» стартует от 0, а не от −200
+    out = stepSetIn([entry(rEx(), [s('-', 8)])], 0, 0, 'weight', -2.5)
+    expect(out[0].sets[0].weight).toBe(-2.5)
   })
   it('повторы не ниже 1', () => {
     const out = stepSetIn([entry(wEx(), [s(60, 1)])], 0, 0, 'reps', -1)

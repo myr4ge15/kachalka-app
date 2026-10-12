@@ -12,7 +12,7 @@
 // подхода (общий с progressionCard), поэтому новые подходы получают уникальный _k.
 // ============================================================================
 import { exerciseMetric, isCountMetric, hasExtraWeight } from './metric.js'
-import { WEIGHT_MAX, repsMax, savableSet } from './setLimits.js'
+import { WEIGHT_MAX, repsMax, weightMin, savableSet } from './setLimits.js'
 import { defaultSet, sk } from './progressionCard.js'
 
 // Добавить упражнение в конец (анти-дубль по exercise.id). Уже есть → массив без
@@ -67,15 +67,18 @@ export function updateSetIn(entries, ei, si, field, value) {
 }
 
 // Степпер +/− с клампом по границам метрики (те же, что клампит сохранение):
-// вес → [0, WEIGHT_MAX], повторы/секунды → [1, repsMax(metric)]. Нечисловое
-// текущее значение ('', '.', '1.2.3' → NaN) стартует от минимума, а не «NaN».
+// вес → [weightMin(metric), WEIGHT_MAX] (у «своего веса» «−» уходит ниже нуля —
+// в помощь гравитрона/резины, v7.2.0), повторы/секунды → [1, repsMax(metric)].
+// Нечисловое текущее значение ('', '.', '1.2.3' → NaN) стартует от 0 у веса и от 1
+// у повторов, а не «NaN» и не от −200 кг помощи.
 export function stepSetIn(entries, ei, si, field, delta) {
-  const min = field === 'reps' ? 1 : 0
   return entries.map((e, i) => {
     if (i !== ei) return e
-    const max = field === 'weight' ? WEIGHT_MAX : repsMax(exerciseMetric(e.exercise))
+    const metric = exerciseMetric(e.exercise)
+    const min = field === 'reps' ? 1 : weightMin(metric)
+    const max = field === 'weight' ? WEIGHT_MAX : repsMax(metric)
     const base = Number(e.sets[si]?.[field])
-    const cur = Number.isFinite(base) ? base : min
+    const cur = Number.isFinite(base) ? base : field === 'reps' ? 1 : 0
     const next = Math.min(max, Math.max(min, Math.round((cur + delta) * 100) / 100))
     const sets = e.sets.map((s, j) => (j === si ? { ...s, [field]: next } : s))
     return { ...e, sets }
