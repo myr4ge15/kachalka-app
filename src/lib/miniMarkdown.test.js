@@ -20,9 +20,10 @@ describe('parseMarkdown', () => {
     expect(parseMarkdown('Шаги:\n1. раз\n2. два').map((b) => b.type)).toEqual(['p', 'ol'])
   })
 
-  it('docs/quick-start.md разбирается целиком: есть все 15 разделов и итог', () => {
+  it('docs/quick-start.md разбирается целиком: сканер, 15 разделов и итог', () => {
     const h2 = parseMarkdown(quickStart).filter((b) => b.type === 'h' && b.level === 2)
-    expect(h2).toHaveLength(16)
+    expect(h2).toHaveLength(17)
+    expect(h2[0].text).toBe('Сканер названий тренажеров')
     expect(h2.at(-1).text).toBe('Если совсем коротко')
   })
 })

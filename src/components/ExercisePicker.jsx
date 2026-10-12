@@ -4,6 +4,7 @@ import { searchExercises } from '../lib/exerciseSearch.js'
 import { submusclesOf, secondaryOptionsFor, labelOf, majorOf, defaultSubmuscleFor } from '../lib/muscles.js'
 import SheetDialog from './SheetDialog.jsx'
 import { settleScroll } from '../lib/scrollBox.js'
+import ExerciseScanner from './ExerciseScanner.jsx'
 
 // Канонические группы мышц из ТЗ (Приложение A / п. 3.2). К ним добавляем
 // все группы, реально встретившиеся в справочнике, чтобы ничего не потерять.
@@ -29,6 +30,7 @@ export default function ExercisePicker({
   title = 'Упражнение',
 }) {
   const [query, setQuery] = useState('')
+  const [scanning, setScanning] = useState(false)
   const [group, setGroup] = useState('все')
   // Строки блока «Избранные», звезду которых тронули в этом открытии:
   // [{ id, at }] — at — позиция строки в блоке в момент тапа. Пока пикер открыт
@@ -224,6 +226,11 @@ export default function ExercisePicker({
   // Пикер рендерим порталом в <body>: оверлей position:fixed гарантированно
   // относительно вьюпорта (а не застревает внутри прокручиваемой .content под
   // шапкой/таббаром). Это и есть фикс «модалка не на весь экран».
+  if (scanning) return <ExerciseScanner exercises={exercises} onPick={onPick}
+    onClose={() => setScanning(false)} onManual={(text) => {
+      changeQuery(text); changeGroup('все'); setScanning(false)
+    }} />
+
   if (creating) {
     return (
       // В режиме создания клик по фону = «назад» к списку (setCreating(false)),
@@ -364,12 +371,18 @@ export default function ExercisePicker({
         {/* Без автофокуса (v6.12.0): клавиатура закрывала пол-экрана справочника, а
             чаще упражнение выбирают из списка или чипом группы, а не поиском.
             Нужен поиск — один тап по полю. */}
+        <div className="scanner-search-row">
         <input
           className="search"
           placeholder="Поиск по названию…"
           value={query}
           onChange={(e) => changeQuery(e.target.value)}
         />
+
+        <button type="button" className="btn scanner-open" aria-label="Сканировать название" title="Сканировать название" onClick={() => setScanning(true)}>
+          <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" aria-hidden="true"><path d="M8 5l2-2h4l2 2h4v15H4V5z" /><circle cx="12" cy="12" r="4" /></svg>
+        </button>
+        </div>
 
         <div className="chips">
           {groups.map((g) => (

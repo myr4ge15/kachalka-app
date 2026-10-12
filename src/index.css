@@ -3752,3 +3752,15 @@ html[data-sheet-open], html[data-sheet-open] body { overscroll-behavior: none; }
 .fc-feed-cta { display: block; margin: 12px auto 0; }
 .lb-boards { margin-bottom: 10px; }
 .fc-empty .btn { margin-top: 10px; }
+
+/* Exercise label scanner */
+.scanner { display: flex; flex-direction: column; gap: 12px; }
+.scanner-search-row { display: flex; gap: 8px; min-width: 0; align-items: center; }
+.scanner-search-row .search { min-width: 0; flex: 1; }
+.scanner-open { min-height: 44px; min-width: 44px; flex-shrink: 0; }
+.scanner-camera { position: relative; background: var(--surface-2); border-radius: var(--radius, 12px); overflow: hidden; }
+.scanner-camera video { display: block; width: 100%; height: auto; }
+.scanner-guide { position: absolute; inset: 25% 0; border: 2px solid var(--acc); pointer-events: none; }
+.scanner-text { overflow-wrap: anywhere; color: var(--muted); }
+.scanner .picker-item[aria-pressed="true"] { outline: 2px solid var(--acc); background: var(--acc-soft); }
+.scanner .btn { min-height: 44px; }

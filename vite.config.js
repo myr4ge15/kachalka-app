@@ -5,6 +5,7 @@ import { readFileSync } from 'node:fs'
 import { WHATS_NEW } from './src/content/whatsNew.js'
 import { updateHeadline } from './src/lib/whatsNew.js'
 import { avatarCachePattern, withBackendCsp } from './src/lib/backendOrigin.js'
+import { ocrAssets } from './scripts/ocrAssets.mjs'
 
 // Версия приложения — единый источник правды package.json; показывается внизу
 // «Профиля» (см. ProfileScreen). Подставляется на сборке в __APP_VERSION__,
@@ -62,6 +63,7 @@ export default defineConfig(({ mode }) => ({
   },
   plugins: [
     react(),
+    ocrAssets(),
     versionJson(),
     backendCsp(backendUrl(mode)),
     VitePWA({
@@ -73,7 +75,7 @@ export default defineConfig(({ mode }) => ({
       workbox: {
         // version.json — «какая версия на сервере сейчас». В precache ему нельзя:
         // закэшированный файл всегда показывал бы версию установленной сборки.
-        globIgnores: ['**/heic2any-*.js', 'version.json'],
+        globIgnores: ['**/heic2any-*.js', 'version.json', '**/ocr/**'],
         // Веб-пуши (v6.6.0): обработчики push/notificationclick — отдельным файлом
         // из public/, Workbox подключает его в начало сгенерированного sw.js. Так
         // остальная логика SW (precache, плашка обновления, кэш аватаров) не меняется.
@@ -98,6 +100,11 @@ export default defineConfig(({ mode }) => ({
         // никогда не кэшировались (онлайн — грузились заново, офлайн — серый кружок).
         // Шаблон собирает lib/backendOrigin.js: *.supabase.co + прокси, если он задан.
         runtimeCaching: [
+          {
+            urlPattern: ({ url, sameOrigin }) => sameOrigin && url.pathname.includes('/ocr/'),
+            handler: 'CacheFirst',
+            options: { cacheName: 'exercise-ocr-v1', expiration: { maxEntries: 12, maxAgeSeconds: 60 * 60 * 24 * 90 }, cacheableResponse: { statuses: [200] } },
+          },
           {
             urlPattern: avatarCachePattern(backendUrl(mode)),
             handler: 'CacheFirst',
