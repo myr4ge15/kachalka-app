@@ -182,12 +182,6 @@ describe('WorkoutScreen', () => {
     expect(screen.getByText('1 подход · 60×8')).toBeInTheDocument()
   })
 
-  it('чистит ключ отметок черновика из версий до 6.1.0', () => {
-    writeDraft(`workout_done_new_${user.id}`, ['bench::set-1'])
-    render(<WorkoutScreen user={user} />)
-    expect(readDraft(`workout_done_new_${user.id}`) ?? null).toBeNull()
-  })
-
   it('оценка «как пошло» пишется ПОСЛЕ сохранения — с id, которого до него нет', async () => {
     writeDraft(`workout_draft_new_${user.id}`, draft)
     render(<WorkoutScreen user={user} />)

@@ -20,7 +20,7 @@
 
 export const WHATS_NEW = [
   {
-    version: '7.2.4',
+    version: '7.2.5',
     date: '2026-10-12',
     headline: 'Гравитрон и резина: вес с минусом',
     main: [

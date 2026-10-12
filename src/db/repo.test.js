@@ -8,7 +8,7 @@ import { uniqueUserId } from '../test/idbHarness.js'
 import {
   saveWorkout, deleteWorkout, softDeleteMyWorkouts, getWorkout, getWorkouts,
   createExercise, updateExercise, getExercises, pendingCount, deadLetterCount,
-  retryDeadLetter, discardDeadLetter, getLastSetsForExercise, toggleReaction,
+  retryDeadLetter, discardDeadLetter, toggleReaction,
   cacheUsers, getUsers, getCachedUser, setCachedAvatar, setCachedName,
   getPrivacyFlag, toggleFavorite, getFavorites, setProgForExercise, getProgSettings,
   setWorkoutFeels, getRpe, getWorkoutFeels,
@@ -326,20 +326,6 @@ describe('dead-letter: pendingCount / retry / discard', () => {
     expect(ops[0].attempts).toBe(0)
     expect(await pendingCount()).toBe(1)
     expect(await deadLetterCount()).toBe(0)
-  })
-})
-
-describe('getLastSetsForExercise (автоподстановка)', () => {
-  it('отдает подходы последней тренировки по упражнению', async () => {
-    await saveWorkout({ user_id: userId, performed_at: '2026-01-01',
-      entries: [entry(bench, [{ weight: 80, reps: 8 }])] })
-    await saveWorkout({ user_id: userId, performed_at: '2026-03-01',
-      entries: [entry(bench, [{ weight: 100, reps: 5 }, { weight: 100, reps: 4 }])] })
-    const sets = await getLastSetsForExercise(userId, 'ex_bench')
-    expect(sets).toEqual([{ weight: 100, reps: 5 }, { weight: 100, reps: 4 }])
-  })
-  it('null, если упражнение еще не делали', async () => {
-    expect(await getLastSetsForExercise(userId, 'ex_bench')).toBe(null)
   })
 })
 

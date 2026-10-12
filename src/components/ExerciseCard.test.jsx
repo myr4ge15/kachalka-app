@@ -71,10 +71,12 @@ describe('ExerciseCard — рендер', () => {
     expect(container.querySelectorAll('.set-row')).toHaveLength(2)
   })
 
-  it('для метрики без веса прячет столбец «кг»', () => {
-    renderCard(countEntry())
-    expect(screen.queryByText('кг')).toBeNull()
-    expect(screen.getByText('повт.')).toBeInTheDocument()
+  it('«на время» — без столбца веса; «свой вес» — со столбцом «±кг» (v7.2.0)', () => {
+    const { container, unmount } = renderCard({ exercise: { id: 'e3', name: 'Планка', metric: 'time' }, sets: [{ weight: 0, reps: 60, _k: 'a' }] })
+    expect(container.querySelector('.sets-head').textContent).not.toMatch(/кг/)
+    unmount()
+    const r = renderCard(countEntry())
+    expect(r.container.querySelector('.sets-head').textContent).toBe('#±кгповт.')
   })
 
   it('без entry.prog панель автопрогрессии не рендерится', () => {

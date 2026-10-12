@@ -2,7 +2,7 @@
 // Подход {weight: км, reps: секунды}; рекорд — дистанция; темп — считается.
 import { describe, expect, it } from 'vitest'
 import {
-  bestPace, fmtMetricValue, fmtPace, fmtSet, fmtTemplateTarget, hasTimeReps, isCountMetric,
+  bestPace, fmtMetricValue, fmtPace, fmtSet, fmtTemplateTarget, isCountMetric,
   leadingValue, normMetric, paceSecPerKm, setTonnage,
 } from './metric.js'
 import { clampSet, repsMax, TIME_MAX } from './setLimits.js'
@@ -18,8 +18,6 @@ describe('metric: дистанция', () => {
   it('известная метрика; не «одно число», время — в reps', () => {
     expect(normMetric('distance')).toBe('distance')
     expect(isCountMetric('distance')).toBe(false)
-    expect(hasTimeReps('distance')).toBe(true)
-    expect(hasTimeReps('weight')).toBe(false)
   })
 
   it('рекорд — самая длинная дистанция, а не время', () => {

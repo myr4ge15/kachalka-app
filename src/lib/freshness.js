@@ -340,30 +340,6 @@ export function submuscleImbalance(workouts, { now = new Date(), windowDays = 14
   return out
 }
 
-// Карта submuscle → bucket для heatmap-силуэта по подмышцам (слайс 3b): аналог
-// groupBuckets. Тренированные подмышцы берут бакет из recovery-списка, «ни разу»
-// из дисбаланса → 'never'. Не тренированные в карту не идут (силуэт красит их нейтрально).
-export function submuscleBuckets(recovery, imbalance) {
-  const map = {}
-  for (const f of recovery ?? []) if (f?.submuscle) map[f.submuscle] = f.bucket
-  for (const x of imbalance ?? []) if (x?.kind === 'never' && x.submuscle) map[x.submuscle] = 'never'
-  return map
-}
-
-// Самая просроченная ПОДМЫШЦА (по основной работе) → {submuscle, major, daysAgo} | null.
-export function mostNeglectedSubmuscle(workouts, now = new Date()) {
-  const map = lastTrainedBySubmuscle(workouts)
-  const today = dayIndex(now)
-  let worst = null
-  for (const [s, { day }] of map) {
-    if (s === 'cardio') continue
-    const days = today - day
-    // Тай-брейк по слагу подмышцы — детерминизм при равной давности (см. выше).
-    if (!worst || days > worst.daysAgo || (days === worst.daysAgo && s < worst.submuscle))
-      worst = { submuscle: s, major: majorOf(s), daysAgo: days }
-  }
-  return worst
-}
 
 export { GROUP_ORDER }
 

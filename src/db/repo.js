@@ -25,7 +25,6 @@ import { sortUsersByOrder } from '../lib/userOrder.js'
 import { normMetric } from '../lib/metric.js'
 import { savableSet, toNum } from '../lib/setLimits.js'
 import { canEditExercise } from '../lib/exerciseCatalog.js'
-import { pickLastSets } from '../lib/lastSets.js'
 import { isReactionKind } from '../lib/reactions.js'
 import { defaultSubmuscleFor, cleanSecondary } from '../lib/muscles.js'
 import { pickExerciseShape, entryUnitMetric } from '../lib/entries.js'
@@ -278,19 +277,6 @@ export async function getWorkouts(userId) {
       cmpIsoDesc(a.performed_at, b.performed_at) ||
       cmpIsoDesc(a.created_at, b.created_at)
     )
-}
-
-// Подходы последнего выполнения упражнения (автоподстановка при добавлении в
-// тренировку, виш из BACKLOG). Читаем СВОИ тренировки из локальной базы и отдаем
-// подходы самой свежей, где встречается это упражнение (см. lib/lastSets.js);
-// null → упражнение еще не делали, форма подставит дефолт. Сеть не нужна.
-export async function getLastSetsForExercise(userId, exerciseId) {
-  if (!userId || !exerciseId) return null
-  const list = await db.workouts.where('user_id').equals(userId).toArray()
-  // Метрика из справочника: после смены типа упражнения подходы в старой единице
-  // (кг вместо повторов) в автоподстановку не берем (РЕВЬЮ-КОДА-2026-10-02, п. 17).
-  const ex = await db.exercises.get(exerciseId)
-  return pickLastSets(list, exerciseId, ex?.metric)
 }
 
 // Недавние сессии по упражнению (для автопрогрессии, PLAN-autoprogression).

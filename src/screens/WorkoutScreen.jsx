@@ -66,8 +66,7 @@ export default function WorkoutScreen({ user, workoutId = null, onBack, onSaved 
   // только внутри saveWorkout. Поэтому они ждут в стейте экрана и переживают уход
   // с экрана в том же хранилище черновика.
   // (Отметки «подход выполнен» убраны в v6.1.0: что в строках — то и записано,
-  // лишний подход удаляется ✕. Их прежний ключ черновика `workout_done_new_*`
-  // чистится один раз ниже, чтобы не висел в localStorage.)
+  // лишний подход удаляется ✕.)
   const FEEL_KEY = `workout_feel_new_${user.id}`
 
   const [entries, setEntries] = useState(() => (isNew ? readDraft(DRAFT_KEY) ?? [] : []))
@@ -133,8 +132,6 @@ export default function WorkoutScreen({ user, workoutId = null, onBack, onSaved 
     if (isNew) writeDraft(FEEL_KEY, feels)
   }, [isNew, FEEL_KEY, feels])
 
-  // Остаток отметок выполнения из версий до 6.1.0 — больше не читается.
-  useEffect(() => { dropDraft(`workout_done_new_${user.id}`) }, [user.id])
 
   // Undo-тост удаления привязан к ЭТОМУ экрану: его «Отменить» зовет setEntries,
   // которого после ухода со страницы уже нет. Поэтому при размонтировании гасим

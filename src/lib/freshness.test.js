@@ -18,8 +18,6 @@ import {
   lastWorkedBySubmuscle,
   submuscleFreshness,
   submuscleImbalance,
-  mostNeglectedSubmuscle,
-  submuscleBuckets,
 } from './freshness.js'
 
 function wk({ id, at, entries, deleted }) {
@@ -263,38 +261,6 @@ describe('submuscleImbalance', () => {
     const s = new Set(submuscleImbalance(wc, { now: NOW }).map((x) => x.submuscle))
     expect(s.has('chest_middle')).toBe(true) // обычная подмышца груди — выносится
     expect(s.has('serratus')).toBe(false) // минорная — нет
-  })
-})
-
-describe('mostNeglectedSubmuscle', () => {
-  it('самая давняя по основной работе', () => {
-    const w = [
-      swk({ id: 'q', at: daysAgo(9), entries: [{ sub: 'quads', major: 'ноги' }] }),
-      swk({ id: 'c', at: daysAgo(2), entries: [{ sub: 'chest_lower', major: 'грудь' }] }),
-    ]
-    expect(mostNeglectedSubmuscle(w, NOW)).toEqual({ submuscle: 'quads', major: 'ноги', daysAgo: 9 })
-  })
-  it('пусто → null', () => {
-    expect(mostNeglectedSubmuscle([], NOW)).toBeNull()
-  })
-  it('при равной давности выбор детерминирован (тай-брейк по слагу)', () => {
-    const a = swk({ id: 'q', at: daysAgo(9), entries: [{ sub: 'quads', major: 'ноги' }] })
-    const b = swk({ id: 'l', at: daysAgo(9), entries: [{ sub: 'lats', major: 'спина' }] })
-    expect(mostNeglectedSubmuscle([a, b], NOW).submuscle).toBe(mostNeglectedSubmuscle([b, a], NOW).submuscle)
-  })
-})
-
-describe('submuscleBuckets', () => {
-  it('тренированные берут бакет, never — из дисбаланса, пустые не идут', () => {
-    const rec = [{ submuscle: 'quads', bucket: 'recent' }, { submuscle: 'chest_lower', bucket: 'fresh' }]
-    const imb = [{ submuscle: 'delt_rear', kind: 'never' }, { submuscle: 'lats', kind: 'stale', daysSince: 20 }]
-    const m = submuscleBuckets(rec, imb)
-    expect(m).toEqual({ quads: 'recent', chest_lower: 'fresh', delt_rear: 'never' })
-    expect(m.lats).toBeUndefined() // stale в карту не идет
-  })
-  it('пустые входы → пустая карта', () => {
-    expect(submuscleBuckets([], [])).toEqual({})
-    expect(submuscleBuckets(undefined, undefined)).toEqual({})
   })
 })
 

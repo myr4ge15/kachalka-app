@@ -165,20 +165,10 @@ describe('fmtSet', () => {
     expect(fmtExtraWeight(0)).toBe('')
     expect(fmtExtraWeight('abc')).toBe('')
   })
-  it('fmtSetList: «свой вес» — вес в начале группы подходов подряд (v7.2.2)', () => {
+  it('fmtSetList: подходы через разделитель, пусто → \'\'', () => {
     const s = (weight, reps) => ({ weight, reps })
-    // скрин владельца 12.10: −15, затем три по −17.5
-    expect(fmtSetList('reps', [s(-15, 12), s(-17.5, 12), s(-17.5, 12), s(-17.5, 12)]))
-      .toBe(`−15${N}кг:${N}12 · −17.5${N}кг:${N}12,${N}12,${N}12`)
-    expect(fmtSetList('reps', [s(-20, 12), s(-20, 12), s(-20, 10)])).toBe(`−20${N}кг:${N}12,${N}12,${N}10`)
-    expect(fmtSetList('reps', [s(10, 8), s(10, 6)])).toBe(`+10${N}кг:${N}8,${N}6`)
-    expect(fmtSetList('reps', [s(-20, 12)])).toBe(`−20${N}кг:${N}12`)
-    // без веса — как раньше (и с разделителем вызывающего); смешанно — группы через « · »
-    expect(fmtSetList('reps', [s(0, 12), s(0, 12), s(0, 10)])).toBe('12, 12, 10')
-    expect(fmtSetList('reps', [s(0, 12), s(0, 10)], ' · ')).toBe('12 · 10')
-    expect(fmtSetList('reps', [s(0, 10), s(0, 8), s(-10, 6)])).toBe(`10, 8 · −10${N}кг:${N}6`)
-    // весовые не трогаем
-    expect(fmtSetList('weight', [s(80, 8), s(80, 8)])).toBe('80×8, 80×8')
+    expect(fmtSetList('reps', [s(0, 12), s(0, 10)])).toBe('12, 10')
+    expect(fmtSetList('weight', [s(80, 8), s(80, 8)], ' · ')).toBe('80×8 · 80×8')
     expect(fmtSetList('weight', [])).toBe('')
     expect(fmtSetList('reps', undefined)).toBe('')
     expect(hasExtraWeight('reps')).toBe(true)
