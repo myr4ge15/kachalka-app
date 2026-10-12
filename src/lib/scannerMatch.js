@@ -7,8 +7,8 @@ const LABELS = [
   [['leg extension'], ['Разгибание ног в тренажере']],
   [['leg curl', 'seated leg curl', 'lying leg curl'], ['Сгибание ног в тренажере']],
   [['leg press'], ['Жим ногами']],
-  [['hip abductor', 'hip abduction'], ['Разведение ног в тренажере (Hip Abductor)']],
-  [['hip adductor', 'hip adduction'], ['Сведение ног в тренажёре (Hip Adductor)']],
+  [['hip abductor', 'hip abduction', 'abductor'], ['Разведение ног в тренажере (Hip Abductor)']],
+  [['hip adductor', 'hip adduction', 'adductor'], ['Сведение ног в тренажёре (Hip Adductor)']],
   [['seated row', 'low row'], ['Горизонтальная тяга блока']],
   [['chest press', 'incline chest press'], ['Жим в тренажере Хаммер']],
   [['pec deck', 'chest fly'], ['Сведения в тренажере Бабочка']],
@@ -26,14 +26,17 @@ const LABELS = [
   [['elliptical', 'cross trainer'], ['Эллипс (Орбитрек)']],
 ]
 
-function phraseMatch(text, phrase) {
+function phraseMatch(text, phrase, fuzzy = false) {
   if (` ${text} `.includes(` ${phrase} `)) return true
+  if (!fuzzy) return false
   const words = phrase.split(' '), input = text.split(' ')
   if (words.length < 2) return false
   return input.some((_, i) => {
     const slice = input.slice(i, i + words.length)
     if (slice.length !== words.length) return false
     // One OCR typo in the whole phrase, not fuzzy matching each short word.
+    const directional = /^(abductor|adductor|abduction|adduction)$/
+    if (words.some((w, j) => (directional.test(w) || directional.test(slice[j])) && w !== slice[j])) return false
     return words.reduce((n, w, j) => n + levenshtein(w, slice[j]), 0) <= 1
   })
 }
@@ -41,13 +44,21 @@ function phraseMatch(text, phrase) {
 export function matchScannedText(text, exercises) {
   const norm = normalizeName(String(text).slice(0, 500))
   if (norm.length < 5) return []
-  const targets = new Set()
-  for (const [aliases, names] of LABELS) {
-    if (aliases.some(a => phraseMatch(norm, a))) names.forEach(n => targets.add(normalizeName(n)))
-  }
   const unresolved = new Set(['Приведение руки к груди', 'Шраги со штангой лежа', 'Сведение гантелей за голову лежа на скамье', 'Разведения сидя на опоре', 'Ягодичный мост со сведенными стопами'].map(normalizeName))
-  return exercises.filter(e => !e.is_hidden && !unresolved.has(normalizeName(e.name)) && (
-    targets.has(normalizeName(e.name)) ||
-    (normalizeName(e.name).length >= 6 && phraseMatch(norm, normalizeName(e.name)))
-  )).map(exercise => ({ exercise }))
+  const visible = exercises.filter(e => !e.is_hidden && !unresolved.has(normalizeName(e.name)))
+  const find = fuzzy => {
+    const targets = new Map()
+    for (const [aliases, names] of LABELS) {
+      const label = aliases.find(a => phraseMatch(norm, a, fuzzy))
+      if (label) names.forEach(n => targets.set(normalizeName(n), label.toUpperCase()))
+    }
+    return visible.flatMap(exercise => {
+      const name = normalizeName(exercise.name)
+      const label = targets.get(name)
+      return label || (name.length >= 6 && phraseMatch(norm, name, fuzzy))
+        ? [{ exercise, label: label || exercise.name }] : []
+    })
+  }
+  const exact = find(false)
+  return exact.length ? exact : find(true)
 }

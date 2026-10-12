@@ -1,6 +1,15 @@
 import { describe, it, expect } from 'vitest'
 import { matchScannedText } from './scannerMatch.js'
 const catalog = ['Тяга верхнего блока', 'Жим ногами', 'Подъем на носки сидя', 'Подъем на носки стоя', 'Приведение руки к груди'].map((name, id) => ({ name, id }))
+const hips = [
+  { id: 'in', name: 'Сведение ног в тренажёре (Hip Adductor)' },
+  { id: 'out', name: 'Разведение ног в тренажере (Hip Abductor)' },
+]
+it('does not confuse opposing movements, but supports a combined machine', () => {
+  expect(matchScannedText('HIP ADDUCTOR', hips).map(m => m.exercise.id)).toEqual(['in'])
+  expect(matchScannedText('HIP ABDUCTOR', hips).map(m => m.exercise.id)).toEqual(['out'])
+  expect(matchScannedText('HIP ABDUCTOR &\nADDUCTOR MACHINE', hips)).toHaveLength(2)
+})
 describe('scanner matching', () => {
   it('reads a bilingual equipment label amid brand text', () => {
     expect(matchScannedText('TECHNOGYM\nLAT PULLDOWN\n25 KG', catalog).map(x => x.exercise.id)).toEqual([0])

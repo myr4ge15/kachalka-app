@@ -33,6 +33,7 @@ test('camera label → explicit selection → workout', async ({ page, context }
         ctx.fillStyle = 'white'; ctx.fillRect(0, 0, 1000, 600)
         ctx.fillStyle = 'black'; ctx.font = 'bold 72px Arial'
         ctx.fillText('LAT PULLDOWN', 70, 320)
+        ctx.fillText('LEG EXTENSION', 70, 90) // Outside the guide: must not reach OCR.
       }
       draw()
       const stream = canvas.captureStream(5)
@@ -53,6 +54,7 @@ test('camera label → explicit selection → workout', async ({ page, context }
   await page.evaluate(async () => {
     const { db } = await import('/kachalka-app/src/db/local.js')
     await db.exercises.put({ id: 'scanner-fixture', name: 'Тяга верхнего блока', muscle_group: 'спина', metric: 'weight' })
+    await db.exercises.put({ id: 'scanner-outside', name: 'Разгибание ног в тренажере', muscle_group: 'ноги', metric: 'weight' })
   })
   await page.locator('.tabbar').getByRole('button', { name: 'Записать тренировку' }).click()
   await page.getByRole('button', { name: 'Добавить упражнение' }).click()
@@ -60,6 +62,7 @@ test('camera label → explicit selection → workout', async ({ page, context }
   await expect(page.getByRole('button', { name: 'Выбрать упражнение' })).toBeVisible({ timeout: 30_000 })
   await expect(page.getByRole('button', { name: 'Выбрать упражнение' })).toBeDisabled()
   expect(await page.evaluate(() => window.scannerStopped)).toBe(true)
+  await expect(page.getByRole('button', { name: /Разгибание ног в тренажере/ })).toHaveCount(0)
   await page.getByRole('button', { name: /Тяга верхнего блока/ }).click()
   await page.screenshot({ path: '../../outputs/scanner-preview.png' })
   await page.getByRole('button', { name: 'Выбрать упражнение' }).click()

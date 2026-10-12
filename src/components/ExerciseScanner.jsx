@@ -2,6 +2,7 @@ import { useEffect, useRef, useState } from 'react'
 import SheetDialog from './SheetDialog.jsx'
 import { matchScannedText } from '../lib/scannerMatch.js'
 import { createScannerWorker } from '../services/scannerOcr.js'
+import { frameHasDetail } from '../lib/scannerFrame.js'
 
 export default function ExerciseScanner({ exercises, onPick, onClose, onManual }) {
   const video = useRef(null)
@@ -65,13 +66,20 @@ export default function ExerciseScanner({ exercises, onPick, onClose, onManual }
             canvas.width = Math.min(v.videoWidth, 1280)
             canvas.height = Math.round(h * canvas.width / v.videoWidth)
             context.drawImage(v, 0, v.videoHeight * 0.25, v.videoWidth, h, 0, 0, canvas.width, canvas.height)
+            if (!frameHasDetail(context.getImageData(0, 0, canvas.width, canvas.height).data)) {
+              lastKey = ''; repeats = 0; setText('')
+              setStatus('Не видно надписи. Открой камеру и наведи рамку на название.')
+              timer = setTimeout(scan, 1200)
+              return
+            }
             frameTimer = setTimeout(() => fail('Не удалось прочитать кадр вовремя. Попробуй повторить или используй ручной поиск.'), 30_000)
             const { data } = await worker.recognize(canvas)
             clearTimeout(frameTimer)
             if (disposed) return
             const value = data.text.trim().slice(0, 500)
-            setText(value)
             const matches = data.confidence >= 45 ? matchScannedText(value, catalog.current) : []
+            // Only a recognized catalog label is user-facing, never raw OCR noise.
+            setText(matches.length ? [...new Set(matches.map(m => m.label))].join(' · ') : '')
             const key = matches.map(m => m.exercise.id).sort().join('|')
             repeats = key && key === lastKey ? repeats + 1 : 1
             lastKey = key
@@ -109,9 +117,9 @@ export default function ExerciseScanner({ exercises, onPick, onClose, onManual }
         <div className="scanner-guide" aria-hidden="true" />
       </div>}
       <p role="status">{error || status}</p>
-      {text && <p className="scanner-text">Прочитано: {text}</p>}
+      {result && text && <p className="scanner-text">Название: {text}</p>}
       {result && <>
-        <p>Найденные варианты могут отличаться от тренажера. Выбери подходящий:</p>
+        <p>{result.length === 1 ? 'Подтверди упражнение:' : 'На табличке несколько вариантов. Выбери нужное движение:'}</p>
         {result.map(({ exercise: e }) => <button key={e.id} className="picker-item"
           aria-pressed={selected === String(e.id)} onClick={() => setSelected(String(e.id))}>
           <span>{e.name}</span><span className="picker-group">{e.muscle_group}</span>
@@ -120,7 +128,7 @@ export default function ExerciseScanner({ exercises, onPick, onClose, onManual }
       </>}
       {(error || result) && <button className="btn full" onClick={retry}>Повторить сканирование</button>}
       <button className="btn full" onClick={() => onManual(text)}>Найти вручную</button>
-      <p className="muted">Кадры обрабатываются на устройстве и не отправляются на сервер. Первое открытие загружает файлы распознавания.</p>
+      <p className="muted">Камера читает только название в рамке. Кадры остаются на устройстве.</p>
     </div>
   </SheetDialog>
 }
