@@ -1,8 +1,9 @@
-import { Fragment, useState, useMemo, useDeferredValue } from 'react'
+import { Fragment, useState, useMemo, useDeferredValue, useLayoutEffect, useRef } from 'react'
 import { findSimilar, findExactDuplicate } from '../lib/similar.js'
 import { searchExercises } from '../lib/exerciseSearch.js'
 import { submusclesOf, secondaryOptionsFor, labelOf, majorOf, defaultSubmuscleFor } from '../lib/muscles.js'
 import SheetDialog from './SheetDialog.jsx'
+import { settleScroll } from '../lib/scrollBox.js'
 
 // Канонические группы мышц из ТЗ (Приложение A / п. 3.2). К ним добавляем
 // все группы, реально встретившиеся в справочнике, чтобы ничего не потерять.
@@ -38,6 +39,7 @@ export default function ExercisePicker({
   const changeQuery = (v) => { setQuery(v); setPinnedFav([]) }
   const changeGroup = (g) => { setGroup(g); setPinnedFav([]) }
 
+
   // Режим создания своего упражнения.
   const [creating, setCreating] = useState(false)
   const [newName, setNewName] = useState('')
@@ -65,6 +67,21 @@ export default function ExercisePicker({
   // фактический debounce без таймеров. Заметно на мобильном и большом справочнике.
   const deferredQuery = useDeferredValue(query)
   const deferredNewName = useDeferredValue(newName)
+
+  // Новый фильтр — список с начала (v7.1.7). Иначе позиция прошлой группы
+  // оставалась: пролистал «спину» вниз, выбрал «бицепс» — его короткий список
+  // начинался выше края, а последнее упражнение висело посередине (WebKit не
+  // поджимает scrollTop укоротившегося списка, особенно пока тот едет по инерции).
+  // settleScroll ставит позицию наверняка, гася инерцию. Первый показ не трогаем;
+  // запрос — по отложенному значению, тем же, по которому фильтруется список.
+  const listRef = useRef(null)
+  const filterKey = group + '\n' + deferredQuery
+  const lastFilterKey = useRef(filterKey)
+  useLayoutEffect(() => {
+    if (lastFilterKey.current === filterKey) return undefined
+    lastFilterKey.current = filterKey
+    return settleScroll(listRef.current, 0)
+  }, [filterKey])
 
   // Фильтр по группе — сначала (он сужает справочник), умный поиск — по остатку.
   // `byName` — совпадения по названию, `byMuscle` — только по мышце («плеч»).
@@ -366,7 +383,7 @@ export default function ExercisePicker({
           ))}
         </div>
 
-        <div className="picker-list">
+        <div className="picker-list" ref={listRef}>
           {showShortcuts && shortcuts.fav.length > 0 && (
             <>
               <div className="group-title">Избранные</div>

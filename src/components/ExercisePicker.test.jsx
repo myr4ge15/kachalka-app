@@ -161,3 +161,28 @@ describe('ExercisePicker — ⭐ избранные (v6.5.0)', () => {
     expect(favBlock()).toEqual(['Жим лежагрудь'])
   })
 })
+
+describe('ExercisePicker — позиция списка (v7.1.7)', () => {
+  it('смена группы и поиска возвращает список к началу, первый показ не трогает', () => {
+    renderPicker()
+    const list = document.querySelector('.picker-list')
+    list.scrollTop = 0
+    expect(list.scrollTop).toBe(0)
+    list.scrollTop = 400 // пролистали «все» вниз
+    fireEvent.click(screen.getByRole('button', { name: 'спина' }))
+    expect(list.scrollTop).toBe(0)
+    list.scrollTop = 300
+    type(screen.getByPlaceholderText('Поиск по названию…'), 'тяга')
+    expect(list.scrollTop).toBe(0)
+  })
+
+  it('перерисовка без смены фильтра позицию не сбрасывает', () => {
+    const { rerender } = render(
+      <ExercisePicker exercises={CATALOG} onPick={vi.fn()} onClose={vi.fn()} />
+    )
+    const list = document.querySelector('.picker-list')
+    list.scrollTop = 250
+    rerender(<ExercisePicker exercises={[...CATALOG]} onPick={vi.fn()} onClose={vi.fn()} />)
+    expect(list.scrollTop).toBe(250)
+  })
+})
