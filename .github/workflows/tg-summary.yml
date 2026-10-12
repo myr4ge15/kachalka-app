@@ -7,9 +7,12 @@ on:
   schedule:
     - cron: "0 6 * * 1"
   workflow_dispatch:
+# Токену репозитория здесь делать нечего: только curl с секретом.
+permissions: {}
 jobs:
   ping:
     runs-on: ubuntu-latest
+    timeout-minutes: 5
     steps:
       - name: Сводка
         env:
@@ -17,7 +20,7 @@ jobs:
           SECRET: ${{ secrets.WEBHOOK_SECRET }}
         run: |
           if [ -z "$URL" ] || [ -z "$SECRET" ]; then echo "Нет SUMMARY_URL/WEBHOOK_SECRET — пропускаю"; exit 0; fi
-          echo "sha256 секрета: $(printf %s "$SECRET" | sha256sum | cut -c1-64), длина ${#SECRET}"
-          code=$(curl -sS -o resp.txt -w '%{http_code}' -X POST -H "x-webhook-secret: $SECRET" "$URL")
+          # Секрет и его производные (хэш, длину) в лог не пишем: логи публичного репо видны всем.
+          code=$(curl -sS --max-time 60 -o resp.txt -w '%{http_code}' -X POST -H "x-webhook-secret: $SECRET" "$URL")
           echo "HTTP $code: $(cat resp.txt)"
           [ "$code" = "200" ]

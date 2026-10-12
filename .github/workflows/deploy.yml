@@ -49,15 +49,29 @@ jobs:
   #  - без секретов сборка проходит, но друзья получают экран «Нужна настройка».
   # Плюс (09.10.2026): был ли уже зеленый прогон Tests на этом коммите. Обычно тег
   # ставится на проверенный коммит main — тогда проверки второй раз не гоняем.
+  # Плюс (12.10.2026): коммит тега уже есть в main (иначе при тихо упавшем git push
+  # друзьям уехал бы код, которого нет в main), а Tests на нем не красный.
   preflight:
     runs-on: ubuntu-latest
+    timeout-minutes: 20
     permissions:
       contents: read
       actions: read
     outputs:
       tested: ${{ steps.tested.outputs.tested }}
     steps:
+      # Вся история: нужна origin/main для проверки «коммит тега есть в main».
       - uses: actions/checkout@v5
+        with:
+          fetch-depth: 0
+
+      - name: Коммит тега есть в main
+        run: |
+          if ! git merge-base --is-ancestor "$GITHUB_SHA" origin/main; then
+            echo "::error title=Коммит не в main::${GITHUB_REF_NAME} (${GITHUB_SHA:0:7}) не входит в main. Сначала git push коммита, потом тег."
+            exit 1
+          fi
+          echo "${GITHUB_SHA:0:7} входит в main."
 
       - name: Тег = версия, секреты заданы
         env:
@@ -77,10 +91,12 @@ jobs:
 
       # Ищем прогон test.yml ровно на этом SHA. Тег можно ставить сразу после пуша в
       # main: если Tests на этом коммите еще идет — ждем его (до 15 мин), а не гоняем
-      # проверки второй раз. Зеленый — сразу сборка. Упал, отменен или его нет вовсе
-      # (тег на непроверенном коммите, старый тег для отката) — проверки прогонит
-      # задача tests ниже. Сбой самого запроса = «не нашли»: лучше лишний прогон,
-      # чем выкат без проверок.
+      # проверки второй раз. Зеленый — сразу сборка. КРАСНЫЙ (12.10.2026) — выкат
+      # останавливаем: иначе повторный прогон «моргающего» теста мог пройти, и уехал бы
+      # коммит, на котором main был красным. Чинить — Re-run failed jobs в Tests, затем
+      # Re-run этого выката. Отменен или его нет вовсе (коммит только с документацией,
+      # старый тег для отката) — проверки прогонит задача tests ниже. Сбой самого
+      # запроса = «не нашли»: лучше лишний прогон, чем выкат без проверок.
       - name: Tests зеленый на этом коммите? (подождать, если еще идет)
         id: tested
         timeout-minutes: 16
@@ -89,11 +105,13 @@ jobs:
         run: |
           api="repos/$GITHUB_REPOSITORY/actions/workflows/test.yml/runs?head_sha=$GITHUB_SHA&per_page=20"
           tested=false
+          red=0
           for i in $(seq 1 60); do
             json=$(gh api "$api" 2>/dev/null || echo '{}')
             total=$(echo "$json" | jq '[.workflow_runs[]?] | length')
             ok=$(echo "$json" | jq '[.workflow_runs[]? | select(.conclusion == "success")] | length')
             live=$(echo "$json" | jq '[.workflow_runs[]? | select(.status != "completed")] | length')
+            red=$(echo "$json" | jq '[.workflow_runs[]? | select(.conclusion == "failure" or .conclusion == "timed_out")] | length')
             if [ "${ok:-0}" -gt 0 ]; then tested=true; break; fi
             # Пуш в main и тег почти одновременно: прогон Tests может появиться не сразу.
             if [ "${total:-0}" -eq 0 ] && [ "$i" -gt 4 ]; then break; fi
@@ -101,6 +119,10 @@ jobs:
             [ "$i" -eq 1 ] && echo "Жду Tests на ${GITHUB_SHA:0:7}…"
             sleep 15
           done
+          if [ "$tested" != true ] && [ "${red:-0}" -gt 0 ] && [ "${live:-0}" -eq 0 ]; then
+            echo "::error title=Tests красный на ${GITHUB_SHA:0:7}::Выкат остановлен. Почини или перезапусти Tests (Re-run failed jobs), затем Re-run этого выката."
+            exit 1
+          fi
           echo "tested=$tested" >> "$GITHUB_OUTPUT"
           if [ "$tested" = true ]; then
             echo "::notice title=Проверки не повторяем::Tests зеленый на ${GITHUB_SHA:0:7} — сразу сборка."
@@ -122,6 +144,7 @@ jobs:
     needs: [preflight, tests]
     if: ${{ !cancelled() && needs.preflight.result == 'success' && (needs.tests.result == 'success' || needs.tests.result == 'skipped') }}
     runs-on: ubuntu-latest
+    timeout-minutes: 15
     permissions:
       contents: read
     steps:
@@ -154,6 +177,7 @@ jobs:
     needs: build
     if: ${{ !cancelled() && needs.build.result == 'success' }}
     runs-on: ubuntu-latest
+    timeout-minutes: 15
     permissions:
       pages: write
       id-token: write
@@ -180,7 +204,7 @@ jobs:
             echo "::warning title=Пуш о новой версии не отправлен::В Actions нет секрета PUSH_WEBHOOK_SECRET (Settings → Secrets and variables → Actions)."
             exit 0
           fi
-          code=$(curl -sS -o push-update.txt -w '%{http_code}' -X POST \
+          code=$(curl -sS --max-time 120 -o push-update.txt -w '%{http_code}' -X POST \
             -H "x-webhook-secret: $PUSH_WEBHOOK_SECRET" \
             https://lkrrbpbytinrdpfmhxep.functions.supabase.co/push-update || echo 000)
           echo "push-update ответил $code: $(cat push-update.txt 2>/dev/null)"

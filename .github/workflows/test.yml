@@ -2,7 +2,7 @@ name: Tests
 
 # Lint + юнит-тесты (Vitest, два пояса) + smoke-сборка и smoke-e2e (Playwright).
 # CI на GitHub Actions делает чистый npm ci, поэтому проблемы песочницы с битым
-# node_modules здесь нет. См. docs/PLAN-tests.md.
+# node_modules здесь нет. См. docs/plans/PLAN-tests.md.
 
 # С 03.08.2026 `main` НЕ исключается. Раньше его проверял deploy.yml (он же и
 # публиковал), но публикация переехала на теги — и без этой правки пуш в main
@@ -11,11 +11,20 @@ name: Tests
 # (workflow_call) только если на коммите тега еще нет зеленого прогона Tests —
 # обычно тег ставится на уже проверенный коммит main, и проверки не повторяются.
 # Проверки описаны только здесь: deploy.yml своих шагов lint/test/e2e не держит.
+# Коммит только с документацией (README, AGENTS, docs/) Tests не запускает. Тег на таком
+# коммите все равно проверится: deploy.yml не найдет прогона и вызовет этот workflow сам.
+# docs/quick-start.md — исключение: он вшит в приложение (QuickStartSheet, ?raw).
+# Отрицания работают только в `paths` (не в paths-ignore); побеждает последнее совпадение.
 on:
   push:
     branches: [main]
+    paths: ['**', '!**.md', '!docs/**', 'docs/quick-start.md']
   pull_request:
   workflow_call:
+
+# Только чтение кода; при вызове из deploy.yml права и так задает вызывающая задача.
+permissions:
+  contents: read
 
 jobs:
   # С 09.10.2026 — три параллельные задачи вместо одной цепочки (было ~3 мин подряд):
@@ -23,6 +32,7 @@ jobs:
 
   lint:
     runs-on: ubuntu-latest
+    timeout-minutes: 10
     steps:
       - uses: actions/checkout@v5
       - uses: actions/setup-node@v5
@@ -40,6 +50,7 @@ jobs:
   unit:
     name: unit (${{ matrix.tz }})
     runs-on: ubuntu-latest
+    timeout-minutes: 15
     strategy:
       fail-fast: false
       matrix:
@@ -61,6 +72,7 @@ jobs:
   # Версия = @playwright/test из package-lock.json — единственное место, где она записана.
   e2e:
     runs-on: ubuntu-latest
+    timeout-minutes: 20
     container:
       image: mcr.microsoft.com/playwright:v1.63.0-noble
     steps:
