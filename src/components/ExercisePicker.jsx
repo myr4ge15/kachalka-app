@@ -383,7 +383,7 @@ export default function ExercisePicker({
           ))}
         </div>
 
-        <div className="picker-list" ref={listRef}>
+        <div className="picker-list" ref={listRef} data-sheet-bounce="">
           {showShortcuts && shortcuts.fav.length > 0 && (
             <>
               <div className="group-title">Избранные</div>

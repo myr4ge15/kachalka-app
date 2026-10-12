@@ -4,11 +4,19 @@
 // 06.10). Правило: ищем от пальца вверх ближайший блок с настоящей
 // прокруткой по оси жеста; нет такого или он уперся в край — жест гасим.
 //
-// box — { scrollTop, scrollHeight, clientHeight } | null; dy — сдвиг пальца по Y
-// с прошлого события (> 0 — тянут вниз, то есть листают к началу).
+// Исключение (v7.1.10) — списки с атрибутом data-sheet-bounce (пикеры): у края их
+// жест НЕ гасим, iPhone сам пружинит список, как в обычных приложениях. Раньше
+// тянуть список вверх у начала было «как об стену», а короткий список (фильтр
+// «бицепс») не двигался вовсе. Утечки на страницу нет: у списка
+// overscroll-behavior: contain, а он сам прокручивается всегда (CSS добавляет ему
+// 2 px сверх высоты) — значит, жест у края достается ему, а не оболочке.
+//
+// box — { scrollTop, scrollHeight, clientHeight, dataset? } | null; dy — сдвиг пальца
+// по Y с прошлого события (> 0 — тянут вниз, то есть листают к началу).
 export function shouldBlockSheetTouch(box, dy, axis = 'y') {
   if (!dy) return false
   if (!box) return true
+  if (axis === 'y' && box.dataset?.sheetBounce !== undefined) return false
   const position = axis === 'x' ? box.scrollLeft : box.scrollTop
   const client = axis === 'x' ? box.clientWidth : box.clientHeight
   const size = axis === 'x' ? box.scrollWidth : box.scrollHeight

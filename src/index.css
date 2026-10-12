@@ -1092,6 +1092,16 @@ select, textarea { font-variant-numeric: inherit; font-feature-settings: inherit
    отменяет min-height:auto flex-элемента, и многострочные строки (шаблоны с
    составом) сплющивались до 56 px и наезжали друг на друга. */
 .picker-list > * { flex-shrink: 0; }
+/* v7.1.10: список пикера прокручивается ВСЕГДА — пусть на 2 px, если все влезает
+   (фильтр «бицепс»). Тогда iPhone пружинит его у обоих краев, как родной список,
+   а не «упирается в стену»; жест у края SheetDialog не гасит (lib/sheetTouch.js,
+   data-sheet-bounce). Невидимая полоска абсолютным позиционированием: высота —
+   от высоты самого скроллера, в flex-раскладку строк не вмешивается. */
+.picker-list[data-sheet-bounce] { position: relative; }
+.picker-list[data-sheet-bounce]::after {
+  content: ''; position: absolute; top: 0; left: 0; width: 1px;
+  height: calc(100% + 2px); pointer-events: none;
+}
 .picker-group { color: var(--muted); font-size: 12px; }
 /* v7.1.7: длинное название («…на изолированном тренажере») упиралось в группу
    мышц вплотную, а на узком экране длинное слово заезжало на нее. Название

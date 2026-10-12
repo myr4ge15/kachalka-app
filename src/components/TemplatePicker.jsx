@@ -41,7 +41,7 @@ export default function TemplatePicker({ user, onPick, onClose }) {
   // Портал в <body>: оверлей на весь вьюпорт, не застревает под шапкой/таббаром.
   return (
     <SheetDialog title="Выбрать шаблон" onDismiss={onClose}>
-        <div className="picker-list">
+        <div className="picker-list" data-sheet-bounce="">
           {loading && <p className="muted">Загрузка…</p>}
 
           {!loading && list.length === 0 && (
