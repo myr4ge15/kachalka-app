@@ -14,6 +14,8 @@ import {
   fmtSet,
 } from './metric.js'
 
+const N = '\u00A0' // неразрывный пробел в подписях веса
+
 describe('normMetric', () => {
   it('пропускает допустимые метрики', () => {
     expect(normMetric('weight')).toBe('weight')
@@ -154,23 +156,26 @@ describe('fmtSet', () => {
     expect(fmtSet('time', { weight: 0, reps: 90 })).toBe('1:30')
   })
   it('свой вес с доп. весом → «+10 кг × 8» (v6.16.0)', () => {
-    expect(fmtSet('reps', { weight: 10, reps: 8 })).toBe('+10 кг × 8')
-    expect(fmtSet('reps', { weight: 2.5, reps: 12 })).toBe('+2.5 кг × 12')
+    expect(fmtSet('reps', { weight: 10, reps: 8 })).toBe(`+10${N}кг × 8`)
+    expect(fmtSet('reps', { weight: 2.5, reps: 12 })).toBe(`+2.5${N}кг × 12`)
     // v7.2.0: помощь гравитрона — настоящий минус
-    expect(fmtSet('reps', { weight: -20, reps: 8 })).toBe('−20 кг × 8')
-    expect(fmtSet('reps', { weight: -17.5, reps: 10 })).toBe('−17.5 кг × 10')
+    expect(fmtSet('reps', { weight: -20, reps: 8 })).toBe(`−20${N}кг × 8`)
+    expect(fmtSet('reps', { weight: -17.5, reps: 10 })).toBe(`−17.5${N}кг × 10`)
     expect(fmtExtraWeight(0)).toBe('')
     expect(fmtExtraWeight('abc')).toBe('')
   })
-  it('fmtSetList: одинаковая помощь/доп. вес выносится один раз (v7.2.1)', () => {
+  it('fmtSetList: «свой вес» — вес в начале группы подходов подряд (v7.2.2)', () => {
     const s = (weight, reps) => ({ weight, reps })
-    expect(fmtSetList('reps', [s(-20, 12), s(-20, 12), s(-20, 10)])).toBe('12, 12, 10 (−20 кг)')
-    expect(fmtSetList('reps', [s(10, 8), s(10, 6)], ' · ')).toBe('8 · 6 (+10 кг)')
-    // разный вес — по подходам, как раньше
-    expect(fmtSetList('reps', [s(-20, 12), s(-10, 8)])).toBe('−20 кг × 12, −10 кг × 8')
-    // один подход и без веса — без скобок
-    expect(fmtSetList('reps', [s(-20, 12)])).toBe('−20 кг × 12')
-    expect(fmtSetList('reps', [s(0, 12), s(0, 10)])).toBe('12, 10')
+    // скрин владельца 12.10: −15, затем три по −17.5
+    expect(fmtSetList('reps', [s(-15, 12), s(-17.5, 12), s(-17.5, 12), s(-17.5, 12)]))
+      .toBe(`−15${N}кг:${N}12 · −17.5${N}кг:${N}12,${N}12,${N}12`)
+    expect(fmtSetList('reps', [s(-20, 12), s(-20, 12), s(-20, 10)])).toBe(`−20${N}кг:${N}12,${N}12,${N}10`)
+    expect(fmtSetList('reps', [s(10, 8), s(10, 6)])).toBe(`+10${N}кг:${N}8,${N}6`)
+    expect(fmtSetList('reps', [s(-20, 12)])).toBe(`−20${N}кг:${N}12`)
+    // без веса — как раньше (и с разделителем вызывающего); смешанно — группы через « · »
+    expect(fmtSetList('reps', [s(0, 12), s(0, 12), s(0, 10)])).toBe('12, 12, 10')
+    expect(fmtSetList('reps', [s(0, 12), s(0, 10)], ' · ')).toBe('12 · 10')
+    expect(fmtSetList('reps', [s(0, 10), s(0, 8), s(-10, 6)])).toBe(`10, 8 · −10${N}кг:${N}6`)
     // весовые не трогаем
     expect(fmtSetList('weight', [s(80, 8), s(80, 8)])).toBe('80×8, 80×8')
     expect(fmtSetList('weight', [])).toBe('')

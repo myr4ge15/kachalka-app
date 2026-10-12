@@ -1253,11 +1253,13 @@ select, textarea { font-variant-numeric: inherit; font-feature-settings: inherit
   align-items: baseline;
 }
 .history-ex:first-child { border-top: none; }
-.history-ex-name { font-size: 15px; font-weight: 600; line-height: 1.35; min-width: 0; }
+.history-ex-name { font-size: 15px; font-weight: 600; line-height: 1.35; min-width: min-content; }
 /* Подходы переносятся МЕЖДУ сетами (по пробелу после запятой), но сам токен —
    «14×12» / «1:00» — не рвем посимвольно (word-break:keep-all). Имя может ужиматься
    и переноситься по словам, оставляя колонке подходов ширину. Так длинные серии
-   (напр. 8×«1:00» скакалки) не убегают за край карточки. */
+   (напр. 8×«1:00» скакалки) не убегают за край карточки. Ужиматься имя может
+   только до самого длинного слова (min-content, v7.2.2): с min-width:0 длинная
+   строка подходов сжимала «Подтягивания» уже слова, и подходы наезжали на имя. */
 .history-ex-sets {
   color: var(--muted); font-size: 14px; line-height: 1.35; text-align: right;
   min-width: 0; white-space: normal; overflow-wrap: normal; word-break: keep-all;
@@ -3215,8 +3217,15 @@ label.act.busy { opacity: .55; pointer-events: none; }
   position: absolute; left: 0; top: 0; bottom: 0; width: 0; border-radius: 99px;
   background: var(--acc); transition: width 200ms linear;
 }
-/* Сколько всего — неизвестно (манифест не разобран): «бегущая» полоска. */
-.splash-upd-bar--busy .splash-upd-fill { width: 35%; animation: splash-upd-run 1.3s var(--ease-in-out) infinite; }
+/* Сколько всего — неизвестно (манифест не разобран): «бегущая» полоска.
+   ОТДЕЛЬНЫЙ слой (::before), а не сама заливка (v7.2.2): раньше бегала заливка, и при
+   первом проценте она сжималась с 35% до 0–5% там, где ее застал сдвиг анимации, —
+   на iPhone это мелькало голубой точкой в случайном месте полоски. Теперь у заливки
+   только ширина, у бегунка — только transform, переключать нечего. */
+.splash-upd-bar--busy::before {
+  content: ''; position: absolute; left: 0; top: 0; bottom: 0; width: 35%; border-radius: 99px;
+  background: var(--acc); animation: splash-upd-run 1.3s var(--ease-in-out) infinite;
+}
 /* Цифры пропорциональные: моноширинные (tabular-nums) в Onest дают «1 6» с дырой.
    Строка по центру (v6.13.4; в 6.13.2–6.13.3 счетчик и процент были разнесены по краям). */
 .splash-upd-cap { margin: 0; font-size: 12px; color: var(--muted); font-variant-numeric: lining-nums proportional-nums; line-height: 1.4; }
@@ -3225,7 +3234,7 @@ label.act.busy { opacity: .55; pointer-events: none; }
 @keyframes splash-upd-run { from { transform: translateX(-100%); } to { transform: translateX(290%); } }
 @media (prefers-reduced-motion: reduce) {
   .splash-upd { animation: none; }
-  .splash-upd-bar--busy .splash-upd-fill { animation: none; width: 100%; opacity: .5; }
+  .splash-upd-bar--busy::before { animation: none; width: 100%; opacity: .5; }
 }
 @media (prefers-reduced-motion: reduce) {
   .splash, .splash--out .splash-logo { transition: none; }

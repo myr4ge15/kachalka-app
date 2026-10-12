@@ -54,7 +54,7 @@ export const hasExtraWeight = (metric) => normMetric(metric) === 'reps'
 export function fmtExtraWeight(v) {
   const w = Math.round((Number(v) || 0) * 100) / 100
   if (!w) return ''
-  return `${w > 0 ? '+' : '−'}${Math.abs(w)} кг`
+  return `${w > 0 ? '+' : '−'}${Math.abs(w)}\u00A0кг` // неразрывный: «−17.5 кг» не рвется
 }
 
 // Время хранится в reps (секунды) у 'time' и 'distance'.
@@ -195,17 +195,32 @@ export function fmtSet(metric, s) {
 }
 
 // Подходы упражнения одной строкой для списков (Лента, История, Прогресс).
-// У «своего веса» с ОДИНАКОВЫМ доп. весом/помощью во всех подходах вес выносим
-// в конец один раз: «12, 12, 12 (−20 кг)» вместо «−20 кг × 12, −20 кг × 12, …»
-// (v7.2.1: в Ленте три подхода в гравитроне переносились на две строки). Разный
-// вес по подходам — как раньше, через fmtSet. sep — разделитель подходов. Пусто → ''.
+// У «своего веса» (v7.2.2) подходы ПОДРЯД с одинаковым доп. весом/помощью — одна
+// группа, и вес стоит В НАЧАЛЕ группы, через двоеточие: «−15 кг: 12 · −17.5 кг: 12,
+// 12, 12». Так видно, что вес относится ко всем повторам после него (вес в скобках
+// в конце читался как вес одного последнего подхода). Без веса — просто повторы:
+// «12, 12, 10»; смешанно — «10 · −10 кг: 6». Группы — через « · », группа с весом
+// не рвется посередине (неразрывные пробелы) — на узком экране переносится целиком.
+// Раньше «−17.5 кг × 12» повторялось у каждого подхода, и строка в Ленте шла на
+// две-три строки. Остальные метрики — как раньше, через fmtSet. Пусто → ''.
 export function fmtSetList(metric, sets, sep = ', ') {
   const list = sets ?? []
-  if (normMetric(metric) === 'reps' && list.length > 1) {
-    const w0 = Number(list[0]?.weight) || 0
-    if (w0 && list.every((s) => (Number(s?.weight) || 0) === w0)) {
-      return `${list.map((s) => Number(s?.reps) || 0).join(sep)} (${fmtExtraWeight(w0)})`
-    }
+  if (normMetric(metric) !== 'reps') return list.map((s) => fmtSet(metric, s)).join(sep)
+  const groups = []
+  for (const s of list) {
+    const w = Math.round((Number(s?.weight) || 0) * 100) / 100
+    const r = Number(s?.reps) || 0
+    const last = groups[groups.length - 1]
+    if (last && last.w === w) last.reps.push(r)
+    else groups.push({ w, reps: [r] })
   }
-  return list.map((s) => fmtSet(metric, s)).join(sep)
+  // Один разделитель на всё: внутри группы — повторы через запятую, между группами — « · ».
+  const NB = '\u00A0'
+  const one = groups.length === 1
+  return groups
+    .map((g) => {
+      if (!g.w) return g.reps.join(one ? sep : ', ')
+      return `${fmtExtraWeight(g.w)}:${NB}${g.reps.join(`,${NB}`)}`
+    })
+    .join(' · ')
 }
