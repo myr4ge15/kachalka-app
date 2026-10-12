@@ -107,6 +107,34 @@ async function dropIfStaleKey(sub) {
   return null
 }
 
+// Потолок времени на каждый шаг включения (v7.1.9). Вызовы браузера здесь ничем
+// не ограничены, и если один не отвечает, тумблер навсегда висел на «Включаю…»
+// (12.10: выключил → включаю → висит). Чаще всего так ведет себя subscribe() на
+// iPhone сразу после unsubscribe() в той же сессии приложения — помогает только
+// перезапуск. Теперь зависший шаг отклоняется с подсказкой и названием шага —
+// по нему видно, где застряло. Опоздавший ответ браузера не теряется:
+// getPushState при следующем открытии подхватит подписку и допишет ее на сервер.
+export const PUSH_STEP_MS = { permission: 60000, worker: 8000, subscription: 8000, subscribe: 20000, session: 35000 }
+const RESTART = 'Закрой приложение полностью (смахни из переключателя), открой снова и включи еще раз.'
+const PUSH_STEP = {
+  permission: ['разрешение', 'Телефон не ответил на запрос разрешения. ' + RESTART],
+  worker: ['service worker', 'Не отвечает служебная часть приложения. ' + RESTART],
+  subscription: ['текущая подписка', 'Браузер не ответил, есть ли подписка. ' + RESTART],
+  subscribe: ['подписка браузера', 'Браузер не ответил на подписку — на iPhone так бывает сразу после выключения уведомлений. ' + RESTART],
+  session: ['вход на сервер', 'Сервер входа не ответил. Проверь сеть и попробуй еще раз.'],
+}
+function pushStep(name, promise) {
+  let timer
+  const [label, hint] = PUSH_STEP[name]
+  const ms = PUSH_STEP_MS[name]
+  return Promise.race([
+    Promise.resolve(promise),
+    new Promise((_, reject) => {
+      timer = setTimeout(() => reject(new PushError(`${hint} (завис шаг «${label}», ${ms / 1000} с)`)), ms)
+    }),
+  ]).finally(() => clearTimeout(timer))
+}
+
 async function saveOnServer(sub) {
   const args = subscriptionArgs(sub?.toJSON?.(), navigator.userAgent)
   if (!args) throw new PushError('Браузер выдал неполную подписку — попробуй еще раз.')
@@ -147,29 +175,30 @@ export async function getPushState(userId) {
 // спрашиваем ПЕРВЫМ делом — Safari показывает запрос только в ответ на нажатие,
 // а после долгих await жест считается «остывшим».
 export async function enablePush(userId) {
-  const permission = await Notification.requestPermission()
+  const permission = await pushStep('permission', Notification.requestPermission())
   if (permission !== 'granted') {
     throw new PushError(permission === 'denied'
       ? 'Уведомления запрещены — разреши их в настройках браузера или телефона.'
       : 'Разрешение не выдано.')
   }
   if (!navigator.onLine) throw new PushError('Включить уведомления можно только онлайн.')
-  const reg = await registration()
+  const reg = await pushStep('worker', registration())
   if (!reg?.pushManager) throw new PushError('Этот браузер не умеет пуш-уведомления.')
 
   let sub
   try {
-    sub = (await dropIfStaleKey(await reg.pushManager.getSubscription())) ??
-      (await reg.pushManager.subscribe({
+    sub = (await pushStep('subscription', reg.pushManager.getSubscription().then(dropIfStaleKey))) ??
+      (await pushStep('subscribe', reg.pushManager.subscribe({
         userVisibleOnly: true,
         applicationServerKey: urlB64ToUint8Array(VAPID_PUBLIC_KEY),
-      }))
-  } catch {
+      })))
+  } catch (e) {
+    if (e instanceof PushError) throw e
     throw new PushError('Браузер не дал подписаться на уведомления. Попробуй еще раз.')
   }
 
   try {
-    await ensureOwnSession(userId)
+    await pushStep('session', ensureOwnSession(userId))
     await saveOnServer(sub)
     setOwner(userId)
     setWanted(userId, true)

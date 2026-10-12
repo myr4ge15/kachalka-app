@@ -8,7 +8,7 @@ const ensureOwnSession = vi.fn()
 vi.mock('../lib/auth.js', () => ({ ensureOwnSession: (...a) => ensureOwnSession(...a) }))
 
 vi.stubEnv('VITE_VAPID_PUBLIC_KEY', 'BKey')
-const { enablePush, disablePush, releasePushOnLogout, PushError, getPushPrefs, setPushPref, reconcilePushOwner, getPushState } = await import('./push.js')
+const { enablePush, disablePush, releasePushOnLogout, PushError, getPushPrefs, setPushPref, reconcilePushOwner, getPushState, PUSH_STEP_MS } = await import('./push.js')
 
 function fakeSub(endpoint = 'https://push.example/abc', options) {
   return {
@@ -72,6 +72,48 @@ describe('enablePush', () => {
     const { pushManager } = setup({ permission: 'denied' })
     await expect(enablePush('u1')).rejects.toThrow(/запрещены/)
     expect(pushManager.subscribe).not.toHaveBeenCalled()
+  })
+})
+
+describe('enablePush: зависший шаг не держит «Включаю…» вечно (v7.1.9)', () => {
+  const never = () => new Promise(() => {})
+
+  it('subscribe не отвечает (iPhone после выключения) — понятная ошибка с названием шага', async () => {
+    vi.useFakeTimers()
+    try {
+      const { pushManager } = setup()
+      pushManager.subscribe.mockReturnValue(never())
+      const res = enablePush('u1')
+      const check = expect(res).rejects.toThrow(/подписка браузера.*20 с/)
+      await vi.advanceTimersByTimeAsync(PUSH_STEP_MS.subscribe)
+      await check
+      await expect(res).rejects.toThrow(/Закрой приложение полностью/)
+      expect(rpc).not.toHaveBeenCalled()
+    } finally {
+      vi.useRealTimers()
+    }
+  })
+
+  it('не отвечает запрос разрешения или вход — тоже отказ, а не вечное ожидание', async () => {
+    vi.useFakeTimers()
+    try {
+      setup()
+      Notification.requestPermission.mockReturnValue(never())
+      const p1 = enablePush('u1')
+      const c1 = expect(p1).rejects.toThrow(/разрешение/)
+      await vi.advanceTimersByTimeAsync(PUSH_STEP_MS.permission)
+      await c1
+
+      const { created } = setup()
+      ensureOwnSession.mockReturnValue(never())
+      const p2 = enablePush('u1')
+      const c2 = expect(p2).rejects.toThrow(/вход на сервер/)
+      await vi.advanceTimersByTimeAsync(PUSH_STEP_MS.session)
+      await c2
+      expect(created.unsubscribe).toHaveBeenCalled() // сервер не знает — браузер не оставляем «включенным»
+    } finally {
+      vi.useRealTimers()
+    }
   })
 })
 
