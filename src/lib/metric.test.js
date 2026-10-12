@@ -3,6 +3,7 @@ import {
   hasExtraWeight,
   fmtExtraWeight,
   fmtSetList,
+  setColumns,
   normMetric,
   exerciseMetric,
   isCountMetric,
@@ -183,5 +184,21 @@ describe('fmtSet', () => {
     expect(hasExtraWeight('reps')).toBe(true)
     expect(hasExtraWeight('time')).toBe(false)
     expect(hasExtraWeight('weight')).toBe(false)
+  })
+})
+
+describe('setColumns (v7.2.3)', () => {
+  const s = (weight, reps) => ({ weight, reps })
+  it('свой вес с помощью/доп. весом → колонка на подход, вес со знаком', () => {
+    expect(setColumns('reps', [s(-10, 12), s(-17.5, 13), s(0, 8), s(10, 6)])).toEqual([
+      { reps: 12, w: '−10' }, { reps: 13, w: '−17.5' }, { reps: 8, w: '0' }, { reps: 6, w: '+10' },
+    ])
+  })
+  it('без веса, другие метрики, пусто → null (строка как раньше)', () => {
+    expect(setColumns('reps', [s(0, 12), s(0, 10)])).toBe(null)
+    expect(setColumns('weight', [s(80, 8)])).toBe(null)
+    expect(setColumns('time', [s(0, 90)])).toBe(null)
+    expect(setColumns('reps', [])).toBe(null)
+    expect(setColumns('reps', undefined)).toBe(null)
   })
 })

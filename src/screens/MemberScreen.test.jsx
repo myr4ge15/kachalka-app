@@ -1,6 +1,6 @@
 // @vitest-environment jsdom
 import { beforeEach, describe, expect, it, vi } from 'vitest'
-import { render, screen, fireEvent } from '@testing-library/react'
+import { render, screen, fireEvent, act } from '@testing-library/react'
 import { useLiveQuery } from 'dexie-react-hooks'
 import MemberScreen from './MemberScreen.jsx'
 import { fetchMember, toggleMemberReaction } from '../db/memberProfile.js'
@@ -57,11 +57,32 @@ describe('MemberScreen', () => {
     expect(fetchMember).toHaveBeenCalledWith('me', 'dima')
   })
 
-  it('снимок из ленты помечен как неполный', () => {
-    mockQueries({ at: null, total: null, items: [workout('w1', new Date().toISOString(), [bench(70, 5)])], source: 'feed' })
-    const { container } = render(<MemberScreen user={viewer} memberId="dima" onBack={() => {}} />)
-    expect(container.querySelector('.stat-num').textContent).toBe('1+')
-    expect(screen.getByText(/полный профиль подтянется/)).toBeTruthy()
+  it('снимок из ленты при сети: сначала заглушка, после ожидания — с пометкой (v7.2.3)', () => {
+    vi.useFakeTimers()
+    try {
+      vi.mocked(fetchMember).mockImplementationOnce(() => new Promise(() => {})) // сервер думает
+      mockQueries({ at: null, total: null, items: [workout('w1', new Date().toISOString(), [bench(70, 5)])], source: 'feed' })
+      const { container } = render(<MemberScreen user={viewer} memberId="dima" onBack={() => {}} />)
+      expect(container.querySelector('.stat-num')).toBeNull() // цифры не «прыгают»
+      act(() => { vi.advanceTimersByTime(1500) })
+      expect(container.querySelector('.stat-num').textContent).toBe('1+')
+      expect(screen.getByText(/Загружаю полный профиль/)).toBeTruthy()
+      expect(container.querySelector('.member-pr-partial')).toBeTruthy()
+    } finally {
+      vi.useRealTimers()
+    }
+  })
+
+  it('снимок из ленты без сети — сразу, с пометкой о неполных цифрах', () => {
+    const spy = vi.spyOn(navigator, 'onLine', 'get').mockReturnValue(false)
+    try {
+      mockQueries({ at: null, total: null, items: [workout('w1', new Date().toISOString(), [bench(70, 5)])], source: 'feed' })
+      const { container } = render(<MemberScreen user={viewer} memberId="dima" onBack={() => {}} />)
+      expect(container.querySelector('.stat-num').textContent).toBe('1+')
+      expect(screen.getByText(/цифры и рекорды неполные/)).toBeTruthy()
+    } finally {
+      spy.mockRestore()
+    }
   })
 
   it('реакции: счетчик на карточке и тап по своей реакции', () => {

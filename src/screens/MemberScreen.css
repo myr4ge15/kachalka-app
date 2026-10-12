@@ -3,6 +3,13 @@
 .member .member-sub { margin-top: 6px; font-size: var(--fs-meta, 13px); color: var(--muted); }
 .member .member-stats { grid-template-columns: repeat(3, 1fr); }
 .member .member-stats .stat-num { font-family: var(--font-display); font-weight: 900; }
+/* Снимок из Ленты (неполный, v7.2.3): плашка над цифрами и приглушенные рекорды —
+   раньше «Жим 60 кг» из неполных данных выглядел окончательным и через секунду менялся. */
+.member .member-partial {
+  margin: 0 0 12px; padding: 10px 12px; border-radius: 12px;
+  background: var(--surface-2); color: var(--muted); font-size: var(--fs-meta, 13px); line-height: 1.4;
+}
+.member .member-pr-partial .pr-val { color: var(--muted); }
 /* Строка рекорда без перехода в «Прогресс» — не кнопка, без нажатия. */
 .member .member-pr:active { background: none; }
 .member .member-list { display: flex; flex-direction: column; gap: 10px; }

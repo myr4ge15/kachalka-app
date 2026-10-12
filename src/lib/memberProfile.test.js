@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { buildMemberView, toWorkoutDoc } from './memberProfile.js'
+import { buildMemberView, toWorkoutDoc, memberDisplay } from './memberProfile.js'
 
 const bench = (w, r) => ({
   exercise_id: 'bench', name: 'Жим лежа', metric: 'weight', is_bench_lift: true, sets: [{ weight: w, reps: r }],
@@ -70,5 +70,24 @@ describe('buildMemberView', () => {
     const v = buildMemberView(list, { total: 40, limit: 3, now })
     expect(v.streak).toBe(2)
     expect(v.streakFloor).toBe(false)
+  })
+})
+
+describe('memberDisplay (v7.2.3)', () => {
+  const d = (o) => memberDisplay({ snapSource: 'feed', refreshing: true, online: true, graceOver: false, ...o })
+  it('снимок еще читается или его нет, а запрос идет — заглушка', () => {
+    expect(d({ snapSource: undefined }).skeleton).toBe(true)
+    expect(d({ snapSource: null }).skeleton).toBe(true)
+  })
+  it('из ленты при сети: заглушка до конца ожидания, потом частичный с «загружаю»', () => {
+    expect(d({})).toEqual({ skeleton: true, partial: false, waiting: false })
+    expect(d({ graceOver: true })).toEqual({ skeleton: false, partial: true, waiting: true })
+  })
+  it('из ленты без сети или после ошибки — сразу частичный', () => {
+    expect(d({ online: false, refreshing: false })).toEqual({ skeleton: false, partial: true, waiting: false })
+    expect(d({ refreshing: false })).toEqual({ skeleton: false, partial: true, waiting: false })
+  })
+  it('свой сохраненный снимок — полный, без заглушки', () => {
+    expect(d({ snapSource: 'cache' })).toEqual({ skeleton: false, partial: false, waiting: false })
   })
 })

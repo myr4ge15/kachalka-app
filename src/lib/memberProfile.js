@@ -21,6 +21,29 @@ import { sortDesc } from './entries.js'
 
 export const MEMBER_LIMIT = 60
 
+// Сколько ждать полный профиль с сервера, прежде чем показать частичный снимок из
+// Ленты (v7.2.3). Раньше частичный показывался сразу и через секунду «прыгал»:
+// «7+ тренировок», жим 60 кг → 13 тренировок, 75 кг — рекорды выглядели как
+// окончательные, хотя были неполными.
+export const MEMBER_GRACE_MS = 1500
+
+// Что показать в профиле участника (v7.2.3):
+//   skeleton — заглушка вместо цифр и рекордов;
+//   partial  — показан снимок из Ленты (неполный): помечаем цифры и рекорды;
+//   waiting  — частичный показан, а полный еще грузится (плашка «Загружаю…»).
+// snapSource: undefined (снимок еще читается), null (нет снимка), 'cache' (свой
+// сохраненный — полный, пусть и не свежий), 'feed' (собран из Ленты — неполный).
+// Частичный снимок прячем за заглушкой, только пока есть сеть, идет запрос и не
+// вышло время ожидания; без сети, при ошибке или долгом ответе — показываем с пометкой.
+export function memberDisplay({ snapSource, refreshing, online, graceOver }) {
+  if (snapSource === undefined || (snapSource === null && refreshing)) {
+    return { skeleton: true, partial: false, waiting: false }
+  }
+  const fromFeed = snapSource === 'feed'
+  if (fromFeed && online && refreshing && !graceOver) return { skeleton: true, partial: false, waiting: false }
+  return { skeleton: false, partial: fromFeed, waiting: fromFeed && refreshing }
+}
+
 // Элемент ленты → денормализованный документ тренировки (как в repo.getWorkouts).
 export function toWorkoutDoc(item) {
   return {

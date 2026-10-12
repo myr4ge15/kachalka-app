@@ -5,9 +5,10 @@ import { syncNow } from '../db/sync.js'
 import { vibrate, HAPTIC } from '../lib/haptics.js'
 import { getCachedUser } from '../db/repo.js'
 import { onOnline, onResume } from '../lib/appEvents.js'
-import { buildMemberView, MEMBER_LIMIT } from '../lib/memberProfile.js'
+import { buildMemberView, memberDisplay, MEMBER_GRACE_MS, MEMBER_LIMIT } from '../lib/memberProfile.js'
 import { fmtWhen } from '../lib/dates.js'
-import { fmtSetList, fmtMetricValue } from '../lib/metric.js'
+import { fmtMetricValue } from '../lib/metric.js'
+import SetsCells, { SetsCaption } from '../components/SetsCells.jsx'
 import { plural } from '../lib/plural.js'
 import AvatarZoom from '../components/AvatarZoom.jsx'
 import BackButton from '../components/BackButton.jsx'
@@ -33,8 +34,17 @@ export default function MemberScreen({ user, memberId, onBack }) {
   )
   const roster = useLiveQuery(() => getCachedUser(memberId), [memberId], undefined)
 
-  const [refreshing, setRefreshing] = useState(false)
+  // Сразу «грузится», если есть сеть: refresh стартует в эффекте после первого кадра,
+  // и без этого снимок из Ленты успевал мелькнуть до заглушки.
+  const [refreshing, setRefreshing] = useState(() => navigator.onLine)
   const [fetched, setFetched] = useState(false)
+  // Окно ожидания полного профиля (memberDisplay): до него снимок из Ленты не
+  // показываем, чтобы цифры и рекорды не «прыгали» на глазах.
+  const [graceOver, setGraceOver] = useState(false)
+  useEffect(() => {
+    const t = setTimeout(() => setGraceOver(true), MEMBER_GRACE_MS)
+    return () => clearTimeout(t)
+  }, [memberId])
   const [error, setError] = useState(null)
   const [recExpanded, setRecExpanded] = useState(false)
   const [shown, setShown] = useState(RECENT_STEP)
@@ -100,10 +110,15 @@ export default function MemberScreen({ user, memberId, onBack }) {
   )
 
   const name = roster?.name ?? snap?.items?.[0]?.user_name ?? 'Участник'
-  const loading = snap === undefined || (!snap && refreshing)
+  // Снимок из ленты неполный (там максимум 50 строк на всех): пока идет запрос и не
+  // вышло время — заглушка, дальше — с пометками (memberDisplay, v7.2.3).
+  const disp = memberDisplay({
+    snapSource: snap === undefined ? undefined : snap?.source ?? null,
+    refreshing, online: navigator.onLine, graceOver,
+  })
+  const loading = disp.skeleton
   const empty = !loading && (!view || view.recent.length === 0)
-  // Окно неполное, если снимок пришел из ленты (там максимум 50 строк на всех).
-  const partial = snap?.source === 'feed'
+  const partial = disp.partial
 
   return (
     <div className="screen profile member" ref={rootRef}>
@@ -135,6 +150,13 @@ export default function MemberScreen({ user, memberId, onBack }) {
 
       {!loading && view && view.recent.length > 0 && (
         <>
+          {partial && (
+            <p className="member-partial" role="status">
+              {disp.waiting
+                ? 'Загружаю полный профиль… Пока — по тренировкам из Ленты, цифры неполные.'
+                : 'Полный профиль не загрузился — показано по тренировкам из Ленты, цифры и рекорды неполные.'}
+            </p>
+          )}
           <div className="stat-grid member-stats">
             <div className="stat-cell">
               <div className="stat-num">{partial ? `${view.total}+` : view.total}</div>
@@ -160,7 +182,7 @@ export default function MemberScreen({ user, memberId, onBack }) {
                   {view.records.length}
                 </span>
               </div>
-              <ul className="pr-list">
+              <ul className={`pr-list${partial ? ' member-pr-partial' : ''}`}>
                 {(recExpanded ? view.records : view.records.slice(0, REC_PREVIEW)).map((r) => (
                   <li key={r.exId}>
                     <div className="pr-row member-pr">
@@ -188,12 +210,9 @@ export default function MemberScreen({ user, memberId, onBack }) {
                   </li>
                 )}
               </ul>
-              {(view.windowFull || partial) && (
-                <p className="hint">
-                  {partial
-                    ? 'По тренировкам из ленты — полный профиль подтянется по сети.'
-                    : `По последним ${MEMBER_LIMIT} тренировкам.`}
-                </p>
+              {/* Неполный снимок объясняет плашка над цифрами (v7.2.3), здесь — только окно. */}
+              {view.windowFull && !partial && (
+                <p className="hint">По последним {MEMBER_LIMIT} тренировкам.</p>
               )}
             </section>
           )}
@@ -225,9 +244,9 @@ export default function MemberScreen({ user, memberId, onBack }) {
                   <ul className="history-list">
                     {w.entries.map((e, i) => (
                       <li key={e.exercise_id ?? e.name ?? i} className="history-ex">
-                        <span className="history-ex-name">{e.name}</span>
+                        <span className="history-ex-name">{e.name}<SetsCaption metric={e.metric} sets={e.sets} /></span>
                         <span className="history-ex-sets">
-                          {fmtSetList(e.metric, e.sets) || '—'}
+                          <SetsCells metric={e.metric} sets={e.sets} />
                         </span>
                       </li>
                     ))}

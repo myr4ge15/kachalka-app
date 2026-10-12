@@ -1264,6 +1264,17 @@ select, textarea { font-variant-numeric: inherit; font-feature-settings: inherit
   color: var(--muted); font-size: 14px; line-height: 1.35; text-align: right;
   min-width: 0; white-space: normal; overflow-wrap: normal; word-break: keep-all;
 }
+/* Подходы «своего веса» колонками (v7.2.3, components/SetsCells.jsx): сверху повторы,
+   под ними вес. Колонки одной ширины (auto-fit) — лишние уходят следующим рядом
+   ровно под первым; ряд прижат вправо, как остальные цифры карточки. Колонкам
+   нужна ширина, поэтому ячейка подходов в этом случае занимает остаток строки. */
+.history-ex:has(.sets-cols) { align-items: flex-start; }
+.history-ex-sets:has(.sets-cols) { flex: 1; }
+.sets-cols { display: grid; grid-template-columns: repeat(auto-fit, 44px); gap: 6px 2px; justify-content: end; }
+.sets-cols--start { justify-content: start; }
+.sets-col { display: flex; flex-direction: column; align-items: center; line-height: 1.3; }
+.sets-col-w { font-size: var(--fs-meta); font-weight: 400; color: var(--muted); }
+.sets-caption { display: block; font-size: var(--fs-meta); font-weight: 400; color: var(--muted); }
 
 /* Теги дня — автосводка групп мышц на карточке тренировки (BACKLOG «Теги дня»). */
 .day-tags { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 10px; }
