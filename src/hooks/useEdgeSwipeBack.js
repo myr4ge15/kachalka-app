@@ -1,6 +1,9 @@
-// Свайп назад от левого края на вложенных экранах (v6.8.1). Экран едет за пальцем;
-// довел до трети ширины или бросил быстро — уезжает вправо и срабатывает тот же
-// onBack, что у кнопки «‹»; отпустил раньше — возвращается на место.
+// Свайп назад на вложенных экранах (v6.8.1 — от левого края; с v7.1.7 — с любой
+// точки экрана, как в iOS 26/Telegram). Экран едет за пальцем; довел до трети
+// ширины или бросил быстро — уезжает вправо и срабатывает тот же onBack, что у
+// кнопки «‹»; отпустил раньше — возвращается на место. От середины жест строже:
+// явная горизонталь и не поверх того, что само ездит вбок (поле, ползунок, ручка,
+// пролистанный ряд чипов) — lib/screenNav.js `swipeAxis`/`swipeBackBlocked`.
 //
 // Двигаем `left` (экран — position:relative), а НЕ transform: transform сделал бы
 // экран containing block для position:fixed потомков, и липкие бары прыгали бы
@@ -10,7 +13,7 @@
 // экран (.screen-anim). Решения по жесту — чистые функции lib/screenNav.js.
 import { useEffect, useRef } from 'react'
 import { flushSync } from 'react-dom'
-import { EDGE_PX, swipeAxis, swipeCommits } from '../lib/screenNav.js'
+import { EDGE_PX, swipeAxis, swipeBackBlocked, swipeCommits } from '../lib/screenNav.js'
 
 const SETTLE_MS = 180
 
@@ -27,7 +30,7 @@ export function useEdgeSwipeBack(containerRef, screenRef, onBack, enabled) {
     const box = containerRef?.current
     if (!enabled || !box) return undefined
 
-    let g = null // { x0, y0, t0, axis, dx, lastX, lastT, v }
+    let g = null // { x0, y0, edge, axis, dx, lastX, lastT, v }
     let settleTimer = null
     let settling = false
     let previewStack = null
@@ -78,8 +81,9 @@ export function useEdgeSwipeBack(containerRef, screenRef, onBack, enabled) {
     function onStart(e) {
       if (g || settling || e.touches.length !== 1) return
       const t = e.touches[0]
-      if (t.clientX > EDGE_PX) return
-      g = { x0: t.clientX, y0: t.clientY, axis: null, dx: 0, lastX: t.clientX, lastT: e.timeStamp, v: 0 }
+      const edge = t.clientX <= EDGE_PX
+      if (!edge && swipeBackBlocked(e.target, box)) return
+      g = { x0: t.clientX, y0: t.clientY, edge, axis: null, dx: 0, lastX: t.clientX, lastT: e.timeStamp, v: 0 }
     }
 
     function onMove(e) {
@@ -89,7 +93,7 @@ export function useEdgeSwipeBack(containerRef, screenRef, onBack, enabled) {
       const dx = t.clientX - g.x0
       const dy = t.clientY - g.y0
       if (!g.axis) {
-        g.axis = swipeAxis(dx, dy)
+        g.axis = swipeAxis(dx, dy, g.edge)
         if (g.axis === 'y') { g = null; return }
         if (!g.axis) return
         draggedScreen = screenRef.current

@@ -13,7 +13,7 @@ function Harness({ onBack, enabled = true }) {
     <main data-testid="box" ref={box}>
       <div className="nav-stack" data-testid="stack">
         <div className="nav-layer nav-underlay" data-scroll-top="80" inert aria-hidden="true">предыдущий экран</div>
-        <div className="nav-layer nav-current" data-testid="screen" ref={screen}>экран</div>
+        <div className="nav-layer nav-current" data-testid="screen" ref={screen}>экран <input data-testid="field" /></div>
       </div>
     </main>
   )
@@ -64,13 +64,37 @@ describe('useEdgeSwipeBack', () => {
     expect(getByTestId('screen').style.left).toBe('')
   })
 
-  it('не от края — жест не наш', () => {
+  it('от середины экрана — тоже «Назад» (v7.1.7)', () => {
     const onBack = vi.fn()
     const { getByTestId } = render(<Harness onBack={onBack} />)
-    swipe(getByTestId('box'), [[80, 300], [120, 300], [300, 300]])
+    const box = getByTestId('box')
+    Object.defineProperty(box, 'clientWidth', { value: 390 })
+    swipe(box, [[180, 300], [200, 302], [340, 310]])
+    vi.advanceTimersByTime(300)
+    expect(onBack).toHaveBeenCalledTimes(1)
+  })
+
+  it('от середины по диагонали — прокрутка, не «Назад»', () => {
+    const onBack = vi.fn()
+    const { getByTestId } = render(<Harness onBack={onBack} />)
+    swipe(getByTestId('box'), [[180, 300], [210, 322], [330, 420]])
     vi.advanceTimersByTime(300)
     expect(onBack).not.toHaveBeenCalled()
     expect(getByTestId('screen').style.left).toBe('')
+  })
+
+  it('от середины по полю ввода — жест поля', () => {
+    const onBack = vi.fn()
+    const { getByTestId } = render(<Harness onBack={onBack} />)
+    const box = getByTestId('box')
+    Object.defineProperty(box, 'clientWidth', { value: 390 })
+    const input = getByTestId('field')
+    fireEvent.touchStart(input, pt(180))
+    fireEvent.touchMove(input, pt(220))
+    fireEvent.touchMove(input, pt(360))
+    fireEvent.touchEnd(input, { touches: [] })
+    vi.advanceTimersByTime(300)
+    expect(onBack).not.toHaveBeenCalled()
   })
 
   it('вертикальная прокрутка от края — не наш', () => {

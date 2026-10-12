@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest'
-import { transitionKind, isNested, swipeAxis, swipeCommits, edgeSwipeSupported, nextScreenStack, initialScreenStack } from './screenNav.js'
+import { transitionKind, isNested, swipeAxis, swipeBackBlocked, swipeCommits, edgeSwipeSupported, nextScreenStack, initialScreenStack } from './screenNav.js'
 
 describe('стек возврата', () => {
   it('сохраняет предков и убирает закрытые дочерние экраны', () => {
@@ -44,6 +44,43 @@ describe('swipeAxis', () => {
     expect(swipeAxis(10, 30)).toBe('y')
     expect(swipeAxis(-30, 2)).toBe('y')
     expect(swipeAxis(20, 19)).toBe('y') // диагональ — отдаем прокрутке
+  })
+  it('от середины — горизонталь должна преобладать сильнее (v7.1.7)', () => {
+    expect(swipeAxis(30, 10, false)).toBe('x')
+    expect(swipeAxis(30, 22, false)).toBe('y') // у края это было бы «назад»
+    expect(swipeAxis(30, 22, true)).toBe('x')
+  })
+})
+
+describe('swipeBackBlocked (жест от середины, v7.1.7)', () => {
+  // Узел-заглушка: style — вычисленный стиль, остальное — геометрия прокрутки.
+  const node = (parent, { tag = 'div', style = {}, ...box } = {}) => ({
+    nodeType: 1, parentElement: parent, style,
+    scrollWidth: 0, clientWidth: 0, scrollLeft: 0, ...box,
+    matches: (sel) => sel.split(',').map((x) => x.trim()).includes(tag),
+  })
+  const getStyle = (el) => ({ overflowX: 'visible', touchAction: 'auto', ...el.style })
+  const stop = node(null)
+
+  it('обычный текст и кнопки — жест наш', () => {
+    expect(swipeBackBlocked(node(node(stop)), stop, getStyle)).toBe(false)
+  })
+  it('поле и ползунок ведут палец сами', () => {
+    expect(swipeBackBlocked(node(stop, { tag: 'input' }), stop, getStyle)).toBe(true)
+    expect(swipeBackBlocked(node(node(stop, { tag: '[data-no-swipe-back]' })), stop, getStyle)).toBe(true)
+  })
+  it('ручка перетаскивания (touch-action: none) — не наш', () => {
+    expect(swipeBackBlocked(node(stop, { style: { touchAction: 'none' } }), stop, getStyle)).toBe(true)
+  })
+  it('ряд чипов: пролистан — листаем его, у левого края — назад', () => {
+    const row = (scrollLeft) => node(stop, { style: { overflowX: 'auto' }, scrollWidth: 600, clientWidth: 300, scrollLeft })
+    expect(swipeBackBlocked(node(row(40)), stop, getStyle)).toBe(true)
+    expect(swipeBackBlocked(node(row(0)), stop, getStyle)).toBe(false)
+  })
+  it('сам скроллер экрана и выше не смотрим', () => {
+    const outer = node(null, { tag: 'input' })
+    const box = node(outer)
+    expect(swipeBackBlocked(node(box), box, getStyle)).toBe(false)
   })
 })
 

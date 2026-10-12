@@ -1093,6 +1093,12 @@ select, textarea { font-variant-numeric: inherit; font-feature-settings: inherit
    составом) сплющивались до 56 px и наезжали друг на друга. */
 .picker-list > * { flex-shrink: 0; }
 .picker-group { color: var(--muted); font-size: 12px; }
+/* v7.1.7: длинное название («…на изолированном тренажере») упиралось в группу
+   мышц вплотную, а на узком экране длинное слово заезжало на нее. Название
+   переносится и сжимается, подпись группы — не сжимается и держит зазор. */
+.picker-item, .similar-item { gap: 12px; }
+.picker-item > :first-child, .similar-item > :first-child { min-width: 0; overflow-wrap: anywhere; }
+.picker-item > .picker-group:last-child, .similar-item > .picker-group:last-child { flex: none; white-space: nowrap; }
 /* ⭐ Избранные (v6.5.0): строка = кнопка упражнения + отдельная звезда справа.
    Разделитель переезжает на обертку, чтобы линия шла под звездой тоже. */
 .picker-row { display: flex; align-items: stretch; border-bottom: 1px solid var(--border); }
