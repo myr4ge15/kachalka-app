@@ -1,7 +1,7 @@
 {
   "name": "kachalka-app",
   "private": true,
-  "version": "7.3.2",
+  "version": "7.3.3",
   "type": "module",
   "description": "kachalka-app — приложение для планирования тренировок, отслеживания прогресса и анализа результатов.",
   "scripts": {
@@ -26,7 +26,8 @@
     "recharts": "^3.10.1",
     "@tesseract.js-data/eng": "1.0.0",
     "@tesseract.js-data/rus": "1.0.0",
-    "tesseract.js": "6.0.1"
+    "tesseract.js": "6.0.1",
+    "tesseract.js-core": "6.1.2"
   },
   "devDependencies": {
     "@eslint/js": "^10.0.1",

@@ -94,7 +94,7 @@ export default function ExerciseScanner({ exercises, onPick, onClose, onManual }
             timer = setTimeout(scan, 1200) // scheduled AFTER recognition; never overlapping
           } catch { fail('Распознавание остановилось. Попробуй ещё раз или найди упражнение вручную.') }
         }
-        setStatus('Наведите рамку на название тренажера')
+        setStatus('Наведи рамку на название тренажера')
         void scan()
       } catch (err) {
         fail(err?.name === 'NotAllowedError'

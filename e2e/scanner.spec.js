@@ -64,7 +64,7 @@ test('camera label → explicit selection → workout', async ({ page, context }
   expect(await page.evaluate(() => window.scannerStopped)).toBe(true)
   await expect(page.getByRole('button', { name: /Разгибание ног в тренажере/ })).toHaveCount(0)
   await page.getByRole('button', { name: /Тяга верхнего блока/ }).click()
-  await page.screenshot({ path: '../../outputs/scanner-preview.png' })
+  await page.screenshot({ path: 'test-results/scanner-preview.png' })
   await page.getByRole('button', { name: 'Выбрать упражнение' }).click()
   await expect(page.getByRole('dialog')).toHaveCount(0)
   await expect(page.getByText('Тяга верхнего блока', { exact: true })).toBeVisible()
