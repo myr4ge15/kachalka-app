@@ -3754,7 +3754,10 @@ html[data-sheet-open], html[data-sheet-open] body { overscroll-behavior: none; }
    OCR (lib/scannerFrame.js guideCrop), поэтому раскладку окна не двигать без нее. */
 .scanner-search-row { position: relative; width: 100%; min-width: 0; }
 .scanner-search-row .search { width: 100%; min-width: 0; padding-right: 60px; }
-.scanner-open { position: absolute; right: 8px; top: 50%; transform: translateY(-50%); display: flex; align-items: center; justify-content: center; width: 44px; height: 44px; min-width: 44px; min-height: 44px; padding: 0; border: 0; background: transparent; box-shadow: none; color: var(--acc); }
+/* Центр по вертикали — через top, НЕ transform (v7.5.4): общее .btn:active
+   { transform: scale() } подменяло translateY(-50%), и при нажатии значок падал
+   на 22px вниз, за край поля. Долгое нажатие не выделяет текст рядом (iOS). */
+.scanner-open { position: absolute; right: 8px; top: calc(50% - 22px); -webkit-user-select: none; user-select: none; -webkit-touch-callout: none; display: flex; align-items: center; justify-content: center; width: 44px; height: 44px; min-width: 44px; min-height: 44px; padding: 0; border: 0; background: transparent; box-shadow: none; color: var(--acc); }
 .sheet.scanner-sheet { position: relative; padding: 0; }
 .scanner-sheet .sheet-head {
   position: absolute; top: 0; left: 0; right: 0; z-index: 3; margin: 0;
