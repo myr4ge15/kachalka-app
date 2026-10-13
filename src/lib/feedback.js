@@ -191,7 +191,12 @@ export function fmtFeedbackDate(iso) {
 
 // Контекст обращения одной строкой для админки (зеркало contextLine в Edge).
 export function contextLine(ctx = {}) {
+  // v8.0.1: обращение из пересланного в бота сообщения (feedback-tg-forward.sql).
+  const tg = ctx.source === 'telegram'
+    ? `из Telegram${typeof ctx.tg_from === 'string' && ctx.tg_from ? ` (${ctx.tg_from})` : ''}`
+    : ''
   return [
+    tg,
     ctx.version ? `v${ctx.version}` : '',
     typeof ctx.device === 'string' ? ctx.device : '',
     ctx.standalone === true ? 'PWA' : ctx.standalone === false ? 'браузер' : '',

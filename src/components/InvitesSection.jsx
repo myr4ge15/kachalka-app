@@ -5,8 +5,9 @@ import { showToast } from './Toast.jsx'
 import CardsSkeleton from './CardsSkeleton.jsx'
 const adminApi = { create: adminCreateInvite, list: adminListInvites, revoke: adminRevokeInvite }
 
-export default function InvitesSection({ online, errMsg, api = adminApi, limit = null }) {
-  const [list, setList] = useState(null)
+// cache (v8.0.1) — кэш визита Админки (lib/adminCache.js), только для админских приглашений.
+export default function InvitesSection({ online, errMsg, api = adminApi, limit = null, cache = null }) {
+  const [list, setList] = useState(() => cache?.peek('invites') ?? null)
   const [loadErr, setLoadErr] = useState('')
   const [note, setNote] = useState('')
   const [busy, setBusy] = useState(false)
@@ -16,11 +17,11 @@ export default function InvitesSection({ online, errMsg, api = adminApi, limit =
   const operation = useRef(false)
   useEffect(() => { alive.current = true; return () => { alive.current = false } }, [])
 
-  async function reload() {
+  async function reload({ force = true } = {}) {
     if (!alive.current) return
     setLoadErr('')
     try {
-      const rows = await api.list()
+      const rows = cache ? await cache.load('invites', () => api.list(), { force }) : await api.list()
       if (alive.current) setList(rows)
     } catch (e) {
       if (!alive.current) return
@@ -29,7 +30,7 @@ export default function InvitesSection({ online, errMsg, api = adminApi, limit =
     }
   }
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  useEffect(() => { if (online) reload(); else setList([]) }, [online])
+  useEffect(() => { if (online) reload({ force: false }); else setList([]) }, [online])
 
   async function create() {
     if (operation.current) return

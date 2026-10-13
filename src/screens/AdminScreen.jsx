@@ -1,8 +1,10 @@
-import { useEffect, useState } from 'react'
+import { useEffect, useMemo, useState } from 'react'
 import { useLiveQuery } from 'dexie-react-hooks'
 import { getAllExercisesForAdmin } from '../db/repo.js'
 import { useSyncStatus } from '../db/sync.js'
-import { AdminError } from '../lib/admin.js'
+import { AdminError, adminListUsers, adminListConnections, adminListInvites } from '../lib/admin.js'
+import { adminListFeedback } from '../lib/feedbackApi.js'
+import { createAdminCache } from '../lib/adminCache.js'
 import InvitesSection from '../components/InvitesSection.jsx'
 import BackButton from '../components/BackButton.jsx'
 import { useRevealFocus } from '../hooks/useRevealFocus.js'
@@ -45,6 +47,20 @@ export default function AdminScreen({ user, onBack }) {
     return () => { alive = false }
   }, [])
   const locked = needsCode(mfa)
+
+  // Списки разделов — заранее и параллельно (v8.0.1): раньше каждый раздел ходил в сеть
+  // при каждом раскрытии (0,3–0,6 с пустоты). Кэш живет, пока открыт экран. Ждем 2FA:
+  // до подтверждения кода сервер все равно откажет. Ошибки тут молчат — раздел
+  // при раскрытии повторит запрос и покажет ошибку сам.
+  const cache = useMemo(() => createAdminCache(), [])
+  useEffect(() => {
+    if (!online || mfa === undefined || locked) return
+    const quiet = () => {}
+    cache.load('users', adminListUsers).catch(quiet)
+    cache.load('connections', adminListConnections).catch(quiet)
+    cache.load('invites', adminListInvites).catch(quiet)
+    cache.load('feedback', () => adminListFeedback(false)).catch(quiet)
+  }, [cache, online, mfa, locked])
 
   return (
     <div className="screen admin">
@@ -103,6 +119,7 @@ export default function AdminScreen({ user, onBack }) {
               meId={user.id}
               online={online}
               errMsg={errMsg}
+              cache={cache}
             />
           </div>
         )}
@@ -118,7 +135,7 @@ export default function AdminScreen({ user, onBack }) {
         </button>
         {open === 'invites' && (
           <div className="admin-panel">
-            <InvitesSection online={online} errMsg={errMsg} />
+            <InvitesSection online={online} errMsg={errMsg} cache={cache} />
           </div>
         )}
 
@@ -133,7 +150,7 @@ export default function AdminScreen({ user, onBack }) {
         </button>
         {open === 'feedback' && (
           <div className="admin-panel">
-            <AdminFeedback online={online} />
+            <AdminFeedback online={online} cache={cache} />
           </div>
         )}
 
@@ -148,7 +165,7 @@ export default function AdminScreen({ user, onBack }) {
         </button>
         {open === 'access' && (
           <div className="admin-panel">
-            <AccessSection meId={user.id} online={online} errMsg={errMsg} />
+            <AccessSection meId={user.id} online={online} errMsg={errMsg} cache={cache} />
           </div>
         )}
 

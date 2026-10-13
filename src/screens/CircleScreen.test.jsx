@@ -7,7 +7,7 @@ import CircleScreen from './CircleScreen.jsx'
 
 const api = vi.hoisted(() => ({}))
 vi.mock('../lib/friendCircles.js', async (orig) => ({ ...(await orig()), circleApi: () => api }))
-vi.mock('../db/circles.js', () => ({ refreshMyCircles: vi.fn() }))
+vi.mock('../db/circles.js', () => ({ refreshMyCircles: vi.fn(), getMyCircles: vi.fn(async () => null) }))
 vi.mock('../db/sync.js', () => ({ syncNow: vi.fn(), useSyncStatus: () => ({ online: true }) }))
 vi.mock('../db/disciplines.js', () => ({ invalidateRatingCache: vi.fn(async () => {}) }))
 vi.mock('../db/repo.js', () => ({ getExercises: async () => [] }))
@@ -40,6 +40,14 @@ beforeEach(() => {
 afterEach(() => vi.clearAllMocks())
 
 describe('CircleScreen', () => {
+  it('пока идет запрос — круги из локального снимка, без пустого экрана (v8.0.1)', async () => {
+    const { getMyCircles } = await import('../db/circles.js')
+    getMyCircles.mockResolvedValueOnce([OTHER])
+    api.myCircles.mockImplementation(() => new Promise(() => {})) // сеть «висит»
+    render(<CircleScreen user={ME} onBack={vi.fn()} />)
+    expect(await screen.findByText(/Бег/)).toBeInTheDocument()
+  })
+
   it('нет кругов — объяснение, «Создать свой круг», «Вступить по коду»', async () => {
     render(<CircleScreen user={ME} onBack={vi.fn()} />)
     expect(await screen.findByText(/свои люди/)).toBeInTheDocument()

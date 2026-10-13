@@ -11,8 +11,9 @@ import UserReorderList from './UserReorderList.jsx'
 import { useRevealFocus } from '../../hooks/useRevealFocus.js'
 
 // ─────────────────────────── Пользователи ─────────────────────────────────
-export default function UsersSection({ meId, online, errMsg }) {
-  const [users, setUsers] = useState(null)
+// cache (v8.0.1) — кэш визита Админки (lib/adminCache.js): готовый список рисуется сразу.
+export default function UsersSection({ meId, online, errMsg, cache = null }) {
+  const [users, setUsers] = useState(() => cache?.peek('users') ?? null)
   const [loadErr, setLoadErr] = useState('')
 
   // редактирование имени/роли
@@ -63,10 +64,11 @@ export default function UsersSection({ meId, online, errMsg }) {
   const alive = useRef(true)
   useEffect(() => { alive.current = true; return () => { alive.current = false } }, [])
 
-  async function reload() {
+  // force=false — при раскрытии: свежий кэш без запроса; после правок — всегда в сеть.
+  async function reload({ force = true } = {}) {
     setLoadErr('')
     try {
-      const list = await adminListUsers()
+      const list = cache ? await cache.load('users', adminListUsers, { force }) : await adminListUsers()
       if (alive.current) setUsers(list)
     } catch (e) {
       if (!alive.current) return
@@ -77,7 +79,7 @@ export default function UsersSection({ meId, online, errMsg }) {
   // Перезагрузка ТОЛЬКО на смену online — `reload` вне deps намеренно (см. выше:
   // пересоздается каждый рендер, тот же fetch, stale-сеты гасит alive-ref).
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  useEffect(() => { if (online) reload(); else setUsers([]) /* офлайн — без RPC */ }, [online])
+  useEffect(() => { if (online) reload({ force: false }); else setUsers([]) /* офлайн — без RPC */ }, [online])
 
   function openEdit(u) {
     const name = u.name ?? ''

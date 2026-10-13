@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { circleApi } from '../lib/friendCircles.js'
-import { refreshMyCircles } from '../db/circles.js'
+import { getMyCircles, refreshMyCircles } from '../db/circles.js'
 import { syncNow, useSyncStatus } from '../db/sync.js'
 import { invalidateRatingCache } from '../db/disciplines.js'
 import BackButton from '../components/BackButton.jsx'
@@ -33,6 +33,13 @@ export default function CircleScreen({ user, onBack, joinCode = null, onJoinCode
     }
   }, [api])
   useEffect(() => { load() }, [load, online])
+  // v8.0.1: пока идет запрос — последний снимок кругов из локальной базы (тот же
+  // fc_my_circles, его держит Лента/Рейтинг), чтобы экран не стоял пустым.
+  useEffect(() => {
+    let on = true
+    getMyCircles().then((items) => { if (on && items) setCircles((cur) => cur ?? items) }, () => {})
+    return () => { on = false }
+  }, [])
 
   // Состав изменился — Лента, ростер и рейтинги должны это увидеть.
   const changed = useCallback(async () => {

@@ -17,18 +17,19 @@ const errText = (e) => (e instanceof FeedbackError ? e.message : String(e?.messa
 // работе» сверху (порядок задает сервер). Статус + ответ сохраняются одной
 // кнопкой; сервер сам решает, уведомить ли автора пушем (новый ответ или
 // закрытие обращения). Пропсы: online, [api] — для тестов.
-export default function AdminFeedback({ online, api = defaultApi }) {
-  const [rows, setRows] = useState(null)
+// cache (v8.0.1) — кэш визита Админки (lib/adminCache.js): готовый список рисуется сразу.
+export default function AdminFeedback({ online, api = defaultApi, cache = null }) {
+  const [rows, setRows] = useState(() => cache?.peek('feedback') ?? null)
   const [loadErr, setLoadErr] = useState('')
   const [filter, setFilter] = useState('open') // 'open' | 'all'
   const [editId, setEditId] = useState(null)
   const alive = useRef(true)
   useEffect(() => { alive.current = true; return () => { alive.current = false } }, [])
 
-  async function reload() {
+  async function reload({ force = true } = {}) {
     setLoadErr('')
     try {
-      const data = await api.list(false)
+      const data = cache ? await cache.load('feedback', () => api.list(false), { force }) : await api.list(false)
       if (alive.current) setRows(data)
     } catch (e) {
       if (!alive.current) return
@@ -37,7 +38,7 @@ export default function AdminFeedback({ online, api = defaultApi }) {
     }
   }
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  useEffect(() => { if (online) reload(); else setRows((r) => r ?? []) }, [online])
+  useEffect(() => { if (online) reload({ force: false }); else setRows((r) => r ?? []) }, [online])
 
   const shown = (rows ?? []).filter((r) => filter === 'all' || isOpenStatus(r.status))
   const open = openCount(rows)

@@ -11,20 +11,26 @@ import CardsSkeleton from '../CardsSkeleton.jsx'
 // и выбранными людьми (оба начинают видеть тренировки друг друга). В общий рейтинг
 // приватный все равно не попадает (см. supabase/connections.sql). Все — online-RPC
 // с гейтом is_admin(), локального кэша нет.
-export default function AccessSection({ meId, online, errMsg }) {
-  const [users, setUsers] = useState(null)
-  const [pairs, setPairs] = useState([])
-  const [sel, setSel] = useState('')
+// cache (v8.0.1) — кэш визита Админки (lib/adminCache.js): готовые списки рисуются сразу.
+export default function AccessSection({ meId, online, errMsg, cache = null }) {
+  const [users, setUsers] = useState(() => cache?.peek('users') ?? null)
+  const [pairs, setPairs] = useState(() => cache?.peek('connections') ?? [])
+  const [sel, setSel] = useState(() => cache?.peek('users')?.find((u) => u.is_private)?.id ?? '')
   const [loadErr, setLoadErr] = useState('')
   const [busyId, setBusyId] = useState(null)
 
   const alive = useRef(true)
   useEffect(() => { alive.current = true; return () => { alive.current = false } }, [])
 
-  async function reload() {
+  async function reload({ force = true } = {}) {
     setLoadErr('')
     try {
-      const [list, cons] = await Promise.all([adminListUsers(), adminListConnections()])
+      const [list, cons] = cache
+        ? await Promise.all([
+          cache.load('users', adminListUsers, { force }),
+          cache.load('connections', adminListConnections, { force }),
+        ])
+        : await Promise.all([adminListUsers(), adminListConnections()])
       if (!alive.current) return
       setUsers(list)
       setPairs(cons)
@@ -38,7 +44,7 @@ export default function AccessSection({ meId, online, errMsg }) {
   // пересоздается каждый рендер, но всегда делает один и тот же fetch, а
   // stale-сеттеры после размонтирования отсекает alive-ref.
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  useEffect(() => { if (online) reload(); else setUsers([]) }, [online])
+  useEffect(() => { if (online) reload({ force: false }); else setUsers([]) }, [online])
 
   const privateUsers = (users ?? []).filter((u) => u.is_private)
   const connected = useMemo(() => connectedIdsFor(pairs, sel), [pairs, sel])
@@ -55,6 +61,7 @@ export default function AccessSection({ meId, online, errMsg }) {
     })
     try {
       await adminSetConnection(sel, otherId, on)
+      cache?.invalidate('connections') // правка только локальная — при следующем открытии сверить с сервером
     } catch (e) {
       showToast({ emoji: '⚠️', title: 'Не удалось', sub: errMsg(e) })
       reload() // откат к серверной правде

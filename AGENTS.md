@@ -329,6 +329,11 @@ updated_at)` + `upsert_user_meta` (`supabase/user-meta.sql`, RLS «только 
   Картинки обращений в Supabase не храним: `file_id` Telegram, байты клиенту — только через `feedback`
   action=media после `feedback_media_ref`; токен бота клиенту не отдается. Вебхук у бота один — `getUpdates`
   нигде не использовать.
+- **Пересылка в бота ОС → обращение (v8.0.1)** → добавочный канон `feedback-tg-forward.sql`: `bot_feedback_create`
+  (автор по `tg_links.chat_id` = id отправителя, если он не скрыт; альбом — одно обращение по `tg_media_group`) и
+  `bot_feedback_set_author` (кнопка `fa:<uuid>:<8 hex>`), EXECUTE только `service_role`. Схема `feedback` не меняется:
+  происхождение — в `context` (`source: 'telegram'`, `tg_from`, `tg_user_id`). Дальше — обычный путь `feedback-tg.sql`.
+  Накат SQL — ДО деплоя `tg-bot` (иначе пересылка отвечает «Не получилось завести обращение»).
 - **Telegram на разных ботах (v7.5.0)** → `_shared/tgBots.ts` + `_shared/tgApi.ts tgBot(role)`, план
   `docs/plans/PLAN-tg-bots-split.md`, накат `tg-bots-split-deploy.md`. Роли: `notify` (kachalka-notifier,
   `TELEGRAM_BOT_TOKEN`, беседа: `tg-record`/`tg-digest`), `stats` (`TELEGRAM_STATS_BOT_TOKEN`, `tg-summary`),
@@ -538,6 +543,10 @@ updated_at)` + `upsert_user_meta` (`supabase/user-meta.sql`, RLS «только 
      непротиворечивость; npm-прогоны не обязательны;
    - диагностические ad-hoc прогоны допустимы, но не заменяют постоянный тест на исправленный
      программный кейс.
+   - **Время локальных проверок (правило пользователя, 13.10.2026):** локально — тесты затронутых файлов
+     (`npx vitest related <файлы> --run`) и `eslint` по ним; полный `npm test`, `npm run build` и e2e —
+     в Actions (пуш в `main`), тег — только после зеленого Tests. Полный прогон локально — по просьбе или
+     когда правка задевает общее (хуки, `lib/` многих экранов, `index.css`-токены).
    - **правка разметки, классов или подписей кнопок** в сценарии «вход → запись тренировки →
      история» (таббар, «+», композер, итог, история) → ещё и `npm run test:e2e`: CI гоняет этот
      smoke ПЕРЕД выкаткой по тегу, и упавший e2e молча отменяет деплой (v6.0.1: тест искал `.fab`,

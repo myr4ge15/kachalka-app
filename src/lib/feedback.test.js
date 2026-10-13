@@ -86,6 +86,9 @@ describe('тексты и форматы', () => {
     expect(contextLine({ version: '6.11.0', device: 'iPhone', standalone: false, screen: 'Лента', online: false }))
       .toBe('v6.11.0 · iPhone · браузер · открыто с: Лента · офлайн')
     expect(contextLine({ device: { x: 1 } })).toBe('')
+    // v8.0.1: пересланное в бота
+    expect(contextLine({ source: 'telegram', tg_from: 'Маша', tg_user_id: 1 })).toBe('из Telegram (Маша)')
+    expect(contextLine({ source: 'telegram' })).toBe('из Telegram')
   })
 })
 
