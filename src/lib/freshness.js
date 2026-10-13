@@ -399,6 +399,20 @@ export function readinessView(recoverySub, imbalanceSub) {
   return { ready, resting, old, bySub }
 }
 
+// Куда вести нажатие на зону карты (v7.5.5): корзина readinessView, где есть мышцы
+// зоны (subs), — сначала открытая (current), дальше по порядку tabIds. Раньше
+// нажатие лишь подсвечивало таблетки ОТКРЫТОЙ корзины, и мышца из другой корзины
+// «выделялась, но нигде не отображалась». null — у зоны нет данных ни в одной.
+export function regionTarget(view, tabIds, current, subs) {
+  const set = new Set(subs ?? [])
+  const order = [current, ...(tabIds ?? []).filter((t) => t !== current)]
+  for (const t of order) {
+    const items = (view?.[t] ?? []).filter((x) => set.has(x.submuscle))
+    if (items.length) return { tab: t, items }
+  }
+  return null
+}
+
 // «через ~N ч» / «через ~N дн» для оставшегося отдыха.
 export function fmtHoursLeft(h) {
   const v = Math.max(0, Math.round(Number(h) || 0))

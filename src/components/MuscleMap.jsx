@@ -61,6 +61,10 @@ for (const [region, subs] of Object.entries(REGION_SUBS)) for (const s of subs) 
 export function regionOf(submuscle) {
   return SUB_REGION[submuscle] ?? null
 }
+// Подмышцы зоны и ее подпись — экрану, чтобы по нажатию на зону открыть нужную
+// корзину и написать, что выбрано (v7.5.5).
+export const regionSubs = (region) => REGION_SUBS[region] ?? []
+export const regionLabel = (region) => REGION_LABEL[region] ?? region
 
 // Статус зоны = самый строгий среди ее подмышц, что есть в данных.
 function regionBucket(region, bySub) {

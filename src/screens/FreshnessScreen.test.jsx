@@ -48,6 +48,26 @@ describe('FreshnessScreen «Восстановление» (v6.3.5)', () => {
     fireEvent.click([...document.querySelectorAll('.fr-chip')].find((el) => /широчайшие/.test(el.textContent)))
     expect(document.querySelector('.fr-detail')).toHaveTextContent(/Широчайшие · спина · /)
   })
+
+  // v7.5.5: открыта «можно», а нажатая на рисунке мышца отдыхает — раньше она
+  // подсвечивалась на карте, но в списке и деталях ее не было.
+  it('нажатие на мышцу рисунка открывает ее корзину и показывает детали', () => {
+    render(<FreshnessScreen user={{ id: 'u1' }} onBack={() => {}} />)
+    expect(screen.getByRole('tab', { name: /можно/ })).toHaveAttribute('aria-selected', 'true')
+    fireEvent.click(screen.getAllByRole('button', { name: 'широчайшие' })[0])
+    expect(screen.getByRole('tab', { name: /отдыхают/ })).toHaveAttribute('aria-selected', 'true')
+    expect(document.querySelector('.fr-chip.on')).toHaveTextContent('широчайшие')
+    expect(document.querySelector('.fr-detail')).toHaveTextContent(/^Широчайшие · спина · /)
+    // повторное нажатие снимает выбор
+    fireEvent.click(screen.getAllByRole('button', { name: 'широчайшие' })[0])
+    expect(document.querySelector('.fr-chip.on')).toBeNull()
+  })
+
+  it('мышца без данных — так и пишем', () => {
+    render(<FreshnessScreen user={{ id: 'u1' }} onBack={() => {}} />)
+    fireEvent.click(screen.getAllByRole('button', { name: 'трапеция' })[0])
+    expect(document.querySelector('.fr-detail')).toHaveTextContent('Трапеция · нет данных: не тренировал ни разу')
+  })
 })
 
 describe('FreshnessScreen — объём по группам (v6.5.0)', () => {

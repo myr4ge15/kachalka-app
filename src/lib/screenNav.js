@@ -82,6 +82,13 @@ export function swipeBackBlocked(target, stop, getStyle = (el) => getComputedSty
   return false
 }
 
+// Идет выделение текста (v7.5.5): долгое нажатие выделило слово, и палец тянет
+// ручки выделения. Это тот же touchmove вбок — без проверки свайп «назад» уводил
+// экран из-под выделения. sel — window.getSelection() (или подмена в тестах).
+export function textSelectionActive(sel) {
+  return Boolean(sel && !sel.isCollapsed && String(sel).trim())
+}
+
 // Довели ли жест до «Назад»: треть ширины или быстрый бросок (px/мс).
 export function swipeCommits(dx, velocity, width) {
   if (dx <= 0) return false

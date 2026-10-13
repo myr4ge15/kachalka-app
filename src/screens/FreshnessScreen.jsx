@@ -4,12 +4,12 @@ import { getFreshness } from '../db/insights.js'
 import { getWorkouts } from '../db/repo.js'
 import { groupVolumeTrend, trendLabel, WEEKS } from '../lib/groupVolume.js'
 import { plural } from '../lib/plural.js'
-import { readinessView, recoveryLead, fmtHoursLeft } from '../lib/freshness.js'
+import { readinessView, recoveryLead, fmtHoursLeft, regionTarget } from '../lib/freshness.js'
 import { fmtDaysAgo, fmtDays } from '../lib/homeSummary.js'
 import { labelOf } from '../lib/muscles.js'
 import { groupAccusative } from '../lib/dayTags.js'
 import { byGender } from '../lib/gender.js'
-import MuscleMap, { regionOf } from '../components/MuscleMap.jsx'
+import MuscleMap, { regionOf, regionSubs, regionLabel } from '../components/MuscleMap.jsx'
 import CardsSkeleton from '../components/CardsSkeleton.jsx'
 import BackButton from '../components/BackButton.jsx'
 
@@ -119,7 +119,17 @@ export default function FreshnessScreen({ user, onBack }) {
 
   const pickTab = (id) => { setTabPick(id); setSel(null); setRegion(null); setFocusPick(null) }
   const pickSub = (s) => { setSel((cur) => (cur === s ? null : s)); setRegion(null); setFocusPick(null) }
-  const pickRegion = (r) => { setRegion((cur) => (cur === r ? null : r)); setSel(null); setFocusPick(null) }
+  // Нажатие на зону карты (v7.5.5): открыть корзину, где мышцы зоны есть; одна мышца
+  // в зоне — сразу выбрать (детали внизу), несколько — подсветить таблетки. Повторное
+  // нажатие на ту же зону снимает выбор.
+  const pickRegion = (r) => {
+    setFocusPick(null)
+    if (region === r || (selected && regionOf(selected.submuscle) === r)) { setRegion(null); setSel(null); return }
+    const hit = regionTarget(view, TABS.map((t) => t.id), tab, regionSubs(r))
+    if (hit) setTabPick(hit.tab)
+    if (hit?.items.length === 1) { setSel(hit.items[0].submuscle); setRegion(null) } else { setSel(null); setRegion(r) }
+  }
+  const regionHit = !selected && region ? regionTarget(view, TABS.map((t) => t.id), tab, regionSubs(region)) : null
   const focusOn = (g) => { setFocusPick(g); setTabPick(null); setSel(null); setRegion(null) }
 
   return (
@@ -193,6 +203,10 @@ export default function FreshnessScreen({ user, onBack }) {
           <p className="fr-detail" aria-live="polite">
             {selected
               ? <><b>{cap(labelOf(selected.submuscle))}</b> · {detailText(selected, data?.sex)}</>
+              : region && regionHit
+                ? <><b>{cap(regionLabel(region))}</b> · подсветил {regionHit.items.length} {plural(regionHit.items.length, 'мышцу', 'мышцы', 'мышц')} выше — нажми на нужную</>
+              : region
+                ? <><b>{cap(regionLabel(region))}</b> · нет данных: {byGender(data?.sex, 'не тренировал', 'не тренировала')} ни разу</>
               : `Нажми на мышцу — покажу, когда ${byGender(data?.sex, 'тренировал', 'тренировала')} и когда снова можно.`}
           </p>
 

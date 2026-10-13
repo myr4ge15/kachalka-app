@@ -13,7 +13,7 @@
 // экран (.screen-anim). Решения по жесту — чистые функции lib/screenNav.js.
 import { useEffect, useRef } from 'react'
 import { flushSync } from 'react-dom'
-import { EDGE_PX, swipeAxis, swipeBackBlocked, swipeCommits } from '../lib/screenNav.js'
+import { EDGE_PX, swipeAxis, swipeBackBlocked, swipeCommits, textSelectionActive } from '../lib/screenNav.js'
 
 const SETTLE_MS = 180
 
@@ -83,6 +83,7 @@ export function useEdgeSwipeBack(containerRef, screenRef, onBack, enabled) {
       const t = e.touches[0]
       const edge = t.clientX <= EDGE_PX
       if (!edge && swipeBackBlocked(e.target, box)) return
+      if (textSelectionActive(window.getSelection?.())) return // тянут ручки выделения
       g = { x0: t.clientX, y0: t.clientY, edge, axis: null, dx: 0, lastX: t.clientX, lastT: e.timeStamp, v: 0 }
     }
 
@@ -93,6 +94,9 @@ export function useEdgeSwipeBack(containerRef, screenRef, onBack, enabled) {
       const dx = t.clientX - g.x0
       const dy = t.clientY - g.y0
       if (!g.axis) {
+        // Долгое нажатие выделило текст, пока палец стоял, — дальше палец ведет
+        // выделение, а не экран (v7.5.5).
+        if (textSelectionActive(window.getSelection?.())) { g = null; return }
         g.axis = swipeAxis(dx, dy, g.edge)
         if (g.axis === 'y') { g = null; return }
         if (!g.axis) return

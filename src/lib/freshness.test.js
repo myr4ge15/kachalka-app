@@ -18,6 +18,7 @@ import {
   lastWorkedBySubmuscle,
   submuscleFreshness,
   submuscleImbalance,
+  regionTarget,
 } from './freshness.js'
 
 function wk({ id, at, entries, deleted }) {
@@ -345,5 +346,26 @@ describe('readinessStatus — единая шкала Главной и экра
   })
   it('пусто → null', () => {
     expect(readinessStatus(null)).toBeNull()
+  })
+})
+
+describe('regionTarget (v7.5.5)', () => {
+  const view = {
+    ready: [{ submuscle: 'biceps' }, { submuscle: 'chest_middle' }],
+    resting: [{ submuscle: 'lats' }, { submuscle: 'chest_upper' }, { submuscle: 'chest_lower' }],
+    old: [{ submuscle: 'calves' }],
+  }
+  const tabs = ['ready', 'resting', 'old']
+  it('мышца из другой корзины — ведет в нее', () => {
+    expect(regionTarget(view, tabs, 'ready', ['lats', 'rhomboids'])).toEqual({ tab: 'resting', items: [{ submuscle: 'lats' }] })
+    expect(regionTarget(view, tabs, 'resting', ['calves']).tab).toBe('old')
+  })
+  it('мышцы зоны есть в открытой корзине — остаемся в ней', () => {
+    expect(regionTarget(view, tabs, 'resting', ['chest_upper', 'chest_middle', 'chest_lower']).items).toHaveLength(2)
+    expect(regionTarget(view, tabs, 'ready', ['chest_upper', 'chest_middle']).tab).toBe('ready')
+  })
+  it('нет данных ни в одной корзине → null', () => {
+    expect(regionTarget(view, tabs, 'ready', ['traps'])).toBe(null)
+    expect(regionTarget(undefined, tabs, 'ready', ['traps'])).toBe(null)
   })
 })

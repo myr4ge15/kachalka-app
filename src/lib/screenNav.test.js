@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest'
-import { transitionKind, isNested, swipeAxis, swipeBackBlocked, swipeCommits, edgeSwipeSupported, nextScreenStack, initialScreenStack } from './screenNav.js'
+import { transitionKind, isNested, swipeAxis, swipeBackBlocked, swipeCommits, textSelectionActive, edgeSwipeSupported, nextScreenStack, initialScreenStack } from './screenNav.js'
 
 describe('стек возврата', () => {
   it('сохраняет предков и убирает закрытые дочерние экраны', () => {
@@ -101,5 +101,14 @@ describe('edgeSwipeSupported', () => {
     expect(edgeSwipeSupported({ isIOS: true, standalone: true })).toBe(true)
     expect(edgeSwipeSupported({ isIOS: true, standalone: false })).toBe(false)
     expect(edgeSwipeSupported({ isIOS: false, standalone: true })).toBe(false)
+  })
+})
+
+describe('textSelectionActive (v7.5.5)', () => {
+  it('выделен текст — да; пусто, свернуто или нет API — нет', () => {
+    expect(textSelectionActive({ isCollapsed: false, toString: () => 'кардио' })).toBe(true)
+    expect(textSelectionActive({ isCollapsed: true, toString: () => '' })).toBe(false)
+    expect(textSelectionActive({ isCollapsed: false, toString: () => '  ' })).toBe(false)
+    expect(textSelectionActive(null)).toBe(false)
   })
 })

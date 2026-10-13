@@ -137,4 +137,26 @@ describe('useEdgeSwipeBack', () => {
     vi.advanceTimersByTime(300)
     expect(onBack).toHaveBeenCalledTimes(1)
   })
+
+  // v7.5.5: долгое нажатие выделило текст, палец тянет ручку выделения вбок —
+  // это выделение, а не «Назад» (раньше экран уезжал из-под пальца).
+  it('тянут ручки выделения текста — не «Назад»', () => {
+    const onBack = vi.fn()
+    const { getByTestId } = render(<Harness onBack={onBack} />)
+    const box = getByTestId('box')
+    Object.defineProperty(box, 'clientWidth', { value: 390 })
+    const spy = vi.spyOn(window, 'getSelection')
+    // выделение появилось, пока палец стоял (после touchstart)
+    fireEvent.touchStart(box, pt(100))
+    spy.mockReturnValue({ isCollapsed: false, toString: () => 'Сегодня' })
+    fireEvent.touchMove(box, pt(200))
+    fireEvent.touchMove(box, pt(300))
+    fireEvent.touchEnd(box, { touches: [] })
+    // и новый жест при уже выделенном тексте
+    swipe(box, [[100, 300], [300, 300]])
+    vi.advanceTimersByTime(300)
+    expect(onBack).not.toHaveBeenCalled()
+    expect(getByTestId('screen').style.left).toBe('')
+    spy.mockRestore()
+  })
 })
