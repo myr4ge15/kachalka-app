@@ -170,8 +170,9 @@ export function fmtTemplateTarget(metric, t) {
 
 // Короткая запись ОДНОГО подхода для списков (история/лента/прогресс):
 //   weight → '80×8' (или просто '8', если веса нет);
-//   reps   → '12', '+10 кг × 8' (доп. вес, v6.16.0) или '−20 кг × 8' (помощь,
-//            v7.2.0); time → '1:30';
+//   reps   → '12', '+10×8' (доп. вес, v6.16.0) или '−20×8' (помощь, v7.2.0) —
+//            та же форма «вес×повт.», что у весовых, знак отличает «свой вес»
+//            (v7.5.2; раньше '+10 кг × 8' и колонки setColumns); time → '1:30';
 //   distance → '5 км · 25:00' (старые записи бега без км — только время).
 export function fmtSet(metric, s) {
   const reps = Number(s?.reps) || 0
@@ -182,28 +183,17 @@ export function fmtSet(metric, s) {
     return weight > 0 ? `${fmtKm(weight)} км` : fmtTime(reps)
   }
   if (m === 'time') return fmtTime(reps)
-  if (m === 'reps') return weight ? `${fmtExtraWeight(weight)} × ${reps}` : String(reps)
+  if (m === 'reps') {
+    const w = Math.round(weight * 100) / 100
+    return w ? `${w > 0 ? '+' : '−'}${Math.abs(w)}×${reps}` : String(reps)
+  }
   return weight > 0 ? `${weight}×${reps}` : String(reps)
 }
 
-// Подходы «своего веса» колонками (v7.2.3): по колонке на подход — сверху повторы,
-// под ними вес со знаком без «кг» ('−10', '+10', '0'). Только у metric='reps', и
-// только если хоть в одном подходе есть доп. вес или помощь; иначе null — тогда
-// подходы пишутся строкой (fmtSetList). Так прогрессия помощи видна по подходам,
-// а не скрыта в диапазоне или повторах «−17.5 кг × 12».
-export function setColumns(metric, sets) {
-  const list = sets ?? []
-  if (normMetric(metric) !== 'reps' || !list.some((s) => Number(s?.weight))) return null
-  return list.map((s) => {
-    const w = Math.round((Number(s?.weight) || 0) * 100) / 100
-    return { reps: Number(s?.reps) || 0, w: w ? `${w > 0 ? '+' : '−'}${Math.abs(w)}` : '0' }
-  })
-}
-
 // Подходы упражнения одной строкой для списков (Лента, История, Прогресс, панель
-// автопрогрессии): fmtSet каждого подхода через sep. «Свой вес» с доп. весом/помощью
-// сюда не попадает — его рисуют колонками (setColumns + components/SetsCells.jsx,
-// v7.2.3). Пусто → ''.
+// автопрогрессии): fmtSet каждого подхода через sep. «Свой вес» с доп. весом/помощью —
+// тоже строкой ('+15×12, −17.5×10'): колонки «повторы над весом» (setColumns,
+// v7.2.3) ломали ровную таблицу карточек и убраны в v7.5.2. Пусто → ''.
 export function fmtSetList(metric, sets, sep = ', ') {
   return (sets ?? []).map((s) => fmtSet(metric, s)).join(sep)
 }

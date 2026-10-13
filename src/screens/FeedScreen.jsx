@@ -6,7 +6,7 @@ import { getUsers, toggleReaction, getPrivacyFlag } from '../db/repo.js'
 import { syncNow } from '../db/sync.js'
 import { onOnline, onResume, onReselect } from '../lib/appEvents.js'
 import { fmtWhen, fmtAgo } from '../lib/dates.js'
-import SetsCells, { SetsCaption } from '../components/SetsCells.jsx'
+import SetsCells from '../components/SetsCells.jsx'
 import { vibrate, HAPTIC } from '../lib/haptics.js'
 import { pullDistance, shouldTriggerRefresh, PULL_THRESHOLD } from '../lib/pullRefresh.js'
 import Leaderboard from './Leaderboard.jsx'
@@ -320,7 +320,7 @@ export default function FeedScreen({ user, onOpenMember, flashId = null, onOpenC
             <ul className="history-list">
               {w.entries.map((e, i) => (
                 <li key={e.exercise_id ?? e.name ?? i} className="history-ex">
-                  <span className="history-ex-name">{e.name}<SetsCaption metric={e.metric} sets={e.sets} /></span>
+                  <span className="history-ex-name">{e.name}</span>
                   <span className="history-ex-sets">
                     <SetsCells metric={e.metric} sets={e.sets} />
                   </span>

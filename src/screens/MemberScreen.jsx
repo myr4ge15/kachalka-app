@@ -8,7 +8,7 @@ import { onOnline, onResume } from '../lib/appEvents.js'
 import { buildMemberView, memberDisplay, MEMBER_GRACE_MS, MEMBER_LIMIT } from '../lib/memberProfile.js'
 import { fmtWhen } from '../lib/dates.js'
 import { fmtMetricValue } from '../lib/metric.js'
-import SetsCells, { SetsCaption } from '../components/SetsCells.jsx'
+import SetsCells from '../components/SetsCells.jsx'
 import { plural } from '../lib/plural.js'
 import AvatarZoom from '../components/AvatarZoom.jsx'
 import BackButton from '../components/BackButton.jsx'
@@ -244,7 +244,7 @@ export default function MemberScreen({ user, memberId, onBack }) {
                   <ul className="history-list">
                     {w.entries.map((e, i) => (
                       <li key={e.exercise_id ?? e.name ?? i} className="history-ex">
-                        <span className="history-ex-name">{e.name}<SetsCaption metric={e.metric} sets={e.sets} /></span>
+                        <span className="history-ex-name">{e.name}</span>
                         <span className="history-ex-sets">
                           <SetsCells metric={e.metric} sets={e.sets} />
                         </span>

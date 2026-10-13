@@ -458,7 +458,7 @@ export default function ProgressScreen({
                     <div key={r.day} className={`prog-row${r.isPr ? ' pr' : ''}`}>
                       <span>{fmtDate(r.day)}</span>
                       <span className="prog-sets">
-                        <SetsCells metric={metric} sets={r.sets} empty="" align="start" />
+                        <SetsCells metric={metric} sets={r.sets} empty="" />
                       </span>
                       <span className="prog-val">
                         {metric === 'time' ? fmtTime(r.value) : r.value}{r.isPr ? ' 🏆' : ''}

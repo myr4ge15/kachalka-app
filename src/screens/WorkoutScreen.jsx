@@ -28,6 +28,7 @@ import ExerciseCard from '../components/ExerciseCard.jsx'
 import DateField from '../components/DateField.jsx'
 import WorkoutActions from '../components/WorkoutActions.jsx'
 import SaveBar from '../components/SaveBar.jsx'
+import { AppMarkGlyph } from '../components/AppMark.jsx'
 import BackButton from '../components/BackButton.jsx'
 
 // локальный документ → редактируемая форма [{ exercise, sets:[{weight,reps}] }].
@@ -680,10 +681,7 @@ export default function WorkoutScreen({ user, workoutId = null, onBack, onSaved 
 
           {entries.length === 0 && (
             <div className="wk-empty">
-              <div className="wk-empty-ico" aria-hidden="true">
-                <svg viewBox="0 0 24 24" width="26" height="26" fill="none" stroke="currentColor"
-                  strokeWidth="2" strokeLinecap="round"><path d="M1.5 12h21" /><rect x="3" y="8.5" width="2.6" height="7" rx="1" fill="currentColor" stroke="none" /><rect x="6.4" y="6" width="3" height="12" rx="1.2" fill="currentColor" stroke="none" /><rect x="14.6" y="6" width="3" height="12" rx="1.2" fill="currentColor" stroke="none" /><rect x="18.4" y="8.5" width="2.6" height="7" rx="1" fill="currentColor" stroke="none" /></svg>
-              </div>
+              <span className="wk-empty-mark" aria-hidden="true"><AppMarkGlyph width="64" height="39" /></span>
               <b>Добавь упражнение, чтобы начать</b>
               {isNew && <span>Или возьми шаблон — подходы и веса подставятся сами.</span>}
             </div>

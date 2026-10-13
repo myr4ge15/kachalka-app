@@ -106,13 +106,13 @@ export default function ExerciseCard({
                 <span className="ap-when">{daysAgoLabel(entry.prog.whenIso)}</span>
               </div>
               <div className="ap-prev">
-                <SetsCells metric={metric} sets={entry.prog.prev} sep=" · " empty="" align="start" />
+                <SetsCells metric={metric} sets={entry.prog.prev} sep=" · " empty="" />
               </div>
               <div className={`ap-rec-lbl ${progTone(entry.prog.kind)}`}>
                 {progArrow(entry.prog.kind)} Рекомендуем сегодня
               </div>
               <div className="ap-rec">
-                <SetsCells metric={metric} sets={entry.prog.recSets} sep=" · " empty="" align="start" />
+                <SetsCells metric={metric} sets={entry.prog.recSets} sep=" · " empty="" />
               </div>
               <span className={`reason ${progTone(entry.prog.kind)}`}>{entry.prog.reason}</span>
               <div className="ap-actions">

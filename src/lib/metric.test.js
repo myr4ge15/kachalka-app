@@ -3,7 +3,6 @@ import {
   hasExtraWeight,
   fmtExtraWeight,
   fmtSetList,
-  setColumns,
   normMetric,
   exerciseMetric,
   isCountMetric,
@@ -156,12 +155,13 @@ describe('fmtSet', () => {
     expect(fmtSet('reps', { weight: 0, reps: 12 })).toBe('12')
     expect(fmtSet('time', { weight: 0, reps: 90 })).toBe('1:30')
   })
-  it('свой вес с доп. весом → «+10 кг × 8» (v6.16.0)', () => {
-    expect(fmtSet('reps', { weight: 10, reps: 8 })).toBe(`+10${N}кг × 8`)
-    expect(fmtSet('reps', { weight: 2.5, reps: 12 })).toBe(`+2.5${N}кг × 12`)
+  it('свой вес с доп. весом → «+10×8», как у весовых, но со знаком (v7.5.2)', () => {
+    expect(fmtSet('reps', { weight: 10, reps: 8 })).toBe('+10×8')
+    expect(fmtSet('reps', { weight: 2.5, reps: 12 })).toBe('+2.5×12')
     // v7.2.0: помощь гравитрона — настоящий минус
-    expect(fmtSet('reps', { weight: -20, reps: 8 })).toBe(`−20${N}кг × 8`)
-    expect(fmtSet('reps', { weight: -17.5, reps: 10 })).toBe(`−17.5${N}кг × 10`)
+    expect(fmtSet('reps', { weight: -20, reps: 8 })).toBe('−20×8')
+    expect(fmtSet('reps', { weight: -17.5, reps: 10 })).toBe('−17.5×10')
+    expect(fmtExtraWeight(10)).toBe(`+10${N}кг`)
     expect(fmtExtraWeight(0)).toBe('')
     expect(fmtExtraWeight('abc')).toBe('')
   })
@@ -177,18 +177,3 @@ describe('fmtSet', () => {
   })
 })
 
-describe('setColumns (v7.2.3)', () => {
-  const s = (weight, reps) => ({ weight, reps })
-  it('свой вес с помощью/доп. весом → колонка на подход, вес со знаком', () => {
-    expect(setColumns('reps', [s(-10, 12), s(-17.5, 13), s(0, 8), s(10, 6)])).toEqual([
-      { reps: 12, w: '−10' }, { reps: 13, w: '−17.5' }, { reps: 8, w: '0' }, { reps: 6, w: '+10' },
-    ])
-  })
-  it('без веса, другие метрики, пусто → null (строка как раньше)', () => {
-    expect(setColumns('reps', [s(0, 12), s(0, 10)])).toBe(null)
-    expect(setColumns('weight', [s(80, 8)])).toBe(null)
-    expect(setColumns('time', [s(0, 90)])).toBe(null)
-    expect(setColumns('reps', [])).toBe(null)
-    expect(setColumns('reps', undefined)).toBe(null)
-  })
-})
