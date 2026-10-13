@@ -337,8 +337,9 @@ updated_at)` + `upsert_user_meta` (`supabase/user-meta.sql`, RLS «только 
 - **Telegram на разных ботах (v7.5.0)** → `_shared/tgBots.ts` + `_shared/tgApi.ts tgBot(role)`, план
   `docs/plans/PLAN-tg-bots-split.md`, накат `tg-bots-split-deploy.md`. Роли: `notify` (kachalka-notifier,
   `TELEGRAM_BOT_TOKEN`, беседа: `tg-record`/`tg-digest`), `stats` (`TELEGRAM_STATS_BOT_TOKEN`, `tg-summary`),
-  `feedback` (`TELEGRAM_FEEDBACK_BOT_TOKEN`: обращения + заявки «Хочу в круг»), `pin` (`TELEGRAM_PIN_BOT_TOKEN`:
-  `/start`-привязка и ссылки сброса). Не задан токен роли — она живет в старом боте. Новый вызов Telegram —
+  `feedback` (`TELEGRAM_FEEDBACK_BOT_TOKEN`: обращения), `pin` (`TELEGRAM_PIN_BOT_TOKEN`:
+  `/start`-привязка и ссылки сброса), `join` (13.10.2026, `TELEGRAM_JOIN_BOT_TOKEN`, полоса 4: заявки «Хочу в круг»;
+  без токена — у бота ОС, не у старого; `?bot=join` понимает только ✅/🚫 заявок — `scopeAllows`; накат `tg-join-bot-deploy.md`). Не задан токен роли — она живет в старом боте. Новый вызов Telegram —
   только через `tgBot(<роль>)`, не голым fetch и не чужой ролью. Вебхук `tg-bot` один на всех: бот — в адресе
   (`?bot=feedback|pin`, без параметра — старый бот, свои старые сообщения), роль понимает только свое
   (`webhookScope`). ⚠️ **Номера Telegram в базе — ключом полосы** (`bot.key()`/`bot.unkey()`/`bot.ids()`,
