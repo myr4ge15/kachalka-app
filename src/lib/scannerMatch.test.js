@@ -25,3 +25,16 @@ describe('scanner matching', () => {
     expect(matchScannedText('LEG EXTENSION', catalog)).toEqual([])
   })
 })
+describe('scanner ranking', () => {
+  it('puts the name printed on the plate before other label targets', () => {
+    const named = [{ id: 'a', name: 'Сгибание рук на изолированном тренажере' }, { id: 'b', name: 'Сгибание рук на нижнем блоке' }]
+    expect(matchScannedText('ARM CURL\nСгибание рук на нижнем блоке', named).map(m => m.exercise.id)).toEqual(['b', 'a'])
+  })
+  it('keeps the curated order of label targets regardless of catalog order', () => {
+    const list = [{ id: 'stand', name: 'Подъем на носки стоя' }, { id: 'sit', name: 'Подъем на носки сидя' }]
+    expect(matchScannedText('CALF RAISE', list).map(m => m.exercise.id)).toEqual(['sit', 'stand'])
+  })
+  it('returns only exercise and label', () => {
+    expect(Object.keys(matchScannedText('LEG PRESS', [{ id: 1, name: 'Жим ногами' }])[0]).sort()).toEqual(['exercise', 'label'])
+  })
+})

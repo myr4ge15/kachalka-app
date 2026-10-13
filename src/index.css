@@ -82,6 +82,7 @@
   --surface: #1C2433;       /* карточки, инпуты */
   --surface-2: #253045;     /* вложенные плашки, нажатие */
   --surface-solid: rgba(17, 24, 39, .94); /* плавающие оверлеи и липкие слои */
+  --scrim: rgba(7, 11, 19, .66); /* затемнение вокруг окна сканера (поверх камеры) */
   --border: #2F3A50;
   --text: #F8FAFC;
   --muted: #AEB6C4;
@@ -3753,15 +3754,109 @@ html[data-sheet-open], html[data-sheet-open] body { overscroll-behavior: none; }
 .lb-boards { margin-bottom: 10px; }
 .fc-empty .btn { margin-top: 10px; }
 
-/* Exercise label scanner */
-.scanner { display: flex; flex-direction: column; gap: 12px; }
-.scanner p { margin: 0; }
+/* Exercise label scanner — полноэкранный видоискатель (v7.4.0, прототип
+   prototypes/scanner-concepts.html, концепт D). Камера во весь лист, шапка листа
+   поверх нее; окно чтения затемняет все вокруг. Что видно в окне — то и читает
+   OCR (lib/scannerFrame.js guideCrop), поэтому раскладку окна не двигать без нее. */
 .scanner-search-row { position: relative; width: 100%; min-width: 0; }
 .scanner-search-row .search { width: 100%; min-width: 0; padding-right: 60px; }
 .scanner-open { position: absolute; right: 8px; top: 50%; transform: translateY(-50%); display: flex; align-items: center; justify-content: center; width: 44px; height: 44px; min-width: 44px; min-height: 44px; padding: 0; border: 0; background: transparent; box-shadow: none; color: var(--acc); }
-.scanner-camera { position: relative; background: var(--surface-2); border-radius: var(--radius, 12px); overflow: hidden; }
-.scanner-camera video { display: block; width: 100%; height: auto; }
-.scanner-guide { position: absolute; inset: 25% 0; border: 2px solid var(--acc); pointer-events: none; }
-.scanner-text { overflow-wrap: anywhere; color: var(--muted); }
-.scanner .picker-item[aria-pressed="true"] { outline: 2px solid var(--acc); background: var(--acc-soft); }
-.scanner .btn { min-height: 44px; }
+.sheet.scanner-sheet { position: relative; padding: 0; }
+.scanner-sheet .sheet-head {
+  position: absolute; top: 0; left: 0; right: 0; z-index: 3; margin: 0;
+  padding: calc(12px + env(safe-area-inset-top)) calc(16px + env(safe-area-inset-right)) 28px calc(16px + env(safe-area-inset-left));
+  background: linear-gradient(180deg, var(--surface-solid), transparent);
+}
+.scanner { position: relative; flex: 1; min-height: 0; overflow: hidden; background: var(--bg); }
+.scanner p { margin: 0; }
+.scanner-ic { width: 20px; height: 20px; flex: none; }
+.scanner-video { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover; display: block; }
+.scanner-stage {
+  position: absolute; inset: 0; z-index: 1; pointer-events: none;
+  display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 14px;
+  padding: 0 calc(22px + env(safe-area-inset-right)) 120px calc(22px + env(safe-area-inset-left));
+}
+.scanner-hint, .scanner-status { position: relative; z-index: 1; } /* над затемнением окна */
+.scanner-hint { text-shadow: 0 1px 6px var(--scrim); font-size: var(--fs-body); font-weight: var(--fw-strong); text-align: center; }
+.scanner-guide {
+  position: relative; width: 100%; height: min(36vw, 150px); flex: none;
+  border-radius: 18px; box-shadow: 0 0 0 100vmax var(--scrim);
+}
+.scanner-guide.is-locked { box-shadow: 0 0 0 100vmax var(--scrim), inset 0 0 0 3px var(--acc); }
+.scanner-corner { position: absolute; width: 28px; height: 28px; border: 3px solid var(--acc); }
+.scanner-corner.tl { top: -2px; left: -2px; border-right: 0; border-bottom: 0; border-top-left-radius: 18px; }
+.scanner-corner.tr { top: -2px; right: -2px; border-left: 0; border-bottom: 0; border-top-right-radius: 18px; }
+.scanner-corner.bl { bottom: -2px; left: -2px; border-right: 0; border-top: 0; border-bottom-left-radius: 18px; }
+.scanner-corner.br { bottom: -2px; right: -2px; border-left: 0; border-top: 0; border-bottom-right-radius: 18px; }
+.scanner-line {
+  position: absolute; left: 12px; right: 12px; top: 8%; height: 2px; border-radius: 2px;
+  background: var(--acc); box-shadow: 0 0 12px 2px color-mix(in srgb, var(--acc) 70%, transparent);
+  animation: scanner-sweep 2.2s var(--ease-in-out) infinite alternate;
+}
+@keyframes scanner-sweep { to { top: 92%; } }
+.scanner-status { pointer-events: auto; max-width: 100%; }
+.scanner-badge {
+  display: inline-flex; align-items: center; gap: 8px; max-width: 100%; min-height: 40px;
+  padding: 8px 14px; border-radius: 999px; font-size: var(--fs-label); color: var(--text);
+  background: var(--surface-solid); border: 1px solid var(--border);
+}
+.scanner-badge > span:not([class]) { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.scanner-badge b { color: var(--acc-2); font-weight: var(--fw-strong); }
+.scanner-badge.is-tap { min-height: 44px; padding-right: 8px; border-color: color-mix(in srgb, var(--acc) 55%, transparent); }
+.scanner-badge.is-tap .scanner-ic { width: 18px; height: 18px; color: var(--acc-2); }
+.scanner-pulse { width: 8px; height: 8px; border-radius: 50%; flex: none; background: var(--acc); animation: scanner-pulse 1.2s ease-in-out infinite; }
+@keyframes scanner-pulse { 50% { opacity: .25; transform: scale(.7); } }
+.scanner-ring {
+  width: 16px; height: 16px; border-radius: 50%; flex: none;
+  border: 2px solid var(--surface-2); border-top-color: var(--acc); border-right-color: var(--acc);
+  animation: spin var(--spin-dur) linear infinite;
+}
+.scanner-controls {
+  position: absolute; left: 0; right: 0; bottom: 0; z-index: 2;
+  display: flex; flex-direction: column; align-items: center; gap: 12px;
+  padding: 28px calc(20px + env(safe-area-inset-right)) calc(18px + env(safe-area-inset-bottom)) calc(20px + env(safe-area-inset-left));
+  background: linear-gradient(0deg, var(--surface-solid) 55%, transparent);
+}
+.scanner-row { display: flex; gap: 12px; width: 100%; }
+.scanner-round {
+  width: 52px; height: 52px; flex: none; border-radius: 50%; display: grid; place-items: center; padding: 0;
+  background: var(--surface-2); border: 1px solid var(--border); color: var(--text);
+}
+.scanner-round[aria-pressed="true"] { background: var(--acc-fill); color: var(--on-acc); border-color: transparent; }
+.scanner-manual { flex: 1; min-height: 52px; display: inline-flex; align-items: center; justify-content: center; gap: 8px; background: var(--surface-2); }
+.scanner-note { font-size: 12px; color: var(--muted); }
+.scanner-panel {
+  position: absolute; left: 0; right: 0; bottom: 0; z-index: 4;
+  display: flex; flex-direction: column; gap: 12px; max-height: 85%; overflow-y: auto; overscroll-behavior-y: contain;
+  padding: 10px calc(20px + env(safe-area-inset-right)) calc(20px + env(safe-area-inset-bottom)) calc(20px + env(safe-area-inset-left));
+  background: var(--bg); border-top: 1px solid var(--border); border-radius: 28px 28px 0 0;
+  animation: scanner-rise var(--dur-slow) var(--ease-out);
+}
+@keyframes scanner-rise { from { transform: translateY(24px); opacity: 0; } }
+.scanner-error { padding-top: 22px; }
+.scanner-error p { font-size: var(--fs-body); line-height: 1.4; }
+.scanner-grab { width: 40px; height: 5px; border-radius: 3px; background: var(--border); align-self: center; }
+.scanner-eyebrow { display: flex; align-items: center; gap: 6px; font-size: var(--fs-meta); font-weight: var(--fw-strong); color: var(--acc-2); }
+.scanner-eyebrow .scanner-ic { width: 16px; height: 16px; }
+.scanner-name {
+  margin: 0; font-family: var(--font-display); font-weight: 900; font-size: 34px; line-height: 1;
+  text-transform: uppercase; letter-spacing: .01em; overflow-wrap: anywhere; text-wrap: balance;
+}
+.scanner-tags { display: flex; flex-wrap: wrap; gap: 8px; }
+.chip.scanner-tag { min-height: 32px; background: var(--acc-soft); color: var(--acc-2); border-color: color-mix(in srgb, var(--acc) 45%, transparent); }
+.scanner .btn { min-height: 52px; }
+.scanner-alts { display: flex; flex-direction: column; gap: 6px; }
+.scanner-alts > p { font-size: var(--fs-meta); }
+.scanner-alt {
+  display: flex; align-items: center; justify-content: space-between; gap: 12px; width: 100%; min-height: 56px;
+  padding: 8px 12px 8px 14px; border-radius: 14px; text-align: left;
+  background: var(--surface); border: 1px solid var(--border); color: var(--text); font-size: var(--fs-body); font-weight: var(--fw-strong);
+}
+.scanner-alt > span { min-width: 0; overflow-wrap: anywhere; }
+.scanner-alt small { display: block; font-size: 12px; font-weight: 400; color: var(--muted); }
+.scanner-alt .scanner-ic { width: 18px; height: 18px; color: var(--muted); }
+.scanner-again { align-self: center; min-height: 44px; font-size: var(--fs-label); font-weight: var(--fw-strong); }
+@media (prefers-reduced-motion: reduce) {
+  .scanner-line { animation: none; top: 50%; }
+  .scanner-pulse, .scanner-ring { animation: none; }
+}

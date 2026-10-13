@@ -41,6 +41,7 @@ function phraseMatch(text, phrase, fuzzy = false) {
   })
 }
 
+// Best match first: the scanner offers matches[0] as the main candidate.
 export function matchScannedText(text, exercises) {
   const norm = normalizeName(String(text).slice(0, 500))
   if (norm.length < 5) return []
@@ -50,14 +51,20 @@ export function matchScannedText(text, exercises) {
     const targets = new Map()
     for (const [aliases, names] of LABELS) {
       const label = aliases.find(a => phraseMatch(norm, a, fuzzy))
-      if (label) names.forEach(n => targets.set(normalizeName(n), label.toUpperCase()))
+      if (label) names.forEach((n, order) => {
+        const key = normalizeName(n)
+        if (!targets.has(key)) targets.set(key, { label: label.toUpperCase(), order, size: label.length })
+      })
     }
     return visible.flatMap(exercise => {
       const name = normalizeName(exercise.name)
-      const label = targets.get(name)
-      return label || (name.length >= 6 && phraseMatch(norm, name, fuzzy))
-        ? [{ exercise, label: label || exercise.name }] : []
-    })
+      const target = targets.get(name)
+      // The exercise's own name on the plate is the strongest evidence; then the
+      // curated label targets in their listed order (first = the usual machine).
+      if (name.length >= 6 && phraseMatch(norm, name, fuzzy)) return [{ exercise, label: target?.label || exercise.name, rank: [0, 0, -name.length] }]
+      return target ? [{ exercise, label: target.label, rank: [1, target.order, -target.size] }] : []
+    }).sort((a, b) => a.rank[0] - b.rank[0] || a.rank[1] - b.rank[1] || a.rank[2] - b.rank[2])
+      .map(({ exercise, label }) => ({ exercise, label }))
   }
   const exact = find(false)
   return exact.length ? exact : find(true)
