@@ -170,6 +170,7 @@ export function useSortable(onMove, { attr, handle, holdMs = 0, onLift, onDrop }
 
     function start(target, x, y, kind) {
       if (g) { if (!g.dropping) finish(false); return }
+      if (target.closest?.('[data-no-sort]')) return // своя кнопка внутри ручки («i» у названия)
       const h = target.closest?.(handle)
       if (!h || !root.contains(h)) return
       const row = h.closest(sel)

@@ -211,3 +211,24 @@ describe('useSortable — корень появляется позже', () => {
     expect(onMove).toHaveBeenCalledWith('b', 'a')
   })
 })
+
+describe('useSortable — своя кнопка внутри ручки (v8.0.0)', () => {
+  it('удержание на [data-no-sort] строку не поднимает, на самой ручке — поднимает', () => {
+    const onLift = vi.fn()
+    function Grips() {
+      const ref = useSortable(vi.fn(), { attr: 'data-id', handle: '.grip', holdMs: 350, onLift })
+      return <div ref={ref}>{['a', 'b'].map(id => <div key={id} data-id={id}>
+        <span className="grip">{id}<button data-no-sort="" aria-label={`i ${id}`} /></span>
+      </div>)}</div>
+    }
+    const { container, getByRole } = render(<Grips />)
+    layout(container)
+    fireEvent.touchStart(getByRole('button', { name: 'i b' }), touch(20, 145))
+    act(() => vi.advanceTimersByTime(400))
+    expect(onLift).not.toHaveBeenCalled()
+    fireEvent.touchEnd(getByRole('button', { name: 'i b' }), { touches: [] })
+    fireEvent.touchStart(container.querySelector('[data-id="b"] .grip'), touch(20, 145))
+    act(() => vi.advanceTimersByTime(400))
+    expect(onLift).toHaveBeenCalledWith('b')
+  })
+})

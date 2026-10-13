@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef } from 'react'
+import { useState, useEffect, useRef, useMemo } from 'react'
 import { useLiveQuery } from 'dexie-react-hooks'
 import { getExercises, getWorkout, getWorkouts, saveWorkout, createExercise, deleteWorkout as repoDelete, getRecentSessionsForExercise, getProgSettings, setProgForExercise, saveTemplate, getWorkoutFeels, setWorkoutFeels, getFavorites, toggleFavorite } from '../db/repo.js'
 import { detectNewPrsOnSave, detectGoalReachedOnSave } from '../db/notifications.js'
@@ -23,6 +23,8 @@ import { useSortable } from '../hooks/useSortable.js'
 import { reorderExercises } from '../lib/reorderExercises.js'
 import CardsSkeleton from '../components/CardsSkeleton.jsx'
 import ExercisePicker from '../components/ExercisePicker.jsx'
+import TechniqueSheet from '../components/TechniqueSheet.jsx'
+import { techniqueSlugFor } from '../lib/technique.js'
 import TemplatePicker from '../components/TemplatePicker.jsx'
 import ExerciseCard from '../components/ExerciseCard.jsx'
 import DateField from '../components/DateField.jsx'
@@ -48,6 +50,16 @@ export default function WorkoutScreen({ user, workoutId = null, onBack, onSaved 
   const isNew = workoutId == null
   // Справочник — из локальной базы (офлайн-доступен).
   const exercises = useLiveQuery(() => getExercises(), [], [])
+  // Подсказка карточки — по ТЕКУЩЕЙ записи каталога (не по снимку в тренировке):
+  // переименованное, скрытое или удаленное упражнение подсказку не получает.
+  const techniqueById = useMemo(() => {
+    const map = new Map()
+    for (const ex of exercises) {
+      const slug = techniqueSlugFor(ex)
+      if (slug) map.set(String(ex.id), { slug, name: ex.name })
+    }
+    return map
+  }, [exercises])
   const exerciseUsage = useLiveQuery(
     () => getWorkouts(user.id).then((workouts) => exerciseUsageSections(workouts)),
     [user.id],
@@ -108,6 +120,9 @@ export default function WorkoutScreen({ user, workoutId = null, onBack, onSaved 
   // null → пикер в режиме «добавить»; число → индекс entry, который заменяем.
   const [replaceIdx, setReplaceIdx] = useState(null)
   const [tplPickerOpen, setTplPickerOpen] = useState(false)
+  // Подсказка «Как выполнять» из карточки (v8.0.0): { slug, name } или null.
+  // Только чтение справочника — состав и черновик тренировки она не трогает.
+  const [technique, setTechnique] = useState(null)
   const [saving, setSaving] = useState(false)
   const [message, setMessage] = useState(null) // {type, text, transient?}
   // Короткие подсказки («уже добавлено») гаснут сами через 2,5 с и при следующем
@@ -699,6 +714,9 @@ export default function WorkoutScreen({ user, workoutId = null, onBack, onSaved 
               onActivate={activateExercise}
               feel={feels[entry.exercise.id] ?? null}
               onSetFeel={setFeel}
+              onTechnique={techniqueById.has(String(entry.exercise.id))
+                ? () => setTechnique(techniqueById.get(String(entry.exercise.id)))
+                : null}
               onReplace={openReplacePicker}
               onRemove={removeExercise}
               onRevertProg={revertProg}
@@ -739,11 +757,16 @@ export default function WorkoutScreen({ user, workoutId = null, onBack, onSaved 
           usage={exerciseUsage}
           favorites={favorites}
           onToggleFavorite={(id) => toggleFavorite(user.id, id)}
+          techniqueSlugOf={techniqueSlugFor}
           title={replaceIdx != null ? 'Заменить упражнение' : 'Упражнение'}
           onPick={handlePick}
           onCreate={(p) => createExercise({ ...p, owner_id: user.id })}
           onClose={closePicker}
         />
+      )}
+
+      {technique && (
+        <TechniqueSheet slug={technique.slug} name={technique.name} onClose={() => setTechnique(null)} />
       )}
 
       {tplPickerOpen && (

@@ -151,4 +151,4 @@ kachalka-app работает как закрытый клуб. Само при�
 
 ---
 
-**kachalka-app · v7.5.9**
+**kachalka-app · v8.0.0**

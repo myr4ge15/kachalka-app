@@ -15,4 +15,13 @@ describe('WhatsNewItems', () => {
     rerender(<WhatsNewItems items={items} compact />)
     expect(container.querySelector('ul')).toHaveClass('wn-list', 'compact')
   })
+
+  it('уточнения пункта — вложенным списком под ним (v8.0.0)', () => {
+    const items = [{ e: '📷', t: 'Сканер на весь экран', sub: ['фонарик', 'русские надписи'] }, { e: '🔐', t: 'PIN' }]
+    const { container } = render(<WhatsNewItems items={items} />)
+    const sub = container.querySelector('.wn-sub')
+    expect(sub.querySelectorAll('li')).toHaveLength(2)
+    expect(sub.closest('li')).toHaveTextContent('Сканер на весь экран')
+    expect(container.querySelectorAll('.wn-sub')).toHaveLength(1)
+  })
 })

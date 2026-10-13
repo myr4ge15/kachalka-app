@@ -105,6 +105,13 @@ export default defineConfig(({ mode }) => ({
             handler: 'CacheFirst',
             options: { cacheName: 'exercise-ocr-v1', expiration: { maxEntries: 12, maxAgeSeconds: 60 * 60 * 24 * 90 }, cacheableResponse: { statuses: [200] } },
           },
+          // Кадры подсказок по технике (v8.0.0): не в precache (globPatterns их не
+          // берет — svg), грузятся при открытии подсказки и дальше живут в кэше.
+          {
+            urlPattern: ({ url, sameOrigin }) => sameOrigin && url.pathname.includes('/technique/'),
+            handler: 'CacheFirst',
+            options: { cacheName: 'exercise-technique-v1', expiration: { maxEntries: 80, maxAgeSeconds: 60 * 60 * 24 * 180 }, cacheableResponse: { statuses: [200] } },
+          },
           {
             urlPattern: avatarCachePattern(backendUrl(mode)),
             handler: 'CacheFirst',

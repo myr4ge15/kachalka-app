@@ -5,6 +5,7 @@ import { submusclesOf, secondaryOptionsFor, labelOf, majorOf, defaultSubmuscleFo
 import SheetDialog from './SheetDialog.jsx'
 import { settleScroll } from '../lib/scrollBox.js'
 import ExerciseScanner from './ExerciseScanner.jsx'
+import TechniqueSheet, { TechniqueButton } from './TechniqueSheet.jsx'
 
 // Канонические группы мышц из ТЗ (Приложение A / п. 3.2). К ним добавляем
 // все группы, реально встретившиеся в справочнике, чтобы ничего не потерять.
@@ -19,16 +20,23 @@ const BASE_GROUPS = ['грудь', 'спина', 'ноги', 'плечи', 'би
 // — переключить звезду. Без onToggleFavorite звезд нет (пикер остается простым
 // списком). Звезда — ОТДЕЛЬНАЯ кнопка рядом со строкой, а не внутри нее: вложенные
 // кнопки невалидны, и тап по звезде не должен добавлять упражнение.
+//
+// Подсказки по технике (v8.0.0): techniqueSlugOf(ex) → slug или null. Без него
+// кнопок «i» нет (пикер шаблонов). Кнопка — тоже отдельная от строки; лист
+// подсказки рисуется рядом с пикером (не внутри его листа), пикер под ним
+// остается смонтированным — поиск, группа, прокрутка и фокус не теряются.
 export default function ExercisePicker({
   exercises,
   usage = { recent: [], frequent: [] },
   favorites = [],
   onToggleFavorite,
+  techniqueSlugOf,
   onPick,
   onClose,
   onCreate,
   title = 'Упражнение',
 }) {
+  const [technique, setTechnique] = useState(null) // { slug, name } открытой подсказки
   const [query, setQuery] = useState('')
   const [scanning, setScanning] = useState(false)
   const [group, setGroup] = useState('все')
@@ -143,8 +151,9 @@ export default function ExercisePicker({
     onToggleFavorite(e.id)
   }
 
-  // Строка списка: упражнение + (если включено избранное) звезда справа.
-  // onStar — свой обработчик звезды (блок избранного), иначе просто переключение.
+  // Строка списка: («i» подсказки слева, если включены) + упражнение + (если
+  // включено избранное) звезда справа. onStar — свой обработчик звезды (блок избранного),
+  // иначе просто переключение.
   function row(e, keyPrefix = '', onStar = null) {
     const item = (
       <button className="picker-item" onClick={() => onPick(e)}>
@@ -152,10 +161,20 @@ export default function ExercisePicker({
         <span className="picker-group">{e.muscle_group}</span>
       </button>
     )
-    if (!onToggleFavorite) return <Fragment key={keyPrefix + e.id}>{item}</Fragment>
+    const slug = techniqueSlugOf?.(e) ?? null
+    // «i» — слева от названия (v8.0.0). Когда подсказки в пикере включены, у строк
+    // без подсказки на ее месте пустое место: названия стоят ровной колонкой.
+    const info = !techniqueSlugOf ? null : slug ? (
+      <TechniqueButton name={e.name} onClick={() => setTechnique({ slug, name: e.name })} />
+    ) : <span className="technique-slot" aria-hidden="true" />
+    if (!onToggleFavorite) {
+      if (!info) return <Fragment key={keyPrefix + e.id}>{item}</Fragment>
+      return <div key={keyPrefix + e.id} className="picker-row">{info}{item}</div>
+    }
     const on = favSet.has(String(e.id))
     return (
       <div key={keyPrefix + e.id} className="picker-row">
+        {info}
         {item}
         <button
           type="button"
@@ -367,6 +386,7 @@ export default function ExercisePicker({
 
   // ---------------------------- список/поиск --------------------------------
   return (
+    <>
     <SheetDialog title={title} onDismiss={onClose} className="sheet--picker">
         {/* Без автофокуса (v6.12.0): клавиатура закрывала пол-экрана справочника, а
             чаще упражнение выбирают из списка или чипом группы, а не поиском.
@@ -440,5 +460,9 @@ export default function ExercisePicker({
           </button>
         )}
     </SheetDialog>
+    {technique && (
+      <TechniqueSheet slug={technique.slug} name={technique.name} onClose={() => setTechnique(null)} />
+    )}
+    </>
   )
 }

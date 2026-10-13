@@ -89,7 +89,15 @@ describe('content/whatsNew — правила записей', () => {
       expect(e.main.length).toBeGreaterThan(0)
       expect(e.main.length).toBeLessThanOrEqual(4)
       expect((e.headline ?? '').length).toBeLessThanOrEqual(45)
-      for (const it of [...e.main, ...e.minor]) expect(it.t.length).toBeLessThanOrEqual(70)
+      for (const it of [...e.main, ...e.minor]) {
+        expect(it.t.length).toBeLessThanOrEqual(70)
+        // Уточнения (v8.0.0): строки до 60 символов, не больше 5 на пункт.
+        if (it.sub !== undefined) {
+          expect(Array.isArray(it.sub)).toBe(true)
+          expect(it.sub.length).toBeLessThanOrEqual(5)
+          for (const s of it.sub) expect(typeof s === 'string' && s.length > 0 && s.length <= 60).toBe(true)
+        }
+      }
     }
   })
   it('свежая запись — версия из package.json (запись обязана попасть в релиз)', async () => {

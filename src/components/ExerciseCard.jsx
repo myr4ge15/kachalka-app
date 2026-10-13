@@ -9,6 +9,7 @@ import {
 } from '../lib/progressionCard.js'
 import { exerciseFocusSummary } from '../lib/workoutFocus.js'
 import { FEELS, FEEL_LABELS } from '../lib/rpe.js'
+import { TechniqueButton } from './TechniqueSheet.jsx'
 
 // Карточка одного упражнения в композере тренировки (шапка, панель автопрогрессии
 // .ap, таблица подходов, «+ подход»). Чисто презентационная: весь стейт и его
@@ -22,9 +23,14 @@ import { FEELS, FEEL_LABELS } from '../lib/rpe.js'
 // от состава она живет отдельно: экран запишет ее в meta после сохранения
 // тренировки. Оценка необязательна, поэтому строка ничего не требует и не
 // блокирует, а повторный тап по выбранной кнопке снимает выбор.
+// `onTechnique` (v8.0.0) — открыть подсказку «Как выполнять»; нет подсказки для
+// упражнения — нет и кнопки. «i» стоит сразу за названием (внутри ручки
+// перестановки, но с data-no-sort — удержание на ней строку не поднимает). Кнопка
+// только у раскрытой карточки: она уже активна, pointerdown корня reveal не дает.
 export default function ExerciseCard({
   entry, ei, prog, active = true, cardRef = null, onActivate = () => {},
   feel = null, onSetFeel = () => {},
+  onTechnique = null,
   onReplace, onRemove,
   onRevertProg, onApplyProg, onToggleProgSettings, onChangeProgSettings,
   onUpdateSet, onStep, onAddSet, onRemoveSet,
@@ -77,7 +83,7 @@ export default function ExerciseCard({
     >
       <div className="exercise-head">
         <span className="exercise-title" tabIndex={0} aria-label={`${entry.exercise.name}. Изменить порядок: Alt и стрелки вверх или вниз`}>
-          <span className="exercise-name">{entry.exercise.name}</span>
+          <TitleWithTechnique name={entry.exercise.name} onTechnique={onTechnique} />
         </span>
         <span className="exercise-actions">
           <button className="link-btn" onClick={() => onReplace(ei)}>заменить</button>
@@ -249,6 +255,20 @@ export default function ExerciseCard({
         </div>
       </div>
     </div>
+  )
+}
+
+// Название + «i» сразу за последним словом: слово и значок не разрываются переносом.
+function TitleWithTechnique({ name, onTechnique }) {
+  if (!onTechnique) return <span className="exercise-name">{name}</span>
+  const i = name.lastIndexOf(' ')
+  const head = i > 0 ? name.slice(0, i + 1) : ''
+  const last = i > 0 ? name.slice(i + 1) : name
+  return (
+    <span className="exercise-name">
+      {head}
+      <span className="exercise-name-tail">{last}<TechniqueButton name={name} onClick={onTechnique} className="tb-after" /></span>
+    </span>
   )
 }
 

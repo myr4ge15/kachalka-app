@@ -186,3 +186,41 @@ describe('ExercisePicker — позиция списка (v7.1.7)', () => {
     expect(list.scrollTop).toBe(250)
   })
 })
+
+describe('ExercisePicker — подсказка «Как выполнять» (v8.0.0)', () => {
+  const slugOf = (e) => (e.id === 'pulldown' ? 'lat-pulldown' : null)
+
+  it('без techniqueSlugOf кнопок «i» нет (пикер шаблонов)', () => {
+    renderPicker()
+    expect(screen.queryByRole('button', { name: /Как выполнять/ })).toBeNull()
+  })
+
+  it('кнопка «i» только у упражнений с подсказкой', () => {
+    renderPicker({ techniqueSlugOf: slugOf })
+    expect(screen.getAllByRole('button', { name: /Как выполнять/ })).toHaveLength(1)
+    expect(screen.getByRole('button', { name: 'Как выполнять: Тяга верхнего блока' })).toBeInTheDocument()
+  })
+
+  it('строки без подсказки держат пустое место под «i» — названия ровной колонкой', () => {
+    const { container } = render(
+      <ExercisePicker exercises={CATALOG} techniqueSlugOf={slugOf} onPick={vi.fn()} onClose={vi.fn()} />
+    )
+    expect(document.querySelectorAll('.picker-row')).toHaveLength(CATALOG.length)
+    expect(document.querySelectorAll('.picker-row > .technique-slot')).toHaveLength(CATALOG.length - 1)
+    expect(container).toBeTruthy()
+  })
+
+  it('нажатие открывает подсказку, не выбирает упражнение; закрытие возвращает к тому же поиску', async () => {
+    const { onPick, search } = renderPicker({ techniqueSlugOf: slugOf, onToggleFavorite: vi.fn() })
+    type(search, 'тяга')
+    fireEvent.click(await screen.findByRole('button', { name: 'Как выполнять: Тяга верхнего блока' }))
+    expect(await screen.findByRole('dialog', { name: 'Тяга верхнего блока' })).toBeInTheDocument()
+    expect(await screen.findByText('Частые ошибки')).toBeInTheDocument()
+    expect(onPick).not.toHaveBeenCalled()
+
+    fireEvent.click(screen.getAllByRole('button', { name: 'закрыть' }).at(-1))
+    expect(screen.queryByText('Частые ошибки')).toBeNull()
+    expect(screen.getByPlaceholderText('Поиск по названию…')).toHaveValue('тяга')
+    expect(onPick).not.toHaveBeenCalled()
+  })
+})

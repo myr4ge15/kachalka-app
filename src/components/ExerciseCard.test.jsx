@@ -291,3 +291,29 @@ describe('ExerciseCard — свой вес: доп. вес и помощь (v7.2
     expect(cbs.onUpdateSet).toHaveBeenCalledWith(0, 0, 'weight', '-12.5')
   })
 })
+
+describe('ExerciseCard — подсказка «Как выполнять» (v8.0.0)', () => {
+  it('без onTechnique кнопки нет', () => {
+    renderCard(weightEntry())
+    expect(screen.queryByRole('button', { name: /Как выполнять/ })).toBeNull()
+  })
+
+  it('кнопка «i» зовет onTechnique и ничего не меняет в подходах', () => {
+    const onTechnique = vi.fn()
+    const { cbs } = renderCard(weightEntry(), {}, { onTechnique })
+    fireEvent.click(screen.getByRole('button', { name: 'Как выполнять: Жим лежа' }))
+    expect(onTechnique).toHaveBeenCalledTimes(1)
+    // «i» — сразу за названием, внутри ручки перестановки, но удержание на ней строку не берет.
+    const btn = screen.getByRole('button', { name: 'Как выполнять: Жим лежа' })
+    expect(btn.closest('.exercise-title')).not.toBeNull()
+    expect(btn).toHaveAttribute('data-no-sort')
+    for (const k of ['onReplace', 'onRemove', 'onAddSet', 'onRemoveSet', 'onUpdateSet', 'onStep']) {
+      expect(cbs[k]).not.toHaveBeenCalled()
+    }
+  })
+
+  it('у свернутой карточки кнопки нет — сначала раскрыть', () => {
+    renderCard(weightEntry(), {}, { active: false, onTechnique: vi.fn() })
+    expect(screen.queryByRole('button', { name: /Как выполнять/ })).toBeNull()
+  })
+})

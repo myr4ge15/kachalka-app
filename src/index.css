@@ -61,6 +61,9 @@
   color-scheme: dark;
   /* Подложка QR-кода 2FA (v6.14.0): сканеру нужен светлый фон в любой теме. */
   --qr-bg: #ffffff;
+  /* Подложка кадров подсказки по технике (v8.0.0): рисунки Everkinetic — черные
+     штрихи на белом, файлы не меняем (CC BY-SA), поэтому кладем их на светлое. */
+  --media-paper: #ffffff;
   /* ── Типографика (v6.3.1, макет prototypes/typography.html, вариант A) ──
      Две жирности обычного шрифта: 600 — у всего, что НАЗЫВАЕТ (заголовок раздела и
      карточки, подпись поля, ссылка, кнопка), 400 — у содержимого. Крупный сжатый
@@ -1122,6 +1125,8 @@ a.btn { display: block; text-align: center; text-decoration: none; }
   background: none; border: 0; padding: 0; color: var(--muted); cursor: pointer;
 }
 .picker-star.on { color: var(--acc); }
+.picker-row > .technique-btn, .picker-row > .technique-slot { flex: none; align-self: stretch; width: 40px; height: auto; margin-right: -4px; }
+.picker-row > .technique-btn + .picker-item, .picker-row > .technique-slot + .picker-item { padding-left: 0; }
 .picker-star:active { background: var(--surface); }
 /* Строка каталога, которую нельзя править (чужое упражнение): та же геометрия,
    но не кнопка — приглушаем, чтобы отсутствие реакции на тап было ожидаемым. */
@@ -3429,6 +3434,15 @@ html[data-sheet-open], html[data-sheet-open] body { overscroll-behavior: none; }
 .wn-list.compact li { padding: 7px 0; font-size: var(--fs-label); color: var(--muted); }
 .wn-list.compact .wn-em { width: 26px; height: 26px; font-size: 14px; border-radius: 8px; }
 .wn-list + .wn-list { border-top: 1px solid color-mix(in srgb, var(--border) 60%, transparent); }
+/* Уточнения пункта (v8.0.0): с отступом под текстом, мельче и тише, без разделителей. */
+.wn-body { min-width: 0; display: flex; flex-direction: column; gap: 4px; }
+.wn-list li:has(> .wn-body > .wn-sub) { align-items: flex-start; }
+.wn-list .wn-sub { list-style: none; margin: 2px 0 0; padding: 0; display: flex; flex-direction: column; gap: 3px; }
+.wn-list .wn-sub li {
+  display: block; padding: 0 0 0 14px; border: 0; position: relative;
+  font-size: var(--fs-label); color: var(--muted); line-height: 1.35;
+}
+.wn-list .wn-sub li::before { content: '·'; position: absolute; left: 3px; font-weight: 700; }
 .wn-more {
   display: flex; align-items: center; justify-content: space-between; width: 100%;
   margin: 6px 0 2px; padding: 12px; min-height: 44px; border-radius: 12px; border: none;
@@ -3861,4 +3875,60 @@ html[data-sheet-open], html[data-sheet-open] body { overscroll-behavior: none; }
 @media (prefers-reduced-motion: reduce) {
   .scanner-line { animation: none; top: 50%; }
   .scanner-pulse, .scanner-ring { animation: none; }
+}
+
+/* ---------- Подсказка «Как выполнять» (v8.0.0, components/TechniqueSheet.jsx) ---------- */
+/* Кнопка «i»: зона тапа 44px. В шапке карточки — отрицательный margin-block, как у
+   «заменить/убрать», чтобы шапка не выросла. */
+.technique-btn {
+  flex: none; width: 44px; height: 44px; display: grid; place-items: center;
+  background: none; border: 0; padding: 0; color: var(--acc-2); cursor: pointer; border-radius: 12px;
+}
+.technique-btn:active { background: var(--surface); }
+/* В карточке — сразу за последним словом названия: слово и значок не рвутся переносом.
+   Видимый круг 20px, кнопка 34px (больше — раздвинула бы строку названия). */
+.exercise-name-tail { white-space: nowrap; }
+.exercise-name-tail > .technique-btn {
+  display: inline-grid; vertical-align: middle; width: 34px; height: 34px; margin: -8px -6px -6px 0;
+}
+.exercise-name-tail > .technique-btn { position: relative; }
+.exercise-name-tail > .technique-btn::before { content: ''; position: absolute; inset: -5px; }
+.sheet--technique .sheet-head > strong { font-size: 22px; line-height: 1.05; padding-right: 8px; }
+.technique { display: flex; flex-direction: column; gap: 18px; padding-bottom: 8px; }
+/* Полоса прокрутки (Firefox/Windows рисует ее поверх содержимого) — в поле листа, а не
+   на рисунках: контент отодвинут от края, сам скроллер заходит в правый отступ .sheet. */
+.sheet--technique .sheet-scroll.technique { padding-right: 12px; margin-right: -12px; }
+.technique-paper {
+  background: var(--media-paper); border-radius: 14px; overflow: hidden;
+  display: grid; place-items: center;
+}
+.technique-paper img { display: block; width: 100%; height: 100%; object-fit: contain; }
+/* Сцена фиксированной высоты: кадры лежат друг на друге, текст под ней не прыгает. */
+.technique-stage { position: relative; height: 240px; }
+.technique-stage img {
+  position: absolute; inset: 8px; width: calc(100% - 16px); height: calc(100% - 16px);
+  opacity: 0; transition: opacity var(--dur-slow) var(--ease-in-out);
+}
+.technique-stage img.is-on { opacity: 1; }
+.technique-controls { display: flex; align-items: center; gap: 8px; margin-top: 8px; }
+.technique-controls .seg { flex: 1; }
+.technique-controls .seg-item { min-height: 44px; padding: 4px 8px; line-height: 1.15; }
+.technique-play {
+  flex: none; width: 44px; height: 44px; display: grid; place-items: center;
+  border: 0; border-radius: 12px; background: var(--surface-2); color: var(--text); cursor: pointer;
+}
+.technique-frames--static { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
+.technique-frames--static .technique-paper { height: 180px; padding: 6px; }
+.technique-frame-fig { margin: 0; display: flex; flex-direction: column; gap: 4px; text-align: center; }
+.technique-frame-fig figcaption { font-size: var(--fs-meta); }
+.technique-sec h3 { font-size: var(--fs-title); font-weight: var(--fw-strong); margin: 0 0 6px; }
+.technique-sec p { margin: 0 0 4px; font-size: var(--fs-body); }
+.technique-sec ol, .technique-sec ul { margin: 0; padding-left: 22px; display: flex; flex-direction: column; gap: 6px; font-size: var(--fs-body); line-height: 1.4; }
+.technique-tips li::marker { color: var(--green); }
+.technique-mistakes li::marker { color: var(--red); }
+.technique-source { font-size: var(--fs-meta); margin: 0; }
+.technique-credits { font-size: var(--fs-meta); margin-top: -8px; }
+.technique-credits summary { cursor: pointer; min-height: 32px; display: flex; align-items: center; }
+@media (prefers-reduced-motion: reduce) {
+  .technique-stage img { transition: none; }
 }
