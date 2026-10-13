@@ -69,6 +69,23 @@ it('has no torch button without the capability', async () => {
   await screen.findByText('Ищу название…')
   expect(screen.queryByRole('button', { name: 'Фонарик' })).not.toBeInTheDocument()
 })
+it('does not flash the long "preparing" status when recognition loads fast', async () => {
+  createScannerWorker.mockImplementation(() => new Promise(r => setTimeout(() => r(worker), 150))) // cached, like on a phone
+  worker.recognize.mockReturnValue(new Promise(() => {}))
+  const seen = new Set()
+  const observer = new MutationObserver(() => seen.add(document.body.textContent))
+  observer.observe(document.body, { childList: true, subtree: true, characterData: true })
+  render(<ExerciseScanner exercises={exercises} onClose={vi.fn()} onManual={vi.fn()} />)
+  await screen.findByText('Ищу название…')
+  observer.disconnect()
+  expect([...seen].some(t => t.includes('Готовлю распознавание'))).toBe(false)
+})
+it('explains a slow first load of recognition', async () => {
+  createScannerWorker.mockReturnValue(new Promise(() => {}))
+  render(<ExerciseScanner exercises={exercises} onClose={vi.fn()} onManual={vi.fn()} />)
+  expect(await screen.findByText('Запускаем камеру…')).toBeInTheDocument()
+  expect(await screen.findByText(/Готовлю распознавание/, {}, { timeout: 2000 })).toBeInTheDocument()
+})
 it('releases a camera permission response arriving after close', async () => {
   let grant
   navigator.mediaDevices.getUserMedia.mockReturnValue(new Promise(resolve => { grant = resolve }))

@@ -19,6 +19,9 @@ function snapshot(video) {
   } catch { return '' }
 }
 
+const SLOW_START = 'Готовлю распознавание. В первый раз нужен интернет…'
+const SLOW_START_MS = 800
+
 export default function ExerciseScanner({ exercises, onPick, onClose, onManual }) {
   const video = useRef(null)
   const guide = useRef(null)
@@ -35,11 +38,12 @@ export default function ExerciseScanner({ exercises, onPick, onClose, onManual }
   useEffect(() => { catalog.current = exercises }, [exercises])
 
   useEffect(() => {
-    let disposed = false, stream, worker, timer, startupTimer, frameTimer, lastKey = '', repeats = 0
+    let disposed = false, stream, worker, timer, startupTimer, frameTimer, slowTimer, lastKey = '', repeats = 0
     const stop = () => {
       clearTimeout(timer)
       clearTimeout(startupTimer)
       clearTimeout(frameTimer)
+      clearTimeout(slowTimer)
       stream?.getTracks().forEach(t => t.stop()) // a stopped track also turns the torch off
       track.current = null
       if (worker) { void worker.terminate(); worker = null }
@@ -73,8 +77,11 @@ export default function ExerciseScanner({ exercises, onPick, onClose, onManual }
         video.current.srcObject = stream
         await video.current.play()
         if (disposed) return
-        setStatus('Готовлю распознавание. В первый раз нужен интернет…')
+        // From cache the worker is ready in ~100 ms: a long two-line badge would only flash.
+        // Show it only when loading is really slow (first run, weak network).
+        slowTimer = setTimeout(() => { if (!disposed) setStatus(SLOW_START) }, SLOW_START_MS)
         worker = await createScannerWorker(() => fail('Не удалось загрузить распознавание. Проверь интернет и повтори.'))
+        clearTimeout(slowTimer)
         if (disposed) { stop(); return }
         await worker.setParameters({ tessedit_pageseg_mode: '11' })
         if (disposed) return
