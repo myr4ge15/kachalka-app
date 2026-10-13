@@ -83,6 +83,35 @@ const T1 = '2026-07-01T10:00:00.000Z'
 const T2 = '2026-07-20T10:00:00.000Z'
 const T3 = '2026-07-29T10:00:00.000Z'
 
+describe('точные шаблоны: pull', () => {
+  it('читает порядок и метрики, защищает несинхронизированную правку', async () => {
+    const set_plan = [{ weight: -20, reps: 12 }, { weight: 10, reps: 8 }]
+    server.from = (c) => c.table === 'workout_templates'
+      ? { data: [{ id: 'tpl', user_id: userId, updated_at: T3, template_exercises: [
+        { position: 0, exercise_id: 'pull', target_plan: { metric: 'reps', sets: set_plan } },
+      ] }], error: null } : defaultResponse(c)
+    await pull(userId, new Set(), db)
+    expect((await db.templates.get('tpl')).exercises[0]).toMatchObject({ metric: 'reps', set_plan })
+    await db.templates.update('tpl', { _dirty: 1, name: 'Локальная правка' })
+    await db.tpl_outbox.add({ templateId: 'tpl', type: 'upsert', attempts: 0 })
+    await db.meta.delete('sig_templates_v2')
+    await pull(userId, new Set(), db)
+    expect((await db.templates.get('tpl')).name).toBe('Локальная правка')
+  })
+  it('старый сервер читается, но не кэширует сигнатуру нового формата', async () => {
+    server.from = (c) => {
+      if (c.table !== 'workout_templates') return defaultResponse(c)
+      if (c.select.includes('target_plan')) return { error: { code: '42703', message: 'column target_plan does not exist' } }
+      return { data: [{ id: 'old', user_id: userId, updated_at: T3, template_exercises: [
+        { exercise_id: 'bench', target_sets: 3, target_reps: 10, target_weight: 50 },
+      ] }], error: null }
+    }
+    await pull(userId, new Set(), db)
+    expect((await db.templates.get('old')).exercises[0]).toMatchObject({ sets: 3, reps: 10, weight: 50 })
+    expect(await getMeta('sig_templates_v2', db)).toBeUndefined()
+  })
+})
+
 function workoutRow(id, userId) {
   return {
     id,

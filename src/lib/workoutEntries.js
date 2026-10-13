@@ -13,6 +13,7 @@
 // ============================================================================
 import { exerciseMetric, isCountMetric, hasExtraWeight } from './metric.js'
 import { WEIGHT_MAX, repsMax, weightMin, savableSet } from './setLimits.js'
+import { templatePlan } from './templatePlan.js'
 import { defaultSet, sk } from './progressionCard.js'
 
 // Добавить упражнение в конец (анти-дубль по exercise.id). Уже есть → массив без
@@ -119,7 +120,7 @@ export function revertProgIn(entries, ei) {
     if (i !== ei || !e.prog) return e
     return {
       ...e,
-      sets: e.prog.prev.map((s) => ({ ...s, _k: sk() })),
+      sets: (e.prog.restoreSets ?? e.prog.prev).map((s) => ({ ...s, _k: sk() })),
       prog: { ...e.prog, applied: false },
     }
   })
@@ -133,7 +134,7 @@ export function applyProgIn(entries, ei) {
     return {
       ...e,
       sets: e.prog.recSets.map((s) => ({ ...s, _k: sk() })),
-      prog: { ...e.prog, applied: true },
+      prog: { ...e.prog, applied: true, restoreSets: e.sets.map((s) => ({ ...s })) },
     }
   })
 }
@@ -148,14 +149,7 @@ export function toggleProgSettingsIn(entries, ei) {
 // Подходы из целевого плана упражнения шаблона: `sets` подходов по `reps` повторов
 // (× weight у весовых). Нет плана (легаси-шаблон) → один дефолтный подход.
 export function setsFromTemplate(ex, item) {
-  const n = Math.max(1, Math.round(Number(item?.sets)) || 0)
-  if (!item?.sets) return [defaultSet(ex)]
-  const count = isCountMetric(exerciseMetric(ex))
-  const reps = Math.max(1, Math.round(Number(item.reps)) || defaultSet(ex).reps)
-  // Шаблон доп. вес «своего веса» не задает (редактор его не показывает): вес в плане
-  // такого упражнения — хвост прежнего типа, его не переносим.
-  const weight = count ? 0 : (Number(item.weight) || 0)
-  return Array.from({ length: n }, () => ({ weight, reps, _k: sk() }))
+  return templatePlan(ex, item).map((s) => ({ ...s, _k: sk() }))
 }
 
 // Сколько подходов реально уйдет в запись и сколько строк будет пропущено

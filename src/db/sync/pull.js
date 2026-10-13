@@ -45,7 +45,7 @@ const SIG_EXERCISES = 'sig_exercises' // сигнатура справочник
 // делает полный refetch и восстанавливает sex; а второй пользователь того же
 // устройства общий ростер больше не перекачивает.
 const SIG_USERS = 'sig_login_users' // сигнатура ростера (id + max updated_at), login-meta
-const SIG_TEMPLATES = 'sig_templates' // сигнатура окна шаблонов «мои ∪ общие»
+const SIG_TEMPLATES = 'sig_templates_v2' // сигнатура окна шаблонов «мои ∪ общие»
 // Кандидаты на удаление тренировки, отсутствовавшие на ПРОШЛОЙ сверке id. Удаляем
 // только со второго подряд отсутствия — страховка от лага read-replica (см.
 // lib/pullReconcile.js reconcileStaleWorkouts).
@@ -57,7 +57,7 @@ const SELECT_WORKOUT =
   'sets(id, set_number, weight, reps))'
 const SELECT_TEMPLATE =
   'id, name, user_id, is_public, created_at, updated_at, author:users(name), ' +
-  'template_exercises(position, exercise_id, target_sets, target_reps, target_weight, ' +
+  'template_exercises(position, exercise_id, target_sets, target_reps, target_weight, target_plan, ' +
   'exercise:exercises(id, name, muscle_group, submuscle, secondary, is_bench_lift, metric))'
 
 // server row → локальный денормализованный документ
@@ -103,6 +103,7 @@ function templateRowToDoc(t) {
         ? pickExerciseShape(te.exercise)
         : { id: te.exercise_id, name: '—' },
       position: i,
+      ...(te.target_plan ? { metric: te.target_plan.metric, set_plan: te.target_plan.sets } : {}),
       // Целевой план (подходы × повторы × вес). Легаси-строки без целей → null;
       // редактор/применение подставят дефолты.
       sets: te.target_sets ?? null,
@@ -523,12 +524,18 @@ async function pullTemplates(userId, d = db) {
   const tplChanged = tplProbe.error ? true : tplSig !== (await getMeta(SIG_TEMPLATES, d))
   if (tplChanged) {
     // Не затираем локальные несинхронизированные изменения.
-    const tpl = await withTimeout(
+    let tpl = await withTimeout(
       supabase
         .from('workout_templates')
         .select(SELECT_TEMPLATE)
         .or(`user_id.eq.${userId},is_public.eq.true`)
     )
+    const legacyServer = tpl.error?.code === '42703' && /target_plan/.test(tpl.error.message ?? '')
+    if (legacyServer) {
+      tpl = await withTimeout(supabase.from('workout_templates')
+        .select(SELECT_TEMPLATE.replace('target_plan, ', ''))
+        .or(`user_id.eq.${userId},is_public.eq.true`))
+    }
     if (tpl.error) warnings.push('шаблоны: ' + (tpl.error.message ?? tpl.error))
     else if (tpl.data) {
       const tplIds = new Set(tpl.data.map((r) => r.id))
@@ -560,7 +567,7 @@ async function pullTemplates(userId, d = db) {
           await d.templates.delete(t.id)
         }
       })
-      if (tplSig !== null) await setMeta(SIG_TEMPLATES, tplSig, d)
+      if (tplSig !== null && !legacyServer) await setMeta(SIG_TEMPLATES, tplSig, d)
     }
   }
 

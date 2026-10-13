@@ -85,6 +85,39 @@ import { uniqueUserId } from '../../test/idbHarness.js'
 
 let userId
 
+describe('точные подходы шаблона', () => {
+  const set_plan = [{ weight: 20, reps: 15 }, { weight: 82.5, reps: 8 }]
+  async function seed() {
+    await db.templates.put({ id: 'plan', user_id: userId, name: 'План', updated_at: '1', _dirty: 1,
+      exercises: [{ exercise_id: 'bench', metric: 'weight', set_plan }] })
+    await db.tpl_outbox.add({ templateId: 'plan', type: 'upsert', attempts: 0, createdAt: '1' })
+  }
+  it('v2 передает весь массив и не снимает dirty с правки во время запроса', async () => {
+    await seed()
+    server.rpc = async (name, args) => {
+      expect(name).toBe('upsert_template_v2')
+      expect(args.p_exercise_ids[0].plan).toEqual({ metric: 'weight', sets: set_plan })
+      await db.templates.update('plan', { updated_at: '2', name: 'Изменён' })
+      return { error: null }
+    }
+    await pushTemplates(db)
+    expect((await db.templates.get('plan'))._dirty).toBe(1)
+    expect(await db.tpl_outbox.count()).toBe(1)
+  })
+  it('старый сервер не получает урезанный fallback; очередь жива после 6 попыток', async () => {
+    await seed()
+    server.rpc = () => ({ error: { code: 'PGRST202', message: 'missing RPC' } })
+    for (let i = 0; i < 6; i++) await expect(pushTemplates(db)).rejects.toMatchObject({ code: 'TEMPLATE_SERVER_UPGRADE' })
+    expect((await db.tpl_outbox.toArray())[0]).toMatchObject({ attempts: 0 })
+    expect((await db.tpl_outbox.toArray())[0]._dead).toBeFalsy()
+    expect((await db.templates.get('plan')).exercises[0].set_plan).toEqual(set_plan)
+    expect(server.calls.every((c) => c.name === 'upsert_template_v2')).toBe(true)
+    server.rpc = () => ({ error: null })
+    await pushTemplates(db)
+    expect(await db.tpl_outbox.count()).toBe(0)
+  })
+})
+
 beforeEach(async () => {
   userId = uniqueUserId()
   await openUserDb(userId)

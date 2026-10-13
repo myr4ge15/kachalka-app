@@ -145,19 +145,50 @@ describe('TemplatesScreen — редактор', () => {
       fireEvent.click(screen.getByRole('button', { name: `выбрать ${n}` }))
     }
     // свой вес и время — без столбца «кг»
-    expect(screen.getAllByText('кг')).toHaveLength(1)
-    expect(screen.getAllByText('мин:сек')).toHaveLength(1)
+    expect(screen.getAllByText('кг')).toHaveLength(3)
+    expect(screen.getAllByText('мин:сек')).toHaveLength(3)
     fireEvent.change(screen.getAllByRole('textbox')[1], { target: { value: '62,5' } }) // вес жима
     fireEvent.click(screen.getByRole('checkbox', { name: 'Виден всем' }))
     save()
     await waitFor(() => expect(saveTemplate).toHaveBeenCalledTimes(1))
     const doc = vi.mocked(saveTemplate).mock.calls[0][0]
     expect(doc).toMatchObject({ id: undefined, user_id: 'me', name: 'Фулбоди', is_public: true })
-    expect(doc.exercises.map((e) => [e.exercise.id, e.sets, e.reps, e.weight])).toEqual([
-      ['bench', 3, 10, '62.5'], ['pull', 3, 10, 0], ['plank', 3, 60, 0],
-    ])
+    expect(doc.exercises.map((e) => [e.exercise.id, e.set_plan.length])).toEqual([['bench', 3], ['pull', 3], ['plank', 3]])
+    expect(doc.exercises[0].set_plan.map((s) => [s.weight, s.reps])).toEqual([['62.5', 10], [0, 10], [0, 10]])
+    expect(doc.exercises[2].set_plan.every((s) => s.reps === 60)).toBe(true)
     expect(syncNow).toHaveBeenCalledWith('me')
     expect(await screen.findByRole('button', { name: '+ Новый шаблон' })).toBeInTheDocument()
+  })
+
+  it('каждый подход редактируется отдельно, добавляется, удаляется и меняет порядок', async () => {
+    vi.mocked(getTemplate).mockResolvedValueOnce({ ...MY_TPL, exercises: [{ exercise: BENCH, metric: 'weight',
+      set_plan: [{ weight: 20, reps: 15 }, { weight: 80, reps: 8 }, { weight: 70, reps: 10 }] }] })
+    renderScreen()
+    fireEvent.click(screen.getByText('Грудь').closest('button'))
+    await screen.findByDisplayValue('Грудь')
+    fireEvent.change(screen.getByLabelText('Вес или дистанция подхода 2'), { target: { value: '82,5' } })
+    fireEvent.change(screen.getByLabelText('Повторы подхода 2'), { target: { value: '7' } })
+    fireEvent.click(screen.getByRole('button', { name: 'Подход 2 выше' }))
+    expect(screen.getByLabelText('Вес или дистанция подхода 1')).toHaveValue('82.5')
+    fireEvent.click(screen.getByRole('button', { name: 'Удалить подход 3' }))
+    fireEvent.click(screen.getByRole('button', { name: '+ Добавить подход' }))
+    save()
+    await waitFor(() => expect(saveTemplate).toHaveBeenCalled())
+    expect(vi.mocked(saveTemplate).mock.calls[0][0].exercises[0].set_plan.map(({ weight, reps }) => ({ weight, reps }))).toEqual([
+      { weight: '82.5', reps: '7' }, { weight: 20, reps: 15 }, { weight: 20, reps: 15 },
+    ])
+  })
+
+  it('время каждого подхода меняется в минутах и секундах', async () => {
+    vi.mocked(getTemplate).mockResolvedValueOnce({ ...MY_TPL, exercises: [{ exercise: PLANK, metric: 'time',
+      set_plan: [{ weight: 0, reps: 60 }, { weight: 0, reps: 90 }] }] })
+    renderScreen()
+    fireEvent.click(screen.getByText('Грудь').closest('button'))
+    await screen.findByDisplayValue('Грудь')
+    fireEvent.change(screen.getByLabelText('Время подхода 2'), { target: { value: '2:15' } })
+    save()
+    await waitFor(() => expect(saveTemplate).toHaveBeenCalled())
+    expect(vi.mocked(saveTemplate).mock.calls[0][0].exercises[0].set_plan.map((s) => s.reps)).toEqual([60, 135])
   })
 
   it('дубль упражнения — короткая подсказка, которая гаснет сама', async () => {
@@ -184,7 +215,7 @@ describe('TemplatesScreen — редактор', () => {
     fireEvent.click(screen.getByText('Грудь').closest('button'))
     expect(await screen.findByDisplayValue('Грудь')).toBeInTheDocument()
     expect(screen.getByRole('checkbox', { name: 'Виден всем' })).toBeChecked()
-    expect(screen.getByDisplayValue('60')).toBeInTheDocument()
+    expect(screen.getAllByDisplayValue('60')).toHaveLength(4)
     fireEvent.click(screen.getByRole('button', { name: '+ Добавить упражнение' }))
     fireEvent.click(screen.getByRole('button', { name: 'выбрать Подтягивания' }))
     fireEvent.click(screen.getAllByRole('button', { name: 'убрать' })[0])
@@ -201,7 +232,7 @@ describe('TemplatesScreen — редактор', () => {
     fireEvent.click(screen.getByText('Спина').closest('button'))
     expect(await screen.findByText(/только просмотр/)).toBeInTheDocument()
     expect(screen.getByText('от Петя')).toBeInTheDocument()
-    expect(screen.getByText('3×10')).toBeInTheDocument()
+    expect(screen.getByText('10 · 10 · 10')).toBeInTheDocument()
     expect(screen.queryByRole('button', { name: 'Сохранить' })).toBeNull()
     expect(screen.queryByRole('textbox')).toBeNull()
   })

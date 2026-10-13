@@ -153,6 +153,7 @@ export function fmtMetricValue(metric, v) {
 //   distance → '5 км · 25:00' (× подходов, если их больше одного; без км — только время).
 // Нет подходов (sets=0) → '' (упражнение без заданного плана).
 export function fmtTemplateTarget(metric, t) {
+  if (Array.isArray(t?.set_plan)) return t.set_plan.map((s) => fmtSet(t.metric ?? metric, s)).join(' · ')
   const sets = Math.max(0, Math.round(Number(t?.sets) || 0))
   if (!sets) return ''
   const reps = Math.max(0, Math.round(Number(t?.reps) || 0))

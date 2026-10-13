@@ -124,7 +124,7 @@ export default function ExerciseCard({
               <div className="ap-actions">
                 {entry.prog.applied ? (
                   <button className="link-btn ap-revert" onClick={() => onRevertProg(ei)}>
-                    вернуть как в прошлый раз
+                    {entry.fromTemplate ? 'вернуть план шаблона' : 'вернуть как в прошлый раз'}
                   </button>
                 ) : (
                   <button className="btn-apply" onClick={() => onApplyProg(ei)}>Применить рекомендацию</button>

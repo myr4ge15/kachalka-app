@@ -1,41 +1,14 @@
-// ============================================================================
-// Чистая логика «Шаблон из тренировки» — без React/Dexie/DOM, тестируется в node.
-//
-// Превращает состав тренировки (денормализованные entries) в список упражнений
-// ШАБЛОНА с целевым планом (подходы × повторы × вес). Форма результата совпадает с
-// той, что ждет repo.saveTemplate → cleanTemplateExercises/cleanTargets:
-//   { exercise, sets, reps, weight }
-// где sets — число подходов, reps — целевые повторы (у time — секунды), weight —
-// целевой вес (0 у не-весовых).
-// ============================================================================
+// Точный снимок всех подходов завершённой тренировки, без UI-ключей.
 import { exerciseMetric } from './metric.js'
+import { cleanTemplatePlan } from './templatePlan.js'
 
-// «Целевой» подход упражнения = лучший рабочий подход: по весу (весовые) или по
-// повторам/секундам (без веса). Он и задает план reps × weight будущего шаблона,
-// а число подходов = сколько их было в тренировке.
 export function templateExercisesFromWorkout(entries) {
-  return (entries ?? [])
-    .map((e) => {
-      const ex = e.exercise ?? (e.exercise_id ? { id: e.exercise_id } : null)
-      const sets = (e.sets ?? []).filter(Boolean)
-      if (!ex?.id || sets.length === 0) return null
-      const m = exerciseMetric(ex)
-      const weighted = m === 'weight' || m === 'distance' // у дистанции цель — км
-      // Лучший подход по ведущей метрике.
-      let top = sets[0]
-      let topLead = -Infinity
-      for (const s of sets) {
-        const lead = weighted ? Number(s.weight) || 0 : Number(s.reps) || 0
-        if (lead > topLead) { topLead = lead; top = s }
-      }
-      return {
-        exercise: ex,
-        sets: sets.length,
-        reps: Math.max(1, Math.round(Number(top.reps) || 0)),
-        weight: weighted ? Math.max(0, Number(top.weight) || 0) : 0,
-      }
-    })
-    .filter(Boolean)
+  return (entries ?? []).flatMap((e) => {
+    const exercise = e.exercise ?? (e.exercise_id ? { id: e.exercise_id } : null)
+    if (!exercise?.id || !e.sets?.length) return []
+    const metric = exerciseMetric(exercise)
+    return [{ exercise, metric, set_plan: cleanTemplatePlan(e.sets, metric) }]
+  })
 }
 
 // Имя шаблона по умолчанию: «Тренировка ДД.ММ» от даты тренировки (или сегодня).

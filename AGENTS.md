@@ -235,6 +235,12 @@ updated_at)` + `upsert_user_meta` (`supabase/user-meta.sql`, RLS «только 
 Функции переписывались несколько раз, и `create or replace` со старым телом уже дважды ломал прод.
 Канон каждой функции — в файле ниже; НЕ перезапускать её тело из более старого `.sql`:
 
+- **Детальные шаблоны (v8.1.0, подготовлено локально, на прод НЕ применено):** `template-set-plan.sql`
+  добавляет `target_plan {metric,sets:[{weight,reps}]}` и `upsert_template_v2` поверх живого тела 13.10.2026.
+  Старый RPC обслуживает только шаблоны без детального плана; попытка старого клиента переписать новый
+  отклоняется. Клиент хранит `metric` + `set_plan`, старые `sets/reps/weight` — совместимая сводка.
+  Нет v2 на сервере → очередь остаётся живой, урезанный fallback запрещён. Порядок выката и проверки —
+  `supabase/template-set-plan-deploy.md`. После наката новый SQL — канон обоих RPC; старый SQL ниже не запускать.
 - **`upsert_template`** → канон `template-targets-fix.sql` (хардненинг `security definer` +
   `search_path` + владелец из `app_uid()` И тело с обеими формами `p_exercise_ids`: uuid-строки и
   объекты `{id,sets,reps,weight}`). Иначе push шаблонов падает на касте `::uuid` → dead-letter.

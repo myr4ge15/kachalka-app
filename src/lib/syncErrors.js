@@ -24,6 +24,7 @@ const NETWORK_TEXT = /failed to fetch|networkerror|network request failed|load f
 
 export function isTransientSyncError(err) {
   if (err == null) return false
+  if (err.code === 'TEMPLATE_SERVER_UPGRADE') return true
   const name = String(err.name ?? '')
   if (name === 'AbortError' || name === 'TimeoutError') return true
   const message = String(err.message ?? err)

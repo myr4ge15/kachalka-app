@@ -151,9 +151,8 @@ describe('HistoryScreen', () => {
       name: 'Тренировка 29.07',
       exercises: [{
         exercise: workout.entries[0].exercise,
-        sets: 1,
-        reps: 6,
-        weight: 80,
+        metric: 'weight',
+        set_plan: [{ reps: 6, weight: 80 }],
       }],
       is_public: false,
     }))

@@ -35,6 +35,7 @@ export function cleanTemplateForExport(t) {
           metric: exerciseMetric(e.exercise),
         },
         // Целевой план: подходы × повторы (у time — секунды) × вес.
+        ...(Array.isArray(e.set_plan) ? { metric: e.metric ?? exerciseMetric(e.exercise), set_plan: e.set_plan.map((s) => ({ weight: Number(s.weight), reps: Number(s.reps) })) } : {}),
         sets: numOrNull(e.sets),
         reps: numOrNull(e.reps),
         weight: numOrNull(e.weight),

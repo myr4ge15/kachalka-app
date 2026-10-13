@@ -333,7 +333,7 @@ export default function WorkoutScreen({ user, workoutId = null, onBack, onSaved 
     const built = buildRecommendation(entry.exercise, sessions, nextProg)
     setEntries((prev) => prev.map((e, i) => {
       if (i !== ei) return e
-      const wasApplied = e.prog?.applied !== false
+      const wasApplied = !e.fromTemplate && e.prog?.applied !== false
       if (!built.meta) {
         // нет панели (активная стратегия без истории / глобально выкл) — убираем;
         // применявшим рекомендацию возвращаем копию прошлого, ручную правку не трогаем.
@@ -411,7 +411,8 @@ export default function WorkoutScreen({ user, workoutId = null, onBack, onSaved 
   async function applyTemplate(tpl) {
     setTplPickerOpen(false)
     const have = new Set(entries.map((e) => e.exercise.id))
-    const items = (tpl.exercises ?? [])
+    const items = [...(tpl.exercises ?? [])]
+      .sort((a, b) => (a.position ?? 0) - (b.position ?? 0))
       .filter((item) => (item.exercise?.id ?? item.exercise_id) && !have.has(item.exercise?.id ?? item.exercise_id))
     if (items.length === 0) {
       setMessage({ type: 'error', text: 'Все упражнения шаблона уже добавлены.' })
@@ -419,7 +420,7 @@ export default function WorkoutScreen({ user, workoutId = null, onBack, onSaved 
     }
     const toAdd = []
     for (const item of items) {
-      const ex = item.exercise ?? { id: item.exercise_id, name: '—' }
+      const ex = { ...(item.exercise ?? { id: item.exercise_id, name: '—' }), ...(item.metric ? { metric: item.metric } : {}) }
       const sets = setsFromTemplate(ex, item)
       // Рекомендация справочно: план шаблона в sets не подменяем, панель — не
       // примененная (applied:false). Нет истории/выключено → панели нет (meta:null).
@@ -429,7 +430,7 @@ export default function WorkoutScreen({ user, workoutId = null, onBack, onSaved 
         const built = buildRecommendation(ex, sessions, prog)
         meta = built.meta ? { ...built.meta, applied: built.meta.muted ? undefined : false } : null
       } catch { /* рекомендация необязательна */ }
-      toAdd.push({ exercise: ex, sets, prog: meta })
+      toAdd.push({ exercise: ex, sets, prog: meta, fromTemplate: true })
     }
     // Пока читали историю, состав мог измениться — анти-дубль на свежем состоянии.
     setEntries((prev) => {
@@ -595,7 +596,7 @@ export default function WorkoutScreen({ user, workoutId = null, onBack, onSaved 
   }
 
   // Создать шаблон из текущего состава тренировки: план (подходы × повторы × вес)
-  // берем по лучшему подходу каждого упражнения (см. lib/templateFromWorkout.js).
+  // сохраняем для каждого подхода без сведения к одному лучшему (см. lib/templateFromWorkout.js).
   // Приватный шаблон (is_public:false) — как «Новый шаблон» в разделе «Шаблоны».
   async function makeTemplate() {
     setTplBusy(true)

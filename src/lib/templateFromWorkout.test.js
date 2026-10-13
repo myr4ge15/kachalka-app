@@ -1,54 +1,37 @@
 import { describe, it, expect } from 'vitest'
 import { templateExercisesFromWorkout, defaultTemplateName } from './templateFromWorkout.js'
+import { setsFromTemplate, applyProgIn, revertProgIn } from './workoutEntries.js'
+import { cleanTemplateForExport } from './exportTemplate.js'
 
-describe('templateExercisesFromWorkout', () => {
-  it('весовое: подходы = число подходов, план = лучший рабочий подход', () => {
-    const entries = [
-      {
-        exercise: { id: 'a', name: 'Жим', metric: 'weight' },
-        sets: [
-          { weight: 60, reps: 10 },
-          { weight: 70, reps: 8 },   // топ по весу
-          { weight: 65, reps: 9 },
-        ],
-      },
-    ]
-    const out = templateExercisesFromWorkout(entries)
-    expect(out).toEqual([{ exercise: entries[0].exercise, sets: 3, reps: 8, weight: 70 }])
+describe('точный снимок шаблона', () => {
+  it.each([
+    ['weight', [{ weight: 20, reps: 15 }, { weight: 82.5, reps: 8 }, { weight: 75, reps: 10 }]],
+    ['reps', [{ weight: -30, reps: 12 }, { weight: 0, reps: 10 }, { weight: 12.5, reps: 6 }]],
+    ['time', [{ weight: 0, reps: 60 }, { weight: 0, reps: 95 }]],
+    ['distance', [{ weight: 2.5, reps: 900 }, { weight: 1, reps: 300 }]],
+  ])('%s: все значения и порядок проходят создание → применение → экспорт', (metric, sets) => {
+    const exercise = { id: 'e', metric }
+    const [item] = templateExercisesFromWorkout([{ exercise, sets: sets.map((s) => ({ ...s, _k: 'ui' })) }])
+    expect(item).toEqual({ exercise, metric, set_plan: sets })
+    const restored = setsFromTemplate(exercise, item)
+    expect(restored.map(({ weight, reps }) => ({ weight, reps }))).toEqual(sets)
+    expect(new Set(restored.map((s) => s._k)).size).toBe(sets.length)
+    expect(cleanTemplateForExport({ exercises: [item] }).exercises[0].set_plan).toEqual(sets)
+    restored[0].reps = 1
+    expect(item.set_plan).toEqual(sets)
   })
-
-  it('без веса (reps): вес шаблона = 0, план по лучшему числу повторов', () => {
-    const entries = [
-      {
-        exercise: { id: 'b', name: 'Отжимания', metric: 'reps' },
-        sets: [{ weight: 0, reps: 20 }, { weight: 0, reps: 25 }],
-      },
-    ]
-    const out = templateExercisesFromWorkout(entries)
-    expect(out).toEqual([{ exercise: entries[0].exercise, sets: 2, reps: 25, weight: 0 }])
+  it('не придумывает подходы и не принимает пустые значения', () => {
+    expect(templateExercisesFromWorkout()).toEqual([])
+    expect(templateExercisesFromWorkout([{ exercise: { id: 'e' }, sets: [] }, { sets: [{ weight: 20, reps: 10 }] }])).toEqual([])
+    expect(() => templateExercisesFromWorkout([{ exercise: { id: 'e' }, sets: [{ weight: 20, reps: 0 }] }])).toThrow(/каждого подхода/)
   })
-
-  it('пропускает упражнения без подходов и без id', () => {
-    const entries = [
-      { exercise: { id: 'a', metric: 'weight' }, sets: [] },
-      { exercise: null, sets: [{ weight: 10, reps: 5 }] },
-      { exercise: { id: 'c', metric: 'weight' }, sets: [{ weight: 40, reps: 6 }] },
-    ]
-    const out = templateExercisesFromWorkout(entries)
-    expect(out).toHaveLength(1)
-    expect(out[0].exercise.id).toBe('c')
-  })
-
-  it('reps минимум 1 при нулевых/битых повторах', () => {
-    const out = templateExercisesFromWorkout([
-      { exercise: { id: 'a', metric: 'weight' }, sets: [{ weight: 50, reps: 0 }] },
-    ])
-    expect(out[0].reps).toBe(1)
-  })
-
-  it('пустой/undefined вход → []', () => {
-    expect(templateExercisesFromWorkout(undefined)).toEqual([])
-    expect(templateExercisesFromWorkout([])).toEqual([])
+  it('ручная рекомендация и отмена возвращают исходный план, а не прошлую тренировку', () => {
+    const sets = [{ weight: 20, reps: 15 }, { weight: 80, reps: 8 }]
+    const entry = { sets, prog: { applied: false, prev: [{ weight: 60, reps: 10 }], recSets: [{ weight: 65, reps: 10 }] } }
+    const applied = applyProgIn([entry], 0)
+    expect(applied[0].sets[0].weight).toBe(65)
+    expect(revertProgIn(applied, 0)[0].sets.map(({ weight, reps }) => ({ weight, reps }))).toEqual(sets)
+    expect(entry.sets).toEqual(sets)
   })
 })
 

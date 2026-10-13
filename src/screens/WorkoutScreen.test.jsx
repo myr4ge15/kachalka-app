@@ -34,6 +34,12 @@ vi.mock('../db/notifications.js', () => ({
 vi.mock('../db/insights.js', () => ({ detectInsightsOnSave: vi.fn() }))
 vi.mock('../db/badges.js', () => ({ detectBadgesOnSave: vi.fn() }))
 vi.mock('../db/sync.js', () => ({ syncNow: vi.fn() }))
+vi.mock('../components/TemplatePicker.jsx', () => ({
+  default: ({ onPick }) => <button onClick={() => onPick({ exercises: [{
+    exercise: { id: 'bench', name: 'Жим лежа', metric: 'weight' }, metric: 'weight',
+    set_plan: [{ weight: 20, reps: 15 }, { weight: 80, reps: 8 }],
+  }] })}>Точный шаблон</button>,
+}))
 
 const user = { id: 'u1', name: 'Саня' }
 const scrollIntoView = vi.fn()
@@ -88,6 +94,30 @@ describe('WorkoutScreen', () => {
       configurable: true,
       value: vi.fn(() => ({ matches: false })),
     })
+  })
+
+  it('шаблон сохраняет разные подходы, прогрессия применяется вручную и отменяется к плану', async () => {
+    vi.mocked(getRecentSessionsForExercise).mockResolvedValue([
+      { performed_at: '2026-10-01', sets: [{ weight: 60, reps: 10 }] },
+    ])
+    render(<WorkoutScreen user={user} />)
+    fireEvent.click(screen.getByRole('button', { name: 'Выбрать шаблон' }))
+    fireEvent.click(screen.getByRole('button', { name: 'Точный шаблон' }))
+    await screen.findByDisplayValue('80')
+    expect(screen.getByDisplayValue('20')).toBeInTheDocument()
+    expect(screen.getByDisplayValue('15')).toBeInTheDocument()
+    fireEvent.click(screen.getByRole('button', { name: 'Применить рекомендацию' }))
+    expect(screen.queryByDisplayValue('80')).toBeNull()
+    fireEvent.click(screen.getByRole('button', { name: 'вернуть план шаблона' }))
+    expect(screen.getByDisplayValue('80')).toBeInTheDocument()
+    expect(screen.getByDisplayValue('20')).toBeInTheDocument()
+    fireEvent.click(screen.getByRole('button', { name: 'Настройки прогрессии' }))
+    fireEvent.click(screen.getByRole('button', { name: 'ручной' }))
+    await waitFor(() => expect(screen.getByText(/Прогрессия: ручной/)).toBeInTheDocument())
+    fireEvent.click(screen.getByRole('button', { name: '+вес' }))
+    await waitFor(() => expect(screen.getByRole('button', { name: 'Применить рекомендацию' })).toBeInTheDocument())
+    expect(screen.getByDisplayValue('80')).toBeInTheDocument()
+    expect(screen.getByDisplayValue('20')).toBeInTheDocument()
   })
 
   it('черновик переживает перезапуск страницы (выгрузку PWA в фоне)', () => {

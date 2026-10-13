@@ -15,7 +15,7 @@ import {
 } from '../db/repo.js'
 import { syncNow } from '../db/sync.js'
 import {
-  exerciseMetric, isCountMetric, fmtTemplateTarget,
+  exerciseMetric, fmtTemplateTarget,
 } from '../lib/metric.js'
 import { exportTemplates } from '../lib/exportTemplate.js'
 import { useExportSelection } from '../hooks/useExportSelection.js'
@@ -23,28 +23,15 @@ import ExercisePicker from '../components/ExercisePicker.jsx'
 import CardsSkeleton from '../components/CardsSkeleton.jsx'
 import ExportBar from '../components/ExportBar.jsx'
 import BackButton from '../components/BackButton.jsx'
-import TimeInput from '../components/TimeInput.jsx'
+import TemplateSets from '../components/TemplateSets.jsx'
+import { templatePlan } from '../lib/templatePlan.js'
+import { sk } from '../lib/progressionCard.js'
 
-// Дефолтный целевой план по типу упражнения: 3 подхода × 10 повторов (время —
-// 1:00 = 60 с), без целевого веса. Используется для новых и легаси-упражнений.
-function defaultTarget(metric) {
-  // Дистанция (v6.12.0): один подход на 30:00, км — по желанию.
-  if (metric === 'distance') return { sets: 1, reps: 1800, weight: 0 }
-  return { sets: 3, reps: metric === 'time' ? 60 : 10, weight: 0 }
-}
-
-// локальный документ шаблона → редактируемая форма
-// [{ exercise, sets, reps, weight }]. Легаси-упражнения без плана получают дефолт.
+// Старые цели разворачиваем в строки только в форме, исходный документ не меняем.
 function toItems(tpl) {
-  return (tpl?.exercises ?? []).map((e) => {
-    const exercise = e.exercise ?? { id: e.exercise_id, name: '—' }
-    const d = defaultTarget(exerciseMetric(exercise))
-    return {
-      exercise,
-      sets: e.sets ?? d.sets,
-      reps: e.reps ?? d.reps,
-      weight: e.weight ?? d.weight,
-    }
+  return [...(tpl?.exercises ?? [])].sort((a, b) => (a.position ?? 0) - (b.position ?? 0)).map((e) => {
+    const exercise = { ...(e.exercise ?? { id: e.exercise_id, name: '—' }), ...(e.metric ? { metric: e.metric } : {}) }
+    return { exercise, metric: exerciseMetric(exercise), set_plan: templatePlan(exercise, e).map((s) => ({ ...s, _k: sk() })) }
   })
 }
 
@@ -291,7 +278,7 @@ function TemplateEditor({ user, templateId, onBack }) {
       return
     }
     setMessage((m) => (m?.transient ? null : m))
-    setItems([...items, { exercise: ex, ...defaultTarget(exerciseMetric(ex)) }])
+    setItems([...items, { exercise: ex, metric: exerciseMetric(ex), set_plan: templatePlan(ex, { sets: ex.metric === 'distance' ? 1 : 3, reps: ex.metric === 'time' ? 60 : ex.metric === 'distance' ? 1800 : 10, weight: 0 }).map((s) => ({ ...s, _k: sk() })) }])
   }
 
   function removeExercise(idx) {
@@ -420,9 +407,6 @@ function TemplateEditor({ user, templateId, onBack }) {
           <div className="tpl-rows" ref={sortRef}>
           {items.map((it, idx) => {
             const metric = exerciseMetric(it.exercise)
-            const isDistance = metric === 'distance'
-            const isTime = metric === 'time' || isDistance
-            const count = isCountMetric(metric) // свой вес / на время — без столбца «кг»
             return (
             <div
               key={it.exercise.id}
@@ -444,45 +428,8 @@ function TemplateEditor({ user, templateId, onBack }) {
                     убрать
                   </button>
                 </div>
-                <div className="tpl-targets">
-                  <label className="tpl-target">
-                    <span className="tpl-target-lab">подходы</span>
-                    <input
-                      type="number" inputMode="numeric" min="1"
-                      value={it.sets}
-                      onChange={(e) => updateTarget(idx, 'sets', e.target.value)}
-                    />
-                  </label>
-                  <span className="tpl-target-x" aria-hidden="true">×</span>
-                  <label className="tpl-target">
-                    <span className="tpl-target-lab">{isTime ? 'мин:сек' : 'повт.'}</span>
-                    {isTime ? (
-                      <TimeInput
-                        value={it.reps}
-                        onChange={(sec) => updateTarget(idx, 'reps', sec)}
-                      />
-                    ) : (
-                      <input
-                        type="number" inputMode="numeric" min="1"
-                        value={it.reps}
-                        onChange={(e) => updateTarget(idx, 'reps', e.target.value)}
-                      />
-                    )}
-                  </label>
-                  {!count && (
-                    <>
-                      <span className="tpl-target-x" aria-hidden="true">×</span>
-                      <label className="tpl-target">
-                        <span className="tpl-target-lab">{isDistance ? 'км' : 'кг'}</span>
-                        <input
-                          type="text" inputMode="decimal"
-                          value={it.weight}
-                          onChange={(e) => updateTarget(idx, 'weight', e.target.value.replace(',', '.'))}
-                        />
-                      </label>
-                    </>
-                  )}
-                </div>
+                <TemplateSets metric={metric} sets={it.set_plan}
+                  onChange={(plan) => updateTarget(idx, 'set_plan', plan)} />
               </div>
             </div>
             )

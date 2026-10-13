@@ -16,6 +16,7 @@
 //     ]
 //   }
 // ============================================================================
+import { cleanTemplatePlan } from '../lib/templatePlan.js'
 import { db, loginDb, newId, nowIso, getMeta } from './local.js'
 import { writeSyncedMeta, updateSyncedMeta } from './userMeta.js'
 import { normalizeFavs, toggleFav } from '../lib/favorites.js'
@@ -649,6 +650,10 @@ export async function toggleReaction({ userId, userName, workoutId, kind, mine }
 //   weight — целевой вес, кг (≥0; у не-весовых = 0).
 // Значения хранятся числами; на сервере — колонки target_sets/reps/weight.
 function cleanTargets(e, metric) {
+  if (Array.isArray(e.set_plan)) {
+    const set_plan = cleanTemplatePlan(e.set_plan, e.metric ?? metric)
+    return { metric: e.metric ?? metric, set_plan, sets: set_plan.length, reps: set_plan[0].reps, weight: set_plan[0].weight }
+  }
   const sets = Math.max(1, Math.round(toNum(e.sets)) || 3)
   const reps = Math.max(1, Math.round(toNum(e.reps)) || 10)
   const w = toNum(e.weight)
@@ -806,7 +811,7 @@ export async function discardDeadLetter() {
       const deadEx = await db.ex_outbox.filter((x) => x._dead).count()
       const deadTpl = await db.tpl_outbox.filter((x) => x._dead).count()
       if (deadEx) { await db.meta.delete('wm_exercises'); await db.meta.delete('sig_exercises') }
-      if (deadTpl) await db.meta.delete('sig_templates')
+      if (deadTpl) { await db.meta.delete('sig_templates'); await db.meta.delete('sig_templates_v2') }
       for (const o of await db.ex_outbox.filter((x) => x._dead).toArray()) {
         await db.exercises.update(o.exerciseId, { _dirty: 0 })
         await db.ex_outbox.delete(o.seq); n++

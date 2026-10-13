@@ -303,6 +303,7 @@ describe('действия существующей тренировки', () =>
   })
 
   it('шаблон из тренировки: имя предзаполнено, приватный, синк и тост', async () => {
+    vi.mocked(getWorkout).mockResolvedValueOnce({ ...doc, entries: [{ exercise: bench, sets: [{ weight: 20, reps: 15 }, { weight: 60, reps: 8 }] }] })
     render(<><WorkoutScreen user={user} workoutId="w1" /><Toast /></>)
     fireEvent.click(await screen.findByRole('button', { name: /Сделать шаблон из тренировки/ }))
     const name = screen.getByPlaceholderText('Название шаблона')
@@ -314,12 +315,14 @@ describe('действия существующей тренировки', () =>
     const arg = vi.mocked(saveTemplate).mock.calls[0][0]
     expect(arg).toMatchObject({ user_id: 'u1', name: '  Грудь  ', is_public: false })
     expect(arg.exercises).toHaveLength(1)
+    expect(arg.exercises[0].set_plan).toEqual([{ weight: 20, reps: 15 }, { weight: 60, reps: 8 }])
     expect(syncNow).toHaveBeenCalledWith('u1')
     expect(await screen.findByText('Шаблон создан')).toBeInTheDocument()
     expect(screen.queryByPlaceholderText('Название шаблона')).not.toBeInTheDocument()
   })
 
   it('шаблон: пустое имя — кнопка неактивна; отмена; ошибка записи — баннер', async () => {
+    vi.mocked(getWorkout).mockResolvedValueOnce({ ...doc, entries: [{ exercise: bench, sets: [{ weight: 20, reps: 15 }, { weight: 60, reps: 8 }] }] })
     vi.mocked(saveTemplate).mockRejectedValueOnce(new Error('квота'))
     render(<WorkoutScreen user={user} workoutId="w1" />)
     fireEvent.click(await screen.findByRole('button', { name: /Сделать шаблон из тренировки/ }))

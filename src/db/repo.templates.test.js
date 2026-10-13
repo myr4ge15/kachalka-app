@@ -23,6 +23,19 @@ beforeEach(async () => { userId = uniqueUserId(); await openUserDb(userId) })
 afterEach(async () => { await closeUserDb() })
 
 describe('шаблоны: запись и очередь', () => {
+  it('детальный план хранит все подходы, метрику и очередь без UI-ключей', async () => {
+    const set_plan = [{ weight: -20, reps: 12 }, { weight: 10, reps: 8 }]
+    const id = await saveTemplate({ user_id: userId, name: 'Точный', exercises: [
+      { exercise: { ...bench, metric: 'reps' }, metric: 'reps', set_plan: set_plan.map((s) => ({ ...s, _k: 'ui' })) },
+    ] })
+    expect((await getTemplate(id)).exercises[0]).toMatchObject({ metric: 'reps', set_plan })
+    expect((await getTemplate(id)).exercises[0].set_plan).toEqual(set_plan)
+    await expect(saveTemplate({ id, user_id: userId, name: 'Точный', exercises: [
+      { exercise: bench, set_plan: [{ weight: 20, reps: '' }] },
+    ] })).rejects.toThrow(/каждого подхода/)
+    expect((await getTemplate(id)).exercises[0].set_plan).toEqual(set_plan)
+    expect(await db.tpl_outbox.count()).toBe(1)
+  })
   it('создание: чистит план, пишет _dirty и один upsert в tpl_outbox', async () => {
     const id = await saveTemplate({
       user_id: userId, name: '  Грудь  ', is_public: true,

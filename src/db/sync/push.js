@@ -12,6 +12,8 @@
 // уходят РАНЬШЕ тренировок (outbox, FK на exercise_id), реакции — ПОСЛЕ (FK на
 // workout). Оркеструет порядок syncNow (../sync.js), здесь — только сами прогоны.
 // ============================================================================
+import { templatePlan } from '../../lib/templatePlan.js'
+import { exerciseMetric } from '../../lib/metric.js'
 import { supabase } from '../supabase.js'
 import { withTimeout } from '../../lib/withTimeout.js'
 import { db, nowIso } from '../local.js'
@@ -137,16 +139,18 @@ export async function pushTemplates(d = db) {
       // Передаем упорядоченный массив объектов {id, sets, reps, weight}.
       // Серверный upsert_template принимает и легаси-форму (массив строк-uuid),
       // поэтому совместим при поэтапной раскатке (сервер обновляется раньше).
+      const detailed = (doc.exercises ?? []).some((e) => Array.isArray(e.set_plan))
       const exerciseIds = [...(doc.exercises ?? [])]
         .sort((a, b) => (a.position ?? 0) - (b.position ?? 0))
         .map((e) => ({
           id: e.exercise_id,
+          ...(detailed ? { plan: { metric: e.metric ?? exerciseMetric(e.exercise), sets: templatePlan(e.exercise, e) } } : {}),
           sets: e.sets ?? null,
           reps: e.reps ?? null,
           weight: e.weight ?? null,
         }))
       const { error } = await withTimeout(
-        supabase.rpc('upsert_template', {
+        supabase.rpc(detailed ? 'upsert_template_v2' : 'upsert_template', {
           p_template_id: doc.id,
           p_user_id: doc.user_id,
           p_name: doc.name,
@@ -154,6 +158,9 @@ export async function pushTemplates(d = db) {
           p_is_public: !!doc.is_public,
         })
       )
+      if (error && detailed && ['PGRST202', '42883'].includes(error.code)) {
+        throw { code: 'TEMPLATE_SERVER_UPGRADE', message: 'Шаблон сохранён на устройстве. Для синхронизации подходов нужно обновление сервера.' }
+      }
       if (error) throw error
       // Шаблон правили, пока шел upsert (updated_at сдвинулся) — операцию и _dirty
       // оставляем: enqueueTpl новую не поставил, свежую версию дошлет следующий
