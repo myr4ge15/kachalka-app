@@ -38,3 +38,42 @@ describe('scanner ranking', () => {
     expect(Object.keys(matchScannedText('LEG PRESS', [{ id: 1, name: 'Жим ногами' }])[0]).sort()).toEqual(['exercise', 'label'])
   })
 })
+describe('scanner dictionary', () => {
+  // Names as in the live global catalog (export 13.10.2026).
+  const live = ['Тяга верхнего блока', 'Разгибание ног в тренажере', 'Сгибание ног в тренажере',
+    'Разведение ног в тренажере (Hip Abductor)', 'Сведение ног в тренажере (Hip Adductor)',
+    'Сведения в тренажере Бабочка', 'Обратное сведение в тренажере', 'Сведения в кроссовере',
+    'Подъем на носки сидя', 'Подъем на носки стоя', 'Отжимания на брусьях', 'Подтягивания на тренажере',
+    'Приседания в машине Смита', 'Шраги в тренажере Смита', 'Махи ногой назад в тренажере',
+    'Ягодичный мостик в тренажере', 'Велотренажер', 'Степпер', 'Жим в тренажере Хаммер']
+    .map(name => ({ id: name, name }))
+  const ids = text => matchScannedText(text, live).map(m => m.id ?? m.exercise.id)
+  it('knows other brands\' names for the same machines', () => {
+    expect(ids('PULLDOWN')).toEqual(['Тяга верхнего блока'])
+    expect(ids('TECHNOGYM\nLAT MACHINE')).toEqual(['Тяга верхнего блока'])
+    expect(ids('PECTORAL')).toEqual(['Сведения в тренажере Бабочка'])
+    expect(ids('PEC FLY / REAR DELTOID').sort()).toEqual(['Обратное сведение в тренажере', 'Сведения в тренажере Бабочка'])
+    expect(ids('INNER THIGH')).toEqual(['Сведение ног в тренажере (Hip Adductor)'])
+    expect(ids('OUTER THIGH')).toEqual(['Разведение ног в тренажере (Hip Abductor)'])
+  })
+  it('reads Russian plates without mixing up opposite movements', () => {
+    expect(ids('РАЗГИБАНИЕ НОГ')).toEqual(['Разгибание ног в тренажере'])
+    expect(ids('СГИБАНИЕ НОГ')).toEqual(['Сгибание ног в тренажере'])
+    expect(ids('СВЕДЕНИЕ НОГ')).toEqual(['Сведение ног в тренажере (Hip Adductor)'])
+    expect(ids('РАЗВЕДЕНИЕ НОГ')).toEqual(['Разведение ног в тренажере (Hip Abductor)'])
+    expect(ids('ТЯГА СВЕРХУ')).toEqual(['Тяга верхнего блока'])
+    expect(ids('ЖИМ ОТ ГРУДИ')).toEqual(['Жим в тренажере Хаммер'])
+  })
+  it('covers machines that had no label', () => {
+    expect(ids('SMITH MACHINE')).toEqual(['Приседания в машине Смита', 'Шраги в тренажере Смита'])
+    expect(ids('CABLE CROSSOVER')).toEqual(['Сведения в кроссовере'])
+    expect(ids('ASSISTED DIP / CHIN')).toEqual(['Отжимания на брусьях', 'Подтягивания на тренажере'])
+    expect(ids('GLUTE')).toEqual(['Махи ногой назад в тренажере'])
+    expect(ids('UPRIGHT BIKE')).toEqual(['Велотренажер'])
+    expect(ids('STAIR CLIMBER')).toEqual(['Степпер'])
+  })
+  it('lets the plate pick the calf raise variant', () => {
+    expect(ids('STANDING CALF RAISE')[0]).toBe('Подъем на носки стоя')
+    expect(ids('SEATED CALF RAISE')[0]).toBe('Подъем на носки сидя')
+  })
+})
