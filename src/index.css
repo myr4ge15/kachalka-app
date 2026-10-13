@@ -1253,7 +1253,8 @@ a.btn { display: block; text-align: center; text-decoration: none; }
 .history-list { list-style: none; margin: 10px 0 0; padding: 0; }
 .history-ex {
   /* Таблица из двух столбцов без видимых границ (v7.4.1): название — левая половина,
-     подходы — правая, по центру столбца и по центру строки. Раньше flex: длинное
+     подходы — правая, по правому краю (v7.5.3; по центру короткие «15, 12» висели
+     посередине, а длинные упирались в край — ровной границы не было), по центру строки. Раньше flex: длинное
      название забирало всю строку, и колонкам подходов доставался один столбец. */
   display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); column-gap: 12px;
   padding: 8px 0; border-top: 1px solid var(--border);
@@ -1266,7 +1267,7 @@ a.btn { display: block; text-align: center; text-decoration: none; }
    своя половина строки (v7.4.1), поэтому ни название, ни подходы не отнимают место
    друг у друга; длинное название переносится по словам в своей половине. */
 .history-ex-sets {
-  color: var(--muted); font-size: 14px; line-height: 1.35; text-align: center;
+  color: var(--muted); font-size: 14px; line-height: 1.35; text-align: right;
   min-width: 0; white-space: normal; overflow-wrap: normal; word-break: keep-all;
 }
 
