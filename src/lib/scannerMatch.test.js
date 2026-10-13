@@ -2,7 +2,7 @@ import { describe, it, expect } from 'vitest'
 import { matchScannedText } from './scannerMatch.js'
 const catalog = ['Тяга верхнего блока', 'Жим ногами', 'Подъем на носки сидя', 'Подъем на носки стоя', 'Приведение руки к груди'].map((name, id) => ({ name, id }))
 const hips = [
-  { id: 'in', name: 'Сведение ног в тренажёре (Hip Adductor)' },
+  { id: 'in', name: 'Сведение ног в тренажере (Hip Adductor)' },
   { id: 'out', name: 'Разведение ног в тренажере (Hip Abductor)' },
 ]
 it('does not confuse opposing movements, but supports a combined machine', () => {

@@ -24,6 +24,7 @@ import { cmpIsoDesc } from '../lib/cmp.js'
 import { sortUsersByOrder } from '../lib/userOrder.js'
 import { normMetric } from '../lib/metric.js'
 import { savableSet, toNum } from '../lib/setLimits.js'
+import { cleanExerciseName } from '../lib/text.js'
 import { canEditExercise } from '../lib/exerciseCatalog.js'
 import { isReactionKind } from '../lib/reactions.js'
 import { defaultSubmuscleFor, cleanSecondary } from '../lib/muscles.js'
@@ -85,7 +86,7 @@ export async function applyExerciseMergeLocal(fromId) {
 // показывал бы всем один и тот же список (так и было до v5.14.0). Экраны передают
 // сюда id вошедшего; отсутствие owner_id (легаси-строки) означает «ничье».
 export async function createExercise({ name, muscle_group, metric, submuscle, secondary, owner_id }) {
-  const clean = String(name ?? '').trim()
+  const clean = cleanExerciseName(name)
   if (!clean) throw new Error('Введи название упражнения.')
   const group = muscle_group ? String(muscle_group).trim() : null
   const mtr = normMetric(metric)
@@ -165,7 +166,7 @@ export async function updateExercise({ id, name, muscle_group, metric, submuscle
     throw new Error('Это упражнение добавил другой участник — править его может только он.')
   }
 
-  const clean = String(name ?? '').trim()
+  const clean = cleanExerciseName(name)
   if (!clean) throw new Error('Введи название упражнения.')
 
   const key = normalizeName(clean)

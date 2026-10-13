@@ -14,7 +14,7 @@ test('дисциплины: группы, время и офлайн после 
     const {disciplineSignature}=await import('/kachalka-app/src/lib/disciplines.js')
     await loginDb.users.update(userId,{sex:'f'})
     const catalog=[
-      {id:'bench',exercise_id:'e2e-ex-bench',name:'Жим лёжа',metric:'weight',split_by_sex:true,updated_at:'2026-10-02'},
+      {id:'bench',exercise_id:'e2e-ex-bench',name:'Жим лежа',metric:'weight',split_by_sex:true,updated_at:'2026-10-02'},
       {id:'plank',exercise_id:'plank',name:'Планка',metric:'time',split_by_sex:false,updated_at:'2026-10-02'},
       {id:'pullups',exercise_id:'pullups',name:'Подтягивания',metric:'reps',split_by_sex:false,updated_at:'2026-10-02'},
     ]

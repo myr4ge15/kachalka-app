@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest'
-import { onlyDigits } from './text.js'
+import { onlyDigits, cleanExerciseName } from './text.js'
 
 describe('onlyDigits', () => {
   it('оставляет только цифры', () => {
@@ -17,5 +17,13 @@ describe('onlyDigits', () => {
     expect(onlyDigits('')).toBe('')
     expect(onlyDigits(undefined)).toBe('')
     expect(onlyDigits('abc')).toBe('')
+  })
+})
+
+describe('cleanExerciseName (v7.4.1)', () => {
+  it('обрезает пробелы и пишет «е» вместо «ё»', () => {
+    expect(cleanExerciseName('  Жим лёжа в тренажёре ')).toBe('Жим лежа в тренажере')
+    expect(cleanExerciseName('Ёлочка')).toBe('Елочка')
+    expect(cleanExerciseName(null)).toBe('')
   })
 })

@@ -17,6 +17,7 @@ import { DB_TIMEOUT_MS, withTimeout } from './withTimeout.js'
 import { defaultSubmuscleFor, cleanSecondary } from './muscles.js'
 import { humanRpc } from './adminMessages.js'
 import { normMetric } from './metric.js'
+import { cleanExerciseName } from './text.js'
 import { isWeakPin, WEAK_PIN_TEXT } from './pinPolicy.js'
 import { loginProblem, normalizeLogin } from './login.js'
 
@@ -275,7 +276,7 @@ export async function adminSetConnection(a, b, connected) {
 // metric (v6.3.6) — необязательный: undefined → тип не трогаем и p_metric не шлем
 // (совместимо с сервером без admin-exercise-metric.sql).
 export async function adminUpdateExercise({ id, name, muscle_group, submuscle, secondary, is_bench_lift, is_female_lift, is_hidden, metric }) {
-  const clean = String(name ?? '').trim()
+  const clean = cleanExerciseName(name)
   if (clean.length < 1 || clean.length > 60) throw new AdminError('Название — от 1 до 60 символов.')
   const bench = Boolean(is_bench_lift)
   const female = Boolean(is_female_lift)

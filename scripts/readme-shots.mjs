@@ -57,14 +57,14 @@ const AVATARS = {
 const ex = (id, name, muscle_group, submuscle, secondary, metric, is_bench_lift = false) =>
   ({ id, name, muscle_group, submuscle, secondary, metric, is_bench_lift, is_hidden: false })
 const EXERCISES = [
-  ex('bench', 'Жим лёжа со штангой', 'грудь', 'chest_middle', ['triceps', 'delt_front'], 'weight', true),
+  ex('bench', 'Жим лежа со штангой', 'грудь', 'chest_middle', ['triceps', 'delt_front'], 'weight', true),
   ex('incline', 'Жим гантелей на наклонной', 'грудь', 'chest_upper', ['delt_front', 'triceps'], 'weight'),
   ex('squat', 'Приседания со штангой', 'ноги', 'quads', ['glute_max'], 'weight'),
   ex('legpress', 'Жим ногами', 'ноги', 'quads', ['glute_max'], 'weight'),
   ex('row', 'Тяга штанги в наклоне', 'спина', 'lats', ['biceps'], 'weight'),
   ex('pullups', 'Подтягивания', 'спина', 'lats', ['biceps'], 'reps'),
   ex('press', 'Жим штанги стоя', 'плечи', 'delt_front', ['triceps'], 'weight'),
-  ex('curl', 'Подъём штанги на бицепс', 'руки', 'biceps', [], 'weight'),
+  ex('curl', 'Подъем штанги на бицепс', 'руки', 'biceps', [], 'weight'),
   ex('plank', 'Планка', 'пресс', 'abs_rectus', [], 'time'),
   ex('run', 'Бег', 'кардио', 'cardio', [], 'distance'),
 ]
@@ -163,7 +163,7 @@ async function seedData({ uid, EXERCISES, FRIENDS, AVATARS, ACCENT }) {
 
   // Рейтинг: снимки дисциплин в meta, как их кладет db/disciplines.js.
   const catalog = [
-    { id: 'bench', exercise_id: 'bench', name: 'Жим лёжа', metric: 'weight', split_by_sex: false, updated_at: '2026-10-02' },
+    { id: 'bench', exercise_id: 'bench', name: 'Жим лежа', metric: 'weight', split_by_sex: false, updated_at: '2026-10-02' },
     { id: 'pullups', exercise_id: 'pullups', name: 'Подтягивания', metric: 'reps', split_by_sex: false, updated_at: '2026-10-02' },
     { id: 'plank', exercise_id: 'plank', name: 'Планка', metric: 'time', split_by_sex: false, updated_at: '2026-10-02' },
   ]
@@ -304,7 +304,7 @@ async function main() {
     if (want('workout')) {
       await page.getByRole('button', { name: 'Записать тренировку' }).click()
       await page.getByRole('button', { name: 'Добавить упражнение' }).click()
-      await page.locator('.picker-item').filter({ hasText: 'Жим лёжа со штангой' }).click()
+      await page.locator('.picker-item').filter({ hasText: 'Жим лежа со штангой' }).click()
       await page.waitForTimeout(900)
       // Экран с самого верха: шапка не наезжает на заголовок, «Сохранить» закрывает «Как пошло?».
       await page.evaluate(() => document.querySelectorAll('.content').forEach((e) => { e.scrollTop = 0 }))
@@ -324,7 +324,7 @@ async function main() {
       await tab('Лента')
       await page.waitForTimeout(500)
       // Раскрытие рейтинга запоминается — для ленты сворачиваем.
-      if (await page.getByRole('button', { name: 'Жим лёжа', exact: true }).isVisible().catch(() => false)) {
+      if (await page.getByRole('button', { name: 'Жим лежа', exact: true }).isVisible().catch(() => false)) {
         await page.getByRole('button', { name: 'Рейтинг', exact: true }).click()
       }
       if (want('feed')) {

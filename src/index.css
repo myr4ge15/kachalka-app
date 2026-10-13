@@ -1249,29 +1249,28 @@ select, textarea { font-variant-numeric: inherit; font-feature-settings: inherit
 
 .history-list { list-style: none; margin: 10px 0 0; padding: 0; }
 .history-ex {
-  display: flex; justify-content: space-between; gap: 12px;
+  /* Таблица из двух столбцов без видимых границ (v7.4.1): название — левая половина,
+     подходы — правая, по центру столбца и по центру строки. Раньше flex: длинное
+     название забирало всю строку, и колонкам подходов доставался один столбец. */
+  display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); column-gap: 12px;
   padding: 8px 0; border-top: 1px solid var(--border);
-  align-items: baseline;
+  align-items: center;
 }
 .history-ex:first-child { border-top: none; }
-.history-ex-name { font-size: 15px; font-weight: 600; line-height: 1.35; min-width: min-content; }
+.history-ex-name { font-size: 15px; font-weight: 600; line-height: 1.35; min-width: 0; overflow-wrap: anywhere; }
 /* Подходы переносятся МЕЖДУ сетами (по пробелу после запятой), но сам токен —
-   «14×12» / «1:00» — не рвем посимвольно (word-break:keep-all). Имя может ужиматься
-   и переноситься по словам, оставляя колонке подходов ширину. Так длинные серии
-   (напр. 8×«1:00» скакалки) не убегают за край карточки. Ужиматься имя может
-   только до самого длинного слова (min-content, v7.2.2): с min-width:0 длинная
-   строка подходов сжимала «Подтягивания» уже слова, и подходы наезжали на имя. */
+   «14×12» / «1:00» — не рвем посимвольно (word-break:keep-all). Каждому столбцу —
+   своя половина строки (v7.4.1), поэтому ни название, ни подходы не отнимают место
+   друг у друга; длинное название переносится по словам в своей половине. */
 .history-ex-sets {
-  color: var(--muted); font-size: 14px; line-height: 1.35; text-align: right;
+  color: var(--muted); font-size: 14px; line-height: 1.35; text-align: center;
   min-width: 0; white-space: normal; overflow-wrap: normal; word-break: keep-all;
 }
 /* Подходы «своего веса» колонками (v7.2.3, components/SetsCells.jsx): сверху повторы,
    под ними вес. Колонки одной ширины (auto-fit) — лишние уходят следующим рядом
-   ровно под первым; ряд прижат вправо, как остальные цифры карточки. Колонкам
-   нужна ширина, поэтому ячейка подходов в этом случае занимает остаток строки. */
-.history-ex:has(.sets-cols) { align-items: flex-start; }
-.history-ex-sets:has(.sets-cols) { flex: 1; }
-.sets-cols { display: grid; grid-template-columns: repeat(auto-fit, 44px); gap: 6px 2px; justify-content: end; }
+   ровно под первым; по центру столбца подходов, как остальные подходы (v7.4.1).
+   Ширину дает таблица .history-ex (у auto-fit своей «естественной» ширины нет). */
+.sets-cols { display: grid; grid-template-columns: repeat(auto-fit, 44px); gap: 6px 2px; justify-content: center; }
 .sets-cols--start { justify-content: start; }
 .sets-col { display: flex; flex-direction: column; align-items: center; line-height: 1.3; }
 .sets-col-w { font-size: var(--fs-meta); font-weight: 400; color: var(--muted); }

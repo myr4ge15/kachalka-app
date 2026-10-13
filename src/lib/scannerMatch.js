@@ -8,7 +8,7 @@ const LABELS = [
   [['leg curl', 'seated leg curl', 'lying leg curl'], ['Сгибание ног в тренажере']],
   [['leg press'], ['Жим ногами']],
   [['hip abductor', 'hip abduction', 'abductor'], ['Разведение ног в тренажере (Hip Abductor)']],
-  [['hip adductor', 'hip adduction', 'adductor'], ['Сведение ног в тренажёре (Hip Adductor)']],
+  [['hip adductor', 'hip adduction', 'adductor'], ['Сведение ног в тренажере (Hip Adductor)']],
   [['seated row', 'low row'], ['Горизонтальная тяга блока']],
   [['chest press', 'incline chest press'], ['Жим в тренажере Хаммер']],
   [['pec deck', 'chest fly'], ['Сведения в тренажере Бабочка']],
