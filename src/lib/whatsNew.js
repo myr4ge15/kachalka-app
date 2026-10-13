@@ -55,6 +55,14 @@ export function hasUnopened(entries, opened) {
   return !opened || cmpVersion(latest, opened) > 0
 }
 
+// version.json (vite.config.js): версия на сервере + заголовок свежей записи, если она
+// про эту версию. push: false у записи (v7.5.0) → silent: push-update запишет версию как
+// объявленную, но пуш «Вышла версия» не пошлет (вся линейка x.y — тихо).
+export function versionJson(entries, version) {
+  const latest = entries?.[0]?.version === version ? entries[0] : null
+  return { version, headline: updateHeadline(latest), ...(latest?.push === false ? { silent: true } : {}) }
+}
+
 // Заголовок для строки новой версии (version.json): headline + «и еще N».
 export function updateHeadline(entry) {
   if (!entry) return null

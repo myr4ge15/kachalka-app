@@ -161,9 +161,12 @@ export default function SheetDialog({
       >
         <div className="sheet-head">
           <strong id={titleId}>{title}</strong>
-          <button className="link-btn" disabled={dismissDisabled} onClick={dismiss}>
-            {actionLabel}
-          </button>
+          {/* actionLabel = null — без кнопки в шапке: лист закрывается только своими кнопками (v7.5.0). */}
+          {actionLabel !== null && (
+            <button className="link-btn" disabled={dismissDisabled} onClick={dismiss}>
+              {actionLabel}
+            </button>
+          )}
         </div>
         {children}
       </div>

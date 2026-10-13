@@ -4,6 +4,7 @@ import { isConfigured, warmup } from './db/supabase.js'
 import { enablePush } from './db/push.js'
 import { stripPushParam } from './lib/pushIntent.js'
 import PushAskSheet from './components/PushAskSheet.jsx'
+import TgLinkSheet from './components/TgLinkSheet.jsx'
 import { startSync } from './db/sync.js'
 import { countUnread } from './db/notifications.js'
 import { getCachedUser } from './db/repo.js'
@@ -131,7 +132,7 @@ export default function App() {
   const [historyBusy, setHistoryBusy] = useState(false)
 
   // «Добро пожаловать», «Что нового» и вопрос про уведомления — hooks/useLaunchSheets.js.
-  const { welcome, closeWelcome, whatsNew, closeWhatsNew, pushAsk, closePushAsk } = useLaunchSheets(user, historyBusy)
+  const { welcome, closeWelcome, whatsNew, closeWhatsNew, tgAsk, closeTgAsk, pushAsk, closePushAsk } = useLaunchSheets(user, historyBusy)
   // «Придумай логин» (П4, v6.17.0): у старых учеток логина нет — обязательный шаг онлайн.
   const loginSetup = useLoginSetup(user)
   // Строка новой версии (UpdatePrompt, вне App) не показывается посреди записи
@@ -487,7 +488,11 @@ export default function App() {
           onOpenAll={() => { closeWhatsNew(); goTab('whatsnew') }}
         />
       )}
-      {pushAsk && !welcome && !whatsNew && !historyBusy && (
+      {/* «Привяжи Telegram» (v7.5.0) — после «Что нового», раньше вопроса про пуши. */}
+      {tgAsk && !welcome && !whatsNew && !historyBusy && (
+        <TgLinkSheet kind={tgAsk} userId={user.id} onClose={closeTgAsk} />
+      )}
+      {pushAsk && !tgAsk && !welcome && !whatsNew && !historyBusy && (
         <PushAskSheet onEnable={() => enablePush(user.id)} onClose={closePushAsk} />
       )}
     </div>

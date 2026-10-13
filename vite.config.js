@@ -3,7 +3,7 @@ import react from '@vitejs/plugin-react'
 import { VitePWA } from 'vite-plugin-pwa'
 import { readFileSync } from 'node:fs'
 import { WHATS_NEW } from './src/content/whatsNew.js'
-import { updateHeadline } from './src/lib/whatsNew.js'
+import { versionJson as versionInfo } from './src/lib/whatsNew.js'
 import { avatarCachePattern, withBackendCsp } from './src/lib/backendOrigin.js'
 import { ocrAssets } from './scripts/ocrAssets.mjs'
 
@@ -15,7 +15,7 @@ const pkg = JSON.parse(readFileSync(new URL('./package.json', import.meta.url), 
 
 // «Что нового» (v6.4.0): главное из свежей записи уходит в version.json — строка новой
 // версии показывает его ДО обновления. Запись не про эту версию → без заголовка.
-const latestNews = WHATS_NEW[0]?.version === pkg.version ? WHATS_NEW[0] : null
+// push: false у записи (v7.5.0) → silent, пуш «Вышла версия» не уходит (lib/whatsNew.js).
 
 // Версия, лежащая на сервере ПРЯМО СЕЙЧАС, отдельным крошечным файлом. Нужна
 // плашке обновления: она сверяет её с зашитой в сборку __APP_VERSION__ и не
@@ -29,7 +29,7 @@ const versionJson = () => ({
     this.emitFile({
       type: 'asset',
       fileName: 'version.json',
-      source: JSON.stringify({ version: pkg.version, headline: updateHeadline(latestNews) }),
+      source: JSON.stringify(versionInfo(WHATS_NEW, pkg.version)),
     })
   },
 })

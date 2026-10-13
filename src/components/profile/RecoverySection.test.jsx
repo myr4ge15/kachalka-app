@@ -11,7 +11,7 @@ vi.mock('../../lib/auth.js', () => {
   }
   return {
     getRecoveryStatus: vi.fn(), createRecoveryCode: vi.fn(), createTgLinkToken: vi.fn(),
-    unlinkTg: vi.fn(async () => null), getBotUsername: vi.fn(), LoginError,
+    unlinkTg: vi.fn(async () => null), getBotUsername: vi.fn(), getBotInfo: vi.fn(), LoginError,
   }
 })
 vi.mock('../Toast.jsx', () => ({ showToast: vi.fn() }))
@@ -42,6 +42,27 @@ describe('RecoverySection', () => {
     fireEvent.click(await screen.findByRole('button', { name: 'Привязать Telegram' }))
     const a = await screen.findByRole('link', { name: 'Открыть бота в Telegram' })
     expect(a).toHaveAttribute('href', `https://t.me/kachalka_bot?start=${T}`)
+  })
+
+  it('привязан к старому боту, а у сброса свой (v7.5.0) — «Перепривязать»', async () => {
+    vi.mocked(auth.getRecoveryStatus).mockResolvedValue({ ...NONE, tgLinked: true, tgBot: 'notifier' })
+    vi.mocked(auth.getBotInfo).mockResolvedValue({ username: 'kachalka_pin_bot', dedicated: true })
+    vi.mocked(auth.getBotUsername).mockResolvedValue('kachalka_pin_bot')
+    vi.mocked(auth.createTgLinkToken).mockResolvedValue(T)
+    render(<RecoverySection userId="u1" />)
+    openIt()
+    expect(await screen.findByTestId('tg-state')).toHaveTextContent('старому боту')
+    fireEvent.click(screen.getByRole('button', { name: 'Перепривязать Telegram' }))
+    const a = await screen.findByRole('link', { name: 'Открыть бота в Telegram' })
+    expect(a).toHaveAttribute('href', `https://t.me/kachalka_pin_bot?start=${T}`)
+  })
+
+  it('к старому боту, но сброс еще там же — просто «Привязан»', async () => {
+    vi.mocked(auth.getRecoveryStatus).mockResolvedValue({ ...NONE, tgLinked: true, tgBot: 'notifier' })
+    vi.mocked(auth.getBotInfo).mockResolvedValue({ username: 'kachalka_notifier_bot', dedicated: false })
+    render(<RecoverySection userId="u1" />)
+    openIt()
+    expect(await screen.findByTestId('tg-state')).toHaveTextContent('✅ Привязан')
   })
 
   it('отвязка — с подтверждением', async () => {

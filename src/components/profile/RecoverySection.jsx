@@ -1,8 +1,9 @@
 import { useCallback, useEffect, useState } from 'react'
 import {
-  getRecoveryStatus, createRecoveryCode, createTgLinkToken, unlinkTg, getBotUsername, LoginError,
+  getRecoveryStatus, createRecoveryCode, createTgLinkToken, unlinkTg, getBotUsername, getBotInfo, LoginError,
 } from '../../lib/auth.js'
 import { tgStartLink } from '../../lib/recovery.js'
+import { tgLinkDone, tgPromptKind } from '../../lib/tgLinkPrompt.js'
 import { fmtDate } from '../../lib/dates.js'
 import RecoveryCodeView from '../recovery/RecoveryCodeView.jsx'
 import { showToast } from '../Toast.jsx'
@@ -14,6 +15,8 @@ import { useAliveRef } from '../../hooks/useAliveRef.js'
 //   • Telegram: «Привязать» → одноразовая ссылка t.me/<бот>?start=… (10 мин) → в боте
 //     «Старт». «Отвязать» — здесь или /stop в боте.
 //   • Код восстановления: «Новый код» — показывается один раз, прежний сгорает.
+//   • v7.5.0: привязан к старому боту, а у сброса уже свой — «⚠️ перепривяжи» (как лист
+//     при запуске, lib/tgLinkPrompt.js).
 export default function RecoverySection({ userId }) {
   const aliveRef = useAliveRef()
   const [open, setOpen] = useState(false)
@@ -25,14 +28,18 @@ export default function RecoverySection({ userId }) {
   const [code, setCode] = useState(null)
   const [confirmCode, setConfirmCode] = useState(false)
   const [confirmUnlink, setConfirmUnlink] = useState(false)
+  const [relink, setRelink] = useState(false)
 
   const refresh = useCallback(async () => {
     if (!navigator.onLine) { setErr('Виден онлайн.'); return }
     try {
       const s = await getRecoveryStatus(userId)
+      // К старому боту — узнать, переехал ли сброс (иначе перепривязывать некуда).
+      const bot = s.tgBot === 'notifier' ? await getBotInfo().catch(() => null) : null
       if (!aliveRef.current) return
       setStatus(s); setErr('')
-      if (s.tgLinked) setTgLink(null)
+      setRelink(tgPromptKind(s, bot) === 'relink')
+      if (tgLinkDone(s)) setTgLink(null)
     } catch (e) {
       if (aliveRef.current) setErr(e instanceof LoginError ? e.message : 'Не удалось узнать статус.')
     }
@@ -115,7 +122,7 @@ export default function RecoverySection({ userId }) {
       <p className="recovery-row-title">Telegram</p>
       {status === null ? (
         <p className="muted" role="status">{err ? '' : 'Проверяю…'}</p>
-      ) : status.tgLinked ? (
+      ) : status.tgLinked && !relink ? (
         <>
           <p className="recovery-state" data-testid="tg-state">✅ Привязан{since(status.tgLinkedAt)} — бот пришлет ссылку для нового PIN.</p>
           <button type="button" className={confirmUnlink ? 'link-btn danger' : 'link-btn'} disabled={!!busy} onClick={doUnlink}>
@@ -126,6 +133,13 @@ export default function RecoverySection({ userId }) {
         <>
           <a className="btn primary" href={tgLink} target="_blank" rel="noopener noreferrer">Открыть бота в Telegram</a>
           <p className="muted invite-note">В боте нажми «Старт». Ссылка действует 10 минут, потом вернись сюда.</p>
+        </>
+      ) : relink ? (
+        <>
+          <p className="recovery-state" data-testid="tg-state">⚠️ Привязан к старому боту. Ссылки для сброса теперь присылает новый — привяжи заново.</p>
+          <button type="button" className="btn ghost" disabled={!!busy} onClick={prepareLink}>
+            {busy === 'link' ? 'Готовлю ссылку…' : 'Перепривязать Telegram'}
+          </button>
         </>
       ) : (
         <>

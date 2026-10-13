@@ -93,6 +93,8 @@ describe('«Забыл PIN» — Edge pin-reset', () => {
     fetchMock.mockResolvedValueOnce(res(200, { username: 'kachalka_bot' }))
     expect(await auth.getBotUsername()).toBe('kachalka_bot')
     expect(await auth.getBotUsername()).toBe('kachalka_bot')
+    // v7.5.0: старый Edge без dedicated — бот сброса не отдельный.
+    expect(await auth.getBotInfo()).toEqual({ username: 'kachalka_bot', dedicated: false })
     expect(fetchMock).toHaveBeenCalledTimes(1)
   })
 })
@@ -100,8 +102,11 @@ describe('«Забыл PIN» — Edge pin-reset', () => {
 describe('свое восстановление — RPC под своей сессией', () => {
   it('статус', async () => {
     rpc.mockResolvedValueOnce({ data: [{ has_code: true, code_created_at: '2026-10-07T10:00:00Z', tg_linked: false, tg_linked_at: null }], error: null })
-    expect(await auth.getRecoveryStatus('u1')).toEqual({ hasCode: true, codeCreatedAt: '2026-10-07T10:00:00Z', tgLinked: false, tgLinkedAt: null })
+    expect(await auth.getRecoveryStatus('u1')).toEqual({ hasCode: true, codeCreatedAt: '2026-10-07T10:00:00Z', tgLinked: false, tgLinkedAt: null, tgBot: null })
     expect(rpc).toHaveBeenCalledWith('my_recovery_status')
+    // v7.5.0: в каком боте привязка (tg-bots-split.sql).
+    rpc.mockResolvedValueOnce({ data: [{ has_code: false, code_created_at: null, tg_linked: true, tg_linked_at: '2026-10-07T10:00:00Z', tg_bot: 'notifier' }], error: null })
+    expect((await auth.getRecoveryStatus('u1')).tgBot).toBe('notifier')
   })
   it('новый код, токен привязки, отвязка', async () => {
     rpc.mockResolvedValueOnce({ data: 'ABCD-EFGH-JKMN-PQRS', error: null })

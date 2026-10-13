@@ -329,6 +329,19 @@ updated_at)` + `upsert_user_meta` (`supabase/user-meta.sql`, RLS «только 
   Картинки обращений в Supabase не храним: `file_id` Telegram, байты клиенту — только через `feedback`
   action=media после `feedback_media_ref`; токен бота клиенту не отдается. Вебхук у бота один — `getUpdates`
   нигде не использовать.
+- **Telegram на разных ботах (v7.5.0)** → `_shared/tgBots.ts` + `_shared/tgApi.ts tgBot(role)`, план
+  `docs/plans/PLAN-tg-bots-split.md`, накат `tg-bots-split-deploy.md`. Роли: `notify` (kachalka-notifier,
+  `TELEGRAM_BOT_TOKEN`, беседа: `tg-record`/`tg-digest`), `stats` (`TELEGRAM_STATS_BOT_TOKEN`, `tg-summary`),
+  `feedback` (`TELEGRAM_FEEDBACK_BOT_TOKEN`: обращения + заявки «Хочу в круг»), `pin` (`TELEGRAM_PIN_BOT_TOKEN`:
+  `/start`-привязка и ссылки сброса). Не задан токен роли — она живет в старом боте. Новый вызов Telegram —
+  только через `tgBot(<роль>)`, не голым fetch и не чужой ролью. Вебхук `tg-bot` один на всех: бот — в адресе
+  (`?bot=feedback|pin`, без параметра — старый бот, свои старые сообщения), роль понимает только свое
+  (`webhookScope`). ⚠️ **Номера Telegram в базе — ключом полосы** (`bot.key()`/`bot.unkey()`/`bot.ids()`,
+  `lane × 10^12`): `feedback.tg_message_ids`, `bot_note_id`, `join_requests.tg_message_id`,
+  `pin_reset_messages.message_id`, `tg_updates.update_id`. Голый `message_id` нового бота в базе = реплай находит
+  чужое обращение из старого чата. `file_id` чужого бота не открывается — `fileBytesAny`. Канон `bot_tg_link`
+  (третий аргумент `p_bot`) и `my_recovery_status` (`tg_bot` в конце) — `tg-bots-split.sql`; `pin-recovery.sql`
+  после него не перезапускать (его предпроверка теперь сама останавливает накат).
 - **Дистанция (v6.12.0)** → канон `metric-distance.sql`: `admin_update_exercise`, `new_prs_for_workout`,
   `push_beaten_for_workout`, `admin_save_discipline` (поверх живых тел 05.10). НЕ перезапускать их тела из
   `admin-exercise-metric.sql` / `telegram.sql` / `push-types.sql` / `rating-disciplines.sql` — там нет
@@ -370,7 +383,8 @@ updated_at)` + `upsert_user_meta` (`supabase/user-meta.sql`, RLS «только 
   `users` — решить ее судьбу здесь (cascade/обезличить) и добавить в тест. Клиент: `profile/DeleteAccount.jsx`,
   после ответа — выход и `db/local.js wipeLocalAccount` (персональная база, ростер, кэш PIN, ключи localStorage).
   Старый `admin_delete_user` (Админка до 6.18) — не использовать.
-- **«Забыл PIN» без админа (П1, 07.10.2026)** → канон `pin-recovery.sql` + Edge `pin-reset` (`--no-verify-jwt`)
+- **«Забыл PIN» без админа (П1, 07.10.2026)** → канон `pin-recovery.sql` (с v7.5.0 `bot_tg_link`/`my_recovery_status` —
+  `tg-bots-split.sql`, бот сброса — `kachalka_pin_bot`, см. «Telegram на разных ботах») + Edge `pin-reset` (`--no-verify-jwt`)
   + ветка в `tg-bot`. Два пути: Telegram (привязка — одноразовый `t.me/<бот>?start=<токен>`, хранится ТОЛЬКО
   chat id в `tg_links`; ссылка сброса `…#reset=<токен>`, 10 мин, один раз) и код восстановления (16 знаков
   Crockford, показ один раз, новый гасит старый). В базе только SHA-256 секретов (`invite_token_hash`).
@@ -582,6 +596,8 @@ updated_at)` + `upsert_user_meta` (`supabase/user-meta.sql`, RLS «только 
    Откат — `workflow_dispatch` на прошлом теге.
    Пуш «Вышла версия» (Edge `push-update`) с v6.15.0 уходит только при смене `x.y` (`semver.ts`
    `shouldAnnounce`): тег на PATCH выкатывает тихо — друзья получат его при запуске и в «Что нового».
+   MINOR без пуша (v7.5.0) — `push: false` у записи «Что нового» → `version.json silent` → `announceDecision`;
+   действует только с задеплоенным новым `push-update`, подстраховка — `insert into push_update_sent` до тега.
    ⚠️ **Тег обязан двигаться регулярно.** Забытый тег — тихая авария: через полгода у друзей 5.13,
    в `main` 6.x, и слияние уже болезненно. Правило «раз в N недель осознанно», подстраховка —
    недельный алерт в Телеграм по паттерну `tg-digest` (внешний крон), если тег отстал от `main`

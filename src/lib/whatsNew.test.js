@@ -1,6 +1,6 @@
 import { describe, it, expect } from 'vitest'
 import {
-  cmpVersion, pendingWhatsNew, mergeForSheet, hasUnopened, updateHeadline, fmtWhatsNewDate, readMark, writeMark,
+  cmpVersion, pendingWhatsNew, mergeForSheet, hasUnopened, updateHeadline, versionJson, fmtWhatsNewDate, readMark, writeMark,
 } from './whatsNew.js'
 import { WHATS_NEW } from '../content/whatsNew.js'
 
@@ -44,6 +44,17 @@ describe('mergeForSheet', () => {
     expect(m.count).toBe(2)
   })
   it('пусто → null', () => expect(mergeForSheet([])).toBeNull())
+})
+
+describe('versionJson (v7.5.0)', () => {
+  const E = [{ version: '7.5.0', headline: 'Новое', main: [{ t: 'a' }], push: false }, { version: '7.4.0', main: [{ t: 'b' }] }]
+  it('push: false у свежей записи — silent; иначе поля нет', () => {
+    expect(versionJson(E, '7.5.0')).toEqual({ version: '7.5.0', headline: 'Новое', silent: true })
+    expect(versionJson(E.slice(1), '7.4.0')).toEqual({ version: '7.4.0', headline: 'b' })
+  })
+  it('запись не про эту версию — без заголовка и без silent', () => {
+    expect(versionJson(E, '7.5.1')).toEqual({ version: '7.5.1', headline: null })
+  })
 })
 
 describe('hasUnopened / updateHeadline / дата', () => {

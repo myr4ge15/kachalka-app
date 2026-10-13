@@ -300,15 +300,18 @@ export async function resetPinByCode(login, code, pin) {
   return adoptReset(res, body, pin, stale)
 }
 
-// Имя бота для ссылки привязки (Edge спрашивает getMe). Кэш на сессию страницы.
-let botUsernameCache = null
-export async function getBotUsername() {
-  if (botUsernameCache) return botUsernameCache
+// Бот для ссылки привязки (Edge спрашивает getMe). Кэш на сессию страницы.
+// dedicated (v7.5.0) — у сброса PIN свой бот kachalka_pin_bot, а не старый общий:
+// только тогда просим перепривязать Telegram (lib/tgLinkPrompt.js).
+let botInfoCache = null
+export async function getBotInfo() {
+  if (botInfoCache) return botInfoCache
   const { res, body } = await callReset({ action: 'bot' })
   if (!res.ok || !body?.username) throw new LoginError('server', 'Бот сейчас недоступен — попробуй позже.')
-  botUsernameCache = body.username
-  return botUsernameCache
+  botInfoCache = { username: body.username, dedicated: body.dedicated === true }
+  return botInfoCache
 }
+export const getBotUsername = async () => (await getBotInfo()).username
 
 // Свое (под своей сессией, только онлайн): статус, новый код, токен привязки, отвязка.
 async function myRpc(userId, fn, args) {
@@ -329,13 +332,16 @@ async function myRpc(userId, fn, args) {
   return res.data
 }
 
-// { hasCode, codeCreatedAt, tgLinked, tgLinkedAt }
+// { hasCode, codeCreatedAt, tgLinked, tgLinkedAt, tgBot }. tgBot (v7.5.0, tg-bots-split.sql):
+// 'notifier' — привязан к старому боту, 'pin' — к новому, null — не привязан или сервер
+// без этой колонки.
 export async function getRecoveryStatus(userId) {
   const data = await myRpc(userId, 'my_recovery_status')
   const row = Array.isArray(data) ? data[0] : data
   return {
     hasCode: Boolean(row?.has_code), codeCreatedAt: row?.code_created_at ?? null,
     tgLinked: Boolean(row?.tg_linked), tgLinkedAt: row?.tg_linked_at ?? null,
+    tgBot: typeof row?.tg_bot === 'string' ? row.tg_bot : null,
   }
 }
 export const createRecoveryCode = (userId) => myRpc(userId, 'create_my_recovery_code')
