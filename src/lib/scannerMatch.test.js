@@ -77,3 +77,23 @@ describe('scanner dictionary', () => {
     expect(ids('SEATED CALF RAISE')[0]).toBe('Подъем на носки сидя')
   })
 })
+
+describe('scanner: machines added to the catalog in 7.5.9', () => {
+  const list = ['Жим плечами в тренажере', 'Махи в стороны в тренажере', 'Махи гантелями в стороны', 'Гакк-приседания',
+    'Отжимания сидя в тренажере', 'Отжимания на брусьях', 'Повороты корпуса в тренажере', 'Тяга в рычажном тренажере',
+    'Горизонтальная тяга блока', 'Тяга верхнего блока'].map(name => ({ id: name, name }))
+  const ids = text => matchScannedText(text, list).map(m => m.exercise.id)
+  it('finds the new machine for its plate first', () => {
+    expect(ids('SHOULDER PRESS')).toEqual(['Жим плечами в тренажере'])
+    expect(ids('LATERAL RAISE')).toEqual(['Махи в стороны в тренажере', 'Махи гантелями в стороны'])
+    expect(ids('HACK SQUAT')).toEqual(['Гакк-приседания'])
+    expect(ids('ГАКК-ПРИСЕДАНИЯ')).toEqual(['Гакк-приседания'])
+    expect(ids('SEATED DIP')).toEqual(['Отжимания сидя в тренажере', 'Отжимания на брусьях'])
+    expect(ids('ROTARY TORSO')).toEqual(['Повороты корпуса в тренажере'])
+    expect(ids('HAMMER STRENGTH\nISO-LATERAL ROW')).toEqual(['Тяга в рычажном тренажере', 'Горизонтальная тяга блока'])
+  })
+  it('keeps Hammer Strength pulldown and assisted dips where they were', () => {
+    expect(ids('ISO-LATERAL FRONT LAT PULLDOWN')).toEqual(['Тяга верхнего блока'])
+    expect(ids('ASSISTED DIP')).toEqual(['Отжимания на брусьях'])
+  })
+})
