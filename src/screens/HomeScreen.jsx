@@ -2,14 +2,14 @@ import { useEffect, useRef, useState } from 'react'
 import { fmtHomeTitle } from '../lib/dates.js'
 import { useLiveQuery } from 'dexie-react-hooks'
 import { getHomeData } from '../db/insights.js'
-import { fmtDaysAgo, fmtDays } from '../lib/homeSummary.js'
+import { fmtDaysAgo } from '../lib/homeSummary.js'
 import { fmtTonnage } from '../lib/profileStats.js'
 import { fmtMetricValue } from '../lib/metric.js'
 import { plural } from '../lib/plural.js'
-import { tagSlug, groupAccusative, GROUP_ORDER } from '../lib/dayTags.js'
+import { tagSlug, GROUP_ORDER } from '../lib/dayTags.js'
 import { recoveryLead, readinessStatus } from '../lib/freshness.js'
 import { labelOf, majorOf } from '../lib/muscles.js'
-import { byGender } from '../lib/gender.js'
+import { leadTarget, leadSince, cardioLine } from '../lib/recoveryText.js'
 import { rhythmChart, fmtAvg, avgWord, mondayLabel } from '../lib/rhythmChart.js'
 import { useRevealFocus } from '../hooks/useRevealFocus.js'
 import CardsSkeleton from '../components/CardsSkeleton.jsx'
@@ -122,6 +122,7 @@ export default function HomeScreen({ user, onNavigate, onNewWorkout, onOpenProgr
   const rec = freshness?.recovery ?? []
   const strip = [...rec].sort((a, b) => canonIdx(a.group) - canonIdx(b.group))
   const lead = recoveryLead(rec)
+  const cardioDays = freshness?.cardio ?? null // v7.5.6: кардио — отдельной строкой, не «мышцей»
 
   // Порядок блоков (редизайн v6, этап 3; отзывы друзей): действие → серия и цифры →
   // готовность мышц и ближайшая цель ВВЕРХУ → ритм → наблюдения → рекорд.
@@ -193,8 +194,8 @@ export default function HomeScreen({ user, onNavigate, onNewWorkout, onOpenProgr
               <div className="fr-lead">
                 <span className="em" aria-hidden="true">🎯</span>
                 <div className="fr-lead-body">
-                  <div className="v">Пора проработать {groupAccusative(lead.item.group)}</div>
-                  <div className="k">не {byGender(home?.sex, 'тренировал', 'тренировала')} уже {fmtDays(lead.item.daysSince)}</div>
+                  <div className="v">{leadTarget(lead.item.group)}</div>
+                  <div className="k">{leadSince(lead.item.daysSince)}</div>
                 </div>
               </div>
             ) : lead?.kind === 'resting' ? (
@@ -216,6 +217,7 @@ export default function HomeScreen({ user, onNavigate, onNewWorkout, onOpenProgr
                 </div>
               </div>
             )}
+            {cardioDays != null && <div className="fr-cardio"><span aria-hidden="true">🏃</span> {cardioLine(cardioDays)}</div>}
           </button>
         </section>
       )}

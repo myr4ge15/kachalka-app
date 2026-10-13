@@ -35,6 +35,11 @@ describe('dayTags', () => {
 })
 
 describe('groupAccusative', () => {
+  it('свои группы из одного слова склоняются по окончанию (v7.5.6)', () => {
+    expect(groupAccusative('шея')).toBe('шею')
+    expect(groupAccusative('растяжка')).toBe('растяжку')
+    expect(groupAccusative('верх спины')).toBe('верх спины')
+  })
   it('«спина» → «спину»', () => {
     expect(groupAccusative('спина')).toBe('спину')
   })
@@ -45,6 +50,9 @@ describe('groupAccusative', () => {
   })
   it('неизвестная группа и пустое — без изменений', () => {
     expect(groupAccusative('предплечья')).toBe('предплечья')
+    expect(groupAccusative('трапеции')).toBe('трапеции')
+    expect(groupAccusative('ягодицы')).toBe('ягодицы')
+    expect(groupAccusative('кардио')).toBe('кардио')
     expect(groupAccusative(null)).toBe(null)
     expect(groupAccusative('')).toBe('')
   })

@@ -2991,6 +2991,11 @@ label.act.busy { opacity: .55; pointer-events: none; }
 }
 .fr-tip .em { font-size: 18px; flex: none; }
 .fr-tip p { margin: 0; font-size: 13px; line-height: 1.4; }
+/* Строка про кардио (v7.5.6): тихая, под подсказкой про мышцы — кардио не «мышца». */
+.fr-tip-body { min-width: 0; }
+.fr-tip-cardio { color: var(--muted); }
+.fr-tip-body p + .fr-tip-cardio { margin-top: 4px; }
+.fr-cardio { margin-top: 8px; color: var(--muted); font-size: 12px; text-align: left; }
 .fr-tip b { color: var(--acc-2); }
 /* Группа-цель в подсказке — кнопка-ссылка: подсвечивает свои мышцы (v6.3.5). */
 .fr-tip-target {

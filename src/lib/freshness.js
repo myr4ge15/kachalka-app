@@ -97,6 +97,21 @@ export function freshnessBucket(daysSince) {
 // свежее — тем ниже. overdue > due > recent > fresh.
 const BUCKET_RANK = { overdue: 4, due: 3, recent: 2, fresh: 1, never: 0 }
 
+// Кардио — не мышца (v7.5.6): в готовность мышц, «пора проработать» и «отдыхают»
+// не входит (на подмышечном уровне исключено давно). Про него — отдельная тихая
+// строка «Кардио не было N дней» (cardioGap), если перерыв от CARDIO_NUDGE_DAYS.
+export const CARDIO_GROUP = 'кардио'
+export const CARDIO_NUDGE_DAYS = 7
+
+// Дней с последнего кардио, если перерыв ≥ CARDIO_NUDGE_DAYS; иначе (или кардио не
+// было ни разу — значит, человек его не делает и напоминать не о чем) — null.
+export function cardioGap(workouts, { now = new Date() } = {}) {
+  const cur = lastTrainedByGroup(workouts).get(CARDIO_GROUP)
+  if (!cur) return null
+  const days = dayIndex(now) - cur.day
+  return days >= CARDIO_NUDGE_DAYS ? days : null
+}
+
 // Свежесть тренированных групп: массив
 //   { group, at, daysSince, hoursSince, recoveryHours, state, bucket }
 // отсортированный «кого пора тренировать» вниз к «свежим». Группы без истории
@@ -107,6 +122,7 @@ export function groupFreshness(workouts, { now = new Date() } = {}) {
   const nowT = (now instanceof Date ? now : new Date(now)).getTime()
   const out = []
   for (const [g, { day, at, t }] of map) {
+    if (g === CARDIO_GROUP) continue
     const daysSince = today - day
     const hoursSince = Math.max(0, (nowT - t) / 3600000)
     const recoveryHours = recoveryHoursFor(g)

@@ -19,6 +19,7 @@ import {
   submuscleFreshness,
   submuscleImbalance,
   regionTarget,
+  cardioGap,
 } from './freshness.js'
 
 function wk({ id, at, entries, deleted }) {
@@ -117,6 +118,27 @@ describe('groupFreshness', () => {
   })
   it('пустая история → пустой массив', () => {
     expect(groupFreshness([], { now: NOW })).toEqual([])
+  })
+  // v7.5.6: кардио — не мышца: ни «пора проработать кардио», ни «отдыхают: кардио».
+  it('кардио в готовность мышц не входит', () => {
+    const list = [
+      wk({ id: 'run', at: daysAgo(20), entries: [{ exId: 'run', group: 'кардио' }] }),
+      wk({ id: 'back', at: daysAgo(8), entries: [{ exId: 'row', group: 'спина' }] }),
+    ]
+    expect(groupFreshness(list, { now: NOW }).map((f) => f.group)).toEqual(['спина'])
+  })
+})
+
+describe('cardioGap (v7.5.6)', () => {
+  const run = (n) => wk({ id: `run${n}`, at: daysAgo(n), entries: [{ exId: 'run', group: 'кардио' }] })
+  it('перерыв от 7 дней — число дней, свежее — null', () => {
+    expect(cardioGap([run(8), run(20)], { now: NOW })).toBe(8)
+    expect(cardioGap([run(7)], { now: NOW })).toBe(7)
+    expect(cardioGap([run(6)], { now: NOW })).toBe(null)
+  })
+  it('кардио не было ни разу — не напоминаем', () => {
+    expect(cardioGap([wk({ id: 'b', at: daysAgo(30), entries: [{ exId: 'row', group: 'спина' }] })], { now: NOW })).toBe(null)
+    expect(cardioGap([], { now: NOW })).toBe(null)
   })
 })
 

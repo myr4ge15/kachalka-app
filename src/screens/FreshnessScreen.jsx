@@ -5,7 +5,8 @@ import { getWorkouts } from '../db/repo.js'
 import { groupVolumeTrend, trendLabel, WEEKS } from '../lib/groupVolume.js'
 import { plural } from '../lib/plural.js'
 import { readinessView, recoveryLead, fmtHoursLeft, regionTarget } from '../lib/freshness.js'
-import { fmtDaysAgo, fmtDays } from '../lib/homeSummary.js'
+import { fmtDaysAgo } from '../lib/homeSummary.js'
+import { LEAD_TARGET, leadSince, cardioLine } from '../lib/recoveryText.js'
 import { labelOf } from '../lib/muscles.js'
 import { groupAccusative } from '../lib/dayTags.js'
 import { byGender } from '../lib/gender.js'
@@ -29,24 +30,29 @@ const TABS = [
 // Подсказка сверху — та же логика, что у тизера Главной (recoveryLead по группам),
 // чтобы Главная и этот экран не противоречили друг другу.
 // v6.3.5: группа-цель — кнопка: подсвечивает ее мышцы на карте и в «таблетках».
-function Tip({ lead, sex, onFocusGroup }) {
-  if (!lead) return null
-  let text
-  if (lead.kind === 'target') {
+// v7.5.6: текст — lib/recoveryText (как на Главной), без рода глагола; кардио в
+// подсказку про мышцы не попадает, о нем — отдельная тихая строка (cardioDays).
+function Tip({ lead, cardioDays, onFocusGroup }) {
+  if (!lead && cardioDays == null) return null
+  let text = null
+  if (lead?.kind === 'target') {
     const g = groupAccusative(lead.item.group)
     const word = onFocusGroup
       ? <button type="button" className="fr-tip-target" onClick={() => onFocusGroup(lead.item.group)}>{g}</button>
       : <b>{g}</b>
-    text = <>Сегодня пора проработать {word} — не {byGender(sex, 'тренировал', 'тренировала')} уже {fmtDays(lead.item.daysSince)}</>
-  } else if (lead.kind === 'resting') {
+    text = <>{LEAD_TARGET} {word} — {leadSince(lead.item.daysSince)}</>
+  } else if (lead?.kind === 'resting') {
     text = <>Отдыхают: <b>{lead.items.map((f) => f.group).join(', ')}</b>. Остальное можно тренировать</>
-  } else {
+  } else if (lead) {
     text = <>Все тренированные мышцы восстановились — <b>выбирай любую группу</b></>
   }
   return (
     <div className="fr-tip">
-      <span className="em" aria-hidden="true">🎯</span>
-      <p>{text}</p>
+      <span className="em" aria-hidden="true">{text ? '🎯' : '🏃'}</span>
+      <div className="fr-tip-body">
+        {text && <p>{text}</p>}
+        {cardioDays != null && <p className="fr-tip-cardio">{text && <span aria-hidden="true">🏃 </span>}{cardioLine(cardioDays)}</p>}
+      </div>
     </div>
   )
 }
@@ -147,7 +153,7 @@ export default function FreshnessScreen({ user, onBack }) {
         </p>
       ) : (
         <>
-          <Tip lead={lead} sex={data?.sex} onFocusGroup={focusOn} />
+          <Tip lead={lead} cardioDays={data?.cardio ?? null} onFocusGroup={focusOn} />
 
           <div className="fr-map">
             <MuscleMap bySub={view.bySub} selected={mapSelected} onSelect={pickRegion} />

@@ -63,6 +63,15 @@ describe('FreshnessScreen «Восстановление» (v6.3.5)', () => {
     expect(document.querySelector('.fr-chip.on')).toBeNull()
   })
 
+  it('подсказка без рода глагола; кардио — отдельной строкой (v7.5.6)', () => {
+    vi.mocked(useLiveQuery).mockImplementation((fn, deps, def) => (def === undefined ? { ...data, cardio: 8 } : []))
+    render(<FreshnessScreen user={{ id: 'u1' }} onBack={() => {}} />)
+    const tip = document.querySelector('.fr-tip')
+    expect(tip).toHaveTextContent('Пора проработать бицепс — последний раз 9 дней назад')
+    expect(tip).not.toHaveTextContent('тренировал')
+    expect(document.querySelector('.fr-tip-cardio')).toHaveTextContent('Кардио не было 8 дней')
+  })
+
   it('мышца без данных — так и пишем', () => {
     render(<FreshnessScreen user={{ id: 'u1' }} onBack={() => {}} />)
     fireEvent.click(screen.getAllByRole('button', { name: 'трапеция' })[0])

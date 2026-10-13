@@ -14,6 +14,7 @@ import { buildInsights } from '../lib/insights.js'
 import { buildHomeSummary } from '../lib/homeSummary.js'
 import {
   groupFreshness,
+  cardioGap,
   imbalance as computeImbalance,
   submuscleFreshness,
   submuscleImbalance,
@@ -52,6 +53,7 @@ export async function getHomeData(userId, { max = 3 } = {}) {
     insights: buildInsights({ workouts, leaderboard, userId, max, sex }),
     freshness: {
       recovery: groupFreshness(workouts),
+      cardio: cardioGap(workouts),
       imbalance: computeImbalance(workouts),
       recoverySub: submuscleFreshness(workouts),
       imbalanceSub: submuscleImbalance(workouts),
@@ -74,6 +76,7 @@ export async function getFreshness(userId) {
     sex,
     // major-уровень — тизер Главной + heatmap-силуэт (MuscleMap пока по группам)
     recovery: groupFreshness(workouts),
+    cardio: cardioGap(workouts), // дней без кардио (≥7) или null — v7.5.6
     imbalance: computeImbalance(workouts),
     // submuscle-уровень (слайс 3a) — recovery-список и дисбаланс детального экрана
     recoverySub: submuscleFreshness(workouts),
