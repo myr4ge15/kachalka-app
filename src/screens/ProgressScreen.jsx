@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useState } from 'react'
+import { useRevealFocus } from '../hooks/useRevealFocus.js'
 import {
   ResponsiveContainer, LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, Dot,
   ReferenceArea, ReferenceLine,
@@ -114,6 +115,7 @@ export default function ProgressScreen({
   // а период лишь сужает отображаемые точки. Поэтому строим ряд целиком и
   // фильтруем результат, а не входные тренировки.
   const [ormInfo, setOrmInfo] = useState(false)
+  const ormRef = useRevealFocus(ormInfo ? 'orm' : null, { block: 'nearest' }) // v8.0.1
   const [period, setPeriod] = useState('all')
   const [from, setFrom] = useState('')
   const [to, setTo] = useState('')
@@ -226,7 +228,7 @@ export default function ProgressScreen({
             : 'Упражнение без веса — динамика по лучшему подходу (повт.)'}
       </p>
       {weighted && ormInfo && (
-        <p className="formula-note">
+        <p ref={ormRef} className="formula-note">
           1ПМ считается по формуле Эпли:{' '}
           <code>вес × (1 + повторения ÷ 30)</code>. Это расчетная оценка
           максимума «на раз», а не результат реального теста — чем больше

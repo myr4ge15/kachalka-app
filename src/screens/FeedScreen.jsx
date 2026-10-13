@@ -1,5 +1,6 @@
 import Chevron from '../components/Chevron.jsx'
 import { useEffect, useRef, useState, useCallback, useMemo } from 'react'
+import { useRevealFocus } from '../hooks/useRevealFocus.js'
 import { useLiveQuery } from 'dexie-react-hooks'
 import { getCachedFeed, fetchFeed } from '../db/feed.js'
 import { getUsers, toggleReaction, getPrivacyFlag } from '../db/repo.js'
@@ -69,7 +70,13 @@ export default function FeedScreen({ user, onOpenMember, flashId = null, onOpenC
   const list = feed ?? []
 
   const [railOpen, setRailOpen] = useState(() => readRailOpen(user.id))
-  const toggleRail = () => setRailOpen((open) => { writeRailOpen(user.id, !open); return !open })
+  // Рейтинг, раскрытый тапом, — в видимую область (v8.0.1); сохраненное раскрытие при входе — нет.
+  const [railReveal, setRailReveal] = useState(null)
+  const railRef = useRevealFocus(railReveal, { block: 'nearest' })
+  const toggleRail = () => {
+    setRailReveal(railOpen ? null : {})
+    setRailOpen((open) => { writeRailOpen(user.id, !open); return !open })
+  }
 
   // Тап по реакции: оптимистично (очередь + правка кэша ленты), затем отправка.
   const onReact = useCallback((workoutId, kind, mine) => {
@@ -347,7 +354,7 @@ export default function FeedScreen({ user, onOpenMember, flashId = null, onOpenC
 
         {/* Рейтинг: общий — не приватным, доски кругов — участникам кругов, приватному без
             круга — подсказка «Мой круг» (DisciplineLeaderboard, «Мой круг» 07.10.2026). */}
-        <aside className="feed-rail" data-open={railOpen ? '1' : '0'}>
+        <aside ref={railRef} className="feed-rail" data-open={railOpen ? '1' : '0'}>
             {/* v6.12.0: строка-кнопка как «Настройки»/«Пригласить» в Профиле — мелкий
                 серый заголовок с треугольником было еле видно. */}
             <button type="button" className="settings-toggle feed-rail-toggle" aria-expanded={railOpen}

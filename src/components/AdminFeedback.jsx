@@ -2,6 +2,7 @@ import { useEffect, useRef, useState } from 'react'
 import CardsSkeleton from './CardsSkeleton.jsx'
 import { showToast } from './Toast.jsx'
 import FeedbackPhotos from './FeedbackPhotos.jsx'
+import { useRevealFocus } from '../hooks/useRevealFocus.js'
 import {
   contextLine, fmtFeedbackDate, hasReply, isOpenStatus, openCount, FEEDBACK_MAX, FEEDBACK_STATUSES, STATUS_LABEL,
 } from '../lib/feedback.js'
@@ -158,6 +159,8 @@ function FeedbackCard({ row, online, api, editing, onEdit, onSaved }) {
 }
 
 function FeedbackEditor({ row, online, api, onCancel, onSaved }) {
+  // Редактор появляется только по нажатию — сразу в видимую область (v8.0.1).
+  const editorRef = useRevealFocus('fb-editor')
   const [status, setStatus] = useState(row.status === 'new' ? 'in_progress' : row.status)
   const [reply, setReply] = useState(row.reply ?? '')
   const [busy, setBusy] = useState(false)
@@ -183,7 +186,7 @@ function FeedbackEditor({ row, online, api, onCancel, onSaved }) {
   }
 
   return (
-    <div className="admin-merge fb-editor">
+    <div ref={editorRef} className="admin-merge fb-editor">
       <span className="field-lab">Статус</span>
       <div className="fb-status-pick" role="radiogroup" aria-label="Статус обращения">
         {FEEDBACK_STATUSES.map((s) => (

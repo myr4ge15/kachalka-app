@@ -5,6 +5,7 @@ import { useSyncStatus } from '../db/sync.js'
 import { AdminError } from '../lib/admin.js'
 import InvitesSection from '../components/InvitesSection.jsx'
 import BackButton from '../components/BackButton.jsx'
+import { useRevealFocus } from '../hooks/useRevealFocus.js'
 import AdminDisciplines from '../components/AdminDisciplines.jsx'
 import AdminFeedback from '../components/AdminFeedback.jsx'
 import { AdminMfaGate, AdminMfaPanel } from '../components/AdminMfa.jsx'
@@ -25,6 +26,9 @@ export default function AdminScreen({ user, onBack }) {
   // Разделы свернуты по умолчанию; раскрывается тот, что админ сам открыл (аккордеон).
   const [open, setOpen] = useState(null) // null | 'disciplines' | 'exercises' | 'users' | 'invites' | 'feedback' | 'access' | 'mfa'
   const toggle = (key) => setOpen((cur) => (cur === key ? null : key))
+  // Раскрытый раздел — к верху экрана (v8.0.1): содержимое длинное и грузится не сразу,
+  // и при центрировании/без прокрутки оно уходило под нижнее меню. Закрытие экран не двигает.
+  const navRevealRef = useRevealFocus(open, { block: 'start' })
 
   const errMsg = (e) => (e instanceof AdminError ? e.message : String(e?.message ?? e))
 
@@ -59,13 +63,14 @@ export default function AdminScreen({ user, onBack }) {
       )}
 
       <div className="admin-nav">
-        <button className={'admin-nav-btn' + (open === 'disciplines' ? ' open' : '')}
+        <button ref={open === 'disciplines' ? navRevealRef : null} className={'admin-nav-btn' + (open === 'disciplines' ? ' open' : '')}
           onClick={() => toggle('disciplines')} aria-expanded={open === 'disciplines'}>
           <span className="admin-nav-name">Дисциплины рейтинга</span>
           <span className="admin-nav-chev" aria-hidden="true" />
         </button>
         {open === 'disciplines' && <div className="admin-panel"><AdminDisciplines userId={user.id} exercises={exercises ?? []} online={online} /></div>}
         <button
+          ref={open === 'exercises' ? navRevealRef : null}
           className={'admin-nav-btn' + (open === 'exercises' ? ' open' : '')}
           onClick={() => toggle('exercises')}
           aria-expanded={open === 'exercises'}
@@ -84,6 +89,7 @@ export default function AdminScreen({ user, onBack }) {
         )}
 
         <button
+          ref={open === 'users' ? navRevealRef : null}
           className={'admin-nav-btn' + (open === 'users' ? ' open' : '')}
           onClick={() => toggle('users')}
           aria-expanded={open === 'users'}
@@ -102,6 +108,7 @@ export default function AdminScreen({ user, onBack }) {
         )}
 
         <button
+          ref={open === 'invites' ? navRevealRef : null}
           className={'admin-nav-btn' + (open === 'invites' ? ' open' : '')}
           onClick={() => toggle('invites')}
           aria-expanded={open === 'invites'}
@@ -116,6 +123,7 @@ export default function AdminScreen({ user, onBack }) {
         )}
 
         <button
+          ref={open === 'feedback' ? navRevealRef : null}
           className={'admin-nav-btn' + (open === 'feedback' ? ' open' : '')}
           onClick={() => toggle('feedback')}
           aria-expanded={open === 'feedback'}
@@ -130,6 +138,7 @@ export default function AdminScreen({ user, onBack }) {
         )}
 
         <button
+          ref={open === 'access' ? navRevealRef : null}
           className={'admin-nav-btn' + (open === 'access' ? ' open' : '')}
           onClick={() => toggle('access')}
           aria-expanded={open === 'access'}
@@ -144,6 +153,7 @@ export default function AdminScreen({ user, onBack }) {
         )}
 
         <button
+          ref={open === 'mfa' ? navRevealRef : null}
           className={'admin-nav-btn' + (open === 'mfa' ? ' open' : '')}
           onClick={() => toggle('mfa')}
           aria-expanded={open === 'mfa'}

@@ -279,3 +279,25 @@ describe('2FA перед Админкой (v6.14.0)', () => {
     expect(screen.queryByLabelText('Код из приложения')).not.toBeInTheDocument()
   })
 })
+
+describe('AdminScreen — раскрытый раздел встает к верху экрана (v8.0.1)', () => {
+  it('открытие прокручивает к кнопке раздела (block: start), закрытие экран не двигает', async () => {
+    adminListUsers.mockResolvedValue([])
+    const calls = []
+    const orig = Element.prototype.scrollIntoView
+    Element.prototype.scrollIntoView = function (opts) { calls.push({ el: this, opts }) }
+    try {
+      const user = userEvent.setup()
+      render(<AdminScreen user={ME} onBack={() => {}} />)
+      const btn = await screen.findByRole('button', { name: /Обращения/ })
+      await user.click(btn)
+      await waitFor(() => expect(calls.length).toBe(1))
+      expect(calls[0].el).toBe(btn)
+      expect(calls[0].opts).toMatchObject({ block: 'start' })
+      await user.click(btn)
+      expect(calls.length).toBe(1)
+    } finally {
+      Element.prototype.scrollIntoView = orig
+    }
+  })
+})

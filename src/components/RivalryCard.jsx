@@ -1,4 +1,5 @@
 import { useState } from 'react'
+import { useRevealFocus } from '../hooks/useRevealFocus.js'
 import Avatar from './Avatar.jsx'
 import { disciplineResult } from '../lib/disciplines.js'
 
@@ -31,6 +32,8 @@ function RivalRow({ row, place, isMe, avatarUrl, metric = 'weight' }) {
 // с существующим лидербордом.
 export default function RivalryCard({ rivalry, avatarById = new Map() }) {
   const [expanded, setExpanded] = useState(false)
+  // Раскрытое сравнение — в видимую область (v8.0.1): карточка бывает внизу Ленты.
+  const detailsRef = useRevealFocus(expanded ? 'rival' : null, { block: 'nearest' })
   if (!rivalry) return null
 
   const detailRows = [
@@ -69,7 +72,7 @@ export default function RivalryCard({ rivalry, avatarById = new Map() }) {
       </button>
 
       {expanded && (
-        <div className="rival-details" aria-label="Сравнение результатов">
+        <div ref={detailsRef} className="rival-details" aria-label="Сравнение результатов">
           {detailRows.map(({ row, place, isMe }) => (
             <RivalRow
               key={row.user_id}

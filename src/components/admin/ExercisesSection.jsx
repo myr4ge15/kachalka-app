@@ -6,6 +6,7 @@ import { submusclesOf, secondaryOptionsFor, labelOf, majorOf, defaultSubmuscleFo
 import { normMetric } from '../../lib/metric.js'
 import { showToast } from '../Toast.jsx'
 import PencilIcon from '../PencilIcon.jsx'
+import { useRevealFocus } from '../../hooks/useRevealFocus.js'
 
 // ─────────────────────────── Упражнения ───────────────────────────────────
 // Тип упражнения (v6.3.6): у админа «Каталога» нет, поэтому меняем здесь.
@@ -25,6 +26,9 @@ export default function ExercisesSection({ exercises, online, errMsg }) {
 
   // Слияние дублей
   const [mergeOpen, setMergeOpen] = useState(false)
+  // Открытые формы — в видимую область (v8.0.1).
+  const edRevealRef = useRevealFocus(edId)
+  const mergeRevealRef = useRevealFocus(mergeOpen ? 'merge' : null)
   const [mFrom, setMFrom] = useState('')
   const [mInto, setMInto] = useState('')
   const [mBusy, setMBusy] = useState(false)
@@ -130,7 +134,7 @@ export default function ExercisesSection({ exercises, online, errMsg }) {
         {filtered.map((ex) => (
           <li key={ex.id} className={'admin-ex' + (ex.is_hidden ? ' hidden' : '')}>
             {edId === ex.id ? (
-              <div className="admin-ex-edit">
+              <div ref={edRevealRef} className="admin-ex-edit">
                 <label className="field">
                   <span className="field-lab">Название</span>
                   <input
@@ -263,7 +267,7 @@ export default function ExercisesSection({ exercises, online, errMsg }) {
 
       {/* Слияние дублей */}
       {mergeOpen ? (
-        <div className="admin-merge">
+        <div ref={mergeRevealRef} className="admin-merge">
           <p className="admin-merge-title">Слить дубль</p>
           <label className="field">
             <span className="field-lab">Что слить (скроется)</span>

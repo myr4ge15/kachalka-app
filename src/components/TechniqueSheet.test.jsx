@@ -26,25 +26,33 @@ describe('TechniqueSheet', () => {
     expect(heads).toEqual(['Мышцы и оборудование', 'Как выполнять', 'На что обратить внимание', 'Частые ошибки'])
     expect(screen.getByRole('dialog', { name: 'Жим лежа со штангой' })).toBeInTheDocument()
     expect(screen.getByText('середина груди', { exact: false })).toBeInTheDocument()
-    expect(screen.getByRole('link', { name: 'CC BY-SA 4.0' })).toHaveAttribute('href', expect.stringContaining('by-sa/4.0'))
+    expect(screen.getByText('Источники рисунков')).toBeInTheDocument()
+    expect(screen.getByText(/Everkinetic \(Greg Priday\), лицензия CC BY-SA 4\.0/)).toBeInTheDocument()
   })
 
-  it('кадры сменяются сами, пауза и выбор позы останавливают смену', async () => {
+  it('кадры сменяются сами без мигания подписей; пауза и выбор позы останавливают смену', async () => {
     mockReducedMotion(false)
     vi.useFakeTimers({ toFake: ['setInterval', 'clearInterval'] })
     render(<TechniqueSheet slug="bench-press" name="Жим лежа со штангой" onClose={vi.fn()} />)
-    const first = await screen.findByRole('button', { name: 'Руки выпрямлены' })
-    expect(first).toHaveAttribute('aria-pressed', 'true')
-    await act(async () => { vi.advanceTimersByTime(1500) })
-    expect(screen.getByRole('button', { name: 'Гриф у груди' })).toHaveAttribute('aria-pressed', 'true')
+    // Лист рендерится порталом в body — ищем по документу.
+    const shown = () => document.querySelector('.technique-stage img.is-on').getAttribute('alt')
+    await screen.findByRole('button', { name: 'Руки выпрямлены' })
+    expect(shown()).toBe('Жим лежа со штангой: Руки выпрямлены')
+    // Во время смены подписи не подсвечиваются
+    expect(screen.getByRole('button', { name: 'Руки выпрямлены' })).toHaveAttribute('aria-pressed', 'false')
+    await act(async () => { vi.advanceTimersByTime(1200) })
+    expect(shown()).toBe('Жим лежа со штангой: Гриф у груди')
+    expect(screen.getByRole('button', { name: 'Гриф у груди' })).toHaveAttribute('aria-pressed', 'false')
 
     fireEvent.click(screen.getByRole('button', { name: 'Остановить смену кадров' }))
-    await act(async () => { vi.advanceTimersByTime(5000) })
     expect(screen.getByRole('button', { name: 'Гриф у груди' })).toHaveAttribute('aria-pressed', 'true')
+    await act(async () => { vi.advanceTimersByTime(5000) })
+    expect(shown()).toBe('Жим лежа со штангой: Гриф у груди')
 
     fireEvent.click(screen.getByRole('button', { name: 'Запустить смену кадров' }))
     fireEvent.click(screen.getByRole('button', { name: 'Руки выпрямлены' }))
     await act(async () => { vi.advanceTimersByTime(5000) })
+    expect(shown()).toBe('Жим лежа со штангой: Руки выпрямлены')
     expect(screen.getByRole('button', { name: 'Руки выпрямлены' })).toHaveAttribute('aria-pressed', 'true')
     expect(screen.getByRole('button', { name: 'Запустить смену кадров' })).toBeInTheDocument()
   })
@@ -67,11 +75,11 @@ describe('TechniqueSheet', () => {
     expect(screen.getByText('Частые ошибки')).toBeInTheDocument()
   })
 
-  it('без кадров — только текст и без ссылки на источник рисунков', async () => {
+  it('без кадров — только текст и без строки об источниках рисунков', async () => {
     render(<TechniqueSheet slug="lat-pulldown" name="Тяга верхнего блока" onClose={vi.fn()} />)
     expect(await screen.findByText('Частые ошибки')).toBeInTheDocument()
     expect(screen.queryByRole('img')).toBeNull()
-    expect(screen.queryByRole('link')).toBeNull()
+    expect(screen.queryByText('Источники рисунков')).toBeNull()
   })
 
   it('закрытие: «закрыть» зовет onClose, после размонтирования таймер смены снят', async () => {

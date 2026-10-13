@@ -1,4 +1,5 @@
 import { useEffect, useState } from 'react'
+import { useRevealFocus } from '../hooks/useRevealFocus.js'
 import BackButton from '../components/BackButton.jsx'
 import WhatsNewItems from '../components/WhatsNewItems.jsx'
 import { WHATS_NEW } from '../content/whatsNew.js'
@@ -13,12 +14,19 @@ export default function WhatsNewScreen({ onBack, entries = WHATS_NEW }) {
   useEffect(() => {
     if (entries[0]) writeMark(OPENED_KEY, entries[0].version)
   }, [entries])
-  const toggle = (v) => setOpen((cur) => {
-    const next = new Set(cur)
-    if (next.has(v)) next.delete(v)
-    else next.add(v)
-    return next
-  })
+  // Раскрытая тапом запись — в видимую область (v8.0.1); свежая, раскрытая при входе, — нет.
+  const [reveal, setReveal] = useState(null) // { v } — новый объект на каждое раскрытие
+  const revealRef = useRevealFocus(reveal, { block: 'nearest' })
+  const toggle = (v) => {
+    const opening = !open.has(v)
+    setOpen((cur) => {
+      const next = new Set(cur)
+      if (next.has(v)) next.delete(v)
+      else next.add(v)
+      return next
+    })
+    setReveal(opening ? { v } : null)
+  }
 
   return (
     <div className="screen whats-new-screen">
@@ -29,7 +37,7 @@ export default function WhatsNewScreen({ onBack, entries = WHATS_NEW }) {
       {entries.map((e, i) => {
         const isOpen = open.has(e.version)
         return (
-          <section key={e.version} className={'wn-rel' + (i === 0 ? ' new' : '') + (isOpen ? ' open' : '')}>
+          <section key={e.version} ref={reveal?.v === e.version ? revealRef : null} className={'wn-rel' + (i === 0 ? ' new' : '') + (isOpen ? ' open' : '')}>
             <button type="button" className="wn-rel-h" onClick={() => toggle(e.version)} aria-expanded={isOpen}>
               <span className="wn-rel-v">
                 <span className="version-number">{e.version}</span>

@@ -224,3 +224,15 @@ describe('ExercisePicker — подсказка «Как выполнять» (v
     expect(onPick).not.toHaveBeenCalled()
   })
 })
+
+describe('ExercisePicker — крестик в поиске (v8.0.0)', () => {
+  it('появляется с текстом, очищает поиск и оставляет фокус в поле', () => {
+    const { search } = renderPicker()
+    expect(screen.queryByRole('button', { name: 'Очистить поиск' })).toBeNull()
+    type(search, 'тяга')
+    fireEvent.click(screen.getByRole('button', { name: 'Очистить поиск' }))
+    expect(search).toHaveValue('')
+    expect(search).toHaveFocus()
+    expect(screen.queryByRole('button', { name: 'Очистить поиск' })).toBeNull()
+  })
+})

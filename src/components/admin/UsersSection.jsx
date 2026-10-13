@@ -8,6 +8,7 @@ import { showToast } from '../Toast.jsx'
 import CardsSkeleton from '../CardsSkeleton.jsx'
 import PencilIcon from '../PencilIcon.jsx'
 import UserReorderList from './UserReorderList.jsx'
+import { useRevealFocus } from '../../hooks/useRevealFocus.js'
 
 // ─────────────────────────── Пользователи ─────────────────────────────────
 export default function UsersSection({ meId, online, errMsg }) {
@@ -45,6 +46,9 @@ export default function UsersSection({ meId, online, errMsg }) {
 
   // добавить участника
   const [addOpen, setAddOpen] = useState(false)
+  // Открытые формы — в видимую область (v8.0.1): список длинный, форма уходила под меню.
+  const edRevealRef = useRevealFocus(edId)
+  const addRevealRef = useRevealFocus(addOpen ? 'add' : null)
   const [addName, setAddName] = useState('')
   const [addRole, setAddRole] = useState('member')
   const [addPin, setAddPin] = useState('')
@@ -204,7 +208,7 @@ export default function UsersSection({ meId, online, errMsg }) {
         {(users ?? []).map((u) => (
           <li key={u.id} className="admin-user">
             {edId === u.id ? (
-              <div className="admin-user-edit">
+              <div ref={edRevealRef} className="admin-user-edit">
                 <label className="field">
                   <span className="field-lab">Имя</span>
                   <input className="admin-input" type="text" maxLength={30}
@@ -320,7 +324,7 @@ export default function UsersSection({ meId, online, errMsg }) {
       )}
 
       {addOpen ? (
-        <div className="admin-add">
+        <div ref={addRevealRef} className="admin-add">
           <p className="admin-merge-title">Новый участник</p>
           <LoginField value={addLogin} onChange={setAddLogin} />
           <label className="field">

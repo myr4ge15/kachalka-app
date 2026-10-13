@@ -65,15 +65,15 @@ export default function TechniqueSheet({ slug, name, onClose }) {
               <ul className="technique-mistakes">{card.mistakes.map((s) => <li key={s}>{s}</li>)}</ul>
             </section>
 
+            <p className="technique-source muted">Подсказка справочная: рабочий вес и прогрессию она не подбирает.</p>
+            {/* Атрибуция CC BY-SA — одна на все рисунки: полная — в «Быстром старте»
+                («Источники рисунков») и public/technique/SOURCES.md, здесь — свернутая строка. */}
             {card.frames.length > 0 && (
-              <p className="technique-source muted">
-                Рисунки: <a href={state.source.url} target="_blank" rel="noopener noreferrer">{state.source.author}</a>,{' '}
-                <a href={state.source.licenseUrl} target="_blank" rel="noopener noreferrer">{state.source.license}</a>.
-                Подсказка справочная: рабочий вес и прогрессию она не подбирает.
-              </p>
-            )}
-            {card.frames.length === 0 && (
-              <p className="technique-source muted">Подсказка справочная: рабочий вес и прогрессию она не подбирает.</p>
+              <details className="technique-credits muted">
+                <summary>Источники рисунков</summary>
+                Рисунки: {state.source.author}, лицензия {state.source.license}.
+                Подробнее — в «Быстром старте», раздел «Источники рисунков».
+              </details>
             )}
           </>
         )}
@@ -82,7 +82,7 @@ export default function TechniqueSheet({ slug, name, onClose }) {
   )
 }
 
-const FRAME_MS = 1400
+const FRAME_MS = 1150 // поза держится чуть больше секунды; растворение — 0,5 с (index.css)
 
 function prefersReducedMotion() {
   try {
@@ -92,8 +92,8 @@ function prefersReducedMotion() {
   }
 }
 
-// Два кадра «по ходу движения». У части пар ракурс разный, поэтому это смена
-// кадров с подписью позы, а не морфинг. При reduced-motion — оба кадра рядом,
+// Два кадра «по ходу движения» с одного ракурса: смена — мягким растворением
+// (index.css .technique-stage), с подписью позы. При reduced-motion — оба кадра рядом,
 // без смены. Пауза останавливает смену; выбор позы — тоже пауза.
 function TechniqueFrames({ frames, name }) {
   const [reduced] = useState(prefersReducedMotion)
@@ -145,8 +145,10 @@ function TechniqueFrames({ frames, name }) {
             <button
               key={f.file}
               type="button"
-              className={`seg-item${i === idx ? ' on' : ''}`}
-              aria-pressed={i === idx}
+              // Пока кадры сменяются сами, подписи не мигают подсветкой; выбранная
+              // поза подсвечивается только на паузе.
+              className={`seg-item${!playing && i === idx ? ' on' : ''}`}
+              aria-pressed={!playing && i === idx}
               onClick={() => { setPlaying(false); setIdx(i) }}
             >
               {f.caption}

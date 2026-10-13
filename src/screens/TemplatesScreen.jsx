@@ -1,4 +1,5 @@
 import { useState, useEffect } from 'react'
+import { useRevealFocus } from '../hooks/useRevealFocus.js'
 import { useSortable } from '../hooks/useSortable.js'
 import { reorderById } from '../lib/reorderById.js'
 import { useLiveQuery } from 'dexie-react-hooks'
@@ -131,9 +132,9 @@ function writeGroupOpen(userId, key, open) {
 }
 
 // Заголовок сворачиваемой группы: тап переключает раскрытие, стрелка ▸/▾ + счетчик.
-function GroupHeader({ title, count, open, onToggle }) {
+function GroupHeader({ title, count, open, onToggle, btnRef = null }) {
   return (
-    <button className="group-title group-toggle" onClick={onToggle} aria-expanded={open}>
+    <button ref={btnRef} className="group-title group-toggle" onClick={onToggle} aria-expanded={open}>
       <span className="group-caret" aria-hidden="true">{open ? '▾' : '▸'}</span>
       <span className="group-toggle-title">{title}</span>
       <span className="group-count muted">{count}</span>
@@ -153,10 +154,16 @@ function TemplateList({ user, onBack, onOpen }) {
   // Раскрытость групп (по умолчанию свернуты, состояние помним в localStorage).
   const [mineOpen, setMineOpen] = useState(() => readGroupOpen(user.id, 'mine'))
   const [sharedOpen, setSharedOpen] = useState(() => readGroupOpen(user.id, 'shared'))
+  // Группа, раскрытая тапом, — заголовком к верху экрана (v8.0.1). Сохраненное
+  // раскрытие при входе экран не двигает: триггер ставит только нажатие.
+  const [revealGroup, setRevealGroup] = useState(null) // { key }
+  const groupRevealRef = useRevealFocus(revealGroup, { block: 'start' })
   function toggleMine() {
+    setRevealGroup(mineOpen ? null : { key: 'mine' })
     setMineOpen((o) => { writeGroupOpen(user.id, 'mine', !o); return !o })
   }
   function toggleShared() {
+    setRevealGroup(sharedOpen ? null : { key: 'shared' })
     setSharedOpen((o) => { writeGroupOpen(user.id, 'shared', !o); return !o })
   }
 
@@ -197,14 +204,16 @@ function TemplateList({ user, onBack, onOpen }) {
 
       {!loading && mine.length > 0 && (
         <>
-          <GroupHeader title="Мои шаблоны" count={mine.length} open={mineOpen} onToggle={toggleMine} />
+          <GroupHeader title="Мои шаблоны" count={mine.length} open={mineOpen} onToggle={toggleMine}
+            btnRef={revealGroup?.key === 'mine' ? groupRevealRef : null} />
           {mineOpen && mine.map((t) => renderCard(t, true))}
         </>
       )}
 
       {!loading && shared.length > 0 && (
         <>
-          <GroupHeader title="Общие" count={shared.length} open={sharedOpen} onToggle={toggleShared} />
+          <GroupHeader title="Общие" count={shared.length} open={sharedOpen} onToggle={toggleShared}
+            btnRef={revealGroup?.key === 'shared' ? groupRevealRef : null} />
           {sharedOpen && shared.map((t) => renderCard(t, false))}
         </>
       )}

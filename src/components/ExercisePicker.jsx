@@ -38,6 +38,7 @@ export default function ExercisePicker({
 }) {
   const [technique, setTechnique] = useState(null) // { slug, name } открытой подсказки
   const [query, setQuery] = useState('')
+  const searchRef = useRef(null)
   const [scanning, setScanning] = useState(false)
   const [group, setGroup] = useState('все')
   // Строки блока «Избранные», звезду которых тронули в этом открытии:
@@ -391,13 +392,22 @@ export default function ExercisePicker({
         {/* Без автофокуса (v6.12.0): клавиатура закрывала пол-экрана справочника, а
             чаще упражнение выбирают из списка или чипом группы, а не поиском.
             Нужен поиск — один тап по полю. */}
-        <div className="scanner-search-row">
+        <div className={`scanner-search-row${query ? ' has-query' : ''}`}>
           <input
+            ref={searchRef}
             className="search"
             placeholder="Поиск по названию…"
             value={query}
             onChange={(e) => changeQuery(e.target.value)}
           />
+          {/* Крестик (v8.0.0): очистить поиск одним тапом и остаться в поле. */}
+          {query && (
+            <button type="button" className="search-clear" aria-label="Очистить поиск" title="Очистить поиск"
+              onClick={() => { changeQuery(''); searchRef.current?.focus() }}>
+              <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" strokeWidth="2.4"
+                strokeLinecap="round" aria-hidden="true"><path d="M6 6l12 12M18 6L6 18" /></svg>
+            </button>
+          )}
 
           <button type="button" className="btn scanner-open" aria-label="Сканировать название" title="Сканировать название" onClick={() => setScanning(true)}>
             <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true"><path d="M3 7V5a2 2 0 0 1 2-2h2M17 3h2a2 2 0 0 1 2 2v2M21 17v2a2 2 0 0 1-2 2h-2M7 21H5a2 2 0 0 1-2-2v-2" /><circle cx="11.5" cy="11.5" r="4.5" /><path d="m15 15 4 4" /></svg>
