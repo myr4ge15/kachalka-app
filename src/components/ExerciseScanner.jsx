@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from 'react'
+import { useEffect, useLayoutEffect, useRef, useState } from 'react'
 import SheetDialog from './SheetDialog.jsx'
 import { confidentText, matchScannedText } from '../lib/scannerMatch.js'
 import { trayAdd, trayReplace } from '../lib/scannerTray.js'
@@ -72,6 +72,25 @@ export default function ExerciseScanner({ exercises, onPick, onPickMany, onClose
   const video = useRef(null)
   const guide = useRef(null)
   const track = useRef(null)
+  // Шторка не заходит на рамку: ее высота ограничена местом под рамкой и бейджем под ней
+  // (--basket-max), а длинный список листается внутри. Рамка стоит на месте — не прыгает
+  // после первого найденного.
+  const root = useRef(null)
+  const basketOn = trayMode && tray.length > 0
+  useLayoutEffect(() => {
+    const host = root.current
+    if (!host || !basketOn) return
+    const put = () => {
+      const box = host.getBoundingClientRect(), g = guide.current?.getBoundingClientRect()
+      if (!g || !box.height) return
+      host.style.setProperty('--basket-max', `${Math.max(200, Math.round(box.bottom - g.bottom - 64))}px`)
+    }
+    put()
+    if (typeof ResizeObserver !== 'function') return
+    const ro = new ResizeObserver(put)
+    ro.observe(host)
+    return () => ro.disconnect()
+  }, [basketOn])
   const [attempt, setAttempt] = useState(0)
   const [text, setText] = useState('')
   const [status, setStatus] = useState('Запускаем камеру…')
@@ -236,6 +255,35 @@ export default function ExerciseScanner({ exercises, onPick, onPickMany, onClose
     if (n.has(id)) n.delete(id); else n.add(id)
     putOff(n)
   }
+  // Свайп шторки (8.4.1, просьба владельца): вверх — раскрыть, вниз — свернуть. Вниз по списку
+  // сворачивает, только когда список пролистан к началу (иначе это обычная прокрутка). Касание,
+  // ставшее свайпом, не нажимает строку или кнопку под пальцем.
+  const swipe = useRef(null)
+  const SWIPE = 36
+  function swipeStart(y, target) {
+    const list = target?.closest?.('.scanner-checklist')
+    swipe.current = { y, list, top: list ? list.scrollTop : 0, moved: 0 }
+  }
+  function swipeEnd(y) {
+    const s = swipe.current
+    if (!s) return
+    const dy = y - s.y
+    if (Math.abs(dy) < SWIPE) { swipe.current = null; return }
+    s.moved = Date.now()
+    if (dy < 0 && !open && !s.list) setOpen(true)
+    else if (dy > 0 && open && (!s.list || (s.top <= 0 && s.list.scrollTop <= 0))) setOpen(false)
+  }
+  const swipeProps = {
+    onTouchStart: e => swipeStart(e.touches[0]?.clientY ?? 0, e.target),
+    onTouchEnd: e => swipeEnd(e.changedTouches[0]?.clientY ?? 0),
+    onPointerDown: e => { if (e.pointerType === 'mouse') swipeStart(e.clientY, e.target) },
+    onPointerUp: e => { if (e.pointerType === 'mouse') swipeEnd(e.clientY) },
+    onClickCapture: e => {
+      if (!swipe.current?.moved || Date.now() - swipe.current.moved > 500) return
+      swipe.current = null
+      e.preventDefault(); e.stopPropagation()
+    },
+  }
   const picked = tray.filter(e => !off.has(e.id))
   function done() { onPickMany(trayRef.current.filter(e => !offRef.current.has(e.id))) }
   function requestClose() {
@@ -250,7 +298,7 @@ export default function ExerciseScanner({ exercises, onPick, onPickMany, onClose
   const showTray = trayMode && tray.length > 0
   const swaps = last && inTray(last.exercise) ? last.alts : []
   return <SheetDialog title="Сканер названий" actionLabel="назад" onDismiss={requestClose} className="scanner-sheet">
-    <div className="scanner">
+    <div className="scanner" ref={root}>
       <video ref={video} className="scanner-video" autoPlay muted playsInline aria-label="Камера: наведи на название" />
       {still && <img className="scanner-video" src={still} alt="" />}
       <div className={`scanner-stage${result ? ' is-done' : ''}`}>
@@ -283,16 +331,20 @@ export default function ExerciseScanner({ exercises, onPick, onPickMany, onClose
         </div>
       </div>}
 
-      {scanning && showTray && !confirm && <section className={`scanner-basket${open ? ' is-open' : ''}`} aria-label="Список на тренировку">
+      {scanning && showTray && !confirm && <section className={`scanner-basket${open ? ' is-open' : ''}`} aria-label="Список на тренировку" {...swipeProps}>
         <button type="button" className="scanner-grab-btn" aria-expanded={open}
           aria-label={open ? 'Свернуть список' : 'Показать весь список'} onClick={() => setOpen(o => !o)}>
           <span className="scanner-grab" aria-hidden="true" /></button>
         <div className="scanner-basket-head">
           <p className="scanner-eyebrow"><Icon><path d="m5 12 5 5L20 7" /></Icon>
             {open ? `В списке · ${picked.length}` : 'Добавил'}</p>
+          {open && <button type="button" className="link-btn scanner-fold" onClick={() => setOpen(false)}>
+            Свернуть<Icon><path d="m6 9 6 6 6-6" /></Icon></button>}
+        </div>
+        {swaps.length > 0 && <div className="scanner-swaps">
           {swaps.map(e => <button type="button" key={e.id} className="link-btn scanner-swap"
             onClick={() => swapLast(e)}>Заменить на «{e.name}»</button>)}
-        </div>
+        </div>}
         {open
           ? <div className="scanner-checklist" role="group" aria-label="Набрано сканером">
               {tray.map(e => <TrayItem key={e.id} exercise={e} off={off.has(e.id)}

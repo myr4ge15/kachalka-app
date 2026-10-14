@@ -3876,7 +3876,8 @@ html[data-sheet-open], html[data-sheet-open] body { overscroll-behavior: none; }
    под ним, рамка остается видна; раскрыта — весь список с галочками (снятая строка зачеркнута). */
 .scanner-basket {
   position: absolute; left: 0; right: 0; bottom: 0; z-index: 3;
-  display: flex; flex-direction: column; gap: 10px; max-height: 72%;
+  display: flex; flex-direction: column; gap: 10px; max-height: var(--basket-max, 50%);
+  touch-action: none; /* свайп вверх/вниз — раскрыть/свернуть; список внутри листается сам */
   padding: 0 calc(20px + env(safe-area-inset-right)) calc(18px + env(safe-area-inset-bottom)) calc(20px + env(safe-area-inset-left));
   background: var(--bg); border-top: 1px solid var(--border); border-radius: 28px 28px 0 0;
   animation: scanner-rise var(--dur-slow) var(--ease-out);
@@ -3884,7 +3885,10 @@ html[data-sheet-open], html[data-sheet-open] body { overscroll-behavior: none; }
 .scanner-grab-btn { align-self: center; display: grid; place-items: center; width: 88px; height: 28px; padding: 0; border: 0; background: none; }
 .scanner-basket-head { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 4px 12px; }
 .scanner-basket-head .scanner-eyebrow { margin: 0; }
-.scanner-swap { min-height: 36px; padding: 4px 0; font-size: var(--fs-label); text-align: right; }
+.scanner-swaps { display: flex; flex-wrap: wrap; gap: 0 16px; margin-top: -6px; }
+.scanner-swap { min-height: 36px; padding: 4px 0; font-size: var(--fs-label); text-align: left; }
+.scanner-fold { display: inline-flex; align-items: center; gap: 4px; min-height: 36px; padding: 4px 0; font-size: var(--fs-label); }
+.scanner-fold .scanner-ic { width: 18px; height: 18px; }
 .scanner-stack { position: relative; }
 .scanner-stack[data-depth="1"] { padding-bottom: 8px; }
 .scanner-stack[data-depth="2"] { padding-bottom: 16px; }
@@ -3902,9 +3906,9 @@ html[data-sheet-open], html[data-sheet-open] body { overscroll-behavior: none; }
   border: 1px solid color-mix(in srgb, var(--acc) 55%, transparent); border-radius: 14px; padding: 8px 12px;
 }
 .scanner-stack .scanner-item { background: color-mix(in srgb, var(--acc) 16%, var(--bg)); }
-.scanner-checklist { display: flex; flex-direction: column; overflow-y: auto; overscroll-behavior-y: contain; min-height: 0; }
+.scanner-checklist { touch-action: pan-y; display: flex; flex-direction: column; overflow-y: auto; overscroll-behavior-y: contain; min-height: 0; }
 .scanner-item { display: flex; align-items: center; gap: 12px; min-height: 56px; cursor: pointer; }
-.scanner-checklist .scanner-item { border-bottom: 1px dashed var(--border); padding: 0 2px; }
+.scanner-checklist .scanner-item { border-bottom: 1px dashed var(--border); padding: 12px 2px; }
 .scanner-checklist .scanner-item:last-child { border-bottom: 0; }
 .scanner-item-input { position: absolute; opacity: 0; width: 1px; height: 1px; pointer-events: none; }
 .scanner-check {
@@ -3914,7 +3918,7 @@ html[data-sheet-open], html[data-sheet-open] body { overscroll-behavior: none; }
 .scanner-check .scanner-ic { width: 16px; height: 16px; stroke-width: 3; }
 .scanner-item.is-off .scanner-check { background: transparent; border-color: var(--border); color: transparent; }
 .scanner-item:has(.scanner-item-input:focus-visible) .scanner-check { outline: 2px solid var(--acc-2); outline-offset: 2px; }
-.scanner-item-name { flex: 1; min-width: 0; font-size: var(--fs-body); font-weight: var(--fw-strong); overflow-wrap: anywhere; }
+.scanner-item-name { flex: 1; min-width: 0; font-size: var(--fs-label); line-height: 1.3; font-weight: var(--fw-strong); overflow-wrap: anywhere; }
 .scanner-item-name small { display: block; margin-top: 2px; font-size: 12px; font-weight: 400; color: var(--muted); }
 .scanner-item.is-off .scanner-item-name { color: var(--muted); text-decoration: line-through; }
 .scanner-more { align-self: center; min-height: 36px; font-size: var(--fs-label); }

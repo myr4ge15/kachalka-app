@@ -175,9 +175,39 @@ it('набор: найденное ложится в шторку, сканер 
   fireEvent.click(screen.getByRole('button', { name: /Еще 1 в списке/ }))
   expect(screen.getByRole('group', { name: 'Набрано сканером' })).toBeInTheDocument()
   expect(screen.getAllByRole('checkbox')).toHaveLength(2)
+  fireEvent.click(screen.getByRole('button', { name: 'Свернуть' }))
+  expect(screen.getAllByRole('checkbox')).toHaveLength(1)
   fireEvent.click(screen.getByRole('button', { name: 'Готово · 2' }))
   expect(onPickMany).toHaveBeenCalledWith([exercises[0], calfPair[1]])
   expect(onPick).not.toHaveBeenCalled()
+}, 15000)
+it('набор: свайп вверх раскрывает шторку, вниз — сворачивает; свайп по строке не снимает галочку', async () => {
+  const all = [...exercises, ...calfPair]
+  worker.recognize
+    .mockResolvedValueOnce({ data: { text: 'LAT PULLDOWN', confidence: 95 } })
+    .mockResolvedValueOnce({ data: { text: 'LAT PULLDOWN', confidence: 95 } })
+    .mockResolvedValueOnce({ data: { text: 'CALF RAISE', confidence: 90 } })
+    .mockResolvedValueOnce({ data: { text: 'CALF RAISE', confidence: 90 } })
+    .mockReturnValue(new Promise(() => {}))
+  render(<ExerciseScanner exercises={all} onPick={vi.fn()} onPickMany={vi.fn()} onClose={vi.fn()} onManual={vi.fn()} />)
+  await screen.findByRole('button', { name: 'Готово · 2' }, { timeout: 8000 })
+  const sheet = screen.getByRole('region', { name: 'Список на тренировку' })
+  const swipe = (el, from, to) => {
+    fireEvent.touchStart(el, { touches: [{ clientY: from }] })
+    fireEvent.touchEnd(el, { changedTouches: [{ clientY: to }] })
+  }
+  const row = box('Подъем на носки сидя').closest('label')
+  swipe(row, 500, 380)
+  fireEvent.click(row) // клик, который браузер шлет после свайпа, — не нажатие
+  expect(box('Подъем на носки сидя')).toBeChecked()
+  expect(screen.getAllByRole('checkbox')).toHaveLength(2)
+  swipe(sheet, 300, 320) // короткий сдвиг — не свайп
+  expect(screen.getAllByRole('checkbox')).toHaveLength(2)
+  swipe(screen.getByText(/В списке/), 300, 420)
+  expect(screen.getAllByRole('checkbox')).toHaveLength(1)
+  fireEvent.touchStart(box('Подъем на носки сидя'), { touches: [{ clientY: 500 }] })
+  fireEvent.click(box('Подъем на носки сидя')) // обычный тап после свайпа работает
+  expect(box('Подъем на носки сидя')).not.toBeChecked()
 }, 15000)
 it('набор: «Заменить на …» меняет последнее найденное; снятая галочка не уходит в «Готово»', async () => {
   worker.recognize.mockResolvedValueOnce({ data: { text: 'CALF RAISE', confidence: 90 } })
