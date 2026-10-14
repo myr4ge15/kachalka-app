@@ -287,6 +287,28 @@ export default function WorkoutScreen({ user, workoutId = null, onBack, onSaved 
     setPickerOpen(false)
   }
 
+  // Набор сканером (8.4.0): несколько упражнений разом, в порядке сканирования.
+  // Рекомендации читаем параллельно; уже добавленные пропускаем и говорим об этом
+  // одной подсказкой. Активным становится первое новое.
+  async function addExercises(list) {
+    const fresh = list.filter((ex) => !entries.some((e) => e.exercise.id === ex.id))
+    const skipped = list.length - fresh.length
+    const built = await Promise.all(fresh.map(async (ex) => {
+      try {
+        const sessions = await getRecentSessionsForExercise(user.id, ex.id, 5)
+        return buildRecommendation(ex, sessions, prog)
+      } catch {
+        return { sets: [defaultSet(ex)], meta: null }
+      }
+    }))
+    setEntries((prev) => fresh.reduce((acc, ex, i) => appendExerciseIn(acc, ex, built[i].sets, built[i].meta), prev))
+    if (fresh.length) activateExercise(fresh[0].id)
+    setMessage((m) => (skipped
+      ? { type: 'error', text: skipped === list.length ? 'Эти упражнения уже добавлены' : `Уже были в тренировке: ${skipped}`, transient: true }
+      : m?.transient ? null : m))
+    setPickerOpen(false)
+  }
+
   // Оценка «как пошло» (RPE). Повторный тап по выбранной кнопке СНИМАЕТ оценку:
   // она необязательна, и промах не должен фиксироваться навсегда — а отдельной
   // кнопки «убрать» ради этого заводить незачем.
@@ -761,6 +783,7 @@ export default function WorkoutScreen({ user, workoutId = null, onBack, onSaved 
           techniqueSlugOf={techniqueSlugFor}
           title={replaceIdx != null ? 'Заменить упражнение' : 'Упражнение'}
           onPick={handlePick}
+          onPickMany={replaceIdx == null ? addExercises : undefined}
           onCreate={(p) => createExercise({ ...p, owner_id: user.id })}
           onClose={closePicker}
         />

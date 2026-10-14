@@ -93,3 +93,17 @@ export function matchScannedText(text, exercises) {
   const exact = find(false)
   return exact.length ? exact : find(true)
 }
+
+// Текст для сопоставления — только из УВЕРЕННЫХ строк OCR (8.4.0). Раньше порог 45
+// стоял на средней уверенности всего кадра: надпись на тренажере читалась на 54–67,
+// но соседние наклейки/интерфейс (4–26) тянули среднее ниже 45, и кадр отбрасывался
+// целиком. Без построчных данных (старый движок, моки) — прежнее правило по всему кадру.
+export function confidentText(data, min = 45) {
+  const lines = (data?.blocks ?? []).flatMap((b) => (b?.paragraphs ?? []).flatMap((p) => p?.lines ?? []))
+  if (!lines.length) return (Number(data?.confidence) || 0) >= min ? String(data?.text ?? '') : ''
+  return lines
+    .filter((l) => (Number(l?.confidence) || 0) >= min)
+    .map((l) => String(l?.text ?? '').trim())
+    .filter(Boolean)
+    .join('\n')
+}

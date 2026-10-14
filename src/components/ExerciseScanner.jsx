@@ -1,9 +1,18 @@
 import { useEffect, useRef, useState } from 'react'
 import SheetDialog from './SheetDialog.jsx'
-import { matchScannedText } from '../lib/scannerMatch.js'
+import { confidentText, matchScannedText } from '../lib/scannerMatch.js'
+import { trayAdd, trayReplace } from '../lib/scannerTray.js'
+import { pluralize } from '../lib/plural.js'
+import { HAPTIC, vibrate } from '../lib/haptics.js'
 import { createScannerWorker } from '../services/scannerOcr.js'
 import { frameHasDetail, guideCrop } from '../lib/scannerFrame.js'
 import { pickMainBackCamera } from '../lib/scannerCamera.js'
+
+const TorchButton = ({ torch, onToggle }) => <button type="button" className="scanner-round" aria-label="Фонарик"
+  aria-pressed={torch} onClick={onToggle}>
+  <svg className="scanner-ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round"
+    strokeLinejoin="round" aria-hidden="true"><path d="M7 2h10v5l-3 4v11h-4V11L7 7z" /><path d="M12 14v2" /></svg>
+</button>
 
 const Icon = ({ children }) => <svg className="scanner-ic" viewBox="0 0 24 24" fill="none" stroke="currentColor"
   strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">{children}</svg>
@@ -23,7 +32,43 @@ function snapshot(video) {
 const SLOW_START = 'Готовлю распознавание. В первый раз нужен интернет…'
 const SLOW_START_MS = 800
 
-export default function ExerciseScanner({ exercises, onPick, onClose, onManual }) {
+// Два режима. С onPickMany (по умолчанию в тренировке и шаблоне, 8.4.0) — набор, «список
+// покупок»: найденное ложится в шторку снизу, сканер продолжает работу. Свернутая шторка
+// показывает последнее найденное (остальные — «пачкой» под ним), раскрытая — весь список с
+// галочками; «Готово · N» отдает отмеченные в порядке сканирования. Без onPickMany (замена
+// упражнения) — прежний одиночный режим: стоп на результате, одно упражнение.
+function TrayItem({ exercise, off, onToggle }) {
+  return <label className={`scanner-item${off ? ' is-off' : ''}`}>
+    <input type="checkbox" className="scanner-item-input" checked={!off} onChange={onToggle} />
+    <span className="scanner-check" aria-hidden="true"><Icon><path d="m5 12 5 5L20 7" /></Icon></span>
+    <span className="scanner-item-name">{exercise.name}{exercise.muscle_group && <small>{exercise.muscle_group}</small>}</span>
+  </label>
+}
+
+export default function ExerciseScanner({ exercises, onPick, onPickMany, onClose, onManual }) {
+  const trayMode = typeof onPickMany === 'function'
+  const [tray, setTray] = useState([]) // все найденное, в порядке сканирования
+  const [off, setOff] = useState(() => new Set()) // снятые галочки: строка остается, ее можно вернуть
+  const [open, setOpen] = useState(false) // шторка раскрыта
+  const [confirm, setConfirm] = useState(false) // «назад» с непустым списком
+  const [last, setLast] = useState(null) // { exercise, alts } — последнее найденное сканером
+  const trayRef = useRef([])
+  const offRef = useRef(off)
+  const putTray = next => { trayRef.current = next; setTray(next) }
+  const putOff = next => { offRef.current = next; setOff(next) }
+  const unOff = id => { if (offRef.current.has(id)) { const n = new Set(offRef.current); n.delete(id); putOff(n) } }
+  const addToTray = (exercise, alts = []) => {
+    const { tray: next, added } = trayAdd(trayRef.current, exercise)
+    if (!added && !offRef.current.has(exercise.id)) return
+    if (added) putTray(next)
+    unOff(exercise.id) // снятое и снова отсканированное — возвращается
+    setLast({ exercise, alts: alts.filter(e => e.id !== exercise.id) })
+    vibrate(HAPTIC.success)
+  }
+  const onStable = useRef(null)
+  onStable.current = matches => addToTray(matches[0].exercise, matches.slice(1).map(m => m.exercise))
+  const isTray = useRef(trayMode)
+  isTray.current = trayMode
   const video = useRef(null)
   const guide = useRef(null)
   const track = useRef(null)
@@ -121,17 +166,28 @@ export default function ExerciseScanner({ exercises, onPick, onClose, onManual }
               return
             }
             frameTimer = setTimeout(() => fail('Не удалось прочитать кадр вовремя. Попробуй повторить или используй ручной поиск.'), 30_000)
-            const { data } = await worker.recognize(canvas)
+            // Построчные данные: уверенность считаем по строкам, а не по всему кадру —
+            // наклейки и интерфейс рядом с табличкой больше не топят распознанное название.
+            const { data } = await worker.recognize(canvas, {}, { blocks: true })
             clearTimeout(frameTimer)
             if (disposed) return
-            const value = data.text.trim().slice(0, 500)
-            const matches = data.confidence >= 45 ? matchScannedText(value, catalog.current) : []
+            const value = String(data?.text ?? '').trim().slice(0, 500)
+            const sure = confidentText(data).slice(0, 500)
+            const matches = sure ? matchScannedText(sure, catalog.current) : []
             // Only a recognized catalog label is user-facing, never raw OCR noise.
             setText(matches.length ? [...new Set(matches.map(m => m.label))].join(' · ') : '')
             setCandidate(matches[0]?.exercise ?? null)
             const key = matches.map(m => m.exercise.id).sort().join('|')
             repeats = key && key === lastKey ? repeats + 1 : 1
             lastKey = key
+            if (key && repeats >= 2 && isTray.current) {
+              // Набор: та же табличка в рамке добавляется один раз (на втором совпадении),
+              // дальше бейдж показывает «уже в списке», пока не наведут на следующую.
+              if (repeats === 2) onStable.current(matches)
+              setStatus('Наведи на следующую табличку')
+              timer = setTimeout(scan, 1200)
+              return
+            }
             if (key && repeats >= 2) {
               setStill(snapshot(v))
               setResult(matches)
@@ -168,22 +224,49 @@ export default function ExerciseScanner({ exercises, onPick, onClose, onManual }
     } catch { setTorch(null) } // the camera refused: hide the button, scanning goes on
   }
 
+  function inTray(exercise) { return trayMode && !off.has(exercise.id) && tray.some(e => e.id === exercise.id) }
+  function swapLast(exercise) {
+    putTray(trayReplace(trayRef.current, last.exercise.id, exercise))
+    unOff(exercise.id)
+    setLast({ exercise, alts: [last.exercise, ...last.alts.filter(e => e.id !== exercise.id)] })
+    vibrate(HAPTIC.tap)
+  }
+  function toggle(id) {
+    const n = new Set(offRef.current)
+    if (n.has(id)) n.delete(id); else n.add(id)
+    putOff(n)
+  }
+  const picked = tray.filter(e => !off.has(e.id))
+  function done() { onPickMany(trayRef.current.filter(e => !offRef.current.has(e.id))) }
+  function requestClose() {
+    if (confirm) setConfirm(false) // «назад» над вопросом — вернуться к сканированию
+    else if (trayMode && picked.length) setConfirm(true)
+    else onClose()
+  }
+  const doneLabel = picked.length ? `Готово · ${picked.length}` : 'Ничего не отмечено'
+
   const [main, ...alts] = result ?? []
   const scanning = !result && !error
-  return <SheetDialog title="Сканер названий" actionLabel="назад" onDismiss={onClose} className="scanner-sheet">
+  const showTray = trayMode && tray.length > 0
+  const swaps = last && inTray(last.exercise) ? last.alts : []
+  return <SheetDialog title="Сканер названий" actionLabel="назад" onDismiss={requestClose} className="scanner-sheet">
     <div className="scanner">
       <video ref={video} className="scanner-video" autoPlay muted playsInline aria-label="Камера: наведи на название" />
       {still && <img className="scanner-video" src={still} alt="" />}
       <div className={`scanner-stage${result ? ' is-done' : ''}`}>
         {scanning && <p className="scanner-hint" aria-hidden="true">
-          {candidate ? 'Держи так, проверяю' : 'Наведи рамку на табличку тренажера'}</p>}
+          {candidate && !inTray(candidate) ? 'Держи так, проверяю'
+            : tray.length ? 'Наведи на следующую табличку' : 'Наведи рамку на табличку тренажера'}</p>}
         <div ref={guide} className={`scanner-guide${result ? ' is-locked' : ''}`} aria-hidden="true">
           {!result && <><i className="scanner-corner tl" /><i className="scanner-corner tr" /><i className="scanner-corner bl" /><i className="scanner-corner br" /></>}
           {scanning && <i className="scanner-line" />}
         </div>
         {scanning && <div className="scanner-status" role="status">
-          {candidate
-            ? <button type="button" className="scanner-badge is-tap" onClick={() => onPick(candidate)}>
+          {candidate && inTray(candidate)
+            ? <span className="scanner-badge is-added"><Icon><path d="m5 12 5 5L20 7" /></Icon>
+                <span><b>{candidate.name}</b> — уже в списке</span></span>
+            : candidate
+            ? <button type="button" className="scanner-badge is-tap" onClick={() => trayMode ? addToTray(candidate) : onPick(candidate)}>
                 <span className="scanner-ring" aria-hidden="true" />
                 <span>Похоже на <b>{candidate.name}</b></span>
                 <Icon><path d="m9 6 6 6-6 6" /></Icon>
@@ -192,22 +275,57 @@ export default function ExerciseScanner({ exercises, onPick, onClose, onManual }
         </div>}
       </div>
 
-      {scanning && <div className="scanner-controls">
+      {scanning && !showTray && <div className="scanner-controls">
         <div className="scanner-row">
-          {torch !== null && <button type="button" className="scanner-round" aria-label="Фонарик"
-            aria-pressed={torch} onClick={toggleTorch}>
-            <Icon><path d="M7 2h10v5l-3 4v11h-4V11L7 7z" /><path d="M12 14v2" /></Icon>
-          </button>}
+          {torch !== null && <TorchButton torch={torch} onToggle={toggleTorch} />}
           <button type="button" className="btn scanner-manual" onClick={() => onManual(text)}>
             <Icon><circle cx="11" cy="11" r="7" /><path d="m20 20-3.5-3.5" /></Icon>Найти вручную</button>
         </div>
-        <p className="scanner-note">Кадры остаются на устройстве</p>
+      </div>}
+
+      {scanning && showTray && !confirm && <section className={`scanner-basket${open ? ' is-open' : ''}`} aria-label="Список на тренировку">
+        <button type="button" className="scanner-grab-btn" aria-expanded={open}
+          aria-label={open ? 'Свернуть список' : 'Показать весь список'} onClick={() => setOpen(o => !o)}>
+          <span className="scanner-grab" aria-hidden="true" /></button>
+        <div className="scanner-basket-head">
+          <p className="scanner-eyebrow"><Icon><path d="m5 12 5 5L20 7" /></Icon>
+            {open ? `В списке · ${picked.length}` : 'Добавил'}</p>
+          {swaps.map(e => <button type="button" key={e.id} className="link-btn scanner-swap"
+            onClick={() => swapLast(e)}>Заменить на «{e.name}»</button>)}
+        </div>
+        {open
+          ? <div className="scanner-checklist" role="group" aria-label="Набрано сканером">
+              {tray.map(e => <TrayItem key={e.id} exercise={e} off={off.has(e.id)}
+                onToggle={() => toggle(e.id)} />)}
+            </div>
+          : <div className="scanner-stack" data-depth={Math.min(tray.length - 1, 2)}>
+              {(() => { const e = tray.find(x => x.id === last?.exercise.id) ?? tray[tray.length - 1]
+                return <TrayItem exercise={e} off={off.has(e.id)} onToggle={() => toggle(e.id)} /> })()}
+            </div>}
+        {!open && tray.length > 1 && <button type="button" className="link-btn scanner-more" onClick={() => setOpen(true)}>
+          Еще {tray.length - 1} в списке — показать</button>}
+        <div className="scanner-row">
+          {torch !== null && <TorchButton torch={torch} onToggle={toggleTorch} />}
+          <button type="button" className="btn primary scanner-manual" disabled={!picked.length} onClick={done}>{doneLabel}</button>
+        </div>
+      </section>}
+
+      {confirm && <div className="scanner-panel scanner-confirm" role="alertdialog" aria-labelledby="scanner-confirm-title">
+        <span className="scanner-grab" aria-hidden="true" />
+        <h2 id="scanner-confirm-title" className="scanner-confirm-title">Добавить найденное?</h2>
+        <p className="muted">В списке {pluralize(picked.length, 'упражнение', 'упражнения', 'упражнений')}.</p>
+        <button type="button" className="btn primary full" onClick={done}>
+          Добавить {pluralize(picked.length, 'упражнение', 'упражнения', 'упражнений')}</button>
+        <button type="button" className="btn full" onClick={onClose}>Закрыть без них</button>
+        <button type="button" className="link-btn scanner-again" onClick={() => setConfirm(false)}>Сканировать дальше</button>
       </div>}
 
       {error && <div className="scanner-panel scanner-error" role="alert">
         <p>{error}</p>
         <button type="button" className="btn primary full" onClick={retry}>Повторить сканирование</button>
-        <button type="button" className="btn full" onClick={() => onManual(text)}>Найти вручную</button>
+        {trayMode && picked.length > 0
+          ? <button type="button" className="btn full" onClick={done}>{doneLabel}</button>
+          : <button type="button" className="btn full" onClick={() => onManual(text)}>Найти вручную</button>}
       </div>}
 
       {main && <div className="scanner-panel scanner-result">

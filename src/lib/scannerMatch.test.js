@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest'
-import { matchScannedText } from './scannerMatch.js'
+import { matchScannedText, confidentText } from './scannerMatch.js'
 const catalog = ['Тяга верхнего блока', 'Жим ногами', 'Подъем на носки сидя', 'Подъем на носки стоя', 'Приведение руки к груди'].map((name, id) => ({ name, id }))
 const hips = [
   { id: 'in', name: 'Сведение ног в тренажере (Hip Adductor)' },
@@ -104,5 +104,20 @@ describe('scanner: machines added to the catalog in 7.5.9', () => {
   it('keeps Hammer Strength pulldown and assisted dips where they were', () => {
     expect(ids('ISO-LATERAL FRONT LAT PULLDOWN')).toEqual(['Тяга верхнего блока'])
     expect(ids('ASSISTED DIP')).toEqual(['Отжимания на брусьях'])
+  })
+})
+
+describe('confidentText (8.4.0)', () => {
+  const data = (lines, confidence = 30) => ({ text: lines.map((l) => l.text).join('\n'), confidence, blocks: [{ paragraphs: [{ lines }] }] })
+  it('берет только уверенные строки, шум вокруг не мешает', () => {
+    expect(confidentText(data([{ text: 'HIP ADDUCTOR ', confidence: 54 }, { text: 'xx', confidence: 4 }, { text: 'SEAT', confidence: 70 }]))).toBe('HIP ADDUCTOR\nSEAT')
+  })
+  it('нет уверенных строк — пусто', () => {
+    expect(confidentText(data([{ text: 'xx', confidence: 20 }], 90))).toBe('')
+  })
+  it('без построчных данных — правило по всему кадру', () => {
+    expect(confidentText({ text: 'LAT', confidence: 50 })).toBe('LAT')
+    expect(confidentText({ text: 'LAT', confidence: 40 })).toBe('')
+    expect(confidentText(null)).toBe('')
   })
 })

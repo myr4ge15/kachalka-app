@@ -25,9 +25,10 @@ vi.mock('../db/repo.js', () => ({
 vi.mock('../db/sync.js', () => ({ syncNow: vi.fn() }))
 vi.mock('../lib/exportTemplate.js', () => ({ exportTemplates: vi.fn() }))
 vi.mock('../components/ExercisePicker.jsx', () => ({
-  default: ({ exercises, onPick, onClose }) => (
+  default: ({ exercises, onPick, onPickMany, onClose }) => (
     <div data-testid="picker">
       {exercises.map((e) => <button key={e.id} onClick={() => onPick(e)}>выбрать {e.name}</button>)}
+      {onPickMany && <button onClick={() => onPickMany([...exercises].reverse())}>набор сканером</button>}
       <button onClick={onClose}>закрыть пикер</button>
     </div>
   ),
@@ -207,6 +208,18 @@ describe('TemplatesScreen — редактор', () => {
     } finally {
       vi.useRealTimers()
     }
+  })
+
+  it('набор сканером: все разом в порядке сканирования, уже стоящие пропускаются', () => {
+    renderScreen()
+    fireEvent.click(screen.getByRole('button', { name: '+ Новый шаблон' }))
+    fireEvent.click(screen.getByRole('button', { name: '+ Добавить упражнение' }))
+    fireEvent.click(screen.getByRole('button', { name: 'выбрать Жим лежа' }))
+    fireEvent.click(screen.getByRole('button', { name: '+ Добавить упражнение' }))
+    fireEvent.click(screen.getByRole('button', { name: 'набор сканером' }))
+    expect(screen.queryByTestId('picker')).toBeNull()
+    expect(screen.getAllByRole('button', { name: 'Перетащить' })).toHaveLength(3)
+    expect(screen.getByText('Уже были в шаблоне: 1')).toBeInTheDocument()
   })
 
   it('свой шаблон: поля из документа, «убрать», правка сохраняется по id; офлайн — без синка', async () => {

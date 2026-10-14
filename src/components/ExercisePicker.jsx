@@ -32,6 +32,7 @@ export default function ExercisePicker({
   onToggleFavorite,
   techniqueSlugOf,
   onPick,
+  onPickMany, // набор сканером (8.4.0); нет — сканер в одиночном режиме (замена)
   onClose,
   onCreate,
   title = 'Упражнение',
@@ -246,7 +247,7 @@ export default function ExercisePicker({
   // Пикер рендерим порталом в <body>: оверлей position:fixed гарантированно
   // относительно вьюпорта (а не застревает внутри прокручиваемой .content под
   // шапкой/таббаром). Это и есть фикс «модалка не на весь экран».
-  if (scanning) return <ExerciseScanner exercises={exercises} onPick={onPick}
+  if (scanning) return <ExerciseScanner exercises={exercises} onPick={onPick} onPickMany={onPickMany}
     onClose={() => setScanning(false)} onManual={(text) => {
       changeQuery(text); changeGroup('все'); setScanning(false)
     }} />

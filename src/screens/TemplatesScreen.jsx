@@ -278,7 +278,22 @@ function TemplateEditor({ user, templateId, onBack }) {
       return
     }
     setMessage((m) => (m?.transient ? null : m))
-    setItems([...items, { exercise: ex, metric: exerciseMetric(ex), set_plan: templatePlan(ex, { sets: ex.metric === 'distance' ? 1 : 3, reps: ex.metric === 'time' ? 60 : ex.metric === 'distance' ? 1800 : 10, weight: 0 }).map((s) => ({ ...s, _k: sk() })) }])
+    setItems([...items, newItem(ex)])
+  }
+
+  function newItem(ex) {
+    return { exercise: ex, metric: exerciseMetric(ex), set_plan: templatePlan(ex, { sets: ex.metric === 'distance' ? 1 : 3, reps: ex.metric === 'time' ? 60 : ex.metric === 'distance' ? 1800 : 10, weight: 0 }).map((s) => ({ ...s, _k: sk() })) }
+  }
+
+  // Набор сканером (8.4.0): все разом, уже стоящие в шаблоне пропускаем.
+  function addExercises(list) {
+    setPickerOpen(false)
+    const fresh = list.filter((ex) => !items.some((it) => it.exercise.id === ex.id))
+    const skipped = list.length - fresh.length
+    setMessage((m) => (skipped
+      ? { type: 'error', text: skipped === list.length ? 'Эти упражнения уже в шаблоне' : `Уже были в шаблоне: ${skipped}`, transient: true }
+      : m?.transient ? null : m))
+    setItems((prev) => [...prev, ...fresh.filter((ex) => !prev.some((it) => it.exercise.id === ex.id)).map(newItem)])
   }
 
   function removeExercise(idx) {
@@ -471,6 +486,7 @@ function TemplateEditor({ user, templateId, onBack }) {
           favorites={favorites}
           onToggleFavorite={(id) => toggleFavorite(user.id, id)}
           onPick={addExercise}
+          onPickMany={addExercises}
           onCreate={(p) => createExercise({ ...p, owner_id: user.id })}
           onClose={() => setPickerOpen(false)}
         />

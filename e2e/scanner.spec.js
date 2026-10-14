@@ -6,6 +6,7 @@ test('local OCR reads English and Russian under application CSP', async ({ page 
   await page.goto('/kachalka-app/')
   const result = await page.evaluate(async () => {
     const { createScannerWorker } = await import('/kachalka-app/src/services/scannerOcr.js')
+    const { confidentText } = await import('/kachalka-app/src/lib/scannerMatch.js')
     const worker = await createScannerWorker()
     try {
       const canvas = document.createElement('canvas')
@@ -15,14 +16,15 @@ test('local OCR reads English and Russian under application CSP', async ({ page 
       ctx.fillStyle = 'black'; ctx.font = 'bold 60px Arial'
       ctx.fillText('LAT PULLDOWN', 30, 85)
       ctx.fillText('ЖИМ НОГАМИ', 30, 175)
-      return (await worker.recognize(canvas)).data.text
+      // Как в сканере: построчные данные (8.4.0) — движок должен их отдавать.
+      return confidentText((await worker.recognize(canvas, {}, { blocks: true })).data)
     } finally { await worker.terminate() }
   })
   expect(result).toContain('LAT PULLDOWN')
   expect(result).toContain('ЖИМ НОГАМИ')
 })
 
-test('camera label in the guide → result sheet → workout', async ({ page, context }) => {
+test('camera label in the guide → scan tray → «Готово» → workout', async ({ page, context }) => {
   test.setTimeout(60_000)
   await context.addInitScript(() => {
     Object.defineProperty(navigator, 'onLine', { get: () => false, configurable: true })
@@ -62,13 +64,15 @@ test('camera label in the guide → result sheet → workout', async ({ page, co
   await tabbar(page).getByRole('button', { name: 'Записать тренировку' }).click()
   await page.getByRole('button', { name: 'Добавить упражнение' }).click()
   await page.getByRole('button', { name: 'Сканировать название' }).click()
-  const add = page.getByRole('button', { name: 'Добавить в тренировку' })
-  await expect(add).toBeVisible({ timeout: 30_000 })
-  expect(await page.evaluate(() => window.scannerStopped)).toBe(true)
-  await expect(page.getByRole('heading', { name: 'Тяга верхнего блока' })).toBeVisible()
+  // Набор (8.4.0): найденное ложится в шторку, камера продолжает работать.
+  const done = page.getByRole('button', { name: 'Готово · 1' })
+  await expect(done).toBeVisible({ timeout: 30_000 })
+  expect(await page.evaluate(() => document.querySelector('video.scanner-video')?.srcObject?.getVideoTracks()[0]?.readyState)).toBe('live')
+  await expect(page.getByRole('checkbox', { name: /Тяга верхнего блока/ })).toBeChecked()
   await expect(page.getByText(/Разгибание ног в тренажере/)).toHaveCount(0)
   await page.screenshot({ path: 'test-results/scanner-preview.png' })
-  await add.click()
+  await done.click()
+  expect(await page.evaluate(() => window.scannerStopped)).toBe(true)
   await expect(page.getByRole('dialog')).toHaveCount(0)
   await expect(page.getByText('Тяга верхнего блока', { exact: true })).toBeVisible()
 })
