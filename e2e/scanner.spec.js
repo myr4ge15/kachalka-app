@@ -1,4 +1,5 @@
 import { test, expect } from '@playwright/test'
+import { enterPin, tabbar } from './helpers.js'
 
 test('local OCR reads English and Russian under application CSP', async ({ page }) => {
   test.setTimeout(90_000)
@@ -51,14 +52,14 @@ test('camera label in the guide → result sheet → workout', async ({ page, co
   const user = await page.evaluate(async () => (await import('/kachalka-app/src/test/e2eSeed.js')).seedE2E())
   await page.reload()
   await page.getByRole('button', { name: user.name }).click()
-  for (const digit of user.pin) await page.locator('.keypad .key', { hasText: new RegExp(`^${digit}$`) }).click()
-  await expect(page.locator('.tabbar')).toBeVisible()
+  await enterPin(page, user.pin)
+  await expect(tabbar(page)).toBeVisible()
   await page.evaluate(async () => {
     const { db } = await import('/kachalka-app/src/db/local.js')
     await db.exercises.put({ id: 'scanner-fixture', name: 'Тяга верхнего блока', muscle_group: 'спина', metric: 'weight' })
     await db.exercises.put({ id: 'scanner-outside', name: 'Разгибание ног в тренажере', muscle_group: 'ноги', metric: 'weight' })
   })
-  await page.locator('.tabbar').getByRole('button', { name: 'Записать тренировку' }).click()
+  await tabbar(page).getByRole('button', { name: 'Записать тренировку' }).click()
   await page.getByRole('button', { name: 'Добавить упражнение' }).click()
   await page.getByRole('button', { name: 'Сканировать название' }).click()
   const add = page.getByRole('button', { name: 'Добавить в тренировку' })

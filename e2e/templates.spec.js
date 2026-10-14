@@ -1,4 +1,5 @@
 import { test, expect } from '@playwright/test'
+import { enterPin, tabbar, openTab } from './helpers.js'
 
 test('точный шаблон: редактор → перезагрузка → новая тренировка', async ({ page, context }) => {
   await context.addInitScript(() => {
@@ -18,9 +19,9 @@ test('точный шаблон: редактор → перезагрузка �
   })
   await page.reload()
   await page.getByRole('button', { name: user.name }).click()
-  for (const digit of user.pin) await page.locator('.keypad .key', { hasText: new RegExp(`^${digit}$`) }).click()
-  await expect(page.locator('.tabbar')).toBeVisible()
-  await page.locator('.tabbar .tab').filter({ hasText: 'Тренировки' }).click()
+  await enterPin(page, user.pin)
+  await expect(tabbar(page)).toBeVisible()
+  await openTab(page, 'Тренировки')
   await page.getByRole('button', { name: /Шаблоны/ }).click()
   await page.getByRole('button', { name: /Мои шаблоны/ }).click()
   await page.getByRole('button', { name: /Точный план/ }).click()

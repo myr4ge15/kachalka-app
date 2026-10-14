@@ -174,7 +174,9 @@ async function runOnce(userId) {
     started = true
     setState({ syncing: true })
     await pushExercises(d) // упражнения раньше всего (FK на exercise_id)
-    await pushTemplates(d) // шаблоны после упражнений (FK), до/после тренировок неважно
+    // Шаблоны после упражнений (FK), до/после тренировок неважно. Ожидание обновления
+    // сервера (v2) — предупреждение, а не сбой прогона: тренировки все равно уходят.
+    const tplWarn = await pushTemplates(d)
     const justPushed = await push(d)
     // Реакции (виш BACKLOG) — необязательная соц-часть: ошибка/отсутствие таблицы
     // не должна ронять синк тренировок, поэтому отдельный try/catch.
@@ -212,6 +214,7 @@ async function runOnce(userId) {
     // пуша цели/личных настроек показываем как lastError, но синк считается
     // прошедшим — lastSyncAt обновлен.
     const allWarn = [
+      ...(tplWarn ?? []),
       ...(warnings ?? []),
       ...(goalWarn ? [goalWarn] : []),
       ...(metaWarn ? [metaWarn] : []),

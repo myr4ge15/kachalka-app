@@ -1,4 +1,6 @@
 import { describe, it, expect } from 'vitest'
+import { existsSync, readFileSync } from 'node:fs'
+import { resolve } from 'node:path'
 import { LOGIN_RE, RESERVED_LOGINS, normalizeLogin, loginProblem, loginStatusText } from './login.js'
 
 describe('loginProblem — те же правила, что у сервера (users_login_format, login_check)', () => {
@@ -34,5 +36,16 @@ describe('loginStatusText', () => {
   it('резерв не пустой и в нижнем регистре', () => {
     expect(RESERVED_LOGINS.length).toBeGreaterThan(10)
     for (const r of RESERVED_LOGINS) expect(r).toBe(r.toLowerCase())
+  })
+})
+
+// Резерв логинов = массив в login_check (supabase/login-separate.sql). supabase/ — в
+// приватном репо: без файла тест пропускается (публичный CI), в рабочей папке — сверяет.
+const SERVER_SQL = resolve(__dirname, '../../supabase/login-separate.sql')
+describe.skipIf(!existsSync(SERVER_SQL))('RESERVED_LOGINS ↔ login_check', () => {
+  it('списки совпадают', () => {
+    const sql = readFileSync(SERVER_SQL, 'utf8')
+    const arr = sql.match(/v = any \(array\[([^\]]+)\]/)?.[1] ?? ''
+    expect([...arr.matchAll(/'([^']+)'/g)].map((m) => m[1]).sort()).toEqual([...RESERVED_LOGINS].sort())
   })
 })

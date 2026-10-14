@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from 'react'
+import { useState } from 'react'
 import { readGoals, writeGoals } from '../../db/notifications.js'
 import { syncNow } from '../../db/sync.js'
 import { normMetric, parseTime, fmtTime } from '../../lib/metric.js'
@@ -6,6 +6,7 @@ import { showToast } from '../Toast.jsx'
 import HoldButton from '../HoldButton.jsx'
 import GoalsList from '../GoalsList.jsx'
 import { useAliveRef } from '../../hooks/useAliveRef.js'
+import { useRevealFocus } from '../../hooks/useRevealFocus.js'
 
 // «Мои цели» в Профиле: список + инлайн-редактор (мульти-цели, фаза 2c; вынесено из
 // ProfileScreen в v6.14.1). Цель любой метрики (вес/повторы/время); при сохранении
@@ -44,10 +45,8 @@ export default function GoalsSection({ userId, goals, records, workouts }) {
   // Редактор рендерится инлайн в секции «Мои цели» (вверху экрана). Если открыть
   // его, проскроллив вниз (кнопка «+ Добавить цель»), форма встает на месте секции
   // — выше видимой области. Доводим форму до экрана после ее появления.
-  const editorRef = useRef(null)
-  useEffect(() => {
-    if (editing) editorRef.current?.scrollIntoView({ behavior: 'smooth', block: 'center' })
-  }, [editing])
+  // Общий reveal-контракт (useRevealFocus): с reduced-motion — без плавной прокрутки.
+  const editorRef = useRevealFocus(editing || null)
 
   // Видимые цели (без tombstone'ов) и упражнения, по которым цели еще нет
   // (для пикера «добавить»). Имя редактируемой цели — из самого списка.

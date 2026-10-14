@@ -12,6 +12,10 @@
 // src/test/e2eSeed.js (грузится в странице через vite dev-сервер).
 // ============================================================================
 import { test, expect } from '@playwright/test'
+import { enterPin, tabbar, openTab, pickerItem, saveButton } from './helpers.js'
+
+// Карточка тренировки в списке: кнопка с названием упражнения (свежая — первая).
+const historyCard = (page) => page.getByRole('button').filter({ hasText: EXERCISE }).first()
 
 const APP = '/kachalka-app/'
 const EXERCISE = 'Жим лежа (e2e)'
@@ -33,10 +37,8 @@ test('вход → запись тренировки → она в истори�
 
   // --- вход по PIN (офлайн-ветка) ------------------------------------------
   await page.getByRole('button', { name: user.name }).click()
-  for (const digit of user.pin) {
-    await page.locator('.keypad .key', { hasText: new RegExp(`^${digit}$`) }).click()
-  }
-  await expect(page.locator('.tabbar')).toBeVisible()
+  await enterPin(page, user.pin)
+  await expect(tabbar(page)).toBeVisible()
 
   // Исторический подход нужен, чтобы новая запись действительно побила PR и
   // сквозной тест проверил главное событие finish-sheet + переход в Прогресс.
@@ -56,7 +58,7 @@ test('вход → запись тренировки → она в истори�
   }, user.id)
 
   // --- запись тренировки ----------------------------------------------------
-  await page.locator('.tabbar .tab').filter({ hasText: 'Тренировки' }).click()
+  await openTab(page, 'Тренировки')
   
   // На мобильном вьюпорте (390x844) новая тренировка — кнопка «+» по центру нижнего
   // меню (v6.0.1; до этого — плавающая .fab). Ищем по доступному имени, а не по
@@ -65,12 +67,12 @@ test('вход → запись тренировки → она в истори�
   await page.getByRole('button', { name: 'Записать тренировку' }).click()
   
   await page.getByRole('button', { name: 'Добавить упражнение' }).click()
-  await page.locator('.picker-item').filter({ hasText: EXERCISE }).click()
+  await pickerItem(page, EXERCISE).click()
 
   // Второе добавленное упражнение становится активным, первое компактно
   // сворачивается. Тап по сводке возвращает первое без потери значений/состава.
   await page.getByRole('button', { name: 'Добавить упражнение' }).click()
-  await page.locator('.picker-item').filter({ hasText: SECOND_EXERCISE }).click()
+  await pickerItem(page, SECOND_EXERCISE).click()
   await expect(page.locator('.exercise-card--active')).toContainText(SECOND_EXERCISE)
   await expect(page.locator('.exercise-card--compact')).toContainText(EXERCISE)
 
@@ -90,7 +92,7 @@ test('вход → запись тренировки → она в истори�
   await benchSet.locator('input').first().fill('60')   // вес
   await benchSet.locator('input').nth(1).fill('8')     // повторы
 
-  await page.locator('.save-btn').click()
+  await saveButton(page).click()
 
   // Локальное сохранение сразу показывает итог поверх Истории — сеть выключена.
   await expect(page.getByRole('dialog', { name: 'Тренировка готова' })).toBeVisible()
@@ -102,10 +104,10 @@ test('вход → запись тренировки → она в истори�
   await expect(page.locator('.workout-finish-template-msg')).toContainText('Шаблон «Тренировка')
   await page.getByRole('button', { name: 'Посмотреть прогресс' }).click()
   await expect(page.locator('.prog-select')).toHaveValue('e2e-ex-bench')
-  await page.locator('.tabbar .tab').filter({ hasText: 'Тренировки' }).click()
+  await openTab(page, 'Тренировки')
 
   // Переход из итога закрыл sheet; тренировка в списке на месте.
-  const card = page.locator('.history-card').first()
+  const card = historyCard(page)
   await expect(card).toContainText(EXERCISE)
   await expect(card).toContainText('60×8')
   await expect(card).toContainText(SECOND_EXERCISE)
@@ -113,9 +115,9 @@ test('вход → запись тренировки → она в истори�
 
   // --- перезагрузка: данные пережили рестарт (читаются из локальной Dexie) ---
   await page.reload()
-  await page.locator('.tabbar .tab').filter({ hasText: 'Тренировки' }).click()
+  await openTab(page, 'Тренировки')
 
-  const afterReload = page.locator('.history-card').first()
+  const afterReload = historyCard(page)
   await expect(afterReload).toContainText(EXERCISE)
   await expect(afterReload).toContainText('60×8')
   await expect(afterReload).toContainText(SECOND_EXERCISE)
@@ -130,7 +132,7 @@ test('вход → запись тренировки → она в истори�
   await page.locator('.pr-row').filter({ hasText: EXERCISE }).click()
   await expect(page.locator('.prog-select')).toHaveValue('e2e-ex-bench')
   await expect.poll(() => content.evaluate((node) => node.scrollTop)).toBeLessThan(5)
-  await page.locator('.tabbar .tab').filter({ hasText: 'Тренировки' }).click()
+  await openTab(page, 'Тренировки')
 
   // Липкая «Сохранить» не должна зависеть от фазы анимации входа экрана: пока
   // .screen-anim анимировала transform, обертка на ~180мс становилась containing
@@ -139,8 +141,8 @@ test('вход → запись тренировки → она в истори�
   // key={tab}). Замедляем анимацию, чтобы замер гарантированно попал в ее середину,
   // а не гонялся с длительностью. Проверяем ДО перехода на десктопный вьюпорт —
   // там бар уже в потоке (position: static в master-detail).
-  await page.addStyleTag({ content: '.screen-anim { animation-duration: 5s !important; }' })
-  await page.locator('.tabbar .tab').filter({ hasText: 'Главная' }).click()
+  const slowAnim = await page.addStyleTag({ content: '.screen-anim { animation-duration: 5s !important; }' })
+  await openTab(page, 'Главная')
   await page.getByRole('button', { name: 'Записать тренировку' }).click()
   const saveBar = page.locator('.wk-save-bar')
   await expect(saveBar).toBeVisible()
@@ -148,7 +150,11 @@ test('вход → запись тренировки → она в истори�
     (node) => window.innerHeight - node.getBoundingClientRect().bottom
   )
   expect(gapFromBottom).toBeLessThan(120) // ≈72px над таббаром, а не «в центре»
-  await page.locator('.tabbar .tab').filter({ hasText: 'Тренировки' }).click()
+  // Замедление нужно только для этого замера: дальше 5-секундная анимация экрана
+  // делала кнопки «нестабильными» для клика, и под нагрузкой шаг ✕ ниже ловил
+  // таймаут (флак, аудит 14.10.2026).
+  await slowAnim.evaluate((node) => node.remove())
+  await openTab(page, 'Тренировки')
 
   // Desktop master-detail: список остается слева, справа открывается тот же
   // focus-композер с одной активной и одной компактной карточкой.
@@ -160,16 +166,17 @@ test('вход → запись тренировки → она в истори�
 
   // Повторное сохранение существующей записи — тихий возврат к списку: итоговый
   // шит принадлежит завершению занятия, а не правке старой записи (v5.12.3).
-  await page.locator('.save-btn').click()
+  await saveButton(page).click()
   await expect(page.getByRole('dialog', { name: 'Тренировка готова' })).toHaveCount(0)
-  await expect(page.locator('.history-card').first()).toContainText('2 упр. · 2 подх.')
+  await expect(historyCard(page)).toContainText('2 упр. · 2 подх.')
 
   // --- зоны тапа ✕ удаления подхода (геометрия, юнитам не видна) -----------
   // Отметок выполнения с v6.1.0 нет — подход, которого не было, удаляется ✕.
   // Крестики соседних подходов не имеют права делить межстрочный зазор: тап чуть
   // выше ✕ второго подхода не должен удалить первый. Ничего не сохраняем, это
   // последний шаг сценария.
-  await page.locator('.history-card').first().click()
+  await historyCard(page).click()
+  await expect(page.locator('.exercise-card--active')).toContainText(EXERCISE)
   await page.getByRole('button', { name: '+ подход (повтор предыдущего)' }).click()
   const removes = page.locator('.exercise-card--active .set-rm')
   await expect(removes).toHaveCount(2)

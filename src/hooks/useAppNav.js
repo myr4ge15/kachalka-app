@@ -125,7 +125,8 @@ export function useAppNav(user) {
     // возвращаем его наверх (как «прокрутка к началу» в iOS) + сигнал «обнови меня»
     // (напр. Лента перезапрашивает посты).
     if (next === tab) {
-      contentRef.current?.scrollTo({ top: 0, behavior: 'smooth' })
+      const reduce = window.matchMedia?.('(prefers-reduced-motion: reduce)').matches
+      contentRef.current?.scrollTo({ top: 0, behavior: reduce ? 'auto' : 'smooth' })
       emitReselect(next)
       return
     }

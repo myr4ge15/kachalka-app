@@ -44,9 +44,12 @@
   `src/db/repo.js`; специализированные подсистемы используют свои DB-модули (`notifications.js`,
   `insights.js`, `badges.js` и т.д.). Сетевые мутации из экранов запрещены; сеть в `repo.js` не
   трогаем.
-  - **Единственное исключение — «слой витрин» (read-only):** `db/feed.js` (`fetchFeed`) и
-    `db/leaderboard.js` (`fetchLeaderboard`) делают прямые read-only `supabase`-запросы под RLS и
-    кэшируют результат в Dexie. **Мутации — исключительно через очереди в `sync.js`.**
+  - **Единственное исключение — «слой витрин» (read-only):** `db/feed.js` (`fetchFeed`),
+    `db/leaderboard.js` (`fetchLeaderboard`), `db/disciplines.js` (рейтинги) и `db/memberProfile.js`
+    (профиль участника) делают прямые read-only `supabase`-запросы под RLS и кэшируют результат в Dexie.
+    **Мутации данных — исключительно через очереди в `sync.js`.** Онлайн-операции вне очередей (настройки
+    пушей `db/push.js`, админка, приглашения, круги, обращения — см. «Чистая логика») данных тренировок
+    не меняют.
 - **База персональная, а не одна на браузер:** `gym_app_${userId}` у каждого + общая «загрузочная»
   `gym_app_login` (ростер учёток для пикера входа + офлайн-кэш PIN-хэшей, читается ДО выбора юзера).
   В `src/db/local.js`: `db` — активный инстанс (live binding, `null` до входа), `loginDb` — общая;
@@ -124,10 +127,12 @@
   constant-time) — **только когда сервер недоступен** (v6.14.0): онлайн экран входа сначала ждет
   `auth-login` (8 с), кэш — запасной путь при сети/таймауте/5xx; «неверный PIN» и «лок» сервера кэшем
   не обходятся (иначе старый PIN пускает после сброса/смены). Новый PIN — не из слабых (с П4 — только ~10
-  самых частых): `lib/pinPolicy.js` ↔ `_shared/pin.ts` `isWeakPin` (одинаковые списки в тестах); новый путь
+  самых частых): `lib/pinPolicy.js` ↔ `_shared/pin.ts` `isWeakPin` (`pinPolicy.test.js` сверяет списки по файлу, когда `supabase/` рядом); новый путь
   задания PIN обязан проверять на сервере. Админка с 2FA — сессия `aal2` (см. «2FA админки»). Видимость чужих данных — серверная `can_see_user()` (приватность + связи
   «избранного круга»); гейт админки — серверный `is_admin()`.
-- **Чистая логика — в `src/lib/`** (без Dexie/React/сети), покрывается тестами; DB-обвязка — в
+- **Чистая логика — в `src/lib/`** (без Dexie/React/сети), покрывается тестами. Исключения — онлайн-модули
+  вне очередей синка: `auth.js` (вход, кэш PIN), `avatar.js`, `admin.js`, `adminDisciplines.js`, `adminMfa.js`,
+  `feedbackApi.js`, `friendCircles.js`, `memberInvites.js`; новый такой модуль — в этот список. DB-обвязка — в
   `src/db/`; презентационные куски экранов — в `src/components/` (props-driven, состояние остаётся
   в экране). **Секции крупных экранов** (v6.14.1) — в `src/components/<экран>/` (`admin/`, `profile/`):
   самостоятельный блок со СВОИМ состоянием и обработчиками (форма, подтверждение, онлайн-операция),
@@ -171,7 +176,7 @@
     липкие бары) над карточкой сливается с ней. Плотная подложка оверлеев — токен
     `--surface-solid` (`rgba(17,24,39,.94)`, v6); в Aurora это был хардкод `rgba(20,16,40,.94)`.
 - **Навигация (`App.jsx`):** 4 вкладки — `home` (дефолт) / `history` / `feed` / `progress`; плюс
-  вложенные ленивые роуты `notif`/`profile`/`admin`/`freshness`/`myex`/`achievements`/`appearance`/`pushset`
+  экран `profile` (шапка/сайдбар) и вложенные ленивые роуты `NESTED_ROUTES` — `notif`/`member`/`freshness`/`achievements`/`admin`/`myex`/`whatsnew`/`appearance`/`feedback`/`circle`/`pushset`
   (в таббар не выносятся); «назад» на всех вложенных экранах — общая круглая `components/BackButton.jsx`; с v6.8.1 тот же «назад» — свайпом вправо (`hooks/useEdgeSwipeBack.js`, только iOS «на экране Домой»; с v7.1.7 — с любой точки экрана: от середины строже ось и жест уступает полю/ползунку/ручке/пролистанному ряду — `lib/screenNav.js` `swipeBackBlocked`; блоку со своим горизонтальным жестом ставить `data-no-swipe-back`; лист, который на телефоне выглядит экраном, закрывается тем же жестом через `SheetDialog swipeBack` — `hooks/useSheetSwipeBack.js`, v8.1.1; открытая тренировка на мобиле — `useEdgeSwipeBack` в `HistoryScreen` с подложкой-списком, v8.3.1)
 , а вложенные экраны въезжают сдвигом без fade. **Новый вложенный роут — в `NESTED_ROUTES` (`lib/screenNav.js`) и в `nestedBack()` (`hooks/useAppNav.js`, с v6.14.1; до того — `App.jsx`)**, плюс случай в `App.nav.test.jsx`, иначе ни свайпа, ни сдвига. Экран сдвигается `left`, НЕ transform (см. `.screen-anim` в `index.css`). **Позицию `.content` при смене экрана ставить только `lib/scrollBox.js` `settleScroll`** (v6.15.0), не голым `scrollTo`: на iPhone он игнорируется во время инерции — экран открывается внизу или пустым до тапа. Кнопка «+» (новая тренировка) с v6.0.1 — круг ПО ЦЕНТРУ таббара
   (`AddFab`), есть ВСЕГДА, включая вложенные роуты (v6.0.4); при занятом хабе (композер/экспорт) — утоплена и
@@ -239,22 +244,21 @@ updated_at)` + `upsert_user_meta` (`supabase/user-meta.sql`, RLS «только 
 Функции переписывались несколько раз, и `create or replace` со старым телом уже дважды ломал прод.
 Канон каждой функции — в файле ниже; НЕ перезапускать её тело из более старого `.sql`:
 
-- **Детальные шаблоны (v8.1.0, подготовлено локально, на прод НЕ применено):** `template-set-plan.sql`
-  добавляет `target_plan {metric,sets:[{weight,reps}]}` и `upsert_template_v2` поверх живого тела 13.10.2026.
-  Старый RPC обслуживает только шаблоны без детального плана; попытка старого клиента переписать новый
-  отклоняется. Клиент хранит `metric` + `set_plan`, старые `sets/reps/weight` — совместимая сводка.
-  Нет v2 на сервере → очередь остаётся живой, урезанный fallback запрещён. Порядок выката и проверки —
-  `supabase/template-set-plan-deploy.md`. После наката новый SQL — канон обоих RPC; старый SQL ниже не запускать.
-- **`upsert_template`** → канон `template-targets-fix.sql` (хардненинг `security definer` +
-  `search_path` + владелец из `app_uid()` И тело с обеими формами `p_exercise_ids`: uuid-строки и
-  объекты `{id,sets,reps,weight}`). Иначе push шаблонов падает на касте `::uuid` → dead-letter.
+- **`upsert_template` / `upsert_template_v2` (детальные шаблоны, v8.1.0)** → канон `template-set-plan.sql`
+  (накатан, сверка 14.10.2026: v2, `target_plan`, ACL). `target_plan {metric,sets:[{weight,reps}]}` поверх
+  хардненинга `template-targets-fix.sql` (`security definer` + `search_path` + владелец из `app_uid()`, обе
+  формы `p_exercise_ids`). Старый RPC обслуживает только шаблоны без детального плана; попытка старого
+  клиента переписать новый отклоняется. Клиент хранит `metric` + `set_plan`, старые `sets/reps/weight` —
+  совместимая сводка. Нет v2 на сервере → операция шаблона остается в очереди (без попытки и dead-letter),
+  урезанный fallback запрещен, а синк тренировок идет дальше — ожидание сервера только предупреждение
+  (`TEMPLATE_WAIT_SERVER`, с 8.3.2; до этого весь прогон обрывался). `template-targets-fix.sql` больше не канон.
 - **`upsert_workout`** → канон `merge-clock-noop.sql` (поверх `merge-clock-fix.sql`): обязательны
   `security definer` + `set search_path = public` + проверка владельца, плюс ранний выход без
   записи, если состав и `performed_at` не изменились (иначе холостой сдвиг `updated_at` даёт ложные
   конфликты merge-часов). Без хардненинга — `permission denied for table`, push ломается.
-- **`admin_update_exercise`** → канон `admin-exercise-metric.sql` (v6.3.6: `p_submuscle`/`p_secondary` +
-  `p_metric`, 9 аргументов), НЕ тела из `muscle-detail.sql` / `gender-leaderboard.sql`. Клиент шлет `p_metric`
-  только при смене типа — обычная правка совместима с сервером без этого файла.
+- **`admin_update_exercise`** → канон `metric-distance.sql` (см. «Дистанция»; поверх `admin-exercise-metric.sql`
+  v6.3.6: `p_submuscle`/`p_secondary` + `p_metric`, 9 аргументов), НЕ тела из `admin-exercise-metric.sql` /
+  `muscle-detail.sql` / `gender-leaderboard.sql`. Клиент шлет `p_metric` только при смене типа.
 - **`admin_merge_exercise`** → канон `admin-merge-exercise.sql` (v8.2.0, поверх живого тела 14.10.2026): ставит
   `merged_into` (без него триггеры канонизации офлайн-записей не работают), переносит дисциплины рейтингов (общий и
   круги) и `push_beaten_sent`, отказывает в слиянии уже слитого, в скрытое/слитое и общего в «свое». НЕ перезапускать
@@ -262,8 +266,9 @@ updated_at)` + `upsert_user_meta` (`supabase/user-meta.sql`, RLS «только 
   они не упражнения (`lib/exerciseMerge.js`). Массовые правки справочника — миграцией по образцу
   `exercise-catalog-dedup.sql` / `catalog-2026-10.sql` (preflight по id и именам, снимок «как было», без сдвига
   `workouts.updated_at`).
-- **`new_prs_for_workout` / `tg_digest_window`** → канон `telegram.sql`: ведущая метрика
-  (`weight`/`reps`/`time`) + контракт `metric/value` + фильтр приватности. После изменения SQL
+- **`tg_digest_window`** → канон `telegram.sql`; **`new_prs_for_workout`** → канон `metric-distance.sql` (см.
+  «Дистанция»; тело из `telegram.sql` — без `distance`). Ведущая метрика (`weight`/`reps`/`time`/`distance`) +
+  контракт `metric/value` + фильтр приватности. После изменения SQL
   зафиксировать в результате задачи необходимость передеплоя `tg-record` И `tg-digest` с
   `--no-verify-jwt`; сам деплой выполнять только по прямой просьбе пользователя. `tg-record`
   отправляет все рекорды одной тренировки одной пачкой, иначе Telegram flood limit обрезает хвост.
@@ -418,7 +423,7 @@ updated_at)` + `upsert_user_meta` (`supabase/user-meta.sql`, RLS «только 
   в личке (`_shared/tgLink.ts`), все прочее — по-старому только владелец. Сброс владельцем круга — НЕ делать.
   Клиент: `lib/recovery.js` (токен из `#reset=` стирается из адреса сразу, как приглашение),
   `components/recovery/*`, `screens/ResetPinScreen.jsx`, `profile/RecoverySection.jsx`.
-  **Очистка сообщений со ссылками (08.10.2026, подготовлена локально):** добавочная
+  **Очистка сообщений со ссылками (08.10.2026, накатана 08.10; живой шаг 4 deploy.md еще не пройден):** добавочная
   `pin-reset-messages.sql` + `_shared/resetMessages.ts`, Edge `pin-reset-cleanup`
   (внешний POST раз в минуту, `x-webhook-secret` = `WEBHOOK_SECRET`). Очередь без FK на
   токен/учетку: сброс PIN удаляет токены раньше удаления сообщения. Клиенты без доступа,
@@ -490,6 +495,12 @@ updated_at)` + `upsert_user_meta` (`supabase/user-meta.sql`, RLS «только 
   `GRANT UPDATE/DELETE` обходит ожидаемую защиту RLS. Внутренние Telegram/trigger helpers
   (`tg_try_claim_goal`, `tg_notify_record`, `touch_updated_at` и аналоги) — `EXECUTE` только
   владельцу/service_role; снять нужно в том числе с `PUBLIC`, а не только с `anon`.
+- **Устаревшие `.sql` под guard (аудит 14.10.2026).** Файлы, чьи тела откатили бы каноны (и `schema.sql` с
+  `DROP TABLE`), начинаются с блока `do $legacy_guard$`: есть `account_delete` (последние шаги
+  `bootstrap/order.txt`) — накат останавливается, на чистом проекте (сборка bootstrap) guard молчит. Так же
+  `bootstrap.sql` больше не запустится на боевой базе. Файл перестал быть каноном всех своих функций — добавить
+  guard по образцу и имя в `supabase/tests/legacy-guard.test.mjs`. Guard действует в SQL Editor; в `psql` —
+  только с `ON_ERROR_STOP`.
 - Порядок применения `.sql` и деплой-заметки — в `supabase/*-deploy.md`; переход на версионированные
   миграции — scaffold в `supabase/migrations/` (`config.toml`, README).
 
@@ -569,7 +580,8 @@ updated_at)` + `upsert_user_meta` (`supabase/user-meta.sql`, RLS «только 
    - **правка разметки, классов или подписей кнопок** в сценарии «вход → запись тренировки →
      история» (таббар, «+», композер, итог, история) → ещё и `npm run test:e2e`: CI гоняет этот
      smoke ПЕРЕД выкаткой по тегу, и упавший e2e молча отменяет деплой (v6.0.1: тест искал `.fab`,
-     а «+» переехала в меню). В e2e искать элементы по роли и подписи, а не по классу.
+     а «+» переехала в меню). В e2e искать элементы по роли и подписи, а не по классу; общие шаги (PIN, нижнее меню
+     `<nav aria-label="Разделы">`, пикер, «Сохранить») — `e2e/helpers.js`.
 3. **Поднять версию приложения** в `package.json` по строгому semver, если задача меняет
    отслеживаемый код приложения, тесты, UI или поставляемую конфигурацию (версия видна внизу
    «Профиля»). Анализ, ревью, планы, git-ignored документация и рабочие инструкции без изменения
@@ -652,6 +664,7 @@ updated_at)` + `upsert_user_meta` (`supabase/user-meta.sql`, RLS «только 
      `Europe/Moscow` и `America/Los_Angeles` — поясные баги в UTC не видны) и `e2e` (сборка + Playwright).
      Задача `e2e` идет в образе
      `mcr.microsoft.com/playwright:vX.Y.Z-noble`, его тег = версия `@playwright/test` из `package-lock.json`.
+     `@playwright/test` в `package.json` — точная версия (с 8.3.2), чтобы `npm install` не сдвинул lock мимо образа.
      Обновил пакет — обнови тег образа И версию в шаге «Версия Playwright совпадает с образом» (строка `v !== 'X.Y.Z'`) в `test.yml` (шаг «Версия Playwright…» в CI упадет с подсказкой).
      С 09.10.2026 `deploy.yml` своих проверок не держит: если на коммите тега уже есть зеленый Tests — сразу
      сборка; Tests еще идет — ждет его (до 15 мин); нет (или отменен) — вызывает `test.yml` (`workflow_call`).

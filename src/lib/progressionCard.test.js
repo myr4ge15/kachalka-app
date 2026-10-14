@@ -1,4 +1,4 @@
-import { describe, it, expect } from 'vitest'
+import { describe, it, expect, vi, afterEach } from 'vitest'
 import {
   buildRecommendation,
   defaultSet,
@@ -63,8 +63,13 @@ describe('форматтеры панели', () => {
     expect(fmtProgStep(2.5, 'weight')).toBe('2.5 кг')
     expect(fmtProgStep(5, 'time')).toBe('5 с')
   })
+  // Время зафиксировано: «сейчас − 24 ч» в полночь после перехода на летнее время
+  // (America/Los_Angeles, 15.03.2027 00:30) — это ДВА календарных дня назад, а не «вчера»
+  // (аудит 14.10.2026). Даты задаем календарными днями, как считает daysAgoLabel.
+  afterEach(() => vi.useRealTimers())
   it('daysAgoLabel', () => {
-    const iso = (d) => new Date(Date.now() - d * 86400000).toISOString()
+    vi.useFakeTimers({ now: new Date(2027, 2, 15, 0, 30) })
+    const iso = (d) => new Date(2027, 2, 15 - d, 12).toISOString()
     expect(daysAgoLabel(iso(0))).toBe('сегодня')
     expect(daysAgoLabel(iso(1))).toBe('вчера')
     expect(daysAgoLabel(iso(3))).toBe('3 дня назад')

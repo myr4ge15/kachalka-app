@@ -1,5 +1,6 @@
 import { useState } from 'react'
 import { fmtTime, parseTime } from '../lib/metric.js'
+import { useSelectOnFocus } from '../hooks/useSelectOnFocus.js'
 
 // Поле «мин:сек» (упражнения на время). Пока человек печатает, держим СЫРУЮ строку:
 // раньше значение было `fmtTime(секунды)` и переформатировалось на каждое нажатие —
@@ -9,12 +10,16 @@ import { fmtTime, parseTime } from '../lib/metric.js'
 // показывает значение от родителя — степперы «−/+» работают как раньше.
 export default function TimeInput({ value, onChange, ...rest }) {
   const [raw, setRaw] = useState(null) // null — не в фокусе
+  // Тап выделяет время целиком (общий хук с полями веса/повторов; на iOS одного
+  // select() в onFocus мало — mouseup того же тапа ставил каретку по месту касания).
+  const select = useSelectOnFocus({ onFocus: () => setRaw(fmtTime(value)) })
   return (
     <input
       type="text" inputMode="numeric"
       {...rest}
       value={raw ?? fmtTime(value)}
-      onFocus={(e) => { setRaw(fmtTime(value)); e.target.select?.() }}
+      onFocus={select.onFocus}
+      onMouseUp={select.onMouseUp}
       onChange={(e) => {
         // Двоеточие с телефонной цифровой клавиатуры часто недоступно — принимаем
         // точку, запятую и пробел как разделитель минут и секунд.
@@ -22,7 +27,7 @@ export default function TimeInput({ value, onChange, ...rest }) {
         setRaw(next)
         onChange(parseTime(next))
       }}
-      onBlur={() => setRaw(null)}
+      onBlur={() => { select.onBlur(); setRaw(null) }}
     />
   )
 }

@@ -1,4 +1,5 @@
 import { test, expect } from '@playwright/test'
+import { enterPin, tabbar } from './helpers.js'
 
 test('дисциплины: группы, время и офлайн после перезапуска', async ({ page, context }) => {
   await context.addInitScript(() => Object.defineProperty(navigator,'onLine',{get:()=>false}))
@@ -7,8 +8,8 @@ test('дисциплины: группы, время и офлайн после 
   const user=await page.evaluate(async()=> (await import('/kachalka-app/src/test/e2eSeed.js')).seedE2E())
   await page.reload()
   await page.getByRole('button',{name:user.name}).click()
-  for(const digit of user.pin) await page.locator('.keypad .key',{hasText:new RegExp(`^${digit}$`)}).click()
-  await expect(page.locator('.tabbar')).toBeVisible()
+  await enterPin(page, user.pin)
+  await expect(tabbar(page)).toBeVisible()
   await page.evaluate(async userId=>{
     const {setMeta,loginDb}=await import('/kachalka-app/src/db/local.js')
     const {disciplineSignature}=await import('/kachalka-app/src/lib/disciplines.js')

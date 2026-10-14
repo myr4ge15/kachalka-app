@@ -398,7 +398,7 @@ export default function App() {
         </div>
       </main>
 
-      <nav className="tabbar" ref={navRef}>
+      <nav className="tabbar" ref={navRef} aria-label="Разделы">
         {/* Общая точка активной вкладки — переезжает (hooks/useTabDot.js). */}
         <span className="tab-dot" aria-hidden="true" />
         {/* Бренд-шапка сайдбара: видна только на десктопе (≥900px), где .tabbar

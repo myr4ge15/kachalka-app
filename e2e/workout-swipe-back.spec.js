@@ -1,4 +1,5 @@
 import { test, expect } from '@playwright/test'
+import { enterPin } from './helpers.js'
 
 // v8.4.0: открытая тренировка закрывается свайпом вправо (iOS «на экране Домой»),
 // под карточкой виден список. Перетаскивание упражнения — не свайп.
@@ -22,7 +23,7 @@ test('свайп из тренировки ведет к списку, пере�
   })
   await page.reload()
   await page.getByRole('button', { name: user.name }).click()
-  for (const digit of user.pin) await page.locator('.keypad .key', { hasText: new RegExp(`^${digit}$`) }).click()
+  await enterPin(page, user.pin)
   await page.getByRole('button', { name: 'Записать тренировку' }).click()
   const rows = page.locator('.exercise-card')
   await expect(rows).toHaveCount(2)

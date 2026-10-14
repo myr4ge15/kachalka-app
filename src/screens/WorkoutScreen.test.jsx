@@ -304,7 +304,7 @@ describe('WorkoutScreen', () => {
       ],
     }])
     render(<><WorkoutScreen user={user} /><Toast /></>)
-    const reps = () => screen.getAllByRole('spinbutton')
+    const reps = () => screen.getAllByLabelText(/^Повторения, подход/)
       .map((el) => el.value).filter((v) => ['8', '6', '4'].includes(v))
 
     expect(reps()).toEqual(['8', '6', '4'])

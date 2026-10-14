@@ -1,6 +1,7 @@
 // «Мой круг» (07.10.2026): ссылка #join=<код> без учетки — превью «кто зовет и куда» и
 // форма регистрации (Edge invite-redeem подменен); вошедший — «Мой круг» из Профиля.
 import { test, expect } from '@playwright/test'
+import { enterPin } from './helpers.js'
 
 const APP = '/kachalka-app/'
 
@@ -28,7 +29,7 @@ test('вошедший: Профиль → «Мой круг»; без сети 
   const user = await page.evaluate(async () => (await import('/kachalka-app/src/test/e2eSeed.js')).seedE2E())
   await page.reload()
   await page.getByRole('button', { name: user.name }).click()
-  for (const digit of user.pin) await page.locator('.keypad .key', { hasText: new RegExp(`^${digit}$`) }).click()
+  await enterPin(page, user.pin)
   await page.getByRole('button', { name: 'Открыть профиль' }).click()
   await page.getByRole('button', { name: /Мой круг/ }).click()
   await expect(page.getByRole('heading', { name: 'Мой круг' })).toBeVisible()

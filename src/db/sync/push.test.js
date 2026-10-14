@@ -79,6 +79,7 @@ import {
   pushGoal,
   pushReactions,
   pushTemplates,
+  TEMPLATE_WAIT_SERVER,
   pushUserMeta,
 } from './push.js'
 import { uniqueUserId } from '../../test/idbHarness.js'
@@ -107,14 +108,27 @@ describe('точные подходы шаблона', () => {
   it('старый сервер не получает урезанный fallback; очередь жива после 6 попыток', async () => {
     await seed()
     server.rpc = () => ({ error: { code: 'PGRST202', message: 'missing RPC' } })
-    for (let i = 0; i < 6; i++) await expect(pushTemplates(db)).rejects.toMatchObject({ code: 'TEMPLATE_SERVER_UPGRADE' })
-    expect((await db.tpl_outbox.toArray())[0]).toMatchObject({ attempts: 0 })
+    // Не бросает (иначе syncNow обрывался до тренировок), а возвращает предупреждение.
+    for (let i = 0; i < 6; i++) expect(await pushTemplates(db)).toEqual([TEMPLATE_WAIT_SERVER])
+    expect((await db.tpl_outbox.toArray())[0]).toMatchObject({ attempts: 0, lastError: TEMPLATE_WAIT_SERVER })
     expect((await db.tpl_outbox.toArray())[0]._dead).toBeFalsy()
     expect((await db.templates.get('plan')).exercises[0].set_plan).toEqual(set_plan)
     expect(server.calls.every((c) => c.name === 'upsert_template_v2')).toBe(true)
     server.rpc = () => ({ error: null })
-    await pushTemplates(db)
+    expect(await pushTemplates(db)).toEqual([])
     expect(await db.tpl_outbox.count()).toBe(0)
+  })
+  it('ждущий сервера шаблон не задерживает следующие в очереди', async () => {
+    await seed()
+    await db.templates.put({ id: 'plain', user_id: userId, name: 'Простой', updated_at: '1', _dirty: 1,
+      exercises: [{ exercise_id: 'bench', sets: 3, reps: 5, weight: 100 }] })
+    await db.tpl_outbox.add({ templateId: 'plain', type: 'upsert', attempts: 0, createdAt: '2' })
+    server.rpc = (name) => (name === 'upsert_template_v2'
+      ? { error: { code: 'PGRST202', message: 'missing RPC' } }
+      : { error: null })
+    expect(await pushTemplates(db)).toEqual([TEMPLATE_WAIT_SERVER])
+    expect((await db.tpl_outbox.toArray()).map((o) => o.templateId)).toEqual(['plan'])
+    expect((await db.templates.get('plain'))._dirty).toBe(0)
   })
 })
 
@@ -542,5 +556,29 @@ describe('pushGoal / pushUserMeta — частичный commit', () => {
 
     expect(server.calls).toEqual([])
     expect((await getUserMetaState(db)).badges.dirty).toBe(0)
+  })
+
+  it('значение, записанное пока читали «пустое», остается dirty', async () => {
+    await setMeta('user_meta_state', {
+      badges: { at: '2026-07-29T10:00:00.000Z', dirty: 1 },
+    }, db)
+    const get = db.meta.get.bind(db.meta)
+    let raced = false
+    vi.spyOn(db.meta, 'get').mockImplementation(async (key) => {
+      if (key === `badges_${userId}` && !raced) {
+        raced = true
+        const before = await get(key)
+        await writeSyncedMeta(userId, 'badges', { first: { at: '2026-07-30' } }, db)
+        return before
+      }
+      return get(key)
+    })
+    server.rpc = () => ({ data: null, error: null })
+
+    await pushUserMeta(userId, db)
+    vi.restoreAllMocks()
+
+    expect(raced).toBe(true)
+    expect((await getUserMetaState(db)).badges.dirty).toBe(1)
   })
 })

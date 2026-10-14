@@ -3,6 +3,7 @@ import SheetDialog from './SheetDialog.jsx'
 import { matchScannedText } from '../lib/scannerMatch.js'
 import { createScannerWorker } from '../services/scannerOcr.js'
 import { frameHasDetail, guideCrop } from '../lib/scannerFrame.js'
+import { pickMainBackCamera } from '../lib/scannerCamera.js'
 
 const Icon = ({ children }) => <svg className="scanner-ic" viewBox="0 0 24 24" fill="none" stroke="currentColor"
   strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">{children}</svg>
@@ -66,9 +67,24 @@ export default function ExerciseScanner({ exercises, onPick, onClose, onManual }
           fail('Камера недоступна. Открой приложение по HTTPS или воспользуйся ручным поиском.')
           return
         }
+        const size = { width: { ideal: 1280 }, height: { ideal: 720 } }
         stream = await navigator.mediaDevices.getUserMedia({ audio: false, video: {
-          facingMode: { ideal: 'environment' }, width: { ideal: 1280 }, height: { ideal: 720 },
+          facingMode: { ideal: 'environment' }, ...size,
         } })
+        if (disposed) { stop(); return }
+        // iPhone с несколькими объективами отдал виртуальную камеру, которая сама прыгает
+        // между ними: после разрешения подписи камер видны — переоткрываем основную (1×).
+        // Любой сбой — остаемся на уже открытой (lib/scannerCamera.js).
+        try {
+          const main = pickMainBackCamera(await navigator.mediaDevices.enumerateDevices?.())
+          const current = stream.getVideoTracks?.()[0]?.getSettings?.().deviceId
+          if (main && main !== current && !disposed) {
+            const next = await navigator.mediaDevices.getUserMedia({ audio: false, video: { deviceId: { exact: main }, ...size } })
+            if (disposed) { next.getTracks().forEach(t => t.stop()); stop(); return }
+            stream.getTracks().forEach(t => t.stop())
+            stream = next
+          }
+        } catch { /* остаемся на камере по умолчанию */ }
         if (disposed) { stop(); return }
         const camera = stream.getVideoTracks?.()[0]
         track.current = camera ?? null

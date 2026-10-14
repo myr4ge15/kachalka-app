@@ -1,4 +1,5 @@
 import { test, expect } from '@playwright/test'
+import { enterPin } from './helpers.js'
 
 // Подсказка «Как выполнять» (v8.0.0): открывается из карточки и из пикера, ничего
 // не меняет в тренировке, закрывается без потери введенного и места в пикере.
@@ -18,7 +19,7 @@ test('подсказка по технике: карточка и пикер, д
   })
   await page.reload()
   await page.getByRole('button', { name: user.name }).click()
-  for (const digit of user.pin) await page.locator('.keypad .key', { hasText: new RegExp(`^${digit}$`) }).click()
+  await enterPin(page, user.pin)
   await page.getByRole('button', { name: 'Записать тренировку' }).click()
 
   // Из карточки: лист с текстом и кадром; Escape закрывает, значения на месте.

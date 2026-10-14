@@ -1,4 +1,5 @@
 import { test, expect } from '@playwright/test'
+import { enterPin } from './helpers.js'
 
 test('обычный участник открывает приглашения в профиле, офлайн видит пояснение', async ({ page, context }) => {
   await context.addInitScript(() => Object.defineProperty(navigator, 'onLine', { get: () => false }))
@@ -7,7 +8,7 @@ test('обычный участник открывает приглашения 
   const user = await page.evaluate(async () => (await import('/kachalka-app/src/test/e2eSeed.js')).seedE2E())
   await page.reload()
   await page.getByRole('button', { name: user.name }).click()
-  for (const digit of user.pin) await page.locator('.keypad .key', { hasText: new RegExp(`^${digit}$`) }).click()
+  await enterPin(page, user.pin)
   await page.getByRole('button', { name: 'Открыть профиль' }).click()
   await expect(page.getByRole('button', { name: 'Админка', exact: true })).toHaveCount(0)
   await page.getByRole('button', { name: 'Пригласить участника' }).click()

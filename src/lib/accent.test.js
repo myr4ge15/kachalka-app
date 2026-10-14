@@ -134,3 +134,17 @@ describe('accent: для синка', () => {
     expect(sameAccent({ id: 'teal' }, { id: 'peach' })).toBe(false)
   })
 })
+
+describe('DEFAULT_ACCENT совпадает с токенами :root (index.css)', () => {
+  it('первый кадр без data-accent рисуется тем же цветом, что и акцент по умолчанию', () => {
+    const css = readFileSync(resolve(__dirname, '../index.css'), 'utf8')
+    const block = (re) => (css.match(re)?.[1] ?? '')
+    const tokens = (body) => Object.fromEntries(
+      ['--acc', '--acc-2', '--on-acc', '--acc-soft'].map((k) => [k, body.match(new RegExp(`${k}:\\s*([^;]+);`))?.[1].trim()]),
+    )
+    const root = tokens(block(/:root\s*\{([^}]*)\}/))
+    const preset = tokens(block(new RegExp(`html\\[data-accent="${DEFAULT_ACCENT}"\\]\\s*\\{([^}]*)\\}`)))
+    expect(root['--acc']).toBeTruthy()
+    expect(root).toEqual(preset)
+  })
+})

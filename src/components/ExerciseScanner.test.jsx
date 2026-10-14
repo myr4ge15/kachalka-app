@@ -117,3 +117,36 @@ it('does not display or copy raw OCR garbage into manual search', async () => {
   fireEvent.click(screen.getByText('Найти вручную'))
   expect(manual).toHaveBeenCalledWith('')
 })
+it('iPhone с тройной камерой: переоткрывает основной объектив и гасит виртуальную', async () => {
+  const virtual = { stop: vi.fn(), getSettings: () => ({ deviceId: 't' }) }
+  const main = { stop: vi.fn(), getSettings: () => ({ deviceId: 'm' }) }
+  navigator.mediaDevices.getUserMedia
+    .mockResolvedValueOnce({ getTracks: () => [virtual], getVideoTracks: () => [virtual] })
+    .mockResolvedValueOnce({ getTracks: () => [main], getVideoTracks: () => [main] })
+  navigator.mediaDevices.enumerateDevices = vi.fn().mockResolvedValue([
+    { kind: 'videoinput', deviceId: 't', label: 'Задняя тройная камера' },
+    { kind: 'videoinput', deviceId: 'm', label: 'Задняя камера' },
+  ])
+  worker.recognize.mockReturnValue(new Promise(() => {}))
+  render(<ExerciseScanner exercises={exercises} onClose={vi.fn()} onManual={vi.fn()} />)
+  await screen.findByText('Ищу название…')
+  expect(navigator.mediaDevices.getUserMedia).toHaveBeenLastCalledWith(expect.objectContaining({
+    video: expect.objectContaining({ deviceId: { exact: 'm' } }),
+  }))
+  expect(virtual.stop).toHaveBeenCalled()
+  expect(main.stop).not.toHaveBeenCalled()
+})
+it('основную камеру открыть не дали — сканер работает на камере по умолчанию', async () => {
+  const virtual = { stop: vi.fn(), getSettings: () => ({ deviceId: 't' }) }
+  navigator.mediaDevices.getUserMedia
+    .mockResolvedValueOnce({ getTracks: () => [virtual], getVideoTracks: () => [virtual] })
+    .mockRejectedValueOnce({ name: 'OverconstrainedError' })
+  navigator.mediaDevices.enumerateDevices = vi.fn().mockResolvedValue([
+    { kind: 'videoinput', deviceId: 't', label: 'Back Triple Camera' },
+    { kind: 'videoinput', deviceId: 'm', label: 'Back Camera' },
+  ])
+  worker.recognize.mockReturnValue(new Promise(() => {}))
+  render(<ExerciseScanner exercises={exercises} onClose={vi.fn()} onManual={vi.fn()} />)
+  await screen.findByText('Ищу название…')
+  expect(virtual.stop).not.toHaveBeenCalled()
+})

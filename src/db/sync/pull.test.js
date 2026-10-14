@@ -357,6 +357,47 @@ describe('pull справочника упражнений', () => {
   })
 })
 
+describe('пустой ответ под RLS без подтвержденной личности (аудит 14.10.2026)', () => {
+  const emptyServer = (c) => {
+    if (c.table === 'exercises' && c.select === 'id, updated_at') return { data: [], error: null }
+    return defaultResponse(c)
+  }
+
+  it('справочник: не стирается, предупреждение', async () => {
+    await db.exercises.put({ id: 'ex1', name: 'Жим', updated_at: T1 })
+    await setMeta('sig_exercises', 'старая', db)
+    server.from = emptyServer
+    const warnings = await pull(userId, new Set(), db)
+    expect(await db.exercises.get('ex1')).toBeTruthy()
+    expect(warnings).toContain('упражнения: сервер вернул пустой справочник')
+    expect(await getMeta('sig_exercises', db)).toBe('старая')
+  })
+
+  it('справочник: при подтвержденной личности пустота принимается', async () => {
+    await db.exercises.put({ id: 'ex1', name: 'Жим', updated_at: T1 })
+    server.from = emptyServer
+    await pull(userId, new Set(), db, { identityVerified: true })
+    expect(await db.exercises.get('ex1')).toBeUndefined()
+  })
+
+  it('шаблоны: чистые свои не удаляются по пустому окну', async () => {
+    await db.templates.put({ id: 'tpl', user_id: userId, name: 'План', updated_at: T1, exercises: [], _dirty: 0, _deleted: 0 })
+    await setMeta('sig_templates_v2', 'старая', db)
+    server.from = defaultResponse
+    const warnings = await pull(userId, new Set(), db)
+    expect(await db.templates.get('tpl')).toBeTruthy()
+    expect(warnings).toContain('шаблоны: сервер вернул пустой список')
+  })
+
+  it('шаблоны: при подтвержденной личности удаленный на сервере уходит', async () => {
+    await db.templates.put({ id: 'tpl', user_id: userId, name: 'План', updated_at: T1, exercises: [], _dirty: 0, _deleted: 0 })
+    await setMeta('sig_templates_v2', 'старая', db)
+    server.from = defaultResponse
+    await pull(userId, new Set(), db, { identityVerified: true })
+    expect(await db.templates.get('tpl')).toBeUndefined()
+  })
+})
+
 describe('pullUserMeta', () => {
   it('объединяет бейджи и принимает более свежие настройки прогрессии', async () => {
     await setMeta(`badges_${userId}`, {

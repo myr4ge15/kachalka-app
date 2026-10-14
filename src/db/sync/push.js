@@ -128,7 +128,13 @@ const sameJson = (a, b) => JSON.stringify(a) === JSON.stringify(b)
 // push() тренировок: template_exercises.exercise_id ссылается на exercises (FK),
 // поэтому упражнение должно появиться на сервере раньше шаблона. Upsert по
 // клиентскому id идемпотентен — повтор после обрыва безопасен.
+// Возвращает предупреждения прогона (массив строк). Детальный шаблон на сервере
+// без upsert_template_v2 — не сбой всего синка (аудит 14.10.2026): операцию оставляем
+// в очереди как есть (без попытки и dead-letter), идем к следующим, а syncNow
+// показывает текст предупреждением и отправляет тренировки дальше. Раньше эта
+// «временная» ошибка бросалась из очереди и обрывала прогон до push тренировок.
 export async function pushTemplates(d = db) {
+  let waitServer = null
   await runOutbox(d.tpl_outbox, async (op) => {
     if (op.type === 'upsert') {
       const doc = await d.templates.get(op.templateId)
@@ -159,7 +165,9 @@ export async function pushTemplates(d = db) {
         })
       )
       if (error && detailed && ['PGRST202', '42883'].includes(error.code)) {
-        throw { code: 'TEMPLATE_SERVER_UPGRADE', message: 'Шаблон сохранен на устройстве. Для синхронизации подходов нужно обновление сервера.' }
+        waitServer = TEMPLATE_WAIT_SERVER
+        await d.tpl_outbox.update(op.seq, { lastError: TEMPLATE_WAIT_SERVER })
+        return // операция жива, следующий прогон попробует снова
       }
       if (error) throw error
       // Шаблон правили, пока шел upsert (updated_at сдвинулся) — операцию и _dirty
@@ -180,7 +188,10 @@ export async function pushTemplates(d = db) {
       await d.tpl_outbox.delete(op.seq)
     }
   })
+  return waitServer ? [waitServer] : []
 }
+
+export const TEMPLATE_WAIT_SERVER = 'Шаблон сохранен на устройстве. Для синхронизации подходов нужно обновление сервера.'
 
 // Отправляем очередь по порядку. На первой же ошибке прекращаем — сохранится
 // порядок и не словим частичную отправку при недоступной сети.
@@ -401,7 +412,13 @@ export async function pushUserMeta(userId, d = db) {
     // null-значение (ключа локально нет) отправлять незачем — на сервере
     // пусто и так; просто снимаем флаг.
     if (value == null) {
-      await setUserMetaState(kind, { dirty: 0 }, d)
+      // Флаг снимаем по СВЕЖЕМУ состоянию: пока читали значение, его могли записать
+      // (writeSyncedMeta сдвигает at) — тогда ключ остается dirty (аудит 14.10.2026).
+      await d.transaction('rw', d.meta, async () => {
+        const now = await getUserMetaState(d)
+        if ((now[kind]?.at ?? '') !== (state[kind]?.at ?? '')) return
+        await setUserMetaState(kind, { dirty: 0 }, d)
+      })
       continue
     }
     const res = await withTimeout(

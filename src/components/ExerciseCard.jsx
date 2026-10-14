@@ -1,6 +1,7 @@
 import Chevron from './Chevron.jsx'
 import HoldButton from './HoldButton.jsx'
 import TimeInput from './TimeInput.jsx'
+import { useSelectOnFocus } from '../hooks/useSelectOnFocus.js'
 import SetsCells from './SetsCells.jsx'
 import { exerciseMetric, isCountMetric, hasExtraWeight, bestPace, fmtPace, paceSecPerKm } from '../lib/metric.js'
 import { resolveProgSettings } from '../lib/progression.js'
@@ -187,8 +188,8 @@ export default function ExerciseCard({
               <HoldButton onTrigger={() => onStep(ei, si, 'weight', isDistance ? -0.5 : extra ? -2.5 : -1.25)}>−</HoldButton>
               {/* Ноль доп. веса — пустое поле. Только ЧИСЛОВОЙ ноль: строку ввода
                   («-», «0.») показываем как есть, иначе минус и «0,5» не набрать. */}
-              <input
-                type="text" inputMode="decimal" value={extra && s.weight === 0 ? '' : s.weight}
+              <SetInput
+                inputMode="decimal" value={extra && s.weight === 0 ? '' : s.weight}
                 aria-label={`${isDistance ? 'Дистанция, км' : extra ? 'Доп. вес' : 'Вес'}, подход ${si + 1}`}
                 placeholder={isDistance ? 'км' : extra ? '0' : undefined}
                 onChange={(e) => onUpdateSet(ei, si, 'weight', e.target.value.replace(',', '.').replace('−', '-'))}
@@ -210,10 +211,10 @@ export default function ExerciseCard({
           ) : (
             <div className="stepper" role="group" aria-label={`Подход ${si + 1}, повторения`}>
               <HoldButton onTrigger={() => onStep(ei, si, 'reps', -1)}>−</HoldButton>
-              <input
-                type="number" inputMode="numeric" value={s.reps}
+              <SetInput
+                inputMode="numeric" pattern="[0-9]*" value={s.reps}
                 aria-label={`Повторения, подход ${si + 1}`}
-                onChange={(e) => onUpdateSet(ei, si, 'reps', e.target.value)}
+                onChange={(e) => onUpdateSet(ei, si, 'reps', e.target.value.replace(/\D/g, ''))}
               />
               <HoldButton onTrigger={() => onStep(ei, si, 'reps', 1)}>+</HoldButton>
             </div>
@@ -259,6 +260,13 @@ export default function ExerciseCard({
 }
 
 // Название + «i» сразу за последним словом: слово и значок не разрываются переносом.
+// Поле подхода (вес/повторы): текстовое с цифровой клавиатурой — у type=number нет API
+// выделения, и выделить значение на тапе там нельзя. Тап выделяет число целиком.
+function SetInput(props) {
+  const select = useSelectOnFocus()
+  return <input type="text" autoComplete="off" {...props} {...select} />
+}
+
 function TitleWithTechnique({ name, onTechnique }) {
   if (!onTechnique) return <span className="exercise-name">{name}</span>
   const i = name.lastIndexOf(' ')

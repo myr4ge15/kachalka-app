@@ -1,4 +1,5 @@
 import { test, expect } from '@playwright/test'
+import { enterPin } from './helpers.js'
 
 test.use({ hasTouch: true, viewport: { width: 390, height: 844 } })
 test('удержание → новый порядок → черновик после перезагрузки', async ({ page, context }) => {
@@ -18,7 +19,7 @@ test('удержание → новый порядок → черновик по
   })
   await page.reload()
   await page.getByRole('button', { name: user.name }).click()
-  for (const digit of user.pin) await page.locator('.keypad .key', { hasText: new RegExp(`^${digit}$`) }).click()
+  await enterPin(page, user.pin)
   await page.getByRole('button', { name: 'Записать тренировку' }).click()
   const rows = page.locator('.exercise-card')
   await expect(rows).toHaveCount(2)

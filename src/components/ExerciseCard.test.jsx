@@ -11,7 +11,7 @@
 // Pointer Events (onPointerDown), а не onClick; их поведение покрыто чистым
 // lib/hold. Здесь — только onClick-обработчики (jsdom-стабильно).
 import { describe, it, expect, vi } from 'vitest'
-import { render, screen, fireEvent } from '@testing-library/react'
+import { act, render, screen, fireEvent } from '@testing-library/react'
 import ExerciseCard from './ExerciseCard.jsx'
 
 const weightEntry = () => ({
@@ -171,7 +171,18 @@ describe('ExerciseCard — строки подходов (v6.1.0, без отм�
     expect(screen.queryByRole('button', { name: /Отметить подход|выполнен/ })).toBeNull()
     expect(screen.queryByText('сейчас')).toBeNull()
     expect(screen.getByLabelText('Вес, подход 2')).toHaveValue('60')
-    expect(screen.getByLabelText('Повторения, подход 2')).toHaveValue(9)
+    expect(screen.getByLabelText('Повторения, подход 2')).toHaveValue('9')
+  })
+
+  // 8.3.2: повторы — текстовое поле с цифровой клавиатурой (у type=number нет API выделения),
+  // поэтому лишние символы с аппаратной клавиатуры отсекаем сами.
+  it('повторы: только цифры; тап по весу выделяет число целиком', () => {
+    const { cbs } = renderCard(weightEntry())
+    fireEvent.change(screen.getByLabelText('Повторения, подход 1'), { target: { value: '1a2' } })
+    expect(cbs.onUpdateSet).toHaveBeenLastCalledWith(0, 0, 'reps', '12')
+    const w = screen.getByLabelText('Вес, подход 2')
+    act(() => w.focus())
+    expect([w.selectionStart, w.selectionEnd]).toEqual([0, 2])
   })
 })
 

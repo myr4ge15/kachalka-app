@@ -14,6 +14,7 @@ const srv = vi.hoisted(() => ({
     workoutsMain: [], // ответ основного оконного запроса тренировок (SELECT_WORKOUT)
     workoutIds: [],   // ответ дешевого select('id') для реконсиляции удалений
     upsertWorkout: () => ({ error: null }), // (args) => {error}
+    upsertTemplate: () => ({ error: null }), // (name, args) => {error}
     deleteWorkout: () => ({ error: null }),
     exFullFetches: 0, // сколько раз дернут ПОЛНЫЙ select справочника (не проба updated_at)
     identity: { known: false, id: null }, // ответ serverIdentity (кем сервер считает сессию)
@@ -79,6 +80,7 @@ vi.mock('./supabase.js', () => {
     const run = () => {
       if (name === 'my_is_private') return { data: false, error: null }
       if (name === 'upsert_workout') return state.upsertWorkout(args)
+      if (name === 'upsert_template' || name === 'upsert_template_v2') return state.upsertTemplate(name, args)
       return { data: null, error: null }
     }
     return { then(res, rej) { return Promise.resolve(run()).then(res, rej) } }
@@ -106,7 +108,7 @@ vi.mock('../lib/auth.js', () => ({
 }))
 
 import { openUserDb, closeUserDb, db } from './local.js'
-import { saveWorkout } from './repo.js'
+import { saveWorkout, saveTemplate } from './repo.js'
 import { syncNow, runOutbox, startSync, getSyncState } from './sync.js'
 import { uniqueUserId } from '../test/idbHarness.js'
 
@@ -149,6 +151,7 @@ beforeEach(async () => {
   srv.state.workoutsMain = []
   srv.state.workoutIds = []
   srv.state.upsertWorkout = () => ({ error: null })
+  srv.state.upsertTemplate = () => ({ error: null })
   srv.state.deleteWorkout = () => ({ error: null })
   srv.state.exFullFetches = 0
   srv.state.identity = { known: true, id: userId } // сервер подтверждает: сессия наша
@@ -608,6 +611,7 @@ describe('push: временные сбои не считаются попытк
     expect(op.lastError).toContain('Failed to fetch')
     // связь вернулась — операция уезжает
     srv.state.upsertWorkout = () => ({ error: null })
+  srv.state.upsertTemplate = () => ({ error: null })
     srv.state.workoutIds = [id]
     expect(await syncNow(userId)).toBe(true)
     expect(await db.outbox.count()).toBe(0)
@@ -658,5 +662,26 @@ describe('pull: правка упражнения на сервере освеж
     expect(await syncNow(userId)).toBe(true) // прогон прошел целиком
     expect(srv.state.healFetches).toEqual([])
     expect((await db.workouts.get('w1')).entries[0].exercise.name).toBe('Жим лежа')
+  })
+})
+
+describe('шаблон ждет обновления сервера (аудит 14.10.2026)', () => {
+  it('детальный шаблон без upsert_template_v2 не останавливает отправку тренировок', async () => {
+    await saveTemplate({ user_id: userId, name: 'План', exercises: [{ exercise: bench, metric: 'weight', set_plan: [{ weight: 100, reps: 5 }] }] })
+    await saveWorkout({ user_id: userId, performed_at: '2026-01-10', entries: [{ exercise: bench, sets: [{ weight: 100, reps: 5 }] }] })
+    srv.state.upsertTemplate = (name) => (name === 'upsert_template_v2'
+      ? { data: null, error: { code: 'PGRST202', message: 'Could not find the function public.upsert_template_v2' } }
+      : { error: null })
+    const sent = []
+    srv.state.upsertWorkout = (args) => { sent.push(args.p_workout_id); return { error: null } }
+
+    expect(await syncNow(userId)).toBe(true)
+    expect(sent).toHaveLength(1)
+    expect(await db.outbox.count()).toBe(0)
+    const [op] = await db.tpl_outbox.toArray()
+    expect(op).toMatchObject({ attempts: 0 })
+    expect(op._dead).toBeFalsy()
+    expect(getSyncState()).toMatchObject({ netError: false })
+    expect(getSyncState().lastError).toMatch(/обновление сервера/)
   })
 })

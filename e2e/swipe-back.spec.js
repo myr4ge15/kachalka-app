@@ -1,4 +1,5 @@
 import { test, expect } from '@playwright/test'
+import { enterPin, tabbar } from './helpers.js'
 
 test('свайп раскрывает сохраненный экран, отмена и повторный возврат без перезагрузки', async ({ page, context }) => {
   await context.addInitScript(() => {
@@ -11,7 +12,7 @@ test('свайп раскрывает сохраненный экран, отм�
   const user = await page.evaluate(async () => (await import('/kachalka-app/src/test/e2eSeed.js')).seedE2E())
   await page.reload()
   await page.getByRole('button', { name: user.name }).click()
-  for (const digit of user.pin) await page.locator('.keypad .key', { hasText: new RegExp(`^${digit}$`) }).click()
+  await enterPin(page, user.pin)
   await page.getByRole('button', { name: 'Открыть профиль' }).click()
   await page.getByRole('button', { name: 'Настройки', exact: true }).click()
   const settings = page.locator('.settings-screen')
@@ -31,7 +32,7 @@ test('свайп раскрывает сохраненный экран, отм�
   await expect(underlay).toHaveAttribute('inert', '')
   const left = await page.locator('.content > .nav-stack > .nav-current').evaluate(el => el.getBoundingClientRect().left)
   expect(left).toBeGreaterThan(150)
-  expect(await page.locator('.tabbar').evaluate(el => {
+  expect(await tabbar(page).evaluate(el => {
     const r = el.getBoundingClientRect()
     return el.contains(document.elementFromPoint(r.right - 20, r.top + 25))
   })).toBe(true)

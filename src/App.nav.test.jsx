@@ -45,6 +45,7 @@ vi.mock('./screens/PushSettingsScreen.jsx', () => stub('pushset'))
 vi.mock('./screens/WhatsNewScreen.jsx', () => stub('whatsnew'))
 vi.mock('./screens/FeedbackScreen.jsx', () => stub('feedback'))
 vi.mock('./screens/MemberScreen.jsx', () => stub('member'))
+vi.mock('./screens/CircleScreen.jsx', () => stub('circle'))
 vi.mock('./screens/LoginScreen.jsx', () => stub('login'))
 vi.mock('./screens/InviteScreen.jsx', () => stub('invite'))
 
@@ -153,6 +154,31 @@ describe('App: вложенные экраны и «назад»', () => {
     act(() => seen.profile.onOpenAchievements()); await settle()
     act(() => seen.achievements.onBack()); await settle()
     expect(current()).toBe('profile')
+  })
+
+  it('«Мой круг»: из Профиля и из Ленты — назад в Профиль', async () => {
+    await boot()
+    fireEvent.click(screen.getAllByRole('button', { name: 'Открыть профиль' })[0]); await settle()
+    act(() => seen.profile.onOpenCircle()); await settle()
+    expect(current()).toBe('circle')
+    act(() => seen.circle.onBack()); await settle()
+    expect(current()).toBe('profile')
+    tab('Лента'); await settle()
+    act(() => seen.feed.onOpenCircle()); await settle()
+    expect(current()).toBe('circle')
+    act(() => seen.circle.onBack()); await settle()
+    expect(current()).toBe('profile')
+  })
+
+  it('ссылка #join=… у вошедшего — сразу «Мой круг» с кодом, код стерт из адреса', async () => {
+    window.history.replaceState(null, '', '/kachalka-app/#join=7F3Q9XWD')
+    render(<App />)
+    await screen.findByTestId('screen-circle')
+    expect(current()).toBe('circle')
+    expect(seen.circle.joinCode).toBe('7F3Q9XWD')
+    expect(window.location.hash).toBe('')
+    act(() => seen.circle.onJoinCodeConsumed()); await settle()
+    expect(seen.circle.joinCode).toBeNull()
   })
 
   it('под-экраны Настроек возвращают в Настройки (одноразовый интент)', async () => {

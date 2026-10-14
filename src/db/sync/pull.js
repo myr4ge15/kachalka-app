@@ -151,11 +151,11 @@ export async function pull(userId, justPushed = new Set(), d = db, opts = {}) {
   const wrap = (p) => p.then((w) => ({ ok: true, w })).catch((e) => ({ ok: false, e }))
   const changedExerciseIds = new Set()
   const [ex, ros, , wk, tpl] = await Promise.all([
-    wrap(pullExercises(d, changedExerciseIds)),
+    wrap(pullExercises(d, changedExerciseIds, opts)),
     wrap(pullRoster()), // ростер и его сигнатура — в общей loginDb, `d` не нужен
     wrap(pullPrivacyFlag(userId, d)), // best-effort, warnings не копит
     wrap(pullWorkouts(userId, justPushed, d, opts)),
-    wrap(pullTemplates(userId, d)),
+    wrap(pullTemplates(userId, d, opts)),
   ])
   // Тренировки — КРИТИЧНАЯ подтяжка: ее сбой = сетевой сбой всего прогона (как и
   // раньше, когда throw из pullWorkouts пробрасывался в syncNow → netError). Бросаем
@@ -220,7 +220,7 @@ async function refreshWorkoutsForExercises(userId, exerciseIds, d = db) {
 }
 
 // --------------------------- pull: справочник ------------------------------
-async function pullExercises(d = db, changedExerciseIds = new Set()) {
+async function pullExercises(d = db, changedExerciseIds = new Set(), { identityVerified = false } = {}) {
   const warnings = []
   // справочник упражнений. Инкрементально: сперва дешевая проба (id + updated_at).
   // Набор и максимум не изменились с прошлого раза → пропускаем целиком (ни
@@ -246,6 +246,12 @@ async function pullExercises(d = db, changedExerciseIds = new Set()) {
       supabase.from('exercises').select('id, name, muscle_group, submuscle, secondary, is_bench_lift, is_female_lift, is_custom, is_hidden, metric, owner_id, merged_into, updated_at')
     )
     if (ex.error) warnings.push('упражнения: ' + (ex.error.message ?? ex.error))
+    // Пустой справочник без подтвержденной личности — скорее отозванная сессия (RLS
+    // отдает пустоту без ошибки), чем «на сервере ничего нет»: не стираем локальный
+    // справочник (тот же предохранитель, что у pullWorkouts; аудит 14.10.2026).
+    else if (ex.data && ex.data.length === 0 && !identityVerified && (await d.exercises.count()) > 0) {
+      warnings.push('упражнения: сервер вернул пустой справочник')
+    }
     else if (ex.data) {
       const serverExIds = new Set(ex.data.map((e) => e.id))
       await d.transaction('rw', d.exercises, d.ex_outbox, async () => {
@@ -510,7 +516,7 @@ async function pullWorkouts(userId, justPushed = new Set(), d = db, { identityVe
 }
 
 // --------------------------- pull: шаблоны ---------------------------------
-async function pullTemplates(userId, d = db) {
+async function pullTemplates(userId, d = db, { identityVerified = false } = {}) {
   const warnings = []
   // шаблоны: «мои ∪ общие в круге» (их мало). Инкрементально: дешевая проба
   // (id, updated_at) по окну → сигнатура. Не изменилась → пропуск тяжелого fetch'а
@@ -537,6 +543,12 @@ async function pullTemplates(userId, d = db) {
         .or(`user_id.eq.${userId},is_public.eq.true`))
     }
     if (tpl.error) warnings.push('шаблоны: ' + (tpl.error.message ?? tpl.error))
+    // Пустое окно шаблонов без подтвержденной личности — не повод удалять чистые
+    // локальные (см. pullExercises и pullWorkouts).
+    else if (tpl.data && tpl.data.length === 0 && !identityVerified
+      && (await d.templates.filter((t) => !t._dirty && !t._deleted && (t.user_id === userId || t.is_public)).count()) > 0) {
+      warnings.push('шаблоны: сервер вернул пустой список')
+    }
     else if (tpl.data) {
       const tplIds = new Set(tpl.data.map((r) => r.id))
       await d.transaction('rw', d.templates, d.tpl_outbox, async () => {

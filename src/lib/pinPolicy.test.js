@@ -1,5 +1,7 @@
 import { describe, it, expect } from 'vitest'
-import { isWeakPin, WEAK_PIN_TEXT } from './pinPolicy.js'
+import { existsSync, readFileSync } from 'node:fs'
+import { resolve } from 'node:path'
+import { isWeakPin, WEAK_PIN_TEXT, WEAK_PINS } from './pinPolicy.js'
 
 // Тот же список примеров — в supabase/functions/_shared/pin_test.ts (паритет клиент/сервер).
 const WEAK = ['1234', '0000', '1111', '1212', '7777', '2000', '4444', '2222', '6969', '9999']
@@ -14,4 +16,16 @@ describe('isWeakPin', () => {
     expect(isWeakPin(null)).toBe(false)
   })
   it('текст подсказки на месте', () => expect(WEAK_PIN_TEXT).toMatch(/простой PIN/))
+})
+
+// Паритет со списком сервера — сверкой файлов, а не копией литерала (аудит 14.10.2026).
+// supabase/ живет в приватном репо: в публичном CI файла нет, тест пропускается; в рабочей
+// папке и в приватном клоне он ловит разъезд списков.
+const SERVER_PIN = resolve(__dirname, '../../supabase/functions/_shared/pin.ts')
+describe.skipIf(!existsSync(SERVER_PIN))('pinPolicy ↔ _shared/pin.ts', () => {
+  it('WEAK_PINS клиента = WEAK_PINS сервера', () => {
+    const src = readFileSync(SERVER_PIN, 'utf8')
+    const list = src.match(/WEAK_PINS\s*=\s*\[([^\]]*)\]/)?.[1] ?? ''
+    expect([...list.matchAll(/"(\d+)"/g)].map((m) => m[1])).toEqual(WEAK_PINS)
+  })
 })
