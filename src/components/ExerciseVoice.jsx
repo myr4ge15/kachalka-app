@@ -49,17 +49,17 @@ export default function ExerciseVoice({ exercises, onPick }) {
         const transcript = result[0]?.transcript?.trim() ?? ''
         setText(transcript)
         if (!transcript) setError(speechError('no-speech'))
-        finish(false)
+        finish()
       }
       rec.onerror = (event) => {
         if (session.current !== active) return
         setError(speechError(event.error))
-        finish(false)
+        finish()
       }
       rec.onend = () => {
         if (session.current !== active) return
         setError(speechError('no-speech'))
-        finish()
+        finish(false)
       }
       // Permission prompts can take longer than the recording itself on iOS.
       // Start the limit only when audio capture actually begins.
@@ -82,8 +82,8 @@ export default function ExerciseVoice({ exercises, onPick }) {
   }
 
   return (
-    <div>
-      <button type="button" className="btn outline full" disabled={!Recognition}
+    <section className="exercise-voice" aria-label="Голосовой ввод">
+      <button type="button" className="btn outline full voice-trigger" disabled={!Recognition}
         aria-pressed={recording} onClick={start}>
         <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" aria-hidden="true">
           <rect x="9" y="2" width="6" height="12" rx="3" />
@@ -91,22 +91,37 @@ export default function ExerciseVoice({ exercises, onPick }) {
         </svg>
         {recording ? 'Остановить запись' : 'Назвать упражнение'}
       </button>
-      <p className="muted" role="status">
+      <p className="voice-status muted" role="status">
         {!Recognition ? 'Голосовой ввод недоступен. Используй поиск по названию.'
           : recording ? (listening ? 'Слушаю… Назови одно упражнение.' : 'Ожидаю микрофон… Подтверди разрешения, если появится запрос.')
-            : 'Голос может требовать интернет. В iOS PWA работа не гарантируется.'}
+            : ''}
       </p>
-      {error && <p className="error" role="alert">{error}</p>}
-      {text && <div className="create-similar">
-        <p>Распознано: «{text}»</p>
-        <p role="status">{candidates.length > 1 ? 'Уточни вариант — нажми, чтобы добавить:'
-          : candidates.length === 1 ? 'Подтверди добавление:' : 'Ничего не найдено. Повтори или используй поиск.'}</p>
-        {candidates.map((ex) => <button type="button" className="similar-item" key={ex.id}
-          onClick={() => { cancel(); setText(''); onPick(ex) }}>
-          <span>Добавить: {ex.name}</span><span className="picker-group">{ex.muscle_group}</span>
-        </button>)}
-        <button type="button" className="btn outline" onClick={() => setText('')}>Отменить выбор</button>
+      {error && <p className="voice-status error" role="alert">{error}</p>}
+      {text && <div className="voice-result">
+        <div className="voice-result-head">
+          <div className="voice-result-copy">
+            <span className="voice-eyebrow">Распознано</span>
+            <p className="voice-transcript">«{text}»</p>
+          </div>
+          <button type="button" className="voice-dismiss" aria-label="Отменить выбор" onClick={() => {
+            cancel(); setRecording(false); setListening(false); setText('')
+          }}>
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" aria-hidden="true"><path d="m6 6 12 12M18 6 6 18" /></svg>
+          </button>
+        </div>
+        <p className="voice-hint" role="status">{candidates.length > 1 ? 'Уточни вариант — нажми, чтобы добавить'
+          : candidates.length === 1 ? 'Нажми на упражнение, чтобы добавить' : 'Ничего не найдено. Повтори или используй поиск.'}</p>
+        <div className="voice-candidates">
+          {candidates.map((ex) => <button type="button" className="voice-candidate" key={ex.id}
+            aria-label={`Добавить: ${ex.name}`}
+            onClick={() => { cancel(); setText(''); onPick(ex) }}>
+            <span className="voice-candidate-copy"><span className="voice-candidate-name">{ex.name}</span>
+              {ex.muscle_group && <span className="picker-group">{ex.muscle_group}</span>}
+            </span>
+            <svg className="voice-add" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" aria-hidden="true"><path d="M12 5v14M5 12h14" /></svg>
+          </button>)}
+        </div>
       </div>}
-    </div>
+    </section>
   )
 }
