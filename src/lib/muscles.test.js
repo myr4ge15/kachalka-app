@@ -15,12 +15,16 @@ import {
   secondaryOptionsFor,
   cleanSecondary,
   SUBMUSCLE_SLUGS,
+  isNonMuscleSub,
+  isNonMuscleGroup,
 } from './muscles.js'
 import { GROUP_ORDER } from './dayTags.js'
 
 // Крупные группы таксономии. Помимо канонических GROUP_ORDER в реальной базе как
-// отдельные major живут «ягодицы» и «трапеции» (+ свободная «кардио»).
-const KNOWN_MAJORS = new Set([...GROUP_ORDER, 'кардио', 'ягодицы', 'трапеции'])
+// отдельные major живут «ягодицы» и «трапеции» (+ свободная «кардио»); с v8.2.0 —
+// «предплечья» и «разминка» (не мышца, как кардио).
+const EXTRA_MAJORS = ['кардио', 'ягодицы', 'трапеции', 'предплечья', 'разминка']
+const KNOWN_MAJORS = new Set([...GROUP_ORDER, ...EXTRA_MAJORS])
 
 describe('muscles — таксономия', () => {
   it('каждая подмышца привязана к известной крупной группе', () => {
@@ -46,7 +50,7 @@ describe('muscles — таксономия', () => {
   })
 
   it('у каждой крупной группы (кроме своих) есть дефолтная подмышца', () => {
-    for (const major of [...GROUP_ORDER, 'кардио', 'ягодицы', 'трапеции']) {
+    for (const major of [...GROUP_ORDER, ...EXTRA_MAJORS]) {
       expect(defaultSubmuscleFor(major), major).not.toBeNull()
     }
   })
@@ -63,7 +67,11 @@ describe('muscles — хелперы', () => {
   it('submusclesOf: возвращает все подмышцы группы в порядке объявления', () => {
     expect(submusclesOf('ноги')).toEqual(['quads', 'hamstrings', 'calves', 'adductors'])
     expect(submusclesOf('ягодицы')).toEqual(['glute_max', 'glute_med'])
-    expect(submusclesOf('трапеции')).toEqual(['traps'])
+    expect(submusclesOf('трапеции')).toEqual(['traps', 'traps_lower'])
+    expect(submusclesOf('плечи')).toEqual(['delt_front', 'delt_side', 'delt_rear', 'rotator_cuff'])
+    expect(submusclesOf('бицепс')).toEqual(['biceps'])
+    expect(submusclesOf('предплечья')).toEqual(['forearms'])
+    expect(submusclesOf('разминка')).toEqual(['warmup'])
     expect(submusclesOf('спина')).toEqual(['lats', 'rhomboids', 'lower_back'])
     expect(submusclesOf('трицепс')).toEqual(['triceps'])
     expect(submusclesOf('неизвестная')).toEqual([])
@@ -118,7 +126,9 @@ describe('muscles — хелперы', () => {
 
   it('подписи: известный → label, неизвестный → сам слаг', () => {
     expect(labelOf('glute_max')).toBe('большая ягодичная')
-    expect(labelAccusativeOf('traps')).toBe('трапецию')
+    expect(labelOf('traps')).toBe('верх трапеции')
+    expect(labelAccusativeOf('traps_lower')).toBe('середину и низ трапеции')
+    expect(labelAccusativeOf('rotator_cuff')).toBe('вращательную манжету')
     expect(labelOf('xxx')).toBe('xxx')
     expect(labelAccusativeOf('xxx')).toBe('xxx')
   })
@@ -128,18 +138,32 @@ describe('muscles — хелперы', () => {
     expect(SECONDARY_LOAD_FACTOR).toBeLessThan(1)
   })
 
-  it('secondaryOptionsFor: все подмышцы кроме основной и кардио', () => {
+  it('secondaryOptionsFor: все подмышцы кроме основной, кардио и разминки', () => {
     const opts = secondaryOptionsFor('biceps')
     expect(opts).not.toContain('biceps')
     expect(opts).not.toContain('cardio')
+    expect(opts).not.toContain('warmup')
     expect(opts).toContain('triceps')
     expect(opts).toContain('delt_front')
+    expect(opts).toContain('forearms')
+    expect(opts).toContain('rotator_cuff')
     // порядок сохраняется как в SUBMUSCLE_SLUGS
-    expect(opts).toEqual(SUBMUSCLE_SLUGS.filter((s) => s !== 'biceps' && s !== 'cardio'))
+    expect(opts).toEqual(SUBMUSCLE_SLUGS.filter((s) => !['biceps', 'cardio', 'warmup'].includes(s)))
   })
 
-  it('cleanSecondary: чистит неизвестные/дубли/основную/кардио, сохраняет порядок', () => {
-    expect(cleanSecondary(['triceps', 'delt_front', 'triceps', 'xxx', 'cardio', 'quads'], 'quads'))
+  it('«не мышцы»: кардио и разминка — и подмышцей, и группой (v8.2.0)', () => {
+    expect(isNonMuscleSub('cardio')).toBe(true)
+    expect(isNonMuscleSub('warmup')).toBe(true)
+    expect(isNonMuscleSub('glute_med')).toBe(false)
+    expect(isNonMuscleSub(undefined)).toBe(false)
+    expect(isNonMuscleGroup('кардио')).toBe(true)
+    expect(isNonMuscleGroup('разминка')).toBe(true)
+    expect(isNonMuscleGroup('плечи')).toBe(false)
+    expect(isNonMuscleGroup(null)).toBe(false)
+  })
+
+  it('cleanSecondary: чистит неизвестные/дубли/основную/кардио/разминку, сохраняет порядок', () => {
+    expect(cleanSecondary(['triceps', 'delt_front', 'triceps', 'xxx', 'cardio', 'warmup', 'quads'], 'quads'))
       .toEqual(['delt_front', 'triceps']) // порядок SUBMUSCLE_SLUGS: delt_front раньше triceps
     expect(cleanSecondary(null, 'biceps')).toEqual([])
     expect(cleanSecondary(['biceps'], 'biceps')).toEqual([])

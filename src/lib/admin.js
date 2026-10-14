@@ -333,7 +333,7 @@ export async function adminMergeExercise(fromId, intoId) {
     supabase.rpc('admin_merge_exercise', { p_from: fromId, p_into: intoId })
   )
   if (res.error) throw new AdminError(humanRpc(res.error.message))
-  await applyExerciseMergeLocal(fromId)
+  await applyExerciseMergeLocal(fromId, intoId)
   return true
 }
 

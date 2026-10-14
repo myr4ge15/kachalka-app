@@ -201,7 +201,7 @@ describe('упражнения: сервер + локальное зеркало
     rpc.mockReturnValueOnce(ok(null))
     expect(await admin.adminMergeExercise('a', 'b')).toBe(true)
     expect(rpc).toHaveBeenCalledWith('admin_merge_exercise', { p_from: 'a', p_into: 'b' })
-    expect(applyExerciseMergeLocal).toHaveBeenCalledWith('a')
+    expect(applyExerciseMergeLocal).toHaveBeenCalledWith('a', 'b')
   })
   it('AdminError — свой класс', () => {
     expect(new AdminError('x')).toBeInstanceOf(Error)

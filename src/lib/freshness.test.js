@@ -127,6 +127,14 @@ describe('groupFreshness', () => {
     ]
     expect(groupFreshness(list, { now: NOW }).map((f) => f.group)).toEqual(['спина'])
   })
+  // v8.2.0: разминка — тоже не мышца (раньше «Разминка» тренировала плечи).
+  it('разминка в готовность мышц не входит', () => {
+    const list = [
+      wk({ id: 'wu', at: daysAgo(1), entries: [{ exId: 'wu', group: 'разминка' }] }),
+      wk({ id: 'back', at: daysAgo(8), entries: [{ exId: 'row', group: 'спина' }] }),
+    ]
+    expect(groupFreshness(list, { now: NOW }).map((f) => f.group)).toEqual(['спина'])
+  })
 })
 
 describe('cardioGap (v7.5.6)', () => {
@@ -241,10 +249,11 @@ describe('submuscleFreshness', () => {
     swk({ id: 'q', at: daysAgo(5), entries: [{ sub: 'quads', major: 'ноги' }] }),
     swk({ id: 'c', at: daysAgo(1), entries: [{ sub: 'chest_lower', major: 'грудь' }] }),
     swk({ id: 'card', at: daysAgo(0), entries: [{ sub: 'cardio', major: 'кардио' }] }),
+    swk({ id: 'wu', at: daysAgo(0), entries: [{ sub: 'warmup', major: 'разминка' }] }),
   ]
   const out = submuscleFreshness(w, { now: NOW })
 
-  it('кардио исключено; по строке на тренированную подмышцу', () => {
+  it('кардио и разминка исключены; по строке на тренированную подмышцу', () => {
     expect(out.map((f) => f.submuscle)).toEqual(['quads', 'chest_lower'])
   })
   it('сортировка «пора» вниз (recent прежде fresh) + major и пороги', () => {
@@ -284,6 +293,10 @@ describe('submuscleImbalance', () => {
     const s = new Set(submuscleImbalance(wc, { now: NOW }).map((x) => x.submuscle))
     expect(s.has('chest_middle')).toBe(true) // обычная подмышца груди — выносится
     expect(s.has('serratus')).toBe(false) // минорная — нет
+  })
+  it('разминка не делает группу активной и сама в дисбаланс не идет (v8.2.0)', () => {
+    const wu = [swk({ id: 'wu', at: daysAgo(1), entries: [{ sub: 'warmup', major: 'разминка' }] })]
+    expect(submuscleImbalance(wu, { now: NOW })).toEqual([])
   })
 })
 

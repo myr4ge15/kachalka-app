@@ -11,6 +11,10 @@ export function humanRpc(message) {
   if (m.includes('users_login') || m.includes('duplicate key')) return 'Этот логин занят.'
   if (m.includes('rate limited')) return 'Слишком много операций подряд — подожди немного.'
   if (m.includes('invite already used')) return 'Ссылкой уже воспользовались — отозвать нельзя.'
+  // Слияние дублей (v8.2.0, admin-merge-exercise.sql).
+  if (m.includes('already merged')) return 'Это упражнение уже слито в другое.'
+  if (m.includes('hidden or merged')) return 'Сливать можно только в видимое упражнение.'
+  if (m.includes('shared exercise into personal')) return 'Общее упражнение можно слить только в общее.'
   if (m.includes('0..60')) return 'Пометка — до 60 символов.'
   if (m.includes('not found')) return 'Запись не найдена.'
   if (m.includes('1..60')) return 'Название — от 1 до 60 символов.'

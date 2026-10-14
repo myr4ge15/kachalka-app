@@ -217,6 +217,15 @@ describe('R5 забытая мышца (подмышца)', () => {
     expect(n.text).not.toContain('Большая ягодичная не')
   })
 
+  it('давняя разминка — не «забытая мышца» (v8.2.0)', () => {
+    const list = [
+      wk({ id: 'wu', at: daysAgo(20), entries: [{ exId: 'wu', group: 'разминка', sets: [S(0, 300)] }] }),
+      wk({ id: 'chest', at: daysAgo(0), entries: [{ exId: 'bp', group: 'грудь', sets: [S(80, 5)] }] }),
+    ]
+    const res = buildInsights({ workouts: list, now: NOW, max: 5 })
+    expect(res.find((i) => i.kind === 'neglect')).toBeFalsy()
+  })
+
   it('все свежее → правило молчит', () => {
     const list = [wk({ id: 'a', at: daysAgo(1), entries: [{ exId: 'bp', group: 'грудь', sets: [S(80, 5)] }] })]
     const res = buildInsights({ workouts: list, now: NOW, max: 5 })

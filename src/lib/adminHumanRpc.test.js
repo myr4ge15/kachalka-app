@@ -17,6 +17,9 @@ describe('admin.humanRpc', () => {
     ['name must be 1..30 chars', 'Имя — от 1 до 30 символов.'],
     ['function admin_x does not exist', 'Сервер не готов: обнови серверную часть.'],
     ['no schema', 'Сервер не готов: обнови серверную часть.'],
+    ['source exercise is already merged', 'Это упражнение уже слито в другое.'],
+    ['target exercise is hidden or merged', 'Сливать можно только в видимое упражнение.'],
+    ['cannot merge shared exercise into personal', 'Общее упражнение можно слить только в общее.'],
   ]
   it.each(cases)('«%s» → «%s»', (input, expected) => {
     expect(humanRpc(input)).toBe(expected)

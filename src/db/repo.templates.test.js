@@ -129,9 +129,9 @@ describe('админские правки упражнений — локаль�
     await applyExerciseEditLocal('нет', { name: 'x' })
     expect(await db.exercises.get('нет')).toBeUndefined()
   })
-  it('слияние прячет старое упражнение', async () => {
-    await applyExerciseMergeLocal('b')
-    expect((await db.exercises.get('b')).is_hidden).toBe(true)
+  it('слияние прячет старое упражнение и запоминает, куда слито', async () => {
+    await applyExerciseMergeLocal('b', 'a')
+    expect(await db.exercises.get('b')).toMatchObject({ is_hidden: true, merged_into: 'a' })
     await applyExerciseMergeLocal('нет')
   })
 })

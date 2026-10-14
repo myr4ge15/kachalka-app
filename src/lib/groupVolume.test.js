@@ -31,6 +31,11 @@ describe('groupVolumeTrend', () => {
     expect(flat.trend).toBe('flat')
   })
 
+  it('разминка в объем групп не идет, кардио — как было (v8.2.0)', () => {
+    const rows = groupVolumeTrend([wk(1, ex('разминка', S(3)), ex('кардио', S(1)), ex('ноги', S(2)))], NOW)
+    expect(rows.map((r) => r.group).sort()).toEqual(['кардио', 'ноги'])
+  })
+
   it('новая группа и пауза — без процентов', () => {
     const rows = groupVolumeTrend([wk(1, ex('пресс', S(3))), wk(20, ex('плечи', S(3)))], NOW)
     expect(rows.find((r) => r.group === 'пресс')).toMatchObject({ trend: 'new', pct: null })

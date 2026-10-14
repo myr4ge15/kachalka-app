@@ -2682,6 +2682,10 @@ label.act.busy { opacity: .55; pointer-events: none; }
     color: var(--text);
 }
 .admin-hint { margin: 0; font-size: 12px; color: var(--muted); line-height: 1.4; }
+/* Сводка слитых дублей под списком справочника (v8.2.0). */
+.admin-merged { margin-top: 10px; }
+.admin-merged > summary { cursor: pointer; min-height: 44px; display: flex; align-items: center; }
+.admin-merged-list { list-style: none; margin: 4px 0 0; padding: 0; display: flex; flex-direction: column; gap: 4px; }
 
 /* 2FA админки (v6.14.0, components/AdminMfa.jsx). QR читается только темным по
    светлому — подложка отдельным токеном --qr-bg, не акцент и не поверхность. */

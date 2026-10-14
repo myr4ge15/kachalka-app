@@ -1,6 +1,7 @@
 // Секция Админки «Справочник упражнений» (вынесена из screens/AdminScreen.jsx, v6.14.1).
 import { useEffect, useMemo, useRef, useState } from 'react'
 import { findExactDuplicate } from '../../lib/similar.js'
+import { isMergedAlias, mergeSources, mergeTargets, mergedSummary } from '../../lib/exerciseMerge.js'
 import { adminUpdateExercise, adminMergeExercise } from '../../lib/admin.js'
 import { submusclesOf, secondaryOptionsFor, labelOf, majorOf, defaultSubmuscleFor } from '../../lib/muscles.js'
 import { normMetric } from '../../lib/metric.js'
@@ -38,11 +39,17 @@ export default function ExercisesSection({ exercises, online, errMsg }) {
   const alive = useRef(true)
   useEffect(() => { alive.current = true; return () => { alive.current = false } }, [])
 
+  // Слитые дубли (merged_into, v8.2.0) — не упражнения, а постоянные алиасы:
+  // в списке их нет (иначе их можно было «показать» и получить живой дубль), только
+  // сводкой под списком.
+  const live = useMemo(() => exercises.filter((e) => !isMergedAlias(e)), [exercises])
+  const merged = useMemo(() => mergedSummary(exercises), [exercises])
+  const mergedCount = merged.reduce((n, m) => n + m.count, 0)
   const filtered = useMemo(() => {
     const q = query.trim().toLowerCase().replace(/ё/g, 'е')
-    if (!q) return exercises
-    return exercises.filter((e) => String(e.name ?? '').toLowerCase().replace(/ё/g, 'е').includes(q))
-  }, [exercises, query])
+    if (!q) return live
+    return live.filter((e) => String(e.name ?? '').toLowerCase().replace(/ё/g, 'е').includes(q))
+  }, [live, query])
 
   function openEdit(ex) {
     setEdId(ex.id)
@@ -101,7 +108,7 @@ export default function ExercisesSection({ exercises, online, errMsg }) {
     if (!mFrom) return null
     const from = exercises.find((e) => e.id === mFrom)
     if (!from) return null
-    const dup = findExactDuplicate(from.name, exercises.filter((e) => e.id !== mFrom))
+    const dup = findExactDuplicate(from.name, mergeTargets(exercises, mFrom))
     return dup ? dup.id : null
   }, [mFrom, exercises])
 
@@ -265,15 +272,26 @@ export default function ExercisesSection({ exercises, online, errMsg }) {
         {filtered.length === 0 && <li className="muted">Ничего не найдено.</li>}
       </ul>
 
+      {mergedCount > 0 && (
+        <details className="admin-merged">
+          <summary className="admin-hint">Слито дублей: {mergedCount}</summary>
+          <ul className="admin-merged-list">
+            {merged.map((m) => (
+              <li key={m.id} className="admin-hint">{m.name}{m.count > 1 ? ` ← ${m.count}` : ''}</li>
+            ))}
+          </ul>
+        </details>
+      )}
+
       {/* Слияние дублей */}
       {mergeOpen ? (
         <div ref={mergeRevealRef} className="admin-merge">
           <p className="admin-merge-title">Слить дубль</p>
           <label className="field">
             <span className="field-lab">Что слить (скроется)</span>
-            <select className="prog-select" value={mFrom} onChange={(e) => setMFrom(e.target.value)}>
+            <select className="prog-select" value={mFrom} onChange={(e) => { setMFrom(e.target.value); setMInto('') }}>
               <option value="">— выбери —</option>
-              {exercises.map((e) => (
+              {mergeSources(exercises).map((e) => (
                 <option key={e.id} value={e.id}>{e.name}{e.is_hidden ? ' (скрыто)' : ''}</option>
               ))}
             </select>
@@ -282,7 +300,7 @@ export default function ExercisesSection({ exercises, online, errMsg }) {
             <span className="field-lab">Во что слить (останется)</span>
             <select className="prog-select" value={mInto} onChange={(e) => setMInto(e.target.value)}>
               <option value="">— выбери —</option>
-              {exercises.filter((e) => e.id !== mFrom).map((e) => (
+              {mergeTargets(exercises, mFrom).map((e) => (
                 <option key={e.id} value={e.id}>
                   {e.name}{mergeDupHint === e.id ? ' · похоже на дубль' : ''}
                 </option>
@@ -290,7 +308,8 @@ export default function ExercisesSection({ exercises, online, errMsg }) {
             </select>
           </label>
           <p className="admin-hint">
-            Все тренировки и шаблоны со старого упражнения переедут на новое, старое скроется.
+            Тренировки, шаблоны, цели и дисциплины рейтинга со старого упражнения переедут на новое,
+            старое скроется насовсем. Общее упражнение можно слить только в общее.
             Действие необратимо из интерфейса.
           </p>
           <div className="admin-ex-actions">

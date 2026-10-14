@@ -21,6 +21,8 @@ import {
   defaultSubmuscleFor,
   isMinorSub,
   SUBMUSCLE_SLUGS,
+  isNonMuscleSub,
+  isNonMuscleGroup,
 } from './muscles.js'
 
 // Пороги восстановления (часы) по группам: крупные группы восстанавливаются
@@ -122,7 +124,7 @@ export function groupFreshness(workouts, { now = new Date() } = {}) {
   const nowT = (now instanceof Date ? now : new Date(now)).getTime()
   const out = []
   for (const [g, { day, at, t }] of map) {
-    if (g === CARDIO_GROUP) continue
+    if (isNonMuscleGroup(g)) continue // кардио и разминка — не мышцы (v8.2.0)
     const daysSince = today - day
     const hoursSince = Math.max(0, (nowT - t) / 3600000)
     const recoveryHours = recoveryHoursFor(g)
@@ -300,7 +302,7 @@ export function submuscleFreshness(workouts, { now = new Date() } = {}) {
   const nowT = (now instanceof Date ? now : new Date(now)).getTime()
   const out = []
   for (const [s, { day, at, t }] of map) {
-    if (s === 'cardio') continue
+    if (isNonMuscleSub(s)) continue
     const daysSince = today - day
     const hoursSince = Math.max(0, (nowT - t) / 3600000)
     const recoveryHours = subRecoveryHoursFor(s)
@@ -332,11 +334,11 @@ export function submuscleImbalance(workouts, { now = new Date(), windowDays = 14
   const worked = lastWorkedBySubmuscle(workouts)
   const trained = lastTrainedBySubmuscle(workouts)
   const activeMajors = new Set()
-  for (const s of trained.keys()) if (s !== 'cardio') activeMajors.add(majorOf(s))
+  for (const s of trained.keys()) if (!isNonMuscleSub(s)) activeMajors.add(majorOf(s))
   const today = dayIndex(now)
   const out = []
   for (const s of SUBMUSCLE_SLUGS) {
-    if (s === 'cardio' || isMinorSub(s)) continue
+    if (isNonMuscleSub(s) || isMinorSub(s)) continue
     const major = majorOf(s)
     if (!activeMajors.has(major)) continue
     const w = worked.get(s)

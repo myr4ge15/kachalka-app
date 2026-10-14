@@ -18,7 +18,7 @@
 // ============================================================================
 import { GROUP_ORDER } from './dayTags.js'
 import { lastTrainedBySubmuscle } from './freshness.js'
-import { labelAccusativeOf } from './muscles.js'
+import { labelAccusativeOf, isNonMuscleSub } from './muscles.js'
 import { leadingValue, fmtMetricValue, setTonnage } from './metric.js'
 import { myBestByExercise } from './records.js'
 import { detectPlateau } from './progression.js'
@@ -250,7 +250,7 @@ function rGroupNeglected(sorted, now, anchor, { threshold = 8, sex = null } = {}
   const today = dayIndex(now)
   let worst = null
   for (const [s, { day }] of lastDay) {
-    if (s === 'cardio') continue
+    if (isNonMuscleSub(s)) continue // кардио и разминка — не мышцы
     const days = today - day
     // Тай-брейк по слагу подмышцы: при равной «просроченности» выбор не должен
     // зависеть от порядка обхода Map (иначе «забытая мышца» флипает между прогонами).

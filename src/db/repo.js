@@ -70,9 +70,10 @@ export async function applyExerciseEditLocal(id, fields) {
 
 // Локально применить слияние дублей: старое упражнение прячем (is_hidden=1).
 // Денормализованные снимки в тренировках починятся на следующем pull.
-export async function applyExerciseMergeLocal(fromId) {
+export async function applyExerciseMergeLocal(fromId, intoId = null) {
   const ex = await db.exercises.get(fromId)
-  if (ex) await db.exercises.put({ ...ex, is_hidden: true })
+  // merged_into (v8.2.0) — как ставит сервер: строка сразу уходит из списка Админки.
+  if (ex) await db.exercises.put({ ...ex, is_hidden: true, ...(intoId ? { merged_into: intoId } : {}) })
 }
 
 // Добавить пользовательское упражнение в общий справочник (ТЗ 3.2 / 4.4).

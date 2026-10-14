@@ -14,7 +14,7 @@
 // не считаем — как и таймер восстановления, вторичная нагрузка его не двигает.
 // Пустые строки (reps = 0) — не подход.
 // ============================================================================
-import { majorOf } from './muscles.js'
+import { majorOf, WARMUP_GROUP } from './muscles.js'
 
 export const WEEKS = 4
 const HALF = WEEKS / 2
@@ -46,7 +46,9 @@ export function groupVolumeTrend(workouts, now = Date.now()) {
     const bucket = WEEKS - 1 - Math.floor(age / (7 * DAY_MS)) // 0 — старшая, WEEKS-1 — текущая
     for (const e of w.entries ?? []) {
       const g = groupOfEntry(e)
-      if (!g) continue
+      // Разминка (v8.2.0) — не мышечная работа: ее «подходы» объем групп не растят.
+      // Кардио остается строкой, как было.
+      if (!g || g === WARMUP_GROUP) continue
       const n = (e.sets ?? []).filter(isWorkingSet).length
       if (!n) continue
       if (!byGroup.has(g)) byGroup.set(g, Array(WEEKS).fill(0))
