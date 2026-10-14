@@ -2682,6 +2682,17 @@ label.act.busy { opacity: .55; pointer-events: none; }
     color: var(--text);
 }
 .admin-hint { margin: 0; font-size: 12px; color: var(--muted); line-height: 1.4; }
+/* История приглашений (v8.2.1): свернута под действующими ссылками. */
+.invite-history > summary {
+  cursor: pointer; list-style: none; min-height: 44px; display: flex; align-items: center; gap: 8px;
+  padding: 0 12px; border: 1px solid var(--border); border-radius: 12px; color: var(--text); font-size: 14px;
+}
+.invite-history > summary::-webkit-details-marker { display: none; }
+.invite-history-used { color: var(--muted); font-size: 12px; }
+.invite-history-chev { margin-left: auto; color: var(--muted); font-size: 18px; line-height: 1; transition: transform .2s ease; }
+.invite-history[open] .invite-history-chev { transform: rotate(90deg); }
+.invite-history[open] > .admin-list { margin-top: 8px; }
+@media (prefers-reduced-motion: reduce) { .invite-history-chev { transition: none; } }
 /* Сводка слитых дублей под списком справочника (v8.2.0). */
 .admin-merged { margin-top: 10px; }
 .admin-merged > summary { cursor: pointer; min-height: 44px; display: flex; align-items: center; }
@@ -3909,6 +3920,24 @@ html[data-sheet-open], html[data-sheet-open] body { overscroll-behavior: none; }
 /* Полоса прокрутки (Firefox/Windows рисует ее поверх содержимого) — в поле листа, а не
    на рисунках: контент отодвинут от края, сам скроллер заходит в правый отступ .sheet. */
 .sheet--technique .sheet-scroll.technique { padding-right: 12px; margin-right: -12px; }
+/* «Ниже есть еще» (v8.2.1): пока текст не дочитан, низ листа затухает, а над ним —
+   кнопка «Ещё ниже». Лист — опора для кнопки (position: relative). */
+.sheet--technique { position: relative; }
+.sheet--technique .sheet-scroll.technique.has-more {
+  -webkit-mask-image: linear-gradient(to bottom, #000 calc(100% - 72px), transparent);
+  mask-image: linear-gradient(to bottom, #000 calc(100% - 72px), transparent);
+}
+.technique-more {
+  position: absolute; left: 50%; transform: translateX(-50%);
+  bottom: calc(12px + env(safe-area-inset-bottom));
+  min-height: 44px; padding: 0 18px; border-radius: 999px;
+  background: var(--surface-solid); color: var(--text); border: 1px solid var(--border);
+  font: inherit; font-size: 14px; font-weight: 600;
+  display: inline-flex; align-items: center; gap: 6px;
+}
+.technique-more > span { color: var(--acc-2); animation: technique-more-nudge 1.6s ease-in-out infinite; }
+@keyframes technique-more-nudge { 0%, 100% { transform: translateY(0); } 50% { transform: translateY(3px); } }
+@media (prefers-reduced-motion: reduce) { .technique-more > span { animation: none; } }
 .technique-paper {
   background: var(--media-paper); border-radius: 14px; overflow: hidden;
   display: grid; place-items: center;
@@ -3939,8 +3968,26 @@ html[data-sheet-open], html[data-sheet-open] body { overscroll-behavior: none; }
 .technique-tips li::marker { color: var(--green); }
 .technique-mistakes li::marker { color: var(--red); }
 .technique-source { font-size: var(--fs-meta); margin: 0; }
-.technique-credits { font-size: var(--fs-meta); margin-top: -8px; }
-.technique-credits summary { cursor: pointer; min-height: 32px; display: flex; align-items: center; }
+.technique-credits { font-size: var(--fs-meta); margin-top: -6px; }
+/* v8.2.1: плашка вместо блеклой строки — видно, что это раскрывается. */
+.technique-credits summary {
+  cursor: pointer; list-style: none; min-height: 44px; display: flex; align-items: center; gap: 8px;
+  padding: 0 12px; border: 1px solid var(--border); border-radius: 12px;
+  background: color-mix(in srgb, var(--surface) 60%, transparent); color: var(--text);
+}
+.technique-credits summary::-webkit-details-marker { display: none; }
+.technique-credits-ico { flex: none; color: var(--acc-2); }
+.technique-credits-title { font-weight: 600; }
+.technique-credits-src { margin-left: auto; min-width: 0; color: var(--muted); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.technique-credits-chev { color: var(--muted); font-size: 18px; line-height: 1; transition: transform .2s ease; }
+.technique-credits[open] .technique-credits-chev { transform: rotate(90deg); }
+.technique-credits[open] summary { border-bottom-left-radius: 0; border-bottom-right-radius: 0; }
+.technique-credits-body {
+  margin: 0; padding: 10px 12px 12px; color: var(--muted); line-height: 1.45;
+  border: 1px solid var(--border); border-top: 0; border-radius: 0 0 12px 12px;
+}
+.technique-credits-body a { color: var(--acc-2); }
 @media (prefers-reduced-motion: reduce) {
   .technique-stage img { transition: none; }
+  .technique-credits-chev { transition: none; }
 }

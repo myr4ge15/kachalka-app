@@ -24,6 +24,12 @@ const FEED_LIMIT = 50
 // она не изменилась — тяжелый вложенный join (workout_exercises→exercise→sets)
 // НЕ тянем: реакции обновляем поверх кэша дешевым отдельным запросом.
 const FEED_SIG = 'sig_feed'
+// Сигнатура справочника упражнений — ее пишет pull справочника (db/sync/pull.js
+// SIG_EXERCISES), он идет в syncNow раньше fetchFeed. Входит в сигнатуру ленты
+// (v8.2.1): переименование/слияние упражнения не двигает workouts.updated_at (и не
+// должно — на workouts триггеры Telegram/пушей), и лента до чужой новой тренировки
+// показывала старые названия (инцидент 14.10: чистка справочника, тренировка Ильи).
+const EXERCISES_SIG = 'sig_exercises'
 
 // Тянем тренировку целиком, плюс имя автора (join users). Связь users указываем
 // ЯВНО по FK-констрейнту workouts_user_id_fkey: после появления таблицы reactions
@@ -184,7 +190,7 @@ export async function fetchFeed(userId, d = db) {
       .limit(FEED_LIMIT)
   )
   if (probe.error) throw probe.error
-  const sig = rosterSignature(probe.data ?? [])
+  const sig = rosterSignature(probe.data ?? []) + '|ex:' + ((await getMeta(EXERCISES_SIG, d)) ?? '')
   const changed = sig !== (await getMeta(FEED_SIG, d))
 
   let items

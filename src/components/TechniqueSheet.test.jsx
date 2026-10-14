@@ -32,7 +32,10 @@ describe('TechniqueSheet', () => {
     expect(screen.getByRole('dialog', { name: 'Жим лежа со штангой' })).toBeInTheDocument()
     expect(screen.getByText('середина груди', { exact: false })).toBeInTheDocument()
     expect(screen.getByText('Источники рисунков')).toBeInTheDocument()
-    expect(screen.getByText(/Everkinetic \(Greg Priday\), лицензия CC BY-SA 4\.0/)).toBeInTheDocument()
+    // v8.2.1: источник виден на свернутой плашке, ссылки на автора и лицензию — внутри.
+    expect(screen.getByText('Everkinetic · CC BY-SA')).toBeInTheDocument()
+    expect(screen.getByRole('link', { name: 'Everkinetic (Greg Priday)' })).toHaveAttribute('href', 'https://github.com/everkinetic/data')
+    expect(screen.getByRole('link', { name: 'CC BY-SA 4.0' })).toHaveAttribute('href', 'https://creativecommons.org/licenses/by-sa/4.0/')
   })
 
   it('кадры сменяются сами без мигания подписей; пауза и выбор позы останавливают смену', async () => {

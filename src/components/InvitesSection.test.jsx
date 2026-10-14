@@ -106,4 +106,27 @@ describe('InvitesSection (админка)', () => {
     expect(screen.getByRole('button', { name: 'Создать ссылку' })).toBeDisabled()
     expect(api.list).not.toHaveBeenCalled()
   })
+
+  it('действующие — сверху, история свернута со счетчиком (v8.2.1)', async () => {
+    api.list.mockResolvedValue([
+      { id: 'a', status: 'revoked', note: 'Веденек' },
+      { id: 'b', status: 'ok', note: 'Саша', expires_at: '2099-01-01T00:00:00Z' },
+      { id: 'c', status: 'used', note: 'Илья', used_by_name: 'Илья', used_at: '2026-10-01T00:00:00Z' },
+    ])
+    const { container } = renderSec()
+    const activeList = await screen.findByRole('list', { name: 'Действующие ссылки' })
+    expect(activeList).toHaveTextContent('Саша')
+    expect(activeList).not.toHaveTextContent('Веденек')
+    const history = container.querySelector('details.invite-history')
+    expect(history).not.toHaveAttribute('open')
+    expect(history.querySelector('summary')).toHaveTextContent('История ссылок: 2')
+    expect(history.querySelector('summary')).toHaveTextContent('зарегистрировались: 1')
+  })
+
+  it('нет действующих — так и говорим, история свернута', async () => {
+    api.list.mockResolvedValue([{ id: 'a', status: 'expired', note: 'Тони' }])
+    renderSec()
+    expect(await screen.findByText('Действующих ссылок нет.')).toBeInTheDocument()
+    expect(screen.queryByRole('list', { name: 'Действующие ссылки' })).toBeNull()
+  })
 })

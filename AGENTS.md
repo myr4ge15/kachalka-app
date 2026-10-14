@@ -447,7 +447,8 @@ updated_at)` + `upsert_user_meta` (`supabase/user-meta.sql`, RLS «только 
   (service_role, Edge `invite-redeem` с `--no-verify-jwt`); сырой токен в базу и логи не пишем — только SHA-256.
 - **Смена упражнения в админке → снимки в тренировках (v6.7.6).** Сервер `workouts.updated_at` НЕ двигает (на
   workouts триггеры Telegram и пушей — старые рекорды объявились бы заново); клиент сам перечитывает по id
-  свои чистые тренировки с изменившимися упражнениями (`db/sync/pull.js refreshWorkoutsForExercises`).
+  свои чистые тренировки с изменившимися упражнениями (`db/sync/pull.js refreshWorkoutsForExercises`), а Лента
+  перекачивает окно, когда меняется сигнатура справочника (`sig_exercises` входит в `sig_feed`, `db/feed.js`, v8.2.1).
 - **Лимит попыток PIN** → канон `auth-rate-claim.sql` (v6.7.5): попытка ЗАНИМАЕТСЯ `auth_rate_claim`
   до проверки PIN, под блокировкой строки; лок растет 15 мин → 1 ч → 4 ч. С П4 (07.10.2026) — только смена
   PIN; вход по имени — корзины `login-throttle.sql`, вход по id — `auth_login_id_claim` (`login-separate.sql`). Не возвращать в Edge

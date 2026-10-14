@@ -114,6 +114,16 @@ export function inviteCreatorLabel(inv) {
   return `Создал: ${who} · ${dd}`
 }
 
+// Список приглашений (v8.2.1): действующие — сверху, остальное — история под спойлером
+// (на видео владельца десятки отозванных строк прятали действующие и «Обновить список»).
+// Порядок внутри групп — как пришел с сервера (свежие сверху).
+export function splitInvites(list) {
+  const active = []
+  const past = []
+  for (const inv of list ?? []) (inv?.status === 'ok' ? active : past).push(inv)
+  return { active, past, used: past.filter((i) => i.status === 'used').length }
+}
+
 export function inviteListLabel(inv, now = new Date()) {
   const d = (iso) => {
     const x = new Date(iso)

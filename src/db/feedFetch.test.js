@@ -32,7 +32,7 @@ vi.mock('./supabase.js', () => {
   }
 })
 
-import { openUserDb, closeUserDb, db } from './local.js'
+import { openUserDb, closeUserDb, db, setMeta } from './local.js'
 import { fetchFeed } from './feed.js'
 import { uniqueUserId } from '../test/idbHarness.js'
 
@@ -66,6 +66,19 @@ describe('fetchFeed — запись кэша только при изменен
 
     expect(writes).not.toHaveBeenCalled()
     expect((await db.feed.get('w1')).reactions).toHaveLength(1)
+  })
+
+  it('справочник изменился (переименование/слияние) — лента перекачивается при том же окне (v8.2.1)', async () => {
+    server.workouts[0].workout_exercises = [{ id: 'we1', position: 0, exercise_id: 'e1', exercise: { id: 'e1', name: 'Приседания на скамейку', metric: 'weight' }, sets: [] }]
+    await fetchFeed(userId, db)
+    expect((await db.feed.get('w1')).entries[0].name).toBe('Приседания на скамейку')
+    // Сервер: упражнение слили, тренировка та же (updated_at не сдвинут).
+    server.workouts[0].workout_exercises[0] = { ...server.workouts[0].workout_exercises[0], exercise_id: 'e2', exercise: { id: 'e2', name: 'Приседания на опору', metric: 'weight' } }
+    await fetchFeed(userId, db)
+    expect((await db.feed.get('w1')).entries[0].name).toBe('Приседания на скамейку') // справочник еще не тянули
+    await setMeta('sig_exercises', 'e1,e2|2026-10-14T08:00:00Z', db) // pull справочника увидел правку
+    await fetchFeed(userId, db)
+    expect((await db.feed.get('w1')).entries[0].name).toBe('Приседания на опору')
   })
 
   it('новая реакция при том же окне — записывается', async () => {

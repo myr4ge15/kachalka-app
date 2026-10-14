@@ -2,6 +2,7 @@ import { describe, it, expect } from 'vitest'
 import {
   inviteFromUrl, stripInvite, inviteUrl, validateRegistration,
   inviteDeadText, inviteErrorText, inviteListLabel, inviteCreatorLabel, inviteMessage,
+  splitInvites,
 } from './invite.js'
 
 const TOKEN = 'a_tiNNP3RyzFJHQdG_xlbBkLpflaqExEUJzq2xU0eXo'
@@ -106,5 +107,16 @@ describe('inviteMessage', () => {
   it('без срока или с мусором — общая фраза про 7 дней', () => {
     expect(inviteMessage({})).toMatch(/работает 7 дней\.$/)
     expect(inviteMessage({ expiresAt: 'nope' })).toMatch(/работает 7 дней\.$/)
+  })
+})
+
+describe('splitInvites (v8.2.1)', () => {
+  it('действующие отдельно от истории, порядок сохраняется; считает зарегистрировавшихся', () => {
+    const l = [{ id: 1, status: 'revoked' }, { id: 2, status: 'ok' }, { id: 3, status: 'used' }, { id: 4, status: 'ok' }, { id: 5, status: 'expired' }]
+    const r = splitInvites(l)
+    expect(r.active.map((i) => i.id)).toEqual([2, 4])
+    expect(r.past.map((i) => i.id)).toEqual([1, 3, 5])
+    expect(r.used).toBe(1)
+    expect(splitInvites(null)).toEqual({ active: [], past: [], used: 0 })
   })
 })

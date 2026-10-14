@@ -1,5 +1,6 @@
-import { useEffect, useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import SheetDialog from './SheetDialog.jsx'
+import { useScrollMore } from '../hooks/useScrollMore.js'
 import { labelOf } from '../lib/muscles.js'
 import { techniqueFrameUrl } from '../lib/technique.js'
 
@@ -21,6 +22,7 @@ export function loadTechnique() {
 
 export default function TechniqueSheet({ slug, name, onClose }) {
   const [state, setState] = useState({ status: 'loading' })
+  const scrollRef = useRef(null)
   useEffect(() => {
     let alive = true
     loadTechnique().then(
@@ -31,9 +33,12 @@ export default function TechniqueSheet({ slug, name, onClose }) {
   }, [slug])
 
   const card = state.card
+  // «Ниже есть еще» (v8.2.1): рисунок занимает пол-экрана, и что лист листается,
+  // было неочевидно — низ затухает, внизу кнопка «Ещё ниже».
+  const { more, scrollMore } = useScrollMore(scrollRef, state.status)
   return (
     <SheetDialog title={name} onDismiss={onClose} swipeBack className="sheet--technique">
-      <div className="sheet-scroll technique">
+      <div ref={scrollRef} className={`sheet-scroll technique${more ? ' has-more' : ''}`}>
         {state.status === 'loading' && <p className="muted">Загружаю подсказку…</p>}
         {(state.status === 'error' || (state.status === 'ready' && !card)) && (
           <p className="muted">Не удалось открыть подсказку. Попробуй ещё раз позже.</p>
@@ -70,15 +75,33 @@ export default function TechniqueSheet({ slug, name, onClose }) {
             {/* Атрибуция CC BY-SA — одна на все рисунки: полная — в «Быстром старте»
                 («Источники рисунков») и public/technique/SOURCES.md, здесь — свернутая строка. */}
             {card.frames.length > 0 && (
-              <details className="technique-credits muted">
-                <summary>Источники рисунков</summary>
-                Рисунки: {state.source.author}, лицензия {state.source.license}.
-                Подробнее — в «Быстром старте», раздел «Источники рисунков».
+              // v8.2.1: была блеклой строкой «как просто текст» — теперь плашка с иконкой,
+              // источником и стрелкой; раскрывается в блок со ссылками.
+              <details className="technique-credits">
+                <summary>
+                  <svg className="technique-credits-ico" viewBox="0 0 24 24" width="16" height="16" fill="none"
+                    stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+                    <rect x="3" y="4" width="18" height="16" rx="3" /><circle cx="9" cy="10" r="1.6" /><path d="M21 16l-5-5-9 9" />
+                  </svg>
+                  <span className="technique-credits-title">Источники рисунков</span>
+                  <span className="technique-credits-src">Everkinetic · CC BY-SA</span>
+                  <span className="technique-credits-chev" aria-hidden="true">›</span>
+                </summary>
+                <p className="technique-credits-body">
+                  Рисунки — <a href={state.source.url} target="_blank" rel="noopener noreferrer">{state.source.author}</a>,
+                  лицензия <a href={state.source.licenseUrl} target="_blank" rel="noopener noreferrer">{state.source.license}</a>.
+                  Тексты подсказок написаны для kachalka-app. Подробнее — в «Быстром старте», раздел «Источники рисунков».
+                </p>
               </details>
             )}
           </>
         )}
       </div>
+      {more && (
+        <button type="button" className="technique-more" onClick={scrollMore}>
+          Ещё ниже <span aria-hidden="true">↓</span>
+        </button>
+      )}
     </SheetDialog>
   )
 }

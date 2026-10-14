@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from 'react'
 import { adminCreateInvite, adminListInvites, adminRevokeInvite } from '../lib/admin.js'
-import { inviteUrl, inviteListLabel, inviteCreatorLabel, inviteMessage } from '../lib/invite.js'
+import { inviteUrl, inviteListLabel, inviteCreatorLabel, inviteMessage, splitInvites } from '../lib/invite.js'
 import { showToast } from './Toast.jsx'
 import CardsSkeleton from './CardsSkeleton.jsx'
 const adminApi = { create: adminCreateInvite, list: adminListInvites, revoke: adminRevokeInvite }
@@ -84,6 +84,26 @@ export default function InvitesSection({ online, errMsg, api = adminApi, limit =
   }
 
   const canShare = typeof navigator !== 'undefined' && typeof navigator.share === 'function'
+  const { active, past, used } = splitInvites(list)
+
+  const row = (inv) => (
+    <li key={inv.id} className="admin-user">
+      <div className="admin-user-row">
+        <div className="admin-ex-main">
+          <span className="admin-ex-name">{inv.note || 'Без пометки'}</span>
+          <span className="admin-ex-meta">{limit && inv.status === 'used' ? '✅ Участник зарегистрировался' : inviteListLabel(inv)}</span>
+          {/* Создатель — только в админском списке (там ссылки всех); в Профиле они свои. */}
+          {limit === null && 'created_by_name' in inv && <span className="admin-ex-meta">{inviteCreatorLabel(inv)}</span>}
+        </div>
+        {inv.status === 'ok' && (
+          <div className="admin-ex-btns">
+            <button className="admin-mini" onClick={() => revoke(inv)}
+              disabled={!online || busy || revId !== null} aria-label="Отозвать ссылку">⛔</button>
+          </div>
+        )}
+      </div>
+    </li>
+  )
 
   return (
     <section className="sec invite-sec">
@@ -124,29 +144,23 @@ export default function InvitesSection({ online, errMsg, api = adminApi, limit =
 
       {loadErr && <div><p className="admin-offline" role="alert">{loadErr}</p><button className="btn ghost" onClick={reload} disabled={!online}>Повторить</button></div>}
       {list === null && <CardsSkeleton cards={2} />}
-      {list?.length > 0 && (
-        <ul className="admin-list">
-          {list.map((inv) => (
-            <li key={inv.id} className="admin-user">
-              <div className="admin-user-row">
-                <div className="admin-ex-main">
-                  <span className="admin-ex-name">{inv.note || 'Без пометки'}</span>
-                  <span className="admin-ex-meta">{limit && inv.status === 'used' ? '✅ Участник зарегистрировался' : inviteListLabel(inv)}</span>
-                  {/* Создатель — только в админском списке (там ссылки всех); в Профиле они свои. */}
-                  {limit === null && 'created_by_name' in inv && <span className="admin-ex-meta">{inviteCreatorLabel(inv)}</span>}
-                </div>
-                {inv.status === 'ok' && (
-                  <div className="admin-ex-btns">
-                    <button className="admin-mini" onClick={() => revoke(inv)}
-                      disabled={!online || busy || revId !== null} aria-label="Отозвать ссылку">⛔</button>
-                  </div>
-                )}
-              </div>
-            </li>
-          ))}
-        </ul>
+      {/* v8.2.1: действующие — сверху, история (отозванные, истекшие, по которым
+          зарегистрировались) — свернута, иначе она росла и прятала действующие. */}
+      {active.length > 0 && <ul className="admin-list" aria-label="Действующие ссылки">{active.map(row)}</ul>}
+      {list !== null && !loadErr && active.length === 0 && past.length > 0 && (
+        <p className="admin-hint">Действующих ссылок нет.</p>
       )}
       {limit && <button className="btn ghost" onClick={reload} disabled={!online || busy || revId !== null}>Обновить список</button>}
+      {past.length > 0 && (
+        <details className="invite-history">
+          <summary>
+            <span>История ссылок: {past.length}</span>
+            {used > 0 && <span className="invite-history-used">зарегистрировались: {used}</span>}
+            <span className="invite-history-chev" aria-hidden="true">›</span>
+          </summary>
+          <ul className="admin-list">{past.map(row)}</ul>
+        </details>
+      )}
     </section>
   )
 }
