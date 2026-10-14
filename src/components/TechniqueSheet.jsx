@@ -7,7 +7,8 @@ import { techniqueFrameUrl } from '../lib/technique.js'
 // пикера или тренировки. Справочник грузится лениво — в стартовый бандл не входит,
 // но его чанк лежит в precache, так что текст доступен и без сети. Кадры — по
 // нажатию; не загрузились — блок кадров просто исчезает, текст остается.
-// Лист ничего не меняет в тренировке: только читает справочник.
+// Лист ничего не меняет в тренировке: только читает справочник. На телефоне он во
+// весь экран и закрывается свайпом вправо, как вложенный экран (v8.1.1, swipeBack).
 
 let contentPromise = null
 export function loadTechnique() {
@@ -31,7 +32,7 @@ export default function TechniqueSheet({ slug, name, onClose }) {
 
   const card = state.card
   return (
-    <SheetDialog title={name} onDismiss={onClose} className="sheet--technique">
+    <SheetDialog title={name} onDismiss={onClose} swipeBack className="sheet--technique">
       <div className="sheet-scroll technique">
         {state.status === 'loading' && <p className="muted">Загружаю подсказку…</p>}
         {(state.status === 'error' || (state.status === 'ready' && !card)) && (

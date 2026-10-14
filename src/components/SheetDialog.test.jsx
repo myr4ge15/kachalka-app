@@ -1,8 +1,28 @@
 // @vitest-environment jsdom
 import { useState } from 'react'
-import { describe, expect, it, vi } from 'vitest'
-import { fireEvent, render, screen } from '@testing-library/react'
+import { afterEach, describe, expect, it, vi } from 'vitest'
+import { act, fireEvent, render, screen } from '@testing-library/react'
 import SheetDialog from './SheetDialog.jsx'
+
+// Свайп листа включается только на iOS «на экране Домой» — в jsdom подменяем проверку.
+const swipeEnv = vi.hoisted(() => ({ on: false }))
+vi.mock('../hooks/useEdgeSwipeBack.js', async (orig) => ({ ...(await orig()), edgeSwipeAvailable: () => swipeEnv.on }))
+afterEach(() => { swipeEnv.on = false; vi.useRealTimers() })
+
+// Жест пальцем: старт, движения, отпускание. Возвращает, гасился ли последний touchmove.
+function drag(target, [x0, y0], ...points) {
+  const fire = (type, x, y) => {
+    const event = new Event(type, { bubbles: true, cancelable: true })
+    event.touches = type === 'touchend' ? [] : [{ clientX: x, clientY: y }]
+    target.dispatchEvent(event)
+    return event.defaultPrevented
+  }
+  fire('touchstart', x0, y0)
+  let prevented = false
+  for (const [x, y] of points) prevented = fire('touchmove', x, y)
+  fire('touchend')
+  return prevented
+}
 
 describe('SheetDialog', () => {
   it('пропускает свайпы чипов с дрожанием по Y, но блокирует края и фон', () => {
@@ -207,5 +227,61 @@ describe('SheetDialog', () => {
     list.scrollTop = 0
     expect(swipe(screen.getByTestId('row'), 300, 360)).toBe(true) // уперлись в начало
     expect(swipe(screen.getByTestId('row'), 360, 300)).toBe(false) // а вниз — можно
+  })
+})
+
+// v8.1.1 (обращение fb_9be302c1): лист во весь экран закрывается свайпом вправо, как экран.
+describe('SheetDialog swipeBack', () => {
+  const sheet = (props = {}) => {
+    const onDismiss = vi.fn()
+    render(
+      <SheetDialog title="Подсказка" onDismiss={onDismiss} swipeBack {...props}>
+        <p data-testid="text">текст</p>
+        <input aria-label="поле" />
+      </SheetDialog>
+    )
+    return onDismiss
+  }
+
+  it('свайп вправо уводит лист и закрывает его', () => {
+    swipeEnv.on = true
+    vi.useFakeTimers()
+    const onDismiss = sheet()
+    const prevented = drag(screen.getByTestId('text'), [100, 300], [140, 302], [260, 305])
+    expect(prevented).toBe(true) // жест наш — страница не прокручивается
+    expect(screen.getByRole('dialog').style.transform).toMatch(/translateX/)
+    expect(onDismiss).not.toHaveBeenCalled() // сначала доезжает
+    act(() => { vi.advanceTimersByTime(200) })
+    expect(onDismiss).toHaveBeenCalledTimes(1)
+  })
+
+  it('короткий свайп возвращает лист; вертикальный — прокрутка; поле — свое', () => {
+    swipeEnv.on = true
+    vi.useFakeTimers()
+    const onDismiss = sheet()
+    drag(screen.getByTestId('text'), [100, 300], [112, 300], [125, 300])
+    act(() => { vi.advanceTimersByTime(200) })
+    expect(screen.getByRole('dialog').style.transform).toBe('')
+    drag(screen.getByTestId('text'), [100, 300], [110, 360], [200, 500])
+    drag(screen.getByRole('textbox', { name: 'поле' }), [100, 300], [160, 300], [300, 300])
+    act(() => { vi.advanceTimersByTime(200) })
+    expect(onDismiss).not.toHaveBeenCalled()
+  })
+
+  it('без поддержки устройства (не iOS-PWA) свайп не закрывает', () => {
+    vi.useFakeTimers()
+    const off = sheet() // jsdom: не iOS-PWA
+    drag(screen.getByTestId('text'), [100, 300], [140, 300], [300, 300])
+    act(() => { vi.advanceTimersByTime(200) })
+    expect(off).not.toHaveBeenCalled()
+  })
+
+  it('dismissDisabled выключает жест', () => {
+    swipeEnv.on = true
+    vi.useFakeTimers()
+    const onDismiss = sheet({ dismissDisabled: true })
+    drag(screen.getByTestId('text'), [100, 300], [140, 300], [300, 300])
+    act(() => { vi.advanceTimersByTime(200) })
+    expect(onDismiss).not.toHaveBeenCalled()
   })
 })

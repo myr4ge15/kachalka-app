@@ -1,11 +1,10 @@
 import { useEffect, useLayoutEffect, useRef, useState } from 'react'
 import { pushIntentFromUrl } from '../lib/pushIntent.js'
 import { emitReselect } from '../lib/appEvents.js'
-import { transitionKind, isNested, edgeSwipeSupported, nextScreenStack, initialScreenStack } from '../lib/screenNav.js'
-import { isIOSDevice } from '../lib/pushSupport.js'
+import { transitionKind, isNested, nextScreenStack, initialScreenStack } from '../lib/screenNav.js'
 import { storageGet, storageSet } from '../lib/safeStorage.js'
 import { captureAnchor, useScrollAnchorRestore } from './useScrollAnchor.js'
-import { useEdgeSwipeBack } from './useEdgeSwipeBack.js'
+import { edgeSwipeAvailable, useEdgeSwipeBack } from './useEdgeSwipeBack.js'
 import { settleScroll } from '../lib/scrollBox.js'
 
 // Навигация приложения (вынесено из App.jsx в v6.14.1, код — дословно): активная
@@ -107,12 +106,7 @@ export function useAppNav(user) {
   const [routeAnim, setRouteAnim] = useState({ tab, kind: 'fade', stack: initialScreenStack(tab) })
   if (routeAnim.tab !== tab) setRouteAnim({ tab, kind: routeAnim.stack.includes(tab) ? 'pop' : transitionKind(routeAnim.tab, tab), stack: nextScreenStack(routeAnim.stack, tab) })
   // Свайп назад — только iOS «на экране Домой»: там у системы своего жеста нет.
-  const [edgeSwipeOn] = useState(() => {
-    try {
-      const standalone = window.matchMedia?.('(display-mode: standalone)').matches || navigator.standalone === true
-      return edgeSwipeSupported({ isIOS: isIOSDevice(navigator), standalone })
-    } catch { return false }
-  })
+  const [edgeSwipeOn] = useState(edgeSwipeAvailable)
   // Сбрасываем позицию ПОСЛЕ React-commit нового экрана. requestAnimationFrame
   // из обработчика мог сработать еще на длинном Профиле до commit вкладки, и
   // «Прогресс» наследовал нижнюю позицию скролла.

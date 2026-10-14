@@ -6,6 +6,10 @@ import { describe, it, expect, vi, afterEach } from 'vitest'
 import { render, screen, fireEvent, act } from '@testing-library/react'
 import TechniqueSheet from './TechniqueSheet.jsx'
 
+// Свайп листа — только iOS «на экране Домой»; в jsdom включаем подменой.
+const swipeEnv = vi.hoisted(() => ({ on: false }))
+vi.mock('../hooks/useEdgeSwipeBack.js', async (orig) => ({ ...(await orig()), edgeSwipeAvailable: () => swipeEnv.on }))
+
 function mockReducedMotion(reduce) {
   window.matchMedia = vi.fn().mockImplementation((q) => ({
     matches: reduce && q.includes('reduce'), media: q,
@@ -15,6 +19,7 @@ function mockReducedMotion(reduce) {
 
 afterEach(() => {
   vi.useRealTimers()
+  swipeEnv.on = false
   delete window.matchMedia
 })
 
@@ -92,5 +97,24 @@ describe('TechniqueSheet', () => {
     expect(onClose).toHaveBeenCalledTimes(1)
     unmount()
     expect(vi.getTimerCount()).toBe(0)
+  })
+
+  // v8.1.1 (обращение fb_9be302c1): из подсказки выходят свайпом вправо, как из экрана.
+  it('свайп вправо закрывает подсказку', async () => {
+    mockReducedMotion(true) // без анимации отъезда — закрытие сразу по отпусканию
+    swipeEnv.on = true
+    const onClose = vi.fn()
+    render(<TechniqueSheet slug="bench-press" name="Жим лежа со штангой" onClose={onClose} />)
+    const text = await screen.findByText('Частые ошибки')
+    const fire = (type, x) => {
+      const event = new Event(type, { bubbles: true, cancelable: true })
+      event.touches = type === 'touchend' ? [] : [{ clientX: x, clientY: 300 }]
+      text.dispatchEvent(event)
+    }
+    fire('touchstart', 80)
+    fire('touchmove', 130)
+    fire('touchmove', 280)
+    fire('touchend')
+    expect(onClose).toHaveBeenCalledTimes(1)
   })
 })

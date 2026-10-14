@@ -5,7 +5,7 @@ import { beforeEach, describe, expect, it, vi } from 'vitest'
 import { act, renderHook } from '@testing-library/react'
 
 vi.mock('../lib/appEvents.js', () => ({ emitReselect: vi.fn() }))
-vi.mock('./useEdgeSwipeBack.js', () => ({ useEdgeSwipeBack: vi.fn() }))
+vi.mock('./useEdgeSwipeBack.js', async (orig) => ({ ...(await orig()), useEdgeSwipeBack: vi.fn() }))
 import { useAppNav } from './useAppNav.js'
 import { useEdgeSwipeBack } from './useEdgeSwipeBack.js'
 

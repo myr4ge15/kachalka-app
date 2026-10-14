@@ -1,6 +1,8 @@
-import { useEffect, useId, useRef } from 'react'
+import { useEffect, useId, useRef, useState } from 'react'
 import { createPortal } from 'react-dom'
 import { scrollableAncestor, shouldBlockSheetTouch } from '../lib/sheetTouch.js'
+import { edgeSwipeAvailable } from '../hooks/useEdgeSwipeBack.js'
+import { useSheetSwipeBack } from '../hooks/useSheetSwipeBack.js'
 
 const FOCUSABLE = [
   'button:not([disabled])',
@@ -43,11 +45,14 @@ function syncInert() {
 // Общая семантика нижнего листа: modal dialog, Escape, удержание фокуса и
 // возврат на кнопку-источник после закрытия. Визуальная геометрия остается у
 // существующих .overlay/.sheet в index.css.
+// swipeBack (v8.1.1) — лист закрывается свайпом вправо, как вложенный экран
+// (hooks/useSheetSwipeBack.js; только iOS «на экране Домой», не при dismissDisabled).
 export default function SheetDialog({
   title,
   actionLabel = 'закрыть',
   onDismiss,
   dismissDisabled = false,
+  swipeBack = false,
   className = '',
   children,
 }) {
@@ -66,6 +71,8 @@ export default function SheetDialog({
   // а onDismiss/dismissDisabled меняются между рендерами.
   const dismissRef = useRef(dismiss)
   useEffect(() => { dismissRef.current = dismiss })
+  const [swipeEnv] = useState(edgeSwipeAvailable)
+  useSheetSwipeBack(overlayRef, sheetRef, dismiss, swipeBack && swipeEnv && !dismissDisabled)
 
   useEffect(() => {
     const returnTo = returnToRef.current

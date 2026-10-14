@@ -13,12 +13,23 @@
 // экран (.screen-anim). Решения по жесту — чистые функции lib/screenNav.js.
 import { useEffect, useRef } from 'react'
 import { flushSync } from 'react-dom'
-import { EDGE_PX, swipeAxis, swipeBackBlocked, swipeCommits, textSelectionActive } from '../lib/screenNav.js'
+import { EDGE_PX, edgeSwipeSupported, swipeAxis, swipeBackBlocked, swipeCommits, textSelectionActive } from '../lib/screenNav.js'
+import { isIOSDevice } from '../lib/pushSupport.js'
 
 const SETTLE_MS = 180
 
 function reducedMotion() {
   try { return window.matchMedia('(prefers-reduced-motion: reduce)').matches } catch { return false }
+}
+
+// Включать ли свайп назад на этом устройстве: только iOS «на экране Домой»
+// (lib/screenNav.js edgeSwipeSupported). Общая проверка для экранов (useAppNav) и
+// листов (SheetDialog swipeBack, v8.1.1).
+export function edgeSwipeAvailable() {
+  try {
+    const standalone = window.matchMedia?.('(display-mode: standalone)').matches || navigator.standalone === true
+    return edgeSwipeSupported({ isIOS: isIOSDevice(navigator), standalone })
+  } catch { return false }
 }
 
 export function useEdgeSwipeBack(containerRef, screenRef, onBack, enabled) {
