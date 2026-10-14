@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState } from 'react'
 import { checkPinReset, applyPinReset, LoginError } from '../lib/auth.js'
 import { resetErrorText } from '../lib/recovery.js'
-import AppMark from '../components/AppMark.jsx'
+import AppMark from '../components/app/AppMark.jsx'
 import NewPinFields, { newPinProblem } from '../components/recovery/NewPinFields.jsx'
 
 // Новый PIN по ссылке из бота (П1 «Мой круг», 07.10.2026). Как InviteScreen:

@@ -4,10 +4,10 @@ import { getCachedLeaderboard, fetchLeaderboard, getLeadExerciseNames, viewerBoa
 import { getUsers, getCachedUser, getPrivacyFlag } from '../db/repo.js'
 import { onOnline, onResume } from '../lib/appEvents.js'
 import { findNearestRival } from '../lib/rivalry.js'
-import Avatar from './../components/Avatar.jsx'
-import Skeleton from '../components/Skeleton.jsx'
-import CardsSkeleton from '../components/CardsSkeleton.jsx'
-import RivalryCard from '../components/RivalryCard.jsx'
+import Avatar from '../components/ui/Avatar.jsx'
+import Skeleton from '../components/ui/Skeleton.jsx'
+import CardsSkeleton from '../components/ui/CardsSkeleton.jsx'
+import RivalryCard from '../components/progress/RivalryCard.jsx'
 
 // Медаль для тройки призеров, дальше — номер места.
 // Место — крупной цифрой; тройка лидеров — в кружке золота/серебра/бронзы (v6.2.1,

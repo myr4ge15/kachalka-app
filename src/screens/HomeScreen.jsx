@@ -12,8 +12,8 @@ import { labelOf, majorOf } from '../lib/muscles.js'
 import { leadTarget, leadSince, cardioLine } from '../lib/recoveryText.js'
 import { rhythmChart, fmtAvg, avgWord, mondayLabel } from '../lib/rhythmChart.js'
 import { useRevealFocus } from '../hooks/useRevealFocus.js'
-import CardsSkeleton from '../components/CardsSkeleton.jsx'
-import EmptyHint from '../components/EmptyHint.jsx'
+import CardsSkeleton from '../components/ui/CardsSkeleton.jsx'
+import EmptyHint from '../components/ui/EmptyHint.jsx'
 
 // Полоска свежести в тизере — в каноническом порядке групп (стабильно), не по
 // приоритету «пора». Группы вне канона уезжают в конец.

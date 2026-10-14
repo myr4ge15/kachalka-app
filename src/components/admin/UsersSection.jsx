@@ -1,12 +1,12 @@
 // Секция Админки «Пользователи» (вынесена из screens/AdminScreen.jsx, v6.14.1).
 import { useEffect, useRef, useState } from 'react'
 import { normalizeLogin, loginProblem } from '../../lib/login.js'
-import LoginField from '../LoginField.jsx'
+import LoginField from '../auth/LoginField.jsx'
 import { adminListUsers, adminSetUser, adminSetPrivate, adminSetSex, adminResetPin, adminCreateUser, adminDeleteUser, adminSetUserOrder } from '../../lib/admin.js'
 import { onlyDigits } from '../../lib/text.js'
-import { showToast } from '../Toast.jsx'
-import CardsSkeleton from '../CardsSkeleton.jsx'
-import PencilIcon from '../PencilIcon.jsx'
+import { showToast } from '../ui/Toast.jsx'
+import CardsSkeleton from '../ui/CardsSkeleton.jsx'
+import PencilIcon from '../ui/PencilIcon.jsx'
 import UserReorderList from './UserReorderList.jsx'
 import { useRevealFocus } from '../../hooks/useRevealFocus.js'
 

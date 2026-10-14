@@ -18,7 +18,7 @@ import {
 vi.mock('dexie-react-hooks', () => ({ useLiveQuery: vi.fn(() => []) }))
 vi.mock('../db/repo.js', () => ({ getAllExercisesForAdmin: vi.fn(() => Promise.resolve([])) }))
 vi.mock('../db/sync.js', () => ({ useSyncStatus: () => ({ online: true }) }))
-vi.mock('../components/Toast.jsx', () => ({ showToast: vi.fn() }))
+vi.mock('../components/ui/Toast.jsx', () => ({ showToast: vi.fn() }))
 // 2FA (v6.14.0): по умолчанию выключена — Админка открывается сразу.
 vi.mock('../lib/adminMfa.js', async (orig) => {
   const real = await orig()

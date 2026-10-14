@@ -3,8 +3,8 @@ import { useLiveQuery } from 'dexie-react-hooks'
 import { getBadgesView, backfillBadges } from '../db/badges.js'
 import { fmtBadgeValue } from '../lib/badges.js'
 import { fmtWhen } from '../lib/dates.js'
-import CardsSkeleton from '../components/CardsSkeleton.jsx'
-import BackButton from '../components/BackButton.jsx'
+import CardsSkeleton from '../components/ui/CardsSkeleton.jsx'
+import BackButton from '../components/ui/BackButton.jsx'
 
 // Экран «Достижения» (PLAN-badges, Slice 1b). Сетка бейджей по категориям:
 // полученные — с датой, закрытые — с прогресс-баром до вехи. Все считается на

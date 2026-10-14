@@ -10,9 +10,9 @@ import { LEAD_TARGET, leadSince, cardioLine } from '../lib/recoveryText.js'
 import { labelOf } from '../lib/muscles.js'
 import { groupAccusative } from '../lib/dayTags.js'
 import { byGender } from '../lib/gender.js'
-import MuscleMap, { regionOf, regionSubs, regionLabel } from '../components/MuscleMap.jsx'
-import CardsSkeleton from '../components/CardsSkeleton.jsx'
-import BackButton from '../components/BackButton.jsx'
+import MuscleMap, { regionOf, regionSubs, regionLabel } from '../components/exercises/MuscleMap.jsx'
+import CardsSkeleton from '../components/ui/CardsSkeleton.jsx'
+import BackButton from '../components/ui/BackButton.jsx'
 
 // Экран «Готовность мышц» (v6.2.5, макет — prototypes/freshness.html, «А · компактнее»).
 // Раньше: карта + длинный список «Когда снова тренировать» (по строке на подмышцу,

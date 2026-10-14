@@ -6,9 +6,9 @@
 // отсюда через событие хука).
 //
 // Пропсы: user, onBack().
-import BackButton from '../components/BackButton.jsx'
-import PushToggle from '../components/PushToggle.jsx'
-import PushTypes from '../components/PushTypes.jsx'
+import BackButton from '../components/ui/BackButton.jsx'
+import PushToggle from '../components/notifications/PushToggle.jsx'
+import PushTypes from '../components/notifications/PushTypes.jsx'
 import { usePushToggle } from '../hooks/usePushToggle.js'
 
 export default function PushSettingsScreen({ user, onBack }) {

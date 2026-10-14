@@ -1,8 +1,8 @@
 import { useEffect, useState } from 'react'
 import { getMyLogin, setMyLogin, LoginError } from '../../lib/auth.js'
 import { normalizeLogin } from '../../lib/login.js'
-import LoginField from '../LoginField.jsx'
-import { showToast } from '../Toast.jsx'
+import LoginField from '../auth/LoginField.jsx'
+import { showToast } from '../ui/Toast.jsx'
 import { useRevealFocus } from '../../hooks/useRevealFocus.js'
 import { useAliveRef } from '../../hooks/useAliveRef.js'
 

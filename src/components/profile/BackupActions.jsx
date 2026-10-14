@@ -3,7 +3,7 @@ import { exportAllMyData, importAllMyData } from '../../db/backup.js'
 import { describeImport, BackupError } from '../../lib/backup.js'
 import { syncNow } from '../../db/sync.js'
 import { APP_VERSION } from '../../lib/appVersion.js'
-import { showToast } from '../Toast.jsx'
+import { showToast } from '../ui/Toast.jsx'
 import { useAliveRef } from '../../hooks/useAliveRef.js'
 
 // Все мои данные: выгрузка и восстановление (Настройки; вынесено из ProfileScreen в

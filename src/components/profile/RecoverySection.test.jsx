@@ -14,7 +14,7 @@ vi.mock('../../lib/auth.js', () => {
     unlinkTg: vi.fn(async () => null), getBotUsername: vi.fn(), getBotInfo: vi.fn(), LoginError,
   }
 })
-vi.mock('../Toast.jsx', () => ({ showToast: vi.fn() }))
+vi.mock('../ui/Toast.jsx', () => ({ showToast: vi.fn() }))
 
 const T = 'a_tiNNP3RyzFJHQdG_xlbBkLpflaqExEUJzq2xU0eXo'
 const NONE = { hasCode: false, codeCreatedAt: null, tgLinked: false, tgLinkedAt: null }

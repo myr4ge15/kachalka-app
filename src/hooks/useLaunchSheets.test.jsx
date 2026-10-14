@@ -9,7 +9,7 @@ vi.mock('../db/push.js', () => ({
   markPushAsked: vi.fn(),
 }))
 vi.mock('../lib/pushSupport.js', () => ({ shouldAskPush: vi.fn(() => true) }))
-vi.mock('../components/Toast.jsx', () => ({ showToast: vi.fn() }))
+vi.mock('../components/ui/Toast.jsx', () => ({ showToast: vi.fn() }))
 // По умолчанию у сброса PIN нет своего бота — листа «Привяжи Telegram» нет (v7.5.0).
 vi.mock('../lib/auth.js', () => ({
   getBotInfo: vi.fn(async () => ({ username: 'b', dedicated: false })),
@@ -22,7 +22,7 @@ import { SEEN_KEY } from '../lib/whatsNew.js'
 import { markWelcomePending, welcomeKey } from '../lib/welcome.js'
 import { markPushAsked } from '../db/push.js'
 import { getBotInfo, getRecoveryStatus } from '../lib/auth.js'
-import { showToast } from '../components/Toast.jsx'
+import { showToast } from '../components/ui/Toast.jsx'
 import { snoozeKey, SNOOZE_MS } from '../lib/tgLinkPrompt.js'
 
 const ME = { id: 'u1', name: 'Дима' }

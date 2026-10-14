@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react'
 import { useRevealFocus } from '../hooks/useRevealFocus.js'
-import BackButton from '../components/BackButton.jsx'
-import WhatsNewItems from '../components/WhatsNewItems.jsx'
+import BackButton from '../components/ui/BackButton.jsx'
+import WhatsNewItems from '../components/onboarding/WhatsNewItems.jsx'
 import { WHATS_NEW } from '../content/whatsNew.js'
 import { fmtWhatsNewDate, OPENED_KEY, writeMark } from '../lib/whatsNew.js'
 

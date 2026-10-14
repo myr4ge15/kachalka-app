@@ -1,8 +1,8 @@
 import { useEffect, useRef, useState } from 'react'
-import BackButton from '../components/BackButton.jsx'
-import CardsSkeleton from '../components/CardsSkeleton.jsx'
-import { showToast } from '../components/Toast.jsx'
-import FeedbackPhotos from '../components/FeedbackPhotos.jsx'
+import BackButton from '../components/ui/BackButton.jsx'
+import CardsSkeleton from '../components/ui/CardsSkeleton.jsx'
+import { showToast } from '../components/ui/Toast.jsx'
+import FeedbackPhotos from '../components/social/FeedbackPhotos.jsx'
 import { useSyncStatus } from '../db/sync.js'
 import {
   bodyProblem, buildContext, canReopen, fmtFeedbackDate, hasReply, hasUnreadReply, isStaleReply, isWebKit26Plus,

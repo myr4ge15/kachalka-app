@@ -1,7 +1,7 @@
 import { useState } from 'react'
 import { softDeleteMyWorkouts } from '../../db/repo.js'
 import { syncNow } from '../../db/sync.js'
-import { showToast } from '../Toast.jsx'
+import { showToast } from '../ui/Toast.jsx'
 import { useAliveRef } from '../../hooks/useAliveRef.js'
 
 // «Удалить мои данные» (фаза 2c, soft-delete; вынесено из ProfileScreen в v6.14.1).

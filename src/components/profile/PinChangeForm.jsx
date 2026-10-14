@@ -2,7 +2,7 @@ import { useState } from 'react'
 import { setPin, LoginError } from '../../lib/auth.js'
 import { onlyDigits } from '../../lib/text.js'
 import { isWeakPin, WEAK_PIN_TEXT } from '../../lib/pinPolicy.js'
-import { showToast } from '../Toast.jsx'
+import { showToast } from '../ui/Toast.jsx'
 import { useRevealFocus } from '../../hooks/useRevealFocus.js'
 import { useAliveRef } from '../../hooks/useAliveRef.js'
 

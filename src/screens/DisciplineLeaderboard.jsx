@@ -7,8 +7,8 @@ import { onOnline, onResume } from '../lib/appEvents.js'
 import { disciplineGroup, disciplineResult, DISCIPLINE_UNITS } from '../lib/disciplines.js'
 import { findNearestRival } from '../lib/rivalry.js'
 import { fmtWhen } from '../lib/dates.js'
-import Avatar from '../components/Avatar.jsx'
-import RivalryCard from '../components/RivalryCard.jsx'
+import Avatar from '../components/ui/Avatar.jsx'
+import RivalryCard from '../components/progress/RivalryCard.jsx'
 import LegacyLeaderboard from './LegacyLeaderboard.jsx'
 
 const GROUPS = [['m', 'Мужчины'], ['f', 'Женщины'], ['u', 'Пол не указан']]

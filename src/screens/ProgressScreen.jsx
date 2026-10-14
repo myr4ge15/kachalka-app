@@ -8,12 +8,12 @@ import { useLiveQuery } from 'dexie-react-hooks'
 import { getWorkouts } from '../db/repo.js'
 import { readGoals } from '../db/notifications.js'
 import { fmtMetricValue, fmtTime } from '../lib/metric.js'
-import SetsCells from '../components/SetsCells.jsx'
+import SetsCells from '../components/workout/SetsCells.jsx'
 import { collectExercises, buildSeries, seriesValueSpread } from '../lib/progressSeries.js'
 import { buildGoalGuide, selectProgressGoal } from '../lib/progressGoal.js'
 import { localYmd, toDate } from '../lib/calendar.js'
-import CardsSkeleton from '../components/CardsSkeleton.jsx'
-import EmptyHint from '../components/EmptyHint.jsx'
+import CardsSkeleton from '../components/ui/CardsSkeleton.jsx'
+import EmptyHint from '../components/ui/EmptyHint.jsx'
 
 function fmtDate(iso) {
   const d = toDate(iso) // 'YYYY-MM-DD' — местный день, а не UTC-полночь

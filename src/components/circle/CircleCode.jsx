@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from 'react'
 import { codeMeta, fmtCode, joinMessage, joinUrl } from '../../lib/friendCircles.js'
-import { showToast } from '../Toast.jsx'
+import { showToast } from '../ui/Toast.jsx'
 
 // Мой личный код в круг: крупно, срок и сколько вступили; «Поделиться», «Скопировать»,
 // «Новый код» (старый сразу перестает работать). Код многоразовый: 7 дней или 10 человек.

@@ -2,7 +2,7 @@
 import { describe, it, expect, vi, afterEach } from 'vitest'
 import { render, screen, fireEvent, act } from '@testing-library/react'
 import { useSelectOnFocus } from './useSelectOnFocus.js'
-import TimeInput from '../components/TimeInput.jsx'
+import TimeInput from '../components/ui/TimeInput.jsx'
 
 function Field(props) {
   const select = useSelectOnFocus(props)

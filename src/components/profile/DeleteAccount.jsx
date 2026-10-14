@@ -3,7 +3,7 @@ import { deleteMyAccount, LoginError } from '../../lib/auth.js'
 import { exportAllMyData } from '../../db/backup.js'
 import { APP_VERSION } from '../../lib/appVersion.js'
 import { onlyDigits } from '../../lib/text.js'
-import { showToast } from '../Toast.jsx'
+import { showToast } from '../ui/Toast.jsx'
 import { useRevealFocus } from '../../hooks/useRevealFocus.js'
 import { useAliveRef } from '../../hooks/useAliveRef.js'
 

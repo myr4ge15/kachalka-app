@@ -8,7 +8,7 @@ test('чипы листаются пальцем в пикере и во вло�
   await page.evaluate(async () => {
     const { default: React } = await import('/kachalka-app/node_modules/.vite/deps/react.js')
     const { default: ReactDOM } = await import('/kachalka-app/node_modules/.vite/deps/react-dom_client.js')
-    const { default: ExercisePicker } = await import('/kachalka-app/src/components/ExercisePicker.jsx')
+    const { default: ExercisePicker } = await import('/kachalka-app/src/components/exercises/ExercisePicker.jsx')
     const host = document.createElement('div')
     document.body.append(host)
     ReactDOM.createRoot(host).render(React.createElement(ExercisePicker, {

@@ -2,7 +2,7 @@ import { useEffect, useRef, useState } from 'react'
 import {
   ACCENTS, CUSTOM, applyAccent, isRedZone, loadAccent, saveAccent,
 } from '../lib/accent.js'
-import BackButton from '../components/BackButton.jsx'
+import BackButton from '../components/ui/BackButton.jsx'
 import { setAccentPref } from '../db/repo.js'
 
 // Экран «Оформление» (Профиль → Настройки) — редизайн «Спорт-блоки», этап 1.

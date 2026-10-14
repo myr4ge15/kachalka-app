@@ -24,7 +24,7 @@
 
 export const WHATS_NEW = [
   {
-    version: '8.5.2',
+    version: '8.5.3',
     date: '2026-10-14',
     headline: 'Добавляй упражнения голосом',
     main: [

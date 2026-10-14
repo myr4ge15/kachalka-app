@@ -4,12 +4,12 @@ import { beforeEach, describe, expect, it, vi } from 'vitest'
 import { render, screen, waitFor } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import FeedbackScreen from './FeedbackScreen.jsx'
-import { showToast } from '../components/Toast.jsx'
+import { showToast } from '../components/ui/Toast.jsx'
 import { FeedbackError } from '../lib/feedbackApi.js'
 
 const sync = vi.hoisted(() => ({ online: true }))
 vi.mock('../db/sync.js', () => ({ useSyncStatus: () => sync }))
-vi.mock('../components/Toast.jsx', () => ({ showToast: vi.fn() }))
+vi.mock('../components/ui/Toast.jsx', () => ({ showToast: vi.fn() }))
 vi.mock('../lib/feedbackApi.js', () => ({
   FeedbackError: class FeedbackError extends Error {},
   submitFeedback: vi.fn(), listMyFeedback: vi.fn(), ackMyFeedback: vi.fn(),

@@ -3,9 +3,9 @@ import { setCachedAvatar, setCachedName } from '../../db/repo.js'
 import { syncNow } from '../../db/sync.js'
 import { setName, LoginError } from '../../lib/auth.js'
 import { uploadMyAvatar } from '../../lib/avatar.js'
-import { showToast } from '../Toast.jsx'
-import Avatar from '../Avatar.jsx'
-import PencilIcon from '../PencilIcon.jsx'
+import { showToast } from '../ui/Toast.jsx'
+import Avatar from '../ui/Avatar.jsx'
+import PencilIcon from '../ui/PencilIcon.jsx'
 import { useAliveRef } from '../../hooks/useAliveRef.js'
 
 // Шапка Профиля: аватар (смена по тапу) + имя (инлайн-редактор) + метка «админ»

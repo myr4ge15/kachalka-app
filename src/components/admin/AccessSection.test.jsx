@@ -13,7 +13,7 @@ vi.mock('../../lib/admin.js', () => ({
   adminSetConnection: (...a) => adminSetConnection(...a),
 }))
 const showToast = vi.fn()
-vi.mock('../Toast.jsx', () => ({ showToast: (...a) => showToast(...a) }))
+vi.mock('../ui/Toast.jsx', () => ({ showToast: (...a) => showToast(...a) }))
 
 const { default: AccessSection } = await import('./AccessSection.jsx')
 const { default: UserReorderList } = await import('./UserReorderList.jsx')

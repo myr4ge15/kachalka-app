@@ -2,7 +2,7 @@ import { useState } from 'react'
 import { useLiveQuery } from 'dexie-react-hooks'
 import { deadLetterCount, retryDeadLetter, discardDeadLetter } from '../../db/repo.js'
 import { syncNow } from '../../db/sync.js'
-import { showToast } from '../Toast.jsx'
+import { showToast } from '../ui/Toast.jsx'
 import { useAliveRef } from '../../hooks/useAliveRef.js'
 
 // Застрявшие изменения (dead-letter) — операции, провалившие все попытки отправки.

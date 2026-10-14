@@ -8,7 +8,7 @@ import { detectInsightsOnSave } from '../db/insights.js'
 import { detectBadgesOnSave } from '../db/badges.js'
 import { readDraft, resetDraftMemory, writeDraft } from '../lib/draftStore.js'
 import WorkoutScreen from './WorkoutScreen.jsx'
-import Toast from '../components/Toast.jsx'
+import Toast from '../components/ui/Toast.jsx'
 
 vi.mock('dexie-react-hooks', () => ({
   useLiveQuery: vi.fn((_query, _deps, fallback) => fallback),
@@ -34,7 +34,7 @@ vi.mock('../db/notifications.js', () => ({
 vi.mock('../db/insights.js', () => ({ detectInsightsOnSave: vi.fn() }))
 vi.mock('../db/badges.js', () => ({ detectBadgesOnSave: vi.fn() }))
 vi.mock('../db/sync.js', () => ({ syncNow: vi.fn() }))
-vi.mock('../components/TemplatePicker.jsx', () => ({
+vi.mock('../components/templates/TemplatePicker.jsx', () => ({
   default: ({ onPick }) => <button onClick={() => onPick({ exercises: [{
     exercise: { id: 'bench', name: 'Жим лежа', metric: 'weight' }, metric: 'weight',
     set_plan: [{ weight: 20, reps: 15 }, { weight: 80, reps: 8 }],

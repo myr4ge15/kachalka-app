@@ -3,9 +3,9 @@ import { useLiveQuery } from 'dexie-react-hooks'
 import { getExercises, updateExercise } from '../db/repo.js'
 import { submusclesOf, secondaryOptionsFor, labelOf, majorOf, defaultSubmuscleFor } from '../lib/muscles.js'
 import { splitCatalog, canEditExercise } from '../lib/exerciseCatalog.js'
-import CardsSkeleton from '../components/CardsSkeleton.jsx'
-import BackButton from '../components/BackButton.jsx'
-import PencilIcon from '../components/PencilIcon.jsx'
+import CardsSkeleton from '../components/ui/CardsSkeleton.jsx'
+import BackButton from '../components/ui/BackButton.jsx'
+import PencilIcon from '../components/ui/PencilIcon.jsx'
 
 // Экран «Каталог упражнений»: ВЕСЬ справочник тремя разделами — «Добавил я»,
 // «Добавили другие» (кастомные, по owner_id) и «Базовые» (глобальные, is_custom =

@@ -12,7 +12,7 @@ vi.mock('../db/sync.js', () => ({ syncNow: vi.fn(), useSyncStatus: () => ({ onli
 vi.mock('../db/disciplines.js', () => ({ invalidateRatingCache: vi.fn(async () => {}) }))
 vi.mock('../db/repo.js', () => ({ getExercises: async () => [] }))
 vi.mock('dexie-react-hooks', () => ({ useLiveQuery: (fn, deps, def) => def }))
-vi.mock('../components/Toast.jsx', () => ({ showToast: vi.fn() }))
+vi.mock('../components/ui/Toast.jsx', () => ({ showToast: vi.fn() }))
 
 const ME = { id: 'me', name: 'Сега' }
 const OWN = { circle_id: 'c1', name: 'Зал', is_owner: true, my_status: 'active', auto_approve: true, owner_name: 'Сега', members: 2, pending: 1 }

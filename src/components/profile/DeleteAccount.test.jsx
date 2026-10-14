@@ -13,7 +13,7 @@ vi.mock('../../lib/auth.js', () => {
   return { deleteMyAccount: vi.fn(), LoginError }
 })
 vi.mock('../../db/backup.js', () => ({ exportAllMyData: vi.fn(async () => 7) }))
-vi.mock('../Toast.jsx', () => ({ showToast: vi.fn() }))
+vi.mock('../ui/Toast.jsx', () => ({ showToast: vi.fn() }))
 afterEach(() => vi.clearAllMocks())
 
 const USER = { id: 'u1', name: 'Вася', role: 'member' }

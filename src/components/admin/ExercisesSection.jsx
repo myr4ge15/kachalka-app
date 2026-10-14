@@ -5,8 +5,8 @@ import { isMergedAlias, mergeSources, mergeTargets, mergedSummary } from '../../
 import { adminUpdateExercise, adminMergeExercise } from '../../lib/admin.js'
 import { submusclesOf, secondaryOptionsFor, labelOf, majorOf, defaultSubmuscleFor } from '../../lib/muscles.js'
 import { normMetric } from '../../lib/metric.js'
-import { showToast } from '../Toast.jsx'
-import PencilIcon from '../PencilIcon.jsx'
+import { showToast } from '../ui/Toast.jsx'
+import PencilIcon from '../ui/PencilIcon.jsx'
 import { useRevealFocus } from '../../hooks/useRevealFocus.js'
 
 // ─────────────────────────── Упражнения ───────────────────────────────────

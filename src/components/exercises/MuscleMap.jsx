@@ -1,0 +1,138 @@
+// ============================================================================
+// MuscleMap — анатомический heatmap-силуэт свежести (PLAN-muscle-detail, слайс 3c).
+// Реалистичная фигура (спереди/сзади): контур тела + зоны мышц раскрашиваются по
+// ГОТОВНОСТИ (v6.2.5; до этого — по давности, и цвет карты спорил с подписями):
+// можно / отдыхает / давно / ни разу — та же ось, что у экрана (lib/freshness.js
+// readinessView). Геометрия путей — из react-native-body-highlighter (MIT,
+// (c) 2022 ELABBASSI Hicham), см. src/components/exercises/muscleBodyPaths.js.
+//
+// Гранулярность источника — анатомическая ЗОНА (грудь, дельты, ягодичные…), чуть
+// крупнее наших подмышц; поэтому зона красится по «самому строгому» статусу своих
+// подмышц (REGION_SUBS: отдыхает > можно > давно > ни разу — если хоть одна часть
+// зоны отдыхает, зона красная), а клик по зоне подсвечивает ее мышцы (regionOf). Полная детализация по подмышцам живет в списке, карта — обзорная.
+//
+// Зона БЕЗ данных (ни разу не логировал эту мышцу — напр. трапеция, если не делал
+// шраги) красится не мертвым серым, а осмысленной ДИАГОНАЛЬНОЙ ШТРИХОВКОЙ
+// «не тренировал» (pattern mm-untracked-*): пустая зона читается намеренно, а не
+// как сломанная заливка. Легенду «нет данных» держит FreshnessScreen.
+//
+// Пропсы: bySub ({submuscle→status}), selected (region|null), onSelect(region).
+// ============================================================================
+import { BODY_OUTLINE, NEUTRAL_PARTS, FRONT_REGIONS, BACK_REGIONS } from './muscleBodyPaths.js'
+
+// Цвета — токены --fr-*/--mm-* из index.css (красная линия «никакого хардкода в
+// JSX»). В SVG-атрибут fill var() не подставить, поэтому зона получает КЛАСС
+// статуса, а заливку ему задает CSS. Неизвестный статус → «мышца без данных».
+const STATUSES = new Set(['ready', 'almost', 'resting', 'stale', 'never'])
+
+export function bucketClass(status) {
+  return STATUSES.has(status) ? `mm-s-${status}` : 'mm-muscle'
+}
+
+// Анатомическая зона → наши подмышцы. Цвет зоны = «самая пора» из них.
+const REGION_SUBS = {
+  chest: ['chest_upper', 'chest_middle', 'chest_lower', 'serratus'],
+  abs: ['abs_rectus', 'core'],
+  obliques: ['abs_obliques'],
+  deltoids: ['delt_front', 'delt_side', 'delt_rear', 'rotator_cuff'],
+  biceps: ['biceps'],
+  forearm: ['forearms'],
+  triceps: ['triceps'],
+  trapezius: ['traps', 'traps_lower'],
+  'upper-back': ['lats', 'rhomboids'],
+  'lower-back': ['lower_back'],
+  gluteal: ['glute_max', 'glute_med'],
+  quadriceps: ['quads', 'hip_flexors'],
+  adductors: ['adductors'],
+  hamstring: ['hamstrings'],
+  calves: ['calves'],
+}
+const REGION_LABEL = {
+  chest: 'грудь', abs: 'пресс', obliques: 'косые', deltoids: 'дельты',
+  biceps: 'бицепс', forearm: 'предплечья', triceps: 'трицепс', trapezius: 'трапеция',
+  'upper-back': 'широчайшие', 'lower-back': 'поясница', gluteal: 'ягодичные',
+  quadriceps: 'квадрицепс', adductors: 'приводящие', hamstring: 'бицепс бедра', calves: 'икры',
+}
+const BUCKET_RANK = { resting: 5, almost: 4, ready: 3, stale: 2, never: 1 }
+
+// Обратная карта подмышца → зона (для подсветки строки списка по клику на зоне).
+const SUB_REGION = {}
+for (const [region, subs] of Object.entries(REGION_SUBS)) for (const s of subs) SUB_REGION[s] = region
+export function regionOf(submuscle) {
+  return SUB_REGION[submuscle] ?? null
+}
+// Подмышцы зоны и ее подпись — экрану, чтобы по нажатию на зону открыть нужную
+// корзину и написать, что выбрано (v7.5.5).
+export const regionSubs = (region) => REGION_SUBS[region] ?? []
+export const regionLabel = (region) => REGION_LABEL[region] ?? region
+
+// Статус зоны = самый строгий среди ее подмышц, что есть в данных.
+function regionBucket(region, bySub) {
+  let best = null
+  for (const s of REGION_SUBS[region] ?? []) {
+    const b = bySub[s]
+    if (b && (best === null || BUCKET_RANK[b] > BUCKET_RANK[best])) best = b
+  }
+  return best
+}
+
+export default function MuscleMap({ bySub = {}, selected = null, onSelect }) {
+  const figure = (side, regions) => {
+    const viewBox = side === 'front' ? '0 0 724 1448' : '724 0 724 1448'
+    const untrackedId = `mm-untracked-${side}`
+    return (
+      <div className="mm-col">
+        <svg viewBox={viewBox} role="img" aria-label={`Силуэт ${side === 'front' ? 'спереди' : 'сзади'} — свежесть мышц`}>
+          <defs>
+            {/* Штриховка «нет данных»: две муарные полосы под 45° — зона без истории
+                выглядит намеренно «не отслеживается», а не как мертвый серый. */}
+            <pattern id={untrackedId} patternUnits="userSpaceOnUse" width="24" height="24" patternTransform="rotate(45)">
+              <rect className="mm-hatch-1" width="24" height="24" />
+              <rect className="mm-hatch-2" width="12" height="24" />
+            </pattern>
+          </defs>
+          <path className="mm-body" d={BODY_OUTLINE[side]} strokeWidth="2.5" vectorEffect="non-scaling-stroke" />
+          {(NEUTRAL_PARTS[side] ?? []).map((d, i) => (
+            <path key={`n${i}`} className="mm-muscle" d={d} strokeWidth="1" vectorEffect="non-scaling-stroke" aria-hidden="true" />
+          ))}
+          {Object.entries(regions).map(([region, paths]) => {
+            const bucket = regionBucket(region, bySub)
+            // Есть данные → класс цвета давности; нет данных → штриховка «не тренировал».
+            const cls = bucket ? bucketClass(bucket) : null
+            const fill = bucket ? undefined : `url(#${untrackedId})`
+            const sel = selected === region
+            return (
+              <g
+                key={region}
+                className={'mm-zone' + (sel ? ' sel' : '')}
+                role="button"
+                tabIndex={0}
+                aria-label={REGION_LABEL[region] ?? region}
+                aria-pressed={sel}
+                onClick={() => onSelect?.(region)}
+                onKeyDown={(e) => {
+                  if (e.key === 'Enter' || e.key === ' ') {
+                    e.preventDefault()
+                    onSelect?.(region)
+                  }
+                }}
+              >
+                {paths.map((d, i) => (
+                  <path key={i} className={cls ? `mm-part ${cls}` : 'mm-part'} d={d} fill={fill} strokeWidth="1" vectorEffect="non-scaling-stroke" />
+                ))}
+              </g>
+            )
+          })}
+        </svg>
+        <div className="mm-cap">{side === 'front' ? 'спереди' : 'сзади'}</div>
+      </div>
+    )
+  }
+
+  return (
+    <div className="mm">
+      {figure('front', FRONT_REGIONS)}
+      {figure('back', BACK_REGIONS)}
+    </div>
+  )
+}

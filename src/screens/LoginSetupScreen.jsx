@@ -1,8 +1,8 @@
 import { useState } from 'react'
 import { setMyLogin, LoginError } from '../lib/auth.js'
 import { loginProblem } from '../lib/login.js'
-import LoginField from '../components/LoginField.jsx'
-import AppMark from '../components/AppMark.jsx'
+import LoginField from '../components/auth/LoginField.jsx'
+import AppMark from '../components/app/AppMark.jsx'
 import { useAliveRef } from '../hooks/useAliveRef.js'
 
 // «Придумай логин» (П4 «Мой круг», 07.10.2026) — обязательный шаг для учеток без

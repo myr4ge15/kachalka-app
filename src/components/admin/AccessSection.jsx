@@ -2,8 +2,8 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
 import { adminListUsers, adminListConnections, adminSetConnection } from '../../lib/admin.js'
 import { connectedIdsFor } from '../../lib/connections.js'
-import { showToast } from '../Toast.jsx'
-import CardsSkeleton from '../CardsSkeleton.jsx'
+import { showToast } from '../ui/Toast.jsx'
+import CardsSkeleton from '../ui/CardsSkeleton.jsx'
 
 // ─────────────────────── Доступ к тренировкам (связи) ──────────────────────
 // Админ-управляемые связи «избранного круга» (v3.14.0). Приватный виден только

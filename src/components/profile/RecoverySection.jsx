@@ -6,7 +6,7 @@ import { tgStartLink } from '../../lib/recovery.js'
 import { tgLinkDone, tgPromptKind } from '../../lib/tgLinkPrompt.js'
 import { fmtDate } from '../../lib/dates.js'
 import RecoveryCodeView from '../recovery/RecoveryCodeView.jsx'
-import { showToast } from '../Toast.jsx'
+import { showToast } from '../ui/Toast.jsx'
 import { useRevealFocus } from '../../hooks/useRevealFocus.js'
 import { useAliveRef } from '../../hooks/useAliveRef.js'
 

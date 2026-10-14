@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useRef, useState } from 'react'
-import Avatar from '../Avatar.jsx'
+import Avatar from '../ui/Avatar.jsx'
 
 // Участники круга: кто кого привел; владельцу — заявки (принять/отклонить), удалить
 // участника, передать круг. Действия с последствиями — в два нажатия.

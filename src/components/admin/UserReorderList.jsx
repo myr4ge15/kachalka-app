@@ -1,6 +1,6 @@
 // Порядок учеток на экране входа — часть секции «Пользователи» (вынесено из screens/AdminScreen.jsx, v6.14.1).
 import { useState } from 'react'
-import { showToast } from '../Toast.jsx'
+import { showToast } from '../ui/Toast.jsx'
 import { useSortable } from '../../hooks/useSortable.js'
 import { reorderById } from '../../lib/reorderById.js'
 

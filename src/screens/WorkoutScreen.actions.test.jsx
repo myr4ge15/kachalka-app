@@ -16,7 +16,7 @@ import { syncNow } from '../db/sync.js'
 import { exportWorkouts } from '../lib/exportWorkout.js'
 import { readDraft, resetDraftMemory, writeDraft } from '../lib/draftStore.js'
 import WorkoutScreen from './WorkoutScreen.jsx'
-import Toast from '../components/Toast.jsx'
+import Toast from '../components/ui/Toast.jsx'
 
 vi.mock('dexie-react-hooks', () => ({
   useLiveQuery: vi.fn((_query, _deps, fallback) => fallback),
@@ -49,7 +49,7 @@ vi.mock('../lib/exportWorkout.js', () => ({ exportWorkouts: vi.fn() }))
 // Пикеры — заглушки: «выбрать» отдает заранее заданный объект.
 let pickExercise = null
 let pickTemplate = null
-vi.mock('../components/ExercisePicker.jsx', () => ({
+vi.mock('../components/exercises/ExercisePicker.jsx', () => ({
   default: ({ title, onPick, onClose }) => (
     <div role="dialog" aria-label={title}>
       <button onClick={() => onPick(pickExercise)}>выбрать упражнение</button>
@@ -57,7 +57,7 @@ vi.mock('../components/ExercisePicker.jsx', () => ({
     </div>
   ),
 }))
-vi.mock('../components/TemplatePicker.jsx', () => ({
+vi.mock('../components/templates/TemplatePicker.jsx', () => ({
   default: ({ onPick }) => (
     <div role="dialog" aria-label="Шаблоны">
       <button onClick={() => onPick(pickTemplate)}>выбрать шаблон</button>

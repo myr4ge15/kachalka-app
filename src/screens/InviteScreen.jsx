@@ -3,11 +3,11 @@ import { checkInvite, checkCircleCode, checkLoginForInvite, registerByInvite, cr
 import { joinStatusText } from '../lib/friendCircles.js'
 import RecoveryCodeView from '../components/recovery/RecoveryCodeView.jsx'
 import { normalizeLogin } from '../lib/login.js'
-import LoginField from '../components/LoginField.jsx'
+import LoginField from '../components/auth/LoginField.jsx'
 import { validateRegistration, inviteDeadText, inviteErrorText, DEAD_STATUSES } from '../lib/invite.js'
 import { onlyDigits } from '../lib/text.js'
-import SexPicker from '../components/SexPicker.jsx'
-import AppMark from '../components/AppMark.jsx'
+import SexPicker from '../components/ui/SexPicker.jsx'
+import AppMark from '../components/app/AppMark.jsx'
 
 // Регистрация по ссылке-приглашению (v6.8.0, supabase/invites.sql). Показывается
 // вместо экрана входа, пока в App висит токен из адреса (#invite=…).

@@ -7,9 +7,9 @@ import {
 } from '../lib/auth.js'
 import { loadPending, savePending, clearPending, pollJoin, joinPollDelay } from '../lib/joinRequest.js'
 import { onlyDigits } from '../lib/text.js'
-import AppMark from '../components/AppMark.jsx'
-import BackButton from '../components/BackButton.jsx'
-import JoinRequestForm from '../components/JoinRequestForm.jsx'
+import AppMark from '../components/app/AppMark.jsx'
+import BackButton from '../components/ui/BackButton.jsx'
+import JoinRequestForm from '../components/auth/JoinRequestForm.jsx'
 import ForgotPin from '../components/recovery/ForgotPin.jsx'
 
 // Экран входа (v6.12.0).

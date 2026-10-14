@@ -10,7 +10,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { act, fireEvent, render, screen, within } from '@testing-library/react'
 
 const seen = {}
-vi.mock('./components/lazyScreen.jsx', () => ({
+vi.mock('./components/app/lazyScreen.jsx', () => ({
   lazyScreen: (factory) => {
     let Loaded = null
     const p = factory().then((m) => { Loaded = m.default })

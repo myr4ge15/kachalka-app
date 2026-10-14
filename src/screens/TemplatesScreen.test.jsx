@@ -24,7 +24,7 @@ vi.mock('../db/repo.js', () => ({
 }))
 vi.mock('../db/sync.js', () => ({ syncNow: vi.fn() }))
 vi.mock('../lib/exportTemplate.js', () => ({ exportTemplates: vi.fn() }))
-vi.mock('../components/ExercisePicker.jsx', () => ({
+vi.mock('../components/exercises/ExercisePicker.jsx', () => ({
   default: ({ exercises, onPick, onPickMany, onClose }) => (
     <div data-testid="picker">
       {exercises.map((e) => <button key={e.id} onClick={() => onPick(e)}>выбрать {e.name}</button>)}

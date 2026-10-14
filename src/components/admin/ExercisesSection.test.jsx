@@ -9,7 +9,7 @@ import ExercisesSection from './ExercisesSection.jsx'
 import { adminMergeExercise } from '../../lib/admin.js'
 
 vi.mock('../../lib/admin.js', () => ({ adminUpdateExercise: vi.fn(), adminMergeExercise: vi.fn(async () => true) }))
-vi.mock('../Toast.jsx', () => ({ showToast: vi.fn() }))
+vi.mock('../ui/Toast.jsx', () => ({ showToast: vi.fn() }))
 
 const EX = [
   { id: 'lat', name: 'Тяга верхнего блока', muscle_group: 'спина', is_custom: false },
