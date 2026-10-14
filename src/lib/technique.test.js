@@ -73,8 +73,14 @@ describe('techniqueSlugFor — привязка к упражнению ката
     expect(techniqueSlugFor({ name: 'Жим лежа со штангой', is_custom: true })).toBeNull()
     expect(techniqueSlugFor({ name: 'Жим лежа со штангой', is_hidden: true })).toBeNull()
     // Другой вариант упражнения — не та же демонстрация (нечеткого сравнения нет).
-    expect(techniqueSlugFor({ name: 'Жим лежа на наклонной скамье' })).toBeNull()
-    expect(techniqueSlugFor({ name: 'Гиперэкстензия (акцент на ягодицы)' })).toBeNull()
+    expect(techniqueSlugFor({ name: 'Жим гантелей сидя' })).toBeNull()
+    expect(techniqueSlugFor({ name: 'Ягодичный мостик на полу' })).toBeNull()
+    // Сгибание ног — подсказки только у «лежа»/«сидя» (до разделения упражнения — без нее).
+    expect(techniqueSlugFor({ name: 'Сгибание ног в тренажере' })).toBeNull()
+    expect(techniqueSlugFor({ name: 'Сгибание ног лежа в тренажере' })).toBe('lying-leg-curl')
+    // Переименование (v8.3.0): подсказка и по старому, и по новому названию.
+    expect(techniqueSlugFor({ name: 'Подъем рук перед собой стоя' })).toBe('front-raise')
+    expect(techniqueSlugFor({ name: 'Подъем гантелей перед собой' })).toBe('front-raise')
     expect(techniqueSlugFor({ name: 'жим лежа со штангой' })).toBeNull()
     expect(techniqueSlugFor(null)).toBeNull()
   })
