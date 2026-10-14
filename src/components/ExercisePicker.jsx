@@ -5,6 +5,7 @@ import { submusclesOf, secondaryOptionsFor, labelOf, majorOf, defaultSubmuscleFo
 import SheetDialog from './SheetDialog.jsx'
 import { settleScroll } from '../lib/scrollBox.js'
 import ExerciseScanner from './ExerciseScanner.jsx'
+import ExerciseVoice from './ExerciseVoice.jsx'
 import TechniqueSheet, { TechniqueButton } from './TechniqueSheet.jsx'
 
 // Канонические группы мышц из ТЗ (Приложение A / п. 3.2). К ним добавляем
@@ -428,6 +429,7 @@ export default function ExercisePicker({
         </div>
 
         <div className="picker-list" ref={listRef} data-sheet-bounce="">
+          <ExerciseVoice exercises={exercises} onPick={onPick} />
           {showShortcuts && shortcuts.fav.length > 0 && (
             <>
               <div className="group-title">Избранные</div>
