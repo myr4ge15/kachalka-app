@@ -5,17 +5,18 @@ export default function ExerciseVoice({ exercises, onPick }) {
   const Recognition = window.SpeechRecognition || window.webkitSpeechRecognition
   const session = useRef(null)
   const [recording, setRecording] = useState(false)
+  const [listening, setListening] = useState(false)
   const [text, setText] = useState('')
   const [error, setError] = useState('')
   const candidates = text ? voiceCandidates(text, exercises) : []
 
-  function cancel() {
+  function cancel(abort = true) {
     const active = session.current
     session.current = null
     if (active) {
       clearTimeout(active.timer)
-      active.rec.onresult = active.rec.onerror = active.rec.onend = null
-      try { active.rec.abort() } catch { /* already ended */ }
+      active.rec.onaudiostart = active.rec.onresult = active.rec.onerror = active.rec.onend = null
+      try { if (abort) active.rec.abort() } catch { /* already ended */ }
     }
   }
 
@@ -31,6 +32,7 @@ export default function ExerciseVoice({ exercises, onPick }) {
     }
     setText('')
     setError('')
+    setListening(false)
     try {
       const rec = new Recognition()
       const active = { rec, timer: null }
@@ -39,7 +41,7 @@ export default function ExerciseVoice({ exercises, onPick }) {
       rec.continuous = false
       rec.interimResults = false
       rec.maxAlternatives = 1
-      const finish = () => { cancel(); setRecording(false) }
+      const finish = (abort = true) => { cancel(abort); setRecording(false); setListening(false) }
       rec.onresult = (event) => {
         if (session.current !== active) return
         const result = Array.from(event.results).find((r) => r.isFinal)
@@ -47,23 +49,29 @@ export default function ExerciseVoice({ exercises, onPick }) {
         const transcript = result[0]?.transcript?.trim() ?? ''
         setText(transcript)
         if (!transcript) setError(speechError('no-speech'))
-        finish()
+        finish(false)
       }
       rec.onerror = (event) => {
         if (session.current !== active) return
         setError(speechError(event.error))
-        finish()
+        finish(false)
       }
       rec.onend = () => {
         if (session.current !== active) return
         setError(speechError('no-speech'))
         finish()
       }
-      active.timer = setTimeout(() => {
-        if (session.current !== active) return
-        setError('Время записи истекло. Повтори или используй поиск.')
-        finish()
-      }, 15000)
+      // Permission prompts can take longer than the recording itself on iOS.
+      // Start the limit only when audio capture actually begins.
+      rec.onaudiostart = () => {
+        if (session.current !== active || active.timer !== null) return
+        setListening(true)
+        active.timer = setTimeout(() => {
+          if (session.current !== active) return
+          setError('Время записи истекло. Повтори или используй поиск.')
+          finish()
+        }, 15000)
+      }
       setRecording(true)
       rec.start()
     } catch {
@@ -85,7 +93,7 @@ export default function ExerciseVoice({ exercises, onPick }) {
       </button>
       <p className="muted" role="status">
         {!Recognition ? 'Голосовой ввод недоступен. Используй поиск по названию.'
-          : recording ? 'Слушаю… Назови одно упражнение.'
+          : recording ? (listening ? 'Слушаю… Назови одно упражнение.' : 'Ожидаю микрофон… Подтверди разрешения, если появится запрос.')
             : 'Голос может требовать интернет. В iOS PWA работа не гарантируется.'}
       </p>
       {error && <p className="error" role="alert">{error}</p>}

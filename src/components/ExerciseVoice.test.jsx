@@ -22,6 +22,7 @@ describe('voice in ExercisePicker', () => {
   it.each(['SpeechRecognition', 'webkitSpeechRecognition'])('uses %s and requires explicit confirmation', (prefix) => {
     const { onPick } = setup(prefix)
     expect(rec.lang).toBe('ru-RU')
+    act(() => rec.onaudiostart())
     expect(screen.getByText(/Слушаю/)).toBeInTheDocument()
     act(() => rec.onresult({ results: [Object.assign([{ transcript: 'жим' }], { isFinal: true })] }))
     expect(onPick).not.toHaveBeenCalled()
@@ -55,8 +56,15 @@ describe('voice in ExercisePicker', () => {
   it('times out and aborts on unmount', () => {
     vi.useFakeTimers()
     const { unmount } = setup()
+    act(() => vi.advanceTimersByTime(60000))
+    expect(screen.queryByRole('alert')).not.toBeInTheDocument()
+    expect(rec.abort).not.toHaveBeenCalled()
+    act(() => rec.onaudiostart())
     act(() => vi.advanceTimersByTime(15000))
     expect(screen.getByRole('alert')).toHaveTextContent('Время записи')
+    expect(screen.getByRole('button', { name: 'закрыть' })).toBeEnabled()
+    fireEvent.change(screen.getByPlaceholderText('Поиск по названию…'), { target: { value: 'жим' } })
+    expect(screen.getByPlaceholderText('Поиск по названию…')).toHaveValue('жим')
     fireEvent.click(screen.getByRole('button', { name: 'Назвать упражнение' }))
     unmount()
     expect(rec.abort).toHaveBeenCalledOnce()
