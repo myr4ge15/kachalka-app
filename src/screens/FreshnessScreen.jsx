@@ -78,7 +78,7 @@ function GroupVolume({ rows }) {
   const max = Math.max(1, ...rows.flatMap((r) => r.weeks))
   return (
     <section className="gv" aria-labelledby="gv-title">
-      <h3 className="sec-title gv-title" id="gv-title">Объём по группам</h3>
+      <h3 className="sec-title gv-title" id="gv-title">Объем по группам</h3>
       <p className="gv-sub muted">Рабочие подходы за {WEEKS} недели; тренд — две последние против двух прошлых.</p>
       <ul className="gv-list">
         {rows.map((r) => (

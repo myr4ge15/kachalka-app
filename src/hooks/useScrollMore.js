@@ -15,10 +15,17 @@ export function hasMoreBelow({ scrollTop = 0, clientHeight = 0, scrollHeight = 0
 // ref — скроллер; key — смена содержимого (пересчитать сразу).
 export function useScrollMore(ref, key) {
   const [more, setMore] = useState(false)
+  // Едем в самый низ по просьбе (scrollToEnd, v8.4.0) — кнопку «ниже» не мигаем,
+  // пока не доехали: иначе она вспыхивает на время плавной прокрутки.
+  const [toEnd, setToEnd] = useState(false)
   useEffect(() => {
     const el = ref.current
     if (!el) return undefined
-    const check = () => setMore(hasMoreBelow(el))
+    const check = () => {
+      const left = hasMoreBelow(el)
+      setMore(left)
+      if (!left) setToEnd(false)
+    }
     check()
     el.addEventListener('scroll', check, { passive: true })
     const ro = typeof ResizeObserver === 'function' ? new ResizeObserver(check) : null
@@ -42,5 +49,18 @@ export function useScrollMore(ref, key) {
     else el.scrollTop = top
   }, [ref])
 
-  return { more, scrollMore }
+  // Прокрутить до конца (раскрыли блок в самом низу — «Источники рисунков»):
+  // после раскрытия низ уже не виден, и вместо текста всплывала кнопка «ниже».
+  const scrollToEnd = useCallback(() => {
+    const el = ref.current
+    if (!el) return
+    setToEnd(true)
+    const reduce = typeof window !== 'undefined' && window.matchMedia?.('(prefers-reduced-motion: reduce)')?.matches
+    const top = Math.max(0, el.scrollHeight - el.clientHeight)
+    if (typeof el.scrollTo === 'function') el.scrollTo({ top, behavior: reduce ? 'auto' : 'smooth' })
+    else el.scrollTop = top
+  }, [ref])
+
+  return { more: more && !toEnd, scrollMore, scrollToEnd }
+
 }

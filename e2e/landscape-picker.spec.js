@@ -25,7 +25,7 @@ test('телефон лежа: в пикере упражнений виден �
     // Минимум две строки упражнений (56 px каждая) — не щель между шапкой и кнопкой.
     await expect.poll(async () => (await list.boundingBox())?.height ?? 0).toBeGreaterThan(150)
     // Лист не выходит за экран: «+ свое» внизу целиком видно.
-    const add = page.getByRole('button', { name: '+ добавить свое упражнение' })
+    const add = page.getByRole('button', { name: 'Добавить свое упражнение' })
     await expect(add).toBeInViewport({ ratio: 1 })
     await list.locator('.picker-item').filter({ hasText: 'Жим лежа (e2e)' }).click()
     await expect(page.getByRole('dialog')).toHaveCount(0)

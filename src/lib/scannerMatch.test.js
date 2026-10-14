@@ -64,6 +64,10 @@ describe('scanner dictionary', () => {
     expect(ids('LYING LEG CURL')[0]).toBe('Сгибание ног лежа в тренажере')
     // До миграции разделения в справочнике еще прежнее название — табличка его находит.
     expect(matchScannedText('LEG CURL', [{ id: 'old', name: 'Сгибание ног в тренажере' }]).map((m) => m.exercise.id)).toEqual(['old'])
+    // v8.4.0: скамья Скотта — по новому названию и по прежнему (до миграции).
+    expect(matchScannedText('PREACHER CURL', [{ id: 'new', name: 'Сгибание рук на скамье Скотта' }]).map((m) => m.exercise.id)).toEqual(['new'])
+    expect(matchScannedText('PREACHER CURL', [{ id: 'old', name: 'Сгибания на скамье Скотта' }]).map((m) => m.exercise.id)).toEqual(['old'])
+
     expect(ids('СВЕДЕНИЕ НОГ')).toEqual(['Сведение ног в тренажере (Hip Adductor)'])
     expect(ids('РАЗВЕДЕНИЕ НОГ')).toEqual(['Разведение ног в тренажере (Hip Abductor)'])
     expect(ids('ТЯГА СВЕРХУ')).toEqual(['Тяга верхнего блока'])

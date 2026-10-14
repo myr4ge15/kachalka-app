@@ -67,7 +67,45 @@ describe('HistoryScreen', () => {
     expect(screen.queryByText('Мои тренировки')).not.toBeInTheDocument()
   })
 
+  // v8.4.0: на iOS-PWA открытая тренировка закрывается свайпом вправо, под ней — список.
+  it('свайп вправо из открытой тренировки возвращает к списку', () => {
+    vi.useFakeTimers()
+    try {
+      const contentRef = { current: null }
+      const { container } = render(
+        <main className="content" ref={(el) => { contentRef.current = el }}>
+          <HistoryScreen user={user} contentRef={contentRef} edgeSwipeOn />
+        </main>
+      )
+      fireEvent.click(screen.getByText('Жим лежа').closest('button'))
+      expect(screen.getByTestId('workout-screen')).toHaveTextContent('w1')
+      const underlay = container.querySelector('.nav-underlay')
+      expect(underlay).toHaveAttribute('aria-hidden', 'true')
+      expect(underlay).toHaveTextContent('Мои тренировки')
+      const box = contentRef.current
+      Object.defineProperty(box, 'clientWidth', { value: 390 })
+      const pt = (x) => ({ touches: [{ clientX: x, clientY: 300 }] })
+      fireEvent.touchStart(box, pt(120))
+      fireEvent.touchMove(box, pt(160))
+      fireEvent.touchMove(box, pt(320))
+      expect(container.querySelector('.nav-stack').dataset.swiping).toBe('true')
+      fireEvent.touchEnd(box, { touches: [] })
+      act(() => { vi.advanceTimersByTime(300) })
+      expect(screen.queryByTestId('workout-screen')).not.toBeInTheDocument()
+      expect(screen.getByText('Мои тренировки')).toBeInTheDocument()
+    } finally {
+      vi.useRealTimers()
+    }
+  })
+
+  it('без свайпа (не iOS-PWA) подложки со списком нет', () => {
+    const { container } = render(<HistoryScreen user={user} contentRef={{ current: null }} />)
+    fireEvent.click(screen.getByText('Жим лежа').closest('button'))
+    expect(container.querySelector('.nav-underlay')).toBeNull()
+  })
+
   it('принимает внешний интент новой тренировки и сообщает busy', async () => {
+
     const onConsumed = vi.fn()
     const onBusy = vi.fn()
     render(

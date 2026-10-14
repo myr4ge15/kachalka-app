@@ -81,6 +81,11 @@ describe('techniqueSlugFor — привязка к упражнению ката
     // Переименование (v8.3.0): подсказка и по старому, и по новому названию.
     expect(techniqueSlugFor({ name: 'Подъем рук перед собой стоя' })).toBe('front-raise')
     expect(techniqueSlugFor({ name: 'Подъем гантелей перед собой' })).toBe('front-raise')
+    // v8.4.0: сгибания на бицепс — новые и прежние названия.
+    expect(techniqueSlugFor({ name: 'Сгибание рук со штангой' })).toBe('barbell-curl')
+    expect(techniqueSlugFor({ name: 'Подъем штанги на бицепс' })).toBe('barbell-curl')
+    expect(techniqueSlugFor({ name: 'Сгибание рук на скамье Скотта' })).toBe('preacher-curl')
+
     expect(techniqueSlugFor({ name: 'жим лежа со штангой' })).toBeNull()
     expect(techniqueSlugFor(null)).toBeNull()
   })

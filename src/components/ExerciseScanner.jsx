@@ -126,7 +126,7 @@ export default function ExerciseScanner({ exercises, onPick, onClose, onManual }
             }
             setStatus(value ? (key ? 'Проверяю название…' : 'Не узнал. Поднеси ближе') : 'Поднеси ближе')
             timer = setTimeout(scan, 1200) // scheduled AFTER recognition; never overlapping
-          } catch { fail('Распознавание остановилось. Попробуй ещё раз или найди упражнение вручную.') }
+          } catch { fail('Распознавание остановилось. Попробуй еще раз или найди упражнение вручную.') }
         }
         setStatus('Ищу название…')
         void scan()
@@ -196,19 +196,19 @@ export default function ExerciseScanner({ exercises, onPick, onClose, onManual }
 
       {main && <div className="scanner-panel scanner-result">
         <span className="scanner-grab" aria-hidden="true" />
-        <p className="scanner-eyebrow"><Icon><path d="m5 12 5 5L20 7" /></Icon>Нашёл на табличке</p>
+        <p className="scanner-eyebrow"><Icon><path d="m5 12 5 5L20 7" /></Icon>Нашел на табличке</p>
         <h2 className="scanner-name">{main.exercise.name}</h2>
         {main.exercise.muscle_group && <div className="scanner-tags">
           <span className="chip scanner-tag">{main.exercise.muscle_group}</span></div>}
         <button type="button" className="btn primary full" onClick={() => onPick(main.exercise)}>Добавить в тренировку</button>
         {alts.length > 0 && <div className="scanner-alts">
-          <p className="muted">Ещё на табличке</p>
+          <p className="muted">Еще на табличке</p>
           {alts.map(({ exercise: e }) => <button type="button" key={e.id} className="scanner-alt" onClick={() => onPick(e)}>
             <span>{e.name}<small>{e.muscle_group}</small></span>
             <Icon><path d="m9 6 6 6-6 6" /></Icon>
           </button>)}
         </div>}
-        <button type="button" className="link-btn scanner-again" onClick={retry}>Сканировать ещё</button>
+        <button type="button" className="link-btn scanner-again" onClick={retry}>Сканировать еще</button>
       </div>}
     </div>
   </SheetDialog>

@@ -108,7 +108,7 @@ export default function InvitesSection({ online, errMsg, api = adminApi, limit =
   return (
     <section className="sec invite-sec">
       {!online && <p role="status">Для приглашения участника нужен интернет.</p>}
-      {limit && <p className="admin-hint">До {limit} активных ссылок одновременно. Использованная, отозванная или истёкшая ссылка освобождает место.</p>}
+      {limit && <p className="admin-hint">До {limit} активных ссылок одновременно. Использованная, отозванная или истекшая ссылка освобождает место.</p>}
       <p className="admin-hint">
         Ссылка одноразовая и живет 7 дней. Человек откроет ее, сам придумает имя и PIN и сразу
         окажется в журнале — его увидят все, как и других участников.

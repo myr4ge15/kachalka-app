@@ -88,7 +88,7 @@ describe('FreshnessScreen — объём по группам (v6.5.0)', () => {
 
   it('строка на группу: подходы в неделю и тренд', () => {
     render(<FreshnessScreen user={{ id: 'u1' }} onBack={() => {}} />)
-    expect(screen.getByRole('heading', { name: 'Объём по группам' })).toBeInTheDocument()
+    expect(screen.getByRole('heading', { name: 'Объем по группам' })).toBeInTheDocument()
     const items = [...document.querySelectorAll('.gv-row')].map((el) => el.textContent)
     expect(items[0]).toMatch(/Грудь.*6 подходов\/нед\..*▲ \+71%/)
     expect(items[1]).toMatch(/Спина.*2 подхода\/нед\..*▼ −60%/)

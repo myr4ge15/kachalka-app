@@ -142,7 +142,7 @@ export default function UsersSection({ meId, online, errMsg, cache = null }) {
 
       showToast({
         emoji: '🗑️',
-        title: 'Участник удалён',
+        title: 'Участник удален',
         sub: deleteUser.name,
       })
 

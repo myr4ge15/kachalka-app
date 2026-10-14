@@ -20,7 +20,8 @@ export const TECHNIQUE_INDEX = [
   { slug: 'back-squat', names: ['Приседания со штангой'] },
   { slug: 'deadlift', names: ['Становая тяга'] },
   { slug: 'romanian-deadlift', names: ['Румынская тяга'] },
-  { slug: 'barbell-curl', names: ['Подъем штанги на бицепс'] },
+  // v8.4.0: сгибания — одна схема названий (catalog-2026-10c.sql); прежнее имя — до наката.
+  { slug: 'barbell-curl', names: ['Сгибание рук со штангой', 'Подъем штанги на бицепс'] },
   { slug: 'lateral-raise', names: ['Махи гантелями в стороны'] },
   { slug: 'pull-up', names: ['Подтягивания'] },
   { slug: 'seated-cable-row', names: ['Горизонтальная тяга блока'] },
@@ -39,10 +40,11 @@ export const TECHNIQUE_INDEX = [
   { slug: 'chest-dips', names: ['Отжимания на брусьях'] },
   { slug: 'push-up', names: ['Отжимания от пола'] },
   { slug: 'hammer-chest-press', names: ['Жим в тренажере Хаммер'] },
-  { slug: 'dumbbell-curl', names: ['Подъем гантелей на бицепс'] },
+  { slug: 'dumbbell-curl', names: ['Сгибание рук с гантелями', 'Подъем гантелей на бицепс'] },
   { slug: 'hammer-curl', names: ['Молотковые сгибания'] },
   { slug: 'cross-body-hammer-curl', names: ['Молотковые сгибания крест накрест'] },
-  { slug: 'preacher-curl', names: ['Сгибания на скамье Скотта'] },
+  { slug: 'preacher-curl', names: ['Сгибание рук на скамье Скотта', 'Сгибания на скамье Скотта'] },
+
   { slug: 'cable-curl', names: ['Сгибание рук на нижнем блоке'] },
   { slug: 'machine-curl', names: ['Сгибание рук на изолированном тренажере'] },
   { slug: 'close-grip-bench-press', names: ['Жим штанги узким хватом'] },

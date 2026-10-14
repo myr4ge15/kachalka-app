@@ -1151,7 +1151,9 @@ a.btn { display: block; text-align: center; text-decoration: none; }
 .create-suggest { color: var(--acc-2); font-weight: 600; }
 
 /* кнопка «добавить свое» под списком + форма создания */
-.create-open { flex-shrink: 0; margin-top: 12px; margin-bottom: 0; }
+.create-open { flex-shrink: 0; margin-top: 12px; margin-bottom: 0; display: flex; align-items: center; justify-content: center; gap: 7px; }
+.create-open-ico { flex-shrink: 0; color: var(--acc); }
+
 .create-label { flex-shrink: 0; margin-top: 14px; font-size: 13px; color: var(--muted); }
 .create-error { flex-shrink: 0; }
 .create-save { flex-shrink: 0; margin-top: auto; }

@@ -1,5 +1,5 @@
 import Chevron from '../components/Chevron.jsx'
-import { useState, useMemo, useEffect } from 'react'
+import { useState, useMemo, useEffect, useRef } from 'react'
 import { useLiveQuery } from 'dexie-react-hooks'
 import { getWorkouts, saveTemplate } from '../db/repo.js'
 import { syncNow } from '../db/sync.js'
@@ -20,6 +20,7 @@ import { HAPTIC, vibrate } from '../lib/haptics.js'
 import { onReselect } from '../lib/appEvents.js'
 import { fmtCardDate } from '../lib/dates.js'
 import { settleScroll } from '../lib/scrollBox.js'
+import { useEdgeSwipeBack } from '../hooks/useEdgeSwipeBack.js'
 
 
 function summarize(w) {
@@ -61,6 +62,8 @@ function useMediaQuery(query) {
 //                        нет; null — на сегодня; 'YYYY-MM-DD' — сразу этот день.
 //   onReturn()         — календарь открыт из Ритма Главной: закрытие календаря или
 //                        «назад» из открытой в нем тренировки возвращают в Ритм (v6.3.5).
+//   contentRef, edgeSwipeOn — скроллер приложения и «свайп назад доступен» (iOS-PWA,
+//                        активная вкладка): открытая тренировка закрывается свайпом (v8.4.0).
 export default function HistoryScreen({
   user,
   openNew = false,
@@ -70,6 +73,8 @@ export default function HistoryScreen({
   onReturn,
   onBusyChange,
   onOpenProgress,
+  contentRef,
+  edgeSwipeOn = false,
 }) {
   const workouts = useLiveQuery(() => getWorkouts(user.id), [user.id])
   const loading = workouts === undefined
@@ -219,6 +224,15 @@ export default function HistoryScreen({
   useEffect(() => {
     if (!isDesktop) return settleScroll(document.querySelector('.content'), 0)
   }, [selected, isDesktop])
+
+  // Свайп назад из открытой тренировки (v8.4.0) — как у вложенных экранов и Настроек
+  // профиля: карточка едет за пальцем, под ней виден список (подложка .nav-underlay),
+  // довел — тот же closeSelected, что у «‹». Только мобайл и только тренировка
+  // (у Шаблонов свои под-виды с редактором — там жест не включаем). Подложка
+  // рендерится лишь при включенном жесте: на десктопе и вне iOS-PWA DOM прежний.
+  const detailRef = useRef(null)
+  const swipeOn = edgeSwipeOn && !isDesktop && selected !== null && selected !== 'templates'
+  useEdgeSwipeBack(contentRef, detailRef, closeSelected, swipeOn)
 
   // Список тренировок + управление (кнопки, фильтр, экспорт). Переиспользуется
   // и на мобиле (одна колонка), и на десктопе (левая колонка master-detail).
@@ -397,7 +411,7 @@ export default function HistoryScreen({
   // Мобайл: прежнее поведение — деталь/композер открывается вместо списка.
   if (!isDesktop) {
     if (selected !== null) {
-      return (
+      const detail = (
         <WorkoutScreen
           key={selected}
           user={user}
@@ -406,7 +420,20 @@ export default function HistoryScreen({
           onSaved={handleSaved}
         />
       )
+      if (!swipeOn) return detail
+      return (
+        <div className="nav-stack">
+          <div className="nav-layer nav-underlay" inert aria-hidden="true">
+            <div className="screen">
+              {renderHead()}
+              {renderList()}
+            </div>
+          </div>
+          <div className="nav-layer nav-current" ref={detailRef}>{detail}</div>
+        </div>
+      )
     }
+
     return (
       <>
         <div className="screen">

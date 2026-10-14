@@ -2,7 +2,7 @@ import { supabase, hasSession } from '../db/supabase.js'
 import { withTimeout } from './withTimeout.js'
 
 async function call(userId, name, args) {
-  if (!await hasSession(userId)) throw new Error('Войди в свою учётную запись с интернетом.')
+  if (!await hasSession(userId)) throw new Error('Войди в свою учетную запись с интернетом.')
   const { data, error } = await withTimeout(supabase.rpc(name, args))
   if (error) {
     const message = error.message || ''
@@ -11,7 +11,7 @@ async function call(userId, name, args) {
     if (error.code === 'PGRST202') throw new Error('Приглашения пока недоступны. Попробуй позже.')
     if (message.includes('already used')) throw new Error('По этой ссылке уже зарегистрировались.')
     if (message.includes('not found')) throw new Error('Приглашение не найдено.')
-    throw new Error('Не удалось выполнить действие. Проверь связь и попробуй ещё раз.')
+    throw new Error('Не удалось выполнить действие. Проверь связь и попробуй еще раз.')
   }
   return data
 }

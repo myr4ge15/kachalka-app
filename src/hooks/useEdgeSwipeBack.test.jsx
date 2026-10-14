@@ -159,4 +159,37 @@ describe('useEdgeSwipeBack', () => {
     expect(getByTestId('screen').style.left).toBe('')
     spy.mockRestore()
   })
+
+  // v8.4.0: свайп закрывает и открытую тренировку, где упражнения перетаскивают
+  // (hooks/useSortable.js гасит touchmove после подъема строки) — такой жест не наш.
+  it('палец уже ведет другой жест (touchmove отменен) — не «Назад»', () => {
+    const onBack = vi.fn()
+    const { getByTestId } = render(<Harness onBack={onBack} />)
+    const box = getByTestId('box')
+    Object.defineProperty(box, 'clientWidth', { value: 390 })
+    const row = getByTestId('screen')
+    row.addEventListener('touchmove', (e) => e.preventDefault())
+    fireEvent.touchStart(row, pt(100))
+    fireEvent.touchMove(row, pt(200))
+    fireEvent.touchMove(row, pt(300))
+    fireEvent.touchEnd(row, { touches: [] })
+    vi.advanceTimersByTime(300)
+    expect(onBack).not.toHaveBeenCalled()
+    expect(getByTestId('stack').dataset.swiping).toBeUndefined()
+  })
+
+  // v8.4.0: цель касания убрали из DOM — touchend до скроллера не дошел.
+  // Следующий жест не должен застревать на «старом».
+  it('прошлое касание без touchend не блокирует следующий свайп', () => {
+    const onBack = vi.fn()
+    const { getByTestId } = render(<Harness onBack={onBack} />)
+    const box = getByTestId('box')
+    Object.defineProperty(box, 'clientWidth', { value: 390 })
+    fireEvent.touchStart(box, pt(100)) // touchend не будет
+    swipe(box, [[100, 300], [130, 300], [320, 300]])
+    vi.advanceTimersByTime(300)
+    expect(onBack).toHaveBeenCalledTimes(1)
+  })
 })
+
+

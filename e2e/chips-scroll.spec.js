@@ -39,7 +39,7 @@ test('чипы листаются пальцем в пикере и во вло�
     await expect.poll(() => row.evaluate(el => el.scrollLeft)).toBeLessThan(before - 30)
   }
   await checkRow(dialog.locator('.chips').first())
-  await dialog.getByRole('button', { name: '+ добавить свое упражнение' }).click()
+  await dialog.getByRole('button', { name: 'Добавить свое упражнение' }).click()
   await dialog.getByRole('button', { name: 'грудь', exact: true }).click()
   await checkRow(dialog.locator('.chips').first())
   // Вертикальный скролл формы после горизонтального жеста по-прежнему доступен.

@@ -36,7 +36,7 @@ export default function AdminDisciplines({ userId, exercises, online }) {
     finally { if (alive.current) setBusy(false) }
   }
   return <section className="admin-disciplines" aria-label="Дисциплины рейтинга">
-    <p className="muted">Выбери упражнения для рейтинга. Результаты берём из всей истории тренировок.</p>
+    <p className="muted">Выбери упражнения для рейтинга. Результаты берем из всей истории тренировок.</p>
     {error && <p className="error" role="alert">{error}</p>}
     <button type="button" className="btn ghost" disabled={busy || !online} onClick={async () => {
       setBusy(true); setError('')

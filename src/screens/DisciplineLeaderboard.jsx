@@ -69,7 +69,7 @@ function ScopeLeaderboard({ user, onOpenMember, circle }) {
       {items.map(d => <button type="button" key={d.id} className={'chip' + (d.id === discipline?.id ? ' active' : '')}
         aria-pressed={d.id === discipline?.id} onClick={() => setSelected(d.id)}>{d.name}</button>)}
     </div>
-    {error && <p className="muted" role="status">{error} Показан сохранённый список.</p>}
+    {error && <p className="muted" role="status">{error} Показан сохраненный список.</p>}
     {discipline ? <DisciplineBoard key={discipline.id} discipline={discipline} user={user} onOpenMember={onOpenMember} circle={circle} />
       : <div className="card lb-card"><h3 className="lb-title">Рейтинг</h3><p className="muted">{!catalog
         ? 'Рейтинг круга еще не загружен. Подключись к сети.'
@@ -109,9 +109,9 @@ function DisciplineBoard({ discipline, user, onOpenMember, circle = null }) {
         {GROUPS.map(([key, label]) => <button key={key} type="button" className={'seg-item' + (key === group ? ' on' : '')}
           aria-pressed={key === group} onClick={() => setChosenGroup(key)}>{label}</button>)}
       </div>}
-      {error && <p className="muted" role="status">{error}{snapshot ? ' Показаны сохранённые результаты.' : ''}</p>}
+      {error && <p className="muted" role="status">{error}{snapshot ? ' Показаны сохраненные результаты.' : ''}</p>}
       {!rows.length && <p className="muted lb-empty" role="status">{!snapshot
-        ? busy ? 'Загружаем рейтинг…' : 'Рейтинг ещё не загружен. Подключись к сети.'
+        ? busy ? 'Загружаем рейтинг…' : 'Рейтинг еще не загружен. Подключись к сети.'
         : 'Пока нет результатов. Запиши подход в этом упражнении.'}</p>}
       <ol className="lb-list">
         {rows.map((row, i) => <li key={row.user_id} className={'lb-row lb-row-link' + (row.user_id === user.id ? ' me' : '')} data-anchor={`lb-${row.user_id}`}>

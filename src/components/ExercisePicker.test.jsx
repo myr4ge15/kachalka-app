@@ -46,7 +46,7 @@ describe('ExercisePicker — умный поиск', () => {
     expect(screen.queryByText('Жим лежа')).not.toBeInTheDocument()
     // Просмотр группы — не заявка на упражнение с названием «плеч».
     expect(screen.queryByText(/Создать/)).not.toBeInTheDocument()
-    expect(screen.getByText('+ добавить свое упражнение')).toBeInTheDocument()
+    expect(screen.getByText('Добавить свое упражнение')).toBeInTheDocument()
   })
 
   it('находит существующее упражнение без е и не предлагает создать дубль', async () => {

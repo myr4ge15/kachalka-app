@@ -5,7 +5,7 @@ vi.mock('../db/supabase.js', () => ({ supabase: { rpc: mocks.rpc }, hasSession: 
 beforeEach(() => { vi.clearAllMocks(); mocks.hasSession.mockResolvedValue(true) })
 it('не создаёт приглашение под чужой сессией', async () => {
   mocks.hasSession.mockResolvedValue(false)
-  await expect(memberInviteApi('me').create()).rejects.toThrow('свою учётную')
+  await expect(memberInviteApi('me').create()).rejects.toThrow('свою учетную')
   expect(mocks.hasSession).toHaveBeenCalledWith('me')
   expect(mocks.rpc).not.toHaveBeenCalled()
 })

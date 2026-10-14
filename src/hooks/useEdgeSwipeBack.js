@@ -90,7 +90,16 @@ export function useEdgeSwipeBack(containerRef, screenRef, onBack, enabled) {
     }
 
     function onStart(e) {
-      if (g || settling || e.touches.length !== 1) return
+      if (settling || e.touches.length !== 1) return
+      if (g) {
+        // Прошлое касание закончилось без touchend у нас: его цель убрали из DOM
+        // (тренировка сворачивает карточку при подъеме упражнения, useSortable) —
+        // события до скроллера уже не всплыли. Старый жест бросаем, иначе свайп
+        // молчал бы до перезагрузки экрана (v8.4.0).
+        if (g.axis === 'x') { onCancel(); return }
+        g = null
+      }
+
       const t = e.touches[0]
       const edge = t.clientX <= EDGE_PX
       if (!edge && swipeBackBlocked(e.target, box)) return
@@ -108,6 +117,10 @@ export function useEdgeSwipeBack(containerRef, screenRef, onBack, enabled) {
         // Долгое нажатие выделило текст, пока палец стоял, — дальше палец ведет
         // выделение, а не экран (v7.5.5).
         if (textSelectionActive(window.getSelection?.())) { g = null; return }
+        // Палец уже забрал другой жест под ним (перетаскивание упражнения в
+        // тренировке, hooks/useSortable.js, гасит прокрутку) — не наш (v8.4.0).
+        if (e.defaultPrevented) { g = null; return }
+
         g.axis = swipeAxis(dx, dy, g.edge)
         if (g.axis === 'y') { g = null; return }
         if (!g.axis) return

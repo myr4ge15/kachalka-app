@@ -319,7 +319,10 @@ export default function App() {
                   onReturn={backToRhythm}
                   onBusyChange={setHistoryBusy}
                   onOpenProgress={openProgressFor}
+                  contentRef={contentRef}
+                  edgeSwipeOn={edgeSwipeOn && route === tab}
                 />
+
               )}
               {route === 'feed' && <FeedScreen user={user} onOpenMember={openMember} flashId={feedFlashId} onOpenCircle={() => goTab('circle')} />}
               {route === 'member' && memberId && (

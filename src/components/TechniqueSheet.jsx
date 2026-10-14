@@ -35,13 +35,13 @@ export default function TechniqueSheet({ slug, name, onClose }) {
   const card = state.card
   // «Ниже есть еще» (v8.2.1): рисунок занимает пол-экрана, и что лист листается,
   // было неочевидно — низ затухает, внизу кнопка «Ещё ниже».
-  const { more, scrollMore } = useScrollMore(scrollRef, state.status)
+  const { more, scrollMore, scrollToEnd } = useScrollMore(scrollRef, state.status)
   return (
     <SheetDialog title={name} onDismiss={onClose} swipeBack className="sheet--technique">
       <div ref={scrollRef} className={`sheet-scroll technique${more ? ' has-more' : ''}`}>
         {state.status === 'loading' && <p className="muted">Загружаю подсказку…</p>}
         {(state.status === 'error' || (state.status === 'ready' && !card)) && (
-          <p className="muted">Не удалось открыть подсказку. Попробуй ещё раз позже.</p>
+          <p className="muted">Не удалось открыть подсказку. Попробуй еще раз позже.</p>
         )}
         {card && (
           <>
@@ -77,7 +77,9 @@ export default function TechniqueSheet({ slug, name, onClose }) {
             {card.frames.length > 0 && (
               // v8.2.1: была блеклой строкой «как просто текст» — теперь плашка с иконкой,
               // источником и стрелкой; раскрывается в блок со ссылками.
-              <details className="technique-credits">
+              // v8.4.0: раскрыли — докручиваем до конца блока, чтобы текст был виден сразу.
+              <details className="technique-credits" onToggle={(e) => { if (e.currentTarget.open) scrollToEnd() }}>
+
                 <summary>
                   <svg className="technique-credits-ico" viewBox="0 0 24 24" width="16" height="16" fill="none"
                     stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
@@ -99,7 +101,7 @@ export default function TechniqueSheet({ slug, name, onClose }) {
       </div>
       {more && (
         <button type="button" className="technique-more" onClick={scrollMore}>
-          Ещё ниже <span aria-hidden="true">↓</span>
+          Еще ниже <span aria-hidden="true">↓</span>
         </button>
       )}
     </SheetDialog>

@@ -159,7 +159,7 @@ export async function pushTemplates(d = db) {
         })
       )
       if (error && detailed && ['PGRST202', '42883'].includes(error.code)) {
-        throw { code: 'TEMPLATE_SERVER_UPGRADE', message: 'Шаблон сохранён на устройстве. Для синхронизации подходов нужно обновление сервера.' }
+        throw { code: 'TEMPLATE_SERVER_UPGRADE', message: 'Шаблон сохранен на устройстве. Для синхронизации подходов нужно обновление сервера.' }
       }
       if (error) throw error
       // Шаблон правили, пока шел upsert (updated_at сдвинулся) — операцию и _dirty

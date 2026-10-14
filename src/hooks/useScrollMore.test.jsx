@@ -16,11 +16,12 @@ describe('hasMoreBelow', () => {
 
 function Probe() {
   const ref = useRef(null)
-  const { more, scrollMore } = useScrollMore(ref, 'k')
+  const { more, scrollMore, scrollToEnd } = useScrollMore(ref, 'k')
   return (
     <>
       <div ref={ref} data-testid="box"><p>текст</p></div>
       {more && <button onClick={scrollMore}>ещё</button>}
+      <button onClick={scrollToEnd}>в конец</button>
     </>
   )
 }
@@ -46,4 +47,28 @@ describe('useScrollMore', () => {
     rerender(<Probe />)
     expect(screen.queryByRole('button', { name: 'ещё' })).toBeNull()
   })
+
+  // v8.4.0: раскрыли «Источники рисунков» внизу — едем в конец, кнопка «ниже» не мигает.
+  it('scrollToEnd докручивает до конца и не показывает «ещё» по дороге', () => {
+    render(<Probe />)
+    const box = screen.getByTestId('box')
+    size(box, { top: 0, client: 300, height: 900 })
+    act(() => { fireEvent.scroll(box) })
+    expect(screen.getByRole('button', { name: 'ещё' })).toBeTruthy()
+    const calls = []
+    box.scrollTo = (opts) => calls.push(opts)
+    fireEvent.click(screen.getByRole('button', { name: 'в конец' }))
+    expect(calls[0].top).toBe(600)
+    // плавная прокрутка в пути: хвост еще есть, но кнопки нет
+    size(box, { top: 300, client: 300, height: 900 })
+    act(() => { fireEvent.scroll(box) })
+    expect(screen.queryByRole('button', { name: 'ещё' })).toBeNull()
+    // доехали — дальше снова обычные правила
+    size(box, { top: 600, client: 300, height: 900 })
+    act(() => { fireEvent.scroll(box) })
+    size(box, { top: 0, client: 300, height: 900 })
+    act(() => { fireEvent.scroll(box) })
+    expect(screen.getByRole('button', { name: 'ещё' })).toBeTruthy()
+  })
 })
+
