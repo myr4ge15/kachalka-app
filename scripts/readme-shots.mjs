@@ -39,7 +39,7 @@ const VIEWPORT = { width: 393, height: 769 }
 const SCALE = 2
 const ACCENT = { id: 'custom', hue: 205 } // бирюзовый, как на прежних скриншотах
 const ALL = ['home', 'recovery', 'workout', 'progress-overview', 'progress-chart',
-  'feed', 'rating', 'run', 'achievements', 'login', 'forgot-pin', 'join-form', 'join-pending', 'circle']
+  'feed', 'rating', 'run', 'achievements', 'login', 'forgot-pin', 'join-form', 'join-pending', 'circle', 'friends']
 const only = process.argv.slice(2)
 for (const n of only) if (!ALL.includes(n)) throw new Error(`Неизвестный экран «${n}». Есть: ${ALL.join(', ')}`)
 const want = (n) => only.length === 0 || only.includes(n)
@@ -211,12 +211,23 @@ const FAKE_RPC = {
     { user_id: 'f2', name: 'Сергей', status: 'pending', is_owner: false, invited_by_name: 'Аня' },
   ],
   fc_codes: [],
+  // «Друзья» (v8.9.0): входящая заявка, трое друзей, моя заявка.
+  fr_list: [
+    { user_id: 'f2', name: 'Сергей', state: 'incoming' },
+    { user_id: 'f1', name: 'Борис', state: 'friend' },
+    { user_id: 'f3', name: 'Аня', state: 'friend' },
+    { user_id: 'f4', name: 'Макс', state: 'friend' },
+  ],
+  fr_my_code: [{ code: '7F3Q9XWD', created_at: inDays(-3) }],
   fc_rating_catalog: [],
 }
 
 const PATCHES = [
   { url: /\/src\/db\/sync\.js(\?|$)/, find: /online: navigator\.onLine,/, put: 'online: true,', what: 'статус синка' },
   { url: /\/src\/lib\/friendCircles\.js(\?|$)/, find: [/if \(!navigator\.onLine\) throw/, /if \(!await hasSession\(userId\)\) throw/], put: ['if (false) throw', 'if (false) throw'], what: 'круг: сеть и сессия' },
+  { url: /\/src\/lib\/friends\.js(\?|$)/, find: [/if \(!navigator\.onLine\) throw/, /if \(!await hasSession\(userId\)\) throw/], put: ['if (false) throw', 'if (false) throw'], what: 'друзья: сеть и сессия' },
+  { url: /\/src\/db\/friends\.js(\?|$)/, find: /if \(!d \|\| !navigator\.onLine\) return null/, put: 'if (!d) return null', what: 'друзья: снимок' },
+  { url: /\/src\/screens\/FriendsScreen\.jsx(\?|$)/, find: /if \(!navigator\.onLine\) return/, put: 'if (false) return', what: 'друзья: загрузка' },
   { url: /\/src\/screens\/CircleScreen\.jsx(\?|$)/, find: /if \(!navigator\.onLine\) return/, put: 'if (false) return', what: 'круг: загрузка' },
   { url: /\/src\/screens\/DisciplineLeaderboard\.jsx(\?|$)/, find: /navigator\.onLine \? "Обновлено"/, put: 'true ? "Обновлено"', what: 'подпись рейтинга' },
 ]
@@ -228,7 +239,7 @@ async function newContext(browser) {
   await ctx.addInitScript(() => Object.defineProperty(navigator, 'onLine', { get: () => false, configurable: true }))
   await ctx.addInitScript((a) => { try { localStorage.setItem('gym_app_accent', JSON.stringify(a)) } catch { /* приватный режим */ } }, ACCENT)
   await ctx.route(/supabase\.co/, (r) => {
-    const m = r.request().url().match(/\/rest\/v1\/rpc\/(fc_[a-z_]+)/)
+    const m = r.request().url().match(/\/rest\/v1\/rpc\/((?:fc|fr)_[a-z_]+)/)
     if (m && FAKE_RPC[m[1]] !== undefined) {
       return r.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify(FAKE_RPC[m[1]]) })
     }
@@ -368,6 +379,18 @@ async function main() {
       // В README не показываем название конкретного зала; приложение не меняем.
       await page.locator('.fc-circle-name').evaluate((el) => { el.hidden = true })
       await shot('circle')
+    }
+
+    if (want('friends')) {
+      // «Друзья» (v8.9.0): заявка сверху, друзья списком «как контакты».
+      const roster = await page.evaluate(async () => (await import('/kachalka-app/src/db/local.js')).loginDb.users.toArray())
+      const av = new Map(roster.map((u) => [u.id, u.avatar_url]))
+      FAKE_RPC.fr_list = FAKE_RPC.fr_list.map((m) => ({ ...m, avatar_url: av.get(m.user_id) ?? null }))
+      await page.getByRole('button', { name: 'Открыть профиль' }).click()
+      await page.getByRole('button', { name: /Друзья/ }).click()
+      await page.getByRole('button', { name: 'Действия: Борис' }).waitFor()
+      await page.evaluate(() => document.querySelectorAll('.content').forEach((e) => { e.scrollTop = 0 }))
+      await shot('friends')
     }
 
     if (want('login')) {

@@ -8,6 +8,7 @@ import BackButton from '../components/ui/BackButton.jsx'
 import FriendCode from '../components/friends/FriendCode.jsx'
 import FriendByCode from '../components/friends/FriendByCode.jsx'
 import FriendLists from '../components/friends/FriendLists.jsx'
+import SheetDialog from '../components/ui/SheetDialog.jsx'
 
 // «Друзья» (этап 1, 15.10.2026; сервер — supabase/friends.sql). Взаимная дружба: свой код
 // (сразу друзья), заявки из круга и профиля участника, удалить/заблокировать. Друзья видят
@@ -18,6 +19,8 @@ export default function FriendsScreen({ user, onBack, onOpenMember, friendCode =
   const { online } = useSyncStatus()
   const rows = useLiveQuery(() => getFriends(), [user.id], undefined)
   const [err, setErr] = useState('')
+  // «Добавить друга» — лист со своим кодом и вводом чужого (вариант A, 15.10.2026).
+  const [adding, setAdding] = useState(false)
   const alive = useRef(true)
   useEffect(() => { alive.current = true; return () => { alive.current = false } }, [])
 
@@ -65,8 +68,15 @@ export default function FriendsScreen({ user, onBack, onOpenMember, friendCode =
       {rows === null && online && !err && <p className="muted" role="status">Загружаю…</p>}
       {rows && <FriendLists rows={rows} me={user.id} onAct={onAct} onOpenMember={onOpenMember} />}
 
-      {online && <FriendCode api={api} myName={user.name} />}
-      {online && !friendCode && <FriendByCode api={api} onAdded={changed} />}
+      {online && (
+        <button type="button" className="btn primary fr-add" onClick={() => setAdding(true)}>+ Добавить друга</button>
+      )}
+      {adding && (
+        <SheetDialog title="Добавить друга" onDismiss={() => setAdding(false)} swipeDown className="fr-sheet">
+          <FriendCode api={api} myName={user.name} />
+          <FriendByCode api={api} onAdded={changed} />
+        </SheetDialog>
+      )}
     </div>
   )
 }

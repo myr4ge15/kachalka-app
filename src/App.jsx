@@ -361,7 +361,7 @@ export default function App() {
               )}
               {route === 'feed' && <FeedScreen user={user} onOpenMember={openMember} flashId={feedFlashId} onOpenCircle={() => goTab('circle')} />}
               {route === 'member' && memberId && (
-                <MemberScreen user={user} memberId={memberId} onBack={backFromMember} onOpenFriends={() => goTab('friends')} />
+                <MemberScreen user={user} memberId={memberId} onBack={backFromMember} />
               )}
               {route === 'progress' && (
                 <ProgressScreen

@@ -26,11 +26,11 @@ import ScrollTopButton from '../components/ui/ScrollTopButton.jsx'
 // db/memberProfile.js (read-only запрос под RLS + кэш в meta), расчеты — те же
 // функции, что у своего Профиля (lib/memberProfile.js → lib/profileStats.js).
 //
-// Пропсы: user (кто смотрит), memberId, onBack(), onOpenFriends() — экран «Друзья».
+// Пропсы: user (кто смотрит), memberId, onBack().
 const REC_PREVIEW = 5
 const RECENT_STEP = 5
 
-export default function MemberScreen({ user, memberId, onBack, onOpenFriends }) {
+export default function MemberScreen({ user, memberId, onBack }) {
   const snap = useLiveQuery(
     () => getCachedMember(memberId, { id: user.id, name: user.name }),
     [memberId, user.id, user.name],
@@ -127,9 +127,10 @@ export default function MemberScreen({ user, memberId, onBack, onOpenFriends }) 
           {view?.lastAt && (
             <div className="member-sub">последняя тренировка — {fmtWhen(view.lastAt)}</div>
           )}
+          <FriendButton me={user.id} memberId={memberId} label />
         </div>
       </div>
-      <FriendButton me={user.id} memberId={memberId} onOpenFriends={onOpenFriends} />
+      <FriendButton me={user.id} memberId={memberId} />
 
       {error && <div className="banner error">{error}</div>}
       {loading && <CardsSkeleton cards={3} />}

@@ -94,16 +94,23 @@ export function useRestTimer(userId, { exercise = null, ready = true, active = t
     cancelRestPush(userId)
   }, [setRun, userId])
 
+  // ±15 с: идет отдых — сдвигаем его конец; не идет (fb_f8717109, 15.10.2026) — меняем
+  // запомненную длительность, не запуская; «пора» после конца при этом снимается, чтобы
+  // кольцо показало новую длину.
   const adjust = useCallback((deltaSec) => {
     const t = Date.now()
     const prev = runRef.current
-    if (!prev || restPhase(prev, t).phase !== 'run') return
+    if (!prev || restPhase(prev, t).phase !== 'run') {
+      setSettings((s) => rememberRestDuration(s, exId, restDurationFor(s, exId) + deltaSec))
+      if (prev) stop()
+      return
+    }
     const next = adjustRest(prev, deltaSec, t)
     setRun(next)
     const left = Math.round((next.endsAt - t) / 1000)
     if (left >= 1) pushFor(next, left)
     else cancelRestPush(userId)
-  }, [userId, pushFor, setRun])
+  }, [userId, pushFor, setRun, setSettings, exId, stop])
 
   // Выбор пресета: запомнить для упражнения и сразу начать отдых этой длины.
   const choose = useCallback((sec) => {

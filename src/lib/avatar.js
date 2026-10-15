@@ -48,7 +48,8 @@ const HEIC_TIMEOUT_MS = 20000
 
 // Привести файл к декодируемому <img> виду: HEIC → JPEG (heic2any грузим лениво,
 // только когда реально нужен, чтобы не тянуть libheif в основной бандл).
-async function toDecodableFile(file) {
+// Экспорт — для ручной обрезки (components/profile/AvatarCropper.jsx).
+export async function toDecodableFile(file) {
   if (!(await isHeic(file))) return file
   let heic2any
   try {
@@ -97,13 +98,30 @@ export async function compressToJpeg(file, max = 256, quality = 0.8) {
   return blob
 }
 
+// Ручная обрезка (15.10.2026): квадрат исходной картинки rect {sx, sy, size} (lib/avatarCrop.js
+// cropRect) → JPEG out×out. Апскейла нет: маленький квадрат остается своего размера.
+export async function cropToJpeg(img, rect, out = AVATAR_UPLOAD_PX, quality = 0.8) {
+  const side = Math.max(1, Math.round(Math.min(out, rect.size)))
+  const canvas = document.createElement('canvas')
+  canvas.width = side
+  canvas.height = side
+  canvas.getContext('2d').drawImage(img, rect.sx, rect.sy, rect.size, rect.size, 0, 0, side, side)
+  return new Promise((resolve, reject) =>
+    canvas.toBlob((b) => (b ? resolve(b) : reject(new Error('Сжатие не удалось'))), 'image/jpeg', quality)
+  )
+}
+
 // Сжать → залить (upsert) → записать публичный URL через RPC. Возвращает URL.
 // К URL добавляем ?v=<ts> — путь фиксированный (upsert), и без этого CDN/браузер
 // показывали бы старую картинку после замены.
 export async function uploadMyAvatar(userId, file) {
   // 512 px (v6.18.0, было 256): аватар теперь раскрывается крупно (AvatarZoom). JPEG 0.8
   // такого размера — ~50–120 КБ, в лимит бакета (256 КБ) входит с запасом.
-  const blob = await compressToJpeg(file, AVATAR_UPLOAD_PX)
+  return uploadAvatarBlob(userId, await compressToJpeg(file, AVATAR_UPLOAD_PX))
+}
+
+// Залить готовый JPEG (после ручной обрезки или сжатия) и записать URL.
+export async function uploadAvatarBlob(userId, blob) {
   const path = `${userId}/avatar.jpg`
   const up = await supabase.storage
     .from('avatars')

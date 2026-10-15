@@ -90,6 +90,22 @@ describe('WorkoutScreen: таймер отдыха', () => {
     expect(pill()).toHaveAccessibleName('Таймер отдыха, 3:00. Начать')
   })
 
+  it('±15 с без идущего отдыха меняют длительность и не запускают (fb_f8717109)', async () => {
+    writeDraft(`workout_draft_new_${user.id}`, draft)
+    render(<WorkoutScreen user={user} />)
+    fireEvent.click(pill())
+    fireEvent.click(pill())
+    const dialog = await screen.findByRole('dialog', { name: 'Отдых' })
+    fireEvent.click(screen.getByRole('button', { name: 'Стоп' }))
+    fireEvent.click(screen.getByRole('button', { name: 'Плюс 15 секунд' }))
+    fireEvent.click(screen.getByRole('button', { name: 'Плюс 15 секунд' }))
+    expect(dialog).toHaveTextContent('2:00')
+    expect(dialog).toHaveTextContent('отдых не идет')
+    expect(localStorage.getItem('gym_app_rest_run_u1')).toBeNull()
+    fireEvent.click(screen.getByRole('button', { name: 'Минус 15 секунд' }))
+    expect(JSON.parse(localStorage.getItem('gym_app_rest_u1')).byEx).toEqual({ bench: 105 })
+  })
+
   it('«Убрать таймер» в листе выключает его совсем', async () => {
     writeDraft(`workout_draft_new_${user.id}`, draft)
     render(<WorkoutScreen user={user} />)

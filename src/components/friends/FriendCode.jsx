@@ -44,7 +44,7 @@ export default function FriendCode({ api, myName }) {
 
   return (
     <div className="card fc-code-card">
-      <h3 className="fc-h">Добавить друга</h3>
+      <h3 className="fc-h">Мой код</h3>
       {code ? (
         <>
           <p className="fc-code" data-testid="fr-code">{fmtCode(code.code)}</p>

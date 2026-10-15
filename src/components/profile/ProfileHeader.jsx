@@ -2,7 +2,8 @@ import { useState } from 'react'
 import { setCachedAvatar, setCachedName } from '../../db/repo.js'
 import { syncNow } from '../../db/sync.js'
 import { setName, LoginError } from '../../lib/auth.js'
-import { uploadMyAvatar } from '../../lib/avatar.js'
+import { cropToJpeg, toDecodableFile, uploadAvatarBlob } from '../../lib/avatar.js'
+import AvatarCropper from './AvatarCropper.jsx'
 import { showToast } from '../ui/Toast.jsx'
 import Avatar from '../ui/Avatar.jsx'
 import PencilIcon from '../ui/PencilIcon.jsx'
@@ -15,7 +16,9 @@ export default function ProfileHeader({ user, avatarUrl, onRenamed }) {
   const aliveRef = useAliveRef()
 
   // ── Аватар ──
+  // Выбрал фото → ручная обрезка (15.10.2026, AvatarCropper) → «Готово» → загрузка.
   const [avBusy, setAvBusy] = useState(false)
+  const [cropFile, setCropFile] = useState(null)
   async function onPickAvatar(e) {
     const file = e.target.files?.[0]
     e.target.value = '' // позволить выбрать тот же файл повторно
@@ -26,8 +29,20 @@ export default function ProfileHeader({ user, avatarUrl, onRenamed }) {
     }
     setAvBusy(true)
     try {
-      const url = await uploadMyAvatar(user.id, file)
+      const ready = await toDecodableFile(file) // HEIC с iPhone → JPEG
+      if (aliveRef.current) setCropFile(ready)
+    } catch (err) {
+      showToast({ emoji: '⚠️', title: 'Не удалось открыть фото', sub: String(err?.message ?? err) })
+    } finally {
+      if (aliveRef.current) setAvBusy(false)
+    }
+  }
+  async function onCropped(img, rect) {
+    setAvBusy(true)
+    try {
+      const url = await uploadAvatarBlob(user.id, await cropToJpeg(img, rect))
       await setCachedAvatar(user.id, url) // мгновенно обновить шапку/ЛК до pull
+      if (aliveRef.current) setCropFile(null)
       showToast({ emoji: '📷', title: 'Аватар обновлен' })
     } catch (err) {
       showToast({ emoji: '⚠️', title: 'Не удалось загрузить', sub: String(err?.message ?? err) })
@@ -71,6 +86,9 @@ export default function ProfileHeader({ user, avatarUrl, onRenamed }) {
         <span className="avatar-cam" aria-hidden="true">{avBusy ? '…' : '📷'}</span>
         <input type="file" accept="image/*" onChange={onPickAvatar} disabled={avBusy} hidden />
       </label>
+      {cropFile && (
+        <AvatarCropper file={cropFile} busy={avBusy} onCancel={() => setCropFile(null)} onDone={onCropped} />
+      )}
       <div className="prof-id">
         {nameEditing ? (
           <div className="name-editor">

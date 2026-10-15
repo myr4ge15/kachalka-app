@@ -3852,8 +3852,51 @@ html[data-sheet-open], html[data-sheet-open] body { overscroll-behavior: none; }
 .fc-feed-cta { display: block; margin: 12px auto 0; }
 .lb-boards { margin-bottom: 10px; }
 .fc-empty .btn { margin-top: 10px; }
-/* «Друзья» (15.10.2026): кнопка дружбы в профиле участника. */
-.fr-btn { width: 100%; margin: 0 0 16px; }
+/* «Друзья» (15.10.2026, вариант A — «как контакты»). Имя — обычный текст строки, не ссылка. */
+.fr-btn { width: auto; min-height: 44px; padding: 0 18px; margin: 0 0 16px; font-size: 15px; }
+.fr-member-note { color: var(--acc-2); }
+.fr-card { padding: 4px 14px; margin-bottom: 12px; }
+.fr-card-hl { padding: 12px 14px; border-color: color-mix(in srgb, var(--acc) 55%, var(--border)); }
+.fr-lab { margin: 0 0 8px; font-size: 12px; color: var(--muted); text-transform: uppercase; letter-spacing: .04em; }
+.fr-lab-out { margin: 16px 4px 8px; }
+.fr-av { width: 44px; height: 44px; font-size: 17px; box-shadow: none; }
+.fr-item + .fr-item, .fr-list .fr-row-static + .fr-row-static { border-top: 1px solid var(--border); }
+.fr-line { display: flex; align-items: center; }
+.fr-row, .fr-row-static { display: flex; align-items: center; gap: 12px; min-height: 60px; flex: 1; min-width: 0; }
+.fr-row { background: none; border: 0; padding: 0; margin: 0; color: inherit; font: inherit; text-align: left; cursor: pointer; }
+.fr-who { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 2px; }
+.fr-name { font-size: 16px; font-weight: 600; color: var(--text); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.fr-sub { font-size: 13px; color: var(--muted); }
+.fr-sub-on { color: var(--green); }
+.fr-more { flex: none; width: 44px; height: 44px; margin-right: -10px; background: none; border: 0; border-radius: 12px;
+  color: var(--muted); font: inherit; font-size: 22px; line-height: 1; cursor: pointer; }
+.fr-more[aria-expanded="true"] { background: var(--surface-2); color: var(--text); }
+.fr-menu { display: flex; flex-direction: column; margin: 0 0 12px 56px; border: 1px solid var(--border);
+  border-radius: 14px; overflow: hidden; background: var(--surface-2); }
+.fr-menu button { min-height: 44px; padding: 0 14px; background: none; border: 0; color: var(--text); font: inherit;
+  font-size: 15px; text-align: left; cursor: pointer; }
+.fr-menu button + button { border-top: 1px solid var(--border); }
+.fr-menu .fr-danger { color: var(--red); }
+.fr-req + .fr-req { margin-top: 12px; padding-top: 12px; border-top: 1px solid var(--border); }
+.fr-req .fr-row-static { min-height: 52px; }
+.fr-two { display: flex; gap: 8px; margin-top: 6px; }
+.fr-two .btn { flex: 1; margin-top: 0; }
+.fr-small { flex: none; width: auto; min-height: 40px; height: 40px; padding: 0 14px; margin: 0; font-size: 14px; }
+.fr-empty { margin: 10px 0; line-height: 1.45; }
+.fr-note { margin: 0 4px 12px; font-size: 13px; line-height: 1.4; }
+.fr-add { width: 100%; margin: 8px 0 16px; }
+.fr-sheet .card { margin-bottom: 12px; }
+/* Ручная обрезка аватара (15.10.2026, components/profile/AvatarCropper.jsx). */
+.crop-hint { margin: 0 0 12px; font-size: 14px; }
+.crop-box { position: relative; margin: 0 auto; overflow: hidden; border-radius: 16px; background: var(--surface-2);
+  touch-action: none; user-select: none; -webkit-user-select: none; cursor: grab; }
+.crop-box:active { cursor: grabbing; }
+.crop-img { position: absolute; left: 0; top: 0; max-width: none; transform-origin: 0 0; pointer-events: none; }
+.crop-ring { position: absolute; inset: 0; border-radius: 50%; pointer-events: none;
+  box-shadow: 0 0 0 999px color-mix(in srgb, var(--bg) 72%, transparent); outline: 2px solid color-mix(in srgb, var(--text) 70%, transparent); outline-offset: -2px; }
+.crop-zoom { display: flex; align-items: center; gap: 12px; margin: 16px auto 4px; max-width: 280px; }
+.crop-zoom input { flex: 1; min-height: 44px; accent-color: var(--acc); }
+.crop-actions { max-width: 280px; margin: 8px auto 4px; }
 
 /* Exercise label scanner — полноэкранный видоискатель (v7.4.0, прототип
    prototypes/scanner-concepts.html, концепт D). Камера во весь лист, шапка листа
@@ -4216,8 +4259,9 @@ html[data-sheet-open], html[data-sheet-open] body { overscroll-behavior: none; }
   color: var(--muted); font-size: 14px; font-weight: 600; cursor: pointer; list-style: none;
 }
 .rest-more > summary::-webkit-details-marker { display: none; }
-.rest-more > summary::after { content: '›'; font-size: 20px; transition: transform var(--dur-base); }
-.rest-more[open] > summary::after { transform: rotate(90deg); }
+/* Стрелка — общий Chevron (как в Настройках), 20 px; раскрыто — вниз (fb_3841a3dc). */
+.rest-more__chev { flex: none; transition: transform var(--dur-base); }
+.rest-more[open] .rest-more__chev { transform: rotate(90deg); }
 .rest-more__body { display: flex; flex-direction: column; gap: 10px; padding-bottom: 6px; }
 .rest-toggle { min-height: 56px; }
 .rest-hide {

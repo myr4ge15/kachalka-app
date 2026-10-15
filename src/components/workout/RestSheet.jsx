@@ -1,4 +1,6 @@
+import { useRef } from 'react'
 import SheetDialog from '../ui/SheetDialog.jsx'
+import Chevron from '../ui/Chevron.jsx'
 import { fmtRest, REST_PRESETS, REST_STEP_SEC } from '../../lib/restTimer.js'
 import { isIOSDevice } from '../../lib/pushSupport.js'
 
@@ -30,6 +32,13 @@ export default function RestSheet({ state, run, idleSec, settings, exerciseName,
     : phase === 'done' ? 'пора к подходу' : 'отдых не идет'
   const name = run?.exerciseName ?? exerciseName
   const ios = typeof navigator !== 'undefined' && isIOSDevice(navigator)
+  // «Сигнал и экран» (fb_3841a3dc): раскрыли — блок прокручивается в видимую часть листа.
+  const moreRef = useRef(null)
+  function onMoreToggle(e) {
+    if (!e.currentTarget.open) return
+    const reduce = typeof window !== 'undefined' && window.matchMedia?.('(prefers-reduced-motion: reduce)').matches
+    requestAnimationFrame(() => moreRef.current?.scrollIntoView?.({ block: 'nearest', behavior: reduce ? 'auto' : 'smooth' }))
+  }
   const main = phase === 'run'
     ? { label: 'Стоп', act: onStop, cls: 'rest-btn rest-btn--stop' }
     : { label: phase === 'done' ? 'Заново' : 'Старт', act: () => onStart(), cls: 'rest-btn rest-btn--pri' }
@@ -51,10 +60,10 @@ export default function RestSheet({ state, run, idleSec, settings, exerciseName,
         </div>
 
         <div className="rest-adj">
-          <button type="button" className="rest-btn" disabled={phase !== 'run'}
+          <button type="button" className="rest-btn"
             onClick={() => onAdjust(-REST_STEP_SEC)} aria-label={`Минус ${REST_STEP_SEC} секунд`}>−{REST_STEP_SEC} с</button>
           <button type="button" className={main.cls} onClick={main.act}>{main.label}</button>
-          <button type="button" className="rest-btn" disabled={phase !== 'run'}
+          <button type="button" className="rest-btn"
             onClick={() => onAdjust(REST_STEP_SEC)} aria-label={`Плюс ${REST_STEP_SEC} секунд`}>+{REST_STEP_SEC} с</button>
         </div>
 
@@ -67,8 +76,8 @@ export default function RestSheet({ state, run, idleSec, settings, exerciseName,
         </div>
         <p className="rest-note">Длительность запоминается для этого упражнения и сразу запускает отдых.</p>
 
-        <details className="rest-more">
-          <summary>Сигнал и экран</summary>
+        <details className="rest-more" ref={moreRef} onToggle={onMoreToggle}>
+          <summary>Сигнал и экран<Chevron className="rest-more__chev" /></summary>
           <div className="rest-more__body">
             <div className="seg" role="group" aria-label="Звук">
               {SOUND_OPTS.map((o) => (
