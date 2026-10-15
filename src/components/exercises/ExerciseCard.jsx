@@ -3,6 +3,7 @@ import HoldButton from '../ui/HoldButton.jsx'
 import TimeInput from '../ui/TimeInput.jsx'
 import { useSelectOnFocus } from '../../hooks/useSelectOnFocus.js'
 import SetsCells from '../workout/SetsCells.jsx'
+import SetVoice from '../workout/SetVoice.jsx'
 import { exerciseMetric, isCountMetric, hasExtraWeight, bestPace, fmtPace, paceSecPerKm } from '../../lib/metric.js'
 import { resolveProgSettings } from '../../lib/progression.js'
 import {
@@ -28,6 +29,9 @@ import { TechniqueButton } from './TechniqueSheet.jsx'
 // упражнения — нет и кнопки. «i» стоит сразу за названием (внутри ручки
 // перестановки, но с data-no-sort — удержание на ней строку не поднимает). Кнопка
 // только у раскрытой карточки: она уже активна, pointerdown корня reveal не дает.
+// `onVoiceSet(ei, si, {weight,reps})` (v8.7.0) — подход голосом: микрофон рядом с
+// «+ подход» (только «вес × повторы» и «свой вес»), `voiceCursor` — строка, которую
+// голос предложит по умолчанию. Нет колбэка или распознавания — нет и микрофона.
 export default function ExerciseCard({
   entry, ei, prog, active = true, cardRef = null, onActivate = () => {},
   feel = null, onSetFeel = () => {},
@@ -35,6 +39,7 @@ export default function ExerciseCard({
   onReplace, onRemove,
   onRevertProg, onApplyProg, onToggleProgSettings, onChangeProgSettings,
   onUpdateSet, onStep, onAddSet, onRemoveSet,
+  onVoiceSet = null, voiceCursor = 0,
 }) {
   const metric = exerciseMetric(entry.exercise)
   // «На время» — без столбца веса; у «своего веса» (v6.16.0) — столбец «±кг»: плюс —
@@ -233,9 +238,12 @@ export default function ExerciseCard({
         </p>
       )}
 
-      <button className="set-add" onClick={() => onAddSet(ei)}>
-        + подход (повтор предыдущего)
-      </button>
+      {onVoiceSet && !isTime ? (
+        <SetVoice exercise={entry.exercise} sets={entry.sets} cursor={voiceCursor}
+          onCommit={(si, set) => onVoiceSet(ei, si, set)}>
+          <AddSetButton onClick={() => onAddSet(ei)} />
+        </SetVoice>
+      ) : <AddSetButton onClick={() => onAddSet(ei)} />}
 
       {/* Оценка идет ПОСЛЕ подходов и «+ подход» — по хронологии занятия:
           сначала делаешь упражнение, потом говоришь, как оно пошло. */}
@@ -256,6 +264,14 @@ export default function ExerciseCard({
         </div>
       </div>
     </div>
+  )
+}
+
+function AddSetButton({ onClick }) {
+  return (
+    <button className="set-add" onClick={onClick}>
+      + подход (повтор предыдущего)
+    </button>
   )
 }
 

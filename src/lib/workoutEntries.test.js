@@ -1,7 +1,7 @@
 import { describe, it, expect } from 'vitest'
 import {
   appendExerciseIn, removeExerciseIn, insertExerciseIn, replaceExerciseIn,
-  updateSetIn, stepSetIn, addSetIn, removeSetIn, insertSetIn,
+  updateSetIn, stepSetIn, addSetIn, putSetIn, removeSetIn, insertSetIn,
   revertProgIn, applyProgIn, toggleProgSettingsIn, setsFromTemplate,
   countSavable,
 } from './workoutEntries.js'
@@ -155,6 +155,22 @@ describe('addSetIn / removeSetIn / insertSetIn', () => {
     const cur = [entry(wEx('x'), [s(1, 1)]), entry(wEx('y'), [s(2, 2)])]
     const out = insertSetIn(cur, 'x', 0, s(9, 9))
     expect(out[1].sets).toHaveLength(1)
+  })
+})
+
+describe('putSetIn — подход голосом', () => {
+  it('пишет в существующую строку, сохраняя ключ', () => {
+    const cur = [entry(wEx(), [s(60, 10, 'k1'), s(60, 10, 'k2')])]
+    const out = putSetIn(cur, 0, 1, { weight: 62.5, reps: 8 })
+    expect(out[0].sets).toEqual([s(60, 10, 'k1'), s(62.5, 8, 'k2')])
+  })
+  it('за концом списка — новая строка со свежим ключом', () => {
+    const cur = [entry(wEx(), [s(60, 10, 'k1')]), entry(rEx(), [s(0, 5)])]
+    const out = putSetIn(cur, 0, 1, { weight: 60, reps: 12 })
+    expect(out[0].sets).toHaveLength(2)
+    expect(out[0].sets[1]).toMatchObject({ weight: 60, reps: 12 })
+    expect(out[0].sets[1]._k).not.toBe('k1')
+    expect(out[1]).toBe(cur[1])
   })
 })
 

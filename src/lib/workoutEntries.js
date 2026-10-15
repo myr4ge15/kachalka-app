@@ -95,6 +95,19 @@ export function addSetIn(entries, ei) {
   })
 }
 
+// Голосовой подход (v8.7.0): записать {weight, reps} в строку si (ключ _k строки
+// сохраняется) или, если si за концом списка, добавить новой строкой.
+export function putSetIn(entries, ei, si, set) {
+  return entries.map((e, i) => {
+    if (i !== ei) return e
+    const value = { weight: set.weight, reps: set.reps }
+    const sets = si < e.sets.length
+      ? e.sets.map((s, j) => (j === si ? { ...s, ...value } : s))
+      : [...e.sets, { ...value, _k: sk() }]
+    return { ...e, sets }
+  })
+}
+
 // Убрать подход по индексу.
 export function removeSetIn(entries, ei, si) {
   return entries.map((e, i) =>

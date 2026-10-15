@@ -1,7 +1,7 @@
 import { TECHNIQUE_INDEX } from '../content/techniqueIndex.js'
 import { VOICE_ALIASES } from './voiceAliases.js'
 import { describe, expect, it } from 'vitest'
-import { voiceCandidates } from './voiceExercises.js'
+import { bestVoicePhrase, speechError, voiceCandidates } from './voiceExercises.js'
 
 const catalog = [
   { id: 'a', name: 'Жим лежа со штангой' },
@@ -31,6 +31,19 @@ describe('voiceCandidates', () => {
     expect(voiceCandidates('Жим лёжа', catalog)).toEqual([catalog[0]])
     expect(voiceCandidates('верхний блок', catalog)).toEqual([catalog[2]])
     expect(voiceCandidates('верхний блок', catalog.slice(0, 2))).toEqual([])
+  })
+  it('ignores the set tail and command words around the name', () => {
+    expect(voiceCandidates('запиши жим лежа 60 на 12', catalog)).toEqual([catalog[0]])
+    expect(voiceCandidates('60 на 12', catalog)).toEqual([])
+  })
+  it('bestVoicePhrase prefers an alternative with matches', () => {
+    expect(bestVoicePhrase(['чай с лимоном', 'жим лежа'], catalog)).toEqual({ phrase: 'жим лежа', candidates: [catalog[0]] })
+    expect(bestVoicePhrase(['абракадабра'], catalog)).toEqual({ phrase: 'абракадабра', candidates: [] })
+    expect(bestVoicePhrase([], catalog)).toEqual({ phrase: '', candidates: [] })
+  })
+  it('speechError names the screen fallback', () => {
+    expect(speechError('timeout')).toBe('Время записи истекло. Повтори или используй поиск.')
+    expect(speechError('service-not-allowed', 'введи в строке подхода')).toBe('Распознавание недоступно в этом браузере. Введи в строке подхода.')
   })
   it('does not invent results for empty or unknown speech', () => {
     expect(voiceCandidates('', catalog)).toEqual([])

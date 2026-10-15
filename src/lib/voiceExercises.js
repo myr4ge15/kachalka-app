@@ -1,22 +1,7 @@
 import { normalizeName } from './similar.js'
 import { searchExercises } from './exerciseSearch.js'
-import { VOICE_ALIASES } from './voiceAliases.js'
-
-// Only expand whole phrases; resolve against the supplied visible catalog.
-const SYNONYMS = {
-  'жим': ['жим лежа', 'жим'],
-  'жим лежа': ['жим лежа'],
-  'жим лежа на скамейке': ['жим лежа'],
-  'жим лежа на скамье': ['жим лежа'],
-  'присед': ['присед'],
-  'приседания': ['присед'],
-  'становая': ['становая тяга'],
-  'верхний блок': ['тяга верхнего блока'],
-  'нижний блок': ['горизонтальная тяга блока', 'нижн блок'],
-  'бабочка': ['сведения в тренажере бабочка'],
-  'брусья': ['отжимания на брусьях'],
-  'мостик': ['ягодичный мостик'],
-}
+import { VOICE_ALIASES, VOICE_QUERIES } from './voiceAliases.js'
+import { parseVoiceCommand } from './voiceCommand.js'
 
 // Apply the same limited morphology to speech and catalog names, not OCR.
 function voiceWords(text) {
@@ -32,8 +17,14 @@ function voiceWords(text) {
     }).join(' ')
 }
 
+// Название из фразы: без командных слов и без хвоста про подход
+// («добавь жим лежа 60 на 12» → «жим лежа»), см. lib/voiceCommand.js.
+export function voiceQuery(text) {
+  return normalizeName(parseVoiceCommand(text).query)
+}
+
 export function voiceCandidates(text, exercises) {
-  const phrase = normalizeName(text).replace(/^(?:добавь|добавить)(?: упражнение)?\s+/, '')
+  const phrase = voiceQuery(text)
   if (!phrase) return []
   const aliases = VOICE_ALIASES.filter((entry) => entry.aliases.includes(phrase))
   const named = new Set(aliases.flatMap((entry) => entry.names.map(normalizeName)))
@@ -42,8 +33,8 @@ export function voiceCandidates(text, exercises) {
     ...exercises.filter((ex) => normalizeName(ex.name) !== phrase && named.has(normalizeName(ex.name))),
   ]
   // An alias never creates an exercise or silently substitutes a missing variant.
-  if (aliases.length && !SYNONYMS[phrase]) return exact
-  const queries = SYNONYMS[phrase] ?? [phrase]
+  if (aliases.length && !VOICE_QUERIES[phrase]) return exact
+  const queries = VOICE_QUERIES[phrase] ?? [phrase]
   const searchable = exercises.map((ex) => ({ ...ex, name: voiceWords(ex.name), original: ex }))
   const seen = new Set()
   return [...exact, ...queries.map(voiceWords).filter(Boolean)
@@ -51,13 +42,28 @@ export function voiceCandidates(text, exercises) {
     .filter((ex) => !seen.has(ex.id) && seen.add(ex.id))
 }
 
-export function speechError(code) {
+// Лучший из вариантов распознавателя: первый, у которого нашлись упражнения
+// («мостики» мимо, «мостик» — в справочнике). Нет ни у кого — первый, как есть.
+export function bestVoicePhrase(phrases, exercises) {
+  for (const phrase of phrases) {
+    const candidates = voiceCandidates(phrase, exercises)
+    if (candidates.length) return { phrase, candidates }
+  }
+  return { phrase: phrases[0] ?? '', candidates: [] }
+}
+
+// Текст ошибки распознавания. `manual` — запасной путь экрана: в пикере это поиск,
+// в карточке упражнения — ввод в строке подхода.
+export function speechError(code, manual = 'используй поиск') {
+  const Manual = manual[0].toUpperCase() + manual.slice(1)
   return ({
     'not-allowed': 'Разреши доступ к микрофону в настройках браузера.',
-    'service-not-allowed': 'Распознавание недоступно в этом браузере. Используй поиск.',
+    'service-not-allowed': `Распознавание недоступно в этом браузере. ${Manual}.`,
     'audio-capture': 'Микрофон недоступен. Проверь подключение и разрешения.',
     'network': 'Ошибка сети. Проверь интернет и попробуй еще раз.',
     'no-speech': 'Речь не распознана. Попробуй еще раз.',
-    'language-not-supported': 'Русский язык недоступен для распознавания. Используй поиск.',
-  })[code] ?? 'Не удалось распознать речь. Повтори или используй поиск.'
+    'language-not-supported': `Русский язык недоступен для распознавания. ${Manual}.`,
+    'timeout': `Время записи истекло. Повтори или ${manual}.`,
+    'start': `Не удалось включить микрофон. ${Manual} или повтори.`,
+  })[code] ?? `Не удалось распознать речь. Повтори или ${manual}.`
 }

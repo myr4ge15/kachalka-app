@@ -13,6 +13,11 @@
     -->
     <meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' 'wasm-unsafe-eval'; style-src 'self' 'unsafe-inline'; img-src 'self' data: blob: https://*.supabase.co; media-src 'self' blob:; font-src 'self' data:; connect-src 'self' https://*.supabase.co wss://*.supabase.co; worker-src 'self' blob:; manifest-src 'self'; object-src 'none'; base-uri 'self'" />
     <link rel="icon" type="image/svg+xml" href="./favicon.svg" />
+    <!-- PNG-иконка и application-name (v8.7.0): ярлык «на главный экран» в браузерах, которые
+         не ставят PWA по манифесту (Яндекс Браузер на Android), берет растровую иконку и имя
+         отсюда — с одной SVG выходил значок браузера и подпись из <title>. -->
+    <link rel="icon" type="image/png" sizes="192x192" href="./icon-192.png" />
+    <meta name="application-name" content="kachalka-app" />
     <link rel="apple-touch-icon" href="./apple-touch-icon.png" />
     <!-- user-scalable=no + maximum-scale=1: PWA-приложение, а не страница — двойной
          тап/пинч-зум только ломают вёрстку и мешают быстрым тапам в зале. -->

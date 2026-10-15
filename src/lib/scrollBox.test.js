@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { settleScroll } from './scrollBox.js'
+import { scrollToTop, settleScroll } from './scrollBox.js'
 
 function fakeRaf() {
   const q = new Map(); let n = 0
@@ -35,5 +35,74 @@ describe('settleScroll', () => {
     const box = { style: { overflowY: '' }, scrollTop: 50 }
     settleScroll(box, 'abc', fakeRaf())
     expect(box.scrollTop).toBe(0)
+  })
+})
+
+describe('scrollToTop', () => {
+  function fakeTimers() {
+    const q = new Map(); let n = 0
+    return { set: (fn, ms) => { q.set(++n, { fn, ms }); return n }, clear: (id) => q.delete(id),
+      run: (ms) => { for (const [id, t] of [...q]) if (t.ms <= ms) { q.delete(id); t.fn() } }, size: () => q.size }
+  }
+  function fakeBox(top) {
+    const ls = {}
+    return {
+      style: { overflowY: '' }, scrollTop: top, calls: [],
+      scrollTo(o) { this.calls.push(o) },
+      addEventListener: (t, fn) => { ls[t] = fn }, removeEventListener: (t) => { delete ls[t] },
+      fire: (t) => ls[t]?.(), ls,
+    }
+  }
+
+  it('плавно; браузер поехал — подстраховка не вмешивается', () => {
+    const box = fakeBox(800); const timers = fakeTimers(); const raf = fakeRaf()
+    scrollToTop(box, { timers, raf })
+    expect(box.calls).toEqual([{ top: 0, behavior: 'smooth' }])
+    box.scrollTop = 500
+    timers.run(150)
+    expect(box.style.overflowY).toBe('')
+    box.scrollTop = 0
+    timers.run(900)
+    expect(box.scrollTop).toBe(0)
+    expect(box.ls).toEqual({})
+  })
+
+  it('WebKit пропустил scrollTo — через 150 мс ставит 0 через settleScroll', () => {
+    const box = fakeBox(800); const timers = fakeTimers(); const raf = fakeRaf()
+    scrollToTop(box, { timers, raf })
+    timers.run(150)
+    expect(box.scrollTop).toBe(0)
+    expect(box.style.overflowY).toBe('hidden')
+    raf.flush()
+    expect(box.style.overflowY).toBe('')
+  })
+
+  it('застрял на полпути — догоняет к концу', () => {
+    const box = fakeBox(800); const timers = fakeTimers(); const raf = fakeRaf()
+    scrollToTop(box, { timers, raf })
+    box.scrollTop = 300
+    timers.run(150)
+    expect(box.scrollTop).toBe(300)
+    timers.run(900)
+    expect(box.scrollTop).toBe(0)
+  })
+
+  it('палец пользователя отменяет подстраховку', () => {
+    const box = fakeBox(800); const timers = fakeTimers(); const raf = fakeRaf()
+    scrollToTop(box, { timers, raf })
+    box.fire('touchstart')
+    timers.run(900)
+    expect(box.scrollTop).toBe(800)
+  })
+
+  it('уже наверху, без анимации и без скроллера', () => {
+    const top = fakeBox(0)
+    scrollToTop(top, { timers: fakeTimers() })
+    expect(top.calls).toEqual([])
+    const instant = fakeBox(400); const raf = fakeRaf()
+    scrollToTop(instant, { smooth: false, raf })
+    expect(instant.scrollTop).toBe(0)
+    expect(instant.calls).toEqual([])
+    expect(() => scrollToTop(null)()).not.toThrow()
   })
 })

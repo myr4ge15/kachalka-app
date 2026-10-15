@@ -97,6 +97,35 @@ describe('voice in ExercisePicker', () => {
     unmount()
     expect(rec.abort).toHaveBeenCalledOnce()
   })
+  it('picks the alternative that matches the catalog and drops the set tail', () => {
+    const { onPick } = setup()
+    expect(rec.maxAlternatives).toBe(3)
+    act(() => rec.onresult({ results: [Object.assign([{ transcript: 'чай с лимоном' }, { transcript: 'жим лежа 60 на 12' }], { isFinal: true })] }))
+    expect(screen.getByText('«жим лежа 60 на 12»')).toBeInTheDocument()
+    expect(screen.getByText(/Вес и повторы здесь не записываются/)).toBeInTheDocument()
+    fireEvent.click(screen.getByRole('button', { name: 'Добавить: Жим лежа' }))
+    expect(onPick).toHaveBeenCalledExactlyOnceWith(catalog[0])
+  })
+  it('moves the phrase into the search field', () => {
+    setup()
+    act(() => rec.onresult({ results: [Object.assign([{ transcript: 'Добавь абракадабру' }], { isFinal: true })] }))
+    expect(screen.getByText(/Ничего не найдено/)).toBeInTheDocument()
+    fireEvent.click(screen.getByRole('button', { name: 'Искать «абракадабру» в списке' }))
+    expect(screen.getByPlaceholderText('Поиск по названию…')).toHaveValue('абракадабру')
+    expect(screen.queryByText('Распознано')).not.toBeInTheDocument()
+  })
+  it('shows at most six candidates', () => {
+    vi.stubGlobal('SpeechRecognition', class {
+      constructor() { rec = this }
+      start = vi.fn()
+      abort = vi.fn()
+    })
+    const many = Array.from({ length: 9 }, (_, i) => ({ id: `j${i}`, name: `Жим вариант ${i + 1}` }))
+    render(<ExercisePicker exercises={many} onPick={vi.fn()} onClose={vi.fn()} />)
+    fireEvent.click(screen.getByRole('button', { name: 'Назвать упражнение' }))
+    act(() => rec.onresult({ results: [Object.assign([{ transcript: 'жим' }], { isFinal: true })] }))
+    expect(screen.getAllByRole('button', { name: /^Добавить: / })).toHaveLength(6)
+  })
   it('keeps manual search usable without speech support', () => {
     render(<ExercisePicker exercises={catalog} onPick={vi.fn()} onClose={vi.fn()} />)
     expect(screen.getByRole('button', { name: 'Назвать упражнение' })).toBeDisabled()

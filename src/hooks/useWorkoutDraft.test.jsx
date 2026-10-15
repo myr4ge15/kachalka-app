@@ -5,7 +5,7 @@
 import { afterEach, describe, expect, it, vi } from 'vitest'
 import { renderHook, act, waitFor } from '@testing-library/react'
 import { readDraft, clearDraft } from '../lib/draftStore.js'
-import { useWorkoutDraft } from './useWorkoutDraft.js'
+import { freshStart, useWorkoutDraft } from './useWorkoutDraft.js'
 
 vi.mock('../db/repo.js', () => ({
   getWorkout: vi.fn(),
@@ -15,8 +15,8 @@ const { getWorkout } = await import('../db/repo.js')
 
 const U = 'u1'
 const BENCH = { id: 'ex1', name: 'Жим' }
-const KEYS = ['workout_draft_new_u1', 'workout_feel_new_u1', 'workout_date_new_u1', 'workout_edit_u1_w1']
-afterEach(() => { for (const k of KEYS) clearDraft(k); vi.mocked(getWorkout).mockReset() })
+const KEYS = ['workout_draft_new_u1', 'workout_feel_new_u1', 'workout_date_new_u1', 'workout_start_new_u1', 'workout_edit_u1_w1']
+afterEach(() => { for (const k of KEYS) clearDraft(k); vi.mocked(getWorkout).mockReset(); vi.useRealTimers() })
 
 describe('useWorkoutDraft — новая тренировка', () => {
   it('состав, оценки и выбранная дата ложатся в черновик и поднимаются заново', () => {
@@ -56,6 +56,57 @@ describe('useWorkoutDraft — новая тренировка', () => {
     act(() => result.current.dropSaved())
     expect(readDraft('workout_draft_new_u1')).toBeUndefined()
     expect(readDraft('workout_date_new_u1')).toBeUndefined()
+  })
+})
+
+describe('useWorkoutDraft — время начала (v8.7.0)', () => {
+  it('время — первое упражнение, а не открытие экрана; переживает перезагрузку', () => {
+    vi.useFakeTimers({ toFake: ['Date'] })
+    vi.setSystemTime(new Date('2026-10-15T07:00:00.000Z'))
+    const { result, unmount } = renderHook(() => useWorkoutDraft({ userId: U }))
+    vi.setSystemTime(new Date('2026-10-15T07:20:00.000Z'))
+    act(() => result.current.setEntries([{ exercise: BENCH, sets: [] }]))
+    expect(result.current.performedAt).toBe('2026-10-15T07:20:00.000Z')
+    act(() => result.current.setEntries((p) => [...p, { exercise: { id: 'ex2', name: 'Тяга' }, sets: [] }]))
+    expect(result.current.performedAt).toBe('2026-10-15T07:20:00.000Z')
+    unmount()
+    vi.setSystemTime(new Date('2026-10-15T08:30:00.000Z')) // iPhone выгрузил PWA посреди зала
+    expect(renderHook(() => useWorkoutDraft({ userId: U })).result.current.performedAt).toBe('2026-10-15T07:20:00.000Z')
+  })
+
+  it('черновик с вечера, поднятый завтра, — «сегодняшний»', () => {
+    vi.useFakeTimers({ toFake: ['Date'] })
+    vi.setSystemTime(new Date('2026-10-14T18:00:00.000Z'))
+    const first = renderHook(() => useWorkoutDraft({ userId: U }))
+    act(() => first.result.current.setEntries([{ exercise: BENCH, sets: [] }]))
+    first.unmount()
+    vi.setSystemTime(new Date('2026-10-15T09:00:00.000Z'))
+    const { result } = renderHook(() => useWorkoutDraft({ userId: U }))
+    expect(result.current.performedAt).toBe('2026-10-15T09:00:00.000Z')
+    expect(readDraft('workout_start_new_u1')).toBe('2026-10-15T09:00:00.000Z')
+  })
+
+  it('пустой состав сбрасывает отметку; выбранная руками дата главнее', () => {
+    vi.useFakeTimers({ toFake: ['Date'] })
+    vi.setSystemTime(new Date('2026-10-15T07:00:00.000Z'))
+    const { result } = renderHook(() => useWorkoutDraft({ userId: U }))
+    act(() => result.current.setEntries([{ exercise: BENCH, sets: [] }]))
+    act(() => result.current.setEntries([]))
+    expect(readDraft('workout_start_new_u1')).toBeUndefined()
+    act(() => result.current.setPerformedAt('2026-10-12T07:00:00.000Z'))
+    vi.setSystemTime(new Date('2026-10-15T07:40:00.000Z'))
+    act(() => result.current.setEntries([{ exercise: BENCH, sets: [] }]))
+    expect(result.current.performedAt).toBe('2026-10-12T07:00:00.000Z')
+    act(() => result.current.dropSaved())
+    expect(readDraft('workout_start_new_u1')).toBeUndefined()
+  })
+
+  it('freshStart: не старше 12 часов и не из будущего', () => {
+    const now = Date.parse('2026-10-15T12:00:00.000Z')
+    expect(freshStart('2026-10-15T01:00:00.000Z', now)).toBe('2026-10-15T01:00:00.000Z')
+    expect(freshStart('2026-10-14T23:00:00.000Z', now)).toBeNull()
+    expect(freshStart('2026-10-15T13:00:00.000Z', now)).toBeNull()
+    expect(freshStart(undefined, now)).toBeNull()
   })
 })
 

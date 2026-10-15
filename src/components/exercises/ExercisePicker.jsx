@@ -429,7 +429,7 @@ export default function ExercisePicker({
         </div>
 
         <div className="picker-list" ref={listRef} data-sheet-bounce="">
-          <ExerciseVoice exercises={exercises} onPick={onPick} />
+          <ExerciseVoice exercises={exercises} onPick={onPick} onSearch={changeQuery} />
           {showShortcuts && shortcuts.fav.length > 0 && (
             <>
               <div className="group-title">Избранные</div>

@@ -7,8 +7,14 @@ import { sk } from '../lib/progressionCard.js'
 //
 // Новая тренировка (workoutId == null): состав, оценки RPE и вручную выбранная дата
 // живут в lib/draftStore (память + localStorage) — переживают уход с экрана, выгрузку
-// PWA в фоне и перезагрузку на обновление посреди занятия. Невыбранную дату не храним:
-// черновик, поднятый завтра, должен стать «сегодняшним».
+// PWA в фоне и перезагрузку на обновление посреди занятия.
+//
+// Время тренировки (v8.7.0) — момент ПЕРВОГО упражнения в пустом черновике (руками,
+// шаблоном, сканером), а не открытия экрана и не сохранения: оно и идет в Ленту.
+// Хранится в черновике (START_KEY), поэтому выгрузка PWA посреди зала его больше не
+// сдвигает. Старше START_TTL_MS — не в счет: черновик, собранный с вечера и поднятый
+// завтра, становится «сегодняшним». Пустой состав сбрасывает отметку; дата, выбранная
+// руками (DATE_KEY), главнее.
 //
 // Существующая: документ — источник правды; несохраненные правки (РЕВЬЮ-КОДА-2026-10-02,
 // п. 15) лежат в том же хранилище с привязкой к версии документа (`base` = updated_at):
@@ -37,18 +43,27 @@ function snapshotOf(entries, performedAt, feels) {
   })
 }
 
+const START_TTL_MS = 12 * 60 * 60 * 1000
+
+// Отметка начала из черновика, если она еще годится (не старше 12 ч, не из будущего).
+export function freshStart(iso, now = Date.now()) {
+  const t = Date.parse(iso ?? '')
+  return Number.isFinite(t) && now - t <= START_TTL_MS && t <= now + 60_000 ? iso : null
+}
+
 export function useWorkoutDraft({ userId, workoutId = null, onLoadError }) {
   const isNew = workoutId == null
   const DRAFT_KEY = `workout_draft_new_${userId}`
   const FEEL_KEY = `workout_feel_new_${userId}`
   const DATE_KEY = `workout_date_new_${userId}`
+  const START_KEY = `workout_start_new_${userId}`
   const EDIT_KEY = isNew ? null : `workout_edit_${userId}_${workoutId}`
 
   const [entries, setEntries] = useState(() => (isNew ? readDraft(DRAFT_KEY) ?? [] : []))
   // { [exerciseId]: 'easy'|'ok'|'hard' } — только за эту тренировку.
   const [feels, setFeels] = useState(() => (isNew ? readDraft(FEEL_KEY) ?? {} : {}))
   const [performedAt, setPerformedAtState] = useState(
-    () => (isNew && readDraft(DATE_KEY)) || new Date().toISOString()
+    () => (isNew && (readDraft(DATE_KEY) || freshStart(readDraft(START_KEY)))) || new Date().toISOString()
   )
   const [loading, setLoading] = useState(!isNew)
   const [editRestored, setEditRestored] = useState(false)
@@ -70,6 +85,17 @@ export function useWorkoutDraft({ userId, workoutId = null, onLoadError }) {
   useEffect(() => {
     if (isNew) writeDraft(FEEL_KEY, feels)
   }, [isNew, FEEL_KEY, feels])
+
+  // Отметка начала: появилось первое упражнение — «сейчас»; состав опустел — сброс.
+  const hasEntries = entries.length > 0
+  useEffect(() => {
+    if (!isNew) return
+    if (!hasEntries) { dropDraft(START_KEY); return }
+    if (readDraft(DATE_KEY) || freshStart(readDraft(START_KEY))) return
+    const now = new Date().toISOString()
+    writeDraft(START_KEY, now)
+    setPerformedAtState(now)
+  }, [isNew, hasEntries, START_KEY, DATE_KEY])
 
   useEffect(() => {
     if (isNew || loading || !editOrigRef.current) return
@@ -142,6 +168,7 @@ export function useWorkoutDraft({ userId, workoutId = null, onLoadError }) {
     dropDraft(DRAFT_KEY)
     dropDraft(FEEL_KEY)
     dropDraft(DATE_KEY)
+    dropDraft(START_KEY)
     setEntries([])
     setFeels({}) // и оценок: отказ от черновика отменяет занятие целиком
   }
@@ -153,6 +180,7 @@ export function useWorkoutDraft({ userId, workoutId = null, onLoadError }) {
       dropDraft(DRAFT_KEY)
       dropDraft(FEEL_KEY)
       dropDraft(DATE_KEY)
+      dropDraft(START_KEY)
     } else {
       dropDraft(EDIT_KEY)
     }

@@ -10,7 +10,7 @@ import { buildRecommendation, defaultSet } from '../lib/progressionCard.js'
 import { workoutFinishEvents } from '../lib/workoutFinish.js'
 import {
   appendExerciseIn, removeExerciseIn, insertExerciseIn, replaceExerciseIn,
-  updateSetIn, stepSetIn, addSetIn, removeSetIn, insertSetIn,
+  updateSetIn, stepSetIn, addSetIn, putSetIn, removeSetIn, insertSetIn,
   revertProgIn, applyProgIn, toggleProgSettingsIn, setsFromTemplate, countSavable,
 } from '../lib/workoutEntries.js'
 import { exportWorkouts } from '../lib/exportWorkout.js'
@@ -102,6 +102,7 @@ export default function WorkoutScreen({ user, workoutId = null, onBack, onSaved 
   // Подсказка «Как выполнять» из карточки (v8.0.0): { slug, name } или null.
   // Только чтение справочника — состав и черновик тренировки она не трогает.
   const [technique, setTechnique] = useState(null)
+  const [voiceCursor, setVoiceCursor] = useState({}) // { [exerciseId]: строка для голоса }
   const [saving, setSaving] = useState(false)
   const [delArm, setDelArm] = useState(false)   // in-app подтверждение удаления (как везде)
   const [clearArm, setClearArm] = useState(false) // подтверждение отказа от черновика новой
@@ -359,6 +360,16 @@ export default function WorkoutScreen({ user, workoutId = null, onBack, onSaved 
 
   function addSet(ei) {
     setEntries((prev) => addSetIn(prev, ei))
+  }
+
+  // Подход голосом (v8.7.0): SetVoice уже показал и подтвердил, что и куда пишем.
+  // Курсор — следующая строка после записанной: «60 на 12» подряд идут по подходам.
+  // Живет только в памяти экрана: после перезагрузки голос снова предложит первую
+  // строку, а человек увидит ее в карточке и выберет другую.
+  function voiceSet(ei, si, set) {
+    const exId = entries[ei]?.exercise.id
+    setEntries((prev) => putSetIn(prev, ei, si, set))
+    if (exId != null) setVoiceCursor((c) => ({ ...c, [exId]: si + 1 }))
   }
 
   function removeSet(ei, si) {
@@ -627,6 +638,8 @@ export default function WorkoutScreen({ user, workoutId = null, onBack, onSaved 
               onStep={step}
               onAddSet={addSet}
               onRemoveSet={removeSet}
+              onVoiceSet={voiceSet}
+              voiceCursor={voiceCursor[entry.exercise.id] ?? 0}
             />
           ))}
 

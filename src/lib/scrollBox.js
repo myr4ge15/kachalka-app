@@ -28,3 +28,34 @@ const defaultRaf = {
   request: (fn) => (typeof requestAnimationFrame === 'function' ? requestAnimationFrame(fn) : setTimeout(fn, 16)),
   cancel: (id) => (typeof cancelAnimationFrame === 'function' ? cancelAnimationFrame(id) : clearTimeout(id)),
 }
+
+// Плавно наверх с подстраховкой (v8.7.0) — повторный тап по открытой вкладке.
+// Голый smooth `scrollTo` на iPhone иногда пропускается (тот же WebKit, что выше):
+// после возврата из профиля друга тап по «Ленте» мигал, а Лента стояла на месте.
+// Поэтому: через checkMs позиция не сдвинулась — ставим 0 через settleScroll; через
+// doneMs еще не наверху — тоже. Палец/колесо пользователя подстраховку отменяют.
+// Возвращает отмену (таймеры и слушатели).
+export function scrollToTop(box, { smooth = true, checkMs = 150, doneMs = 900, timers = defaultTimers, raf = defaultRaf } = {}) {
+  if (!box) return () => {}
+  if (!smooth) return settleScroll(box, 0, raf)
+  const start = box.scrollTop
+  if (!(start > 0)) return () => {}
+  let touched = false
+  let settled = null
+  const ids = []
+  const onUser = () => { touched = true }
+  const off = () => {
+    ids.forEach((id) => timers.clear(id))
+    box.removeEventListener?.('touchstart', onUser)
+    box.removeEventListener?.('wheel', onUser)
+  }
+  const force = () => { if (!touched && box.scrollTop > 0) settled = settleScroll(box, 0, raf) }
+  box.addEventListener?.('touchstart', onUser, { passive: true })
+  box.addEventListener?.('wheel', onUser, { passive: true })
+  box.scrollTo({ top: 0, behavior: 'smooth' })
+  ids.push(timers.set(() => { if (box.scrollTop >= start) force() }, checkMs))
+  ids.push(timers.set(() => { force(); off() }, doneMs))
+  return () => { off(); settled?.() }
+}
+
+const defaultTimers = { set: (fn, ms) => setTimeout(fn, ms), clear: (id) => clearTimeout(id) }

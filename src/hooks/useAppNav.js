@@ -5,7 +5,7 @@ import { transitionKind, isNested, nextScreenStack, initialScreenStack } from '.
 import { storageGet, storageSet } from '../lib/safeStorage.js'
 import { captureAnchor, useScrollAnchorRestore } from './useScrollAnchor.js'
 import { edgeSwipeAvailable, useEdgeSwipeBack } from './useEdgeSwipeBack.js'
-import { settleScroll } from '../lib/scrollBox.js'
+import { scrollToTop, settleScroll } from '../lib/scrollBox.js'
 
 // Навигация приложения (вынесено из App.jsx в v6.14.1, код — дословно): активная
 // вкладка и стек вложенных экранов (анимация, прокрутка, свайп «назад»), одноразовые
@@ -126,7 +126,10 @@ export function useAppNav(user) {
     // (напр. Лента перезапрашивает посты).
     if (next === tab) {
       const reduce = window.matchMedia?.('(prefers-reduced-motion: reduce)').matches
-      contentRef.current?.scrollTo({ top: 0, behavior: reduce ? 'auto' : 'smooth' })
+      // Недоигравшая подгонка «вернуться к карточке» после профиля друга не должна
+      // спорить с тапом «наверх»; сам подъем — с подстраховкой для iPhone (v8.7.0).
+      if (next === 'feed') setFeedRestore(null)
+      scrollToTop(contentRef.current, { smooth: !reduce })
       emitReselect(next)
       return
     }
