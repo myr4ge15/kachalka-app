@@ -86,27 +86,52 @@ async function rememberIntent(url) {
   } catch { /* нет Cache API — остаются сообщение и navigate */ }
 }
 
+// Журнал нажатий (v8.9.4, отладка перехода по пушу на iPhone): последние шаги SW и
+// приложения в том же кэше; админ видит его в «Уведомлениях» (src/lib/pushIntent.js).
+const LOG_KEY = '/__push-log'
+const LOG_MAX = 40
+async function logPush(ev, detail) {
+  try {
+    const c = await caches.open(INTENT_CACHE)
+    const res = await c.match(LOG_KEY)
+    const list = res ? await res.json() : []
+    list.push({ at: Date.now(), who: 'sw', ev, detail: detail == null ? '' : String(detail).slice(0, 160) })
+    await c.put(LOG_KEY, new Response(JSON.stringify(list.slice(-LOG_MAX)), { headers: { 'content-type': 'application/json' } }))
+  } catch { /* журнал — не повод ломать переход */ }
+}
+
 async function openFromNotification(target) {
   await rememberIntent(target)
   const scope = self.registration.scope
   const wins = await clients.matchAll({ type: 'window', includeUncontrolled: true })
   const win = wins.find((w) => w.url.startsWith(scope))
+  await logPush('windows', `${wins.length} шт., наше: ${win ? win.visibilityState + ', ' + (win.focused ? 'в фокусе' : 'не в фокусе') : 'нет'}`)
   if (win) {
     let shown = win
-    try { shown = (await win.focus()) || win } catch { /* фокус не дали — все равно пробуем */ }
-    if (await askToOpen(shown, target)) return
+    try { shown = (await win.focus()) || win } catch (e) { await logPush('focus-error', e && e.message) }
+    const acked = await askToOpen(shown, target)
+    await logPush('ack', acked ? 'окно ответило' : 'ответа нет за 2 с')
+    if (acked) return
     if ('navigate' in shown) {
       try {
         const nav = await shown.navigate(target)
+        await logPush('navigate', nav ? 'ок' : 'вернул null')
         if (nav) return
-      } catch { /* окно не под этим SW — откроем новое */ }
+      } catch (e) { await logPush('navigate-error', e && e.message) }
+    } else {
+      await logPush('navigate', 'нет в этом браузере')
     }
   }
-  if (clients.openWindow) await clients.openWindow(target)
+  if (clients.openWindow) {
+    try {
+      await clients.openWindow(target)
+      await logPush('openWindow', 'ок')
+    } catch (e) { await logPush('openWindow-error', e && e.message) }
+  }
 }
 
 self.addEventListener('notificationclick', (event) => {
   event.notification.close()
   const target = (event.notification.data && event.notification.data.url) || self.registration.scope
-  event.waitUntil(openFromNotification(target))
+  event.waitUntil(logPush('click', target).then(() => openFromNotification(target)))
 })

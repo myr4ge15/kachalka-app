@@ -62,10 +62,44 @@ export async function takePendingPushUrl(now = Date.now(), store = globalThis.ca
     if (!res) return null
     await c.delete(PUSH_INTENT_KEY)
     const { url, at } = await res.json()
-    return typeof url === 'string' && Number.isFinite(at) && now - at >= 0 && now - at <= PENDING_TTL_MS ? url : null
+    const ok = typeof url === 'string' && Number.isFinite(at) && now - at >= 0 && now - at <= PENDING_TTL_MS
+    if (store === globalThis.caches) appendPushLog('take', ok ? url : `старая запись (${Math.round((now - at) / 1000)} с)`)
+    return ok ? url : null
   } catch {
     return null
   }
+}
+
+// Журнал нажатий (v8.9.4): общий с SW ключ в том же кэше, последние PUSH_LOG_MAX шагов.
+// Отладка перехода по пушу на iPhone — админ видит его в «Уведомлениях».
+export const PUSH_LOG_KEY = '/__push-log'
+export const PUSH_LOG_MAX = 40
+
+export async function appendPushLog(ev, detail = '', store = globalThis.caches, now = Date.now()) {
+  if (!store) return
+  try {
+    const c = await store.open(PUSH_INTENT_CACHE)
+    const res = await c.match(PUSH_LOG_KEY)
+    const list = res ? await res.json() : []
+    list.push({ at: now, who: 'app', ev, detail: String(detail ?? '').slice(0, 160) })
+    await c.put(PUSH_LOG_KEY, new Response(JSON.stringify(list.slice(-PUSH_LOG_MAX)), { headers: { 'content-type': 'application/json' } }))
+  } catch { /* журнал — не повод ломать приложение */ }
+}
+
+export async function readPushLog(store = globalThis.caches) {
+  if (!store) return []
+  try {
+    const c = await store.open(PUSH_INTENT_CACHE)
+    const res = await c.match(PUSH_LOG_KEY)
+    const list = res ? await res.json() : []
+    return Array.isArray(list) ? list : []
+  } catch {
+    return []
+  }
+}
+
+export async function clearPushLog(store = globalThis.caches) {
+  try { await (await store?.open(PUSH_INTENT_CACHE))?.delete(PUSH_LOG_KEY) } catch { /* нечего чистить */ }
 }
 
 // Ранняя подписка на «перейди по пушу» (v8.9.3). На iPhone нажатие часто ЗАПУСКАЕТ приложение
@@ -80,6 +114,7 @@ export function startPushListener(sw = globalThis.navigator?.serviceWorker) {
   const onMessage = (e) => {
     if (e.data?.type !== 'push-open') return
     e.ports?.[0]?.postMessage('ok') // без ответа SW перезагрузит окно на адрес пуша
+    appendPushLog('message', e.data.url)
     takePendingPushUrl() // сообщение дошло — запись в кэше не нужна
     if (pushSubs.size) for (const fn of pushSubs) fn(e.data.url)
     else pendingUrl = e.data.url

@@ -1,5 +1,5 @@
 import { useEffect, useLayoutEffect, useRef, useState } from 'react'
-import { onPushOpen, PENDING_RECHECK_MS, pushIntentFromUrl, takePendingPushUrl } from '../lib/pushIntent.js'
+import { appendPushLog, onPushOpen, PENDING_RECHECK_MS, pushIntentFromUrl, takePendingPushUrl } from '../lib/pushIntent.js'
 import { onResume } from '../lib/appEvents.js'
 import { emitReselect } from '../lib/appEvents.js'
 import { transitionKind, isNested, nextScreenStack, initialScreenStack } from '../lib/screenNav.js'
@@ -96,7 +96,8 @@ export function useAppNav(user) {
       timers = PENDING_RECHECK_MS.map((ms) => setTimeout(() => pull(), ms))
     }
     burst(!pushIntentFromUrl(window.location.href))
-    const off = onResume(() => burst())
+    appendPushLog('start', pushIntentFromUrl(window.location.href) ? 'с адресом пуша' : document.visibilityState)
+    const off = onResume(() => { appendPushLog('resume'); burst() })
     const onFocus = () => burst()
     window.addEventListener('focus', onFocus)
     return () => { alive = false; timers.forEach(clearTimeout); off(); window.removeEventListener('focus', onFocus) }
@@ -236,6 +237,7 @@ export function useAppNav(user) {
   // на уже открытой Ленте тот прислал бы `reselect` и уехал бы наверх.
   useEffect(() => {
     if (!user?.id || !pushIntent) return
+    appendPushLog('apply', pushIntent.type)
     if (pushIntent.type === 'reaction') {
       setFeedRestore(pushAnchor(pushIntent.workoutId))
       setFeedFlashId(pushIntent.workoutId)

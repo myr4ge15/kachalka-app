@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
 import { vi } from 'vitest'
-import { onPushOpen, PENDING_TTL_MS, PUSH_INTENT_KEY, pushIntentFromTag, pushIntentFromUrl, startPushListener, stripPushParam, takePendingPushUrl } from './pushIntent.js'
+import { appendPushLog, clearPushLog, onPushOpen, PENDING_TTL_MS, PUSH_LOG_MAX, readPushLog, PUSH_INTENT_KEY, pushIntentFromTag, pushIntentFromUrl, startPushListener, stripPushParam, takePendingPushUrl } from './pushIntent.js'
 
 const W = '3f2c9a1e-0b4d-4c7e-9a10-5e6f7a8b9c0d'
 const U = 'aa11bb22-cc33-4d44-8e55-66ff77889900'
@@ -111,5 +111,30 @@ describe('startPushListener / onPushOpen (v8.9.3)', () => {
   })
   it('без service worker — тихо', () => {
     expect(typeof startPushListener(undefined)).toBe('function')
+  })
+})
+
+describe('журнал нажатий (v8.9.4)', () => {
+  function memCaches() {
+    const map = new Map()
+    const cache = {
+      match: async (k) => { const v = map.get(k); return v === undefined ? undefined : { json: async () => JSON.parse(v) } },
+      put: async (k, res) => { map.set(k, await res.text()) },
+      delete: async (k) => map.delete(k),
+    }
+    return { open: async () => cache }
+  }
+  it('пишет по порядку, хранит последние PUSH_LOG_MAX, чистится', async () => {
+    const store = memCaches()
+    for (let i = 0; i < PUSH_LOG_MAX + 3; i++) await appendPushLog('step', i, store, 1000 + i)
+    const list = await readPushLog(store)
+    expect(list).toHaveLength(PUSH_LOG_MAX)
+    expect(list[0]).toEqual({ at: 1003, who: 'app', ev: 'step', detail: '3' })
+    await clearPushLog(store)
+    expect(await readPushLog(store)).toEqual([])
+  })
+  it('без кэша — пусто и тихо', async () => {
+    await appendPushLog('x', '', undefined)
+    expect(await readPushLog(undefined)).toEqual([])
   })
 })

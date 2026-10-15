@@ -10,6 +10,7 @@ import BackButton from '../components/ui/BackButton.jsx'
 import PushToggle from '../components/notifications/PushToggle.jsx'
 import PushTypes from '../components/notifications/PushTypes.jsx'
 import { usePushToggle } from '../hooks/usePushToggle.js'
+import PushLog from '../components/notifications/PushLog.jsx'
 
 export default function PushSettingsScreen({ user, onBack }) {
   const push = usePushToggle(user.id)
@@ -46,6 +47,8 @@ export default function PushSettingsScreen({ user, onBack }) {
       ) : push.availability === 'ok' && (
         <p className="push-note">Включи — и здесь можно будет выбрать, о чем присылать.</p>
       )}
+
+      {user.role === 'admin' && <PushLog />}
     </div>
   )
 }

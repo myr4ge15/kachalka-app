@@ -237,8 +237,17 @@ export default function App() {
     const uid = user.id
     // «Друзья» (15.10.2026): снимок списка — для кнопки в профиле участника и счетчика заявок.
     const check = () => { if (navigator.onLine !== false) { myUnreadReplies(uid); refreshFriends(uid) } }
-    check()
-    return onResume(check)
+    // v8.9.4: на iPhone сразу после возврата сеть часто еще спит — запрос тихо не проходил, и
+    // колокольчик не видел свежий ответ (казалось, что пуш «прочитал» его). Повтор через 2 и 6 с.
+    let timers = []
+    const burst = () => {
+      timers.forEach(clearTimeout)
+      check()
+      timers = [2000, 6000].map((ms) => setTimeout(check, ms))
+    }
+    burst()
+    const off = onResume(burst)
+    return () => { timers.forEach(clearTimeout); off() }
   }, [user?.id])
   if (!isConfigured) {
     return (
