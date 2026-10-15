@@ -61,7 +61,7 @@ export default function FriendCode({ api, myName }) {
             <button type="button" className="link-btn fc-new-code" onClick={() => setConfirmNew(true)} disabled={busy}>Новый код</button>
           )}
           {confirmNew && <p className="muted fc-msg">Старый код сразу перестанет работать. Друзья останутся друзьями.</p>}
-          <p className="muted fc-msg">Кто откроет ссылку или введет код, сразу станет твоим другом: вы будете видеть тренировки друг друга. Отправляй тем, кого знаешь.</p>
+          <p className="muted fc-msg">Кто откроет ссылку или введет код, сразу станет твоим другом: вы будете видеть тренировки друг друга.</p>
         </>
       ) : (
         !err && <p className="muted" role="status">{busy ? 'Загружаю код…' : ''}</p>

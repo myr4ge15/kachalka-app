@@ -3886,6 +3886,7 @@ html[data-sheet-open], html[data-sheet-open] body { overscroll-behavior: none; }
 .frd-note { margin: 0 4px 12px; font-size: 13px; line-height: 1.4; }
 .frd-add { width: 100%; margin: 8px 0 16px; }
 .frd-sheet .card { margin-bottom: 12px; }
+.frd-code-lab { display: block; }
 /* Ручная обрезка аватара (15.10.2026, components/profile/AvatarCropper.jsx). */
 .crop-hint { margin: 0 0 12px; font-size: 14px; }
 .crop-box { position: relative; margin: 0 auto; overflow: hidden; border-radius: 16px; background: var(--surface-2);

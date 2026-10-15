@@ -45,19 +45,16 @@ export default function FriendByCode({ api, initialCode = '', onAdded }) {
 
   return (
     <div className="card fc-join">
-      <h3 className="fc-h">Ввести код друга</h3>
-      <div className="field">
-        <label className="field-lab" htmlFor="fr-code-input">Код от друга</label>
-        <div className="fc-join-row">
-          <input id="fr-code-input" className="admin-input fc-code-input" type="text" maxLength={12}
-            autoCapitalize="characters" autoCorrect="off" spellCheck={false} placeholder="XXXX-XXXX"
-            value={code} disabled={busy}
-            onChange={(e) => { setCode(e.target.value); setPreview(null); setMsg('') }}
-            onKeyDown={(e) => { if (e.key === 'Enter') check() }} />
-          <button type="button" className="btn ghost" disabled={busy || !code.trim()} onClick={() => check()}>
-            {busy && !preview ? '…' : 'Проверить'}
-          </button>
-        </div>
+      <label className="fc-h frd-code-lab" htmlFor="fr-code-input">Код друга</label>
+      <div className="fc-join-row">
+        <input id="fr-code-input" className="admin-input fc-code-input" type="text" maxLength={12}
+          autoCapitalize="characters" autoCorrect="off" spellCheck={false} placeholder="XXXX-XXXX"
+          value={code} disabled={busy}
+          onChange={(e) => { setCode(e.target.value); setPreview(null); setMsg('') }}
+          onKeyDown={(e) => { if (e.key === 'Enter') check() }} />
+        <button type="button" className="btn ghost" disabled={busy || !code.trim()} onClick={() => check()}>
+          {busy && !preview ? '…' : 'Проверить'}
+        </button>
       </div>
       {preview && (
         <div className="fc-preview" role="status">

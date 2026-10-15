@@ -24,7 +24,7 @@
 
 export const WHATS_NEW = [
   {
-    version: '8.9.2',
+    version: '8.9.3',
     date: '2026-10-15',
     headline: 'Друзья и таймер отдыха',
     main: [

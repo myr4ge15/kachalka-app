@@ -19,7 +19,8 @@ export default function FriendsScreen({ user, onBack, onOpenMember, friendCode =
   const { online } = useSyncStatus()
   const rows = useLiveQuery(() => getFriends(), [user.id], undefined)
   const [err, setErr] = useState('')
-  // «Добавить друга» — лист со своим кодом и вводом чужого (вариант A, 15.10.2026).
+  // «Добавить друга» — лист со своим кодом и вводом чужого (вариант A, 15.10.2026). Во весь
+  // экран — закрывается свайпом вправо, как вложенный экран (v8.9.3; было — вниз).
   const [adding, setAdding] = useState(false)
   const alive = useRef(true)
   useEffect(() => { alive.current = true; return () => { alive.current = false } }, [])
@@ -72,7 +73,7 @@ export default function FriendsScreen({ user, onBack, onOpenMember, friendCode =
         <button type="button" className="btn primary frd-add" onClick={() => setAdding(true)}>+ Добавить друга</button>
       )}
       {adding && (
-        <SheetDialog title="Добавить друга" onDismiss={() => setAdding(false)} swipeDown className="frd-sheet">
+        <SheetDialog title="Добавить друга" onDismiss={() => setAdding(false)} swipeBack className="frd-sheet">
           <FriendCode api={api} myName={user.name} />
           <FriendByCode api={api} onAdded={changed} />
         </SheetDialog>
