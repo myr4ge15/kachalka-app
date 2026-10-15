@@ -171,7 +171,8 @@ describe('шаблон', () => {
     // Панель есть, но план шаблона не подменен — кнопка «Применить», а не «вернуть».
     expect(screen.getByText(/Рекомендуем сегодня/)).toBeInTheDocument()
     expect(screen.getByRole('button', { name: 'Применить рекомендацию' })).toBeInTheDocument()
-    expect(readDraft(DRAFT).map((e) => e.exercise.id)).toEqual(['bench', 'ghost'])
+    // Черновик пишет эффект после отрисовки (hooks/useWorkoutDraft) — ждем его, а не первый кадр.
+    await waitFor(() => expect(readDraft(DRAFT).map((e) => e.exercise.id)).toEqual(['bench', 'ghost']))
   })
 
   it('все упражнения шаблона уже в составе — сообщение, ничего не добавляется', async () => {
