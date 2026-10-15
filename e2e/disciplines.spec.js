@@ -14,12 +14,14 @@ test('дисциплины: группы, время и офлайн после 
     const {setMeta,loginDb}=await import('/kachalka-app/src/db/local.js')
     const {disciplineSignature}=await import('/kachalka-app/src/lib/disciplines.js')
     await loginDb.users.update(userId,{sex:'f'})
+    const circleId='e2e-rating-circle'
+    await setMeta('fc_circles',{items:[{circle_id:circleId,name:'Тестовый круг',my_status:'active'}],fetchedAt:'2026-10-02T12:00:00Z'})
     const catalog=[
       {id:'bench',exercise_id:'e2e-ex-bench',name:'Жим лежа',metric:'weight',split_by_sex:true,updated_at:'2026-10-02'},
       {id:'plank',exercise_id:'plank',name:'Планка',metric:'time',split_by_sex:false,updated_at:'2026-10-02'},
       {id:'pullups',exercise_id:'pullups',name:'Подтягивания',metric:'reps',split_by_sex:false,updated_at:'2026-10-02'},
     ]
-    await setMeta('rating_catalog',{items:catalog,fetchedAt:'2026-10-02T12:00:00Z'})
+    await setMeta(`rating_fc_${circleId}`,{items:catalog,fetchedAt:'2026-10-02T12:00:00Z'})
     const rows=[
       [{user_id:userId,user_name:'Аня',board:'f',weight:80,reps:5,value:80,orm:93.5},{user_id:'friend',user_name:'Борис',board:'m',weight:100,reps:3,value:100,orm:110}],
       [{user_id:userId,user_name:'Аня',board:'all',weight:0,reps:90,value:90},{user_id:'friend',user_name:'Борис',board:'all',weight:0,reps:120,value:120}],
