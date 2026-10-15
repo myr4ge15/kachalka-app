@@ -14,6 +14,8 @@ vi.mock('../db/memberProfile.js', () => ({
 }))
 vi.mock('../db/sync.js', () => ({ syncNow: vi.fn(() => Promise.resolve()) }))
 vi.mock('../db/repo.js', () => ({ getCachedUser: vi.fn() }))
+const presence = vi.hoisted(() => ({ map: new Map() }))
+vi.mock('../hooks/usePresence.js', () => ({ usePresence: () => presence.map }))
 vi.mock('../lib/appEvents.js', () => ({
   onOnline: vi.fn(() => () => {}),
   onResume: vi.fn(() => () => {}),
@@ -36,6 +38,7 @@ mockQueries.next = 0
 
 describe('MemberScreen', () => {
   beforeEach(() => {
+    presence.map = new Map()
     vi.mocked(useLiveQuery).mockReset()
     vi.mocked(fetchMember).mockClear()
     mockQueries.next = 0
@@ -112,5 +115,27 @@ describe('MemberScreen', () => {
     render(<MemberScreen user={viewer} memberId="dima" onBack={onBack} />)
     fireEvent.click(screen.getByRole('button', { name: 'Назад' }))
     expect(onBack).toHaveBeenCalled()
+  })
+
+  // v8.6.0 (обращения fb_34573163, fb_d3fe3a5c): «в сети» и «был(а) …» под именем.
+  it('друг в сети — точка на аватарке и «в сети» под именем', () => {
+    presence.map = new Map([['dima', new Date(Date.now() - 60_000).toISOString()]])
+    mockQueries({ at: 1, total: 1, items: [], source: 'cache' }, { id: 'dima', name: 'Дима', avatar_url: null, sex: 'm' })
+    render(<MemberScreen user={viewer} memberId="dima" onBack={() => {}} />)
+    expect(screen.getByText('в сети')).toBeTruthy()
+    expect(screen.getByRole('img', { name: 'в сети' })).toBeTruthy()
+  })
+
+  it('давно не заходил — «был …» по полу, без точки; отметки нет — ничего', () => {
+    presence.map = new Map([['dima', new Date(Date.now() - 20 * 60_000).toISOString()]])
+    mockQueries({ at: 1, total: 1, items: [], source: 'cache' }, { id: 'dima', name: 'Дима', avatar_url: null, sex: 'f' })
+    const { unmount } = render(<MemberScreen user={viewer} memberId="dima" onBack={() => {}} />)
+    expect(screen.getByText('была 20 мин назад')).toBeTruthy()
+    expect(screen.queryByRole('img', { name: 'в сети' })).toBeNull()
+    unmount()
+    presence.map = new Map()
+    mockQueries.next = 0
+    render(<MemberScreen user={viewer} memberId="dima" onBack={() => {}} />)
+    expect(screen.queryByText(/был|в сети/)).toBeNull()
   })
 })

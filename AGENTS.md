@@ -46,7 +46,9 @@
   трогаем.
   - **Единственное исключение — «слой витрин» (read-only):** `db/feed.js` (`fetchFeed`),
     `db/leaderboard.js` (`fetchLeaderboard`), `db/disciplines.js` (рейтинги) и `db/memberProfile.js`
-    (профиль участника) делают прямые read-only `supabase`-запросы под RLS и кэшируют результат в Dexie.
+    (профиль участника) делают прямые read-only `supabase`-запросы под RLS и кэшируют результат в Dexie;
+    `db/presence.js` (v8.6.0, «в сети») — `presence_visible` без кэша на диске, плюс отметка устройства
+    `touch_my_presence` (сигнал «я тут», как пуш-подписка: офлайн не копится, данных не меняет).
     **Мутации данных — исключительно через очереди в `sync.js`.** Онлайн-операции вне очередей (настройки
     пушей `db/push.js`, админка, приглашения, круги, обращения — см. «Чистая логика») данных тренировок
     не меняют.
@@ -93,8 +95,12 @@
     gym_app_push_owner`; при входе `reconcilePushOwner` снимает ЧУЖУЮ подписку и заново привязывает свою.
     Выход из учетки подписку в браузере НЕ снимает — только отвязывает на сервере (`push_unsubscribe`):
     iOS без нажатия пользователя может не дать подписаться заново, и в 6.7.5–6.7.6 уведомления после
-    выхода/входа молча выключались. Снимать подписку в браузере — только тумблером «выкл» и при входе
-    другой учетки. Новый путь включения пушей обязан ставить владельца (`enablePush` делает это сам).
+    выхода/входа молча выключались. Тумблер «выкл» (v8.6.0) тоже только отвязывает на сервере и
+    оставляет подписку браузера с отметкой `gym_app_push_off_<id>`: `subscribe()` на iPhone сразу после
+    `unsubscribe()` висел минутами, а «вкл» теперь берет ту же подписку. Снимать подписку в браузере —
+    только при входе другой учетки и когда отвязать на сервере не вышло (иначе «выкл» не гарантирован).
+    Отметка off держит подписку вне сервера: `getPushState` — «выключено», `reconcilePushOwner` и выход ее
+    не возвращают. Новый путь включения пушей обязан ставить владельца и снимать off (`enablePush` делает это сам).
   - **Что запишется — считает одно правило:** `lib/setLimits.js` `savableSet` используют и `repo.cleanEntries`,
     и счётчик на «Сохранить» (`workoutEntries.countSavable`). День тренировки для группировок — всегда
     локальный (`calendar.localYmd`), не срез ISO-строки.
@@ -123,7 +129,8 @@
 - **Вход и доступ:** PIN проверяется НЕ на клиенте, а в Edge Function `auth-login` (service role),
   она мостит к скрытой учётке Supabase Auth и выдаёт настоящую сессию. RLS-идентичность —
   `app_uid()` из claim `app_metadata.app_user_id` + сверка `session_epoch` на каждый запрос
-  (kill switch сессий). Офлайн-анлок сверяет PIN с локально кэшированным хэшем (`lib/hash.js`,
+  (kill switch сессий). Смена секрета моста `AUTH_BRIDGE_SECRET` — `supabase/auth-bridge-rotation.md` +
+  `rotate-bridge-secret.ts` (не `provision-auth.ts`: тот сбросит `session_epoch`). Офлайн-анлок сверяет PIN с локально кэшированным хэшем (`lib/hash.js`,
   constant-time) — **только когда сервер недоступен** (v6.14.0): онлайн экран входа сначала ждет
   `auth-login` (8 с), кэш — запасной путь при сети/таймауте/5xx; «неверный PIN» и «лок» сервера кэшем
   не обходятся (иначе старый PIN пускает после сброса/смены). Новый PIN — не из слабых (с П4 — только ~10
@@ -259,6 +266,15 @@ updated_at)` + `upsert_user_meta` (`supabase/user-meta.sql`, RLS «только 
 - **`admin_update_exercise`** → канон `metric-distance.sql` (см. «Дистанция»; поверх `admin-exercise-metric.sql`
   v6.3.6: `p_submuscle`/`p_secondary` + `p_metric`, 9 аргументов), НЕ тела из `admin-exercise-metric.sql` /
   `muscle-detail.sql` / `gender-leaderboard.sql`. Клиент шлет `p_metric` только при смене типа.
+- **Справочник упражнений: структура и данные раздельно (15.10.2026).** Структура слияний (`merged_into`,
+  `canonical_exercise_id`, `canonicalize_exercise_fk`, триггеры канонизации на `workout_exercises` /
+  `template_exercises` / `goals`) → канон `exercise-canon.sql`; тела из `exercise-catalog-dedup.sql` не
+  перезапускать. Новая таблица с `exercise_id` — свой триггер канонизации туда же. Данные общего справочника на
+  свежей базе — снимок прода `supabase/bootstrap/exercise-catalog.json` (те же id), загрузчик
+  `bootstrap/exercise-catalog.sql` — последний шаг `order.txt`, только на пустой базе. **После каждой миграции
+  справочника на проде** (`catalog-*.sql` и т. п.) — выгрузить снимок заново: `bootstrap/catalog-export.sql`
+  (SQL Editor, только чтение) → `exercise-catalog.json` → `pgit add -f`. Новая колонка `exercises` — в список
+  колонок загрузчика (иначе упадет `bootstrap-chain.test.mjs`).
 - **`admin_merge_exercise`** → канон `admin-merge-exercise.sql` (v8.2.0, поверх живого тела 14.10.2026): ставит
   `merged_into` (без него триггеры канонизации офлайн-записей не работают), переносит дисциплины рейтингов (общий и
   круги) и `push_beaten_sent`, отказывает в слиянии уже слитого, в скрытое/слитое и общего в «свое». НЕ перезапускать
@@ -346,6 +362,10 @@ updated_at)` + `upsert_user_meta` (`supabase/user-meta.sql`, RLS «только 
   **v6.12.0 — ответ из Telegram** → канон `feedback-tg.sql`: `my_feedback`/`admin_list_feedback`/
   `admin_update_feedback` (новые колонки в конце контракта; `feedback.sql` после него НЕ перезапускать),
   `reopen_my_feedback`/`feedback_media_ref` (authenticated), `bot_*` (в т.ч. `bot_feedback_note`) — EXECUTE только `service_role`.
+  **v8.6.0 — дополнения** → добавочный канон `feedback-append.sql`: `feedback_additions` (закрыта, без ссылки на
+  `users`: автор — `feedback.user_id`), `append_my_feedback` (автор, только `new`/`in_progress`, 1..1000, ≤5,
+  статус не меняет), `my_feedback_additions` (отдельно, чтобы не менять контракт `my_feedback`). Edge `feedback`
+  action `append` шлет реплай на исходное сообщение и привязывает его через `bot_feedback_link`.
   Edge `tg-bot` — `--no-verify-jwt`, вход только с `X-Telegram-Bot-Api-Secret-Token` = `TELEGRAM_WEBHOOK_SECRET`,
   принимает лишь `TELEGRAM_OWNER_ID` в `TELEGRAM_FEEDBACK_CHAT_ID`, update_id — через `bot_claim_update`.
   Картинки обращений в Supabase не храним: `file_id` Telegram, байты клиенту — только через `feedback`
@@ -384,8 +404,9 @@ updated_at)` + `upsert_user_meta` (`supabase/user-meta.sql`, RLS «только 
   учеток БЕЗ логина и только целиком (поиск по началу убран). Вход по id — `auth_login_id_claim` (корзины
   `id:<учетка>:<IP>` 5/15 мин + `iduser:<учетка>` 30/сутки, лок на адрес, не на учетку); сброс всех корзин
   входа учетки — `auth_login_id_reset` (сброс PIN). `login` в `touch_users_updated_at` — служебная колонка.
-- **«Мой круг» (этапы 4–6, 07.10.2026)** → канон `friend-circles.sql` (+ `friend-circle-rating.sql`,
-  `weekly-summary.sql`). Видимость круга — ТОЛЬКО ветка `fc_share_active` в ядре `user_can_see` (канон тела
+- **«Мой круг» (этапы 4–6, 07.10.2026)** → канон `friend-circles.sql` (+ `friend-circle-rating.sql`;
+  недельная сводка `admin_weekly_summary` — с 15.10 канон `weekly-summary-retention.sql`: удержание и «заходили»
+  по отметке присутствия, `weekly-summary.sql` под guard). Видимость круга — ТОЛЬКО ветка `fc_share_active` в ядре `user_can_see` (канон тела
   ядра переехал сюда из `visibility-core.sql`): оба `active` в одном круге. `pending` не видит никого. Код —
   личный, многоразовый, 8 знаков Crockford; хранится и хэш (поиск), и сам код (повторный показ держателю) —
   таблица закрыта, только DEFINER. Все невалидные коды — ОДИН ответ `invalid`; попытки — `fc_attempt`
@@ -400,6 +421,10 @@ updated_at)` + `upsert_user_meta` (`supabase/user-meta.sql`, RLS «только 
   изменений. Клиент: `lib/friendCircles.js`, `screens/CircleScreen.jsx`, `components/circle/*`, `#join=<код>`
   в App (без учетки — InviteScreen `code`, с учеткой — «Мой круг»); доски — `DisciplineLeaderboard`
   (`db/disciplines.js` с `circle`, `db/circles.js`). Пуши — Edge `push-circle` (тип `circle`, всегда вкл.).
+- **«В сети» (v8.6.0)** → канон `presence.sql`: своя таблица `user_presence(user_id, last_seen_at)` (cascade с
+  `users`), не колонка `users` — правка `users` двигает `updated_at` и перекачивала бы ростер. `touch_my_presence`
+  (своя строка, не чаще раза в 60 с), `presence_visible` (только `visible_user_ids()`, как Лента). Таблица закрыта,
+  обе функции — DEFINER, клиентам `authenticated`. Приватность «в сети» отдельно не прячется (решение владельца).
 - **Удаление аккаунта (П7, 07.10.2026)** → канон `account-delete.sql` (`account_delete(p_uid, p_actor)`, только
   service_role) + Edge `account-delete` (`{pin}` — себя, с `auth_rate_claim` до сверки PIN; `{target_user_id}` —
   админ с 2FA, 10/час). Сразу и насовсем. Учетки `role = admin` так не удаляются (409). Порядок: SQL одной
@@ -408,7 +433,7 @@ updated_at)` + `upsert_user_meta` (`supabase/user-meta.sql`, RLS «только 
   ничьими). Свои упражнения: неиспользуемые — удалить, остальные → общими (триггер `exercise-owner.sql`);
   `rating_disciplines.exercise_id` — CASCADE, поэтому проверка «никем не используется» явная, иначе удаление
   снесло бы дисциплину. Обращения и `audit_log` — обезличить (не стирать). Новая таблица со ссылкой на
-  `users` — решить ее судьбу здесь (cascade/обезличить) и добавить в тест. Клиент: `profile/DeleteAccount.jsx`,
+  `users` — решить ее судьбу здесь (cascade/обезличить) и добавить в тест (`user_presence` — cascade, v8.6.0). Клиент: `profile/DeleteAccount.jsx`,
   после ответа — выход и `db/local.js wipeLocalAccount` (персональная база, ростер, кэш PIN, ключи localStorage).
   Старый `admin_delete_user` (Админка до 6.18) — не использовать.
 - **«Забыл PIN» без админа (П1, 07.10.2026)** → канон `pin-recovery.sql` (с v7.5.0 `bot_tg_link`/`my_recovery_status` —
@@ -472,8 +497,9 @@ updated_at)` + `upsert_user_meta` (`supabase/user-meta.sql`, RLS «только 
 - **2FA админки (v6.14.0)** → канон `is_admin()` в `admin-mfa.sql`: роль admin И (`auth.jwt()->>'aal' =
   'aal2'` ИЛИ у auth-учетки нет подтвержденного фактора в `auth.mfa_factors`). НЕ пересоздавать
   `is_admin()` из `admin.sql`/`bootstrap.sql` — 2FA молча перестанет действовать. Edge, проверяющая
-  `users.role` сама (`admin-create-user`, `admin-reset-pin`), обязана звать `mfaRequired`
-  (`_shared/mfa.ts`) → 403 `mfa_required`. Клиент: `lib/adminMfa.js` + `components/AdminMfa.jsx` (код
+  `users.role` сама (`admin-create-user`, `admin-reset-pin`, админ-ветка `account-delete`), идет через общий
+  `_shared/adminGate.ts` (`requireAdmin` / `checkAdmin`: сессия → роль → `mfaRequired` → 403 `mfa_required`;
+  15.10.2026, своих копий проверки не заводить). Клиент: `lib/adminMfa.js` + `components/AdminMfa.jsx` (код
   перед Админкой, включение/отключение) — онлайн, вне очередей синка. Нужен включенный TOTP в
   Supabase → Authentication → Multi-Factor. Аварийное снятие — SQL из шапки `admin-mfa.sql`.
 - **Деплой Edge Functions — с `--use-api`** (06.10.2026, CLI ≥ 2.119): сборка на стороне Supabase, Docker
@@ -488,6 +514,10 @@ updated_at)` + `upsert_user_meta` (`supabase/user-meta.sql`, RLS «только 
   `supabase/tests/*.test.mjs` на PGlite через `node supabase/tests/run-all.mjs <pglite/dist/index.js>`
   и `deno test` + `deno check */index.ts` в `supabase/functions` (`--frozen`: lock обязан быть свежим).
   Правка SQL-канона → свой `*.test.mjs` (синтетика, повторный накат, ACL); новый файл подхватывается сам.
+  С 15.10.2026: `tests/_chain.mjs` собирает базу ВСЕЙ цепочкой `bootstrap/order.txt` (заглушки Supabase);
+  `bootstrap-chain.test.mjs` держит саму цепочку и снимок справочника, `canons-contract.test.mjs` — контракты
+  канонов без своего теста. **Новый канон — сразу в `order.txt`** (в конец, перед снимком справочника), иначе
+  bootstrap снова отстанет от прода; тест канона удобно писать на `buildChain`.
 - **ACL после каждого `create/create or replace` проверять отрицательно.** В Supabase default
   privileges могут снова выдать `ALL/EXECUTE` клиентским ролям. Канон `login_users`: сначала
   `revoke all` у `PUBLIC`/`anon`/`authenticated`, затем только явно нужный `SELECT`; простой view
@@ -672,6 +702,8 @@ updated_at)` + `upsert_user_meta` (`supabase/user-meta.sql`, RLS «только 
      коммит тега обязан входить в `main` (`git merge-base --is-ancestor`), push в `main` с одними `*.md`/`docs/**`
      Tests не запускает (`paths` с отрицаниями; `docs/quick-start.md` вшит в приложение — проверяется), у задач — `timeout-minutes`, у workflow — минимальные `permissions`.
      Секреты и их производные (хэш, длину) в логи не писать: логи публичного репо видны всем.
+     `uses:` в workflow — по SHA коммита с комментарием версии (`actions/checkout@<sha> # v5.1.0`, аудит 14.10):
+     тег действия можно перевесить. Обновление — SHA нового тега (`git ls-remote`), комментарий — вместе.
      Поэтому тег можно ставить сразу после `git push`, ждать зеленого Tests руками не нужно. Сборка — на обычном раннере с Node 22, без образа.
    - **Git-ignored файлы в `git add` не включать.** Точный набор определять по `.gitignore` и
      `git status`, не по захардкоженному списку каталогов.

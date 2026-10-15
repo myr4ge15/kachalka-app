@@ -94,6 +94,18 @@ function setWanted(userId, on) {
     else store()?.removeItem(wantedKey(userId))
   } catch { /* приватный режим */ }
 }
+// «Выключено тумблером, подписка браузера оставлена» (v8.6.0). Сервер ее не знает, пуши
+// не идут; включение снова привязывает ту же подписку — без обращения к push-сервису.
+const offKey = (userId) => `gym_app_push_off_${userId}`
+function isOff(userId) {
+  try { return store()?.getItem(offKey(userId)) === '1' } catch { return false }
+}
+function setOff(userId, on) {
+  try {
+    if (on) store()?.setItem(offKey(userId), '1')
+    else store()?.removeItem(offKey(userId))
+  } catch { /* приватный режим */ }
+}
 
 // Подписка под старый VAPID-ключ (ключ сборки сменили) — снимаем, чтобы вызывающий
 // подписался заново под текущий: push-сервис такую отвергает, пуши не доходят.
@@ -163,7 +175,7 @@ export async function getPushState(userId) {
   // перепривязываем ее молча (включит тумблером — тогда заберет себе).
   const owner = getOwner()
   const mine = !owner || owner === String(userId)
-  const enabled = Boolean(sub) && facts.permission === 'granted' && mine
+  const enabled = Boolean(sub) && facts.permission === 'granted' && mine && !isOff(userId)
   if (enabled && navigator.onLine && (await hasSession(userId))) {
     if (!owner) setOwner(userId)
     saveOnServer(sub).catch(() => { /* не критично: повторим при следующем открытии */ })
@@ -185,13 +197,17 @@ export async function enablePush(userId) {
   const reg = await pushStep('worker', registration())
   if (!reg?.pushManager) throw new PushError('Этот браузер не умеет пуш-уведомления.')
 
+  // Подписка, оставленная тумблером «выкл» (v8.6.0), берется как есть: subscribe() на
+  // iPhone сразу после unsubscribe() отвечал минутами — теперь до него не доходит.
   let sub
+  let reused
   try {
-    sub = (await pushStep('subscription', reg.pushManager.getSubscription().then(dropIfStaleKey))) ??
-      (await pushStep('subscribe', reg.pushManager.subscribe({
-        userVisibleOnly: true,
-        applicationServerKey: urlB64ToUint8Array(VAPID_PUBLIC_KEY),
-      })))
+    sub = await pushStep('subscription', reg.pushManager.getSubscription().then(dropIfStaleKey))
+    reused = Boolean(sub)
+    sub ??= await pushStep('subscribe', reg.pushManager.subscribe({
+      userVisibleOnly: true,
+      applicationServerKey: urlB64ToUint8Array(VAPID_PUBLIC_KEY),
+    }))
   } catch (e) {
     if (e instanceof PushError) throw e
     throw new PushError('Браузер не дал подписаться на уведомления. Попробуй еще раз.')
@@ -202,35 +218,45 @@ export async function enablePush(userId) {
     await saveOnServer(sub)
     setOwner(userId)
     setWanted(userId, true)
+    setOff(userId, false)
   } catch (e) {
-    // Сервер о подписке не знает — не оставляем браузер «включенным» впустую.
-    await sub.unsubscribe().catch(() => {})
+    // Сервер о подписке не знает — не оставляем браузер «включенным» впустую. Подписку,
+    // оставленную тумблером, не снимаем: «выкл» и так держит отметка off.
+    if (!reused) await sub.unsubscribe().catch(() => {})
     throw e instanceof PushError ? e : new PushError(e?.message || 'Не удалось включить уведомления.')
   }
 }
 
-// Выключить: сначала снимаем подписку в браузере (работает и офлайн — дальше
-// push-сервис ответит серверу «подписки нет», и та сотрется сама), затем
-// по возможности убираем ее на сервере. background: true (тумблер в Настройках,
-// v6.7.1) — серверную чистку не ждем: пуши на устройство уже не придут, а ждать
-// просыпающийся сервер до 5 с незачем. Выход из учетки ждет (сессия вот-вот уйдет).
-//
-// forget: true (тумблер «выкл») — человек больше не хочет пушей; false (выход из
-// учетки) — подписку снимаем, но при следующем входе восстановим.
+// Выключить (v8.6.0): отвязываем подписку на СЕРВЕРЕ, а в браузере ее оставляем с
+// отметкой off. Раньше «выкл» снимал ее в браузере, и «вкл» следом на iPhone висел
+// минутами: subscribe() сразу после unsubscribe() в той же сессии приложения отвечает
+// так (v7.1.9 лишь ограничил ожидание). Теперь включение берет ту же подписку.
+// Сервер отвязать не вышло (нет сети или сессии, ошибка) — снимаем подписку в браузере,
+// как раньше: так «выкл» гарантирует, что пуши не придут (push-сервис ответит серверу
+// «подписки нет», и строка сотрется сама).
+// background: true (тумблер в Настройках, v6.7.1) — не ждем: экран уже показал «выкл».
+// forget: true (тумблер) — человек больше не хочет пушей; false — восстановим при входе.
 export async function disablePush(userId, { background = false, forget = true } = {}) {
   if (forget) setWanted(userId, false)
   const { sub } = await currentSubscription()
   if (!sub) return
   const endpoint = sub.endpoint
-  await sub.unsubscribe().catch(() => {})
-  clearOwner()
-  const cleanup = (async () => {
-    if (!navigator.onLine || !(await hasSession(userId))) return
-    try {
-      await withTimeout(supabase.rpc('push_unsubscribe', { p_endpoint: endpoint }), 5000)
-    } catch { /* сервер дочистит по ответу push-сервиса */ }
+  if (!getOwner()) setOwner(userId)
+  setOff(userId, true)
+  const work = (async () => {
+    let unbound = false
+    if (navigator.onLine && (await hasSession(userId))) {
+      try {
+        const res = await withTimeout(supabase.rpc('push_unsubscribe', { p_endpoint: endpoint }), 5000)
+        unbound = !res?.error
+      } catch { /* ниже — снимем в браузере */ }
+    }
+    if (unbound) return
+    await sub.unsubscribe().catch(() => {})
+    clearOwner()
+    setOff(userId, false)
   })()
-  if (!background) await cleanup
+  if (!background) await work
 }
 
 // Выход из учетки: уведомления этого человека больше не должны приходить на
@@ -258,6 +284,7 @@ async function unbindOnServer(userId) {
   // подписку без владельца (так жили подписки до 6.7.5).
   if (!getOwner()) setOwner(userId)
   if (getOwner() !== String(userId)) return
+  if (isOff(userId)) return // выключил тумблером — на сервере ее уже нет
   setWanted(userId, true) // подписка была — значит, человек пуши хотел
   if (!navigator.onLine || !(await hasSession(userId))) return
   try {
@@ -270,6 +297,7 @@ async function unbindOnServer(userId) {
 //    push-сервис ответит серверу «подписки нет», и строка сотрется сама);
 //  - своя → подтверждаем на сервере (сервер мог перепривязать endpoint к другой
 //    учетке, пока она была активна);
+//  - своя, но выключена тумблером (отметка off, v8.6.0) → не трогаем, сервер ее не знает;
 //  - подписки нет, а человек пуши хотел и разрешение уже выдано → подписываем
 //    заново (выход из учетки снимал подписку).
 // Серверная часть — только под своей сессией; без нее вызов повторят, когда
@@ -287,8 +315,11 @@ export async function reconcilePushOwner(userId) {
     if (sub && owner && owner !== String(userId)) {
       await sub.unsubscribe().catch(() => {})
       clearOwner()
+      setOff(owner, false)
       sub = null
     }
+    // Своя подписка, выключенная тумблером (v8.6.0), — на сервер не возвращаем.
+    if (sub && isOff(userId)) return
     if (!navigator.onLine || !(await hasSession(userId))) return
     // Своя подписка под старый VAPID-ключ — снимаем и подписываемся заново ниже:
     // раз подписка была, пуши человек хотел (флага wanted у подписок до v6.7.5 нет).

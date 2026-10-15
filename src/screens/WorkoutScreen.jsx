@@ -1,13 +1,12 @@
 import { useState, useEffect, useRef, useMemo } from 'react'
 import { useLiveQuery } from 'dexie-react-hooks'
-import { getExercises, getWorkout, getWorkouts, saveWorkout, createExercise, deleteWorkout as repoDelete, getRecentSessionsForExercise, getProgSettings, setProgForExercise, saveTemplate, getWorkoutFeels, setWorkoutFeels, getFavorites, toggleFavorite } from '../db/repo.js'
+import { getExercises, getWorkout, getWorkouts, saveWorkout, createExercise, deleteWorkout as repoDelete, getRecentSessionsForExercise, getProgSettings, setProgForExercise, saveTemplate, setWorkoutFeels, getFavorites, toggleFavorite } from '../db/repo.js'
 import { detectNewPrsOnSave, detectGoalReachedOnSave } from '../db/notifications.js'
 import { detectInsightsOnSave } from '../db/insights.js'
 import { detectBadgesOnSave } from '../db/badges.js'
 import { syncNow } from '../db/sync.js'
-import { readDraft, writeDraft, clearDraft as dropDraft } from '../lib/draftStore.js'
 import { showToast, hideToast } from '../components/ui/Toast.jsx'
-import { buildRecommendation, defaultSet, sk } from '../lib/progressionCard.js'
+import { buildRecommendation, defaultSet } from '../lib/progressionCard.js'
 import { workoutFinishEvents } from '../lib/workoutFinish.js'
 import {
   appendExerciseIn, removeExerciseIn, insertExerciseIn, replaceExerciseIn,
@@ -19,6 +18,7 @@ import { templateExercisesFromWorkout, defaultTemplateName } from '../lib/templa
 import { vibrate, HAPTIC } from '../lib/haptics.js'
 import { exerciseUsageSections } from '../lib/exerciseUsage.js'
 import { useWorkoutFocus } from '../hooks/useWorkoutFocus.js'
+import { useWorkoutDraft } from '../hooks/useWorkoutDraft.js'
 import { useSortable } from '../hooks/useSortable.js'
 import { reorderExercises } from '../lib/reorderExercises.js'
 import CardsSkeleton from '../components/ui/CardsSkeleton.jsx'
@@ -32,16 +32,6 @@ import WorkoutActions from '../components/workout/WorkoutActions.jsx'
 import SaveBar from '../components/workout/SaveBar.jsx'
 import { AppMarkGlyph } from '../components/app/AppMark.jsx'
 import BackButton from '../components/ui/BackButton.jsx'
-
-// локальный документ → редактируемая форма [{ exercise, sets:[{weight,reps}] }].
-// sk() — стабильный ключ строки подхода для React (единый модульный счетчик в
-// lib/progressionCard.js). defaultSet/buildRecommendation оттуда же.
-function toEntries(workout) {
-  return (workout?.entries ?? []).map((e) => ({
-    exercise: e.exercise ?? { id: e.exercise_id, name: '—' },
-    sets: (e.sets ?? []).map((s) => ({ weight: s.weight, reps: s.reps, _k: sk() })),
-  }))
-}
 
 // Экран-композер (новая тренировка) и экран-деталь (правка существующей).
 //   workoutId == null → новая (черновик в кэше переживает уход с экрана)
@@ -71,18 +61,23 @@ export default function WorkoutScreen({ user, workoutId = null, onBack, onSaved 
   // ⭐ Избранные упражнения (v6.5.0) — блок сверху пикера, синкаются через user_meta.
   const favorites = useLiveQuery(() => getFavorites(user.id), [user.id], [])
 
-  // Черновик — только для новой тренировки (ключ привязан к пользователю). Лежит в
-  // lib/draftStore (память + localStorage): переживает и уход с экрана, и выгрузку
-  // PWA в фоне / перезагрузку на обновление посреди занятия.
-  const DRAFT_KEY = `workout_draft_new_${user.id}`
-  // Оценки «как пошло» (RPE) до сохранения жить негде: id тренировки рождается
-  // только внутри saveWorkout. Поэтому они ждут в стейте экрана и переживают уход
-  // с экрана в том же хранилище черновика.
-  // (Отметки «подход выполнен» убраны в v6.1.0: что в строках — то и записано,
-  // лишний подход удаляется ✕.)
-  const FEEL_KEY = `workout_feel_new_${user.id}`
+  // Сообщение экрана (ошибка/успех). Короткие подсказки («уже добавлено») гаснут
+  // сами через 2,5 с и при следующем удачном добавлении (v6.3.3).
+  const [message, setMessage] = useState(null) // {type, text, transient?}
+  useEffect(() => {
+    if (!message?.transient) return
+    const t = setTimeout(() => setMessage((m) => (m === message ? null : m)), 2500)
+    return () => clearTimeout(t)
+  }, [message])
 
-  const [entries, setEntries] = useState(() => (isNew ? readDraft(DRAFT_KEY) ?? [] : []))
+  // Состав, оценки RPE, дата и их черновик (новая — до сохранения, правка — до
+  // сохранения или «Вернуть как было») — hooks/useWorkoutDraft.js.
+  const draft = useWorkoutDraft({
+    userId: user.id,
+    workoutId,
+    onLoadError: (text) => setMessage({ type: 'error', text }),
+  })
+  const { entries, setEntries, feels, setFeels, performedAt, setPerformedAt, loading, editRestored } = draft
   // Перестановка (v7.1.2, общий hooks/useSortable): удержание заголовка → строка
   // поднимается и едет за пальцем. Раскрытая карточка на время жеста сворачивается
   // в строку — тащить высокую карточку неудобно; активной она остается.
@@ -97,25 +92,9 @@ export default function WorkoutScreen({ user, workoutId = null, onBack, onSaved 
     onLift: id => { if (id === activeExerciseId) setDragFolded(id) },
     onDrop: () => setDragFolded(null),
   })
-  // { [exerciseId]: 'easy'|'ok'|'hard' } — только за эту тренировку.
-  const [feels, setFeels] = useState(() => (isNew ? readDraft(FEEL_KEY) ?? {} : {}))
   const { activeExerciseId, activeCardRef, activateExercise } = useWorkoutFocus(entries, {
     preferIncomplete: !isNew,
   })
-  // Дата новой тренировки — тоже часть черновика, но ТОЛЬКО если ее выбрали руками:
-  // раньше она жила лишь в стейте, и уход с экрана (посмотреть прошлые веса в
-  // «Прогрессе») молча возвращал «Сегодня» — запись задним числом сохранялась не тем
-  // днем. Невыбранную дату не храним: черновик, поднятый завтра, должен стать
-  // «сегодняшним».
-  const DATE_KEY = `workout_date_new_${user.id}`
-  const [performedAt, setPerformedAtState] = useState(
-    () => (isNew && readDraft(DATE_KEY)) || new Date().toISOString()
-  )
-  function setPerformedAt(iso) {
-    setPerformedAtState(iso)
-    if (isNew) writeDraft(DATE_KEY, iso)
-  }
-  const [loading, setLoading] = useState(!isNew)
   const [pickerOpen, setPickerOpen] = useState(false)
   // null → пикер в режиме «добавить»; число → индекс entry, который заменяем.
   const [replaceIdx, setReplaceIdx] = useState(null)
@@ -124,14 +103,6 @@ export default function WorkoutScreen({ user, workoutId = null, onBack, onSaved 
   // Только чтение справочника — состав и черновик тренировки она не трогает.
   const [technique, setTechnique] = useState(null)
   const [saving, setSaving] = useState(false)
-  const [message, setMessage] = useState(null) // {type, text, transient?}
-  // Короткие подсказки («уже добавлено») гаснут сами через 2,5 с и при следующем
-  // удачном добавлении — раньше висели до выхода из тренировки (v6.3.3).
-  useEffect(() => {
-    if (!message?.transient) return
-    const t = setTimeout(() => setMessage((m) => (m === message ? null : m)), 2500)
-    return () => clearTimeout(t)
-  }, [message])
   const [delArm, setDelArm] = useState(false)   // in-app подтверждение удаления (как везде)
   const [clearArm, setClearArm] = useState(false) // подтверждение отказа от черновика новой
   // «Сделать шаблон из тренировки»: раскрытая форма с именем + занятость.
@@ -139,14 +110,6 @@ export default function WorkoutScreen({ user, workoutId = null, onBack, onSaved 
   const [tplName, setTplName] = useState('')
   const [tplBusy, setTplBusy] = useState(false)
 
-  // Сохраняем черновик новой тренировки при каждом изменении состава.
-  useEffect(() => {
-    if (isNew) writeDraft(DRAFT_KEY, entries)
-  }, [isNew, DRAFT_KEY, entries])
-
-  useEffect(() => {
-    if (isNew) writeDraft(FEEL_KEY, feels)
-  }, [isNew, FEEL_KEY, feels])
 
 
   // Undo-тост удаления привязан к ЭТОМУ экрану: его «Отменить» зовет setEntries,
@@ -160,83 +123,6 @@ export default function WorkoutScreen({ user, workoutId = null, onBack, onSaved 
   // (таймер, «Отменить», замена другим тостом, уход с экрана).
   const removedSetsRef = useRef(null)
 
-  // Несохраненные правки СУЩЕСТВУЮЩЕЙ тренировки (РЕВЬЮ-КОДА-2026-10-02, п. 15).
-  // Раньше их не держало ничего: «Назад», другая вкладка, колокольчик, поворот
-  // планшета через 900 px (мобильная и десктопная раскладки монтируют экран в разных
-  // местах) или выгрузка PWA молча выбрасывали правки. Теперь они живут в том же
-  // хранилище черновиков, что и новая тренировка, — с привязкой к версии документа
-  // (`base` = его updated_at): если тренировку за это время изменили (синк с другого
-  // устройства), старые правки не накатываем поверх.
-  const EDIT_KEY = isNew ? null : `workout_edit_${user.id}_${workoutId}`
-  const editBaseRef = useRef(null)     // updated_at открытого документа
-  const editOrigRef = useRef(null)     // { entries, performedAt, feels } как в базе
-  const [editRestored, setEditRestored] = useState(false)
-  const snapshotOf = (e, p, f) => JSON.stringify({ e: e.map((x) => ({ id: x.exercise?.id, s: x.sets.map((s) => [String(s.weight), String(s.reps)]) })), p, f })
-
-  useEffect(() => {
-    if (isNew || loading || !editOrigRef.current) return
-    const o = editOrigRef.current
-    if (snapshotOf(entries, performedAt, feels) === snapshotOf(o.entries, o.performedAt, o.feels)) {
-      dropDraft(EDIT_KEY)
-    } else {
-      writeDraft(EDIT_KEY, { base: editBaseRef.current, entries, performedAt, feels })
-    }
-  }, [isNew, loading, EDIT_KEY, entries, performedAt, feels])
-
-  function revertEdits() {
-    const o = editOrigRef.current
-    if (!o) return
-    setEntries(o.entries)
-    setPerformedAtState(o.performedAt)
-    setFeels(o.feels)
-    dropDraft(EDIT_KEY)
-    setEditRestored(false)
-  }
-
-  // Загрузка существующей тренировки на маунте (документ — источник правды).
-  useEffect(() => {
-    if (isNew) return
-    let alive = true
-    setLoading(true)
-    // Оценки лежат отдельной картой в meta (не в документе — см. lib/rpe.js),
-    // поэтому при открытии на правку подтягиваем их своим чтением. Ошибка тут
-    // не должна мешать правке: без оценок карточки просто откроются пустыми.
-    Promise.all([
-      getWorkout(workoutId),
-      getWorkoutFeels(user.id, workoutId).catch(() => ({})),
-    ]).then(([w, f]) => {
-      if (!alive) return
-      if (w) {
-        const loaded = toEntries(w)
-        const at = w.performed_at ?? new Date().toISOString()
-        const feelsLoaded = f ?? {}
-        editBaseRef.current = w.updated_at ?? null
-        editOrigRef.current = { entries: loaded, performedAt: at, feels: feelsLoaded }
-        const draft = readDraft(`workout_edit_${user.id}_${workoutId}`)
-        if (draft && draft.base === editBaseRef.current && Array.isArray(draft.entries)) {
-          setEntries(draft.entries)
-          setPerformedAtState(draft.performedAt ?? at)
-          setFeels(draft.feels ?? feelsLoaded)
-          setEditRestored(true)
-        } else {
-          if (draft) dropDraft(`workout_edit_${user.id}_${workoutId}`) // документ изменился — правки устарели
-          setEntries(loaded)
-          setPerformedAtState(at)
-          setFeels(feelsLoaded)
-        }
-      } else {
-        setMessage({ type: 'error', text: 'Тренировка не найдена.' })
-      }
-      setLoading(false)
-    }).catch((err) => {
-      // Чтение из Dexie упало (напр. база закрыта при выходе) — не оставляем
-      // экран в вечной «загрузке», показываем причину.
-      if (!alive) return
-      setMessage({ type: 'error', text: 'Не удалось открыть тренировку: ' + (err?.message ?? err) })
-      setLoading(false)
-    })
-    return () => { alive = false }
-  }, [isNew, workoutId, user.id])
 
   function openAddPicker() {
     setReplaceIdx(null)
@@ -540,12 +426,7 @@ export default function WorkoutScreen({ user, workoutId = null, onBack, onSaved 
         const kept = Object.fromEntries(Object.entries(feels).filter(([exId]) => saved.has(exId)))
         await setWorkoutFeels(user.id, wId, performedAt, kept)
       } catch { /* оценки необязательны, тренировка уже записана */ }
-      if (!isNew) dropDraft(EDIT_KEY)
-      if (isNew) {
-        dropDraft(DRAFT_KEY)
-        dropDraft(FEEL_KEY) // оценки тоже: следующая тренировка начинается без них
-        dropDraft(DATE_KEY)
-      }
+      draft.dropSaved() // и оценки, и дата: следующая тренировка начинается без них
       // Тактильный отклик по итогу сохранения: рекорд/цель — «праздничный»
       // паттерн, обычное сохранение — короткий success (см. lib/haptics.js).
       let finishEvents = []
@@ -592,11 +473,7 @@ export default function WorkoutScreen({ user, workoutId = null, onBack, onSaved 
   // ОСТАЕМСЯ на экране новой тренировки (пустой composer), а не уходим в список —
   // пользователь ждет, что продолжит добавлять с чистого листа. Уйти — «← Назад».
   function clearDraft() {
-    dropDraft(DRAFT_KEY)
-    dropDraft(FEEL_KEY)
-    dropDraft(DATE_KEY)
-    setEntries([])
-    setFeels({})        // и оценок: отказ от черновика отменяет занятие целиком
+    draft.clearDraft()
     setClearArm(false)
   }
 
@@ -646,7 +523,7 @@ export default function WorkoutScreen({ user, workoutId = null, onBack, onSaved 
     setMessage(null)
     try {
       await repoDelete(workoutId)
-      dropDraft(EDIT_KEY)
+      draft.dropSaved()
       if (navigator.onLine) syncNow(user.id)
       onBack?.()
     } catch (err) {
@@ -705,7 +582,7 @@ export default function WorkoutScreen({ user, workoutId = null, onBack, onSaved 
       {editRestored && !loading && (
         <div className="banner edit-restored" role="status">
           <span>Здесь несохраненные правки с прошлого раза.</span>
-          <button className="link-btn" onClick={revertEdits}>Вернуть как было</button>
+          <button className="link-btn" onClick={draft.revertEdits}>Вернуть как было</button>
         </div>
       )}
 

@@ -7,6 +7,8 @@ import { getCachedUser } from '../db/repo.js'
 import { onOnline, onResume } from '../lib/appEvents.js'
 import { buildMemberView, memberDisplay, MEMBER_GRACE_MS, MEMBER_LIMIT } from '../lib/memberProfile.js'
 import { fmtWhen } from '../lib/dates.js'
+import { isOnline, presenceLabel } from '../lib/presence.js'
+import { usePresence } from '../hooks/usePresence.js'
 import { fmtMetricValue } from '../lib/metric.js'
 import SetsCells from '../components/workout/SetsCells.jsx'
 import { plural } from '../lib/plural.js'
@@ -33,6 +35,9 @@ export default function MemberScreen({ user, memberId, onBack }) {
     undefined
   )
   const roster = useLiveQuery(() => getCachedUser(memberId), [memberId], undefined)
+  // «В сети» / «был(а) …» (v8.6.0, обращения fb_34573163 и fb_d3fe3a5c).
+  const lastSeen = usePresence(user.id).get(memberId) ?? null
+  const seenLabel = memberId === user.id ? null : presenceLabel(lastSeen, { sex: roster?.sex ?? null })
 
   // Сразу «грузится», если есть сеть: refresh стартует в эффекте после первого кадра,
   // и без этого снимок из Ленты успевал мелькнуть до заглушки.
@@ -128,9 +133,13 @@ export default function MemberScreen({ user, memberId, onBack }) {
       </div>
 
       <div className="prof-head">
-        <AvatarZoom name={name} url={roster?.avatar_url} className="avatar-lg" />
+        <AvatarZoom name={name} url={roster?.avatar_url} className="avatar-lg"
+          online={memberId !== user.id && isOnline(lastSeen)} />
         <div className="prof-id">
           <div className="prof-name"><span className="txt">{name}</span></div>
+          {seenLabel && (
+            <div className={'member-sub' + (seenLabel === 'в сети' ? ' member-seen' : '')}>{seenLabel}</div>
+          )}
           {view?.lastAt && (
             <div className="member-sub">последняя тренировка — {fmtWhen(view.lastAt)}</div>
           )}

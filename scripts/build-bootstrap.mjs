@@ -45,6 +45,34 @@ if (missing.length) {
   process.exit(1)
 }
 
+// Данные рядом с загрузчиком (15.10.2026): файл с меткой __CATALOG_JSON__ берет ее
+// содержимое из одноименного .json — так bootstrap/exercise-catalog.sql получает
+// снимок справочника прода (выгрузка bootstrap/catalog-export.sql). Нет снимка —
+// сборка останавливается: без него свежий проект поднимется с пустой разметкой мышц.
+const DATA_MARK = '__CATALOG_JSON__'
+function readSource(f) {
+  const text = readFileSync(join(sqlDir, f), 'utf8')
+  if (!text.includes(DATA_MARK)) return text
+  const dataFile = join(sqlDir, f.replace(/\.sql$/, '.json'))
+  if (!existsSync(dataFile)) {
+    console.error(`Нет ${dataFile}.\nВыгрузи снимок справочника с прода: supabase/bootstrap/catalog-export.sql ` +
+      '(SQL Editor, только чтение) → сохрани ячейку как этот файл.')
+    process.exit(1)
+  }
+  const data = readFileSync(dataFile, 'utf8').replace(/^\uFEFF/, '').trim()
+  let rows
+  try { rows = JSON.parse(data) } catch (e) {
+    console.error(`${dataFile}: не JSON (${e.message}) — скопирована не вся ячейка?`)
+    process.exit(1)
+  }
+  if (!Array.isArray(rows) || !rows.length || data.includes('$json$')) {
+    console.error(`${dataFile}: ожидается непустой массив упражнений`)
+    process.exit(1)
+  }
+  console.log(`  ${f}: снимок справочника — ${rows.length} упражнений`)
+  return text.replace(DATA_MARK, data)
+}
+
 const stamp = new Date().toISOString()
 const parts = [
   '-- ============================================================================',
@@ -71,7 +99,7 @@ const blocks = files.map((f, i) => ({
     `-- [${String(i + 1).padStart(2, '0')}/${files.length}] ${f}`,
     '-- ' + '='.repeat(74),
     '',
-    readFileSync(join(sqlDir, f), 'utf8').replace(/\s+$/, ''),
+    readSource(f).replace(/\s+$/, ''),
     '',
   ].join('\n'),
 }))

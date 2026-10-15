@@ -852,6 +852,9 @@ a.btn { display: block; text-align: center; text-decoration: none; }
   display: grid; place-items: center; background: var(--surface-2); color: var(--muted); cursor: pointer;
 }
 .btn-gear.on { background: var(--acc-soft); color: var(--acc-2); }
+/* Зона тапа 44px без роста кнопок (аудит 14.10, как у .feel-btn): 42px + невидимый край. */
+.btn-apply, .btn-gear { position: relative; }
+.btn-apply::before, .btn-gear::before { content: ''; position: absolute; inset: -1px; }
 .ap-settings { margin-top: 10px; padding-top: 10px; border-top: 1px solid var(--border); }
 .seg { display: grid; grid-auto-flow: column; grid-auto-columns: 1fr; gap: 5px; }
 .seg-item {
@@ -1536,6 +1539,9 @@ html[data-update]:not([data-composer]) .content { padding-top: 64px; }
   background: none; color: var(--muted); font-size: 14px; font-weight: 600; cursor: pointer;
 }
 .prog-chip.active { background: var(--acc); border-color: var(--acc); color: var(--on-acc); }
+/* Зона тапа 44px без роста чипа (аудит 14.10). */
+.prog-chip { position: relative; }
+.prog-chip::before { content: ''; position: absolute; inset: -1px 0; }
 .prog-range { display: flex; flex-wrap: wrap; gap: 8px; margin-bottom: 14px; }
 .prog-range label { display: flex; flex-direction: column; gap: 4px; font-size: 12px; color: var(--muted); flex: 1; min-width: 120px; }
 .prog-range input {
@@ -2590,6 +2596,8 @@ label.act.busy { opacity: .55; pointer-events: none; }
 .fb-reply.stale { opacity: .75; }
 .fb-reopen { margin: 0; font-size: 13px; line-height: 1.4; color: var(--yellow); white-space: pre-wrap; overflow-wrap: anywhere; }
 .fb-reopen-btn { align-self: flex-start; min-height: 44px; margin-top: 2px; }
+/* Дополнение автора к открытому обращению (v8.6.0). */
+.fb-addition { margin: 0; font-size: 14px; line-height: 1.45; color: var(--text); white-space: pre-wrap; overflow-wrap: anywhere; }
 .fb-reopen-form { display: flex; flex-direction: column; gap: 6px; margin-top: 4px; }
 .fb-photos { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 4px; }
 .fb-photo {
@@ -3730,6 +3738,12 @@ html[data-sheet-open], html[data-sheet-open] body { overscroll-behavior: none; }
 /* Аватар крупно (v6.18.0): тап по аватару в профиле участника → картинка по центру
    поверх размытого экрана; тап в любое место или Escape — закрыть. */
 .avatar-zoom-btn { padding: 0; margin: 0; border: 0; background: none; border-radius: 50%; cursor: zoom-in; flex: none; }
+/* «В сети» (v8.6.0): точка справа внизу аватарки — друг сейчас в приложении. */
+.avatar-wrap { position: relative; display: inline-flex; flex: none; }
+.avatar-online {
+  position: absolute; right: 0; bottom: 0; width: 28%; height: 28%; min-width: 9px; min-height: 9px;
+  border-radius: 50%; background: var(--green); box-shadow: 0 0 0 2px var(--bg);
+}
 .avatar-zoom-btn:focus-visible { outline: 2px solid var(--acc); outline-offset: 3px; }
 .avatar-lightbox {
   position: fixed; inset: 0; z-index: 200;
@@ -3784,6 +3798,7 @@ html[data-sheet-open], html[data-sheet-open] body { overscroll-behavior: none; }
 .fc-list .fc-row:first-child { border-top: 0; }
 .fc-who { flex: 1; min-width: 0; display: flex; flex-direction: column; }
 .fc-name { font-weight: 600; display: flex; align-items: center; gap: 6px; min-width: 0; overflow-wrap: anywhere; }
+.member-seen { color: var(--green); }
 .fc-by { font-size: 12px; }
 .fc-badge { font-size: 11px; font-weight: 600; padding: 1px 7px; border-radius: 999px; background: color-mix(in srgb, var(--acc) 20%, transparent); color: var(--acc); }
 .fc-row-acts { display: flex; flex-wrap: wrap; justify-content: flex-end; gap: 4px 10px; }

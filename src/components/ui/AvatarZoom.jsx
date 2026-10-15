@@ -5,15 +5,15 @@ import Avatar from './Avatar.jsx'
 // Аватар, который можно раскрыть (просьба владельца 07.10, v6.18.0): тап — картинка
 // крупно по центру поверх экрана, экран сзади виден, но размыт. Закрыть — тап в любое
 // место или Escape. Без картинки (инициал) — обычный Avatar, не кнопка.
-export default function AvatarZoom({ name, url, className = 'avatar-lg' }) {
+export default function AvatarZoom({ name, url, className = 'avatar-lg', online = false }) {
   const [open, setOpen] = useState(false)
-  if (!url) return <Avatar name={name} url={url} className={className} />
+  if (!url) return <Avatar name={name} url={url} className={className} online={online} />
   const label = `Аватар ${name ?? ''}`.trim()
   return (
     <>
       <button type="button" className="avatar-zoom-btn" onClick={() => setOpen(true)}
         aria-label={`${label} — открыть крупно`}>
-        <Avatar name={name} url={url} className={className} />
+        <Avatar name={name} url={url} className={className} online={online} />
       </button>
       {open && <AvatarLightbox url={url} name={name} label={label} onClose={() => setOpen(false)} />}
     </>

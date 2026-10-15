@@ -9,6 +9,8 @@
 //   adminList/adminUpdate/shotUrl — бэклог в админке; ответ шлет пуш автору
 //                  через ту же Edge Function (там VAPID-ключи).
 //   reopen       — «Не помогло — открыть снова» (v6.12.0);
+//   append       — дописать к своему открытому обращению (v8.6.0); дополнения
+//                  приходят в список отдельным RPC my_feedback_additions;
 //   media        — картинка из Telegram (фото ответа, скриншот) через Edge:
 //                  токен бота у клиента не бывает, права проверяет SQL.
 // Права проверяет сервер (app_uid / is_admin); клиентскому role не верим.
@@ -16,7 +18,7 @@
 import { supabase, hasSession } from '../db/supabase.js'
 import { compressToJpeg } from './avatar.js'
 import { DB_TIMEOUT_MS, withTimeout } from './withTimeout.js'
-import { bodyProblem, cleanBody, feedbackErrorText, reopenProblem, unreadReplies } from './feedback.js'
+import { appendProblem, bodyProblem, cleanBody, feedbackErrorText, reopenProblem, unreadReplies } from './feedback.js'
 import { cacheFeedbackReplies } from '../db/feedbackReplies.js'
 
 const FN_URL = (import.meta.env.VITE_SUPABASE_URL ?? '') + '/functions/v1/feedback'
@@ -140,7 +142,26 @@ export async function listMyFeedback(userId) {
   if (!await hasSession(userId)) throw new FeedbackError('no_session')
   const rows = (await rpc('my_feedback')) ?? []
   await cacheFeedbackReplies(userId, rows)
-  return rows
+  return withAdditions(rows)
+}
+
+// Дополнения (v8.6.0) — к строкам списка полем additions: [{ n, body, created_at }].
+// Отдельный RPC, чтобы не менять контракт my_feedback. Нет его на сервере или сбой —
+// список без дополнений: это не повод не показать обращения.
+async function withAdditions(rows) {
+  if (!rows.length) return rows
+  let adds = []
+  try {
+    const { data, error } = await withTimeout(supabase.rpc('my_feedback_additions'))
+    if (!error && Array.isArray(data)) adds = data.filter((a) => a?.feedback_id)
+  } catch { /* без дополнений */ }
+  if (!adds.length) return rows
+  const by = new Map()
+  for (const a of adds) {
+    if (!by.has(a.feedback_id)) by.set(a.feedback_id, [])
+    by.get(a.feedback_id).push({ n: a.n, body: a.body, created_at: a.created_at })
+  }
+  return rows.map((r) => (by.has(r.id) ? { ...r, additions: by.get(r.id).sort((x, y) => x.n - y.n) } : r))
 }
 
 // «Ответы прочитаны». Ошибка не важна: метка просто останется до следующего раза.
@@ -183,6 +204,15 @@ export async function reopenFeedback(id, note) {
   const problem = reopenProblem(note)
   if (problem) throw new FeedbackError(problem)
   const res = await callFn({ action: 'reopen', id, note: cleanBody(note) })
+  return { delivered: res.delivered !== false }
+}
+
+// Дописать к своему открытому обращению (v8.6.0): уйдет разработчику реплаем на
+// исходное сообщение в Telegram, статус не меняется.
+export async function appendFeedback(id, note) {
+  const problem = appendProblem(note)
+  if (problem) throw new FeedbackError(problem)
+  const res = await callFn({ action: 'append', id, note: cleanBody(note) })
   return { delivered: res.delivered !== false }
 }
 

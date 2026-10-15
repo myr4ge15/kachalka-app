@@ -118,13 +118,75 @@ describe('enablePush: зависший шаг не держит «Включаю
 })
 
 describe('disablePush / releasePushOnLogout', () => {
-  it('снимает подписку в браузере и на сервере', async () => {
+  // v8.6.0: «выкл» отвязывает на сервере и ОСТАВЛЯЕТ подписку браузера — «вкл» следом
+  // на iPhone больше не ждет subscribe() после unsubscribe().
+  it('отвязывает на сервере, подписку браузера оставляет; в Настройках — «выключено»', async () => {
     const sub = fakeSub()
     setup({ existing: sub })
     rpc.mockResolvedValue({ error: null })
     await disablePush('u1')
-    expect(sub.unsubscribe).toHaveBeenCalled()
     expect(rpc).toHaveBeenCalledWith('push_unsubscribe', { p_endpoint: sub.endpoint })
+    expect(sub.unsubscribe).not.toHaveBeenCalled()
+    rpc.mockClear()
+    expect((await getPushState('u1')).enabled).toBe(false)
+    expect(rpc).not.toHaveBeenCalledWith('push_subscribe', expect.anything()) // молча не возвращаем
+  })
+
+  it('выкл → вкл: та же подписка снова на сервере, subscribe() не зовется', async () => {
+    const sub = fakeSub()
+    const { pushManager } = setup({ existing: sub })
+    rpc.mockResolvedValue({ error: null })
+    await disablePush('u1')
+    rpc.mockClear()
+    await enablePush('u1')
+    expect(pushManager.subscribe).not.toHaveBeenCalled()
+    expect(rpc).toHaveBeenCalledWith('push_subscribe', expect.objectContaining({ p_endpoint: sub.endpoint }))
+    expect((await getPushState('u1')).enabled).toBe(true)
+  })
+
+  it('вкл после выкл не удалось — оставленную подписку не снимаем, остается «выкл»', async () => {
+    const sub = fakeSub()
+    setup({ existing: sub })
+    rpc.mockResolvedValue({ error: null })
+    await disablePush('u1')
+    rpc.mockResolvedValue({ error: { message: 'boom' } })
+    await expect(enablePush('u1')).rejects.toBeInstanceOf(PushError)
+    expect(sub.unsubscribe).not.toHaveBeenCalled()
+    rpc.mockResolvedValue({ error: null })
+    expect((await getPushState('u1')).enabled).toBe(false)
+  })
+
+  it('сервер не отвязал — снимаем в браузере, как раньше («выкл» гарантирован)', async () => {
+    const sub = fakeSub()
+    setup({ existing: sub })
+    rpc.mockResolvedValue({ error: { message: 'boom' } })
+    await disablePush('u1')
+    expect(sub.unsubscribe).toHaveBeenCalled()
+  })
+
+  it('выкл, потом выход и вход — на сервер подписку не возвращаем', async () => {
+    const sub = fakeSub()
+    setup({ existing: sub })
+    rpc.mockResolvedValue({ error: null })
+    await enablePush('u1')
+    await disablePush('u1')
+    await releasePushOnLogout('u1')
+    rpc.mockClear()
+    await reconcilePushOwner('u1')
+    expect(rpc).not.toHaveBeenCalledWith('push_subscribe', expect.anything())
+    expect(sub.unsubscribe).not.toHaveBeenCalled()
+  })
+
+  it('выкл у A, на телефон входит B — подписку A снимаем, B ее не получает', async () => {
+    const sub = fakeSub()
+    setup({ existing: sub })
+    rpc.mockResolvedValue({ error: null })
+    await enablePush('A')
+    await disablePush('A')
+    rpc.mockClear()
+    await reconcilePushOwner('B')
+    expect(sub.unsubscribe).toHaveBeenCalled()
+    expect(rpc).not.toHaveBeenCalledWith('push_subscribe', expect.anything())
   })
 
   it('без своей сессии — только браузер, сервер дочистит сам', async () => {

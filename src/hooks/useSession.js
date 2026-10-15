@@ -2,6 +2,7 @@ import { useCallback, useEffect, useRef, useState } from 'react'
 import { supabase } from '../db/supabase.js'
 import { logout as authLogout, getCachedProfile } from '../lib/auth.js'
 import { releasePushOnLogout, reconcilePushOwner } from '../db/push.js'
+import { resetPresence } from '../db/presence.js'
 import { getCachedUser } from '../db/repo.js'
 import { openUserDb, closeUserDb } from '../db/local.js'
 import { readStoredUserId, hydrateProfile } from '../lib/sessionProfile.js'
@@ -101,6 +102,7 @@ export function useSession(onLoggedIn) {
         if (user?.id) await releasePushOnLogout(user.id)
         await authLogout()
         storageRemove('localStorage', SESSION_KEY)
+        resetPresence()    // чужие «в сети» следующему на этом телефоне не показываем
         setUser(null)      // сначала размонтируем экраны и их live-queries…
         closeUserDb()      // …затем закрываем персональную базу
       })().finally(() => { logoutRef.current = null })

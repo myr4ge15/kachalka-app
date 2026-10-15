@@ -13,7 +13,7 @@ vi.mock('../components/ui/Toast.jsx', () => ({ showToast: vi.fn() }))
 vi.mock('../lib/feedbackApi.js', () => ({
   FeedbackError: class FeedbackError extends Error {},
   submitFeedback: vi.fn(), listMyFeedback: vi.fn(), ackMyFeedback: vi.fn(),
-  reopenFeedback: vi.fn(), feedbackMedia: vi.fn(),
+  reopenFeedback: vi.fn(), feedbackMedia: vi.fn(), appendFeedback: vi.fn(),
 }))
 
 const USER = { id: 'me', name: 'Маша' }
@@ -28,6 +28,7 @@ function setup(over = {}, props = {}) {
     list: vi.fn(async () => []),
     ack: vi.fn(),
     reopen: vi.fn(async () => ({ delivered: true })),
+    append: vi.fn(async () => ({ delivered: true })),
     media: vi.fn(async (id, kind, n) => `blob:${id}-${kind}-${n}`),
     ...over,
   }
@@ -161,5 +162,31 @@ describe('FeedbackScreen — ответ из Telegram и переоткрыти�
     await userEvent.click(screen.getByRole('button', { name: 'Открыть снова' }))
     await waitFor(() => expect(showToast).toHaveBeenCalledWith(expect.objectContaining({ sub: expect.stringContaining('3 раза') })))
     expect(screen.getByLabelText('Что не так?')).toHaveValue('опять')
+  })
+
+  // v8.6.0 (обращение fb_71127755): дописать к открытому, а не новым обращением.
+  it('«Дополнить» открытое: текст уходит в то же обращение, список перечитан', async () => {
+    const api = setup({ list: vi.fn(async () => [{ ...ROW, status: 'new', reply: null, replied_at: null }]) })
+    await userEvent.click(await screen.findByRole('button', { name: 'Дополнить' }))
+    expect(screen.queryByRole('button', { name: 'Не помогло — открыть снова' })).toBeNull()
+    const send = screen.getByRole('button', { name: 'Дописать' })
+    expect(send).toBeDisabled()
+    await userEvent.type(screen.getByLabelText('Что добавить?'), 'по чату — можно комменты')
+    await userEvent.click(send)
+    await waitFor(() => expect(api.append).toHaveBeenCalledWith('f1', 'по чату — можно комменты'))
+    expect(showToast).toHaveBeenCalledWith(expect.objectContaining({ title: 'Дополнение отправлено' }))
+    expect(api.list).toHaveBeenCalledTimes(2)
+  })
+
+  it('дополнения видны под текстом; у решенного и при 5 дополнениях кнопки нет', async () => {
+    const adds = (k) => Array.from({ length: k }, (_, i) => ({ n: i + 1, body: `доп ${i + 1}`, created_at: '2026-10-15T01:25:00Z' }))
+    setup({ list: vi.fn(async () => [
+      { ...ROW, id: 'f1', status: 'in_progress', reply: null, replied_at: null, additions: adds(2) },
+      { ...ROW, id: 'f2', status: 'new', reply: null, replied_at: null, additions: adds(5) },
+      { ...ROW, id: 'f3' }, // решено — только «открыть снова»
+    ]) })
+    expect(await screen.findAllByText('доп 2')).toHaveLength(2)
+    expect(screen.getAllByRole('button', { name: 'Дополнить' })).toHaveLength(1)
+    expect(screen.getAllByRole('button', { name: 'Не помогло — открыть снова' })).toHaveLength(1)
   })
 })

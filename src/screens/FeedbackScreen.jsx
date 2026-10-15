@@ -3,17 +3,20 @@ import BackButton from '../components/ui/BackButton.jsx'
 import CardsSkeleton from '../components/ui/CardsSkeleton.jsx'
 import { showToast } from '../components/ui/Toast.jsx'
 import FeedbackPhotos from '../components/social/FeedbackPhotos.jsx'
+import FeedbackNoteForm from '../components/social/FeedbackNoteForm.jsx'
 import { useSyncStatus } from '../db/sync.js'
 import {
-  bodyProblem, buildContext, canReopen, fmtFeedbackDate, hasReply, hasUnreadReply, isStaleReply, isWebKit26Plus,
-  reopenProblem, FEEDBACK_MAX, REOPEN_MAX, STATUS_LABEL,
+  appendProblem, bodyProblem, buildContext, canAppend, canReopen, fmtFeedbackDate, hasReply, hasUnreadReply,
+  isStaleReply, isWebKit26Plus, reopenProblem, APPEND_MAX, FEEDBACK_MAX, REOPEN_MAX, STATUS_LABEL,
 } from '../lib/feedback.js'
 import {
-  ackMyFeedback, feedbackMedia, listMyFeedback, reopenFeedback, submitFeedback as defaultSubmit, FeedbackError,
+  ackMyFeedback, appendFeedback, feedbackMedia, listMyFeedback, reopenFeedback, submitFeedback as defaultSubmit,
+  FeedbackError,
 } from '../lib/feedbackApi.js'
 
 const defaultApi = {
   submit: defaultSubmit, list: listMyFeedback, ack: ackMyFeedback, reopen: reopenFeedback, media: feedbackMedia,
+  append: appendFeedback,
 }
 
 // «Написать разработчику» (v6.11.0, Профиль → Настройки). Обращение уходит
@@ -171,6 +174,12 @@ export default function FeedbackScreen({ user, onBack, focusId = null, fromScree
                 <span className={`fb-status s-${r.status}`}>{STATUS_LABEL[r.status] ?? r.status}</span>
               </div>
               <p className="fb-body">{r.body}</p>
+              {r.additions?.map((a) => (
+                <p key={a.n} className="fb-addition">
+                  <span aria-hidden="true">➕ </span>{a.body}
+                  <span className="admin-ex-meta"> · {fmtFeedbackDate(a.created_at)}</span>
+                </p>
+              ))}
               {r.has_screenshot && <span className="admin-ex-meta">📎 со скриншотом</span>}
               {r.reopened_at && r.reopen_note && (
                 <p className="fb-reopen"><span aria-hidden="true">🔁 </span>Открыто снова: {r.reopen_note}</p>
@@ -188,62 +197,38 @@ export default function FeedbackScreen({ user, onBack, focusId = null, fromScree
                   )}
                 </div>
               )}
-              {canReopen(r) && <ReopenForm row={r} online={online} api={api} onDone={() => reload()} />}
+              {canAppend(r) && (
+                <FeedbackNoteForm
+                  openLabel="Дополнить"
+                  label="Что добавить?"
+                  placeholder="Например: и еще — то же самое на экране Ленты"
+                  sendLabel="Дописать"
+                  max={APPEND_MAX}
+                  problem={appendProblem}
+                  send={(note) => api.append(r.id, note)}
+                  done={{ emoji: '➕', title: 'Дополнение отправлено', sub: 'Разработчик увидит его в том же обращении.' }}
+                  online={online}
+                  onDone={() => reload()}
+                />
+              )}
+              {canReopen(r) && (
+                <FeedbackNoteForm
+                  openLabel="Не помогло — открыть снова"
+                  label="Что не так?"
+                  placeholder="Например: после обновления подход все равно пропадает"
+                  sendLabel="Открыть снова"
+                  max={REOPEN_MAX}
+                  problem={reopenProblem}
+                  send={(note) => api.reopen(r.id, note)}
+                  done={{ emoji: '🔁', title: 'Обращение открыто снова', sub: 'Разработчик увидит твой комментарий.' }}
+                  online={online}
+                  onDone={() => reload()}
+                />
+              )}
             </li>
           ))}
         </ul>
       )}
-    </div>
-  )
-}
-
-// «Не помогло — открыть снова» (v6.12.0): комментарий обязателен — без него
-// разработчику непонятно, что именно не так. Статус возвращается в «новое».
-function ReopenForm({ row, online, api, onDone }) {
-  const [open, setOpen] = useState(false)
-  const [note, setNote] = useState('')
-  const [busy, setBusy] = useState(false)
-  const problem = reopenProblem(note)
-  const len = note.trim().length
-
-  async function send() {
-    if (busy || problem || !online) return
-    setBusy(true)
-    try {
-      await api.reopen(row.id, note)
-      showToast({ emoji: '🔁', title: 'Обращение открыто снова', sub: 'Разработчик увидит твой комментарий.' })
-      setOpen(false)
-      setNote('')
-      onDone()
-    } catch (e) {
-      showToast({ emoji: '⚠️', title: 'Не отправилось', sub: e instanceof FeedbackError ? e.message : 'Попробуй еще раз.' })
-    } finally {
-      setBusy(false)
-    }
-  }
-
-  if (!open) {
-    return (
-      <button type="button" className="btn ghost fb-reopen-btn" onClick={() => setOpen(true)} disabled={!online}>
-        Не помогло — открыть снова
-      </button>
-    )
-  }
-  return (
-    <div className="fb-reopen-form">
-      <label className="field">
-        <span className="field-lab">Что не так?</span>
-        <textarea className="admin-input fb-text" rows={3} maxLength={REOPEN_MAX + 100} value={note} disabled={busy}
-          placeholder="Например: после обновления подход все равно пропадает" autoFocus
-          onChange={(e) => setNote(e.target.value)} />
-      </label>
-      <div className={'fb-count' + (len > REOPEN_MAX ? ' over' : '')} aria-live="polite">{len} / {REOPEN_MAX}</div>
-      <div className="invite-fresh-actions">
-        <button className="btn primary" onClick={send} disabled={busy || !!problem || !online}>
-          {busy ? 'Отправляю…' : 'Открыть снова'}
-        </button>
-        <button className="btn ghost" onClick={() => { setOpen(false); setNote('') }} disabled={busy}>Отмена</button>
-      </div>
     </div>
   )
 }

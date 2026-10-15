@@ -36,6 +36,7 @@ import TabIcon from './components/app/TabIcon.jsx'
 import { AppMarkGlyph } from './components/app/AppMark.jsx'
 import ScreenCrash from './components/app/ScreenCrash.jsx'
 import { useSession } from './hooks/useSession.js'
+import { usePresenceHeartbeat } from './hooks/usePresence.js'
 import { wipeLocalAccount } from './db/local.js'
 import { useAppNav } from './hooks/useAppNav.js'
 import { useLaunchSheets } from './hooks/useLaunchSheets.js'
@@ -206,6 +207,8 @@ export default function App() {
   useTabDot(navRef, tab)
   // Акцент учетки с других устройств (v6.2.0): применить и запомнить для сплэша.
   useAccentSync(user?.id ?? null)
+  // «Я в приложении» для точки «в сети» у друзей (v8.6.0, db/presence.js).
+  usePresenceHeartbeat(user?.id ?? null)
   // Ответы разработчика для «Уведомлений» (v6.12.0): проверяем при входе и при
   // возврате в приложение — myUnreadReplies заодно кладет их в локальный кэш.
   // Тихо: нет сети или сессии — просто без обновления.

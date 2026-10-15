@@ -16,6 +16,8 @@ import CardsSkeleton from '../components/ui/CardsSkeleton.jsx'
 import FeedPrBadge from '../components/social/FeedPrBadge.jsx'
 import ReactionBar from '../components/social/ReactionBar.jsx'
 import { useSpinPhase } from '../hooks/useSpinPhase.js'
+import { usePresence } from '../hooks/usePresence.js'
+import { isOnline } from '../lib/presence.js'
 import EmptyHint from '../components/ui/EmptyHint.jsx'
 
 // Рейтинг над постами на телефоне — свернут по умолчанию (v6.11.1): раньше он
@@ -42,6 +44,8 @@ export default function FeedScreen({ user, onOpenMember, flashId = null, onOpenC
     for (const u of users ?? []) m.set(u.id, u.avatar_url)
     return m
   }, [users])
+  // «В сети» (v8.6.0) — точка на аватарке автора карточки.
+  const presence = usePresence(user.id)
   // Свое имя (для оптимистичной строки реакций). Из ростра, фолбэк — user.name.
   const myName = useMemo(
     () => (users ?? []).find((u) => u.id === user.id)?.name ?? user.name ?? 'Ты',
@@ -299,7 +303,8 @@ export default function FeedScreen({ user, onOpenMember, flashId = null, onOpenC
               onClick={() => onOpenMember?.(w.user_id, `feed-${w.id}`)}
               aria-label={isMe ? 'Открыть мой профиль' : `Открыть профиль: ${w.user_name}`}
             >
-              <Avatar name={w.user_name} url={avatarById.get(w.user_id)} className="avatar" />
+              <Avatar name={w.user_name} url={avatarById.get(w.user_id)} className="avatar"
+                online={!isMe && isOnline(presence.get(w.user_id))} />
               <div className="feed-who">
                 <div className="feed-name">
                   {w.user_name}

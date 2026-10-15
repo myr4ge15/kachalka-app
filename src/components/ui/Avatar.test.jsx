@@ -28,4 +28,14 @@ describe('Avatar', () => {
     rerender(<Avatar name="Вася" url="https://x/b.jpg" />)
     expect(container.querySelector('img')).toHaveAttribute('src', 'https://x/b.jpg')
   })
+
+  it('online (v8.6.0) — точка «в сети» поверх аватарки; без него разметка прежняя', () => {
+    const { container, rerender, getByRole } = render(<Avatar name="Вася" online />)
+    expect(container.firstChild).toHaveClass('avatar-wrap')
+    expect(getByRole('img', { name: 'в сети' })).toHaveClass('avatar-online')
+    expect(container.querySelector('.avatar')).toHaveTextContent('В')
+    rerender(<Avatar name="Вася" online={false} />)
+    expect(container.firstChild).toHaveClass('avatar')
+    expect(container.querySelector('.avatar-online')).toBeNull()
+  })
 })

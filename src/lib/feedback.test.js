@@ -147,3 +147,22 @@ describe('ответ из Telegram и переоткрытие (v6.12.0)', () =>
     expect(feedbackErrorText('reopen_limit')).toContain('3 раза')
   })
 })
+
+describe('дополнение к открытому (v8.6.0)', () => {
+  it('canAppend: только новое/в работе и до 5 дополнений', async () => {
+    const { canAppend, APPEND_LIMIT } = await import('./feedback.js')
+    expect(canAppend({ status: 'new' })).toBe(true)
+    expect(canAppend({ status: 'in_progress', additions: [{}, {}] })).toBe(true)
+    expect(canAppend({ status: 'new', additions: Array(APPEND_LIMIT).fill({}) })).toBe(false)
+    expect(canAppend({ status: 'resolved' })).toBe(false)
+    expect(canAppend(null)).toBe(false)
+  })
+  it('appendProblem и тексты ошибок сервера', async () => {
+    const { appendProblem, APPEND_MAX } = await import('./feedback.js')
+    expect(appendProblem(' ')).toBe('empty')
+    expect(appendProblem('x'.repeat(APPEND_MAX + 1))).toBe('too_long')
+    expect(appendProblem('и еще')).toBeNull()
+    expect(feedbackErrorText('append_limit')).toContain('5 дополнений')
+    expect(feedbackErrorText('not_open')).toMatch(/открой его снова/)
+  })
+})

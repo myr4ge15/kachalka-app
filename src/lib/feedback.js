@@ -22,6 +22,11 @@ export const isFinalStatus = (s) => s === 'resolved' || s === 'declined'
 export const REOPEN_MAX = 1000
 export const REOPEN_LIMIT = 3
 
+// Дополнение к открытому обращению (v8.6.0): до 1000 символов, не больше 5 на
+// обращение (те же пороги проверяет append_my_feedback, supabase/feedback-append.sql).
+export const APPEND_MAX = 1000
+export const APPEND_LIMIT = 5
+
 // Экран, с которого пишут, — человеческим словом (в Telegram и в админке).
 const SCREEN_LABEL = {
   home: 'Главная', history: 'Тренировки', feed: 'Лента', progress: 'Прогресс',
@@ -119,6 +124,19 @@ export function canReopen(row) {
   return isFinalStatus(row?.status) && Number(row?.reopen_count ?? 0) < REOPEN_LIMIT
 }
 
+// Можно ли дописать: обращение открыто (новое / в работе) и лимит не исчерпан.
+// Решенное дописывать нельзя — для него «Не помогло — открыть снова».
+export function canAppend(row) {
+  return isOpenStatus(row?.status) && (row?.additions?.length ?? 0) < APPEND_LIMIT
+}
+
+export function appendProblem(text) {
+  const t = cleanBody(text)
+  if (!t) return 'empty'
+  if (t.length > APPEND_MAX) return 'too_long'
+  return null
+}
+
 export function reopenProblem(text) {
   const t = cleanBody(text)
   if (!t) return 'empty'
@@ -177,6 +195,8 @@ export function feedbackErrorText(code) {
     case 'shot_failed': return 'Не удалось загрузить скриншот. Попробуй без него или другой файл.'
     case 'reopen_limit': return `Обращение уже открывали снова ${REOPEN_LIMIT} раза — напиши новое.`
     case 'not_closed': return 'Обращение еще в работе — дождись ответа.'
+    case 'append_limit': return `К обращению уже ${APPEND_LIMIT} дополнений — напиши новое.`
+    case 'not_open': return 'Обращение уже закрыто — если не помогло, открой его снова.'
     default: return 'Не получилось отправить. Проверь связь и попробуй еще раз.'
   }
 }

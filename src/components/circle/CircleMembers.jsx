@@ -1,9 +1,13 @@
 import { useCallback, useEffect, useRef, useState } from 'react'
 import Avatar from '../ui/Avatar.jsx'
+import { usePresence } from '../../hooks/usePresence.js'
+import { isOnline } from '../../lib/presence.js'
 
 // Участники круга: кто кого привел; владельцу — заявки (принять/отклонить), удалить
 // участника, передать круг. Действия с последствиями — в два нажатия.
 export default function CircleMembers({ api, circle, me, onChanged }) {
+  // «В сети» (v8.6.0) — точка на аватарке участника.
+  const presence = usePresence(me)
   const [list, setList] = useState(null)
   const [err, setErr] = useState('')
   const [busy, setBusy] = useState('')
@@ -66,7 +70,8 @@ export default function CircleMembers({ api, circle, me, onChanged }) {
       <ul className="fc-list">
         {active.map((m) => (
           <li key={m.user_id} className="fc-row">
-            <Avatar name={m.name} url={m.avatar_url} className="avatar-sm" />
+            <Avatar name={m.name} url={m.avatar_url} className="avatar-sm"
+              online={m.user_id !== me && isOnline(presence.get(m.user_id))} />
             <span className="fc-who">
               <span className="fc-name">{m.name}{m.user_id === me && <span className="feed-me">я</span>}{m.is_owner && <span className="fc-badge">владелец</span>}</span>
               {m.invited_by_name && !m.is_owner && <span className="muted fc-by">пришел(а) по коду {m.invited_by_name}</span>}

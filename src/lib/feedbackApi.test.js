@@ -15,7 +15,7 @@ vi.mock('../db/supabase.js', () => ({
 
 import {
   _clearMediaCache, ackMyFeedback, adminListFeedback, adminUpdateFeedback, feedbackMedia, feedbackShotUrl,
-  listMyFeedback, myUnreadReplies, reopenFeedback, submitFeedback,
+  appendFeedback, listMyFeedback, myUnreadReplies, reopenFeedback, submitFeedback,
 } from './feedbackApi.js'
 
 const ok = (payload, status = 200) => Promise.resolve({ ok: status < 400, status, json: async () => payload })
@@ -102,6 +102,18 @@ describe('свои обращения', () => {
     mocks.hasSession.mockResolvedValue(false)
     await expect(myUnreadReplies('me')).resolves.toBe(0)
   })
+  it('дополнения (v8.6.0) ложатся в свои обращения по порядку; нет RPC — список как есть', async () => {
+    const rows = [{ id: 'f1', body: 'a' }, { id: 'f2', body: 'b' }]
+    mocks.rpc.mockImplementation(async (name) => (name === 'my_feedback'
+      ? { data: rows }
+      : { data: [{ feedback_id: 'f1', n: 2, body: 'два', created_at: 't2' }, { feedback_id: 'f1', n: 1, body: 'раз', created_at: 't1' }] }))
+    const got = await listMyFeedback('me')
+    expect(got[0].additions.map((a) => a.body)).toEqual(['раз', 'два'])
+    expect(got[1].additions).toBeUndefined()
+    mocks.rpc.mockImplementation(async (name) => (name === 'my_feedback'
+      ? { data: rows } : { error: { code: 'PGRST202', message: 'x' } }))
+    await expect(listMyFeedback('me')).resolves.toBe(rows)
+  })
   it('ack не бросает', async () => {
     mocks.rpc.mockRejectedValue(new Error('net'))
     await expect(ackMyFeedback()).resolves.toBeUndefined()
@@ -145,6 +157,18 @@ describe('Telegram: переоткрытие и картинки (v6.12.0)', () 
     expect(fetch).toHaveBeenCalledTimes(1)
     fetch.mockImplementationOnce(() => ok({ error: 'reopen_limit' }, 429))
     await expect(reopenFeedback('f1', 'еще')).rejects.toMatchObject({ code: 'reopen_limit' })
+  })
+
+  it('append (v8.6.0): текст обрезан, пустой — до сети не доходит; лимит и закрытое — коды', async () => {
+    fetch.mockImplementationOnce(() => ok({ ok: true, delivered: true }))
+    await expect(appendFeedback('f1', '  и еще  ')).resolves.toEqual({ delivered: true })
+    expect(JSON.parse(fetch.mock.calls[0][1].body)).toEqual({ action: 'append', id: 'f1', note: 'и еще' })
+    await expect(appendFeedback('f1', ' ')).rejects.toMatchObject({ code: 'empty' })
+    expect(fetch).toHaveBeenCalledTimes(1)
+    fetch.mockImplementationOnce(() => ok({ error: 'append_limit' }, 429))
+    await expect(appendFeedback('f1', 'шестое')).rejects.toMatchObject({ code: 'append_limit' })
+    fetch.mockImplementationOnce(() => ok({ error: 'not_open' }, 400))
+    await expect(appendFeedback('f1', 'после решения')).rejects.toMatchObject({ code: 'not_open' })
   })
 
   it('media: байты → object URL, повтор из кэша; 404 — not_found и не кэшируется', async () => {

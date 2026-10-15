@@ -2,14 +2,16 @@ import { useState, useEffect, useRef } from 'react'
 import { getUsers } from '../db/repo.js'
 import { migrateLoginZone } from '../db/local.js'
 import {
-  login as authLogin, loginByName, verifyPinOffline, dropForeignSession, noteLoginFailure,
+  login as authLogin, verifyPinOffline, dropForeignSession, noteLoginFailure,
   knownAccounts, forgetAccount, LoginError,
 } from '../lib/auth.js'
-import { loadPending, savePending, clearPending, pollJoin, joinPollDelay } from '../lib/joinRequest.js'
-import { onlyDigits } from '../lib/text.js'
+import { useJoinRequest } from '../hooks/useJoinRequest.js'
 import AppMark from '../components/app/AppMark.jsx'
 import BackButton from '../components/ui/BackButton.jsx'
 import JoinRequestForm from '../components/auth/JoinRequestForm.jsx'
+import JoinStatusCard from '../components/auth/JoinStatusCard.jsx'
+import NameLoginForm from '../components/auth/NameLoginForm.jsx'
+import PinPad from '../components/auth/PinPad.jsx'
 import ForgotPin from '../components/recovery/ForgotPin.jsx'
 
 // Экран входа (v6.12.0).
@@ -23,6 +25,9 @@ import ForgotPin from '../components/recovery/ForgotPin.jsx'
 //     (onInvite(token) → InviteScreen).
 //   • «Забыл PIN?» (П1, v6.18.0) — ссылка от бота в Telegram или код восстановления
 //     (components/recovery/ForgotPin.jsx), без админа.
+// Части экрана (аудит 14.10): заявка и ее опрос — hooks/useJoinRequest.js, ее статус —
+// components/auth/JoinStatusCard.jsx, вход по логину — NameLoginForm.jsx, клавиатура PIN —
+// PinPad.jsx. Здесь — режимы экрана и проверка PIN (сервер, затем кэш).
 // Сколько ждать сервер при входе с пикера, прежде чем открыть приложение по кэшу.
 const LOGIN_ONLINE_TIMEOUT_MS = 8000
 // Коды LoginError, при которых сервер «не ответил» (а не «отказал»).
@@ -36,8 +41,7 @@ export default function LoginScreen({ onLogin, onInvite }) {
   const [error, setError] = useState('')
   const [busy, setBusy] = useState(false)
   const [confirmForget, setConfirmForget] = useState(false)
-  const [pending, setPending] = useState(() => loadPending())
-  const [joinNote, setJoinNote] = useState(null) // 'declined' | null
+  const join = useJoinRequest(onInvite)
   // Синхронный замок «попытка в полете»: setBusy(true) применяется асинхронно,
   // поэтому гонка backspace+перенабор до 4 цифр могла вызвать submit() дважды до
   // ре-рендера (лишняя попытка → инфляция серверного счетчика блокировки).
@@ -60,63 +64,6 @@ export default function LoginScreen({ onLogin, onInvite }) {
     }
     load()
   }, [])
-
-  // Ожидающая заявка «Запросить доступ»: при открытии экрана спрашиваем статус.
-  // Один запрос за раз: таймер, возврат во вкладку и «Проверить» могут совпасть.
-  const joinPolling = useRef(false)
-  async function checkJoin(p = pending) {
-    if (!p || p.token || !navigator.onLine || joinPolling.current) return
-    joinPolling.current = true
-    try {
-      const res = await pollJoin(p)
-      if (!alive.current) return
-      if (res.token) {
-        const next = { ...p, token: res.token }
-        savePending(next)
-        setPending(next)
-        onInvite?.(res.token)
-      } else if (res.status === 'declined') {
-        clearPending(); setPending(null); setJoinNote('declined')
-      } else if (res.status !== 'new' && res.status !== 'approved') {
-        clearPending(); setPending(null) // claimed без токена / invalid — забыть молча
-      }
-    } catch { /* нет сети — проверим в следующий раз */ } finally {
-      joinPolling.current = false
-    }
-  }
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-  useEffect(() => { checkJoin() }, [])
-
-  // Пока заявка ждет ответа, экран переспрашивает сам (v6.14.3): владелец нажал
-  // «Пригласить» — регистрация открывается без кнопки «Проверить». Часто первые
-  // минуты, потом реже (joinPollDelay); при возврате во вкладку, фокусе и появлении
-  // сети — сразу. Скрытую вкладку не дергаем.
-  const waitingJoinId = pending && !pending.token ? pending.id : null
-  useEffect(() => {
-    if (!waitingJoinId) return
-    const started = Date.now()
-    let timer = null
-    let stopped = false
-    const schedule = () => {
-      timer = setTimeout(async () => {
-        if (!document.hidden) await checkJoin()
-        if (!stopped) schedule()
-      }, joinPollDelay(Date.now() - started))
-    }
-    const checkNow = () => { if (!document.hidden) checkJoin() }
-    schedule()
-    document.addEventListener('visibilitychange', checkNow)
-    window.addEventListener('focus', checkNow)
-    window.addEventListener('online', checkNow)
-    return () => {
-      stopped = true
-      clearTimeout(timer)
-      document.removeEventListener('visibilitychange', checkNow)
-      window.removeEventListener('focus', checkNow)
-      window.removeEventListener('online', checkNow)
-    }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [waitingJoinId])
 
   function goPick() {
     setSelected(null); setPin(''); setError(''); setConfirmForget(false)
@@ -212,33 +159,16 @@ export default function LoginScreen({ onLogin, onInvite }) {
   const mark = <AppMark />
 
   // Статус заявки «Запросить доступ» (над формами входа).
-  let joinCard = null
-  if (pending?.token) {
-    joinCard = (
-      <div className="join-status" role="status">
-        <p><b>Тебя приняли в круг 🎉</b></p>
-        <p className="muted">Осталось придумать PIN и войти.</p>
-        <button className="btn primary" onClick={() => onInvite?.(pending.token)}>Зарегистрироваться</button>
-        <button className="link-btn" onClick={() => { clearPending(); setPending(null) }}>Убрать</button>
-      </div>
-    )
-  } else if (pending) {
-    joinCard = (
-      <div className="join-status" role="status">
-        <p><b>Заявка отправлена</b>{pending.name ? ` — ${pending.name}` : ''}</p>
-        <p className="muted">Как только владелец ответит, приглашение откроется здесь.</p>
-        <button className="btn ghost" onClick={() => checkJoin()}>Проверить</button>
-        <button className="link-btn" onClick={() => { clearPending(); setPending(null) }}>Отменить заявку</button>
-      </div>
-    )
-  } else if (joinNote === 'declined') {
-    joinCard = (
-      <div className="join-status" role="status">
-        <p>Владелец пока не принял заявку.</p>
-        <button className="link-btn" onClick={() => setJoinNote(null)}>Понятно</button>
-      </div>
-    )
-  }
+  const joinCard = (
+    <JoinStatusCard
+      pending={join.pending}
+      joinNote={join.joinNote}
+      onInvite={onInvite}
+      onCheck={join.checkJoin}
+      onForget={join.forget}
+      onClearNote={join.clearNote}
+    />
+  )
 
   if (mode === 'loading') {
     return <div className="screen center"><p className="muted">Загрузка…</p></div>
@@ -252,7 +182,7 @@ export default function LoginScreen({ onLogin, onInvite }) {
           <h1 className="title">Запросить доступ</h1>
           <JoinRequestForm
             onBack={goPick}
-            onSubmitted={(p) => { setPending(p); setJoinNote(null); goPick() }}
+            onSubmitted={(p) => { join.submitted(p); goPick() }}
           />
         </div>
       </div>
@@ -285,7 +215,7 @@ export default function LoginScreen({ onLogin, onInvite }) {
           <NameLoginForm onLogin={onLogin} showError={showError} error={error} setError={setError} />
           <div className="login-alt">
             <button className="link-btn" onClick={() => { setError(''); setMode('forgot') }}>Забыл PIN?</button>
-            {!pending && <button className="link-btn" onClick={() => { setError(''); setMode('join') }}>Запросить доступ</button>}
+            {!join.pending && <button className="link-btn" onClick={() => { setError(''); setMode('join') }}>Запросить доступ</button>}
           </div>
         </div>
       </div>
@@ -311,7 +241,7 @@ export default function LoginScreen({ onLogin, onInvite }) {
           </div>
           <div className="login-alt">
             <button className="link-btn" onClick={() => { setError(''); setMode('name') }}>Войти в другую учетку</button>
-            {!pending && <button className="link-btn" onClick={() => { setError(''); setMode('join') }}>Запросить доступ</button>}
+            {!join.pending && <button className="link-btn" onClick={() => { setError(''); setMode('join') }}>Запросить доступ</button>}
           </div>
         </div>
       </div>
@@ -328,33 +258,7 @@ export default function LoginScreen({ onLogin, onInvite }) {
         <h2 className="title">{selected.name}</h2>
         <p className="muted login-sub">Введи PIN — 4 цифры</p>
 
-        <div className="pin-dots">
-          {[0, 1, 2, 3].map((i) => (
-            <span key={i} className={i < pin.length ? 'dot filled' : 'dot'} />
-          ))}
-        </div>
-        {busy ? (
-          <div className="login-busy">
-            <span className="spinner" aria-hidden="true" />
-            <span>Входим…</span>
-          </div>
-        ) : (
-          error && <p className="error">{error}</p>
-        )}
-
-        <div className={busy ? 'keypad dim' : 'keypad'}>
-          {[1, 2, 3, 4, 5, 6, 7, 8, 9].map((n) => (
-            <button key={n} className="key" disabled={busy} onClick={() => pressDigit(String(n))}>{n}</button>
-          ))}
-          <span />
-          <button className="key" disabled={busy} onClick={() => pressDigit('0')}>0</button>
-          <button className="key key-del" disabled={busy} onClick={backspace} aria-label="Стереть">
-            <svg viewBox="0 0 24 24" width="36" height="36" fill="none" stroke="currentColor" strokeWidth="1.8"
-              strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
-              <path d="M21 5H9l-6 7 6 7h12a1 1 0 0 0 1-1V6a1 1 0 0 0-1-1z" /><path d="M17 9.5l-5 5M12 9.5l5 5" />
-            </svg>
-          </button>
-        </div>
+        <PinPad length={pin.length} busy={busy} error={error} onDigit={pressDigit} onBackspace={backspace} />
         <div className="login-alt">
           <button className="link-btn" disabled={busy} onClick={() => { setError(''); setConfirmForget(false); setMode('forgot') }}>Забыл PIN?</button>
           <button className={confirmForget ? 'link-btn danger' : 'link-btn'} disabled={busy} onClick={forget}>
@@ -366,54 +270,5 @@ export default function LoginScreen({ onLogin, onInvite }) {
         )}
       </div>
     </div>
-  )
-}
-
-// Вход по логину + PIN (новое устройство). Только онлайн: хэша учетки тут еще нет.
-// П4 (07.10.2026): поле одно — «Логин». Сервер ищет точный логин, а у учеток, где
-// логина еще нет, — старое имя (переходный период; потом этот путь выключат).
-function NameLoginForm({ onLogin, showError, error, setError }) {
-  const [name, setName] = useState('')
-  const [pin, setPin] = useState('')
-  const [busy, setBusy] = useState(false)
-
-  async function submit(e) {
-    e.preventDefault()
-    if (busy) return
-    if (!name.trim()) { setError('Напиши логин.'); return }
-    if (pin.length !== 4) { setError('PIN — 4 цифры.'); return }
-    if (!navigator.onLine) { setError('Нет сети. Первый вход на устройстве — только онлайн.'); return }
-    setBusy(true)
-    setError('')
-    try {
-      const user = await loginByName(name, pin)
-      onLogin(user)
-    } catch (err) {
-      showError(err)
-      setPin('')
-      setBusy(false)
-    }
-  }
-
-  return (
-    <form className="invite-form" onSubmit={submit} noValidate>
-      <div className="field">
-        <label className="field-lab" htmlFor="login-name">Логин</label>
-        <input id="login-name" className="admin-input" type="text" maxLength={60} autoComplete="username"
-          autoCapitalize="none" autoCorrect="off" spellCheck={false} aria-describedby="login-hint"
-          value={name} disabled={busy} onChange={(e) => { setName(e.target.value); setError('') }} />
-        <span className="field-hint" id="login-hint">Еще нет логина — введи свое имя, как раньше.</span>
-      </div>
-      <label className="field">
-        <span className="field-lab">PIN — 4 цифры</span>
-        <input className="pin-input" type="password" inputMode="numeric" maxLength={4}
-          autoComplete="current-password" placeholder="••••" value={pin} disabled={busy}
-          onChange={(e) => { setPin(onlyDigits(e.target.value).slice(0, 4)); setError('') }} />
-      </label>
-      {error && <p className="error" role="alert">{error}</p>}
-      <button className="btn primary" type="submit" disabled={busy}>
-        {busy ? 'Входим…' : 'Войти'}
-      </button>
-    </form>
   )
 }

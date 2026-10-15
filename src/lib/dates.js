@@ -3,6 +3,8 @@
 // Вынесено из FeedScreen/NotificationsScreen, где fmtWhen дублировался один-в-один.
 // ============================================================================
 
+import { localYmd } from './calendar.js'
+
 function sameDay(a, b) {
   return (
     a.getFullYear() === b.getFullYear() &&
@@ -63,11 +65,10 @@ export function fmtCardDate(iso, now = new Date()) {
 }
 
 // ISO-дата (performed_at) → YYYY-MM-DD для <input type=date> в ЛОКАЛЬНОМ поясе
-// (сдвигаем на offset, иначе около полуночи UTC день «уезжает»).
+// (иначе около полуночи UTC день «уезжает»). Тот же локальный день, что у группировок
+// и календаря — одно правило `calendar.localYmd` (аудит 14.10: был свой расчет через offset).
 export function toDateInput(iso) {
-  const d = iso ? new Date(iso) : new Date()
-  const off = d.getTimezoneOffset() * 60000
-  return new Date(d - off).toISOString().slice(0, 10)
+  return localYmd(iso || new Date())
 }
 
 // YYYY-MM-DD из <input type=date> → ISO, СОХРАНЯЯ время суток исходной даты
