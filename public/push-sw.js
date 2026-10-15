@@ -16,6 +16,9 @@ self.addEventListener('push', (event) => {
   } catch {
     data = { body: event.data ? event.data.text() : '' }
   }
+  // Журнал (v8.9.5): пуш пришел в ЭТОТ код. Есть «sw push», нет «sw click» после нажатия —
+  // значит, нажатие iOS не передает; нет и «sw push» — работает старый файл.
+  const logged = logPush('push', data.tag || data.title || '')
   const scope = self.registration.scope
   const title = data.title || 'kachalka-app'
   const options = {
@@ -29,7 +32,7 @@ self.addEventListener('push', (event) => {
     // Повтор с тем же tag (вторая реакция того же человека) — снова со звуком.
     options.renotify = true
   }
-  const work = [self.registration.showNotification(title, options)]
+  const work = [self.registration.showNotification(title, options), logged]
   // «Вышла новая версия» (v6.11.1): сразу скачиваем новый sw.js, пока уведомление
   // висит. К нажатию версия уже ждет установленной, и приложение применяет ее без
   // плашки (UpdatePrompt, ?push=update) — вместо «открыл, подождал, нажал Обновить».
