@@ -104,36 +104,55 @@ export async function takeTappedPushUrl(reg, now = Date.now(), store = globalThi
   }
 }
 
-// Журнал нажатий (v8.9.4): общий с SW ключ в том же кэше, последние PUSH_LOG_MAX шагов.
-// Отладка перехода по пушу на iPhone — админ видит его в «Уведомлениях».
-export const PUSH_LOG_KEY = '/__push-log'
+// Журнал нажатий (v8.9.4; с v8.9.6 — строка на запись). Общий с SW кэш, ключи
+// /__push-log/<время>-<случайное>: без «прочитать список → записать» SW и приложение больше не
+// затирают друг друга. Читаем последние PUSH_LOG_MAX, лишние удаляем. Отладка перехода по пушу
+// на iPhone — админ видит журнал в «Уведомлениях».
+export const PUSH_LOG_PREFIX = '/__push-log/'
 export const PUSH_LOG_MAX = 40
 
 export async function appendPushLog(ev, detail = '', store = globalThis.caches, now = Date.now()) {
   if (!store) return
   try {
     const c = await store.open(PUSH_INTENT_CACHE)
-    const res = await c.match(PUSH_LOG_KEY)
-    const list = res ? await res.json() : []
-    list.push({ at: now, who: 'app', ev, detail: String(detail ?? '').slice(0, 160) })
-    await c.put(PUSH_LOG_KEY, new Response(JSON.stringify(list.slice(-PUSH_LOG_MAX)), { headers: { 'content-type': 'application/json' } }))
+    const entry = { at: now, who: 'app', ev, detail: String(detail ?? '').slice(0, 160) }
+    await c.put(`${PUSH_LOG_PREFIX}${now}-${Math.random().toString(36).slice(2, 8)}`,
+      new Response(JSON.stringify(entry), { headers: { 'content-type': 'application/json' } }))
   } catch { /* журнал — не повод ломать приложение */ }
 }
 
+const logKeys = async (c) => (await c.keys())
+  .map((r) => (typeof r === 'string' ? r : r.url))
+  .filter((u) => new URL(u, 'http://x').pathname.startsWith(PUSH_LOG_PREFIX))
+
+// Строки по времени (старые сверху). Сбой чтения — строкой «error», а не молчаливой пустотой.
 export async function readPushLog(store = globalThis.caches) {
   if (!store) return []
   try {
     const c = await store.open(PUSH_INTENT_CACHE)
-    const res = await c.match(PUSH_LOG_KEY)
-    const list = res ? await res.json() : []
-    return Array.isArray(list) ? list : []
-  } catch {
-    return []
+    const keys = await logKeys(c)
+    const rows = []
+    for (const k of keys) {
+      try {
+        const res = await c.match(k)
+        if (res) rows.push({ key: k, ...(await res.json()) })
+      } catch { /* битая строка — пропускаем */ }
+    }
+    rows.sort((x, y) => x.at - y.at)
+    const extra = rows.slice(0, Math.max(0, rows.length - PUSH_LOG_MAX))
+    for (const r of extra) await c.delete(r.key)
+    return rows.slice(-PUSH_LOG_MAX).map(({ key: _key, ...r }) => r)
+  } catch (e) {
+    return [{ at: Date.now(), who: 'app', ev: 'error', detail: `журнал не прочитан: ${e?.message ?? e}` }]
   }
 }
 
 export async function clearPushLog(store = globalThis.caches) {
-  try { await (await store?.open(PUSH_INTENT_CACHE))?.delete(PUSH_LOG_KEY) } catch { /* нечего чистить */ }
+  try {
+    const c = await store?.open(PUSH_INTENT_CACHE)
+    if (!c) return
+    for (const k of await logKeys(c)) await c.delete(k)
+  } catch { /* нечего чистить */ }
 }
 
 // Проверка service worker'ов (v8.9.6, журнал нажатий): все регистрации устройства, их скрипт,

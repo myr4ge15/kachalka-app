@@ -11,7 +11,7 @@
 
 // Версия этого файла (v8.9.6) = версия приложения; сверяет тест src/lib/pushIntent.test.js.
 // Отвечает на «пинг» журнала нажатий: так видно, что пуши обрабатывает свежий код.
-const PUSH_SW_VER = '8.9.6'
+const PUSH_SW_VER = '8.9.7'
 
 self.addEventListener('push', (event) => {
   let data
@@ -99,15 +99,17 @@ async function rememberIntent(url) {
 
 // Журнал нажатий (v8.9.4, отладка перехода по пушу на iPhone): последние шаги SW и
 // приложения в том же кэше; админ видит его в «Уведомлениях» (src/lib/pushIntent.js).
-const LOG_KEY = '/__push-log'
-const LOG_MAX = 40
+// v8.9.6: строка журнала — ОТДЕЛЬНАЯ запись (ключ /__push-log/<время>-<случайное>), без
+// «прочитать список → дописать → записать»: SW и приложение писали почти одновременно и
+// затирали друг друга. Читает и подрезает до 40 строк приложение (src/lib/pushIntent.js).
+const LOG_PREFIX = '/__push-log/'
 async function logPush(ev, detail) {
   try {
     const c = await caches.open(INTENT_CACHE)
-    const res = await c.match(LOG_KEY)
-    const list = res ? await res.json() : []
-    list.push({ at: Date.now(), who: 'sw', ev, detail: detail == null ? '' : String(detail).slice(0, 160) })
-    await c.put(LOG_KEY, new Response(JSON.stringify(list.slice(-LOG_MAX)), { headers: { 'content-type': 'application/json' } }))
+    const at = Date.now()
+    const entry = { at, who: 'sw', ev, detail: detail == null ? '' : String(detail).slice(0, 160) }
+    await c.put(LOG_PREFIX + at + '-' + Math.random().toString(36).slice(2, 8),
+      new Response(JSON.stringify(entry), { headers: { 'content-type': 'application/json' } }))
   } catch { /* журнал — не повод ломать переход */ }
 }
 

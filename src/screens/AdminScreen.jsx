@@ -11,6 +11,7 @@ import { useRevealFocus } from '../hooks/useRevealFocus.js'
 import AdminDisciplines from '../components/admin/AdminDisciplines.jsx'
 import AdminFeedback from '../components/admin/AdminFeedback.jsx'
 import { AdminMfaGate, AdminMfaPanel } from '../components/admin/AdminMfa.jsx'
+import PushLog from '../components/notifications/PushLog.jsx'
 import { mfaState, needsCode } from '../lib/adminMfa.js'
 import AccessSection from '../components/admin/AccessSection.jsx'
 import ExercisesSection from '../components/admin/ExercisesSection.jsx'
@@ -194,6 +195,17 @@ export default function AdminScreen({ user, onBack }) {
               : <p className="admin-hint">Не удалось узнать состояние 2FA — проверь сеть и открой раздел заново.</p>}
           </div>
         )}
+        {/* Журнал пушей этого устройства (v8.9.6; был в «Пуш-уведомлениях») — отладка перехода по пушу. */}
+        <button
+          ref={open === 'pushlog' ? navRevealRef : null}
+          className={'admin-nav-btn' + (open === 'pushlog' ? ' open' : '')}
+          onClick={() => toggle('pushlog')}
+          aria-expanded={open === 'pushlog'}
+        >
+          <span className="admin-nav-name">Журнал пушей (это устройство)</span>
+          <span className="admin-nav-chev" aria-hidden="true" />
+        </button>
+        {open === 'pushlog' && <div className="admin-panel"><PushLog /></div>}
       </div>
       </>)}
     </div>

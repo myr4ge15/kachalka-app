@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useState } from 'react'
 import { clearPushLog, diagnoseServiceWorkers, readPushLog } from '../../lib/pushIntent.js'
 
-// Журнал нажатий на пуш (v8.9.4) — отладка перехода по пушу на iPhone, только админу.
+// Журнал нажатий на пуш (v8.9.4) — отладка перехода по пушу на iPhone; с v8.9.6 — раздел Админки.
 // Шаги пишут service worker (public/push-sw.js) и приложение (lib/pushIntent.js, useAppNav)
 // в общий кэш устройства. Свежие — сверху. v8.9.6: «Проверить service worker» — регистрации
 // устройства и ответ каждой на пинг (версия обработчика пушей; старый код не отвечает).
@@ -28,8 +28,7 @@ export default function PushLog() {
 
   return (
     <section className="sec push-log">
-      <p className="sec-title">Журнал нажатий (отладка)</p>
-      <p className="push-note">Нажми на пуш, вернись сюда и нажми «Обновить». Видно только админу.</p>
+      <p className="push-note">Шаги service worker и приложения при приходе пуша и нажатии на него — на этом устройстве. Нажми на пуш, вернись сюда и нажми «Обновить».</p>
       <div className="fc-actions">
         <button type="button" className="btn ghost" onClick={load}>Обновить</button>
         <button type="button" className="btn ghost" onClick={() => clearPushLog().then(load)}>Очистить</button>

@@ -3887,6 +3887,9 @@ html[data-sheet-open], html[data-sheet-open] body { overscroll-behavior: none; }
 .frd-add { width: 100%; margin: 8px 0 16px; }
 .frd-sheet .card { margin-bottom: 12px; }
 .frd-code-lab { display: block; }
+/* Аватары — не «картинки сайта» (v8.9.6): долгое нажатие на iPhone открывало меню
+   «Сохранить в Фото / Скопировать субъект» и фото тащилось по экрану. */
+img.has-img, .avatar-lightbox-img { -webkit-touch-callout: none; -webkit-user-drag: none; -webkit-user-select: none; user-select: none; }
 /* Журнал нажатий на пуш (v8.9.4, только админу). */
 .push-log-list { margin: 10px 0 0; padding-left: 20px; font-size: 12px; line-height: 1.5; color: var(--text); }
 .push-log-t { color: var(--muted); }

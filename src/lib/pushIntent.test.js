@@ -115,26 +115,34 @@ describe('startPushListener / onPushOpen (v8.9.3)', () => {
   })
 })
 
-describe('журнал нажатий (v8.9.4)', () => {
+describe('журнал нажатий (v8.9.4; строка на запись — v8.9.6)', () => {
   function memCaches() {
     const map = new Map()
+    const key = (k) => new URL(k, 'https://x.ru').href
     const cache = {
-      match: async (k) => { const v = map.get(k); return v === undefined ? undefined : { json: async () => JSON.parse(v) } },
-      put: async (k, res) => { map.set(k, await res.text()) },
-      delete: async (k) => map.delete(k),
+      match: async (k) => { const v = map.get(key(k)); return v === undefined ? undefined : { json: async () => JSON.parse(v) } },
+      put: async (k, res) => { map.set(key(k), await res.text()) },
+      delete: async (k) => map.delete(key(k)),
+      keys: async () => [...map.keys()].map((url) => ({ url })),
     }
-    return { open: async () => cache }
+    return { open: async () => cache, map }
   }
-  it('пишет по порядку, хранит последние PUSH_LOG_MAX, чистится', async () => {
+  it('пишет по строке, читает по времени, держит последние PUSH_LOG_MAX, чистится', async () => {
     const store = memCaches()
-    for (let i = 0; i < PUSH_LOG_MAX + 3; i++) await appendPushLog('step', i, store, 1000 + i)
+    await store.open().then((c) => c.put('/__push-intent', { text: async () => '{}' }))
+    for (let i = PUSH_LOG_MAX + 2; i >= 0; i--) await appendPushLog('step', i, store, 1000 + i)
     const list = await readPushLog(store)
     expect(list).toHaveLength(PUSH_LOG_MAX)
     expect(list[0]).toEqual({ at: 1003, who: 'app', ev: 'step', detail: '3' })
+    expect(list.at(-1).at).toBe(1000 + PUSH_LOG_MAX + 2)
+    expect(store.map.size).toBe(PUSH_LOG_MAX + 1) // лишние удалены, запись перехода не тронута
     await clearPushLog(store)
     expect(await readPushLog(store)).toEqual([])
+    expect(store.map.size).toBe(1)
   })
-  it('без кэша — пусто и тихо', async () => {
+  it('сбой чтения — строка error, без кэша — пусто', async () => {
+    const broken = { open: async () => { throw new Error('boom') } }
+    expect((await readPushLog(broken))[0]).toMatchObject({ ev: 'error' })
     await appendPushLog('x', '', undefined)
     expect(await readPushLog(undefined)).toEqual([])
   })

@@ -40,7 +40,7 @@ function AvatarLightbox({ url, name, label, onClose }) {
     <div className="avatar-lightbox" role="dialog" aria-modal="true" aria-label={label}
       tabIndex={-1} ref={boxRef} onClick={onClose}>
       <figure className="avatar-lightbox-fig">
-        <img className="avatar-lightbox-img" src={url} alt={label} />
+        <img className="avatar-lightbox-img" src={url} alt={label} draggable={false} />
         {name && <figcaption className="avatar-lightbox-name">{name}</figcaption>}
       </figure>
     </div>,

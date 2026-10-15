@@ -28,6 +28,7 @@ function AvatarPic({ name, url, className }) {
         className={`${className} has-img`}
         src={url}
         alt=""
+        draggable={false}
         aria-hidden="true"
         onError={() => setFailed(true)}
       />
