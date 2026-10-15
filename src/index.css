@@ -3807,7 +3807,10 @@ html[data-sheet-open], html[data-sheet-open] body { overscroll-behavior: none; }
 .fc-circle-name { margin: 0; font-family: var(--font-display); font-weight: 900; font-size: 22px; text-transform: uppercase; letter-spacing: .02em; }
 .fc-code {
   margin: 6px 0 4px; text-align: center; color: var(--text);
-  font: 700 30px/1.2 ui-monospace, SFMono-Regular, Menlo, monospace; letter-spacing: .12em; user-select: all;
+  font: 700 30px/1.2 ui-monospace, SFMono-Regular, Menlo, monospace; letter-spacing: .12em;
+  /* Код — одним куском (v8.9.9): Safari понимает только -webkit-, без него выделение рвалось
+     на дефисе. Тап по коду еще и копирует его (FriendCode / CircleCode). */
+  -webkit-user-select: all; user-select: all; cursor: pointer;
 }
 .fc-code-meta { margin: 0 0 12px; text-align: center; font-size: 13px; }
 .fc-code-input { font-family: ui-monospace, SFMono-Regular, Menlo, monospace; letter-spacing: .08em; text-transform: uppercase; }

@@ -38,6 +38,13 @@ export default function FriendCode({ api, myName }) {
       setErr('Не удалось скопировать — перепиши код вручную.')
     }
   }
+  // Тап по коду — скопировать только код (v8.9.9: на iPhone выделение рвалось на дефисе).
+  async function copyCode() {
+    try {
+      await navigator.clipboard.writeText(fmtCode(code.code))
+      showToast({ emoji: '📋', title: 'Код скопирован' })
+    } catch { /* выделение все равно работает */ }
+  }
   async function share() {
     try { await navigator.share({ title: 'Журнал тренировок', text }) } catch { /* отменил */ }
   }
@@ -47,7 +54,8 @@ export default function FriendCode({ api, myName }) {
       <h3 className="fc-h">Мой код</h3>
       {code ? (
         <>
-          <p className="fc-code" data-testid="fr-code">{fmtCode(code.code)}</p>
+          <p className="fc-code" data-testid="fr-code" role="button" tabIndex={0} aria-label={`Код ${fmtCode(code.code)} — нажми, чтобы скопировать`}
+            onClick={copyCode} onKeyDown={(e) => { if (e.key === 'Enter') copyCode() }}>{fmtCode(code.code)}</p>
           <div className="fc-actions">
             {canShare && <button type="button" className="btn primary" onClick={share}>Поделиться</button>}
             <button type="button" className={canShare ? 'btn ghost' : 'btn primary'} onClick={copy}>Скопировать</button>
