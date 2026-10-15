@@ -32,6 +32,9 @@ import { TechniqueButton } from './TechniqueSheet.jsx'
 // `onVoiceSet(ei, si, {weight,reps})` (v8.7.0) — подход голосом: микрофон рядом с
 // «+ подход» (только «вес × повторы» и «свой вес»), `voiceCursor` — строка, которую
 // голос предложит по умолчанию. Нет колбэка или распознавания — нет и микрофона.
+// `restSlot` (v8.8.1) — кнопка таймера отдыха в ряду с «+ подход»: таймер живет в
+// карточке упражнения, а не в шапке тренировки (длинную тренировку не листать наверх);
+// WorkoutScreen передает ее только раскрытой карточке новой тренировки за сегодня.
 export default function ExerciseCard({
   entry, ei, prog, active = true, cardRef = null, onActivate = () => {},
   feel = null, onSetFeel = () => {},
@@ -40,6 +43,7 @@ export default function ExerciseCard({
   onRevertProg, onApplyProg, onToggleProgSettings, onChangeProgSettings,
   onUpdateSet, onStep, onAddSet, onRemoveSet,
   onVoiceSet = null, voiceCursor = 0,
+  restSlot = null,
 }) {
   const metric = exerciseMetric(entry.exercise)
   // «На время» — без столбца веса; у «своего веса» (v6.16.0) — столбец «±кг»: плюс —
@@ -241,8 +245,14 @@ export default function ExerciseCard({
       {onVoiceSet && !isTime ? (
         <SetVoice exercise={entry.exercise} sets={entry.sets} cursor={voiceCursor}
           onCommit={(si, set) => onVoiceSet(ei, si, set)}>
-          <AddSetButton onClick={() => onAddSet(ei)} />
+          <AddSetButton short={Boolean(restSlot)} onClick={() => onAddSet(ei)} />
+          {restSlot}
         </SetVoice>
+      ) : restSlot ? (
+        <div className="set-add-row">
+          <AddSetButton short onClick={() => onAddSet(ei)} />
+          {restSlot}
+        </div>
       ) : <AddSetButton onClick={() => onAddSet(ei)} />}
 
       {/* Оценка идет ПОСЛЕ подходов и «+ подход» — по хронологии занятия:
@@ -267,10 +277,12 @@ export default function ExerciseCard({
   )
 }
 
-function AddSetButton({ onClick }) {
+// short — рядом с таймером отдыха места меньше: видно «+ подход», полное имя — для
+// скринридера (видимый текст входит в имя, WCAG 2.5.3).
+function AddSetButton({ onClick, short = false }) {
   return (
-    <button className="set-add" onClick={onClick}>
-      + подход (повтор предыдущего)
+    <button className="set-add" onClick={onClick} aria-label={short ? '+ подход (повтор предыдущего)' : undefined}>
+      {short ? '+ подход' : '+ подход (повтор предыдущего)'}
     </button>
   )
 }

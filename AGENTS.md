@@ -432,8 +432,9 @@ updated_at)` + `upsert_user_meta` (`supabase/user-meta.sql`, RLS «только 
   `PUSH_WEBHOOK_SECRET`), накат `rest-push-deploy.md`. `rest_push` (строка на человека, cascade с `users`) закрыта;
   `rest_push_set(endpoint, сек, заголовок, текст)` — только если endpoint в `push_subscriptions` у `app_uid()`
   (иначе `false` и снятие прошлого), срок — серверный `now()+сек`; `rest_push_clear`; `rest_push_dispatch` (только
-  service_role) забирает истекшие `delete … returning` и одним pg_net-вызовом отдает `push-rest`. Зовет его
-  **pg_cron** раз в 5 с (задание `rest-push-dispatch`; расширение на проекте есть — проверено 15.10, 1.6.4;
+  service_role) помечает (`dispatched_at`) строки за ≤ 7 с до срока и одним pg_net-вызовом отдает `push-rest`; Edge
+  ждет срока (минус 1 с на доставку) и перед отправкой забирает строку `rest_push_claim(user_id, due_at)` — отмененный
+  или замененный отдых не шлется (v8.8.1). Диспетчера зовет **pg_cron** раз в 5 с (задание `rest-push-dispatch`; расширение на проекте есть — проверено 15.10, 1.6.4;
   «pg_cron на Free платный» в старых доках неверно). Пуш — на ОДНО устройство (`sendToSubscription`), типа в
   `push_prefs` нет: включает сам таймер. Клиент: `db/restPush.js` (онлайн, вне очередей, сбои тихие),
   `hooks/useRestTimer.js`; состояние таймера — только `localStorage` устройства, не Dexie.

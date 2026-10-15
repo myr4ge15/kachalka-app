@@ -15,9 +15,10 @@ export const REST_DEFAULT_SEC = 90
 export const REST_MIN_SEC = 15
 export const REST_MAX_SEC = 600
 export const REST_STEP_SEC = 15
-// Перебор считаем до 10 минут, дальше запуск считается брошенным и пилюля тихо
-// возвращается в «ждет» (иначе после ухода из зала висело бы «+47:12»).
-export const REST_OVER_LIMIT_MS = 10 * 60 * 1000
+// Сколько после конца показывать «Пора» (v8.8.1, просьба владельца 15.10): таймер
+// останавливается сам — сигнал, несколько секунд зеленой вспышки и сброс в «ждет».
+// До 8.8.1 здесь считался перебор «+0:16» до 10 минут — владельцу это мешало.
+export const REST_OVER_LIMIT_MS = 4000
 // Звук «догоняет» при возврате в приложение, только если отдых кончился только что:
 // пищать задним числом через минуту бессмысленно и пугает.
 export const REST_LATE_SIGNAL_MS = 3000
@@ -29,7 +30,7 @@ export const REST_PUSH_CANCEL_MS = 4000
 export const REST_BY_EX_LIMIT = 200
 
 // Режимы звука (AudioSession API, iOS 17+; на остальных платформах разницы нет):
-//   mix  — 'transient': поверх музыки, приглушая ее; в беззвучном режиме iPhone молчит;
+//   mix  — 'ambient': вместе с музыкой; в беззвучном режиме iPhone молчит;
 //   loud — 'playback': звучит и в беззвучном, но ставит музыку на паузу;
 //   off  — без звука (остаются вспышка и вибрация).
 export const REST_SOUNDS = ['mix', 'loud', 'off']
@@ -121,9 +122,9 @@ export function adjustRest(run, deltaSec, now) {
 }
 
 // Фаза запуска на момент now:
-//   idle — запуска нет или он брошен (перебор больше REST_OVER_LIMIT_MS);
+//   idle — запуска нет или он кончился больше REST_OVER_LIMIT_MS назад (сброшен);
 //   run  — идет отдых, leftMs > 0;
-//   done — отдых кончился, overMs — сколько сверх.
+//   done — отдых только что кончился (вспышка «Пора»), overMs — сколько прошло.
 // progress — доля прошедшего отдыха 0..1 (для заливки пилюли и кольца).
 export function restPhase(run, now) {
   if (!run || !Number.isFinite(run.endsAt) || !Number.isFinite(run.durMs)) {
@@ -174,7 +175,7 @@ export function fmtRest(ms, { up = false } = {}) {
 // Фраза для скринридера и подписи кнопки.
 export function restAriaLabel(state, idleSec) {
   if (state.phase === 'run') return `Отдых, осталось ${fmtRest(state.leftMs, { up: true })}. Открыть таймер`
-  if (state.phase === 'done') return `Отдых закончился ${fmtRest(state.overMs)} назад. Начать новый отдых`
+  if (state.phase === 'done') return 'Отдых закончился. Начать новый отдых'
   return `Таймер отдыха, ${fmtRest(clampRestSec(idleSec) * 1000)}. Начать`
 }
 

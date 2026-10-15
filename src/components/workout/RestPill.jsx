@@ -1,15 +1,17 @@
 import { fmtRest, restAriaLabel } from '../../lib/restTimer.js'
 
-// Пилюля таймера отдыха рядом с датой композера (v8.8.0, prototypes/rest-timer.html).
+// Пилюля таймера отдыха (v8.8.0, prototypes/rest-timer.html): с v8.8.1 — в раскрытой
+// карточке упражнения, в ряду с «+ подход» (ExerciseCard restSlot), а не в шапке.
 // Презентационная: фаза и обработчик — от WorkoutScreen (hooks/useRestTimer.js).
 //   idle — «⏱ 1:30» приглушенно, тап — начать отдых;
 //   run  — остаток акцентом, заливка растет по мере отдыха, тап — лист таймера;
-//   done — «⏱ +0:12» зеленым с пульсом (перебор), тап — новый отдых.
+//   done — «⏱ Пора» зеленым с пульсом несколько секунд после конца, затем сама
+//          возвращается в idle (v8.8.1: таймер останавливается сам); тап — новый отдых.
 export default function RestPill({ state, idleSec, onTap }) {
   const { phase } = state
   const text = phase === 'run'
     ? fmtRest(state.leftMs, { up: true })
-    : phase === 'done' ? `+${fmtRest(state.overMs)}` : fmtRest(idleSec * 1000)
+    : phase === 'done' ? 'Пора' : fmtRest(idleSec * 1000)
   return (
     <button
       type="button"

@@ -17,7 +17,7 @@ export default function RestTimerToggle({ userId }) {
     <button className="act toggle-act" role="switch" aria-checked={on} onClick={toggle}>
       <span className="toggle-act-txt">
         ⏱ Таймер отдыха
-        <span className="toggle-act-sub">кнопка рядом с датой новой тренировки за сегодня</span>
+        <span className="toggle-act-sub">кнопка ⏱ в упражнении новой тренировки за сегодня</span>
       </span>
       <span className={'toggle-pill' + (on ? ' on' : '')} aria-hidden="true">
         <span className="toggle-knob" />

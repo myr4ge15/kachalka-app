@@ -60,8 +60,9 @@ describe('WorkoutScreen: таймер отдыха', () => {
     render(<WorkoutScreen user={user} />)
     const p = pill()
     expect(p).toHaveAccessibleName('Таймер отдыха, 1:30. Начать')
-    // Рядом с пилюлей дата короче — «Сегодня» без числа (влезает в строку на 390 px).
-    expect(document.querySelector('.date-chip__value')).toHaveTextContent(/^Сегодня$/)
+    // v8.8.1: кнопка — в раскрытой карточке, в ряду с «+ подход» (видно короткое «+ подход»).
+    expect(p.closest('.exercise-card')).not.toBeNull()
+    expect(screen.getByRole('button', { name: '+ подход (повтор предыдущего)' })).toHaveTextContent(/^\+ подход$/)
     fireEvent.click(p)
     expect(pill()).toHaveAccessibleName(/^Отдых, осталось 1:30/)
     expect(scheduleRestPush).toHaveBeenCalledWith('u1', {
@@ -70,7 +71,7 @@ describe('WorkoutScreen: таймер отдыха', () => {
     expect(JSON.parse(localStorage.getItem('gym_app_rest_run_u1'))).toMatchObject({ durMs: 90_000, exerciseId: 'bench' })
   })
 
-  it('лист: пресет запоминается для упражнения, «Пропустить» снимает отдых и пуш', async () => {
+  it('лист: пресет запоминается для упражнения, «Стоп» снимает отдых и пуш', async () => {
     writeDraft(`workout_draft_new_${user.id}`, draft)
     render(<WorkoutScreen user={user} />)
     fireEvent.click(pill())
@@ -81,21 +82,38 @@ describe('WorkoutScreen: таймер отдыха', () => {
     expect(JSON.parse(localStorage.getItem('gym_app_rest_u1')).byEx).toEqual({ bench: 180 })
     fireEvent.click(screen.getByRole('button', { name: 'Плюс 15 секунд' }))
     expect(dialog).toHaveTextContent('из 3:15')
-    fireEvent.click(screen.getByRole('button', { name: 'Пропустить отдых' }))
+    fireEvent.click(screen.getByRole('button', { name: 'Стоп' }))
     expect(cancelRestPush).toHaveBeenCalledWith('u1')
     expect(localStorage.getItem('gym_app_rest_run_u1')).toBeNull()
+    expect(screen.getByRole('button', { name: 'Старт' })).toBeInTheDocument()
     fireEvent.click(screen.getByRole('button', { name: 'готово' }))
     expect(pill()).toHaveAccessibleName('Таймер отдыха, 3:00. Начать')
   })
 
-  it('конец отдыха: перебор и снятый пуш в открытом приложении', async () => {
+  it('«Убрать таймер» в листе выключает его совсем', async () => {
+    writeDraft(`workout_draft_new_${user.id}`, draft)
+    render(<WorkoutScreen user={user} />)
+    fireEvent.click(pill())
+    fireEvent.click(pill())
+    fireEvent.click(await screen.findByText('Сигнал и экран'))
+    fireEvent.click(screen.getByRole('button', { name: 'Убрать таймер' }))
+    expect(pill()).toBeNull()
+    expect(JSON.parse(localStorage.getItem('gym_app_rest_u1')).on).toBe(false)
+    expect(cancelRestPush).toHaveBeenCalledWith('u1')
+  })
+
+  it('конец отдыха: «Пора», пуш снят в открытом приложении, затем таймер сам останавливается', async () => {
     vi.useFakeTimers({ toFake: ['Date', 'setInterval', 'clearInterval', 'setTimeout', 'clearTimeout'] })
     writeDraft(`workout_draft_new_${user.id}`, draft)
     render(<WorkoutScreen user={user} />)
     fireEvent.click(pill())
-    await act(async () => { vi.advanceTimersByTime(95_000) })
-    expect(pill()).toHaveAccessibleName(/^Отдых закончился 0:0[45] назад/)
+    await act(async () => { vi.advanceTimersByTime(91_000) })
+    expect(pill()).toHaveAccessibleName('Отдых закончился. Начать новый отдых')
+    expect(pill()).toHaveTextContent('Пора')
     expect(cancelRestPush).toHaveBeenCalledWith('u1')
+    await act(async () => { vi.advanceTimersByTime(5_000) })
+    expect(pill()).toHaveAccessibleName('Таймер отдыха, 1:30. Начать')
+    expect(localStorage.getItem('gym_app_rest_run_u1')).toBeNull()
   })
 
   it('сохранение тренировки гасит отдых', async () => {
@@ -105,6 +123,11 @@ describe('WorkoutScreen: таймер отдыха', () => {
     fireEvent.click(screen.getByRole('button', { name: 'Сохранить (1)' }))
     await waitFor(() => expect(localStorage.getItem('gym_app_rest_run_u1')).toBeNull())
     expect(cancelRestPush).toHaveBeenCalled()
+  })
+
+  it('пустая тренировка — без таймера (нет карточки упражнения)', () => {
+    render(<WorkoutScreen user={user} />)
+    expect(pill()).toBeNull()
   })
 
   it('правка старой тренировки и выключенный таймер — без пилюли', async () => {

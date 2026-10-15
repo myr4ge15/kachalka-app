@@ -115,7 +115,9 @@ export default function WorkoutScreen({ user, workoutId = null, onBack, onSaved 
   const [tplName, setTplName] = useState('')
   const [tplBusy, setTplBusy] = useState(false)
   // Таймер отдыха (v8.8.0): только у НОВОЙ тренировки за сегодня — запись задним
-  // числом отдыха не требует. Состояние и сигналы — hooks/useRestTimer.js.
+  // числом отдыха не требует. Состояние и сигналы — hooks/useRestTimer.js. С v8.8.1
+  // кнопка — в раскрытой карточке упражнения рядом с «+ подход» (не в шапке): длинную
+  // тренировку не надо листать наверх, а пустая тренировка таймера не показывает.
   const [restOpen, setRestOpen] = useState(false)
   const activeExercise = entries.find((e) => e.exercise.id === activeExerciseId)?.exercise ?? null
   const isToday = !loading && localYmd(performedAt) === localYmd(new Date())
@@ -592,12 +594,7 @@ export default function WorkoutScreen({ user, workoutId = null, onBack, onSaved 
         <BackButton onClick={() => onBack?.()} />
         <div className="wk-head-main">
           <h2 className="screen-title wk-title">{isNew ? 'Новая тренировка' : 'Тренировка'}</h2>
-          {!loading && (
-            <div className="wk-chips">
-              <DateField performedAt={performedAt} onChange={setPerformedAt} compact={restVisible} />
-              {restVisible && <RestPill state={rest.state} idleSec={rest.idleSec} onTap={tapRest} />}
-            </div>
-          )}
+          {!loading && <DateField performedAt={performedAt} onChange={setPerformedAt} />}
         </div>
         {isNew && entries.length > 0 && !clearArm && (
           <button className="wk-clear" disabled={saving} onClick={() => setClearArm(true)}>
@@ -662,6 +659,9 @@ export default function WorkoutScreen({ user, workoutId = null, onBack, onSaved 
               onRemoveSet={removeSet}
               onVoiceSet={voiceSet}
               voiceCursor={voiceCursor[entry.exercise.id] ?? 0}
+              restSlot={restVisible && entry.exercise.id === activeExerciseId
+                ? <RestPill state={rest.state} idleSec={rest.idleSec} onTap={tapRest} />
+                : null}
             />
           ))}
 
@@ -713,6 +713,7 @@ export default function WorkoutScreen({ user, workoutId = null, onBack, onSaved 
           onAdjust={rest.adjust}
           onStop={rest.stop}
           onSettings={rest.setSettings}
+          onHide={() => { rest.stop(); rest.setSettings({ on: false }); setRestOpen(false) }}
           onClose={() => setRestOpen(false)}
         />
       )}

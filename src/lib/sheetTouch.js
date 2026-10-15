@@ -35,3 +35,16 @@ export function scrollableAncestor(target, stop, getStyle = (el) => getComputedS
   }
   return null
 }
+
+// Свайп вниз закрывает нижний лист (v8.8.1, лист таймера отдыха): ось и порог.
+// Жест «вниз» — только если вертикаль заметно преобладает и палец идет вниз;
+// закрываем, если протянули на четверть высоты листа или бросили быстро.
+export function swipeDownAxis(dx, dy) {
+  if (Math.max(Math.abs(dx), Math.abs(dy)) < 8) return null
+  return dy > 0 && Math.abs(dy) > Math.abs(dx) * 1.2 ? 'down' : 'other'
+}
+
+export function swipeDownCommits(dy, velocity, height) {
+  if (dy <= 0) return false
+  return dy > height / 4 || (velocity > 0.5 && dy > 40)
+}

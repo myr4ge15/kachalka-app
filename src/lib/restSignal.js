@@ -6,8 +6,10 @@
 // «старт» — к окончанию отдыха контекст уже разблокирован.
 //
 // Режим звука на iPhone (AudioSession API, iOS 17+; см. PLAN-rest-timer.md §3):
-//   mix  → 'transient' — поверх музыки, приглушая ее; в беззвучном режиме молчит;
-//   loud → 'playback'  — звучит и в беззвучном, но ставит музыку на паузу.
+//   mix  → 'ambient'  — смешивается с музыкой и молчит в беззвучном режиме (категория
+//          Ambient iOS). До 8.8.1 тут был 'transient' — на iPhone владельца он звучал
+//          и в беззвучном режиме, вопреки описанию;
+//   loud → 'playback' — звучит и в беззвучном, но ставит музыку на паузу.
 // Тип ставим прямо перед сигналом и возвращаем 'auto' после: 'playback', оставленный
 // навсегда, ставил бы музыку на паузу при любом звуке страницы, а микрофон голосового
 // ввода (hooks/useSpeech.js) должен получать поведение по умолчанию.
@@ -52,7 +54,7 @@ export function playRestDone(sound = 'mix') {
     if (!Ctor) return false
     ctx ??= new Ctor()
     if (ctx.state === 'suspended') ctx.resume?.()
-    setSessionType(sound === 'loud' ? 'playback' : 'transient')
+    setSessionType(sound === 'loud' ? 'playback' : 'ambient')
     const t0 = ctx.currentTime + 0.02
     for (const d of [0, 0.22]) {
       const osc = ctx.createOscillator()

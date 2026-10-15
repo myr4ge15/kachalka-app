@@ -8,12 +8,12 @@ import {
 const T = 1_800_000_000_000
 
 describe('restTimer: фазы от абсолютного endsAt', () => {
-  it('идет → остаток и доля, кончился → перебор, брошен → idle', () => {
+  it('идет → остаток и доля, кончился → «пора» на несколько секунд, дальше сам сброс', () => {
     const run = startRest({ durSec: 90, now: T, exerciseId: 7, exerciseName: 'Жим' })
     expect(run).toEqual({ endsAt: T + 90_000, durMs: 90_000, exerciseId: '7', exerciseName: 'Жим' })
     expect(restPhase(run, T + 30_000)).toMatchObject({ phase: 'run', leftMs: 60_000 })
     expect(restPhase(run, T + 45_000).progress).toBeCloseTo(0.5)
-    expect(restPhase(run, T + 95_000)).toMatchObject({ phase: 'done', overMs: 5_000, progress: 1 })
+    expect(restPhase(run, T + 92_000)).toMatchObject({ phase: 'done', overMs: 2_000, progress: 1 })
     expect(restPhase(run, T + 90_000 + REST_OVER_LIMIT_MS + 1).phase).toBe('idle')
     expect(restPhase(null, T).phase).toBe('idle')
   })
@@ -89,7 +89,7 @@ describe('restTimer: хранение и тексты', () => {
   it('подписи и текст пуша', () => {
     expect(restAriaLabel({ phase: 'idle' }, 90)).toMatch(/1:30\. Начать/)
     expect(restAriaLabel({ phase: 'run', leftMs: 61_000 }, 90)).toMatch(/осталось 1:01/)
-    expect(restAriaLabel({ phase: 'done', overMs: 12_000 }, 90)).toMatch(/0:12 назад/)
+    expect(restAriaLabel({ phase: 'done', overMs: 2_000 }, 90)).toBe('Отдых закончился. Начать новый отдых')
     expect(restPushText('Жим лежа')).toEqual({ title: 'Отдых закончился', body: 'Жим лежа — пора к следующему подходу' })
     expect(restPushText(null).body).toBe('Пора к следующему подходу')
   })

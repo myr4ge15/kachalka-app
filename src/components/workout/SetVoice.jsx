@@ -23,7 +23,8 @@ export default function SetVoice({ exercise, sets, cursor = 0, onCommit, childre
   const base = isNew ? sets[sets.length - 1] ?? defaultSet(exercise) : sets[si]
   const next = si >= 0 ? mergeVoiceSet(set, base, metric) : null
 
-  if (!speech.supported) return children
+  // Без распознавания — тот же ряд, но без микрофона (в ряду бывает и таймер отдыха, v8.8.1).
+  if (!speech.supported) return <div className="set-add-row">{children}</div>
 
   const label = isNew ? `Новый подход ${si + 1}` : `Подход ${si + 1}`
   const problem = si < 0 ? `Подхода ${set.setNo} нет — сейчас их ${sets.length}.`

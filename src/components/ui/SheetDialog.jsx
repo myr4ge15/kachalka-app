@@ -3,6 +3,7 @@ import { createPortal } from 'react-dom'
 import { scrollableAncestor, shouldBlockSheetTouch } from '../../lib/sheetTouch.js'
 import { edgeSwipeAvailable } from '../../hooks/useEdgeSwipeBack.js'
 import { useSheetSwipeBack } from '../../hooks/useSheetSwipeBack.js'
+import { useSheetSwipeDown } from '../../hooks/useSheetSwipeDown.js'
 
 const FOCUSABLE = [
   'button:not([disabled])',
@@ -47,12 +48,15 @@ function syncInert() {
 // существующих .overlay/.sheet в index.css.
 // swipeBack (v8.1.1) — лист закрывается свайпом вправо, как вложенный экран
 // (hooks/useSheetSwipeBack.js; только iOS «на экране Домой», не при dismissDisabled).
+// swipeDown (v8.8.1) — нижний лист закрывается свайпом вниз (hooks/useSheetSwipeDown.js,
+// на всех тач-устройствах), сверху — «ручка»-подсказка жеста.
 export default function SheetDialog({
   title,
   actionLabel = 'закрыть',
   onDismiss,
   dismissDisabled = false,
   swipeBack = false,
+  swipeDown = false,
   className = '',
   children,
 }) {
@@ -73,6 +77,7 @@ export default function SheetDialog({
   useEffect(() => { dismissRef.current = dismiss })
   const [swipeEnv] = useState(edgeSwipeAvailable)
   useSheetSwipeBack(overlayRef, sheetRef, dismiss, swipeBack && swipeEnv && !dismissDisabled)
+  useSheetSwipeDown(overlayRef, sheetRef, dismiss, swipeDown && !dismissDisabled)
 
   useEffect(() => {
     const returnTo = returnToRef.current
@@ -166,6 +171,7 @@ export default function SheetDialog({
         tabIndex={-1}
         onClick={(event) => event.stopPropagation()}
       >
+        {swipeDown && <div className="sheet-grab" aria-hidden="true" />}
         <div className="sheet-head">
           <strong id={titleId}>{title}</strong>
           {/* actionLabel = null — без кнопки в шапке: лист закрывается только своими кнопками (v7.5.0). */}
