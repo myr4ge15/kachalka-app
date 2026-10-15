@@ -2,7 +2,7 @@ import { useEffect, useMemo, useState } from 'react'
 import { useLiveQuery } from 'dexie-react-hooks'
 import { getAllExercisesForAdmin } from '../db/repo.js'
 import { useSyncStatus } from '../db/sync.js'
-import { AdminError, adminListUsers, adminListConnections, adminListInvites } from '../lib/admin.js'
+import { AdminError, adminListUsers, adminListInvites } from '../lib/admin.js'
 import { adminListFeedback } from '../lib/feedbackApi.js'
 import { createAdminCache } from '../lib/adminCache.js'
 import InvitesSection from '../components/social/InvitesSection.jsx'
@@ -13,7 +13,6 @@ import AdminFeedback from '../components/admin/AdminFeedback.jsx'
 import { AdminMfaGate, AdminMfaPanel } from '../components/admin/AdminMfa.jsx'
 import PushLog from '../components/notifications/PushLog.jsx'
 import { mfaState, needsCode } from '../lib/adminMfa.js'
-import AccessSection from '../components/admin/AccessSection.jsx'
 import ExercisesSection from '../components/admin/ExercisesSection.jsx'
 import UsersSection from '../components/admin/UsersSection.jsx'
 
@@ -27,7 +26,7 @@ export default function AdminScreen({ user, onBack }) {
   const exercises = useLiveQuery(() => getAllExercisesForAdmin(), [], [])
 
   // Разделы свернуты по умолчанию; раскрывается тот, что админ сам открыл (аккордеон).
-  const [open, setOpen] = useState(null) // null | 'disciplines' | 'exercises' | 'users' | 'invites' | 'feedback' | 'access' | 'mfa'
+  const [open, setOpen] = useState(null) // null | 'disciplines' | 'exercises' | 'users' | 'invites' | 'feedback' | 'mfa' | 'pushlog'
   const toggle = (key) => setOpen((cur) => (cur === key ? null : key))
   // Раскрытый раздел — к верху экрана (v8.0.1): содержимое длинное и грузится не сразу,
   // и при центрировании/без прокрутки оно уходило под нижнее меню. Закрытие экран не двигает.
@@ -60,7 +59,6 @@ export default function AdminScreen({ user, onBack }) {
     if (!online || !cleared) return
     const quiet = () => {}
     cache.load('users', adminListUsers).catch(quiet)
-    cache.load('connections', adminListConnections).catch(quiet)
     cache.load('invites', adminListInvites).catch(quiet)
     cache.load('feedback', () => adminListFeedback(false)).catch(quiet)
   }, [cache, online, cleared])
@@ -164,21 +162,8 @@ export default function AdminScreen({ user, onBack }) {
           </div>
         )}
 
-        <button
-          ref={open === 'access' ? navRevealRef : null}
-          className={'admin-nav-btn' + (open === 'access' ? ' open' : '')}
-          onClick={() => toggle('access')}
-          aria-expanded={open === 'access'}
-        >
-          <span className="admin-nav-name">Доступ к тренировкам</span>
-          <span className="admin-nav-chev" aria-hidden="true" />
-        </button>
-        {open === 'access' && (
-          <div className="admin-panel">
-            <AccessSection meId={user.id} online={online} errMsg={errMsg} cache={cache} />
-          </div>
-        )}
-
+        {/* «Доступ к тренировкам» (связи вручную) убран в v9.0.0: связи — это дружбы, их
+            заводят сами участники («Друзья»). Серверные admin_*_connection снимет этап 3. */}
         <button
           ref={open === 'mfa' ? navRevealRef : null}
           className={'admin-nav-btn' + (open === 'mfa' ? ' open' : '')}

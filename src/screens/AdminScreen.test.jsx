@@ -323,7 +323,7 @@ describe('AdminScreen — раскрытый раздел встает к вер
 })
 
 describe('AdminScreen — списки разделов грузятся заранее (v8.0.1)', () => {
-  it('один запрос пользователей на визит: раскрытия «Пользователей» и «Доступа» берут готовое', async () => {
+  it('один запрос пользователей на визит: повторное раскрытие «Пользователей» берет готовое', async () => {
     adminListUsers.mockClear()
     adminListUsers.mockResolvedValue([DIMA])
     const user = userEvent.setup()
@@ -335,7 +335,8 @@ describe('AdminScreen — списки разделов грузятся зар�
     await user.click(usersBtn) // закрыть
     await user.click(usersBtn) // снова открыть — сразу, без нового запроса
     expect(screen.getByText('Дима')).toBeInTheDocument()
-    await user.click(await screen.findByRole('button', { name: /Доступ к тренировкам/ }))
     expect(adminListUsers).toHaveBeenCalledTimes(1)
+    // «Доступ к тренировкам» убран в v9.0.0 — связи заводят сами участники.
+    expect(screen.queryByRole('button', { name: /Доступ к тренировкам/ })).not.toBeInTheDocument()
   })
 })

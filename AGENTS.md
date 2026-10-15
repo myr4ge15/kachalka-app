@@ -336,9 +336,10 @@ updated_at)` + `upsert_user_meta` (`supabase/user-meta.sql`, RLS «только 
 - **Правило видимости — одно ядро `user_can_see(viewer, owner)`** → канон `visibility-core.sql` (07.10.2026, П5
   `PLAN-friend-code.md`): `can_see_user(p) = user_can_see(app_uid(), p)`, `push_can_see = user_can_see`. Ветки
   `is_admin()` в видимости НЕТ — админ видит контент как участник (свои связи + общее), Админка — под `is_admin()`
-  с `aal2`. Новую ветку видимости — ТОЛЬКО в ядро. С 15.10 канон ТЕЛА ядра — `friends.sql` (блок `is_blocked_pair`
-  поверх всех веток; до этого — `friend-circles.sql`, ветка `fc_share_active`); `visibility-core.sql` — только для
-  `can_see_user`/`push_can_see`, ядро из него и из `friend-circles.sql` не перезапускать. НЕ пересоздавать `can_see_user` из `connections.sql` /
+  с `aal2`. Новую ветку видимости — ТОЛЬКО в ядро. С v9.0.0 канон ТЕЛА ядра — `friends-stage2.sql`: видно себя,
+  друзей (`are_connected`) и участников общего активного круга (`fc_share_active`), блок `is_blocked_pair` перекрывает
+  все; ветки «оба не приватные» БОЛЬШЕ НЕТ. `friends.sql` / `friend-circles.sql` / `visibility-core.sql` ядро не
+  перезапускать (первые два сами откажутся); `visibility-core.sql` — только для `can_see_user`/`push_can_see`. НЕ пересоздавать `can_see_user` из `connections.sql` /
   `private-user.sql`, `push_can_see` — из `push-types.sql`. Ядру EXECUTE только `service_role` (иначе клиент
   спрашивает про чужие пары).
 - **Приватность:** в `leaderboard_bench`, `tg_*` и `goal_reached_for_workout` обязателен фильтр
@@ -433,8 +434,12 @@ updated_at)` + `upsert_user_meta` (`supabase/user-meta.sql`, RLS «только 
   видишь (`user_can_see`). Регистрация по коду — `fr_issue_invite` (`invites.fr_code_id`, общий суточный лимит с
   кодами кругов) → `invite_redeem`; дружбу ставит триггер `newcomer-private` (его не трогать). Пуши — триггер
   `trg_fr_notify` → Edge `push-friend` (тип `friend`, всегда вкл.). Клиент: `lib/friends.js`, `db/friends.js` (снимок
-  `fr_list` в meta), `screens/FriendsScreen.jsx`, `components/friends/*`. Ветка «оба не приватные» в ядре пока ЕСТЬ —
-  снимает этап 2 (MAJOR 9.0.0); админские связи (`admin_set_connection`) до него тоже живут.
+  `fr_list` в meta), `screens/FriendsScreen.jsx`, `components/friends/*`.
+- **«Друзья», этап 2 (v9.0.0)** → канон ТЕЛА ядра `user_can_see` — `friends-stage2.sql` (накат `friends-stage2-deploy.md`):
+  ветка «оба не приватные» снята, основатели попарно друзья (`requested_by` = low_id, на проде NOT NULL; пуши гасятся выключением `trg_fr_notify` на время миграции), сверка матрицы
+  видимости до/после в транзакции — расхождение = откат. На флаге `is_private` ОСТАЮТСЯ общий рейтинг, Telegram
+  (беседа основателей) и overtake — их переезд на круг «Основатели» и снятие флага — этап 3, как и `admin_*_connection`
+  и `newcomer-private`. Раздел Админки «Доступ к тренировкам» убран.
 - **«В сети» (v8.6.0)** → канон `presence.sql`: своя таблица `user_presence(user_id, last_seen_at)` (cascade с
   `users`), не колонка `users` — правка `users` двигает `updated_at` и перекачивала бы ростер. `touch_my_presence`
   (своя строка, не чаще раза в 60 с), `presence_visible` (только `visible_user_ids()`, как Лента). Таблица закрыта,

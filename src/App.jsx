@@ -368,7 +368,7 @@ export default function App() {
                 />
 
               )}
-              {route === 'feed' && <FeedScreen user={user} onOpenMember={openMember} flashId={feedFlashId} onOpenCircle={() => goTab('circle')} />}
+              {route === 'feed' && <FeedScreen user={user} onOpenMember={openMember} flashId={feedFlashId} onOpenCircle={() => goTab('circle')} onOpenFriends={() => goTab('friends')} />}
               {route === 'member' && memberId && (
                 <MemberScreen user={user} memberId={memberId} onBack={backFromMember} />
               )}

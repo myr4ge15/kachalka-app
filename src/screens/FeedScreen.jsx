@@ -3,7 +3,7 @@ import { useEffect, useRef, useState, useCallback, useMemo } from 'react'
 import { useRevealFocus } from '../hooks/useRevealFocus.js'
 import { useLiveQuery } from 'dexie-react-hooks'
 import { getCachedFeed, fetchFeed } from '../db/feed.js'
-import { getUsers, toggleReaction, getPrivacyFlag } from '../db/repo.js'
+import { getUsers, toggleReaction } from '../db/repo.js'
 import { syncNow } from '../db/sync.js'
 import { onOnline, onResume, onReselect } from '../lib/appEvents.js'
 import { fmtWhen, fmtAgo } from '../lib/dates.js'
@@ -33,7 +33,7 @@ function writeRailOpen(userId, open) {
 
 // flashId — id тренировки, к которой привел пуш о реакции (v6.7.3): ее карточка
 // коротко подсвечивается акцентом, чтобы было видно, какую оценили.
-export default function FeedScreen({ user, onOpenMember, flashId = null, onOpenCircle }) {
+export default function FeedScreen({ user, onOpenMember, flashId = null, onOpenCircle, onOpenFriends }) {
   // Кэш ленты (офлайн-доступен, обновляется мгновенно при фоновой подтяжке).
   const feed = useLiveQuery(() => getCachedFeed(), [], undefined)
 
@@ -62,13 +62,6 @@ export default function FeedScreen({ user, onOpenMember, flashId = null, onOpenC
     const id = setInterval(() => setNowTick(Date.now()), 30_000)
     return () => clearInterval(id)
   }, [])
-
-  // Приватный пользователь (флаг кэшируется на pull в meta `priv_${id}`). Раньше
-  // ему прятали ленту и лидерборд целиком. С v3.14.0 приватный видит УРЕЗАННУЮ
-  // ленту — только «избранный круг» (принятые связи, connections.sql); RLS отдает
-  // ему свои + связанных, поэтому обычный fetchFeed уже возвращает нужное. Скрываем
-  // только лидерборд (в общий рейтинг приватный по-прежнему не входит).
-  const myPrivate = useLiveQuery(() => getPrivacyFlag(user.id), [user.id], false)
 
   const loading = feed === undefined
   const list = feed ?? []
@@ -260,15 +253,9 @@ export default function FeedScreen({ user, onOpenMember, flashId = null, onOpenC
           </svg>
         </button>
       </div>
-      {/* Приватному про ограниченный круг говорим РОВНО ОДИН раз — в подзаголовке.
-          Раньше та же мысль дублировалась еще отдельным абзацем под ним и третий
-          раз в пустом состоянии; на пустой ленте человек читал ее трижды подряд.
-          Пустое состояние теперь несет только действие («попроси админа»). */}
-      <p className="muted sub">
-        {myPrivate
-          ? 'Приватный режим — видны только те, кому админ открыл взаимный доступ'
-          : 'Последние тренировки друзей'}
-      </p>
+      {/* v9.0.0: видимость у всех одна — друзья и участники кругов («Друзья», этап 2);
+          «приватного режима с доступом от админа» в Ленте больше нет. */}
+      <p className="muted sub">Тренировки друзей и участников твоих кругов</p>
 
       {/* Десктоп (≥900px) раскладывает это в две колонки: посты слева, рейтинг
           в правом сайдбаре. На мобиле — один столбец, рейтинг сверху (.feed-rail
@@ -280,15 +267,16 @@ export default function FeedScreen({ user, onOpenMember, flashId = null, onOpenC
           {loading && <CardsSkeleton cards={3} height={120} />}
 
           {!loading && list.length === 0 && !error && (
-            myPrivate ? (<>
-              <EmptyHint emoji="👥" title="Лента твоего круга">
-                Здесь появляются тренировки друзей — на них можно ставить реакции. Пока пусто:
-                создай свой круг и позови друзей кодом или вступи в круг друга.
+            <>
+              <EmptyHint emoji="👥" title="Лента друзей">
+                Здесь появляются тренировки друзей и участников твоих кругов — на них можно ставить
+                реакции. Пока пусто: добавь друзей своим кодом или вступи в круг.
               </EmptyHint>
-              {onOpenCircle && <button type="button" className="btn primary fc-feed-cta" onClick={onOpenCircle}>Мой круг</button>}
-            </>) : (
-              <p className="muted empty">Пока никто ничего не записал. Будь первым 💪</p>
-            )
+              <div className="fc-actions feed-empty-acts">
+                {onOpenFriends && <button type="button" className="btn primary" onClick={onOpenFriends}>Друзья</button>}
+                {onOpenCircle && <button type="button" className="btn ghost" onClick={onOpenCircle}>Мой круг</button>}
+              </div>
+            </>
           )}
 
           {list.map((w) => {

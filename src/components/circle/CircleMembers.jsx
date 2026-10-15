@@ -2,6 +2,7 @@ import { useCallback, useEffect, useRef, useState } from 'react'
 import Avatar from '../ui/Avatar.jsx'
 import { usePresence } from '../../hooks/usePresence.js'
 import { isOnline } from '../../lib/presence.js'
+import FriendButton from '../friends/FriendButton.jsx'
 
 // Участники круга: кто кого привел; владельцу — заявки (принять/отклонить), удалить
 // участника, передать круг. Действия с последствиями — в два нажатия.
@@ -75,6 +76,8 @@ export default function CircleMembers({ api, circle, me, onChanged }) {
             <span className="fc-who">
               <span className="fc-name">{m.name}{m.user_id === me && <span className="feed-me">я</span>}{m.is_owner && <span className="fc-badge">владелец</span>}</span>
               {m.invited_by_name && !m.is_owner && <span className="muted fc-by">пришел(а) по коду {m.invited_by_name}</span>}
+              {/* «В друзья» прямо из круга (v9.0.0, «Друзья» этап 1): круг уже показал имя. */}
+              {m.user_id !== me && <FriendButton me={me} memberId={m.user_id} compact />}
             </span>
             {isOwner && !m.is_owner && (
               <span className="fc-row-acts fc-under">

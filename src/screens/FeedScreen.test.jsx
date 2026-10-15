@@ -114,17 +114,17 @@ describe('FeedScreen', () => {
     expect(fetchFeed).toHaveBeenCalledTimes(2)
   })
 
-  it('пустая лента: обычному — «Будь первым», приватному — свой текст и «Мой круг»', () => {
+  it('пустая лента (v9.0.0): у всех подсказка и кнопки «Друзья» и «Мой круг»', () => {
     mocks.feed = []
-    const { unmount } = renderFeed()
-    expect(screen.getByText(/Будь первым/)).toBeInTheDocument()
-    unmount()
     mocks.priv = true
     const onOpenCircle = vi.fn()
-    renderFeed({ onOpenCircle })
-    expect(screen.getByText(/создай свой круг/)).toBeInTheDocument()
-    expect(screen.getByText('Лента твоего круга')).toBeInTheDocument()
-    expect(screen.getByText(/Приватный режим/)).toBeInTheDocument()
+    const onOpenFriends = vi.fn()
+    renderFeed({ onOpenCircle, onOpenFriends })
+    expect(screen.getByText('Лента друзей')).toBeInTheDocument()
+    expect(screen.getByText('Тренировки друзей и участников твоих кругов')).toBeInTheDocument()
+    expect(screen.queryByText(/Приватный режим/)).not.toBeInTheDocument()
+    fireEvent.click(screen.getByRole('button', { name: 'Друзья' }))
+    expect(onOpenFriends).toHaveBeenCalled()
     fireEvent.click(screen.getByRole('button', { name: 'Мой круг' }))
     expect(onOpenCircle).toHaveBeenCalled()
     // Рейтинг есть и у приватного: доски кругов или подсказка (DisciplineLeaderboard).
