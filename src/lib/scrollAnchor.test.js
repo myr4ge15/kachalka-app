@@ -21,3 +21,17 @@ describe('scrollAnchor', () => {
     expect(anchorTarget(snap, { scrollTop: 0, elTop: 0, containerTop: 60 })).toBe(0)
   })
 })
+
+describe('anchorTarget center (v8.9.8)', () => {
+  const snap = { anchor: 'a', offset: 12, scrollTop: 0, center: true }
+  it('карточка серединой в середину скроллера', () => {
+    // скроллер 800, карточка 300 на 1000 px ниже верха → верх карточки на (800-300)/2 = 250
+    expect(anchorTarget(snap, { scrollTop: 0, elTop: 1000, containerTop: 0, elHeight: 300, viewHeight: 800 })).toBe(750)
+  })
+  it('карточка выше скроллера — верхом на offset', () => {
+    expect(anchorTarget(snap, { scrollTop: 0, elTop: 1000, containerTop: 0, elHeight: 900, viewHeight: 800 })).toBe(988)
+  })
+  it('без center — как раньше', () => {
+    expect(anchorTarget({ ...snap, center: false }, { scrollTop: 0, elTop: 1000, containerTop: 0, elHeight: 300, viewHeight: 800 })).toBe(988)
+  })
+})

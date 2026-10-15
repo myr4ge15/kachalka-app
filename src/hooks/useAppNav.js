@@ -19,7 +19,8 @@ import { scrollToTop, settleScroll } from '../lib/scrollBox.js'
 const FEED_FLASH_MS = 2400
 // Якорь «к тренировке из пуша»: карточка встает чуть ниже верха экрана. Ждем ее
 // дольше обычного возврата — при холодном старте Лента еще грузит экран и кэш.
-const pushAnchor = (workoutId) => ({ anchor: `feed-${workoutId}`, offset: 12, scrollTop: 0, ms: 2500 })
+// center (v8.9.8): карточка серединой в середину экрана — видны и тренировка, и реакции под ней.
+const pushAnchor = (workoutId) => ({ anchor: `feed-${workoutId}`, offset: 12, scrollTop: 0, ms: 2500, center: true })
 const TAB_KEY = 'gym_app_tab'
 
 export function useAppNav(user) {

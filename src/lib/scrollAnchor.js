@@ -20,9 +20,13 @@ export function makeAnchor(anchor, elTop, containerTop, scrollTop) {
 
 // Куда прокрутить сейчас. Элемент найден → сдвиг так, чтобы он встал на прежний
 // отступ; не найден → прежний scrollTop. Результат ограничен [0, maxScroll].
-export function anchorTarget(snap, { scrollTop, elTop = null, containerTop = 0, maxScroll = Infinity }) {
+// snap.center (v8.9.8, пуш о реакции): элемент серединой в середину скроллера; выше
+// скроллера — как обычно, верхом на snap.offset (иначе обрезалось бы начало карточки).
+export function anchorTarget(snap, { scrollTop, elTop = null, containerTop = 0, maxScroll = Infinity, elHeight = 0, viewHeight = 0 }) {
+  const centered = snap.center && elHeight > 0 && viewHeight > 0 && elHeight <= viewHeight
+  const want = centered ? (viewHeight - elHeight) / 2 : snap.offset
   const raw = elTop == null
     ? snap.scrollTop
-    : scrollTop + (elTop - containerTop - snap.offset)
+    : scrollTop + (elTop - containerTop - want)
   return Math.round(Math.min(Math.max(0, raw), Math.max(0, maxScroll)))
 }

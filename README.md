@@ -167,4 +167,4 @@ kachalka-app можно добавить на главный экран теле
 
 ---
 
-**kachalka-app · v8.9.7**
+**kachalka-app · v8.9.8**

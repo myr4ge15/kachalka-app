@@ -33,11 +33,14 @@ export function useScrollAnchorRestore(containerRef, snap, onDone) {
     const tick = () => {
       if (stopped) return
       const el = snap.anchor ? sc.querySelector(`[data-anchor="${CSS.escape(snap.anchor)}"]`) : null
+      const box = el ? el.getBoundingClientRect() : null
       const top = anchorTarget(snap, {
         scrollTop: sc.scrollTop,
-        elTop: el ? el.getBoundingClientRect().top : null,
+        elTop: box ? box.top : null,
         containerTop: sc.getBoundingClientRect().top,
         maxScroll: sc.scrollHeight - sc.clientHeight,
+        elHeight: box ? box.height : 0,
+        viewHeight: sc.clientHeight,
       })
       if (Math.abs(top - sc.scrollTop) > 1) sc.scrollTop = top
       if (performance.now() - started > (snap.ms ?? RESTORE_MS)) stop()
