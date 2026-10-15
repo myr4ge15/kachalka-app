@@ -19,6 +19,8 @@ import { vibrate, HAPTIC } from '../lib/haptics.js'
 import { exerciseUsageSections } from '../lib/exerciseUsage.js'
 import { useWorkoutFocus } from '../hooks/useWorkoutFocus.js'
 import { useWorkoutDraft } from '../hooks/useWorkoutDraft.js'
+import { useRestTimer } from '../hooks/useRestTimer.js'
+import { localYmd } from '../lib/calendar.js'
 import { useSortable } from '../hooks/useSortable.js'
 import { reorderExercises } from '../lib/reorderExercises.js'
 import CardsSkeleton from '../components/ui/CardsSkeleton.jsx'
@@ -30,6 +32,8 @@ import ExerciseCard from '../components/exercises/ExerciseCard.jsx'
 import DateField from '../components/ui/DateField.jsx'
 import WorkoutActions from '../components/workout/WorkoutActions.jsx'
 import SaveBar from '../components/workout/SaveBar.jsx'
+import RestPill from '../components/workout/RestPill.jsx'
+import RestSheet from '../components/workout/RestSheet.jsx'
 import { AppMarkGlyph } from '../components/app/AppMark.jsx'
 import BackButton from '../components/ui/BackButton.jsx'
 
@@ -110,6 +114,18 @@ export default function WorkoutScreen({ user, workoutId = null, onBack, onSaved 
   const [tplArm, setTplArm] = useState(false)
   const [tplName, setTplName] = useState('')
   const [tplBusy, setTplBusy] = useState(false)
+  // Таймер отдыха (v8.8.0): только у НОВОЙ тренировки за сегодня — запись задним
+  // числом отдыха не требует. Состояние и сигналы — hooks/useRestTimer.js.
+  const [restOpen, setRestOpen] = useState(false)
+  const activeExercise = entries.find((e) => e.exercise.id === activeExerciseId)?.exercise ?? null
+  const isToday = !loading && localYmd(performedAt) === localYmd(new Date())
+  const restShown = isNew && isToday
+  const rest = useRestTimer(user.id, { exercise: activeExercise, ready: !loading, active: restShown })
+  const restVisible = restShown && rest.settings.on
+  function tapRest() {
+    if (rest.state.phase === 'run') setRestOpen(true)
+    else rest.start()
+  }
 
 
 
@@ -438,6 +454,7 @@ export default function WorkoutScreen({ user, workoutId = null, onBack, onSaved 
         await setWorkoutFeels(user.id, wId, performedAt, kept)
       } catch { /* оценки необязательны, тренировка уже записана */ }
       draft.dropSaved() // и оценки, и дата: следующая тренировка начинается без них
+      if (isNew) rest.stop() // занятие закончено — отдых и его пуш больше не нужны
       // Тактильный отклик по итогу сохранения: рекорд/цель — «праздничный»
       // паттерн, обычное сохранение — короткий success (см. lib/haptics.js).
       let finishEvents = []
@@ -575,7 +592,12 @@ export default function WorkoutScreen({ user, workoutId = null, onBack, onSaved 
         <BackButton onClick={() => onBack?.()} />
         <div className="wk-head-main">
           <h2 className="screen-title wk-title">{isNew ? 'Новая тренировка' : 'Тренировка'}</h2>
-          {!loading && <DateField performedAt={performedAt} onChange={setPerformedAt} />}
+          {!loading && (
+            <div className="wk-chips">
+              <DateField performedAt={performedAt} onChange={setPerformedAt} compact={restVisible} />
+              {restVisible && <RestPill state={rest.state} idleSec={rest.idleSec} onTap={tapRest} />}
+            </div>
+          )}
         </div>
         {isNew && entries.length > 0 && !clearArm && (
           <button className="wk-clear" disabled={saving} onClick={() => setClearArm(true)}>
@@ -676,6 +698,22 @@ export default function WorkoutScreen({ user, workoutId = null, onBack, onSaved 
           onPickMany={replaceIdx == null ? addExercises : undefined}
           onCreate={(p) => createExercise({ ...p, owner_id: user.id })}
           onClose={closePicker}
+        />
+      )}
+
+      {restOpen && restVisible && (
+        <RestSheet
+          state={rest.state}
+          run={rest.run}
+          idleSec={rest.idleSec}
+          settings={rest.settings}
+          exerciseName={activeExercise?.name ?? null}
+          onStart={() => rest.start()}
+          onChoose={rest.choose}
+          onAdjust={rest.adjust}
+          onStop={rest.stop}
+          onSettings={rest.setSettings}
+          onClose={() => setRestOpen(false)}
         />
       )}
 

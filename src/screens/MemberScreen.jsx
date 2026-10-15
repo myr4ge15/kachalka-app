@@ -18,6 +18,7 @@ import CardsSkeleton from '../components/ui/CardsSkeleton.jsx'
 import FeedPrBadge from '../components/social/FeedPrBadge.jsx'
 import ReactionBar from '../components/social/ReactionBar.jsx'
 import './MemberScreen.css'
+import ScrollTopButton from '../components/ui/ScrollTopButton.jsx'
 
 // Профиль другого участника (v6.7.0): статы, рекорды, любимое и последние
 // тренировки. Только чтение — ни правок, ни целей, ни настроек. Данные — витрина
@@ -84,24 +85,6 @@ export default function MemberScreen({ user, memberId, onBack }) {
       .catch(() => { /* правка уже в кэше; синк догонит позже */ })
   }, [user.id, user.name, memberId])
 
-  // Кнопка «наверх» (v6.7.1): профиль длинный, а «назад» и шапка — в самом верху.
-  // Скроллится не экран, а общий .content (App.jsx).
-  const rootRef = useRef(null)
-  const [showTop, setShowTop] = useState(false)
-  useEffect(() => {
-    const sc = rootRef.current?.closest('.content')
-    if (!sc) return undefined
-    const onScroll = () => setShowTop(sc.scrollTop > 500)
-    onScroll()
-    sc.addEventListener('scroll', onScroll, { passive: true })
-    return () => sc.removeEventListener('scroll', onScroll)
-  }, [])
-  const toTop = () => {
-    const sc = rootRef.current?.closest('.content')
-    const reduce = window.matchMedia?.('(prefers-reduced-motion: reduce)').matches
-    sc?.scrollTo({ top: 0, behavior: reduce ? 'auto' : 'smooth' })
-  }
-
   useEffect(() => {
     refresh()
     const off1 = onResume(refresh)
@@ -126,7 +109,7 @@ export default function MemberScreen({ user, memberId, onBack }) {
   const partial = disp.partial
 
   return (
-    <div className="screen profile member" ref={rootRef}>
+    <div className="screen profile member">
       <div className="admin-head">
         <BackButton onClick={onBack} />
         <h2 className="admin-title">Профиль</h2>
@@ -281,14 +264,8 @@ export default function MemberScreen({ user, memberId, onBack }) {
         </>
       )}
 
-      {showTop && (
-        <button type="button" className="member-top" onClick={toTop} aria-label="Наверх" title="Наверх">
-          <svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor"
-            strokeWidth="2.4" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
-            <path d="M12 19V5" /><path d="M6 11l6-6 6 6" />
-          </svg>
-        </button>
-      )}
+      {/* Кнопка «наверх» (v6.7.1): профиль длинный, а «назад» и шапка — в самом верху. */}
+      <ScrollTopButton />
     </div>
   )
 }

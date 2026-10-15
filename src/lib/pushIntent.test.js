@@ -18,6 +18,11 @@ describe('pushIntent', () => {
     expect(pushIntentFromTag(`feedback-${W}-x`)).toBeNull()
   })
 
+  it('отдых закончился ведет к новой тренировке', () => {
+    expect(pushIntentFromTag('rest')).toEqual({ type: 'rest' })
+    expect(pushIntentFromTag('rest-x')).toBeNull()
+  })
+
   it('остальные и битые tag — без намерения', () => {
     expect(pushIntentFromTag(`record-${W}`)).toBeNull()
     expect(pushIntentFromTag('reaction-123-456')).toBeNull()

@@ -223,6 +223,11 @@ export function useAppNav(user) {
       setFeedbackFocus(pushIntent.feedbackId)
       setTab('feedback')
     }
+    // Отдых закончился (v8.8.0) — обратно в композер новой тренировки.
+    if (pushIntent.type === 'rest') {
+      setOpenNewWorkout(true)
+      setTab('history')
+    }
     setPushIntent(null)
   }, [user?.id, pushIntent])
 

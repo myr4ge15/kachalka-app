@@ -368,6 +368,9 @@ updated_at)` + `upsert_user_meta` (`supabase/user-meta.sql`, RLS «только 
   action `append` шлет реплай на исходное сообщение и привязывает его через `bot_feedback_link`.
   Edge `tg-bot` — `--no-verify-jwt`, вход только с `X-Telegram-Bot-Api-Secret-Token` = `TELEGRAM_WEBHOOK_SECRET`,
   принимает лишь `TELEGRAM_OWNER_ID` в `TELEGRAM_FEEDBACK_CHAT_ID`, update_id — через `bot_claim_update`.
+  **v8.8.0 — карточка обращения:** ответ владельца и статус дописываются в первое сообщение бота об обращении
+  (`renderCard` в `tg-bot`, текст — `feedbackCardText`), текстовый реплай владельца после сохранения бот удаляет,
+  подсказки «Ответ сохранен…» нет; не вышло переписать карточку — прежнее поведение (подсказка с кнопками).
   Картинки обращений в Supabase не храним: `file_id` Telegram, байты клиенту — только через `feedback`
   action=media после `feedback_media_ref`; токен бота клиенту не отдается. Вебхук у бота один — `getUpdates`
   нигде не использовать.
@@ -425,6 +428,15 @@ updated_at)` + `upsert_user_meta` (`supabase/user-meta.sql`, RLS «только 
   `users`), не колонка `users` — правка `users` двигает `updated_at` и перекачивала бы ростер. `touch_my_presence`
   (своя строка, не чаще раза в 60 с), `presence_visible` (только `visible_user_ids()`, как Лента). Таблица закрыта,
   обе функции — DEFINER, клиентам `authenticated`. Приватность «в сети» отдельно не прячется (решение владельца).
+- **Пуш таймера отдыха (v8.8.0)** → канон `rest-push.sql` + Edge `push-rest` (`--no-verify-jwt`, секрет
+  `PUSH_WEBHOOK_SECRET`), накат `rest-push-deploy.md`. `rest_push` (строка на человека, cascade с `users`) закрыта;
+  `rest_push_set(endpoint, сек, заголовок, текст)` — только если endpoint в `push_subscriptions` у `app_uid()`
+  (иначе `false` и снятие прошлого), срок — серверный `now()+сек`; `rest_push_clear`; `rest_push_dispatch` (только
+  service_role) забирает истекшие `delete … returning` и одним pg_net-вызовом отдает `push-rest`. Зовет его
+  **pg_cron** раз в 5 с (задание `rest-push-dispatch`; расширение на проекте есть — проверено 15.10, 1.6.4;
+  «pg_cron на Free платный» в старых доках неверно). Пуш — на ОДНО устройство (`sendToSubscription`), типа в
+  `push_prefs` нет: включает сам таймер. Клиент: `db/restPush.js` (онлайн, вне очередей, сбои тихие),
+  `hooks/useRestTimer.js`; состояние таймера — только `localStorage` устройства, не Dexie.
 - **Удаление аккаунта (П7, 07.10.2026)** → канон `account-delete.sql` (`account_delete(p_uid, p_actor)`, только
   service_role) + Edge `account-delete` (`{pin}` — себя, с `auth_rate_claim` до сверки PIN; `{target_user_id}` —
   админ с 2FA, 10/час). Сразу и насовсем. Учетки `role = admin` так не удаляются (409). Порядок: SQL одной
@@ -433,7 +445,7 @@ updated_at)` + `upsert_user_meta` (`supabase/user-meta.sql`, RLS «только 
   ничьими). Свои упражнения: неиспользуемые — удалить, остальные → общими (триггер `exercise-owner.sql`);
   `rating_disciplines.exercise_id` — CASCADE, поэтому проверка «никем не используется» явная, иначе удаление
   снесло бы дисциплину. Обращения и `audit_log` — обезличить (не стирать). Новая таблица со ссылкой на
-  `users` — решить ее судьбу здесь (cascade/обезличить) и добавить в тест (`user_presence` — cascade, v8.6.0). Клиент: `profile/DeleteAccount.jsx`,
+  `users` — решить ее судьбу здесь (cascade/обезличить) и добавить в тест (`user_presence` — cascade, v8.6.0; `rest_push` — cascade, v8.8.0). Клиент: `profile/DeleteAccount.jsx`,
   после ответа — выход и `db/local.js wipeLocalAccount` (персональная база, ростер, кэш PIN, ключи localStorage).
   Старый `admin_delete_user` (Админка до 6.18) — не использовать.
 - **«Забыл PIN» без админа (П1, 07.10.2026)** → канон `pin-recovery.sql` (с v7.5.0 `bot_tg_link`/`my_recovery_status` —

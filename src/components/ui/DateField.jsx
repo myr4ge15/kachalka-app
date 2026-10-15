@@ -4,7 +4,9 @@ import { fmtDayChip, toDateInput, fromDateInput } from '../../lib/dates.js'
 // «Сегодня, 30 сентября» + нативный <input type=date> поверх (тап по чипу открывает
 // пикер). С него же начинается запись задним числом. Презентационное — значение и
 // onChange(nextIso) приходят от WorkoutScreen. Дат-хелперы — чистые в lib/dates.
-export default function DateField({ performedAt, onChange }) {
+// compact (v8.8.0) — рядом с пилюлей таймера отдыха: «Сегодня» без числа, иначе на
+// 390 px пилюля уезжает на вторую строку. Таймер бывает только у даты «сегодня».
+export default function DateField({ performedAt, onChange, compact = false }) {
   const current = toDateInput(performedAt)
   // Пусто (сброс) → сегодня. Ту же дату повторно не шлем: blur после обычного выбора
   // не должен дергать onChange второй раз.
@@ -25,7 +27,7 @@ export default function DateField({ performedAt, onChange }) {
         stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
         <rect x="3" y="5" width="18" height="16" rx="3" /><path d="M3 10h18M8 3v4M16 3v4" />
       </svg>
-      <span className="date-chip__value">{fmtDayChip(performedAt)}</span>
+      <span className="date-chip__value">{compact ? fmtDayChip(performedAt).replace(/^Сегодня, .*/, 'Сегодня') : fmtDayChip(performedAt)}</span>
       <input
         type="date"
         aria-label="Дата тренировки"

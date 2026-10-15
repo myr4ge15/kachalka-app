@@ -4115,3 +4115,106 @@ html[data-sheet-open], html[data-sheet-open] body { overscroll-behavior: none; }
   .technique-stage img { transition: none; }
   .technique-credits-chev { transition: none; }
 }
+
+/* «Наверх» (v6.7.1, профиль участника; с v8.8.0 общая — components/ui/ScrollTopButton.jsx,
+   еще «Обратная связь»): плавающая круглая кнопка справа над нижним меню. Плотная
+   подложка, как у прочих оверлеев (AGENTS: не стекло поверх карточек). */
+.scroll-top-anchor { display: contents; }
+.scroll-top {
+  position: fixed; right: 16px; bottom: calc(96px + env(safe-area-inset-bottom)); z-index: 30;
+  width: 44px; height: 44px; border-radius: 50%;
+  display: grid; place-items: center;
+  background: var(--surface-solid); color: var(--text);
+  border: 1px solid var(--stroke, var(--border));
+  box-shadow: 0 8px 24px rgba(0, 0, 0, .35);
+  cursor: pointer;
+}
+.scroll-top:active { color: var(--acc-2); }
+@media (min-width: 900px) {
+  .scroll-top { bottom: 24px; right: 24px; }
+}
+
+/* ================= Таймер отдыха (v8.8.0, prototypes/rest-timer.html) ================= */
+/* Ряд под заголовком композера: чип даты + пилюля таймера (только «сегодня»). */
+.wk-chips { display: flex; flex-wrap: wrap; align-items: center; gap: 0 8px; }
+.rest-pill {
+  position: relative; isolation: isolate; overflow: hidden;
+  display: inline-flex; align-items: center; gap: 6px;
+  min-height: 34px; min-width: 74px; padding: 0 12px 0 10px; margin-top: 8px;
+  border-radius: 999px; border: 1.5px solid var(--border); background: var(--surface);
+  color: var(--muted); font-size: 14px; font-weight: 700; cursor: pointer;
+  transition: border-color var(--dur-base), color var(--dur-base), background var(--dur-base), transform var(--dur-fast);
+}
+/* Зона тапа 44px при пилюле 34px — как у чипа даты (невидимый край). */
+.rest-pill::before { content: ''; position: absolute; inset: -5px 0; }
+.rest-pill:active { transform: scale(var(--press-scale)); }
+.rest-pill:focus-visible { outline: 2px solid var(--acc-2); outline-offset: 2px; }
+.rest-pill__value { font-family: var(--font-display); font-weight: 900; font-size: 17px; letter-spacing: .3px; font-variant-numeric: tabular-nums; color: var(--text); }
+.rest-pill__fill {
+  position: absolute; inset: 0; z-index: -1; transform-origin: left center;
+  background: var(--acc-soft); transition: transform .25s linear;
+}
+.rest-pill.is-run { border-color: var(--acc); color: var(--acc); }
+.rest-pill.is-run .rest-pill__value { color: var(--acc-2); }
+.rest-pill.is-done {
+  border-color: var(--green); color: var(--green);
+  background: color-mix(in srgb, var(--green) 14%, transparent);
+  animation: rest-pulse 1.6s ease-out infinite;
+}
+.rest-pill.is-done .rest-pill__value { color: var(--green); }
+@keyframes rest-pulse {
+  0% { box-shadow: 0 0 0 0 color-mix(in srgb, var(--green) 55%, transparent); }
+  70% { box-shadow: 0 0 0 10px transparent; }
+  100% { box-shadow: 0 0 0 0 transparent; }
+}
+
+/* Лист: кольцо, ±15, пресеты, сигнал. */
+.rest-sheet { display: flex; flex-direction: column; gap: 10px; padding-bottom: 4px; }
+.rest-sheet__ctx { margin: -2px 0 0; color: var(--muted); font-size: 13px; text-align: center; }
+.rest-ring { position: relative; width: 200px; height: 200px; margin: 0 auto; }
+.rest-ring svg { display: block; transform: rotate(-90deg); }
+.rest-ring__track { fill: none; stroke: var(--surface-2); stroke-width: 12; }
+.rest-ring__arc {
+  fill: none; stroke: var(--acc); stroke-width: 12; stroke-linecap: round;
+  transition: stroke-dashoffset .25s linear, stroke var(--dur-base);
+}
+.rest-ring.is-done .rest-ring__arc { stroke: var(--green); }
+.rest-ring.is-idle .rest-ring__arc { stroke: var(--border); }
+.rest-ring__center { position: absolute; inset: 0; display: grid; place-content: center; text-align: center; gap: 4px; }
+.rest-ring__big {
+  font-family: var(--font-display); font-weight: 900; font-size: 60px; line-height: 1;
+  font-variant-numeric: tabular-nums; letter-spacing: .5px;
+}
+.rest-ring.is-done .rest-ring__big { color: var(--green); }
+.rest-ring__sub { color: var(--muted); font-size: 13px; }
+.rest-adj { display: grid; grid-template-columns: 1fr 1.2fr 1fr; gap: 8px; }
+.rest-btn {
+  min-height: 46px; border-radius: 13px; border: 1px solid var(--border);
+  background: var(--surface); color: var(--text); font-size: 15px; font-weight: 600; cursor: pointer;
+}
+.rest-btn:disabled { opacity: .4; cursor: default; }
+.rest-btn:active:not(:disabled) { transform: scale(var(--press-scale)); }
+.rest-btn--pri { background: var(--acc); color: var(--on-acc); border-color: transparent; }
+.rest-presets { display: grid; grid-template-columns: repeat(5, 1fr); gap: 6px; }
+.rest-presets button {
+  min-height: 44px; border-radius: 11px; border: 1px solid var(--border); background: transparent;
+  color: var(--muted); font-family: var(--font-display); font-weight: 800; font-size: 17px;
+  font-variant-numeric: tabular-nums; cursor: pointer;
+}
+.rest-presets button[aria-pressed="true"] {
+  background: var(--acc-soft); color: var(--acc-2);
+  border-color: color-mix(in srgb, var(--acc) 50%, transparent);
+}
+.rest-note { margin: 0; color: var(--muted); font-size: 12px; line-height: 1.4; }
+.rest-skip {
+  min-height: 44px; border: 0; background: none; color: var(--muted);
+  font-size: 14px; font-weight: 600; cursor: pointer;
+}
+.rest-skip:active { color: var(--red); }
+.rest-sec { margin-top: 8px; }
+.rest-toggle { min-height: 56px; }
+
+@media (prefers-reduced-motion: reduce) {
+  .rest-pill.is-done { animation: none; }
+  .rest-pill__fill, .rest-ring__arc { transition: none; }
+}

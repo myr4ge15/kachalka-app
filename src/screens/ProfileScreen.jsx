@@ -32,6 +32,7 @@ import DeleteAccount from '../components/profile/DeleteAccount.jsx'
 import BackupActions from '../components/profile/BackupActions.jsx'
 import DeleteMyData from '../components/profile/DeleteMyData.jsx'
 import AppVersionLink from '../components/profile/AppVersionLink.jsx'
+import RestTimerToggle from '../components/profile/RestTimerToggle.jsx'
 import { settleScroll } from '../lib/scrollBox.js'
 
 // Экран «Профиль» (ЛК). Все про самого пользователя; пер-упражненческую
@@ -180,6 +181,7 @@ export default function ProfileScreen({ user, onLogout, onAccountDeleted, onOpen
                 <span className="toggle-knob" />
               </span>
             </button>
+            <RestTimerToggle userId={user.id} />
             {/* v7.1.4: тумблеры пушей — на своем экране; здесь строка со статусом.
                 'off' — функции нет или это компьютер (lib/pushSupport.js desktopAvailability). */}
             {push.availability && push.availability !== 'off' && (

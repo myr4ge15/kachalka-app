@@ -147,6 +147,21 @@ function pushStep(name, promise) {
   ]).finally(() => clearTimeout(timer))
 }
 
+// Адрес подписки ЭТОГО устройства для адресного пуша (таймер отдыха, v8.8.0) или
+// null: подписки нет, нет разрешения, пуши выключены тумблером (отметка off) или
+// подписка числится за другой учеткой общего телефона. Сервер еще раз сверит, что
+// endpoint привязан к вызывающему (rest_push_set).
+export async function deviceSubscriptionEndpoint(userId) {
+  try {
+    if (!browserFacts().supported || Notification.permission !== 'granted') return null
+    if (isOff(userId) || getOwner() !== String(userId)) return null
+    const { sub } = await withTimeout(currentSubscription(), 3000)
+    return typeof sub?.endpoint === 'string' ? sub.endpoint : null
+  } catch {
+    return null
+  }
+}
+
 async function saveOnServer(sub) {
   const args = subscriptionArgs(sub?.toJSON?.(), navigator.userAgent)
   if (!args) throw new PushError('Браузер выдал неполную подписку — попробуй еще раз.')

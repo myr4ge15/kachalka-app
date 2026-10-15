@@ -109,11 +109,11 @@ export default function FreshnessScreen({ user, onBack }) {
   const [tabPick, setTabPick] = useState(null)
   const [sel, setSel] = useState(null) // выбранная подмышца
   const [region, setRegion] = useState(null) // выбранная зона карты
-  // Подсветка группы из подсказки «Сегодня пора проработать …» (v6.3.5). undefined —
-  // пользователь еще ничего не выбирал: тогда подсвечиваем группу-цель сразу.
-  const [focusPick, setFocusPick] = useState(undefined)
-  const leadGroup = lead?.kind === 'target' ? lead.item.group : null
-  const focusGroup = focusPick === undefined ? leadGroup : focusPick
+  // Подсветка группы из подсказки «Сегодня пора проработать …» (v6.3.5) — только по
+  // нажатию на подсказку. С v8.8.0 при входе ничего не подсвечено (решение владельца
+  // 15.10: мышца подсвечивается, только когда ее выбрал сам человек).
+  const [focusPick, setFocusPick] = useState(null)
+  const focusGroup = focusPick
   const inFocus = (x) => Boolean(focusGroup) && x.major === focusGroup
   // По умолчанию — корзина с подсвеченной группой, иначе первая непустая, начиная с «можно».
   const focusTab = focusGroup ? TABS.find((t) => view[t.id].some(inFocus))?.id : null

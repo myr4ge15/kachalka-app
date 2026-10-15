@@ -28,14 +28,21 @@ describe('FreshnessScreen «Восстановление» (v6.3.5)', () => {
     expect(screen.getByRole('heading', { name: 'Восстановление' })).toBeInTheDocument()
   })
 
-  it('группа-цель из подсказки подсвечивает свои мышцы сразу', () => {
+  // v8.8.0 (решение владельца 15.10): при входе ничего не подсвечено — ни мышца, ни
+  // зона на карте; группа-цель подсвечивается только по нажатию на подсказку.
+  it('при входе ничего не подсвечено; нажатие на группу-цель подсказки подсвечивает ее мышцы', () => {
     render(<FreshnessScreen user={{ id: 'u1' }} onBack={() => {}} />)
+    expect(document.querySelector('.fr-chip.hl')).toBeNull()
+    expect(document.querySelector('.fr-chip.on')).toBeNull()
+    expect(document.querySelector('.fr-detail')).toHaveTextContent(/^Нажми на мышцу/)
+    fireEvent.click(document.querySelector('.fr-tip-target'))
     expect(document.querySelector('.fr-tip-target')).toHaveTextContent('бицепс')
     expect(document.querySelector('.fr-chip.hl')).toHaveTextContent('бицепс')
   })
 
   it('строка деталей не повторяет группу, совпавшую с названием мышцы', () => {
     render(<FreshnessScreen user={{ id: 'u1' }} onBack={() => {}} />)
+    fireEvent.click(document.querySelector('.fr-tip-target'))
     fireEvent.click(document.querySelector('.fr-chip.hl'))
     const detail = document.querySelector('.fr-detail').textContent
     expect(detail).toMatch(/^Бицепс · /)

@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState } from 'react'
 import BackButton from '../components/ui/BackButton.jsx'
 import CardsSkeleton from '../components/ui/CardsSkeleton.jsx'
+import ScrollTopButton from '../components/ui/ScrollTopButton.jsx'
 import { showToast } from '../components/ui/Toast.jsx'
 import FeedbackPhotos from '../components/social/FeedbackPhotos.jsx'
 import FeedbackNoteForm from '../components/social/FeedbackNoteForm.jsx'
@@ -229,6 +230,8 @@ export default function FeedbackScreen({ user, onBack, focusId = null, fromScree
           ))}
         </ul>
       )}
+      {/* «Наверх» (v8.8.0, как в профиле участника): список обращений длинный, форма — в самом верху. */}
+      <ScrollTopButton />
     </div>
   )
 }
