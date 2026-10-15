@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest'
-import { PENDING_TTL_MS, PUSH_INTENT_KEY, pushIntentFromTag, pushIntentFromUrl, stripPushParam, takePendingPushUrl } from './pushIntent.js'
+import { vi } from 'vitest'
+import { onPushOpen, PENDING_TTL_MS, PUSH_INTENT_KEY, pushIntentFromTag, pushIntentFromUrl, startPushListener, stripPushParam, takePendingPushUrl } from './pushIntent.js'
 
 const W = '3f2c9a1e-0b4d-4c7e-9a10-5e6f7a8b9c0d'
 const U = 'aa11bb22-cc33-4d44-8e55-66ff77889900'
@@ -80,5 +81,35 @@ describe('takePendingPushUrl (v8.9.2)', () => {
   it('нет кэша — null', async () => {
     expect(await takePendingPushUrl(1, undefined)).toBeNull()
     expect(await takePendingPushUrl(1, fakeCaches(null).store)).toBeNull()
+  })
+})
+
+describe('startPushListener / onPushOpen (v8.9.3)', () => {
+  function fakeSw() {
+    let handler = null
+    return {
+      addEventListener: (_t, fn) => { handler = fn },
+      removeEventListener: () => { handler = null },
+      startMessages: vi.fn(),
+      send: (data, port) => handler?.({ data, ports: port ? [port] : [] }),
+    }
+  }
+  it('сообщение до подписки навигации не теряется, SW получает ответ сразу', () => {
+    const sw = fakeSw()
+    const stop = startPushListener(sw)
+    expect(sw.startMessages).toHaveBeenCalled()
+    const port = { postMessage: vi.fn() }
+    sw.send({ type: 'push-open', url: 'u1' }, port)
+    expect(port.postMessage).toHaveBeenCalledWith('ok')
+    const got = []
+    const off = onPushOpen((u) => got.push(u))
+    expect(got).toEqual(['u1'])
+    sw.send({ type: 'push-open', url: 'u2' })
+    sw.send({ type: 'other', url: 'x' })
+    expect(got).toEqual(['u1', 'u2'])
+    off(); stop()
+  })
+  it('без service worker — тихо', () => {
+    expect(typeof startPushListener(undefined)).toBe('function')
   })
 })

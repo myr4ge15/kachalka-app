@@ -7,6 +7,7 @@ import { openUserDb } from './db/local.js'
 import { readStoredUserId } from './lib/sessionProfile.js'
 import { splashDelay, onAppReady, SPLASH_FADE_MS, SPLASH_MAX_MS } from './lib/splash.js'
 import { runLaunchUpdate, WAIT_MS } from './lib/launchUpdate.js'
+import { startPushListener } from './lib/pushIntent.js'
 import './index.css'
 
 // ===== Ранняя инициализация (до рендера React) =====
@@ -33,6 +34,9 @@ if (storedUserId) {
   // 2. Заранее тянем чанк главной страницы (дефолтная вкладка после входа).
   import('./screens/HomeScreen.jsx').catch(() => {})
 }
+// Нажатие на пуш (v8.9.3): слушаем service worker ДО рендера React — при запуске нажатием
+// сообщение приходит рано, и без этого терялось (lib/pushIntent.js).
+startPushListener()
 // ===================================================
 
 ReactDOM.createRoot(document.getElementById('root')).render(

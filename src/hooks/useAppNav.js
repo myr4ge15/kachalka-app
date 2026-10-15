@@ -1,5 +1,5 @@
 import { useEffect, useLayoutEffect, useRef, useState } from 'react'
-import { pushIntentFromUrl, takePendingPushUrl } from '../lib/pushIntent.js'
+import { onPushOpen, PENDING_RECHECK_MS, pushIntentFromUrl, takePendingPushUrl } from '../lib/pushIntent.js'
 import { onResume } from '../lib/appEvents.js'
 import { emitReselect } from '../lib/appEvents.js'
 import { transitionKind, isNested, nextScreenStack, initialScreenStack } from '../lib/screenNav.js'
@@ -70,22 +70,12 @@ export function useAppNav(user) {
     return () => clearTimeout(t)
   }, [feedFlashId])
 
-  // Уже открытое приложение: адрес не меняется, service worker шлет сообщение.
-  useEffect(() => {
-    const sw = navigator.serviceWorker
-    if (!sw) return
-    const onMessage = (e) => {
-      if (e.data?.type !== 'push-open') return
-      const intent = pushIntentFromUrl(e.data.url)
-      if (intent) setPushIntent(intent)
-      // Подтверждение для SW (v6.7.4): без него он перезагрузит окно на адрес пуша.
-      e.ports?.[0]?.postMessage('ok')
-      takePendingPushUrl() // сообщение дошло — запись в кэше больше не нужна
-    }
-    sw.addEventListener('message', onMessage)
-    sw.startMessages?.() // Safari копит сообщения SW, пока их явно не включить
-    return () => sw.removeEventListener('message', onMessage)
-  }, [])
+  // Уже открытое приложение: адрес не меняется, service worker шлет сообщение. Слушатель
+  // ставит main.jsx до рендера (lib/pushIntent.js startPushListener), здесь — подписка.
+  useEffect(() => onPushOpen((url) => {
+    const intent = pushIntentFromUrl(url)
+    if (intent) setPushIntent(intent)
+  }), [])
 
   // Нажатие, не дошедшее сообщением (v8.9.2, iPhone: свернутая PWA «заморожена»): SW
   // положил адрес в кэш — забираем при открытии, возврате на экран и фокусе окна.
@@ -96,11 +86,20 @@ export function useAppNav(user) {
       const intent = url && apply ? pushIntentFromUrl(url) : null
       if (alive && intent) setPushIntent(intent)
     })
-    pull(!pushIntentFromUrl(window.location.href))
-    const off = onResume(() => pull())
-    const onFocus = () => pull()
+    // v8.9.3: iPhone сначала показывает приложение (запуск или возврат из фона) и только потом
+    // отдает нажатие SW — запись появляется позже нашей проверки. Поэтому после запуска,
+    // возврата и фокуса проверяем серией (PENDING_RECHECK_MS), а не один раз.
+    let timers = []
+    const burst = (apply = true) => {
+      timers.forEach(clearTimeout)
+      pull(apply)
+      timers = PENDING_RECHECK_MS.map((ms) => setTimeout(() => pull(), ms))
+    }
+    burst(!pushIntentFromUrl(window.location.href))
+    const off = onResume(() => burst())
+    const onFocus = () => burst()
     window.addEventListener('focus', onFocus)
-    return () => { alive = false; off(); window.removeEventListener('focus', onFocus) }
+    return () => { alive = false; timers.forEach(clearTimeout); off(); window.removeEventListener('focus', onFocus) }
   }, [])
 
   // Вернуться из календаря/тренировки обратно к Ритму Главной (v6.3.5): Главная

@@ -68,6 +68,38 @@ export async function takePendingPushUrl(now = Date.now(), store = globalThis.ca
   }
 }
 
+// Ранняя подписка на «перейди по пушу» (v8.9.3). На iPhone нажатие часто ЗАПУСКАЕТ приложение
+// заново, и сообщение SW приходило раньше, чем React подписывался, — терялось, SW не получал
+// ответа. Теперь слушатель ставит main.jsx до рендера: сразу отвечает SW и держит адрес,
+// пока навигация (useAppNav → onPushOpen) его не заберет.
+let pendingUrl = null
+const pushSubs = new Set()
+
+export function startPushListener(sw = globalThis.navigator?.serviceWorker) {
+  if (!sw) return () => {}
+  const onMessage = (e) => {
+    if (e.data?.type !== 'push-open') return
+    e.ports?.[0]?.postMessage('ok') // без ответа SW перезагрузит окно на адрес пуша
+    takePendingPushUrl() // сообщение дошло — запись в кэше не нужна
+    if (pushSubs.size) for (const fn of pushSubs) fn(e.data.url)
+    else pendingUrl = e.data.url
+  }
+  sw.addEventListener('message', onMessage)
+  sw.startMessages?.() // Safari копит сообщения SW, пока их явно не включить
+  return () => sw.removeEventListener('message', onMessage)
+}
+
+// Подписка навигации; адрес, пришедший до нее, отдается сразу.
+export function onPushOpen(fn) {
+  pushSubs.add(fn)
+  if (pendingUrl) { const u = pendingUrl; pendingUrl = null; fn(u) }
+  return () => pushSubs.delete(fn)
+}
+
+// Когда перепроверять запись SW после запуска, возврата из фона и фокуса (мс): iPhone сначала
+// показывает приложение и только потом отдает нажатие SW — запись появляется позже.
+export const PENDING_RECHECK_MS = [500, 1500, 3000, 6000]
+
 // Тот же адрес без параметра `push` — чтобы F5 не открывал тренировку снова.
 export function stripPushParam(href) {
   try {
