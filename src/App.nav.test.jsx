@@ -179,6 +179,12 @@ describe('App: вложенные экраны и «назад»', () => {
     expect(current()).toBe('friends')
     act(() => seen.friends.onBack()); await settle()
     expect(current()).toBe('profile')
+    // Профиль друга из списка — «назад» возвращает в «Друзей», а не в Ленту (v8.9.2).
+    act(() => seen.profile.onOpenFriends()); await settle()
+    act(() => seen.friends.onOpenMember('f1')); await settle()
+    expect(current()).toBe('member')
+    act(() => seen.member.onBack()); await settle()
+    expect(current()).toBe('friends')
   })
 
   it('ссылка #friend=… у вошедшего — сразу «Друзья» с кодом, код стерт из адреса', async () => {

@@ -7,7 +7,7 @@
 // Каждый пуш ОБЯЗАН показать уведомление: «тихие» пуши браузеры запрещают,
 // а Safari за них отзывает подписку.
 
-/* global self, clients, URL, MessageChannel, setTimeout, clearTimeout */
+/* global self, clients, URL, MessageChannel, setTimeout, clearTimeout, caches, Response */
 
 self.addEventListener('push', (event) => {
   let data
@@ -73,7 +73,21 @@ function askToOpen(win, url) {
 // что при холодном старте). Окна нет — открываем новое.
 // Раньше сообщение уходило без подтверждения: из фона приложение оставалось там,
 // где было (обычно на Главной).
+// v8.9.2: куда вести — еще и в общий кэш. На iPhone свернутая PWA «заморожена»: ответ на
+// сообщение не успевает, navigate() в PWA не работает, и окно всплывало на прежнем экране.
+// Приложение забирает запись при возврате на экран (src/lib/pushIntent.js takePendingPushUrl).
+// Имя кэша и ключ — те же, что там.
+const INTENT_CACHE = 'push-intent'
+const INTENT_KEY = '/__push-intent'
+async function rememberIntent(url) {
+  try {
+    const c = await caches.open(INTENT_CACHE)
+    await c.put(INTENT_KEY, new Response(JSON.stringify({ url, at: Date.now() }), { headers: { 'content-type': 'application/json' } }))
+  } catch { /* нет Cache API — остаются сообщение и navigate */ }
+}
+
 async function openFromNotification(target) {
+  await rememberIntent(target)
   const scope = self.registration.scope
   const wins = await clients.matchAll({ type: 'window', includeUncontrolled: true })
   const win = wins.find((w) => w.url.startsWith(scope))

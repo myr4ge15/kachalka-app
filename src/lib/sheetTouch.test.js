@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { scrollableAncestor, shouldBlockSheetTouch } from './sheetTouch.js'
+import { ownsSheetTouch, scrollableAncestor, shouldBlockSheetTouch } from './sheetTouch.js'
 
 describe('shouldBlockSheetTouch', () => {
   const box = (scrollTop) => ({ scrollTop, scrollHeight: 900, clientHeight: 300 })
@@ -37,5 +37,15 @@ describe('scrollableAncestor', () => {
     expect(scrollableAncestor(row, stop, style)).toBe(list)
     const short = node('auto', 300, 300, stop)
     expect(scrollableAncestor(node('visible', 1, 1, short), stop, style)).toBeNull()
+  })
+})
+
+describe('ownsSheetTouch (v8.9.2)', () => {
+  it('ползунок тянется сам, остальное — нет', () => {
+    const el = (isRange) => ({ closest: (sel) => (sel === 'input[type="range"]' && isRange ? {} : null) })
+    expect(ownsSheetTouch(el(true))).toBe(true)
+    expect(ownsSheetTouch(el(false))).toBe(false)
+    expect(ownsSheetTouch({})).toBe(false)
+    expect(ownsSheetTouch(null)).toBe(false)
   })
 })

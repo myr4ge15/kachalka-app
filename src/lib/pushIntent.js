@@ -46,6 +46,28 @@ export function pushIntentFromUrl(href) {
   }
 }
 
+// Нажатие, которое не дошло сообщением (v8.9.2): service worker кладет адрес в Cache
+// Storage (public/push-sw.js rememberIntent), приложение забирает его при открытии и
+// возврате на экран. Запись одноразовая и живет PENDING_TTL_MS — старое нажатие не
+// уводит с экрана через час. Нет записи / нет Cache API — null.
+export const PUSH_INTENT_CACHE = 'push-intent'
+export const PUSH_INTENT_KEY = '/__push-intent'
+export const PENDING_TTL_MS = 2 * 60 * 1000
+
+export async function takePendingPushUrl(now = Date.now(), store = globalThis.caches) {
+  if (!store) return null
+  try {
+    const c = await store.open(PUSH_INTENT_CACHE)
+    const res = await c.match(PUSH_INTENT_KEY)
+    if (!res) return null
+    await c.delete(PUSH_INTENT_KEY)
+    const { url, at } = await res.json()
+    return typeof url === 'string' && Number.isFinite(at) && now - at >= 0 && now - at <= PENDING_TTL_MS ? url : null
+  } catch {
+    return null
+  }
+}
+
 // Тот же адрес без параметра `push` — чтобы F5 не открывал тренировку снова.
 export function stripPushParam(href) {
   try {

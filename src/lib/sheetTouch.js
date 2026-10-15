@@ -24,6 +24,12 @@ export function shouldBlockSheetTouch(box, dy, axis = 'y') {
   return position + client >= size - 1
 }
 
+// Свой жест у элемента под пальцем (v8.9.2): ползунок тянется пальцем вбок, и гасить его
+// touchmove нельзя — масштаб аватара «не ехал», работал только тап по полосе.
+export function ownsSheetTouch(target) {
+  return Boolean(target?.closest?.('input[type="range"]'))
+}
+
 // Ближайший предок до stop с прокруткой по выбранной оси. getStyle — для тестов.
 export function scrollableAncestor(target, stop, getStyle = (el) => getComputedStyle(el), axis = 'y') {
   for (let el = target; el && el !== stop && el.nodeType === 1; el = el.parentElement) {

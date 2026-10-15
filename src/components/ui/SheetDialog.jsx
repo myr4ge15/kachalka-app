@@ -1,6 +1,6 @@
 import { useEffect, useId, useRef, useState } from 'react'
 import { createPortal } from 'react-dom'
-import { scrollableAncestor, shouldBlockSheetTouch } from '../../lib/sheetTouch.js'
+import { ownsSheetTouch, scrollableAncestor, shouldBlockSheetTouch } from '../../lib/sheetTouch.js'
 import { edgeSwipeAvailable } from '../../hooks/useEdgeSwipeBack.js'
 import { useSheetSwipeBack } from '../../hooks/useSheetSwipeBack.js'
 import { useSheetSwipeDown } from '../../hooks/useSheetSwipeDown.js'
@@ -115,6 +115,7 @@ export default function SheetDialog({
     function onBackdropMove(event) {
       if (!event.cancelable) return
       if (event.target === overlay) { event.preventDefault(); return }
+      if (ownsSheetTouch(event.target)) return
       const point = event.touches?.[0]
       if (!point || !last) return
       const dx = (point.clientX ?? 0) - (origin.clientX ?? 0)

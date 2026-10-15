@@ -53,7 +53,7 @@ const DIMA = { id: 'u1', name: 'Дима', role: 'member', is_private: false, se
 // Раскрыть «Пользователи» и войти в правку Димы.
 async function openDimaEdit(user) {
   render(<AdminScreen user={ME} onBack={() => {}} />)
-  await user.click(screen.getByRole('button', { name: /Пользователи/ }))
+  await user.click(await screen.findByRole('button', { name: /Пользователи/ }))
   expect(await screen.findByText('Дима')).toBeInTheDocument()
   await user.click(screen.getByRole('button', { name: 'Изменить' }))
   return screen.getByRole('button', { name: 'Сохранить' })
@@ -135,7 +135,7 @@ describe('AdminScreen: удаление участника', () => {
     const user = userEvent.setup()
 
     render(<AdminScreen user={ME} onBack={() => {}} />)
-    await user.click(screen.getByRole('button', { name: /Пользователи/ }))
+    await user.click(await screen.findByRole('button', { name: /Пользователи/ }))
 
     expect(await screen.findByText('Дима')).toBeInTheDocument()
 
@@ -165,7 +165,7 @@ describe('AdminScreen: удаление участника', () => {
     const user = userEvent.setup()
 
     render(<AdminScreen user={ME} onBack={() => {}} />)
-    await user.click(screen.getByRole('button', { name: /Пользователи/ }))
+    await user.click(await screen.findByRole('button', { name: /Пользователи/ }))
 
     expect(await screen.findByText('Саня')).toBeInTheDocument()
 
@@ -191,7 +191,7 @@ describe('AdminScreen: тип упражнения', () => {
   async function openLegEdit(user) {
     vi.mocked(useLiveQuery).mockReturnValue([LEG])
     render(<AdminScreen user={ME} onBack={() => {}} />)
-    await user.click(screen.getByRole('button', { name: /Справочник упражнений/ }))
+    await user.click(await screen.findByRole('button', { name: /Справочник упражнений/ }))
     expect(screen.getByText(/повторения/)).toBeInTheDocument() // тип виден в строке списка
     await user.click(screen.getByRole('button', { name: 'Изменить' }))
   }
@@ -232,7 +232,7 @@ describe('AdminScreen: приглашения', () => {
 
   async function openInvites(user) {
     render(<AdminScreen user={ME} onBack={() => {}} />)
-    await user.click(screen.getByRole('button', { name: /Приглашения/ }))
+    await user.click(await screen.findByRole('button', { name: /Приглашения/ }))
     expect(await screen.findByText('Саша')).toBeInTheDocument()
   }
 
@@ -270,6 +270,26 @@ describe('2FA перед Админкой (v6.14.0)', () => {
     await userEvent.type(field, '123 456')
     await userEvent.click(screen.getByRole('button', { name: 'Войти в Админку' }))
     expect(verifyCode).toHaveBeenCalledWith('f1', '123456')
+    expect(await screen.findByRole('button', { name: /Пользователи/ })).toBeInTheDocument()
+  })
+
+  it('пока 2FA проверяется и если не узнали — разделов нет (v8.9.2)', async () => {
+    let done
+    vi.mocked(mfaState).mockImplementationOnce(() => new Promise((r) => { done = r }))
+    render(<AdminScreen user={ME} onBack={() => {}} />)
+    expect(screen.getByRole('status')).toHaveTextContent('Проверяю защиту')
+    expect(screen.queryByRole('button', { name: /Пользователи/ })).not.toBeInTheDocument()
+    done({ enabled: true, factorId: 'f1', level: 'aal1', pending: [] })
+    expect(await screen.findByLabelText('Код из приложения')).toBeInTheDocument()
+    expect(screen.queryByRole('button', { name: /Пользователи/ })).not.toBeInTheDocument()
+  })
+
+  it('не удалось проверить 2FA — разделов нет, есть «Повторить»', async () => {
+    vi.mocked(mfaState).mockRejectedValueOnce(new Error('offline'))
+    render(<AdminScreen user={ME} onBack={() => {}} />)
+    expect(await screen.findByRole('button', { name: 'Повторить' })).toBeInTheDocument()
+    expect(screen.queryByRole('button', { name: /Пользователи/ })).not.toBeInTheDocument()
+    await userEvent.click(screen.getByRole('button', { name: 'Повторить' }))
     expect(await screen.findByRole('button', { name: /Пользователи/ })).toBeInTheDocument()
   })
 
@@ -315,7 +335,7 @@ describe('AdminScreen — списки разделов грузятся зар�
     await user.click(usersBtn) // закрыть
     await user.click(usersBtn) // снова открыть — сразу, без нового запроса
     expect(screen.getByText('Дима')).toBeInTheDocument()
-    await user.click(screen.getByRole('button', { name: /Доступ к тренировкам/ }))
+    await user.click(await screen.findByRole('button', { name: /Доступ к тренировкам/ }))
     expect(adminListUsers).toHaveBeenCalledTimes(1)
   })
 })

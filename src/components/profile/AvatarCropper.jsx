@@ -1,8 +1,10 @@
-import { useEffect, useRef, useState } from 'react'
+import { useEffect, useLayoutEffect, useRef, useState } from 'react'
 import SheetDialog from '../ui/SheetDialog.jsx'
 import { clampOffset, coverScale, cropRect, initialCrop, zoomAt, ZOOM_MAX, ZOOM_MIN } from '../../lib/avatarCrop.js'
 
-const VIEW = 280 // сторона окна обрезки, CSS px
+// Сторона окна обрезки — вся ширина листа (v8.9.2: 280 px выглядело мелко), но не больше.
+const VIEW_MAX = 420
+const VIEW_FALLBACK = 320
 
 // Ручная обрезка аватара (15.10.2026), как в мессенджерах: квадратное окно с круглой
 // рамкой; фото двигается пальцем, масштаб — щипком, колесом или ползунком. Геометрия —
@@ -16,8 +18,15 @@ export default function AvatarCropper({ file, busy = false, onCancel, onDone }) 
   const pointers = useRef(new Map())
   const pinch = useRef(null)
   const boxRef = useRef(null)
+  const wrapRef = useRef(null)
+  const [view, setView] = useState(null)
+  useLayoutEffect(() => {
+    const w = wrapRef.current?.clientWidth || VIEW_FALLBACK
+    setView(Math.round(Math.min(VIEW_MAX, w)))
+  }, [])
 
   useEffect(() => {
+    if (!view) return undefined
     const url = URL.createObjectURL(file)
     setSrc(url)
     // Отмененная загрузка (смена файла, StrictMode) молчит: иначе ее onerror после
@@ -27,15 +36,15 @@ export default function AvatarCropper({ file, busy = false, onCancel, onDone }) 
     im.onload = () => {
       if (!alive) return
       setImg(im)
-      setSt(initialCrop(im.naturalWidth, im.naturalHeight, VIEW))
+      setSt(initialCrop(im.naturalWidth, im.naturalHeight, view))
     }
     im.onerror = () => { if (alive) setErr('Не удалось прочитать изображение') }
     im.src = url
     return () => { alive = false; URL.revokeObjectURL(url) }
-  }, [file])
+  }, [file, view])
 
-  const geo = img ? { w: img.naturalWidth, h: img.naturalHeight, view: VIEW } : null
-  const scale = geo && st ? coverScale(geo.w, geo.h, VIEW) * st.zoom : 1
+  const geo = img && view ? { w: img.naturalWidth, h: img.naturalHeight, view } : null
+  const scale = geo && st ? coverScale(geo.w, geo.h, view) * st.zoom : 1
 
   function local(e) {
     const r = boxRef.current.getBoundingClientRect()
@@ -79,7 +88,8 @@ export default function AvatarCropper({ file, busy = false, onCancel, onDone }) 
   return (
     <SheetDialog title="Аватар" actionLabel="отмена" onDismiss={onCancel} dismissDisabled={busy} className="crop-sheet">
       <p className="muted crop-hint">Подвинь фото пальцем, приблизь щипком или ползунком.</p>
-      <div ref={boxRef} className="crop-box" style={{ width: VIEW, height: VIEW }} data-no-swipe-back=""
+      <div ref={wrapRef} className="crop-wrap">
+      <div ref={boxRef} className="crop-box" style={{ width: view ?? '100%', height: view ?? VIEW_FALLBACK }} data-no-swipe-back=""
         onPointerDown={onDown} onPointerMove={onMove} onPointerUp={onUp} onPointerCancel={onUp} onWheel={onWheel}
         role="img" aria-label="Область обрезки аватара">
         {src && st && geo && (
@@ -87,6 +97,7 @@ export default function AvatarCropper({ file, busy = false, onCancel, onDone }) 
             style={{ width: geo.w * scale, height: geo.h * scale, transform: `translate(${st.x}px, ${st.y}px)` }} />
         )}
         <div className="crop-ring" aria-hidden="true" />
+      </div>
       </div>
       {err && <p className="pin-err" role="alert">{err}</p>}
       <label className="crop-zoom">

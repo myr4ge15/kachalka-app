@@ -36,7 +36,8 @@ export default function AdminScreen({ user, onBack }) {
 
   // 2FA (v6.14.0): включена, а сессия не подтверждена кодом — сначала код. Решает
   // сервер (is_admin() откажет и так); здесь — не показывать Админку, которая не
-  // сработает. Пока проверяем или не узнали (нет сети) — разделы как есть.
+  // сработает. v8.9.2: разделы — ТОЛЬКО после ответа «2FA не нужна / пройдена»; пока
+  // проверяем или не узнали (нет сети) — меню не рисуем (мелькало до экрана кода).
   const [mfa, setMfa] = useState(undefined) // undefined — проверяем; null — не узнали
   const loadMfa = async () => {
     try { setMfa(await mfaState()) } catch { setMfa(null) }
@@ -47,6 +48,7 @@ export default function AdminScreen({ user, onBack }) {
     return () => { alive = false }
   }, [])
   const locked = needsCode(mfa)
+  const cleared = mfa != null && !locked
 
   // Списки разделов — заранее и параллельно (v8.0.1): раньше каждый раздел ходил в сеть
   // при каждом раскрытии (0,3–0,6 с пустоты). Кэш живет, пока открыт экран. Ждем 2FA:
@@ -54,13 +56,13 @@ export default function AdminScreen({ user, onBack }) {
   // при раскрытии повторит запрос и покажет ошибку сам.
   const cache = useMemo(() => createAdminCache(), [])
   useEffect(() => {
-    if (!online || mfa === undefined || locked) return
+    if (!online || !cleared) return
     const quiet = () => {}
     cache.load('users', adminListUsers).catch(quiet)
     cache.load('connections', adminListConnections).catch(quiet)
     cache.load('invites', adminListInvites).catch(quiet)
     cache.load('feedback', () => adminListFeedback(false)).catch(quiet)
-  }, [cache, online, mfa, locked])
+  }, [cache, online, cleared])
 
   return (
     <div className="screen admin">
@@ -69,8 +71,15 @@ export default function AdminScreen({ user, onBack }) {
         <h2 className="admin-title">Админка</h2>
       </div>
 
+      {mfa === undefined && <p className="muted admin-offline" role="status">Проверяю защиту…</p>}
+      {mfa === null && (
+        <div className="admin-offline" role="alert">
+          <p>Не получилось проверить защиту (2FA). Админка откроется, когда появится связь.</p>
+          <button type="button" className="btn ghost" onClick={() => { setMfa(undefined); loadMfa() }}>Повторить</button>
+        </div>
+      )}
       {locked && <AdminMfaGate factorId={mfa.factorId} online={online} onPassed={loadMfa} />}
-      {!locked && (<>
+      {cleared && (<>
 
       {!online && (
         <p className="admin-offline" role="status">

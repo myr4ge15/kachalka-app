@@ -1,5 +1,6 @@
 import { useEffect, useLayoutEffect, useRef, useState } from 'react'
-import { pushIntentFromUrl } from '../lib/pushIntent.js'
+import { pushIntentFromUrl, takePendingPushUrl } from '../lib/pushIntent.js'
+import { onResume } from '../lib/appEvents.js'
 import { emitReselect } from '../lib/appEvents.js'
 import { transitionKind, isNested, nextScreenStack, initialScreenStack } from '../lib/screenNav.js'
 import { storageGet, storageSet } from '../lib/safeStorage.js'
@@ -42,6 +43,7 @@ export function useAppNav(user) {
   // Откуда ушли в профиль (v6.7.1): якорь прокрутки Ленты — «Назад» возвращает к той
   // же карточке/строке рейтинга, а не в начало Ленты.
   const feedAnchorRef = useRef(null)
+  const memberFromRef = useRef(null) // вкладка, откуда открыли профиль участника
   const [feedRestore, setFeedRestore] = useState(null)
 
   // Упражнение, с которым открыть «Прогресс» (проброс из ЛК по тапу на рекорд).
@@ -78,9 +80,27 @@ export function useAppNav(user) {
       if (intent) setPushIntent(intent)
       // Подтверждение для SW (v6.7.4): без него он перезагрузит окно на адрес пуша.
       e.ports?.[0]?.postMessage('ok')
+      takePendingPushUrl() // сообщение дошло — запись в кэше больше не нужна
     }
     sw.addEventListener('message', onMessage)
+    sw.startMessages?.() // Safari копит сообщения SW, пока их явно не включить
     return () => sw.removeEventListener('message', onMessage)
+  }, [])
+
+  // Нажатие, не дошедшее сообщением (v8.9.2, iPhone: свернутая PWA «заморожена»): SW
+  // положил адрес в кэш — забираем при открытии, возврате на экран и фокусе окна.
+  // Холодный старт с `?push=` в адресе — запись только снимаем, намерение уже есть.
+  useEffect(() => {
+    let alive = true
+    const pull = (apply = true) => takePendingPushUrl().then((url) => {
+      const intent = url && apply ? pushIntentFromUrl(url) : null
+      if (alive && intent) setPushIntent(intent)
+    })
+    pull(!pushIntentFromUrl(window.location.href))
+    const off = onResume(() => pull())
+    const onFocus = () => pull()
+    window.addEventListener('focus', onFocus)
+    return () => { alive = false; off(); window.removeEventListener('focus', onFocus) }
   }, [])
 
   // Вернуться из календаря/тренировки обратно к Ритму Главной (v6.3.5): Главная
@@ -175,11 +195,15 @@ export function useAppNav(user) {
     if (!id) return
     if (id === user?.id) { goTab('profile'); return }
     feedAnchorRef.current = tab === 'feed' ? captureAnchor(contentRef.current, anchor) : null
+    // Откуда открыли (v8.9.2): из «Друзей» «назад» вел в Ленту — теперь туда, откуда пришли.
+    if (tab !== 'member') memberFromRef.current = tab
     setMemberId(id)
     goTab('member')
   }
 
   function backFromMember() {
+    const from = memberFromRef.current
+    if (from && from !== 'feed') { goTab(from); return }
     setFeedRestore(feedAnchorRef.current)
     goTab('feed')
   }

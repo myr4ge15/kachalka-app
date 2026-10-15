@@ -69,10 +69,10 @@ export default function FriendsScreen({ user, onBack, onOpenMember, friendCode =
       {rows && <FriendLists rows={rows} me={user.id} onAct={onAct} onOpenMember={onOpenMember} />}
 
       {online && (
-        <button type="button" className="btn primary fr-add" onClick={() => setAdding(true)}>+ Добавить друга</button>
+        <button type="button" className="btn primary frd-add" onClick={() => setAdding(true)}>+ Добавить друга</button>
       )}
       {adding && (
-        <SheetDialog title="Добавить друга" onDismiss={() => setAdding(false)} swipeDown className="fr-sheet">
+        <SheetDialog title="Добавить друга" onDismiss={() => setAdding(false)} swipeDown className="frd-sheet">
           <FriendCode api={api} myName={user.name} />
           <FriendByCode api={api} onAdded={changed} />
         </SheetDialog>

@@ -17,7 +17,7 @@ export default function FriendButton({ me, memberId, label = false }) {
   const state = pairState(rows, memberId)
 
   if (label) {
-    return LABELS[state] ? <div className="member-sub fr-member-note">{LABELS[state]}</div> : null
+    return LABELS[state] ? <div className="member-sub frd-member-note">{LABELS[state]}</div> : null
   }
 
   async function run(fn) {
@@ -36,7 +36,7 @@ export default function FriendButton({ me, memberId, label = false }) {
 
   if (state === 'incoming') {
     return (
-      <button type="button" className="btn primary fr-btn" disabled={busy}
+      <button type="button" className="btn primary frd-btn" disabled={busy}
         onClick={() => run(async () => { await api.respond(memberId, true); return 'accepted' })}>
         Принять заявку в друзья
       </button>
@@ -44,7 +44,7 @@ export default function FriendButton({ me, memberId, label = false }) {
   }
   if (state !== 'none') return null
   return (
-    <button type="button" className="btn ghost fr-btn" disabled={busy}
+    <button type="button" className="btn ghost frd-btn" disabled={busy}
       onClick={() => run(() => api.request(memberId))}>
       {busy ? 'Отправляю…' : '+ В друзья'}
     </button>
