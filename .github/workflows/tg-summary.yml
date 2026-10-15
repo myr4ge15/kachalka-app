@@ -11,7 +11,7 @@ on:
 permissions: {}
 jobs:
   ping:
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04  # закреплено 15.10.2026: ubuntu-latest с 19.10 → Ubuntu 26 (runner-images#14748)
     timeout-minutes: 5
     steps:
       - name: Сводка

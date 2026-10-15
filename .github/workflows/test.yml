@@ -31,7 +31,7 @@ jobs:
   # lint, юнит-тесты в двух поясах (matrix) и сборка + e2e. Ждать — по самой долгой.
 
   lint:
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04  # закреплено 15.10.2026: ubuntu-latest с 19.10 → Ubuntu 26 (runner-images#14748)
     timeout-minutes: 10
     steps:
       - uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09 # v5.1.0
@@ -49,7 +49,7 @@ jobs:
   # Node берет tz-данные из своего ICU, системный tzdata не нужен.
   unit:
     name: unit (${{ matrix.tz }})
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04  # закреплено 15.10.2026: ubuntu-latest с 19.10 → Ubuntu 26 (runner-images#14748)
     timeout-minutes: 15
     strategy:
       fail-fast: false
@@ -71,7 +71,7 @@ jobs:
   # Образ Playwright: Chromium и системные библиотеки уже внутри (v6.3.3).
   # Версия = @playwright/test из package-lock.json — единственное место, где она записана.
   e2e:
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04  # закреплено 15.10.2026: ubuntu-latest с 19.10 → Ubuntu 26 (runner-images#14748)
     timeout-minutes: 20
     container:
       image: mcr.microsoft.com/playwright:v1.63.0-noble

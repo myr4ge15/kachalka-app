@@ -52,7 +52,7 @@ jobs:
   # Плюс (12.10.2026): коммит тега уже есть в main (иначе при тихо упавшем git push
   # друзьям уехал бы код, которого нет в main), а Tests на нем не красный.
   preflight:
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04  # закреплено 15.10.2026: ubuntu-latest с 19.10 → Ubuntu 26 (runner-images#14748)
     timeout-minutes: 20
     permissions:
       contents: read
@@ -143,7 +143,7 @@ jobs:
   build:
     needs: [preflight, tests]
     if: ${{ !cancelled() && needs.preflight.result == 'success' && (needs.tests.result == 'success' || needs.tests.result == 'skipped') }}
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04  # закреплено 15.10.2026: ubuntu-latest с 19.10 → Ubuntu 26 (runner-images#14748)
     timeout-minutes: 15
     permissions:
       contents: read
@@ -176,7 +176,7 @@ jobs:
   deploy:
     needs: build
     if: ${{ !cancelled() && needs.build.result == 'success' }}
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04  # закреплено 15.10.2026: ubuntu-latest с 19.10 → Ubuntu 26 (runner-images#14748)
     timeout-minutes: 15
     permissions:
       pages: write
