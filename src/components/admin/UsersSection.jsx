@@ -2,7 +2,7 @@
 import { useEffect, useRef, useState } from 'react'
 import { normalizeLogin, loginProblem } from '../../lib/login.js'
 import LoginField from '../auth/LoginField.jsx'
-import { adminListUsers, adminSetUser, adminSetPrivate, adminSetSex, adminResetPin, adminCreateUser, adminDeleteUser, adminSetUserOrder } from '../../lib/admin.js'
+import { adminListUsers, adminSetUser, adminSetSex, adminResetPin, adminCreateUser, adminDeleteUser, adminSetUserOrder } from '../../lib/admin.js'
 import { onlyDigits } from '../../lib/text.js'
 import { showToast } from '../ui/Toast.jsx'
 import CardsSkeleton from '../ui/CardsSkeleton.jsx'
@@ -20,7 +20,6 @@ export default function UsersSection({ meId, online, errMsg, cache = null }) {
   const [edId, setEdId] = useState(null)
   const [edName, setEdName] = useState('')
   const [edRole, setEdRole] = useState('member')
-  const [edPrivate, setEdPrivate] = useState(false)
   const [edSex, setEdSex] = useState('') // '' | 'm' | 'f'
   // Снимок значений на момент открытия формы: сохраняем только РЕАЛЬНО измененное.
   // Мина, из-за которой у всех слетел пол (29.07.2026): если серверный
@@ -29,7 +28,7 @@ export default function UsersSection({ meId, online, errMsg, cache = null }) {
   // откатывает контракт), то u.sex === undefined → edSex '' → безусловный
   // adminSetSex(edId, null) затирал пол в БД на каждом «Сохранить». В addUser это
   // защищено (`if (addSex)`), в saveUser защиты не было.
-  const [edInit, setEdInit] = useState({ name: '', role: 'member', priv: false, sex: '' })
+  const [edInit, setEdInit] = useState({ name: '', role: 'member', sex: '' })
   const [edBusy, setEdBusy] = useState(false)
 
   // сброс PIN
@@ -55,7 +54,6 @@ export default function UsersSection({ meId, online, errMsg, cache = null }) {
   const [addPin, setAddPin] = useState('')
   // Логин для входа (П4, 07.10.2026) — первым полем, из имени не подставляется.
   const [addLogin, setAddLogin] = useState('')
-  const [addPrivate, setAddPrivate] = useState(false)
   const [addSex, setAddSex] = useState('') // '' | 'm' | 'f'
   const [addBusy, setAddBusy] = useState(false)
 
@@ -84,19 +82,17 @@ export default function UsersSection({ meId, online, errMsg, cache = null }) {
   function openEdit(u) {
     const name = u.name ?? ''
     const role = u.role ?? 'member'
-    const priv = Boolean(u.is_private)
     const sex = u.sex === 'm' || u.sex === 'f' ? u.sex : ''
     setEdId(u.id); setEdName(name); setEdRole(role)
-    setEdPrivate(priv)
     setEdSex(sex)
-    setEdInit({ name, role, priv, sex })
+    setEdInit({ name, role, sex })
   }
   function closeEdit() { setEdId(null); setEdBusy(false) }
 
   async function saveUser() {
     setEdBusy(true)
     try {
-      // Три отдельных RPC (имя/роль → приватность → пол): единого серверного вызова
+      // Два отдельных RPC (имя/роль → пол; приватности нет с v9.1.0): единого серверного вызова
       // нет. Если поздний упадет, ранние уже закоммичены — форма показала бы
       // устаревшее «все как ввели». Поэтому в catch зовем reload(): UI отразит
       // РЕАЛЬНОЕ частичное состояние сервера (см. РЕВЬЮ-КОДА-2026-07-13).
@@ -107,7 +103,6 @@ export default function UsersSection({ meId, online, errMsg, cache = null }) {
       if (edName.trim() !== edInit.name.trim() || edRole !== edInit.role) {
         await adminSetUser(edId, edName, edRole)
       }
-      if (edPrivate !== edInit.priv) await adminSetPrivate(edId, edPrivate)
       if (edSex !== edInit.sex) await adminSetSex(edId, edSex || null)
       showToast({ emoji: '✅', title: 'Участник обновлен' })
       if (alive.current) closeEdit()
@@ -169,16 +164,15 @@ export default function UsersSection({ meId, online, errMsg, cache = null }) {
     setAddBusy(true)
     try {
       const u = await adminCreateUser(addName, addRole, addPin, addLogin)
-      // Приватность/пол ставим отдельными шагами (создание идет через Edge
-      // Function, флаги — через RPC), чтобы не трогать серверную функцию создания.
-      if (addPrivate) await adminSetPrivate(u.id, true)
+      // Пол ставим отдельным шагом (создание идет через Edge Function, пол — через RPC),
+      // чтобы не трогать серверную функцию создания. Приватности нет с v9.1.0.
       if (addSex) await adminSetSex(u.id, addSex)
       showToast({ emoji: '🎉', title: 'Участник добавлен', sub: `Вход: логин ${normalizeLogin(addLogin)}, PIN ${addPin}.` })
-      if (alive.current) { setAddOpen(false); setAddName(''); setAddLogin(''); setAddRole('member'); setAddPin(''); setAddPrivate(false); setAddSex('') }
+      if (alive.current) { setAddOpen(false); setAddName(''); setAddLogin(''); setAddRole('member'); setAddPin(''); setAddSex('') }
       reload()
     } catch (e) {
       showToast({ emoji: '⚠️', title: 'Не удалось', sub: errMsg(e) })
-      // Учетка могла создаться, а флаги (приватность/пол) — упасть: подтягиваем
+      // Учетка могла создаться, а пол — не встать: подтягиваем
       // список, чтобы UI показал реально созданного участника (не пустую форму).
       reload()
     } finally {
@@ -231,11 +225,6 @@ export default function UsersSection({ meId, online, errMsg, cache = null }) {
                     <option value="f">Ж · ягодичный мостик</option>
                   </select>
                 </label>
-                <label className="admin-check">
-                  <input type="checkbox" checked={edPrivate}
-                    onChange={(e) => setEdPrivate(e.target.checked)} />
-                  <span>Приватный (виден только себе и админу) 🔒</span>
-                </label>
                 <div className="admin-ex-actions">
                   <button className="btn ghost" onClick={closeEdit} disabled={edBusy}>Отмена</button>
                   <button className="btn primary" onClick={saveUser} disabled={edBusy || !online}>
@@ -255,7 +244,6 @@ export default function UsersSection({ meId, online, errMsg, cache = null }) {
                     {(u.sex === 'f' || u.sex === 'm') && (
                       <> · <span className="admin-sex">{u.sex === 'f' ? '♀︎' : '♂︎'}</span></>
                     )}
-                    {u.is_private ? ' · 🔒 приватный' : ''}
                   </span>
                 </div>
                 <div className="admin-ex-btns">
@@ -353,11 +341,6 @@ export default function UsersSection({ meId, online, errMsg, cache = null }) {
               <option value="m">М · жим лежа</option>
               <option value="f">Ж · ягодичный мостик</option>
             </select>
-          </label>
-          <label className="admin-check">
-            <input type="checkbox" checked={addPrivate}
-              onChange={(e) => setAddPrivate(e.target.checked)} />
-            <span>Приватный (виден только себе и админу) 🔒</span>
           </label>
           <div className="admin-ex-actions">
             <button className="btn ghost" onClick={() => setAddOpen(false)} disabled={addBusy}>Отмена</button>

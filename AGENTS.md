@@ -342,8 +342,13 @@ updated_at)` + `upsert_user_meta` (`supabase/user-meta.sql`, RLS «только 
   перезапускать (первые два сами откажутся); `visibility-core.sql` — только для `can_see_user`/`push_can_see`. НЕ пересоздавать `can_see_user` из `connections.sql` /
   `private-user.sql`, `push_can_see` — из `push-types.sql`. Ядру EXECUTE только `service_role` (иначе клиент
   спрашивает про чужие пары).
-- **Приватность:** в `leaderboard_bench`, `tg_*` и `goal_reached_for_workout` обязателен фильтр
-  `not is_private_user(...)` — бот и лидерборд ходят под service_role в обход RLS.
+- **Кого видят бот и общие рейтинги (с v9.1.0 — `friends-stage3.sql`):** в `leaderboard_bench`, `rating_board`,
+  `tg_digest_window`, `new_prs_for_workout`, `goal_reached_for_workout`, `push_beaten_for_workout` обязателен фильтр
+  `is_founder(...)` — участник круга «Основатели» (`fc_config.founders_circle`); бот и лидерборд ходят под service_role в
+  обход RLS. Флаг `users.is_private` больше НИ НА ЧТО не влияет (колонка и `is_private_user`/`my_is_private` остались
+  мертвыми до удаления). Тела этих шести функций — живые прода с заменой `not is_private_user(x)` → `is_founder(x)`
+  (`friends-stage3.sql` делает замену сам); правка любой из них — `create or replace` поверх ЖИВОГО тела, условие не
+  терять. Ниже по тексту «фильтр приватности» в канонах этих функций читать как `is_founder`.
 - **`goal_reached_for_workout`** → канон `goal-reached-private.sql` (v6.7.5: фильтр приватности +
   `search_path`). НЕ перезапускать тело из `goals.sql` / `goals-metric.sql` / `goals-reps.sql`: там
   фильтра нет, и в общий чат уходит «Имя достиг цели» приватного участника (было на проде до 02.10).
@@ -440,6 +445,11 @@ updated_at)` + `upsert_user_meta` (`supabase/user-meta.sql`, RLS «только 
   видимости до/после в транзакции — расхождение = откат. На флаге `is_private` ОСТАЮТСЯ общий рейтинг, Telegram
   (беседа основателей) и overtake — их переезд на круг «Основатели» и снятие флага — этап 3, как и `admin_*_connection`
   и `newcomer-private`. Раздел Админки «Доступ к тренировкам» убран.
+- **«Друзья», этап 3 (v9.1.0)** → `friends-stage3.sql` (накат `friends-stage3-deploy.md`): круг «Основатели» (владелец —
+  Андрюшка, 5 active, ссылка `fc_config.founders_circle`), `is_founder`, бот и рейтинги на круге (см. выше «Кого видят бот
+  и общие рейтинги»), новичок по ссылке больше НЕ приватный (`invite_newcomer_private` только ставит дружбу с
+  пригласившим), сняты `admin_set_private` / `admin_set_connection` / `admin_list_connections`. Клиент: вкладки «Общий» в
+  рейтинге нет — доски только кругов; в Админке нет переключателя приватности.
 - **«В сети» (v8.6.0)** → канон `presence.sql`: своя таблица `user_presence(user_id, last_seen_at)` (cascade с
   `users`), не колонка `users` — правка `users` двигает `updated_at` и перекачивала бы ростер. `touch_my_presence`
   (своя строка, не чаще раза в 60 с), `presence_visible` (только `visible_user_ids()`, как Лента). Таблица закрыта,

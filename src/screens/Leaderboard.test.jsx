@@ -24,9 +24,9 @@ const male = [
   { user_id: 'me', user_name: 'Саня', weight: 95, reps: 6, orm: 114 },
 ]
 
-function readyQueries({ privateUser = false, rows = male } = {}) {
+function readyQueries({ rows = male } = {}) {
+  // v9.1.0: флага приватности в рейтинге больше нет — первый запрос сразу борд.
   vi.mocked(useLiveQuery)
-    .mockReturnValueOnce(privateUser)
     .mockReturnValueOnce({ male: rows, female: [] })
     .mockReturnValueOnce({ male: 'жим лежа', female: 'ягодичный мостик' })
     .mockReturnValueOnce([
@@ -46,14 +46,6 @@ describe('Leaderboard rivalry', () => {
     expect(screen.getByRole('region', { name: 'Ближайший ориентир' })).toBeInTheDocument()
     expect(screen.getByText('Дима впереди на 5 кг')).toBeInTheDocument()
     expect(screen.getByText('Рейтинг · жим лежа')).toBeInTheDocument()
-  })
-
-  it('не показывает ни рейтинг, ни ориентир приватному пользователю', () => {
-    readyQueries({ privateUser: true })
-    render(<Leaderboard user={user} />)
-
-    expect(screen.queryByLabelText('Ближайший ориентир')).not.toBeInTheDocument()
-    expect(screen.queryByText(/Рейтинг ·/)).not.toBeInTheDocument()
   })
 
   it('не добавляет карточку, если пользователя нет в устаревшем кэше', () => {

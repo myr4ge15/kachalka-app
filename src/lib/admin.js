@@ -83,17 +83,6 @@ export async function adminSetUserOrder(ids) {
   return true
 }
 
-// Включить/выключить приватный режим участника: его результаты (лента,
-// лидерборд, цели) видит только он сам и админ, а сам он видит только свои.
-// RPC с серверным гейтом is_admin().
-export async function adminSetPrivate(id, isPrivate) {
-  const res = await withTimeout(
-    supabase.rpc('admin_set_private', { p_id: id, p_private: Boolean(isPrivate) })
-  )
-  if (res.error) throw new AdminError(humanRpc(res.error.message))
-  return { id, is_private: Boolean(isPrivate) }
-}
-
 // Задать пол участника ('m' | 'f' | null) — для раздельного лидерборда М/Ж.
 // null/'' = «не задан» (участник попадает в мужской борд). RPC с is_admin().
 export async function adminSetSex(id, sex) {
@@ -116,7 +105,6 @@ export async function adminSetUser(id, name, role) {
   if (res.error) throw new AdminError(humanRpc(res.error.message))
   return { id, name: clean, role }
 }
-
 
 // Сбросить PIN участнику (Edge Function). new_pin опционален — сервер сгенерит.
 // Возвращает установленный PIN (для передачи человеку).
@@ -245,28 +233,6 @@ export async function adminRevokeInvite(id) {
 }
 
 // ----------------------------- Связи (доступ) ------------------------------
-
-// Все связи «избранного круга» (пары low_id/high_id). RPC с гейтом is_admin().
-export async function adminListConnections() {
-  const res = await withTimeout(supabase.rpc('admin_list_connections'))
-  if (res.error) throw new AdminError(humanRpc(res.error.message))
-  return (res.data ?? []).map((c) => ({
-    low_id: c.low_id,
-    high_id: c.high_id,
-    status: c.status ?? 'accepted',
-  }))
-}
-
-// Открыть (connected=true) или снять (false) взаимный доступ между двумя
-// участниками. Связь симметрична: оба начинают видеть тренировки друг друга.
-export async function adminSetConnection(a, b, connected) {
-  if (!a || !b || a === b) throw new AdminError('Нужны два разных участника.')
-  const res = await withTimeout(
-    supabase.rpc('admin_set_connection', { p_a: a, p_b: b, p_connected: Boolean(connected) })
-  )
-  if (res.error) throw new AdminError(humanRpc(res.error.message))
-  return { a, b, connected: Boolean(connected) }
-}
 
 // ----------------------------- Упражнения ----------------------------------
 

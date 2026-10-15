@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useState } from 'react'
 import { useLiveQuery } from 'dexie-react-hooks'
 import { getCachedLeaderboard, fetchLeaderboard, getLeadExerciseNames, viewerBoard } from '../db/leaderboard.js'
-import { getUsers, getCachedUser, getPrivacyFlag } from '../db/repo.js'
+import { getUsers, getCachedUser } from '../db/repo.js'
 import { onOnline, onResume } from '../lib/appEvents.js'
 import { findNearestRival } from '../lib/rivalry.js'
 import Avatar from '../components/ui/Avatar.jsx'
@@ -24,9 +24,6 @@ function Place({ i }) {
 // ФАКТИЧЕСКОМУ макс. весу, расчетный 1ПМ (Эпли) — сноской. Самодостаточен: сам
 // тянет и кэширует данные. Пол зрителя — users.sex из кэша (getCachedUser).
 export default function Leaderboard({ user, onOpenMember }) {
-  // Приватный пользователь не участвует в рейтинге — блок прячем целиком (флаг
-  // кэшируется на pull в meta `priv_${id}`, см. sync.js / my_is_private).
-  const myPrivate = useLiveQuery(() => getPrivacyFlag(user.id), [user.id], false)
   const board = useLiveQuery(() => getCachedLeaderboard(), [], undefined)
   const names = useLiveQuery(() => getLeadExerciseNames(), [], null)
   const users = useLiveQuery(() => getUsers(), [], [])
@@ -65,8 +62,6 @@ export default function Leaderboard({ user, onOpenMember }) {
     return () => { alive = false; off1(); off2() }
   }, [])
 
-  // Приватный — рейтинг не показываем вовсе.
-  if (myPrivate) return null
   // Пока читаем кэш (рейтинг или свой профиль) — каркас вместо пустоты/мигания.
   if (board === undefined || meRow === false) {
     return (

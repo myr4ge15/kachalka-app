@@ -2,7 +2,7 @@ import { useEffect, useMemo, useState } from 'react'
 import { useLiveQuery } from 'dexie-react-hooks'
 import { getRatingCatalog, getRatingBoard, fetchRatingCatalog, fetchRatingBoard } from '../db/disciplines.js'
 import { getMyCircles, refreshMyCircles } from '../db/circles.js'
-import { getCachedUser, getUsers, getPrivacyFlag } from '../db/repo.js'
+import { getCachedUser, getUsers } from '../db/repo.js'
 import { onOnline, onResume } from '../lib/appEvents.js'
 import { disciplineGroup, disciplineResult, DISCIPLINE_UNITS } from '../lib/disciplines.js'
 import { findNearestRival } from '../lib/rivalry.js'
@@ -13,10 +13,9 @@ import LegacyLeaderboard from './LegacyLeaderboard.jsx'
 
 const GROUPS = [['m', 'Мужчины'], ['f', 'Женщины'], ['u', 'Пол не указан']]
 
-// Доски (07.10.2026, «Мой круг»): «Общий» — у не приватных, плюс доска каждого круга,
-// где я active. Приватному без круга — подсказка «создай круг или вступи по коду».
+// Доски (07.10.2026, «Мой круг»): доска каждого круга, где я active. «Общий» убран в v9.1.0 —
+// основатели соревнуются в круге «Основатели». Без круга — подсказка «создай круг или вступи».
 export default function DisciplineLeaderboard({ user, onOpenMember, onOpenCircle }) {
-  const myPrivate = useLiveQuery(() => getPrivacyFlag(user.id), [user.id], false)
   const circles = useLiveQuery(getMyCircles, [], null)
   const [board, setBoard] = useState(null)
   useEffect(() => {
@@ -25,10 +24,7 @@ export default function DisciplineLeaderboard({ user, onOpenMember, onOpenCircle
     const off1 = onOnline(refresh), off2 = onResume(refresh)
     return () => { off1(); off2() }
   }, [user.id])
-  const boards = [
-    ...(myPrivate ? [] : [{ key: 'global', label: 'Общий' }]),
-    ...(circles ?? []).filter(c => c.my_status === 'active').map(c => ({ key: c.circle_id, label: c.name })),
-  ]
+  const boards = (circles ?? []).filter(c => c.my_status === 'active').map(c => ({ key: c.circle_id, label: c.name }))
   const current = boards.find(b => b.key === board) ?? boards[0]
   if (!current) {
     return <div className="card lb-card fc-empty">

@@ -2,7 +2,7 @@ import Chevron from '../components/ui/Chevron.jsx'
 import { plural } from '../lib/plural.js'
 import { useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react'
 import { useLiveQuery } from 'dexie-react-hooks'
-import { getWorkouts, getCachedUser, setCachedSex, getProgSettings, setProgEnabled, getPrivacyFlag } from '../db/repo.js'
+import { getWorkouts, getCachedUser, setCachedSex, getProgSettings, setProgEnabled } from '../db/repo.js'
 import { readGoals } from '../db/notifications.js'
 import { getCachedLeaderboard } from '../db/leaderboard.js'
 import { summarize } from '../lib/profileStats.js'
@@ -75,10 +75,9 @@ export default function ProfileScreen({ user, onLogout, onAccountDeleted, onOpen
   // Кэш Ленты/снимок, только чтение. { n, board } | null (до загрузки — null).
   // useLiveQuery над Dexie-кэшем: место само пересчитывается, когда pull освежает
   // снимок лидерборда, а не только на маунте экрана (прежний one-shot effect).
-  // Приватный в рейтинге не участвует — место не показываем.
+  // Не основатель в общем рейтинге не участвует — его строки там просто нет (v9.1.0).
   const place = useLiveQuery(async () => {
     try {
-      if (await getPrivacyFlag(user.id)) return null
       const board = await getCachedLeaderboard()
       const inF = (board.female ?? []).findIndex((r) => r.user_id === user.id)
       if (inF >= 0) return { n: inF + 1, board: 'f' }

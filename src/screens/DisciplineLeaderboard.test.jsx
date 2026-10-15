@@ -9,14 +9,16 @@ vi.mock('../db/disciplines.js',()=>({
   fetchRatingCatalog:vi.fn().mockResolvedValue(),fetchRatingBoard:vi.fn().mockResolvedValue(),
 }))
 vi.mock('../db/circles.js',()=>({ getMyCircles:()=>data.circles, refreshMyCircles:vi.fn() }))
-vi.mock('../db/repo.js',()=>({ getCachedUser:()=>({sex:data.sex}), getUsers:()=>[],getPrivacyFlag:()=>data.private }))
+vi.mock('../db/repo.js',()=>({ getCachedUser:()=>({sex:data.sex}), getUsers:()=>[] }))
 vi.mock('./LegacyLeaderboard.jsx',()=>({default:()=> <p>Старый рейтинг</p>}))
 import DisciplineLeaderboard from './DisciplineLeaderboard.jsx'
 import { fetchRatingBoard } from '../db/disciplines.js'
 const weight={id:'w',name:'Жим',metric:'weight',split_by_sex:true}
 const time={id:'t',name:'Планка',metric:'time',split_by_sex:false}
 beforeEach(()=>{
-  data.catalog={items:[weight,time]};data.sex='f';data.private=false;data.circles=null;data.circleCatalog=null
+  // v9.1.0: «Общего» нет — доски только кругов; по умолчанию человек в одном активном круге.
+  data.catalog={items:[weight,time]};data.sex='f';data.private=false
+  data.circles=[{circle_id:'c1',name:'Основатели',my_status:'active'}];data.circleCatalog={items:[weight,time]}
   data.rows=[
     {discipline:'w',user_id:'woman',user_name:'Аня',board:'f',value:80,weight:80,reps:5,orm:90},
     {discipline:'w',user_id:'man',user_name:'Борис',board:'m',value:100,weight:100,reps:3,orm:110},
@@ -38,8 +40,8 @@ describe('дисциплины в Ленте',()=>{
     expect(screen.queryByText(/кг/)).toBeNull()
     expect(screen.queryByRole('group',{name:'Участники рейтинга'})).toBeNull()
   })
-  it('приватному без круга — общего рейтинга нет, подсказка «Мой круг»',async()=>{
-    data.private=true
+  it('без круга — рейтинга нет, подсказка «Мой круг»',async()=>{
+    data.circles=null
     const user=userEvent.setup();const openCircle=vi.fn()
     render(<DisciplineLeaderboard user={{id:'woman'}} onOpenCircle={openCircle} />)
     expect(screen.queryByText('80 кг')).toBeNull()
@@ -47,32 +49,29 @@ describe('дисциплины в Ленте',()=>{
     await user.click(screen.getByRole('button',{name:'Мой круг'}))
     expect(openCircle).toHaveBeenCalled()
   })
-  it('доски: «Общий» и круг; приватному — только круг; pending-круга нет',async()=>{
-    data.circles=[{circle_id:'c1',name:'Зал',my_status:'active'},{circle_id:'c2',name:'Ждет',my_status:'pending'}]
+  it('доски — только активные круги, «Общего» нет (v9.1.0); pending-круга нет',async()=>{
+    data.circles=[{circle_id:'c1',name:'Основатели',my_status:'active'},{circle_id:'c3',name:'Зал',my_status:'active'},
+      {circle_id:'c2',name:'Ждет',my_status:'pending'}]
     data.circleCatalog={items:[{id:'cw',name:'Жим круга',metric:'weight',split_by_sex:false}]}
     data.rows.push({discipline:'cw',user_id:'woman',user_name:'Аня',board:'all',value:70,weight:70,reps:1,orm:70})
     const user=userEvent.setup()
     const {unmount}=render(<DisciplineLeaderboard user={{id:'woman'}} />)
+    expect(screen.queryByRole('button',{name:'Общий'})).toBeNull()
     expect(screen.queryByRole('button',{name:'Ждет'})).toBeNull()
     await user.click(screen.getByRole('button',{name:'Зал'}))
     expect(screen.getByRole('button',{name:'Жим круга'})).toBeInTheDocument()
     expect(screen.getByText('70 кг')).toBeInTheDocument()
-    expect(fetchRatingBoard).toHaveBeenCalledWith('woman',expect.objectContaining({id:'cw'}),{circle:'c1'})
+    expect(fetchRatingBoard).toHaveBeenCalledWith('woman',expect.objectContaining({id:'cw'}),{circle:'c3'})
     unmount()
-    data.private=true
+    data.circles=[{circle_id:'c1',name:'Основатели',my_status:'active'}]
     render(<DisciplineLeaderboard user={{id:'woman'}} />)
     expect(screen.queryByRole('group',{name:'Чей рейтинг'})).toBeNull()
     expect(screen.getByRole('button',{name:'Жим круга'})).toBeInTheDocument()
   })
-  it('пустой серверный каталог не возвращает старый жим',()=>{
-    data.catalog={items:[]}
+  it('пустой каталог круга не возвращает старый жим',()=>{
+    data.circleCatalog={items:[]}
     render(<DisciplineLeaderboard user={{id:'woman'}} />)
-    expect(screen.getByText(/Пока нет дисциплин/)).toBeInTheDocument()
+    expect(screen.getByText(/В круге пока нет дисциплин/)).toBeInTheDocument()
     expect(screen.queryByText('Старый рейтинг')).toBeNull()
-  })
-  it('до установки серверной части остается старый рейтинг',()=>{
-    data.catalog=null
-    render(<DisciplineLeaderboard user={{id:'woman'}} />)
-    expect(screen.getByText('Старый рейтинг')).toBeInTheDocument()
   })
 })

@@ -26,9 +26,9 @@ const male = [
   { user_id: 'me', user_name: 'Саня', weight: 95, reps: 6, orm: 114 },
 ]
 
-function readyQueries({ privateUser = false, rows = male } = {}) {
+function readyQueries({ rows = male } = {}) {
+  // v9.1.0: флага приватности в рейтинге больше нет — первый запрос сразу борд.
   vi.mocked(useLiveQuery)
-    .mockReturnValueOnce(privateUser)
     .mockReturnValueOnce({ male: rows, female: [] })
     .mockReturnValueOnce({ male: 'жим лежа', female: 'ягодичный мостик' })
     .mockReturnValueOnce([

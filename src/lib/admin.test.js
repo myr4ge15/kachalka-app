@@ -48,9 +48,9 @@ describe('участники (RPC)', () => {
     await expect(admin.adminSetUser('u1', 'я'.repeat(31), 'member')).rejects.toThrow('от 1 до 30')
   })
 
-  it('приватность, пол, порядок, удаление', async () => {
+  it('пол, порядок, ошибки прав (приватности нет с v9.1.0)', async () => {
     rpc.mockReturnValue(ok(null))
-    expect(await admin.adminSetPrivate('u1', 'да')).toEqual({ id: 'u1', is_private: true })
+    expect(admin.adminSetPrivate).toBeUndefined()
     expect(await admin.adminSetSex('u1', 'x')).toEqual({ id: 'u1', sex: null })
     expect(rpc).toHaveBeenLastCalledWith('admin_set_sex', { p_id: 'u1', p_sex: null })
     expect(await admin.adminSetSex('u1', 'f')).toEqual({ id: 'u1', sex: 'f' })
@@ -58,7 +58,7 @@ describe('участники (RPC)', () => {
     expect(await admin.adminSetUserOrder(['a', 'b'])).toBe(true)
     expect(rpc).toHaveBeenLastCalledWith('admin_set_user_order', { p_ids: ['a', 'b'] })
     rpc.mockReturnValueOnce(err('forbidden: admin only'))
-    await expect(admin.adminSetPrivate('u1', false)).rejects.toThrow('Нужны права админа')
+    await expect(admin.adminSetSex('u1', 'm')).rejects.toThrow('Нужны права админа')
   })
 })
 
@@ -163,12 +163,9 @@ describe('приглашения и связи', () => {
     rpc.mockReturnValueOnce(err('invite already used'))
     await expect(admin.adminRevokeInvite('i1')).rejects.toThrow('уже воспользовались')
   })
-  it('связи: статус по умолчанию accepted; пара из одного человека — отказ', async () => {
-    rpc.mockReturnValueOnce(ok([{ low_id: 'a', high_id: 'b' }]))
-    expect(await admin.adminListConnections()).toEqual([{ low_id: 'a', high_id: 'b', status: 'accepted' }])
-    await expect(admin.adminSetConnection('a', 'a', true)).rejects.toThrow('два разных')
-    rpc.mockReturnValueOnce(ok(null))
-    expect(await admin.adminSetConnection('a', 'b', 1)).toEqual({ a: 'a', b: 'b', connected: true })
+  it('связи вручную сняты (v9.1.0): их заводят сами участники («Друзья»)', () => {
+    expect(admin.adminListConnections).toBeUndefined()
+    expect(admin.adminSetConnection).toBeUndefined()
   })
 })
 
