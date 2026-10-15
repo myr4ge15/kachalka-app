@@ -20,6 +20,7 @@ describe('pushIntent', () => {
 
   it('отдых закончился ведет к новой тренировке', () => {
     expect(pushIntentFromTag('rest')).toEqual({ type: 'rest' })
+    expect(pushIntentFromTag('friend')).toEqual({ type: 'friend' })
     expect(pushIntentFromTag('rest-x')).toBeNull()
   })
 

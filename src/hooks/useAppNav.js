@@ -200,7 +200,7 @@ export function useAppNav(user) {
       case 'notif': return backFromNotif()
       case 'member': return backFromMember()
       case 'freshness': return goTab('home')
-      case 'admin': case 'achievements': case 'feedback': case 'circle': return goTab('profile')
+      case 'admin': case 'achievements': case 'feedback': case 'circle': case 'friends': return goTab('profile')
       case 'myex': case 'whatsnew': case 'appearance': case 'pushset': return backToSettings()
       default: return undefined
     }
@@ -228,6 +228,8 @@ export function useAppNav(user) {
       setOpenNewWorkout(true)
       setTab('history')
     }
+    // Заявка в друзья / новый друг (15.10.2026) — экран «Друзья».
+    if (pushIntent.type === 'friend') setTab('friends')
     setPushIntent(null)
   }, [user?.id, pushIntent])
 

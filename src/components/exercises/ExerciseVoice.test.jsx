@@ -2,6 +2,8 @@
 import { afterEach, describe, expect, it, vi } from 'vitest'
 import { act, fireEvent, render, screen } from '@testing-library/react'
 import ExercisePicker from './ExercisePicker.jsx'
+// Голос спрятан флагом (lib/features.js) — здесь проверяем сам голос.
+vi.mock('../../lib/features.js', () => ({ VOICE_ENABLED: true }))
 
 const catalog = [{ id: 'a', name: 'Жим лежа' }, { id: 'b', name: 'Жим гантелей сидя' }]
 let rec

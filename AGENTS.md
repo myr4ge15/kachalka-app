@@ -139,7 +139,7 @@
   «избранного круга»); гейт админки — серверный `is_admin()`.
 - **Чистая логика — в `src/lib/`** (без Dexie/React/сети), покрывается тестами. Исключения — онлайн-модули
   вне очередей синка: `auth.js` (вход, кэш PIN), `avatar.js`, `admin.js`, `adminDisciplines.js`, `adminMfa.js`,
-  `feedbackApi.js`, `friendCircles.js`, `memberInvites.js`; новый такой модуль — в этот список. DB-обвязка — в
+  `feedbackApi.js`, `friendCircles.js`, `friends.js`, `memberInvites.js`; новый такой модуль — в этот список. DB-обвязка — в
   `src/db/`; презентационные куски экранов — в `src/components/` (props-driven, состояние остаётся
   в экране). **Секции крупных экранов** (v6.14.1) — в `src/components/<экран>/` (`admin/`, `profile/`):
   самостоятельный блок со СВОИМ состоянием и обработчиками (форма, подтверждение, онлайн-операция),
@@ -183,7 +183,7 @@
     липкие бары) над карточкой сливается с ней. Плотная подложка оверлеев — токен
     `--surface-solid` (`rgba(17,24,39,.94)`, v6); в Aurora это был хардкод `rgba(20,16,40,.94)`.
 - **Навигация (`App.jsx`):** 4 вкладки — `home` (дефолт) / `history` / `feed` / `progress`; плюс
-  экран `profile` (шапка/сайдбар) и вложенные ленивые роуты `NESTED_ROUTES` — `notif`/`member`/`freshness`/`achievements`/`admin`/`myex`/`whatsnew`/`appearance`/`feedback`/`circle`/`pushset`
+  экран `profile` (шапка/сайдбар) и вложенные ленивые роуты `NESTED_ROUTES` — `notif`/`member`/`freshness`/`achievements`/`admin`/`myex`/`whatsnew`/`appearance`/`feedback`/`circle`/`pushset`/`friends`
   (в таббар не выносятся); «назад» на всех вложенных экранах — общая круглая `components/BackButton.jsx`; с v6.8.1 тот же «назад» — свайпом вправо (`hooks/useEdgeSwipeBack.js`, только iOS «на экране Домой»; с v7.1.7 — с любой точки экрана: от середины строже ось и жест уступает полю/ползунку/ручке/пролистанному ряду — `lib/screenNav.js` `swipeBackBlocked`; блоку со своим горизонтальным жестом ставить `data-no-swipe-back`; лист, который на телефоне выглядит экраном, закрывается тем же жестом через `SheetDialog swipeBack` — `hooks/useSheetSwipeBack.js`, v8.1.1; открытая тренировка на мобиле — `useEdgeSwipeBack` в `HistoryScreen` с подложкой-списком, v8.3.1)
 , а вложенные экраны въезжают сдвигом без fade. **Новый вложенный роут — в `NESTED_ROUTES` (`lib/screenNav.js`) и в `nestedBack()` (`hooks/useAppNav.js`, с v6.14.1; до того — `App.jsx`)**, плюс случай в `App.nav.test.jsx`, иначе ни свайпа, ни сдвига. Экран сдвигается `left`, НЕ transform (см. `.screen-anim` в `index.css`). **Позицию `.content` при смене экрана ставить только `lib/scrollBox.js` `settleScroll`** (v6.15.0), не голым `scrollTo`: на iPhone он игнорируется во время инерции — экран открывается внизу или пустым до тапа; повторный тап по вкладке «наверх» — `scrollToTop` оттуда же (smooth с подстраховкой, v8.7.0). Кнопка «+» (новая тренировка) с v6.0.1 — круг ПО ЦЕНТРУ таббара
   (`AddFab`), есть ВСЕГДА, включая вложенные роуты (v6.0.4); при занятом хабе (композер/экспорт) — утоплена и
@@ -336,8 +336,9 @@ updated_at)` + `upsert_user_meta` (`supabase/user-meta.sql`, RLS «только 
 - **Правило видимости — одно ядро `user_can_see(viewer, owner)`** → канон `visibility-core.sql` (07.10.2026, П5
   `PLAN-friend-code.md`): `can_see_user(p) = user_can_see(app_uid(), p)`, `push_can_see = user_can_see`. Ветки
   `is_admin()` в видимости НЕТ — админ видит контент как участник (свои связи + общее), Админка — под `is_admin()`
-  с `aal2`. Новую ветку видимости — ТОЛЬКО в ядро. С 07.10 (круги) канон ТЕЛА ядра — `friend-circles.sql`
-  (ветка `fc_share_active`); `visibility-core.sql` — только для `can_see_user`/`push_can_see`, ядро из него не перезапускать. НЕ пересоздавать `can_see_user` из `connections.sql` /
+  с `aal2`. Новую ветку видимости — ТОЛЬКО в ядро. С 15.10 канон ТЕЛА ядра — `friends.sql` (блок `is_blocked_pair`
+  поверх всех веток; до этого — `friend-circles.sql`, ветка `fc_share_active`); `visibility-core.sql` — только для
+  `can_see_user`/`push_can_see`, ядро из него и из `friend-circles.sql` не перезапускать. НЕ пересоздавать `can_see_user` из `connections.sql` /
   `private-user.sql`, `push_can_see` — из `push-types.sql`. Ядру EXECUTE только `service_role` (иначе клиент
   спрашивает про чужие пары).
 - **Приватность:** в `leaderboard_bench`, `tg_*` и `goal_reached_for_workout` обязателен фильтр
@@ -416,7 +417,7 @@ updated_at)` + `upsert_user_meta` (`supabase/user-meta.sql`, RLS «только 
   (`auth_throttle`: `fcuser:<uid>` / `fcip:<ip>`, 10/час). Регистрация новичка по коду — только штатным
   каналом: `fc_issue_invite` (строка `invites` от держателя на 30 мин, держит слот) → `invite_redeem` (тело не
   менять; гасит `used_by` → newcomer-private) → `fc_after_redeem`. `invites.fc_code_id` — служебные, в «Мои
-  приглашения» и лимит 3 не входят (канон `create_my_invite`/`my_invites` — здесь, не `member-invites.sql`).
+  приглашения» и лимит 3 не входят (канон `create_my_invite`/`my_invites` — с 15.10 `friends.sql`, не здесь и не `member-invites.sql`).
   П10: `fc_config` (суточный лимит регистраций по кодам, потолок круга). Владелец круга — НЕ админ: права только
   в своем круге. Удаление учетки — `fc_on_account_delete` (владение самому раннему active, пустой круг —
   удалить) из `account_delete`. Рейтинг круга — свой каталог `friend_circle_disciplines` (копия общего при
@@ -424,6 +425,16 @@ updated_at)` + `upsert_user_meta` (`supabase/user-meta.sql`, RLS «только 
   изменений. Клиент: `lib/friendCircles.js`, `screens/CircleScreen.jsx`, `components/circle/*`, `#join=<код>`
   в App (без учетки — InviteScreen `code`, с учеткой — «Мой круг»); доски — `DisciplineLeaderboard`
   (`db/disciplines.js` с `circle`, `db/circles.js`). Пуши — Edge `push-circle` (тип `circle`, всегда вкл.).
+- **«Друзья», этап 1 (v8.9.0, 15.10.2026)** → канон `friends.sql` (план `PLAN-friends.md`, накат `friends-deploy.md`):
+  дружба — та же `connections` (новая колонка `declined_at`: тихий отказ — получатель не видит, у отправителя висит
+  30 дней), `friend_declines` (кулдаун 7 дней), `user_blocks` (блок в любую сторону гасит видимость поверх ВСЕХ веток
+  ядра, кроме своей; в списке и рейтинге круга заблокированный остается), `friend_codes` (один живой многоразовый код,
+  `#friend=`; функции `fc_code_*` общие с кругами). Таблицы закрыты, `fr_*` — DEFINER; заявка — только тому, кого
+  видишь (`user_can_see`). Регистрация по коду — `fr_issue_invite` (`invites.fr_code_id`, общий суточный лимит с
+  кодами кругов) → `invite_redeem`; дружбу ставит триггер `newcomer-private` (его не трогать). Пуши — триггер
+  `trg_fr_notify` → Edge `push-friend` (тип `friend`, всегда вкл.). Клиент: `lib/friends.js`, `db/friends.js` (снимок
+  `fr_list` в meta), `screens/FriendsScreen.jsx`, `components/friends/*`. Ветка «оба не приватные» в ядре пока ЕСТЬ —
+  снимает этап 2 (MAJOR 9.0.0); админские связи (`admin_set_connection`) до него тоже живут.
 - **«В сети» (v8.6.0)** → канон `presence.sql`: своя таблица `user_presence(user_id, last_seen_at)` (cascade с
   `users`), не колонка `users` — правка `users` двигает `updated_at` и перекачивала бы ростер. `touch_my_presence`
   (своя строка, не чаще раза в 60 с), `presence_visible` (только `visible_user_ids()`, как Лента). Таблица закрыта,

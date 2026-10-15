@@ -2,6 +2,8 @@
 import { afterEach, describe, expect, it, vi } from 'vitest'
 import { act, fireEvent, render, screen } from '@testing-library/react'
 import ExerciseCard from '../exercises/ExerciseCard.jsx'
+// Голос спрятан флагом (lib/features.js) — здесь проверяем сам голос.
+vi.mock('../../lib/features.js', () => ({ VOICE_ENABLED: true }))
 
 let rec
 function stubSpeech() {

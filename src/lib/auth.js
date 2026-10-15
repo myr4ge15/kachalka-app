@@ -198,7 +198,18 @@ async function callInvite(payload) {
 }
 
 // Приглашение — ссылка (строка-токен) или личный код круга ({ code }, «Мой круг», 07.10.2026).
-const inviteRef = (ref) => (ref && typeof ref === 'object' ? { code: ref.code } : { token: ref })
+// ref: токен ссылки, { code } — код круга, { friend } — код дружбы («Друзья», 15.10.2026).
+const inviteRef = (ref) => {
+  if (ref && typeof ref === 'object') return ref.friend ? { friend: ref.friend } : { code: ref.code }
+  return { token: ref }
+}
+
+// Превью кода дружбы до регистрации: { status: ok|invalid|limited, inviter_name }.
+export async function checkFriendCode(friend) {
+  const { res, body } = await callInvite({ action: 'friend_check', friend })
+  if (!res.ok || !body?.status) throw new LoginError('server', 'Не удалось проверить код.')
+  return body
+}
 
 // Превью кода круга до регистрации: { status: ok|invalid|limited, circle_name, inviter_name }.
 export async function checkCircleCode(code) {

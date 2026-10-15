@@ -4,6 +4,7 @@ import TimeInput from '../ui/TimeInput.jsx'
 import { useSelectOnFocus } from '../../hooks/useSelectOnFocus.js'
 import SetsCells from '../workout/SetsCells.jsx'
 import SetVoice from '../workout/SetVoice.jsx'
+import { VOICE_ENABLED } from '../../lib/features.js'
 import { exerciseMetric, isCountMetric, hasExtraWeight, bestPace, fmtPace, paceSecPerKm } from '../../lib/metric.js'
 import { resolveProgSettings } from '../../lib/progression.js'
 import {
@@ -242,7 +243,8 @@ export default function ExerciseCard({
         </p>
       )}
 
-      {onVoiceSet && !isTime ? (
+      {/* Голос спрятан (lib/features.js), код живет. */}
+      {VOICE_ENABLED && onVoiceSet && !isTime ? (
         <SetVoice exercise={entry.exercise} sets={entry.sets} cursor={voiceCursor}
           onCommit={(si, set) => onVoiceSet(ei, si, set)}>
           <AddSetButton short={Boolean(restSlot)} onClick={() => onAddSet(ei)} />

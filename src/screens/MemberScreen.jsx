@@ -17,6 +17,7 @@ import BackButton from '../components/ui/BackButton.jsx'
 import CardsSkeleton from '../components/ui/CardsSkeleton.jsx'
 import FeedPrBadge from '../components/social/FeedPrBadge.jsx'
 import ReactionBar from '../components/social/ReactionBar.jsx'
+import FriendButton from '../components/friends/FriendButton.jsx'
 import './MemberScreen.css'
 import ScrollTopButton from '../components/ui/ScrollTopButton.jsx'
 
@@ -25,11 +26,11 @@ import ScrollTopButton from '../components/ui/ScrollTopButton.jsx'
 // db/memberProfile.js (read-only запрос под RLS + кэш в meta), расчеты — те же
 // функции, что у своего Профиля (lib/memberProfile.js → lib/profileStats.js).
 //
-// Пропсы: user (кто смотрит), memberId, onBack().
+// Пропсы: user (кто смотрит), memberId, onBack(), onOpenFriends() — экран «Друзья».
 const REC_PREVIEW = 5
 const RECENT_STEP = 5
 
-export default function MemberScreen({ user, memberId, onBack }) {
+export default function MemberScreen({ user, memberId, onBack, onOpenFriends }) {
   const snap = useLiveQuery(
     () => getCachedMember(memberId, { id: user.id, name: user.name }),
     [memberId, user.id, user.name],
@@ -128,6 +129,7 @@ export default function MemberScreen({ user, memberId, onBack }) {
           )}
         </div>
       </div>
+      <FriendButton me={user.id} memberId={memberId} onOpenFriends={onOpenFriends} />
 
       {error && <div className="banner error">{error}</div>}
       {loading && <CardsSkeleton cards={3} />}

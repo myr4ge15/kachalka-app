@@ -3852,6 +3852,8 @@ html[data-sheet-open], html[data-sheet-open] body { overscroll-behavior: none; }
 .fc-feed-cta { display: block; margin: 12px auto 0; }
 .lb-boards { margin-bottom: 10px; }
 .fc-empty .btn { margin-top: 10px; }
+/* «Друзья» (15.10.2026): кнопка дружбы в профиле участника. */
+.fr-btn { width: 100%; margin: 0 0 16px; }
 
 /* Exercise label scanner — полноэкранный видоискатель (v7.4.0, прототип
    prototypes/scanner-concepts.html, концепт D). Камера во весь лист, шапка листа

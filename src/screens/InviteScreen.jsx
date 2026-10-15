@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useRef, useState } from 'react'
-import { checkInvite, checkCircleCode, checkLoginForInvite, registerByInvite, createRecoveryCode, LoginError } from '../lib/auth.js'
+import { checkInvite, checkCircleCode, checkFriendCode, checkLoginForInvite, registerByInvite, createRecoveryCode, LoginError } from '../lib/auth.js'
 import { joinStatusText } from '../lib/friendCircles.js'
+import { codeStatusText } from '../lib/friends.js'
 import RecoveryCodeView from '../components/recovery/RecoveryCodeView.jsx'
 import { normalizeLogin } from '../lib/login.js'
 import LoginField from '../components/auth/LoginField.jsx'
@@ -26,8 +27,11 @@ import AppMark from '../components/app/AppMark.jsx'
 // превью «Сега зовет в круг «Зал»» (имя пригласившего и круга — больше ничего), та же
 // форма, после регистрации человек сразу в круге (вошедшего на устройстве App сразу
 // ведет в «Мой круг», сюда он не попадает).
-export default function InviteScreen({ token = null, code = null, signedInAs = null, onRegistered, onCancel, onSignOut }) {
-  const ref = code ? { code } : token
+//
+// «Друзья» (15.10.2026): friend — код дружбы из ссылки #friend=…: превью «Сега зовет в друзья»,
+// после регистрации новичок сразу друг пригласившего (триггер newcomer-private на сервере).
+export default function InviteScreen({ token = null, code = null, friend = null, signedInAs = null, onRegistered, onCancel, onSignOut }) {
+  const ref = friend ? { friend } : code ? { code } : token
   const [preview, setPreview] = useState(null) // { circle_name, inviter_name }
   // 'checking' | 'form' | 'dead' | 'check-failed' | 'login-failed' | 'code'
   const [phase, setPhase] = useState('checking')
@@ -51,7 +55,11 @@ export default function InviteScreen({ token = null, code = null, signedInAs = n
     setPhase('checking')
     try {
       let status
-      if (code) {
+      if (friend) {
+        const p = await checkFriendCode(friend)
+        status = p.status
+        if (alive.current && status === 'ok') setPreview(p)
+      } else if (code) {
         const p = await checkCircleCode(code)
         status = p.status
         if (alive.current && status === 'ok') setPreview(p)
@@ -66,10 +74,10 @@ export default function InviteScreen({ token = null, code = null, signedInAs = n
     }
   }
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  useEffect(() => { if (!signedInAs) check() }, [token, code, signedInAs])
+  useEffect(() => { if (!signedInAs) check() }, [token, code, friend, signedInAs])
 
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  const checkLogin = useCallback((v) => checkLoginForInvite(ref, v), [token, code])
+  const checkLogin = useCallback((v) => checkLoginForInvite(ref, v), [token, code, friend])
 
   async function submit(e) {
     e.preventDefault()
@@ -144,7 +152,7 @@ export default function InviteScreen({ token = null, code = null, signedInAs = n
   } else if (phase === 'dead') {
     body = (
       <>
-        <p className="invite-lead" role="alert">{code ? joinStatusText(dead) : inviteDeadText(dead)}</p>
+        <p className="invite-lead" role="alert">{friend ? codeStatusText(dead) : code ? joinStatusText(dead) : inviteDeadText(dead)}</p>
         <div className="invite-actions">
           <button className="btn primary" onClick={onCancel}>К входу</button>
         </div>
@@ -170,7 +178,9 @@ export default function InviteScreen({ token = null, code = null, signedInAs = n
   } else {
     body = (
       <form className="invite-form" onSubmit={submit} noValidate>
-        {preview ? (
+        {preview && friend ? (
+          <p className="invite-lead"><b>{preview.inviter_name}</b> зовет тебя в друзья. Придумай логин и PIN для входа и имя, которое увидят друзья.</p>
+        ) : preview ? (
           <p className="invite-lead"><b>{preview.inviter_name}</b> зовет тебя в круг <b>«{preview.circle_name}»</b>. Придумай логин и PIN для входа и имя, которое увидят друзья.</p>
         ) : (
           <p className="invite-lead">Тебя пригласили. Придумай логин и PIN для входа и имя, которое увидят друзья.</p>

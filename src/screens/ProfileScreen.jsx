@@ -10,6 +10,8 @@ import { currentValues, evaluateBadges, BADGES } from '../lib/badges.js'
 import { setSex, LoginError } from '../lib/auth.js'
 import LogoutButton from '../components/app/LogoutButton.jsx'
 import MemberInvites from '../components/social/MemberInvites.jsx'
+import { getFriends } from '../db/friends.js'
+import { groupFriends } from '../lib/friends.js'
 import SexPicker from '../components/ui/SexPicker.jsx'
 import { pushRowSubtitle } from '../lib/pushSupport.js'
 import { usePushToggle } from '../hooks/usePushToggle.js'
@@ -44,10 +46,13 @@ import { settleScroll } from '../lib/scrollBox.js'
 // components/profile/* (v6.14.1); здесь — сводка, навигация и слой Настроек.
 //
 // Пропсы: user, onLogout, onOpenProgress(exerciseId), onOpenFeed().
-export default function ProfileScreen({ user, onLogout, onAccountDeleted, onOpenCircle, onOpenProgress, onOpenFeed, onRenamed, onOpenAdmin, onOpenMyExercises, onOpenAchievements, onOpenAppearance, onOpenPushSettings, onOpenWhatsNew, onOpenFeedback, startInSettings = false, onStartInSettingsConsumed, contentRef, edgeSwipeOn = false }) {
+export default function ProfileScreen({ user, onLogout, onAccountDeleted, onOpenCircle, onOpenFriends, onOpenProgress, onOpenFeed, onRenamed, onOpenAdmin, onOpenMyExercises, onOpenAchievements, onOpenAppearance, onOpenPushSettings, onOpenWhatsNew, onOpenFeedback, startInSettings = false, onStartInSettingsConsumed, contentRef, edgeSwipeOn = false }) {
   const workouts = useLiveQuery(() => getWorkouts(user.id), [user.id])
   const goals = useLiveQuery(() => readGoals(user.id), [user.id])
   const myCached = useLiveQuery(() => getCachedUser(user.id), [user.id])
+  // «Друзья»: входящие заявки — счетчик на строке (снимок fr_list, db/friends.js).
+  const friendRows = useLiveQuery(() => getFriends(), [user.id], null)
+  const friendRequests = groupFriends(friendRows).incoming.length
   // Тумблер автопрогрессии (рекомендации весов/повторов в тренировке).
   const progEnabled = useLiveQuery(() => getProgSettings(user.id).then((p) => p.enabled), [user.id], true)
   // Пуш-уведомления этого браузера (v6.6.0): здесь — только статус для строки
@@ -281,6 +286,11 @@ export default function ProfileScreen({ user, onLogout, onAccountDeleted, onOpen
         {/* Проблема с отправкой — важный алерт: виден всегда, даже когда свернуто. */}
         <DeadLetterAlert userId={user.id} />
 
+        {/* «Друзья» (15.10.2026): свой код, заявки, удалить/заблокировать. */}
+        <button className={'settings-toggle' + (friendRequests ? ' act-new' : '')} onClick={() => onOpenFriends?.()}>
+          <span className="settings-title"><span aria-hidden="true">👥</span> Друзья</span>
+          {friendRequests > 0 ? <span className="act-badge">{friendRequests}</span> : <Chevron className="settings-chev" />}
+        </button>
         {/* «Мой круг» (07.10.2026): свой круг, личный код, участники, рейтинг круга. */}
         <button className="settings-toggle" onClick={() => onOpenCircle?.()}>
           <span className="settings-title"><span aria-hidden="true">⭕</span> Мой круг</span>

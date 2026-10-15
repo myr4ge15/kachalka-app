@@ -46,6 +46,8 @@ vi.mock('./screens/WhatsNewScreen.jsx', () => stub('whatsnew'))
 vi.mock('./screens/FeedbackScreen.jsx', () => stub('feedback'))
 vi.mock('./screens/MemberScreen.jsx', () => stub('member'))
 vi.mock('./screens/CircleScreen.jsx', () => stub('circle'))
+vi.mock('./screens/FriendsScreen.jsx', () => stub('friends'))
+vi.mock('./db/friends.js', () => ({ refreshFriends: vi.fn(), getFriends: vi.fn(async () => null) }))
 vi.mock('./screens/LoginScreen.jsx', () => stub('login'))
 vi.mock('./screens/InviteScreen.jsx', () => stub('invite'))
 
@@ -168,6 +170,26 @@ describe('App: вложенные экраны и «назад»', () => {
     expect(current()).toBe('circle')
     act(() => seen.circle.onBack()); await settle()
     expect(current()).toBe('profile')
+  })
+
+  it('«Друзья»: из Профиля — назад в Профиль; профиль друга из списка', async () => {
+    await boot()
+    fireEvent.click(screen.getAllByRole('button', { name: 'Открыть профиль' })[0]); await settle()
+    act(() => seen.profile.onOpenFriends()); await settle()
+    expect(current()).toBe('friends')
+    act(() => seen.friends.onBack()); await settle()
+    expect(current()).toBe('profile')
+  })
+
+  it('ссылка #friend=… у вошедшего — сразу «Друзья» с кодом, код стерт из адреса', async () => {
+    window.history.replaceState(null, '', '/kachalka-app/#friend=7F3Q9XWD')
+    render(<App />)
+    await screen.findByTestId('screen-friends')
+    expect(current()).toBe('friends')
+    expect(seen.friends.friendCode).toBe('7F3Q9XWD')
+    expect(window.location.hash).toBe('')
+    act(() => seen.friends.onFriendCodeConsumed()); await settle()
+    expect(seen.friends.friendCode).toBeNull()
   })
 
   it('ссылка #join=… у вошедшего — сразу «Мой круг» с кодом, код стерт из адреса', async () => {
