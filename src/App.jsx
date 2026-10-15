@@ -414,7 +414,7 @@ export default function App() {
                 <FreshnessScreen user={user} onBack={() => goTab('home')} />
               )}
               {route === 'circle' && (
-                <CircleScreen user={user} onBack={() => goTab('profile')}
+                <CircleScreen user={user} onBack={() => goTab('profile')} onOpenMember={openMember}
                   joinCode={joinCode} onJoinCodeConsumed={() => setJoinCode(null)} />
               )}
               {route === 'friends' && (

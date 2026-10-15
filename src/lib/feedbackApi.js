@@ -18,7 +18,7 @@
 import { supabase, hasSession } from '../db/supabase.js'
 import { compressToJpeg } from './avatar.js'
 import { DB_TIMEOUT_MS, withTimeout } from './withTimeout.js'
-import { appendProblem, bodyProblem, cleanBody, feedbackErrorText, reopenProblem, unreadReplies } from './feedback.js'
+import { FEEDBACK_SHOTS_MAX, appendProblem, bodyProblem, cleanBody, feedbackErrorText, reopenProblem, unreadReplies } from './feedback.js'
 import { cacheFeedbackReplies } from '../db/feedbackReplies.js'
 
 const FN_URL = (import.meta.env.VITE_SUPABASE_URL ?? '') + '/functions/v1/feedback'
@@ -112,29 +112,15 @@ function newId() {
 
 // Отправить обращение. file — необязательный скриншот (File/Blob картинки).
 // Возвращает { id, delivered } (delivered=false — записано, но Telegram не ответил).
-export async function submitFeedback(userId, { body, context, file = null, compress = compressToJpeg } = {}) {
+export async function submitFeedback(userId, { body, context, file = null, files = null, compress = compressToJpeg } = {}) {
   const problem = bodyProblem(body)
   if (problem) throw new FeedbackError(problem)
   if (isOffline()) throw new FeedbackError('offline')
   if (!await hasSession(userId)) throw new FeedbackError('no_session')
 
-  let screenshot = null
-  if (file) {
-    let blob
-    try {
-      blob = await compress(file, SHOT_MAX_PX, SHOT_QUALITY)
-    } catch {
-      throw new FeedbackError('shot_failed')
-    }
-    const path = `${userId}/${newId()}.jpg`
-    const up = await withTimeout(
-      supabase.storage.from('feedback').upload(path, blob, { upsert: false, contentType: 'image/jpeg' }),
-    ).catch(() => ({ error: true }))
-    if (up?.error) throw new FeedbackError('shot_failed')
-    screenshot = path
-  }
-
-  const res = await callFn({ action: 'submit', body: cleanBody(body), context: context ?? {}, screenshot })
+  const shots = await uploadScreenshots(userId, files ?? (file ? [file] : []), compress)
+  const res = await callFn({ action: files ? 'submit_screenshots' : 'submit', body: cleanBody(body), context: context ?? {},
+    ...(files ? { screenshots: shots } : { screenshot: shots[0] ?? null }) })
   return { id: res.id, delivered: res.delivered !== false }
 }
 
@@ -142,7 +128,7 @@ export async function listMyFeedback(userId) {
   if (!await hasSession(userId)) throw new FeedbackError('no_session')
   const rows = (await rpc('my_feedback')) ?? []
   await cacheFeedbackReplies(userId, rows)
-  return withAdditions(rows)
+  return withScreenshotCounts(await withAdditions(rows))
 }
 
 // Дополнения (v8.6.0) — к строкам списка полем additions: [{ n, body, created_at }].
@@ -187,7 +173,7 @@ export async function myUnreadReplies(userId) {
 }
 
 export async function adminListFeedback(openOnly = false) {
-  return (await rpc('admin_list_feedback', { p_open_only: Boolean(openOnly) })) ?? []
+  return withScreenshotCounts((await rpc('admin_list_feedback', { p_open_only: Boolean(openOnly) })) ?? [])
 }
 
 // Статус + ответ. Сервер сам решает, слать ли пуш (новый ответ или финальный статус).
@@ -243,4 +229,41 @@ export async function feedbackShotUrl(path) {
   const { data, error } = await withTimeout(supabase.storage.from('feedback').createSignedUrl(path, 600))
   if (error || !data?.signedUrl) throw new FeedbackError('server_error')
   return data.signedUrl
+}
+
+async function uploadScreenshots(userId, files, compress = compressToJpeg) {
+  if (!Array.isArray(files) || files.length > FEEDBACK_SHOTS_MAX) throw new FeedbackError('shot_limit')
+  const paths = []
+  try {
+    for (const file of files) {
+      const blob = await compress(file, SHOT_MAX_PX, SHOT_QUALITY)
+      const path = userId + '/' + newId() + '.jpg'
+      const up = await withTimeout(supabase.storage.from('feedback').upload(path, blob, { upsert: false, contentType: 'image/jpeg' }))
+      if (up?.error) throw up.error
+      paths.push(path)
+    }
+  } catch {
+    // Только файлы этой незавершенной загрузки, до создания обращения.
+    if (paths.length) await supabase.storage.from('feedback').remove(paths).catch(() => {})
+    throw new FeedbackError('shot_failed')
+  }
+  return paths
+}
+
+export async function attachFeedbackScreenshots(userId, id, files, compress = compressToJpeg) {
+  if (isOffline()) throw new FeedbackError('offline')
+  if (!await hasSession(userId)) throw new FeedbackError('no_session')
+  if (!files?.length) throw new FeedbackError('shot_failed')
+  const screenshots = await uploadScreenshots(userId, files, compress)
+  return callFn({ action: 'attach', id, screenshots })
+}
+
+async function withScreenshotCounts(rows) {
+  if (!rows.length) return rows
+  try {
+    const { data, error } = await withTimeout(supabase.rpc('feedback_screenshot_counts'))
+    if (error || !Array.isArray(data)) return rows
+    const counts = new Map(data.filter((r) => Number.isInteger(r.screenshot_count)).map((r) => [r.feedback_id, r.screenshot_count]))
+    return counts.size ? rows.map((r) => ({ ...r, screenshot_count: counts.get(r.id) ?? 0 })) : rows
+  } catch { return rows }
 }

@@ -15,7 +15,7 @@ vi.mock('../db/supabase.js', () => ({
 
 import {
   _clearMediaCache, ackMyFeedback, adminListFeedback, adminUpdateFeedback, feedbackMedia, feedbackShotUrl,
-  appendFeedback, listMyFeedback, myUnreadReplies, reopenFeedback, submitFeedback,
+  attachFeedbackScreenshots, appendFeedback, listMyFeedback, myUnreadReplies, reopenFeedback, submitFeedback,
 } from './feedbackApi.js'
 
 const ok = (payload, status = 200) => Promise.resolve({ ok: status < 400, status, json: async () => payload })
@@ -188,5 +188,38 @@ describe('Telegram: переоткрытие и картинки (v6.12.0)', () 
     vi.stubGlobal('navigator', { onLine: false })
     await expect(feedbackMedia('f3')).rejects.toMatchObject({ code: 'offline' })
     expect(fetch).not.toHaveBeenCalled()
+  })
+})
+
+describe('несколько скриншотов', () => {
+  it('отправляет все файлы в одном обращении через новый контракт', async () => {
+    mocks.upload.mockResolvedValue({ error: null })
+    const files = [new Blob(['a']), new Blob(['b'])]
+    await submitFeedback('me', { body: 'баг', files, compress: async (f) => f })
+    const payload = JSON.parse(fetch.mock.calls[0][1].body)
+    expect(payload.action).toBe('submit_screenshots')
+    expect(payload.screenshots).toEqual(mocks.upload.mock.calls.map(([path]) => path))
+    expect(new Set(payload.screenshots).size).toBe(2)
+  })
+  it('добавляет файлы к существующему обращению, проверяя сессию', async () => {
+    mocks.upload.mockResolvedValue({ error: null })
+    await attachFeedbackScreenshots('me', 'f1', [new Blob(['a'])], async (f) => f)
+    expect(JSON.parse(fetch.mock.calls[0][1].body)).toMatchObject({ action: 'attach', id: 'f1', screenshots: [expect.any(String)] })
+    mocks.hasSession.mockResolvedValue(false)
+    await expect(attachFeedbackScreenshots('other', 'f1', [new Blob()])).rejects.toMatchObject({ code: 'no_session' })
+    expect(fetch).toHaveBeenCalledTimes(1)
+  })
+  it('не создает обращение при сбое второго файла и убирает первый временный файл', async () => {
+    const remove = vi.fn(async () => ({}))
+    mocks.from.mockReturnValue({ upload: mocks.upload, remove })
+    mocks.upload.mockResolvedValueOnce({}).mockResolvedValueOnce({ error: true })
+    await expect(submitFeedback('me', { body: 'баг', files: [new Blob(), new Blob()], compress: async (f) => f }))
+      .rejects.toMatchObject({ code: 'shot_failed' })
+    expect(remove).toHaveBeenCalledWith([mocks.upload.mock.calls[0][0]])
+    expect(fetch).not.toHaveBeenCalled()
+  })
+  it('отклоняет больше пяти файлов до загрузки', async () => {
+    await expect(submitFeedback('me', { body: 'баг', files: Array(6).fill(new Blob()) })).rejects.toMatchObject({ code: 'shot_limit' })
+    expect(mocks.upload).not.toHaveBeenCalled()
   })
 })

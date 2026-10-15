@@ -1,17 +1,18 @@
 import { useCallback, useEffect, useRef, useState } from 'react'
 import Avatar from '../ui/Avatar.jsx'
 import { usePresence } from '../../hooks/usePresence.js'
-import { isOnline } from '../../lib/presence.js'
+import { isOnline, presenceLabel } from '../../lib/presence.js'
 import FriendButton from '../friends/FriendButton.jsx'
 
 // Участники круга: кто кого привел; владельцу — заявки (принять/отклонить), удалить
 // участника, передать круг. Действия с последствиями — в два нажатия.
-export default function CircleMembers({ api, circle, me, onChanged }) {
+export default function CircleMembers({ api, circle, me, onChanged, onOpenMember }) {
   // «В сети» (v8.6.0) — точка на аватарке участника.
   const presence = usePresence(me)
   const [list, setList] = useState(null)
   const [err, setErr] = useState('')
   const [busy, setBusy] = useState('')
+  const [menu, setMenu] = useState(null)
   const [arm, setArm] = useState(null) // { kind: 'remove' | 'transfer', id }
   const alive = useRef(true)
   useEffect(() => { alive.current = true; return () => { alive.current = false } }, [])
@@ -32,7 +33,7 @@ export default function CircleMembers({ api, circle, me, onChanged }) {
     try {
       await fn()
       if (!alive.current) return
-      setArm(null)
+      setArm(null); setMenu(null)
       await load()
       onChanged?.()
     } catch (e) {
@@ -68,38 +69,50 @@ export default function CircleMembers({ api, circle, me, onChanged }) {
           ))}
         </div>
       )}
-      <ul className="fc-list">
+      <div className="frd-list">
         {active.map((m) => (
-          <li key={m.user_id} className="fc-row">
-            <Avatar name={m.name} url={m.avatar_url} className="avatar-sm"
-              online={m.user_id !== me && isOnline(presence.get(m.user_id))} />
-            <span className="fc-who">
-              <span className="fc-name">{m.name}{m.user_id === me && <span className="feed-me">я</span>}{m.is_owner && <span className="fc-badge">владелец</span>}</span>
-              {m.invited_by_name && !m.is_owner && <span className="muted fc-by">пришел(а) по коду {m.invited_by_name}</span>}
-              {/* «В друзья» прямо из круга (v9.0.0, «Друзья» этап 1): круг уже показал имя. */}
-              {m.user_id !== me && <FriendButton me={me} memberId={m.user_id} compact />}
-            </span>
-            {isOwner && !m.is_owner && (
-              <span className="fc-row-acts fc-under">
-                <button type="button" className={armed('transfer', m.user_id) ? 'link-btn' : 'link-btn muted'} disabled={!!busy}
-                  onClick={() => (armed('transfer', m.user_id)
-                    ? act(`tr-${m.user_id}`, () => api.transfer(circle.circle_id, m.user_id).then((r) => {
-                      if (r === 'has_own') throw new Error(`У ${m.name} уже есть свой круг — передать нельзя.`)
-                    }))
-                    : setArm({ kind: 'transfer', id: m.user_id }))}>
-                  {armed('transfer', m.user_id) ? 'Точно передать?' : 'Передать круг'}
-                </button>
-                <button type="button" className={armed('remove', m.user_id) ? 'link-btn danger' : 'link-btn muted'} disabled={!!busy}
-                  onClick={() => (armed('remove', m.user_id)
-                    ? act(`rm-${m.user_id}`, () => api.remove(circle.circle_id, m.user_id))
-                    : setArm({ kind: 'remove', id: m.user_id }))}>
-                  {armed('remove', m.user_id) ? 'Точно убрать?' : 'Убрать'}
-                </button>
-              </span>
+          <div key={m.user_id} className="frd-item">
+            <div className="frd-line">
+              <button type="button" className="frd-row" onClick={() => onOpenMember?.(m.user_id)}>
+                <Avatar name={m.name} url={m.avatar_url} className="avatar frd-av"
+                  online={m.user_id !== me && isOnline(presence.get(m.user_id))} />
+                <span className="frd-who">
+                  <span className="frd-name">{m.name}{m.user_id === me && <span className="feed-me">я</span>}</span>
+                  {m.is_owner && <span className="frd-sub">владелец</span>}
+                  {m.user_id !== me && <span className={'frd-sub' + (isOnline(presence.get(m.user_id)) ? ' frd-sub-on' : '')}>
+                    {presenceLabel(presence.get(m.user_id))}
+                  </span>}
+                </span>
+              </button>
+              <button type="button" className="frd-more" aria-label={'Действия: ' + m.name}
+                aria-expanded={menu === m.user_id} disabled={!!busy}
+                onClick={() => { setArm(null); setMenu(menu === m.user_id ? null : m.user_id) }}>⋯</button>
+            </div>
+            {menu === m.user_id && (
+              <div className="frd-menu" role="group" aria-label={m.name}>
+                <button type="button" onClick={() => onOpenMember?.(m.user_id)}>Открыть профиль</button>
+                {m.invited_by_name && !m.is_owner && <span className="frd-sub fc-menu-note">Пришел(а) по коду {m.invited_by_name}</span>}
+                {m.user_id !== me && <FriendButton me={me} memberId={m.user_id} compact />}
+                {isOwner && !m.is_owner && <>
+                  <button type="button" disabled={!!busy}
+                    onClick={() => armed('transfer', m.user_id)
+                      ? act('tr-' + m.user_id, () => api.transfer(circle.circle_id, m.user_id).then((r) => {
+                        if (r === 'has_own') throw new Error('У ' + m.name + ' уже есть свой круг — передать нельзя.')
+                      })) : setArm({ kind: 'transfer', id: m.user_id })}>
+                    {armed('transfer', m.user_id) ? 'Точно передать?' : 'Передать круг'}
+                  </button>
+                  <button type="button" className="frd-danger" disabled={!!busy}
+                    onClick={() => armed('remove', m.user_id)
+                      ? act('rm-' + m.user_id, () => api.remove(circle.circle_id, m.user_id))
+                      : setArm({ kind: 'remove', id: m.user_id })}>
+                    {armed('remove', m.user_id) ? 'Точно убрать?' : 'Убрать'}
+                  </button>
+                </>}
+              </div>
             )}
-          </li>
+          </div>
         ))}
-      </ul>
+      </div>
       {err && <p className="pin-err" role="alert">{err}</p>}
     </div>
   )

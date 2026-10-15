@@ -13,7 +13,7 @@ vi.mock('../components/ui/Toast.jsx', () => ({ showToast: vi.fn() }))
 vi.mock('../lib/feedbackApi.js', () => ({
   FeedbackError: class FeedbackError extends Error {},
   submitFeedback: vi.fn(), listMyFeedback: vi.fn(), ackMyFeedback: vi.fn(),
-  reopenFeedback: vi.fn(), feedbackMedia: vi.fn(), appendFeedback: vi.fn(),
+  reopenFeedback: vi.fn(), feedbackMedia: vi.fn(), appendFeedback: vi.fn(), attachFeedbackScreenshots: vi.fn(),
 }))
 
 const USER = { id: 'me', name: 'Маша' }
@@ -62,7 +62,7 @@ describe('FeedbackScreen', () => {
     const [uid, payload] = api.submit.mock.calls[0]
     expect(uid).toBe('me')
     expect(payload.body).toBe('Пропал подход')
-    expect(payload.file).toBeNull()
+    expect(payload.files).toEqual([])
     expect(payload.context).toMatchObject({ screen: 'Профиль', standalone: false })
     expect(payload.context.version).toBeTruthy()
     expect(payload.context.device).toBeTruthy()
@@ -81,7 +81,7 @@ describe('FeedbackScreen', () => {
     await userEvent.upload(screen.getByTestId('fb-file'), file)
     await userEvent.type(screen.getByLabelText('Что случилось?'), 'см. скрин')
     await userEvent.click(screen.getByRole('button', { name: 'Отправить' }))
-    await waitFor(() => expect(api.submit.mock.calls[0][1].file).toBe(file))
+    await waitFor(() => expect(api.submit.mock.calls[0][1].files).toEqual([file]))
   })
 
   it('ошибка сервера — тост с текстом, введенное не теряется', async () => {
@@ -189,4 +189,30 @@ describe('FeedbackScreen — ответ из Telegram и переоткрыти�
     expect(screen.getAllByRole('button', { name: 'Дополнить' })).toHaveLength(1)
     expect(screen.getAllByRole('button', { name: 'Не помогло — открыть снова' })).toHaveLength(1)
   })
+})
+
+it('несколько файлов: повторный выбор добавляет, удаление убирает только выбранный', async () => {
+  const api = setup()
+  const a = new File(['a'], 'a.png', { type: 'image/png' })
+  const b = new File(['b'], 'b.png', { type: 'image/png' })
+  const c = new File(['c'], 'c.png', { type: 'image/png' })
+  await userEvent.upload(screen.getByTestId('fb-file'), [a, b])
+  await userEvent.upload(screen.getByTestId('fb-file'), c)
+  await userEvent.click(screen.getByRole('button', { name: 'Убрать скриншот 2' }))
+  await userEvent.type(screen.getByLabelText('Что случилось?'), 'Ошибка')
+  await userEvent.click(screen.getByRole('button', { name: 'Отправить' }))
+  await waitFor(() => expect(api.submit.mock.calls[0][1].files).toEqual([a, c]))
+})
+
+it('можно добавить фото к закрытому обращению со старым скриншотом; ошибка сохраняет выбор', async () => {
+  const attach = vi.fn().mockRejectedValueOnce(new Error('Нет связи')).mockResolvedValue({ delivered: true })
+  const api = setup({ list: vi.fn(async () => [{ ...ROW, screenshot_count: 1 }]), attach })
+  const file = new File(['x'], 'more.png', { type: 'image/png' })
+  await userEvent.upload(await screen.findByTestId('fb-file-f1'), file)
+  await userEvent.click(screen.getByRole('button', { name: 'Отправить скриншоты' }))
+  expect(await screen.findByRole('alert')).toHaveTextContent('Нет связи')
+  expect(screen.getByAltText('Скриншот к обращению')).toBeTruthy()
+  await userEvent.click(screen.getByRole('button', { name: 'Отправить скриншоты' }))
+  await waitFor(() => expect(api.list).toHaveBeenCalledTimes(2))
+  expect(attach).toHaveBeenLastCalledWith('me', 'f1', [file])
 })

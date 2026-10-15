@@ -1,3 +1,5 @@
+import FeedbackScreenshotPicker from '../components/social/FeedbackScreenshotPicker.jsx'
+import FeedbackAddScreenshots from '../components/social/FeedbackAddScreenshots.jsx'
 import { useEffect, useRef, useState } from 'react'
 import BackButton from '../components/ui/BackButton.jsx'
 import CardsSkeleton from '../components/ui/CardsSkeleton.jsx'
@@ -12,12 +14,12 @@ import {
 } from '../lib/feedback.js'
 import {
   ackMyFeedback, appendFeedback, feedbackMedia, listMyFeedback, reopenFeedback, submitFeedback as defaultSubmit,
-  FeedbackError,
+  FeedbackError, attachFeedbackScreenshots,
 } from '../lib/feedbackApi.js'
 
 const defaultApi = {
   submit: defaultSubmit, list: listMyFeedback, ack: ackMyFeedback, reopen: reopenFeedback, media: feedbackMedia,
-  append: appendFeedback,
+  append: appendFeedback, attach: attachFeedbackScreenshots,
 }
 
 // «Написать разработчику» (v6.11.0, Профиль → Настройки). Обращение уходит
@@ -28,15 +30,13 @@ const defaultApi = {
 export default function FeedbackScreen({ user, onBack, focusId = null, fromScreen = null, api = defaultApi }) {
   const { online } = useSyncStatus()
   const [text, setText] = useState('')
-  const [file, setFile] = useState(null)
-  const [preview, setPreview] = useState(null)
+  const [files, setFiles] = useState([])
   const [busy, setBusy] = useState(false)
   const [list, setList] = useState(null)
   const [loadErr, setLoadErr] = useState('')
   // Какие ответы были непрочитаны на момент открытия: метку «новый» держим до
   // ухода с экрана, хотя на сервере она гаснет сразу (ack).
   const [fresh, setFresh] = useState(() => new Set())
-  const fileRef = useRef(null)
   const alive = useRef(true)
   useEffect(() => { alive.current = true; return () => { alive.current = false } }, [])
 
@@ -59,14 +59,6 @@ export default function FeedbackScreen({ user, onBack, focusId = null, fromScree
   }
   // eslint-disable-next-line react-hooks/exhaustive-deps
   useEffect(() => { if (online) reload({ ack: true }); else setList((l) => l ?? []) }, [online, user.id])
-
-  // Превью выбранного скриншота — object URL, освобождаем при смене/уходе.
-  useEffect(() => {
-    if (!file) { setPreview(null); return undefined }
-    const url = URL.createObjectURL(file)
-    setPreview(url)
-    return () => URL.revokeObjectURL(url)
-  }, [file])
 
   // Пуш привел к конкретному обращению — прокрутить к нему, когда список появился.
   useEffect(() => {
@@ -91,23 +83,17 @@ export default function FeedbackScreen({ user, onBack, focusId = null, fromScree
         screen: fromScreen ?? 'profile',
         online: navigator.onLine,
       })
-      await api.submit(user.id, { body: text, context, file })
+      const result = await api.submit(user.id, { body: text, context, files })
       if (!alive.current) return
       setText('')
-      setFile(null)
-      showToast({ emoji: '📨', title: 'Отправлено', sub: 'Спасибо! Ответ появится здесь.' })
+      setFiles([])
+      showToast({ emoji: '📨', title: 'Отправлено', sub: result.delivered === false ? 'Сохранено, но доставка разработчику задержалась.' : 'Спасибо! Ответ появится здесь.' })
       reload()
     } catch (e) {
       showToast({ emoji: '⚠️', title: 'Не отправилось', sub: e instanceof FeedbackError ? e.message : 'Попробуй еще раз.' })
     } finally {
       if (alive.current) setBusy(false)
     }
-  }
-
-  function pickFile(e) {
-    const f = e.target.files?.[0]
-    e.target.value = '' // повторный выбор того же файла тоже срабатывает
-    if (f) setFile(f)
   }
 
   return (
@@ -139,19 +125,7 @@ export default function FeedbackScreen({ user, onBack, focusId = null, fromScree
           {len} / {FEEDBACK_MAX}
         </div>
 
-        {preview ? (
-          <div className="fb-shot">
-            <img src={preview} alt="Скриншот к обращению" />
-            <button type="button" className="btn ghost" onClick={() => setFile(null)} disabled={busy}>
-              Убрать скриншот
-            </button>
-          </div>
-        ) : (
-          <button type="button" className="btn ghost fb-attach" onClick={() => fileRef.current?.click()} disabled={busy}>
-            📎 Приложить скриншот
-          </button>
-        )}
-        <input ref={fileRef} type="file" accept="image/*" hidden onChange={pickFile} data-testid="fb-file" />
+        <FeedbackScreenshotPicker files={files} onChange={setFiles} disabled={busy} />
 
         <p className="admin-hint">
           К сообщению приложим версию приложения и модель телефона — так быстрее разобраться.
@@ -181,7 +155,10 @@ export default function FeedbackScreen({ user, onBack, focusId = null, fromScree
                   <span className="admin-ex-meta"> · {fmtFeedbackDate(a.created_at)}</span>
                 </p>
               ))}
-              {r.has_screenshot && <span className="admin-ex-meta">📎 со скриншотом</span>}
+              {r.screenshot_count > 0 ? <FeedbackPhotos id={r.id} kind="screenshots" count={r.screenshot_count}
+                load={api.media} lazy disabled={!online} label="Скриншот к обращению" />
+                : r.has_screenshot && <span className="admin-ex-meta">📎 со скриншотом</span>}
+              <FeedbackAddScreenshots row={r} userId={user.id} api={api} online={online} onDone={() => reload()} />
               {r.reopened_at && r.reopen_note && (
                 <p className="fb-reopen"><span aria-hidden="true">🔁 </span>Открыто снова: {r.reopen_note}</p>
               )}

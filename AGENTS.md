@@ -369,6 +369,10 @@ updated_at)` + `upsert_user_meta` (`supabase/user-meta.sql`, RLS «только 
   **v6.12.0 — ответ из Telegram** → канон `feedback-tg.sql`: `my_feedback`/`admin_list_feedback`/
   `admin_update_feedback` (новые колонки в конце контракта; `feedback.sql` после него НЕ перезапускать),
   `reopen_my_feedback`/`feedback_media_ref` (authenticated), `bot_*` (в т.ч. `bot_feedback_note`) — EXECUTE только `service_role`.
+  **v9.2.0 — несколько скриншотов (локально, еще не накатано)** → `migrations/20261015171344_feedback_screenshots.sql`:
+  добавочная колонка `feedback.screenshots`, атомарные `submit_feedback_screenshots`/`attach_feedback_screenshots`,
+  счетчики/чтение только автору или администратору, `bot_feedback_screenshot` только service_role. До пяти со старым фото.
+  Старые функции не заменяет; накат SQL → Edge `feedback` → клиент только по согласованию.
   **v8.6.0 — дополнения** → добавочный канон `feedback-append.sql`: `feedback_additions` (закрыта, без ссылки на
   `users`: автор — `feedback.user_id`), `append_my_feedback` (автор, только `new`/`in_progress`, 1..1000, ≤5,
   статус не меняет), `my_feedback_additions` (отдельно, чтобы не менять контракт `my_feedback`). Edge `feedback`

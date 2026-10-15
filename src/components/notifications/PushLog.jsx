@@ -37,7 +37,7 @@ export default function PushLog() {
         {busy ? 'Проверяю…' : 'Проверить service worker'}
       </button>
       {regs && (
-        <ol className="push-log-list">
+        <ul className="push-log-list" aria-label="Регистрации service worker">
           {regs.length === 0 && <li>Регистраций нет</li>}
           {regs.map((r, i) => (
             <li key={i}>
@@ -46,11 +46,11 @@ export default function PushLog() {
               <br />пуши: {r.sub ?? 'нет подписки'} · ответ на пинг: {r.ver ?? 'нет (старый код или спит)'}
             </li>
           ))}
-        </ol>
+        </ul>
       )}
       {list && list.length === 0 && <p className="push-note">Пусто.</p>}
       {list && list.length > 0 && (
-        <ol className="push-log-list">
+        <ol className="push-log-list" aria-label="События пушей">
           {list.map((r, i) => (
             <li key={i}>
               <span className="push-log-t">{time(r.at)}</span> <b>{r.who}</b> {r.ev}

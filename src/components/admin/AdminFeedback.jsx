@@ -123,11 +123,13 @@ function FeedbackCard({ row, online, api, editing, onEdit, onSaved }) {
         </p>
       )}
       {/* v6.12.0: отправленный в Telegram скриншот живет там (file_id), в Storage — только недошедший. */}
-      {!row.screenshot_path && row.has_screenshot_tg && (
+      {row.screenshot_count > 0 && <FeedbackPhotos id={row.id} kind="screenshots" count={row.screenshot_count}
+        load={api.media} lazy disabled={!online} label={`Скриншот от ${row.author_name}`} />}
+      {!row.screenshot_count && !row.screenshot_path && row.has_screenshot_tg && (
         <FeedbackPhotos id={row.id} kind="shot" count={1} load={api.media} lazy disabled={!online}
           label={`Скриншот от ${row.author_name}`} />
       )}
-      {row.screenshot_path && (shotUrl ? (
+      {!row.screenshot_count && row.screenshot_path && (shotUrl ? (
         <a className="fb-shot" href={shotUrl} target="_blank" rel="noreferrer">
           <img src={shotUrl} alt={`Скриншот от ${row.author_name}`} />
         </a>

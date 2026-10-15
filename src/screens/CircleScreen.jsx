@@ -13,7 +13,7 @@ import CircleOwnerSettings from '../components/circle/CircleOwnerSettings.jsx'
 // куда вступил по коду (до 5). У каждого участника — личный код: позвать друга без админа.
 // Все active-участники круга видят друг друга в Ленте и рейтинге круга.
 // Только онлайн. Пропсы: user, onBack(), joinCode — код из ссылки #join=… (или null).
-export default function CircleScreen({ user, onBack, joinCode = null, onJoinCodeConsumed }) {
+export default function CircleScreen({ user, onBack, onOpenMember, joinCode = null, onJoinCodeConsumed }) {
   const api = useMemo(() => circleApi(user.id), [user.id])
   const { online } = useSyncStatus()
   const [circles, setCircles] = useState(null)
@@ -88,7 +88,7 @@ export default function CircleScreen({ user, onBack, joinCode = null, onJoinCode
 
       {current && (
         <CirclePanel key={current.circle_id} api={api} circle={current} me={user.id}
-          onChanged={changed} onGone={() => { setSelected(null); changed() }} />
+          onOpenMember={onOpenMember} onChanged={changed} onGone={() => { setSelected(null); changed() }} />
       )}
 
       {circles && !ownCircle && online && <CreateCircle api={api} onCreated={(id) => { setSelected(id); changed() }} />}
@@ -97,7 +97,7 @@ export default function CircleScreen({ user, onBack, joinCode = null, onJoinCode
   )
 }
 
-function CirclePanel({ api, circle, me, onChanged, onGone }) {
+function CirclePanel({ api, circle, me, onChanged, onGone, onOpenMember }) {
   const [armLeave, setArmLeave] = useState(false)
   const [err, setErr] = useState('')
   if (circle.my_status === 'pending') {
@@ -124,7 +124,7 @@ function CirclePanel({ api, circle, me, onChanged, onGone }) {
         <span className="muted">{circle.is_owner ? 'твой круг' : `круг ${circle.owner_name}`} · {circle.members} {plural(circle.members)}</span>
       </div>
       <CircleCode api={api} circle={circle} />
-      <CircleMembers api={api} circle={circle} me={me} onChanged={onChanged} />
+      <CircleMembers onOpenMember={onOpenMember} api={api} circle={circle} me={me} onChanged={onChanged} />
       {circle.is_owner ? (
         <CircleOwnerSettings api={api} circle={circle} onChanged={onChanged} onDeleted={onGone} />
       ) : (
