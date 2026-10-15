@@ -70,6 +70,40 @@ export async function takePendingPushUrl(now = Date.now(), store = globalThis.ca
   }
 }
 
+// Нажатие у свернутой PWA (v8.9.6). iPhone в этом случае только разворачивает приложение, а
+// notificationclick не шлет (журнал владельца 15.10: «sw push» есть, «sw click» — нет). SW
+// запоминает последний пуш с tag (public/push-sw.js rememberLastPush). При возврате: пуш свежий
+// (LAST_PUSH_TTL_MS) и его уведомления уже нет в шторке → его нажали (или смахнули) — переходим.
+// Уведомление еще висит — приложение открыли сами, никуда не уводим (запись оставляем).
+// Нет getNotifications — не гадаем.
+export const LAST_PUSH_KEY = '/__push-last'
+export const LAST_PUSH_TTL_MS = 2 * 60 * 1000
+
+export async function takeTappedPushUrl(reg, now = Date.now(), store = globalThis.caches) {
+  if (!store || !reg?.getNotifications) return null
+  try {
+    const c = await store.open(PUSH_INTENT_CACHE)
+    const res = await c.match(LAST_PUSH_KEY)
+    if (!res) return null
+    const { url, tag, at } = await res.json()
+    if (typeof url !== 'string' || !Number.isFinite(at) || now - at < 0 || now - at > LAST_PUSH_TTL_MS) {
+      await c.delete(LAST_PUSH_KEY)
+      return null
+    }
+    const shown = await reg.getNotifications(tag ? { tag } : undefined)
+    const log = store === globalThis.caches
+    if (shown.length) {
+      if (log) appendPushLog('last', `уведомление еще в шторке (${tag})`)
+      return null
+    }
+    await c.delete(LAST_PUSH_KEY)
+    if (log) appendPushLog('tapped', url)
+    return url
+  } catch {
+    return null
+  }
+}
+
 // Журнал нажатий (v8.9.4): общий с SW ключ в том же кэше, последние PUSH_LOG_MAX шагов.
 // Отладка перехода по пушу на iPhone — админ видит его в «Уведомлениях».
 export const PUSH_LOG_KEY = '/__push-log'
@@ -100,6 +134,37 @@ export async function readPushLog(store = globalThis.caches) {
 
 export async function clearPushLog(store = globalThis.caches) {
   try { await (await store?.open(PUSH_INTENT_CACHE))?.delete(PUSH_LOG_KEY) } catch { /* нечего чистить */ }
+}
+
+// Проверка service worker'ов (v8.9.6, журнал нажатий): все регистрации устройства, их скрипт,
+// подписка на пуши и ответ на «пинг» (версия push-sw.js). Старый код на пинг не отвечает.
+function pingWorker(worker, ms = 1500) {
+  return new Promise((resolve) => {
+    if (!worker) { resolve(null); return }
+    const ch = new MessageChannel()
+    const timer = setTimeout(() => resolve(null), ms)
+    ch.port1.onmessage = (e) => { clearTimeout(timer); resolve(e.data?.ver ?? '?') }
+    try { worker.postMessage({ type: 'push-sw-ping' }, [ch.port2]) } catch { clearTimeout(timer); resolve(null) }
+  })
+}
+
+export async function diagnoseServiceWorkers(sw = globalThis.navigator?.serviceWorker) {
+  if (!sw?.getRegistrations) return []
+  const regs = await sw.getRegistrations()
+  return Promise.all(regs.map(async (r) => {
+    const worker = r.active ?? r.waiting ?? r.installing ?? null
+    let sub = null
+    try { sub = (await r.pushManager?.getSubscription())?.endpoint ?? null } catch { /* нет доступа */ }
+    return {
+      scope: r.scope,
+      script: worker?.scriptURL ?? '',
+      state: r.active ? 'active' : r.waiting ? 'waiting' : r.installing ? 'installing' : 'нет',
+      waiting: Boolean(r.waiting),
+      controls: sw.controller ? sw.controller.scriptURL === worker?.scriptURL : false,
+      sub: sub ? '…' + sub.slice(-16) : null,
+      ver: await pingWorker(r.active),
+    }
+  }))
 }
 
 // Ранняя подписка на «перейди по пушу» (v8.9.3). На iPhone нажатие часто ЗАПУСКАЕТ приложение

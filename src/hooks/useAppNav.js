@@ -1,5 +1,5 @@
 import { useEffect, useLayoutEffect, useRef, useState } from 'react'
-import { appendPushLog, onPushOpen, PENDING_RECHECK_MS, pushIntentFromUrl, takePendingPushUrl } from '../lib/pushIntent.js'
+import { appendPushLog, onPushOpen, PENDING_RECHECK_MS, pushIntentFromUrl, takePendingPushUrl, takeTappedPushUrl } from '../lib/pushIntent.js'
 import { onResume } from '../lib/appEvents.js'
 import { emitReselect } from '../lib/appEvents.js'
 import { transitionKind, isNested, nextScreenStack, initialScreenStack } from '../lib/screenNav.js'
@@ -82,10 +82,18 @@ export function useAppNav(user) {
   // Холодный старт с `?push=` в адресе — запись только снимаем, намерение уже есть.
   useEffect(() => {
     let alive = true
-    const pull = (apply = true) => takePendingPushUrl().then((url) => {
-      const intent = url && apply ? pushIntentFromUrl(url) : null
-      if (alive && intent) setPushIntent(intent)
-    })
+    // Нет записи о нажатии — свернутая PWA на iPhone (нажатие не дошло до SW): смотрим
+    // последний пуш и шторку (lib/pushIntent.js takeTappedPushUrl, v8.9.6).
+    const tapped = async () => {
+      const reg = await navigator.serviceWorker?.getRegistration?.().catch(() => null)
+      return reg ? takeTappedPushUrl(reg) : null
+    }
+    const pull = (apply = true) => takePendingPushUrl()
+      .then((url) => url ?? (apply ? tapped() : null))
+      .then((url) => {
+        const intent = url && apply ? pushIntentFromUrl(url) : null
+        if (alive && intent) setPushIntent(intent)
+      })
     // v8.9.3: iPhone сначала показывает приложение (запуск или возврат из фона) и только потом
     // отдает нажатие SW — запись появляется позже нашей проверки. Поэтому после запуска,
     // возврата и фокуса проверяем серией (PENDING_RECHECK_MS), а не один раз.

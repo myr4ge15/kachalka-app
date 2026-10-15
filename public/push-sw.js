@@ -9,6 +9,10 @@
 
 /* global self, clients, URL, MessageChannel, setTimeout, clearTimeout, caches, Response */
 
+// Версия этого файла (v8.9.6) = версия приложения; сверяет тест src/lib/pushIntent.test.js.
+// Отвечает на «пинг» журнала нажатий: так видно, что пуши обрабатывает свежий код.
+const PUSH_SW_VER = '8.9.6'
+
 self.addEventListener('push', (event) => {
   let data
   try {
@@ -33,6 +37,10 @@ self.addEventListener('push', (event) => {
     options.renotify = true
   }
   const work = [self.registration.showNotification(title, options), logged]
+  // v8.9.6: у СВЕРНУТОЙ PWA iPhone нажатие на уведомление только разворачивает приложение,
+  // notificationclick не приходит (журнал владельца 15.10). Запоминаем последний пуш с tag —
+  // приложение при возврате увидит, что его уведомления уже нет в шторке, и перейдет само.
+  if (data.tag) work.push(rememberLastPush(options.data.url, data.tag))
   // «Вышла новая версия» (v6.11.1): сразу скачиваем новый sw.js, пока уведомление
   // висит. К нажатию версия уже ждет установленной, и приложение применяет ее без
   // плашки (UpdatePrompt, ?push=update) — вместо «открыл, подождал, нажал Обновить».
@@ -103,7 +111,19 @@ async function logPush(ev, detail) {
   } catch { /* журнал — не повод ломать переход */ }
 }
 
+const LAST_KEY = '/__push-last'
+async function rememberLastPush(url, tag) {
+  try {
+    const c = await caches.open(INTENT_CACHE)
+    await c.put(LAST_KEY, new Response(JSON.stringify({ url, tag, at: Date.now() }), { headers: { 'content-type': 'application/json' } }))
+  } catch { /* без записи — переход только по нажатию */ }
+}
+async function forgetLastPush() {
+  try { await (await caches.open(INTENT_CACHE)).delete(LAST_KEY) } catch { /* нечего забывать */ }
+}
+
 async function openFromNotification(target) {
+  await forgetLastPush() // нажатие пришло — дальше обычный путь, догадка при возврате не нужна
   await rememberIntent(target)
   const scope = self.registration.scope
   const wins = await clients.matchAll({ type: 'window', includeUncontrolled: true })
@@ -132,6 +152,14 @@ async function openFromNotification(target) {
     } catch (e) { await logPush('openWindow-error', e && e.message) }
   }
 }
+
+// Пинг из журнала нажатий (v8.9.6): ответить версией и записать шаг в журнал — так видно,
+// что код свежий и что записи SW доходят до приложения (общий Cache Storage).
+self.addEventListener('message', (event) => {
+  if (!event.data || event.data.type !== 'push-sw-ping') return
+  const port = event.ports && event.ports[0]
+  event.waitUntil(logPush('ping', PUSH_SW_VER).then(() => { if (port) port.postMessage({ ver: PUSH_SW_VER }) }))
+})
 
 self.addEventListener('notificationclick', (event) => {
   event.notification.close()

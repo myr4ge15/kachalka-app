@@ -1,15 +1,30 @@
 import { useCallback, useEffect, useState } from 'react'
-import { clearPushLog, readPushLog } from '../../lib/pushIntent.js'
+import { clearPushLog, diagnoseServiceWorkers, readPushLog } from '../../lib/pushIntent.js'
 
 // Журнал нажатий на пуш (v8.9.4) — отладка перехода по пушу на iPhone, только админу.
 // Шаги пишут service worker (public/push-sw.js) и приложение (lib/pushIntent.js, useAppNav)
-// в общий кэш устройства. Свежие — сверху.
+// в общий кэш устройства. Свежие — сверху. v8.9.6: «Проверить service worker» — регистрации
+// устройства и ответ каждой на пинг (версия обработчика пушей; старый код не отвечает).
 const time = (ms) => new Date(ms).toLocaleTimeString('ru-RU', { hour: '2-digit', minute: '2-digit', second: '2-digit' })
 
 export default function PushLog() {
   const [list, setList] = useState(null)
+  const [regs, setRegs] = useState(null)
+  const [busy, setBusy] = useState(false)
   const load = useCallback(() => { readPushLog().then((l) => setList([...l].reverse())) }, [])
   useEffect(() => { load() }, [load])
+
+  async function check() {
+    setBusy(true)
+    try {
+      setRegs(await diagnoseServiceWorkers())
+    } catch (e) {
+      setRegs([{ scope: 'ошибка', script: String(e?.message ?? e) }])
+    } finally {
+      setBusy(false)
+      load()
+    }
+  }
 
   return (
     <section className="sec push-log">
@@ -19,6 +34,21 @@ export default function PushLog() {
         <button type="button" className="btn ghost" onClick={load}>Обновить</button>
         <button type="button" className="btn ghost" onClick={() => clearPushLog().then(load)}>Очистить</button>
       </div>
+      <button type="button" className="btn ghost push-log-check" disabled={busy} onClick={check}>
+        {busy ? 'Проверяю…' : 'Проверить service worker'}
+      </button>
+      {regs && (
+        <ol className="push-log-list">
+          {regs.length === 0 && <li>Регистраций нет</li>}
+          {regs.map((r, i) => (
+            <li key={i}>
+              <b>{r.scope}</b> · {r.state}{r.waiting ? ' (ждет установки)' : ''}{r.controls ? ' · управляет страницей' : ''}
+              <span className="push-log-d"> · {r.script}</span>
+              <br />пуши: {r.sub ?? 'нет подписки'} · ответ на пинг: {r.ver ?? 'нет (старый код или спит)'}
+            </li>
+          ))}
+        </ol>
+      )}
       {list && list.length === 0 && <p className="push-note">Пусто.</p>}
       {list && list.length > 0 && (
         <ol className="push-log-list">

@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest'
 import { vi } from 'vitest'
-import { appendPushLog, clearPushLog, onPushOpen, PENDING_TTL_MS, PUSH_LOG_MAX, readPushLog, PUSH_INTENT_KEY, pushIntentFromTag, pushIntentFromUrl, startPushListener, stripPushParam, takePendingPushUrl } from './pushIntent.js'
+import { readFileSync } from 'node:fs'
+import { appendPushLog, clearPushLog, LAST_PUSH_KEY, LAST_PUSH_TTL_MS, takeTappedPushUrl, onPushOpen, PENDING_TTL_MS, PUSH_LOG_MAX, readPushLog, PUSH_INTENT_KEY, pushIntentFromTag, pushIntentFromUrl, startPushListener, stripPushParam, takePendingPushUrl } from './pushIntent.js'
 
 const W = '3f2c9a1e-0b4d-4c7e-9a10-5e6f7a8b9c0d'
 const U = 'aa11bb22-cc33-4d44-8e55-66ff77889900'
@@ -136,5 +137,45 @@ describe('журнал нажатий (v8.9.4)', () => {
   it('без кэша — пусто и тихо', async () => {
     await appendPushLog('x', '', undefined)
     expect(await readPushLog(undefined)).toEqual([])
+  })
+})
+
+describe('push-sw.js (v8.9.6)', () => {
+  it('версия обработчика пушей = версия приложения (поднять вместе с package.json)', () => {
+    const sw = readFileSync(new URL('../../public/push-sw.js', import.meta.url), 'utf8')
+    const pkg = JSON.parse(readFileSync(new URL('../../package.json', import.meta.url), 'utf8'))
+    expect(sw.match(/const PUSH_SW_VER = '([^']+)'/)?.[1]).toBe(pkg.version)
+  })
+})
+
+describe('takeTappedPushUrl — нажатие у свернутой PWA (v8.9.6)', () => {
+  const url = 'https://x.ru/app/?push=rest'
+  function setup(entry, shown = []) {
+    const map = new Map(entry ? [[LAST_PUSH_KEY, JSON.stringify(entry)]] : [])
+    const cache = {
+      match: async (k) => { const v = map.get(k); return v === undefined ? undefined : { json: async () => JSON.parse(v) } },
+      delete: async (k) => map.delete(k),
+    }
+    const reg = { getNotifications: vi.fn(async () => shown) }
+    return { store: { open: async () => cache }, map, reg }
+  }
+  it('уведомления в шторке уже нет — переход, запись снята', async () => {
+    const { store, map, reg } = setup({ url, tag: 'rest', at: 1000 })
+    expect(await takeTappedPushUrl(reg, 5000, store)).toBe(url)
+    expect(reg.getNotifications).toHaveBeenCalledWith({ tag: 'rest' })
+    expect(map.size).toBe(0)
+  })
+  it('уведомление еще висит — открыли сами, никуда не ведем, запись остается', async () => {
+    const { store, map, reg } = setup({ url, tag: 'rest', at: 1000 }, [{}])
+    expect(await takeTappedPushUrl(reg, 5000, store)).toBeNull()
+    expect(map.size).toBe(1)
+  })
+  it('старый пуш — не ведем, запись снята; без getNotifications — не гадаем', async () => {
+    const old = setup({ url, tag: 'rest', at: 0 })
+    expect(await takeTappedPushUrl(old.reg, LAST_PUSH_TTL_MS + 1, old.store)).toBeNull()
+    expect(old.map.size).toBe(0)
+    const s = setup({ url, tag: 'rest', at: 1000 })
+    expect(await takeTappedPushUrl({}, 5000, s.store)).toBeNull()
+    expect(s.map.size).toBe(1)
   })
 })

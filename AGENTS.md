@@ -687,6 +687,7 @@ updated_at)` + `upsert_user_meta` (`supabase/user-meta.sql`, RLS «только 
    «копим в `main`, тег не двигаем». Номер тега БРАТЬ ИЗ `package.json`, а не набирать руками —
    иначе тег и версия внизу «Профиля» разъедутся:
    `$v = (Get-Content package.json -Raw | ConvertFrom-Json).version; git tag "v$v"; git push origin "v$v"`.
+   При бампе — и `PUSH_SW_VER` в `public/push-sw.js` (с v8.9.6; тест `pushIntent.test.js` сверяет).
    Откат — `workflow_dispatch` на прошлом теге.
    Пуш «Вышла версия» (Edge `push-update`) с v6.15.0 уходит только при смене `x.y` (`semver.ts`
    `shouldAnnounce`): тег на PATCH выкатывает тихо — друзья получат его при запуске и в «Что нового».
