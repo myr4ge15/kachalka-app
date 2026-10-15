@@ -24,7 +24,7 @@
 
 export const WHATS_NEW = [
   {
-    version: '9.2.0',
+    version: '9.2.1',
     date: '2026-10-15',
     headline: 'Друзья: кого видишь — решаешь сам',
     big: true,
