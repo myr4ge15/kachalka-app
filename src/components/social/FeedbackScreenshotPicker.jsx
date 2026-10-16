@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from 'react'
-import { FEEDBACK_SHOTS_MAX, attachmentProblem, feedbackErrorText, isVideoFile } from '../../lib/feedback.js'
+import { FEEDBACK_SHOTS_MAX, attachmentProblem, feedbackErrorText, fmtFileSize, isVideoFile, videoPosterSrc } from '../../lib/feedback.js'
 
 // Вложения обращения: скриншоты и (16.10, fb_1c5fab9c) видео MP4/MOV до 20 МБ — всего до max.
 
@@ -24,8 +24,11 @@ export default function FeedbackScreenshotPicker({ files, onChange, disabled, ma
     <div className="fb-picker">
       {files.map((file, n) => <div className="fb-shot" key={n}>
         {isVideoFile(file)
-          ? <video src={urls[n]} muted playsInline preload="metadata"
-            aria-label={files.length === 1 ? 'Видео к обращению' : 'Видео к обращению ' + (n + 1)} />
+          ? <div className="fb-shot-video">
+            <video src={videoPosterSrc(urls[n])} muted playsInline preload="metadata"
+              aria-label={files.length === 1 ? 'Видео к обращению' : 'Видео к обращению ' + (n + 1)} />
+            <span className="fb-shot-tag">▶ Видео{file.size ? ' · ' + fmtFileSize(file.size) : ''}</span>
+          </div>
           : <img src={urls[n]} alt={files.length === 1 ? 'Скриншот к обращению' : 'Скриншот к обращению ' + (n + 1)} />}
         <button type="button" className="btn ghost" disabled={disabled}
           onClick={() => { setError(''); onChange(files.filter((_, i) => i !== n)) }}

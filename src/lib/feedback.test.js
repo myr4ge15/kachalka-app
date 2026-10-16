@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
 import {
-  myFeedbackTab, attachmentProblem, sniffMediaType, videoExt, bodyProblem, buildContext, cleanBody, contextLine, describeDevice, feedbackErrorText, isWebKit26Plus,
+  myFeedbackTab, attachmentProblem, fmtFileSize, videoPosterSrc, sniffMediaType, videoExt, bodyProblem, buildContext, cleanBody, contextLine, describeDevice, feedbackErrorText, isWebKit26Plus,
   fmtFeedbackDate, hasUnreadReply, isOpenStatus, openCount, unreadReplies, FEEDBACK_MAX,
   canReopen, hasReply, isStaleReply, reopenProblem, REOPEN_LIMIT, REOPEN_MAX,
 } from './feedback.js'
@@ -185,6 +185,10 @@ describe('видео к обращению (fb_1c5fab9c)', () => {
     expect([videoExt(f('a.mp4', 'video/mp4')), videoExt(f('IMG.MOV', 'video/quicktime')), videoExt(f('x.mov', ''))]).toEqual(['mp4', 'mov', 'mov'])
     expect(attachmentProblem(f('a.jpg', 'image/jpeg'))).toBe(null)
     expect(attachmentProblem(f('a.mp4', 'video/mp4', 20 * 1024 * 1024))).toBe(null)
+    // fb_59c95046: кадр видео на iPhone и подпись размера в форме.
+    expect([videoPosterSrc('blob:x'), videoPosterSrc('')]).toEqual(['blob:x#t=0.1', ''])
+    expect([fmtFileSize(2317943), fmtFileSize(1000), fmtFileSize(0)]).toEqual(['2,2 МБ', '0,1 МБ', ''])
+    expect(feedbackErrorText('bad_request')).toMatch(/вложение/)
     expect(attachmentProblem(f('a.mp4', 'video/mp4', 20 * 1024 * 1024 + 1))).toBe('video_too_big')
     expect(attachmentProblem(f('a.webm', 'video/webm'))).toBe('video_format')
     expect(attachmentProblem(f('a.pdf', 'application/pdf'))).toBe('shot_format')

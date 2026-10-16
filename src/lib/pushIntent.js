@@ -6,7 +6,8 @@
 //   reaction-<workoutId>-<reactorId> → Лента, прокрутка к этой тренировке
 //   (v6.7.3; в v6.7.2 открывалась карточка тренировки — не прижилось).
 //   feedback-<feedbackId> → экран «Написать разработчику» с ответом (v6.11.0).
-//   friend → заявка в друзья / новый друг («Друзья», 15.10.2026) — экран «Друзья».
+//   friend, friend-<событие>-<кто> (с 16.10, свой tag у каждого) → заявка в друзья / новый друг —
+//   экран «Друзья».
 //   rest → «Отдых закончился» (v8.8.0, таймер отдыха) — к новой тренировке (композер).
 //   update → «вышла новая версия» (v6.11.1): нажатие = согласие обновиться, приложение
 //   применяет ждущую версию само, без плашки (components/UpdatePrompt.jsx).
@@ -16,6 +17,7 @@
 const UUID = '[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}'
 const REACTION_RE = new RegExp(`^reaction-(${UUID})-`, 'i')
 const FEEDBACK_RE = new RegExp(`^feedback-(${UUID})$`, 'i')
+const FRIEND_RE = /^friend(-[a-z]+-[0-9a-f-]{36})?$/i
 
 export const PUSH_PARAM = 'push'
 // tag пуша о новой версии — тот же, что ставит supabase/functions/push-update.
@@ -29,7 +31,7 @@ export function pushIntentFromTag(tag) {
   if (typeof tag !== 'string') return null
   if (tag === UPDATE_TAG) return { type: 'update' }
   if (tag === REST_TAG) return { type: 'rest' }
-  if (tag === FRIEND_TAG) return { type: 'friend' }
+  if (FRIEND_RE.test(tag)) return { type: 'friend' }
   const m = REACTION_RE.exec(tag)
   if (m) return { type: 'reaction', workoutId: m[1].toLowerCase() }
   const f = FEEDBACK_RE.exec(tag)

@@ -7,7 +7,7 @@
 // Экраны — заглушки: показывают себя (data-testid) и отдают пропсы в реестр `seen`,
 // тест зовет их колбэки так же, как это сделал бы настоящий экран.
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
-import { act, fireEvent, render, screen, within } from '@testing-library/react'
+import { act, fireEvent, render, screen, waitFor, within } from '@testing-library/react'
 
 const seen = {}
 vi.mock('./components/app/lazyScreen.jsx', () => ({
@@ -325,6 +325,13 @@ describe('App: пуш при холодном старте', () => {
     expect(current()).toBe('feed')
     await settle()
     expect(seen.feed.flashId).toBe('11111111-2222-4333-8444-555555555555')
+    expect(window.location.search).toBe('')
+  })
+
+  it('пуш «Друзей» («N теперь в друзьях») — экран «Друзья»', async () => {
+    window.history.replaceState(null, '', '/kachalka-app/?push=friend')
+    render(<App />)
+    await waitFor(() => expect(current()).toBe('friends'))
     expect(window.location.search).toBe('')
   })
 })

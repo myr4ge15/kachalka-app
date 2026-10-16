@@ -6,33 +6,41 @@ import { useLongPress } from '../../hooks/useLongPress.js'
 // участника). Чужая тренировка — кнопки 💪/🔥/👏/😮 со счетчиками; своя — самолайк
 // запрещен: только сводка реакций других без кнопок, нет реакций — ничего.
 // Пропсы: reactions, myId, isMe, onReact(kind, mine).
-// Удержание реакции (аудит 16.10): строка под кнопками на несколько секунд показывает,
-// кто поставил именно ее («💪 Борис, Аня»); тап после удержания реакцию не меняет.
-const WHO_MS = 4000
+// Удержание реакции (аудит 16.10; облачко — fb_09a0e8d2): пока палец держит реакцию, над рядом
+// висит облачко «💪 Борис, Аня» — кто поставил именно ее; отпустил — облачко скрылось. Строка под
+// кнопками (все, кто отреагировал) пальцем не закрывается. Тап после удержания реакцию не меняет.
+// Подстраховка: если отпускание потерялось, облачко гаснет само.
+const WHO_MS = 6000
 
 export default function ReactionBar({ reactions, myId, isMe, onReact }) {
   const { kinds, names, total } = summarizeReactions(reactions, myId)
-  const [who, setWho] = useState(null) // kind, чьи имена показаны
-  const { bind, wasLong } = useLongPress((kind) => setWho(kind))
+  const [who, setWho] = useState(null) // { kind, x } — чье облачко и где его хвостик
+  const { bind, wasLong } = useLongPress((kind, el) => {
+    const row = el?.parentElement
+    const x = el && row ? el.getBoundingClientRect().left - row.getBoundingClientRect().left + el.offsetWidth / 2 : 24
+    setWho({ kind, x })
+  }, { onEnd: () => setWho(null) })
   useEffect(() => {
     if (!who) return undefined
     const t = setTimeout(() => setWho(null), WHO_MS)
     return () => clearTimeout(t)
   }, [who])
 
-  const shown = who ? kinds.find((k) => k.kind === who) : null
-  const line = shown
-    ? `${shown.emoji} ${shown.names.length ? shown.names.join(', ') : 'пока никто'}`
-    : reactorLine(names)
-  const whoLine = line && (
-    <div className={'muted reaction-who' + (shown ? ' is-detail' : '')} aria-live="polite">{line}</div>
+  const shown = who ? kinds.find((k) => k.kind === who.kind) : null
+  const bubble = shown && (
+    <div className="reaction-bubble" role="status" style={{ '--tail-x': who.x + 'px' }}>
+      {shown.emoji} {shown.names.length ? shown.names.join(', ') : 'пока никто'}
+    </div>
   )
+  const line = reactorLine(names)
+  const whoLine = line && <div className="muted reaction-who">{line}</div>
 
   if (isMe) {
     if (total === 0) return null
     return (
       <div className="reactions">
         <div className="reaction-btns">
+          {bubble}
           {kinds.filter((k) => k.count > 0).map((k) => (
             <span key={k.kind} className="reaction-btn static" {...bind(k.kind)}
               title={`Удержи — кто поставил ${k.emoji}`}>
@@ -48,6 +56,7 @@ export default function ReactionBar({ reactions, myId, isMe, onReact }) {
   return (
     <div className="reactions">
       <div className="reaction-btns">
+        {bubble}
         {kinds.map((k) => (
           <button
             key={k.kind}

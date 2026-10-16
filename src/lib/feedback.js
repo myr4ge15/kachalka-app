@@ -1,3 +1,5 @@
+import { fmtNum } from './metric.js'
+
 export const FEEDBACK_SHOTS_MAX = 5
 // ============================================================================
 // «Написать разработчику» (v6.11.0) — чистая логика: контекст обращения,
@@ -34,6 +36,15 @@ const videoUrls = new Set()
 export const markVideoMedia = (url) => { videoUrls.add(url) }
 export const isVideoMedia = (url) => videoUrls.has(url)
 export const clearVideoMedia = () => { videoUrls.clear() }
+// iPhone не рисует кадр <video preload=metadata> из blob-ссылки — плитка черная, и непонятно, приложилось ли
+// видео (fb_59c95046). Фрагмент #t=0.1 просит Safari показать кадр с этой секунды.
+export const videoPosterSrc = (url) => (url ? url + '#t=0.1' : url)
+// «2,3 МБ» — подпись видео в форме.
+export function fmtFileSize(bytes) {
+  const mb = Number(bytes) / (1024 * 1024)
+  if (!(mb > 0)) return ''
+  return mb < 0.1 ? '0,1 МБ' : fmtNum(Math.round(mb * 10) / 10) + ' МБ'
+}
 
 // Тип по первым байтам: Edge отдает вложение как octet-stream, а <video> на iPhone без
 // типа не играет. MP4/MOV — коробка ftyp на 4-м байте (бренд «qt  » — QuickTime).
@@ -253,6 +264,8 @@ export function feedbackErrorText(code) {
     case 'not_closed': return 'Обращение еще в работе — дождись ответа.'
     case 'append_limit': return `К обращению уже ${APPEND_LIMIT} дополнений — напиши новое.`
     case 'not_open': return 'Обращение уже закрыто — если не помогло, открой его снова.'
+    // Сервер не принял вложение или запрос (fb_df730f74: видео упиралось в старую проверку) — это не связь.
+    case 'bad_request': return 'Сервер не принял вложение. Попробуй отправить без него.'
     default: return 'Не получилось отправить. Проверь связь и попробуй еще раз.'
   }
 }

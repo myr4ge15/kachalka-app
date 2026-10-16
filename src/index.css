@@ -1810,7 +1810,23 @@ img.avatar-lg.has-img {
 .reaction-who { font-size: 12px; margin-top: 6px; }
 /* Удержание реакции (аудит 16.10): без меню «Скопировать/Выделить» iOS; строка «кто поставил» — ярче. */
 .reaction-btn { -webkit-touch-callout: none; -webkit-user-select: none; user-select: none; }
-.reaction-who.is-detail { color: var(--text); }
+/* Облачко «кто поставил» над рядом реакций, пока палец держит реакцию (fb_09a0e8d2). Ширина — ряда,
+   хвостик — над удерживаемой кнопкой (--tail-x), так текст не уезжает за край экрана. */
+.reaction-btns { position: relative; }
+.reaction-bubble {
+  position: absolute; left: 0; bottom: calc(100% + 10px); z-index: 5; max-width: 100%; width: max-content;
+  padding: 8px 12px; border-radius: 12px; background: var(--surface-solid); border: 1px solid var(--border);
+  color: var(--text); font-size: 14px; line-height: 1.35; box-shadow: 0 6px 18px rgba(0, 0, 0, .35);
+  overflow-wrap: anywhere; pointer-events: none;
+}
+.reaction-bubble::after {
+  content: ''; position: absolute; top: 100%; left: clamp(12px, calc(var(--tail-x, 24px) - 6px), calc(100% - 24px));
+  border: 6px solid transparent; border-top-color: var(--surface-solid);
+}
+@media (prefers-reduced-motion: no-preference) {
+  .reaction-bubble { animation: reaction-bubble-in .12s ease-out; }
+}
+@keyframes reaction-bubble-in { from { opacity: 0; transform: translateY(4px); } }
 
 /* ---------- лидерборд (жим лежа, ТЗ §4.3) ---------- */
 .lb-card { padding: 14px; border-radius: 16px; }
@@ -2706,6 +2722,13 @@ label.act.busy { opacity: .55; pointer-events: none; }
 }
 .fb-viewer-body video { max-width: 100%; max-height: 100%; border-radius: 12px; background: #000; }
 .fb-picker .fb-shot video { height: 120px; object-fit: contain; background: var(--bg); border-radius: 12px; }
+/* Подпись видео в форме (fb_59c95046): даже без кадра видно, что видео приложено. */
+.fb-shot-video { position: relative; }
+.fb-shot-tag {
+  position: absolute; left: 6px; bottom: 6px; max-width: calc(100% - 12px); padding: 2px 8px; border-radius: 999px;
+  font-size: 12px; font-weight: 600; color: var(--text); background: var(--surface-solid); white-space: nowrap;
+  overflow: hidden; text-overflow: ellipsis; pointer-events: none;
+}
 .fb-photo--gone { opacity: .6; }
 .fb-viewer-body { flex: 1; min-height: 0; display: grid; place-items: center; overflow: auto; touch-action: pinch-zoom; }
 .fb-viewer-body img { max-width: 100%; max-height: 100%; object-fit: contain; border-radius: 12px; }

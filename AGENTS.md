@@ -380,7 +380,7 @@ updated_at)` + `upsert_user_meta` (`supabase/user-meta.sql`, RLS «только 
   Старые функции не заменяет; накат SQL → Edge `feedback` → клиент только по согласованию.
   **v9.3.0 — видео** → канон `attach_feedback_screenshots` — `migrations/20261016120000_feedback_video.sql` (пути
   `.jpg|.mp4|.mov`, bucket `feedback` 20 МБ + `video/mp4`/`video/quicktime`; тело из `…_feedback_screenshots.sql` после
-  него не перезапускать). Видео — в том же списке вложений, file_id — там же, где фото; тип клиент узнает по байтам.
+  него не перезапускать — 16.10 так и откатили видео на проде, теперь тот файл с guard и сам откажет). Видео — в том же списке вложений, file_id — там же, где фото; тип клиент узнает по байтам.
   Пуш «ответ/решено» самому владельцу не шлем — `_shared/feedbackSelf.ts` (Edge `feedback` и `tg-bot`).
   **v9.3.2 — канон `my_feedback`** — `migrations/20261016130000_my_feedback_all_open.sql`: ВСЕ открытые автора + 50 последних
   закрытых (тело из `feedback-tg.sql` после него не перезапускать — давние открытые снова выпадут из «Моих обращений»).

@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState } from 'react'
 import SheetDialog from '../ui/SheetDialog.jsx'
 import { dragOpacity, shouldDismiss } from '../../lib/swipeDismiss.js'
-import { isVideoMedia } from '../../lib/feedback.js'
+import { isVideoMedia, videoPosterSrc } from '../../lib/feedback.js'
 
 // Картинки обращения из Telegram (v6.12.0): фото ответа разработчика или скриншот
 // участника. Хранятся в Telegram, байты отдает Edge `feedback` — load(id, kind, n)
@@ -51,7 +51,7 @@ export default function FeedbackPhotos({
                 <button key={n} type="button" className={'fb-photo' + (isVideo(url) ? ' fb-photo--video' : '')}
                   onClick={() => setOpen(url)}
                   aria-label={(isVideo(url) ? 'Видео: ' : '') + (count > 1 ? `${label} ${n + 1} из ${count}` : label)}>
-                  {isVideo(url) ? <video src={url} muted playsInline preload="metadata" /> : <img src={url} alt="" />}
+                  {isVideo(url) ? <video src={videoPosterSrc(url)} muted playsInline preload="metadata" /> : <img src={url} alt="" />}
                 </button>
               )
         ))}

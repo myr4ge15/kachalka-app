@@ -49,8 +49,8 @@ describe('ReactionBar', () => {
     expect(container).toBeEmptyDOMElement()
   })
 
-  // Аудит 16.10: удержание реакции показывает, кто поставил именно ее; тап после удержания не реагирует.
-  it('удержание кнопки — строка «🔥 Петя, Я», реакция не меняется; через 4 с — снова общий список', () => {
+  // Аудит 16.10 + fb_09a0e8d2: пока держишь реакцию — облачко с теми, кто поставил именно ее; отпустил — скрылось.
+  it('удержание — облачко «🔥 Петя, Я», отпускание его скрывает, реакция не меняется', () => {
     vi.useFakeTimers()
     try {
       const onReact = vi.fn()
@@ -58,14 +58,30 @@ describe('ReactionBar', () => {
       const fire = screen.getByRole('button', { name: /🔥/ })
       fireEvent.pointerDown(fire, { clientX: 10, clientY: 10 })
       act(() => { vi.advanceTimersByTime(500) })
+      expect(screen.getByRole('status')).toHaveTextContent('🔥 Петя, Я')
+      fireEvent.pointerMove(fire, { clientX: 10, clientY: 40 }) // палец дрогнул — облачко держится
+      expect(screen.getByRole('status')).toBeInTheDocument()
       fireEvent.pointerUp(fire)
       fireEvent.click(fire)
-      expect(screen.getByText('🔥 Петя, Я')).toBeInTheDocument()
+      expect(screen.queryByRole('status')).not.toBeInTheDocument()
       expect(onReact).not.toHaveBeenCalled()
-      act(() => { vi.advanceTimersByTime(4100) })
-      expect(screen.getByText('Петя, Я, Вася')).toBeInTheDocument()
+      expect(screen.getByText('Петя, Я, Вася')).toBeInTheDocument() // общий список на месте
       fireEvent.click(fire) // обычный тап снова ставит/снимает
       expect(onReact).toHaveBeenCalledWith('fire', true)
+    } finally {
+      vi.useRealTimers()
+    }
+  })
+
+  it('потерянное отпускание — облачко гаснет само', () => {
+    vi.useFakeTimers()
+    try {
+      render(<ReactionBar reactions={R} myId="me" isMe={false} onReact={vi.fn()} />)
+      fireEvent.pointerDown(screen.getByRole('button', { name: /💪/ }), { clientX: 10, clientY: 10 })
+      act(() => { vi.advanceTimersByTime(500) })
+      expect(screen.getByRole('status')).toHaveTextContent('💪 Вася')
+      act(() => { vi.advanceTimersByTime(6100) })
+      expect(screen.queryByRole('status')).not.toBeInTheDocument()
     } finally {
       vi.useRealTimers()
     }
@@ -79,10 +95,10 @@ describe('ReactionBar', () => {
       fireEvent.pointerDown(fire, { clientX: 10, clientY: 10 })
       fireEvent.pointerMove(fire, { clientX: 10, clientY: 40 })
       act(() => { vi.advanceTimersByTime(600) })
-      expect(screen.queryByText('🔥 Петя, Я')).not.toBeInTheDocument()
+      expect(screen.queryByRole('status')).not.toBeInTheDocument()
       fireEvent.pointerDown(fire, { clientX: 10, clientY: 10 })
       act(() => { vi.advanceTimersByTime(500) })
-      expect(screen.getByText('🔥 Петя, Я')).toBeInTheDocument()
+      expect(screen.getByRole('status')).toHaveTextContent('🔥 Петя, Я')
     } finally {
       vi.useRealTimers()
     }

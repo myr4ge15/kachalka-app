@@ -23,6 +23,9 @@ describe('pushIntent', () => {
   it('отдых закончился ведет к новой тренировке', () => {
     expect(pushIntentFromTag('rest')).toEqual({ type: 'rest' })
     expect(pushIntentFromTag('friend')).toEqual({ type: 'friend' })
+    // 16.10: свой tag у каждого пуша «Друзей» — висящая старая заявка не мешает переходу.
+    expect(pushIntentFromTag('friend-accepted-11111111-2222-4333-8444-555555555555')).toEqual({ type: 'friend' })
+    expect(pushIntentFromTag('friendly')).toBeNull()
     expect(pushIntentFromTag('rest-x')).toBeNull()
   })
 
