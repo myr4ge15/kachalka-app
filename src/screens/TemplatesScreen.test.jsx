@@ -84,10 +84,12 @@ describe('TemplatesScreen — список', () => {
     mocks.templates = [MY_TPL, THEIR_TPL]
     renderScreen()
     const mine = screen.getByText('Грудь').closest('button')
-    expect(mine).toHaveTextContent('🌐 общий')
+    expect(mine).toHaveTextContent('🌐 виден всем')
     expect(within(mine).getByTitle('Ждет синхронизации')).toBeInTheDocument()
     expect(mine).toHaveTextContent('4×8×60 кг')
-    const theirs = screen.getByText('Спина').closest('button')
+    // Чужой шаблон не открывается (fb_150a4d25): карточка — не кнопка, весь состав виден в ней.
+    const theirs = screen.getByText('Спина').closest('.tpl-card')
+    expect(theirs.tagName).toBe('DIV')
     expect(theirs).toHaveTextContent('· от Петя')
     expect(theirs).not.toHaveTextContent('🌐')
   })
@@ -97,7 +99,7 @@ describe('TemplatesScreen — список', () => {
     localStorage.setItem('tpl_group_shared_me', '1')
     mocks.templates = [MY_TPL, THEIR_TPL]
     renderScreen()
-    fireEvent.click(screen.getByRole('button', { name: /Экспорт шаблонов/ }))
+    fireEvent.click(screen.getByRole('button', { name: /Скачать шаблоны/ }))
     expect(screen.queryByRole('button', { name: '+ Новый шаблон' })).toBeNull()
     fireEvent.click(screen.getByText('Спина').closest('button'))
     expect(screen.getByText('Спина').closest('button')).toHaveClass('picked')
@@ -145,9 +147,10 @@ describe('TemplatesScreen — редактор', () => {
       fireEvent.click(screen.getByRole('button', { name: '+ Добавить упражнение' }))
       fireEvent.click(screen.getByRole('button', { name: `выбрать ${n}` }))
     }
-    // свой вес и время — без столбца «кг»
-    expect(screen.getAllByText('кг')).toHaveLength(3)
-    expect(screen.getAllByText('мин:сек')).toHaveLength(3)
+    // подписи столбцов — один раз на упражнение, как в тренировке; у времени нет «кг»
+    expect(screen.getAllByText('кг')).toHaveLength(1)
+    expect(screen.getAllByText('±кг')).toHaveLength(1)
+    expect(screen.getAllByText('мин:сек')).toHaveLength(1)
     fireEvent.change(screen.getAllByRole('textbox')[1], { target: { value: '62,5' } }) // вес жима
     fireEvent.click(screen.getByRole('checkbox', { name: 'Виден всем' }))
     save()
@@ -161,7 +164,7 @@ describe('TemplatesScreen — редактор', () => {
     expect(await screen.findByRole('button', { name: '+ Новый шаблон' })).toBeInTheDocument()
   })
 
-  it('каждый подход редактируется отдельно, добавляется, удаляется и меняет порядок', async () => {
+  it('каждый подход редактируется отдельно, степперами, добавляется и удаляется', async () => {
     vi.mocked(getTemplate).mockResolvedValueOnce({ ...MY_TPL, exercises: [{ exercise: BENCH, metric: 'weight',
       set_plan: [{ weight: 20, reps: 15 }, { weight: 80, reps: 8 }, { weight: 70, reps: 10 }] }] })
     renderScreen()
@@ -169,14 +172,16 @@ describe('TemplatesScreen — редактор', () => {
     await screen.findByDisplayValue('Грудь')
     fireEvent.change(screen.getByLabelText('Вес или дистанция подхода 2'), { target: { value: '82,5' } })
     fireEvent.change(screen.getByLabelText('Повторы подхода 2'), { target: { value: '7' } })
-    fireEvent.click(screen.getByRole('button', { name: 'Подход 2 выше' }))
-    expect(screen.getByLabelText('Вес или дистанция подхода 1')).toHaveValue('82.5')
+    // Степпер как в тренировке: + к весу первого подхода — шаг 1,25 кг.
+    fireEvent.pointerDown(screen.getByRole('button', { name: 'Больше, подход 1' }))
+    fireEvent.pointerUp(screen.getByRole('button', { name: 'Больше, подход 1' }))
+    expect(screen.getByLabelText('Вес или дистанция подхода 1')).toHaveValue('21.25')
     fireEvent.click(screen.getByRole('button', { name: 'Удалить подход 3' }))
-    fireEvent.click(screen.getByRole('button', { name: '+ Добавить подход' }))
+    fireEvent.click(screen.getByRole('button', { name: '+ подход (повтор предыдущего)' }))
     save()
     await waitFor(() => expect(saveTemplate).toHaveBeenCalled())
     expect(vi.mocked(saveTemplate).mock.calls[0][0].exercises[0].set_plan.map(({ weight, reps }) => ({ weight, reps }))).toEqual([
-      { weight: '82.5', reps: '7' }, { weight: 20, reps: 15 }, { weight: 20, reps: 15 },
+      { weight: 21.25, reps: 15 }, { weight: '82.5', reps: '7' }, { weight: '82.5', reps: '7' },
     ])
   })
 
@@ -240,14 +245,27 @@ describe('TemplatesScreen — редактор', () => {
     expect(syncNow).not.toHaveBeenCalled()
   })
 
-  it('чужой общий шаблон — только просмотр', async () => {
+  // fb_150a4d25: внутри был тот же состав только для чтения — теперь он весь в карточке.
+  it('чужой общий шаблон не открывается: состав виден в карточке', async () => {
     renderScreen()
-    fireEvent.click(screen.getByText('Спина').closest('button'))
-    expect(await screen.findByText(/только просмотр/)).toBeInTheDocument()
-    expect(screen.getByText('от Петя')).toBeInTheDocument()
-    expect(screen.getByText('10 · 10 · 10')).toBeInTheDocument()
-    expect(screen.queryByRole('button', { name: 'Сохранить' })).toBeNull()
-    expect(screen.queryByRole('textbox')).toBeNull()
+    fireEvent.click(screen.getByText('Спина').closest('.tpl-card'))
+    expect(within(screen.getByText('Спина').closest('.tpl-card')).getByText('3×10')).toBeInTheDocument()
+    expect(screen.queryByRole('heading', { name: 'Шаблон' })).toBeNull()
+    expect(getTemplate).not.toHaveBeenCalled()
+  })
+
+  // fb_ae7bdcb1: список не пересоздается на время редактора — после «назад» он на том же месте.
+  it('список остается смонтированным (скрыт) под редактором и снова виден после «назад»', async () => {
+    renderScreen()
+    const listLayer = screen.getByText('Грудь').closest('.nav-layer')
+    fireEvent.click(screen.getByText('Грудь').closest('button'))
+    await screen.findByDisplayValue('Грудь')
+    expect(listLayer).toBeInTheDocument()
+    expect(listLayer).toHaveClass('nav-hidden')
+    expect(listLayer).toHaveAttribute('aria-hidden', 'true')
+    fireEvent.click(screen.getAllByRole('button', { name: /Назад/ })[0])
+    expect(screen.getByText('Грудь').closest('.nav-layer')).toBe(listLayer)
+    expect(listLayer).toHaveClass('nav-current')
   })
 
   it('шаблон не найден / сбой чтения — сообщение вместо вечного каркаса', async () => {
@@ -267,10 +285,11 @@ describe('TemplatesScreen — редактор', () => {
     renderScreen()
     fireEvent.click(screen.getByText('Грудь').closest('button'))
     await screen.findByDisplayValue('Грудь')
-    fireEvent.click(screen.getByRole('button', { name: 'Удалить шаблон' }))
+    // «Удалить» — у заголовка (fb_ff55a5d2)
+    fireEvent.click(screen.getByRole('button', { name: 'Удалить', exact: true }))
     fireEvent.click(screen.getByRole('button', { name: 'Отмена' }))
     expect(deleteTemplate).not.toHaveBeenCalled()
-    fireEvent.click(screen.getByRole('button', { name: 'Удалить шаблон' }))
+    fireEvent.click(screen.getByRole('button', { name: 'Удалить', exact: true }))
     fireEvent.click(screen.getByRole('button', { name: 'Да, удалить' }))
     await waitFor(() => expect(deleteTemplate).toHaveBeenCalledWith('t1'))
     expect(syncNow).toHaveBeenCalledWith('me')
@@ -296,7 +315,7 @@ describe('TemplatesScreen — редактор', () => {
       fireEvent.click(screen.getByRole('button', { name: `выбрать ${n}` }))
     }
     window.matchMedia = vi.fn(() => ({ matches: true })) // без анимации приземления
-    const rows = [...document.querySelectorAll('.tpl-row')]
+    const rows = [...document.querySelectorAll('.tpl-ex')]
     rows.forEach((row, i) => {
       row.getBoundingClientRect = () => ({ top: i * 110, height: 100, bottom: i * 110 + 100 })
     })
@@ -306,7 +325,7 @@ describe('TemplatesScreen — редактор', () => {
     fireEvent.touchMove(handle, { touches: [{ clientX: 5, clientY: 150 }] })
     expect(rows[1].style.transform).toBe('translate3d(0, -110px, 0)') // соседка уступила место
     fireEvent.touchEnd(handle)
-    expect(document.querySelector('.tpl-row.sort-lifted')).toBeNull()
+    expect(document.querySelector('.tpl-ex.sort-lifted')).toBeNull()
     save()
     await waitFor(() => expect(saveTemplate).toHaveBeenCalled())
     expect(vi.mocked(saveTemplate).mock.calls[0][0].exercises.map((e) => e.exercise.id)).toEqual(['pull', 'bench'])

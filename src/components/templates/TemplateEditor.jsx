@@ -8,6 +8,7 @@ import { exerciseMetric, fmtTemplateTarget } from '../../lib/metric.js'
 import ExercisePicker from '../exercises/ExercisePicker.jsx'
 import CardsSkeleton from '../ui/CardsSkeleton.jsx'
 import BackButton from '../ui/BackButton.jsx'
+import ScrollTopButton from '../ui/ScrollTopButton.jsx'
 import TemplateSets from './TemplateSets.jsx'
 import { templatePlan } from '../../lib/templatePlan.js'
 import { sk } from '../../lib/progressionCard.js'
@@ -162,7 +163,25 @@ export default function TemplateEditor({ user, templateId, onBack }) {
         <h2 className="screen-title detail-title">
           {isNew ? 'Новый шаблон' : 'Шаблон'}
         </h2>
+        {/* Удаление — наверху, у заголовка, а не под «Сохранить» (fb_ff55a5d2, fb_b5e4c20f). */}
+        {!isNew && !readOnly && !loading && !delArm && (
+          <button type="button" className="link-btn danger tpl-del" disabled={saving} onClick={() => setDelArm(true)}>
+            Удалить
+          </button>
+        )}
       </div>
+
+      {delArm && (
+        <div className="danger-confirm tpl-del-confirm">
+          <p className="danger-text">Удалить этот шаблон? Действие необратимо.</p>
+          <div className="danger-actions">
+            <button className="btn ghost" onClick={() => setDelArm(false)} disabled={saving}>Отмена</button>
+            <button className="btn danger" onClick={remove} disabled={saving}>
+              {saving ? 'Удаление…' : 'Да, удалить'}
+            </button>
+          </div>
+        </div>
+      )}
 
       {message && (
         <div className={message.type === 'error' ? 'banner error' : 'banner ok'}>
@@ -226,30 +245,34 @@ export default function TemplateEditor({ user, templateId, onBack }) {
           <div className="tpl-rows" ref={sortRef}>
           {items.map((it, idx) => {
             const metric = exerciseMetric(it.exercise)
+            // Карточка — как упражнение в тренировке (fb_58cbb46a): заголовок + «убрать»,
+            // под ним подходы со степперами. ☰ — ручка перестановки упражнений.
             return (
             <div
               key={it.exercise.id}
               data-tpl-id={it.exercise.id}
-              className="tpl-row"
+              className={'card exercise-card tpl-ex' + (metric === 'time' ? ' count' : '')}
             >
-              <button
-                type="button"
-                className="tpl-handle"
-                aria-label="Перетащить"
-                title="Перетащить (или Alt + ↑/↓)"
-              >
-                ☰
-              </button>
-              <div className="tpl-main">
-                <div className="tpl-name-line">
-                  <span className="tpl-name">{it.exercise.name}</span>
+              <div className="exercise-head">
+                <span className="tpl-ex-title">
+                  <button
+                    type="button"
+                    className="tpl-handle"
+                    aria-label="Перетащить"
+                    title="Перетащить (или Alt + ↑/↓)"
+                  >
+                    ☰
+                  </button>
+                  <span className="exercise-title tpl-name">{it.exercise.name}</span>
+                </span>
+                <span className="exercise-actions">
                   <button className="link-btn danger" onClick={() => removeExercise(idx)}>
                     убрать
                   </button>
-                </div>
-                <TemplateSets metric={metric} sets={it.set_plan}
-                  onChange={(plan) => updateTarget(idx, 'set_plan', plan)} />
+                </span>
               </div>
+              <TemplateSets metric={metric} sets={it.set_plan}
+                onChange={(plan) => updateTarget(idx, 'set_plan', plan)} />
             </div>
             )
           })}
@@ -263,25 +286,10 @@ export default function TemplateEditor({ user, templateId, onBack }) {
             {saving ? 'Сохранение…' : 'Сохранить'}
           </button>
 
-          {!isNew && (
-            delArm ? (
-              <div className="danger-confirm">
-                <p className="danger-text">Удалить этот шаблон? Действие необратимо.</p>
-                <div className="danger-actions">
-                  <button className="btn ghost" onClick={() => setDelArm(false)} disabled={saving}>Отмена</button>
-                  <button className="btn danger" onClick={remove} disabled={saving}>
-                    {saving ? 'Удаление…' : 'Да, удалить'}
-                  </button>
-                </div>
-              </div>
-            ) : (
-              <button className="link-btn danger full-link" disabled={saving} onClick={() => setDelArm(true)}>
-                Удалить шаблон
-              </button>
-            )
-          )}
         </>
       )}
+
+      <ScrollTopButton />
 
       {/* onCreate: владелец нового упражнения — вошедший (см. WorkoutScreen). */}
       {pickerOpen && (

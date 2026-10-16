@@ -1295,6 +1295,10 @@ a.btn { display: block; text-align: center; text-decoration: none; }
    фиксируется над таббаром (как «Сохранить»), чтобы счетчик/«Скачать» не терялись
    при прокрутке длинного списка. */
 .export-toggle--bottom { margin: 20px 0 4px; text-align: center; }
+.export-toggle--top { margin: -4px 0 14px; text-align: center; }
+/* Группы шаблонов — заголовками разделов, а не мелкой серой подписью (fb_1099223c). */
+.group-toggle.tpl-group { font-size: var(--fs-title); font-weight: 600; color: var(--text); }
+.group-toggle.tpl-group .group-caret { width: 20px; color: var(--muted); }
 .export-bar--fixed {
   position: fixed; left: 50%; transform: translateX(-50%); z-index: 6;
   width: calc(100% - 24px); max-width: 536px; margin: 0;
@@ -2315,8 +2319,14 @@ label.act.busy { opacity: .55; pointer-events: none; }
 .danger-text { margin: 0; font-size: 13px; color: #fca5a5; line-height: 1.5; }
 .danger-actions { display: flex; gap: 10px; }
 .danger-actions .btn { flex: 1; margin-top: 0; }
-/* Подтверждение удаления шаблона — не встык к «Сохранить» (fb_b5e4c20f). */
-.save-btn + .danger-confirm { margin-top: 12px; }
+/* Удаление шаблона — у заголовка (fb_ff55a5d2), подтверждение — сразу под ним. */
+.detail-head .tpl-del { margin-left: auto; min-height: 44px; padding: 0 4px; }
+.tpl-del-confirm { margin-bottom: 14px; }
+/* Карточка упражнения шаблона — как в тренировке; ☰ слева от названия. */
+.tpl-ex .exercise-head { min-height: 44px; }
+.tpl-ex-title { display: flex; align-items: center; gap: 4px; min-width: 0; }
+.tpl-ex-title .tpl-handle { width: 36px; height: 44px; margin-left: -8px; }
+.tpl-ex .tpl-name { font-size: var(--fs-title); font-weight: 600; }
 .btn.danger { background: rgba(248, 113, 113, .16); border: 1px solid rgba(248, 113, 113, .5); color: var(--red); }
 
 /* Форма «Сделать шаблон из тренировки» — нейтральная (не «опасная») коробка. */

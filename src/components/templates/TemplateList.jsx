@@ -8,27 +8,33 @@ import { useExportSelection } from '../../hooks/useExportSelection.js'
 import CardsSkeleton from '../ui/CardsSkeleton.jsx'
 import ExportBar from '../workout/ExportBar.jsx'
 import BackButton from '../ui/BackButton.jsx'
+import Chevron from '../ui/Chevron.jsx'
+import ScrollTopButton from '../ui/ScrollTopButton.jsx'
 
 // Список шаблонов: «Мои» и «Общие» сворачиваемыми группами, экспорт выбранных в JSON
 // (вынесено из screens/TemplatesScreen.jsx, аудит 14.10). Открытие — onOpen(id | 'new').
 
-// Карточка шаблона в списке. mine → бейдж 🌐 у общих; чужой → пометка автора.
+// Карточка шаблона в списке. mine → бейдж 🌐 у видимых всем; чужой → пометка автора.
 // В режиме экспорта (selectMode) тап переключает галочку вместо открытия.
+// Чужой шаблон не открывается (16.10, fb_150a4d25): карточка и так показывает весь
+// состав с целями, а внутри был тот же список только для чтения.
 function TemplateCard({ t, mine, onOpen, selectMode = false, picked = false, onPick }) {
   const exs = t.exercises ?? []
+  const tappable = mine || selectMode
+  const Tag = tappable ? 'button' : 'div'
   return (
-    <button
+    <Tag
       className={
-        'card history-card history-tap tpl-card' + (selectMode && picked ? ' picked' : '')
+        'card history-card tpl-card' + (tappable ? ' history-tap' : '') + (selectMode && picked ? ' picked' : '')
       }
-      onClick={() => (selectMode ? onPick?.(t.id) : onOpen(t.id))}
+      onClick={tappable ? () => (selectMode ? onPick?.(t.id) : onOpen(t.id)) : undefined}
     >
       <div className="history-head">
         <div>
           <div className="history-date">
             {t.name}
             {mine && Boolean(t.is_public) && (
-              <span className="tpl-badge" title="Виден всем">🌐 общий</span>
+              <span className="tpl-badge" title="Виден всем">🌐 виден всем</span>
             )}
             {Boolean(t._dirty) && (
               <span className="dot-unsynced" title="Ждет синхронизации">●</span>
@@ -43,9 +49,9 @@ function TemplateCard({ t, mine, onOpen, selectMode = false, picked = false, onP
           <span className={'history-check' + (picked ? ' on' : '')} aria-hidden="true">
             {picked ? '✓' : ''}
           </span>
-        ) : (
-          <span className="history-chevron" aria-hidden="true">›</span>
-        )}
+        ) : mine ? (
+          <Chevron className="history-chevron" />
+        ) : null}
       </div>
 
       <ul className="history-list">
@@ -59,7 +65,7 @@ function TemplateCard({ t, mine, onOpen, selectMode = false, picked = false, onP
           )
         })}
       </ul>
-    </button>
+    </Tag>
   )
 }
 
@@ -75,11 +81,12 @@ function writeGroupOpen(userId, key, open) {
   try { localStorage.setItem(`tpl_group_${key}_${userId}`, open ? '1' : '0') } catch { /* приватный режим */ }
 }
 
-// Заголовок сворачиваемой группы: тап переключает раскрытие, стрелка ▸/▾ + счетчик.
+// Заголовок сворачиваемой группы: тап переключает раскрытие, шеврон + счетчик.
+// Шрифт — как у заголовков разделов (16 · 600), шеврон — общий (fb_1099223c).
 function GroupHeader({ title, count, open, onToggle, btnRef = null }) {
   return (
-    <button ref={btnRef} className="group-title group-toggle" onClick={onToggle} aria-expanded={open}>
-      <span className="group-caret" aria-hidden="true">{open ? '▾' : '▸'}</span>
+    <button ref={btnRef} className="group-title group-toggle tpl-group" onClick={onToggle} aria-expanded={open}>
+      <Chevron open={open} className="group-caret" />
       <span className="group-toggle-title">{title}</span>
       <span className="group-count muted">{count}</span>
     </button>
@@ -140,6 +147,19 @@ export default function TemplateList({ user, onBack, onOpen }) {
         </button>
       )}
 
+      {/* Скачивание — наверху, под «+ Новый шаблон» (fb_95f78b7a); ⬇ — это и есть
+          «скачать файл», поэтому и подпись «Скачать» вместо «Экспорт» (fb_4b633dfb). */}
+      <ExportBar
+        selectMode={selectMode}
+        count={picked.size}
+        label="Скачать шаблоны"
+        placement="top"
+        canShow={!loading && list.length > 0}
+        onToggleMode={toggleSelectMode}
+        onPickAll={() => pickAll(list)}
+        onExport={() => exportPicked(list)}
+      />
+
       {loading && <CardsSkeleton cards={3} />}
 
       {!loading && list.length === 0 && (
@@ -156,22 +176,13 @@ export default function TemplateList({ user, onBack, onOpen }) {
 
       {!loading && shared.length > 0 && (
         <>
-          <GroupHeader title="Общие" count={shared.length} open={sharedOpen} onToggle={toggleShared}
+          <GroupHeader title="Общие шаблоны" count={shared.length} open={sharedOpen} onToggle={toggleShared}
             btnRef={revealGroup?.key === 'shared' ? groupRevealRef : null} />
           {sharedOpen && shared.map((t) => renderCard(t, false))}
         </>
       )}
 
-      {/* Экспорт — общий ExportBar (как в «Истории»). */}
-      <ExportBar
-        selectMode={selectMode}
-        count={picked.size}
-        label="Экспорт шаблонов"
-        canShow={!loading && list.length > 0}
-        onToggleMode={toggleSelectMode}
-        onPickAll={() => pickAll(list)}
-        onExport={() => exportPicked(list)}
-      />
+      <ScrollTopButton />
     </div>
   )
 }

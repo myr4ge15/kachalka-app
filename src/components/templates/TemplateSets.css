@@ -1,6 +1,6 @@
-.template-sets { display: grid; gap: 8px; margin-top: 12px; }
-.template-set { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; padding: 8px 0; border-bottom: 1px solid var(--border); }
-.template-set .tpl-target { flex: 1; min-width: 80px; flex-direction: column; align-items: stretch; }
-.template-set .tpl-target input { width: 100%; min-height: 44px; box-sizing: border-box; }
-.template-set-actions { display: flex; justify-content: flex-end; width: 100%; gap: 6px; }
-.template-set-actions .btn { min-width: 44px; min-height: 44px; padding: 4px 12px; }
+/* Подходы шаблона — разметка и вид как у ExerciseCard (index.css: .sets-head, .set-row, .stepper). */
+.template-sets { margin-top: 4px; }
+/* Только время — одна колонка значения, как .exercise-card.count в тренировке. */
+.tpl-ex.count .sets-head, .tpl-ex.count .set-row { grid-template-columns: 18px minmax(0, 1fr) 30px; }
+.template-sets .set-rm:disabled { opacity: .35; }
+.template-sets .set-add:disabled { opacity: .5; }

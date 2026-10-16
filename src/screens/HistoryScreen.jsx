@@ -228,7 +228,7 @@ export default function HistoryScreen({
   // Свайп назад из открытой тренировки (v8.4.0) — как у вложенных экранов и Настроек
   // профиля: карточка едет за пальцем, под ней виден список (подложка .nav-underlay),
   // довел — тот же closeSelected, что у «‹». Только мобайл и только тренировка
-  // (у Шаблонов свои под-виды с редактором — там жест не включаем). Подложка
+  // (у Шаблонов свой жест в TemplatesScreen: редактор → список → хаб, 16.10). Подложка
   // рендерится лишь при включенном жесте: на десктопе и вне iOS-PWA DOM прежний.
   const detailRef = useRef(null)
   const swipeOn = edgeSwipeOn && !isDesktop && selected !== null && selected !== 'templates'
@@ -405,7 +405,11 @@ export default function HistoryScreen({
 
   // Шаблоны — отдельный полноэкранный поток (и на мобиле, и на десктопе).
   if (selected === 'templates') {
-    return <TemplatesScreen user={user} onBack={() => setSelected(null)} />
+    const tplSwipe = edgeSwipeOn && !isDesktop
+    return (
+      <TemplatesScreen user={user} onBack={() => setSelected(null)} contentRef={contentRef} swipeOn={tplSwipe}
+        underlay={tplSwipe ? <div className="screen">{renderHead()}{renderList()}</div> : null} />
+    )
   }
 
   // Мобайл: прежнее поведение — деталь/композер открывается вместо списка.

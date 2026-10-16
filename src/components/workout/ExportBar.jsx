@@ -3,13 +3,13 @@
 // выбора. Общая для Истории и Шаблонов (РЕВЬЮ-КОДА-2026-07-13). Разметка/классы —
 // как раньше в обоих экранах (export-toggle / export-bar--fixed).
 export default function ExportBar({
-  selectMode, count = 0, label, canShow = true,
+  selectMode, count = 0, label, canShow = true, placement = 'bottom',
   onToggleMode, onPickAll, onExport,
 }) {
   if (!selectMode) {
     if (!canShow) return null
     return (
-      <button className="link-btn export-toggle export-toggle--bottom" onClick={onToggleMode}>
+      <button className={`link-btn export-toggle export-toggle--${placement}`} onClick={onToggleMode}>
         ⬇ {label}
       </button>
     )
