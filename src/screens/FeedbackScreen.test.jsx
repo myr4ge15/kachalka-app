@@ -22,6 +22,9 @@ const ROW = {
   replied_at: '2026-10-05T12:00:00Z', reply_seen_at: null, has_screenshot: true, created_at: '2026-10-05T10:00:00Z',
 }
 
+// Строка «Моих обращений» свернута — раскрыть тапом по шапке (9.3.3: новый ответ не раскрывает сам).
+const expand = async (name = /Пропал подход/) => userEvent.click(await screen.findByRole('button', { name }))
+
 function setup(over = {}, props = {}) {
   const api = {
     submit: vi.fn(async () => ({ id: 'new', delivered: true })),
@@ -104,9 +107,12 @@ describe('FeedbackScreen', () => {
 
   it('свои обращения: статус, ответ с меткой «новый», ответ подтверждается прочитанным', async () => {
     const api = setup({ list: vi.fn(async () => [ROW]) })
-    expect(await screen.findByText('Исправлено в 6.11.1')).toBeTruthy()
+    expect(await screen.findByText('новый')).toBeTruthy()
+    expect(screen.getByRole('button', { name: /Пропал подход/ })).toHaveAttribute('aria-expanded', 'false')
+    await expand()
+    expect(screen.getByText('Исправлено в 6.11.1')).toBeTruthy()
     expect(screen.getByText('Решено')).toBeTruthy()
-    expect(screen.getByText('новый')).toBeTruthy()
+    expect(screen.queryByText('новый')).toBeNull() // раскрыли — прочитано, метка гаснет
     expect(screen.getByText('📎 со скриншотом')).toBeTruthy()
     expect(api.ack).toHaveBeenCalledTimes(1)
   })
@@ -122,11 +128,11 @@ describe('FeedbackScreen', () => {
 describe('FeedbackScreen — ответ из Telegram и переоткрытие (v6.12.0)', () => {
   it('ответ из одних фото: картинки грузятся, тап — на весь экран; метка «новый»', async () => {
     const api = setup({ list: vi.fn(async () => [{ ...ROW, reply: null, reply_photos: 2 }]) })
+    await expand()
     const shots = await screen.findAllByRole('button', { name: /Скриншот от разработчика \d из 2/ })
     expect(shots).toHaveLength(2)
     expect(api.media).toHaveBeenCalledWith('f1', 'reply', 0)
     expect(api.media).toHaveBeenCalledWith('f1', 'reply', 1)
-    expect(screen.getByText('новый')).toBeTruthy()
     await userEvent.click(shots[1])
     expect(screen.getByRole('dialog', { name: 'Скриншот от разработчика' }).querySelector('img'))
       .toHaveAttribute('src', 'blob:f1-reply-1')
@@ -134,6 +140,7 @@ describe('FeedbackScreen — ответ из Telegram и переоткрыти�
 
   it('«Не помогло»: комментарий обязателен, уходит на сервер, список перечитан', async () => {
     const api = setup({ list: vi.fn(async () => [ROW]) })
+    await expand()
     await userEvent.click(await screen.findByRole('button', { name: 'Не помогло — открыть снова' }))
     const send = screen.getByRole('button', { name: 'Открыть снова' })
     expect(send).toBeDisabled()
@@ -149,6 +156,7 @@ describe('FeedbackScreen — ответ из Telegram и переоткрыти�
       { ...ROW, status: 'new', reopen_note: 'Не помогло', reopened_at: '2026-10-05T13:00:00Z', reopen_count: 1 },
       { ...ROW, id: 'f2', body: 'Другое', reopen_count: 3 },
     ]) })
+    await expand()
     expect(await screen.findByText('Открыто снова: Не помогло')).toBeTruthy()
     expect(screen.getByText(/Прошлый ответ/)).toBeTruthy()
     expect(screen.queryByRole('button', { name: 'Не помогло — открыть снова' })).toBeNull()
@@ -157,6 +165,7 @@ describe('FeedbackScreen — ответ из Telegram и переоткрыти�
   it('ошибка переоткрытия — тост с текстом, форма остается', async () => {
     const reopen = vi.fn(async () => { throw new FeedbackError('Обращение уже открывали снова 3 раза — напиши новое.') })
     setup({ list: vi.fn(async () => [ROW]), reopen })
+    await expand()
     await userEvent.click(await screen.findByRole('button', { name: 'Не помогло — открыть снова' }))
     await userEvent.type(screen.getByLabelText('Что не так?'), 'опять')
     await userEvent.click(screen.getByRole('button', { name: 'Открыть снова' }))
@@ -300,12 +309,13 @@ it('«Открыть снова»: без комментария одни фай
   expect(screen.queryByTestId('fb-file-f2')).toBeNull()
 })
 
-// 16.10 (fb_bd776cf0): раскрытое сворачивается кнопкой внизу.
-it('«Свернуть» возвращает строку списка', async () => {
+// 16.10 (fb_bd776cf0) / 9.3.3: раскрытое сворачивается тапом по шапке; отдельной «Свернуть» нет.
+it('тап по шапке раскрывает и сворачивает, кнопки «Свернуть» нет', async () => {
   setup({ list: vi.fn(async () => [{ ...ROW, status: 'new', reply: null, replied_at: null }]) })
-  await userEvent.click(await screen.findByRole('button', { name: /Пропал подход/ }))
+  await expand()
   expect(screen.getByRole('button', { name: 'Дополнить' })).toBeTruthy()
-  await userEvent.click(screen.getByRole('button', { name: 'Свернуть обращение' }))
+  expect(screen.queryByRole('button', { name: /Свернуть/ })).toBeNull()
+  await userEvent.click(screen.getByRole('button', { name: /Новое/ }))
   expect(screen.queryByRole('button', { name: 'Дополнить' })).toBeNull()
   expect(screen.getByRole('button', { name: /Пропал подход/ })).toHaveAttribute('aria-expanded', 'false')
 })

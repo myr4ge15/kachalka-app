@@ -77,7 +77,9 @@ export default function FeedbackScreen({ user, onBack, focusId = null, fromScree
   const openRows = (list ?? []).filter((r) => isOpenStatus(r.status))
   const closedRows = (list ?? []).filter((r) => !isOpenStatus(r.status))
   const shown = cur === 'open' ? openRows : closedRows
-  const freshIn = (rows) => rows.some((r) => fresh.has(r.id))
+  // Раскрытое с новым ответом — уже прочитано: метка и точка вкладки гаснут (9.3.3).
+  const [seenFresh, setSeenFresh] = useState(() => new Set())
+  const freshIn = (rows) => rows.some((r) => fresh.has(r.id) && !seenFresh.has(r.id))
 
   const problem = bodyProblem(text)
   const len = text.trim().length
@@ -169,7 +171,8 @@ export default function FeedbackScreen({ user, onBack, focusId = null, fromScree
           <ul className="admin-list fb-list">
             {shown.map((r) => (
               <MyFeedbackItem key={r.id} row={r} userId={user.id} api={api} online={online}
-                fresh={fresh.has(r.id)} focus={r.id === focusId} onReload={() => reload()} />
+                fresh={fresh.has(r.id)} focus={r.id === focusId} onReload={() => reload()}
+                onSeen={(id) => setSeenFresh((cur) => new Set(cur).add(id))} />
             ))}
           </ul>
         </>

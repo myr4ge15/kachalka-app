@@ -10,21 +10,25 @@ import {
 
 // Одно обращение в «Моих обращениях» (16.10: список был громоздким — каждое обращение во всю
 // высоту со всеми фото и кнопками). Свернутое — строка: дата, статус, начало текста, начало
-// ответа, значки 📎/➕. Тап раскрывает целиком. Раскрыто сразу — пришли пушем или есть новый ответ.
-// 16.10 (fb_bd776cf0): стрелка в шапке и «Свернуть» внизу — свернуть раскрытое было нечем, кроме
-// неочевидного тапа по дате. Вложения — внутри «Дополнить» / «Открыть снова» (fb_a4e36c94).
-// Пропсы: row, userId, api, online, fresh (ответ новый), focus (пришли пушем), onReload().
-export default function MyFeedbackItem({ row: r, userId, api, online, fresh = false, focus = false, onReload }) {
-  const [open, setOpen] = useState(fresh || focus)
+// ответа, значки 📎/➕. Тап раскрывает целиком. Раскрыто сразу — только если пришли пушем/из уведомления
+// (9.3.3: раньше и с новым ответом — после пачки ответов раскрытым оказывался весь список; новый
+// ответ теперь — метка «новый» на свернутой строке).
+// 16.10 (fb_bd776cf0): стрелка в шапке — свернуть раскрытое было нечем, кроме неочевидного тапа по
+// дате; отдельную «Свернуть» внизу убрали (9.3.3) — стрелки и тапа по шапке хватает. Вложения — внутри «Дополнить» / «Открыть снова» (fb_a4e36c94).
+// Метка «новый» гаснет, как только обращение раскрыли (9.3.3); подсветка ответа внутри остается.
+// Пропсы: row, userId, api, online, fresh (ответ новый), focus (пришли пушем), onSeen(id), onReload().
+export default function MyFeedbackItem({ row: r, userId, api, online, fresh = false, focus = false, onSeen, onReload }) {
+  const [open, setOpen] = useState(focus)
+  const [seen, setSeen] = useState(focus)
   // Пришли к этому обращению уже при открытом экране (новое уведомление) — раскрыть.
   const [focusSeen, setFocusSeen] = useState(focus)
   if (focus !== focusSeen) {
     setFocusSeen(focus)
-    if (focus) setOpen(true)
+    if (focus) { setOpen(true); setSeen(true) }
   }
   // Reveal — только на раскрытие пальцем, не на начальное (см. useRevealFocus).
   const [rev, setRev] = useState(0)
-  const revealRef = useRevealFocus(rev || null, { block: 'nearest' })
+  const revealRef = useRevealFocus(rev || null, { block: 'center' })
   const shots = Number(r.screenshot_count) || (r.has_screenshot ? 1 : 0)
   const adds = r.additions?.length ?? 0
 
@@ -36,12 +40,10 @@ export default function MyFeedbackItem({ row: r, userId, api, online, fresh = fa
 
   function toggle() {
     setOpen((o) => !o)
-    if (!open) setRev((n) => n + 1)
-  }
-  function collapse() {
-    setOpen(false)
-    // Свернули снизу длинной карточки — вернуть ее шапку в кадр.
-    document.getElementById(`fb-${r.id}`)?.scrollIntoView?.({ block: 'nearest' })
+    if (!open) {
+      setRev((n) => n + 1)
+      if (fresh && !seen) { setSeen(true); onSeen?.(r.id) }
+    }
   }
 
   return (
@@ -50,7 +52,7 @@ export default function MyFeedbackItem({ row: r, userId, api, online, fresh = fa
         <span className="fb-item-head">
           <span className="admin-ex-meta">{fmtFeedbackDate(r.created_at)}</span>
           <span className="fb-item-tags">
-            {fresh && <span className="act-badge">новый</span>}
+            {fresh && !seen && <span className="act-badge">новый</span>}
             <span className={`fb-status s-${r.status}`}>{STATUS_LABEL[r.status] ?? r.status}</span>
             <Chevron className="fb-item-chev" open={open} />
           </span>
@@ -129,9 +131,6 @@ export default function MyFeedbackItem({ row: r, userId, api, online, fresh = fa
               attach={attachTo(false)}
             />
           )}
-          <button type="button" className="btn ghost fb-collapse" onClick={collapse} aria-label="Свернуть обращение">
-            Свернуть
-          </button>
         </>
       )}
     </li>
