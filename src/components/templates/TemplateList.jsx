@@ -69,18 +69,6 @@ function TemplateCard({ t, mine, onOpen, selectMode = false, picked = false, onP
   )
 }
 
-// Свернутость групп списка запоминаем между заходами (localStorage, синхронно).
-// Дефолт — свернуто; ключ на пользователя, чтобы не смешивать состояние учеток.
-function readGroupOpen(userId, key, dflt = false) {
-  try {
-    const v = localStorage.getItem(`tpl_group_${key}_${userId}`)
-    return v == null ? dflt : v === '1'
-  } catch { return dflt }
-}
-function writeGroupOpen(userId, key, open) {
-  try { localStorage.setItem(`tpl_group_${key}_${userId}`, open ? '1' : '0') } catch { /* приватный режим */ }
-}
-
 // Заголовок сворачиваемой группы: тап переключает раскрытие, шеврон + счетчик.
 // Шрифт — как у заголовков разделов (16 · 600), шеврон — общий (fb_1099223c).
 function GroupHeader({ title, count, open, onToggle, btnRef = null }) {
@@ -102,20 +90,21 @@ export default function TemplateList({ user, onBack, onOpen }) {
   const mine = list.filter((t) => t.user_id === user.id)
   const shared = list.filter((t) => t.user_id !== user.id) // чужие общие
 
-  // Раскрытость групп (по умолчанию свернуты, состояние помним в localStorage).
-  const [mineOpen, setMineOpen] = useState(() => readGroupOpen(user.id, 'mine'))
-  const [sharedOpen, setSharedOpen] = useState(() => readGroupOpen(user.id, 'shared'))
-  // Группа, раскрытая тапом, — заголовком к верху экрана (v8.0.1). Сохраненное
-  // раскрытие при входе экран не двигает: триггер ставит только нажатие.
+  // Раскрытость групп: при каждом входе в «Шаблоны» — свернуты (16.10, fb_88be7eab; до того
+  // помнилась в localStorage). Возврат из шаблона ее не сбрасывает: список под редактором
+  // не размонтируется (TemplatesScreen).
+  const [mineOpen, setMineOpen] = useState(false)
+  const [sharedOpen, setSharedOpen] = useState(false)
+  // Группа, раскрытая тапом, — заголовком к верху экрана (v8.0.1).
   const [revealGroup, setRevealGroup] = useState(null) // { key }
   const groupRevealRef = useRevealFocus(revealGroup, { block: 'start' })
   function toggleMine() {
     setRevealGroup(mineOpen ? null : { key: 'mine' })
-    setMineOpen((o) => { writeGroupOpen(user.id, 'mine', !o); return !o })
+    setMineOpen((o) => !o)
   }
   function toggleShared() {
     setRevealGroup(sharedOpen ? null : { key: 'shared' })
-    setSharedOpen((o) => { writeGroupOpen(user.id, 'shared', !o); return !o })
+    setSharedOpen((o) => !o)
   }
 
   // Режим экспорта: мультивыбор шаблонов → выгрузка в JSON. Общий хук с «Историей».

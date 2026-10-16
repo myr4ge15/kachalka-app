@@ -76,7 +76,7 @@ export default function App() {
   const {
     tab, setTab, routeAnim, contentRef, screenRef, edgeSwipeOn,
     memberId, progressExId, setProgressExId, openNewWorkout, setOpenNewWorkout,
-    calendarIntent, setCalendarIntent, feedFlashId, feedbackFocus, setFeedbackFocus,
+    calendarIntent, setCalendarIntent, feedFlashId, feedbackFocus, openFeedback, backFromFeedback,
     focusRhythm, setFocusRhythm, openSettings, setOpenSettings,
     goTab, openNotif, backFromNotif, openProgressFor, openCalendarAt, openMember, backFromMember,
     backToRhythm, backToSettings, startNewWorkout,
@@ -382,7 +382,7 @@ export default function App() {
               )}
               {route === 'notif' && (
                 <NotificationsScreen user={user} onBack={backFromNotif}
-                  onOpenFeedback={(id) => { setFeedbackFocus(id); goTab('feedback') }} />
+                  onOpenFeedback={openFeedback} />
               )}
               {route === 'profile' && (
                 <ProfileScreen
@@ -400,7 +400,7 @@ export default function App() {
                   onOpenAppearance={() => goTab('appearance')}
                   onOpenPushSettings={() => goTab('pushset')}
                   onOpenWhatsNew={() => goTab('whatsnew')}
-                  onOpenFeedback={() => goTab('feedback')}
+                  onOpenFeedback={() => openFeedback(null)}
                   contentRef={contentRef}
                   edgeSwipeOn={edgeSwipeOn && route === tab}
                   startInSettings={openSettings}
@@ -437,7 +437,7 @@ export default function App() {
                 <PushSettingsScreen user={user} onBack={backToSettings} />
               )}
               {route === 'feedback' && (
-                <FeedbackScreen user={user} focusId={feedbackFocus} onBack={() => goTab('profile')}
+                <FeedbackScreen user={user} focusId={feedbackFocus} onBack={backFromFeedback}
                   fromScreen={routeAnim.stack.find((t) => !isNested(t)) ?? null} />
               )}
             </ErrorBoundary>

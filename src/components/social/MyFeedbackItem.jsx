@@ -14,6 +14,12 @@ import {
 // Пропсы: row, userId, api, online, fresh (ответ новый), focus (пришли пушем), onReload().
 export default function MyFeedbackItem({ row: r, userId, api, online, fresh = false, focus = false, onReload }) {
   const [open, setOpen] = useState(fresh || focus)
+  // Пришли к этому обращению уже при открытом экране (новое уведомление) — раскрыть.
+  const [focusSeen, setFocusSeen] = useState(focus)
+  if (focus !== focusSeen) {
+    setFocusSeen(focus)
+    if (focus) setOpen(true)
+  }
   // Reveal — только на раскрытие пальцем, не на начальное (см. useRevealFocus).
   const [rev, setRev] = useState(0)
   const revealRef = useRevealFocus(rev || null, { block: 'nearest' })

@@ -59,6 +59,14 @@ export default function FeedbackScreen({ user, onBack, focusId = null, fromScree
   // eslint-disable-next-line react-hooks/exhaustive-deps
   useEffect(() => { if (online) reload({ ack: true }); else setList((l) => l ?? []) }, [online, user.id])
 
+  // Новое обращение в фокусе на уже открытом экране (16.10, fb_bb404b7e: экран оставался на
+  // прежнем) — вкладку снова выбирает список (myFeedbackTab по focusId).
+  const [focusSeen, setFocusSeen] = useState(focusId)
+  if (focusId !== focusSeen) {
+    setFocusSeen(focusId)
+    if (focusId) setTab(null)
+  }
+
   // Пуш привел к конкретному обращению — прокрутить к нему, когда список появился.
   useEffect(() => {
     if (!focusId || !list?.length) return

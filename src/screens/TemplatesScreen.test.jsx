@@ -44,12 +44,23 @@ const THEIR_TPL = { id: 't2', user_id: 'petya', name: 'Спина', author_name:
   exercises: [{ exercise: PULL, sets: 3, reps: 10, weight: 0 }] }
 
 let onBack
-const renderScreen = () => { onBack = vi.fn(); return render(<TemplatesScreen user={ME} onBack={onBack} />) }
+// Группы при входе свернуты (fb_88be7eab); expand — раскрыть обе, как сделал бы человек.
+let expand = false
+const renderScreen = () => {
+  onBack = vi.fn()
+  const r = render(<TemplatesScreen user={ME} onBack={onBack} />)
+  if (expand) for (const name of [/Мои шаблоны/, /Общие шаблоны/]) {
+    const b = screen.queryByRole('button', { name })
+    if (b?.getAttribute('aria-expanded') === 'false') fireEvent.click(b)
+  }
+  return r
+}
 const save = () => fireEvent.click(screen.getByRole('button', { name: 'Сохранить' }))
 
 describe('TemplatesScreen — список', () => {
   beforeEach(() => {
     localStorage.clear()
+    expand = false
     mocks.templates = undefined
     vi.mocked(exportTemplates).mockReset()
   })
@@ -64,24 +75,24 @@ describe('TemplatesScreen — список', () => {
     expect(screen.queryByRole('button', { name: /Экспорт шаблонов/ })).toBeNull()
   })
 
-  it('группы свернуты по умолчанию, раскрытие запоминается на пользователя', () => {
+  it('группы свернуты при каждом входе — раскрытие не запоминается (fb_88be7eab)', () => {
+    localStorage.setItem('tpl_group_mine_me', '1') // след старых версий — не действует
     mocks.templates = [MY_TPL, THEIR_TPL]
     const { unmount } = renderScreen()
     const mine = screen.getByRole('button', { name: /Мои шаблоны/ })
     expect(mine).toHaveAttribute('aria-expanded', 'false')
     expect(screen.queryByText('Грудь')).toBeNull()
     fireEvent.click(mine)
-    expect(localStorage.getItem('tpl_group_mine_me')).toBe('1')
+    expect(screen.getByText('Грудь')).toBeInTheDocument()
     unmount()
     renderScreen()
-    expect(screen.getByRole('button', { name: /Мои шаблоны/ })).toHaveAttribute('aria-expanded', 'true')
+    expect(screen.getByRole('button', { name: /Мои шаблоны/ })).toHaveAttribute('aria-expanded', 'false')
     expect(screen.getByRole('button', { name: /Общие/ })).toHaveAttribute('aria-expanded', 'false')
   })
 
   it('карточки: свой общий — 🌐 и «ждет синка», чужой — автор; план упражнения', () => {
-    localStorage.setItem('tpl_group_mine_me', '1')
-    localStorage.setItem('tpl_group_shared_me', '1')
     mocks.templates = [MY_TPL, THEIR_TPL]
+    expand = true
     renderScreen()
     const mine = screen.getByText('Грудь').closest('button')
     expect(mine).toHaveTextContent('🌐 виден всем')
@@ -95,9 +106,8 @@ describe('TemplatesScreen — список', () => {
   })
 
   it('экспорт: выбор карточек вместо открытия, «Скачать» отдает выбранные', () => {
-    localStorage.setItem('tpl_group_mine_me', '1')
-    localStorage.setItem('tpl_group_shared_me', '1')
     mocks.templates = [MY_TPL, THEIR_TPL]
+    expand = true
     renderScreen()
     fireEvent.click(screen.getByRole('button', { name: /Скачать шаблоны/ }))
     expect(screen.queryByRole('button', { name: '+ Новый шаблон' })).toBeNull()
@@ -113,8 +123,7 @@ describe('TemplatesScreen — редактор', () => {
   let online
   beforeEach(() => {
     localStorage.clear()
-    localStorage.setItem('tpl_group_mine_me', '1')
-    localStorage.setItem('tpl_group_shared_me', '1')
+    expand = true
     mocks.templates = [MY_TPL, THEIR_TPL]
     mocks.exercises = [BENCH, PULL, PLANK]
     online = true

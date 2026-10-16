@@ -145,6 +145,24 @@ describe('App: вложенные экраны и «назад»', () => {
     expect(seen.feedback.focusId).toBe('fb1')
   })
 
+  // fb_536826f3 + fb_bb404b7e (16.10): из «Уведомлений» «назад» — в них же; фокус разовый.
+  it('обращение из уведомления: «назад» в «Уведомления», потом из Профиля — без старого фокуса', async () => {
+    await boot()
+    fireEvent.click(screen.getAllByRole('button', { name: /Уведомления/ })[0]); await settle()
+    act(() => seen.notif.onOpenFeedback('fb1')); await settle()
+    act(() => seen.feedback.onBack()); await settle()
+    expect(current()).toBe('notif')
+    act(() => seen.notif.onOpenFeedback('fb2')); await settle()
+    expect(seen.feedback.focusId).toBe('fb2')
+    act(() => seen.feedback.onBack()); await settle()
+    fireEvent.click(screen.getAllByRole('button', { name: 'Открыть профиль' })[0]); await settle()
+    act(() => seen.profile.onOpenFeedback()); await settle()
+    expect(current()).toBe('feedback')
+    expect(seen.feedback.focusId).toBe(null)
+    act(() => seen.feedback.onBack()); await settle()
+    expect(current()).toBe('profile')
+  })
+
   it('Профиль → Админка/Достижения → назад в Профиль', async () => {
     await boot()
     fireEvent.click(screen.getAllByRole('button', { name: 'Открыть профиль' })[0]); await settle()

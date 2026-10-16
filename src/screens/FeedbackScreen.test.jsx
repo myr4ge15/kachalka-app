@@ -225,6 +225,15 @@ describe('FeedbackScreen — компактный список (16.10)', () => {
     expect(screen.getByRole('button', { name: /Закрытое/ })).toHaveAttribute('aria-expanded', 'false')
   })
 
+  it('новый фокус на открытом экране — его вкладка и раскрытие (fb_bb404b7e)', async () => {
+    const api = { submit: vi.fn(), list: vi.fn(async () => rows), ack: vi.fn(), reopen: vi.fn(), append: vi.fn(), media: vi.fn() }
+    const { rerender } = render(<FeedbackScreen user={USER} onBack={() => {}} api={api} focusId="o1" />)
+    expect(await screen.findByRole('tab', { name: /Открытые/ })).toHaveAttribute('aria-selected', 'true')
+    rerender(<FeedbackScreen user={USER} onBack={() => {}} api={api} focusId="c1" />)
+    expect(screen.getByRole('tab', { name: /Закрытые/ })).toHaveAttribute('aria-selected', 'true')
+    expect(screen.getByRole('button', { name: 'Не помогло — открыть снова' })).toBeTruthy() // раскрыто
+  })
+
   it('пришли пушем к закрытому — открыта его вкладка, обращение раскрыто', async () => {
     setup({ list: vi.fn(async () => rows) }, { focusId: 'c1' })
     expect(await screen.findByRole('tab', { name: /Закрытые/ })).toHaveAttribute('aria-selected', 'true')

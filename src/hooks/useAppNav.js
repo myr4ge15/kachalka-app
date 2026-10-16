@@ -217,6 +217,24 @@ export function useAppNav(user) {
     goTab('feed')
   }
 
+  // «Обратная связь» (16.10, fb_536826f3 + fb_bb404b7e): «назад» — туда, откуда открыли
+  // (из «Уведомлений» — обратно в них, а не в Профиль), фокус обращения — разовый: гаснет
+  // при уходе с экрана, и вход из Профиля больше не прыгает к старому уведомлению.
+  const feedbackFromRef = useRef(null)
+  const tabRef = useRef(tab) // вкладка на момент пуша (эффект пуша не зависит от tab)
+  useEffect(() => { tabRef.current = tab }, [tab])
+  function openFeedback(id = null) {
+    if (tab !== 'feedback') feedbackFromRef.current = tab
+    setFeedbackFocus(id)
+    goTab('feedback')
+  }
+  function backFromFeedback() {
+    const from = feedbackFromRef.current
+    feedbackFromRef.current = null
+    setFeedbackFocus(null)
+    goTab(from && from !== 'feedback' ? from : 'profile')
+  }
+
   function backToRhythm() {
     setFocusRhythm(true)
     goTab('home')
@@ -233,7 +251,8 @@ export function useAppNav(user) {
       case 'notif': return backFromNotif()
       case 'member': return backFromMember()
       case 'freshness': return goTab('home')
-      case 'admin': case 'achievements': case 'feedback': case 'circle': case 'friends': return goTab('profile')
+      case 'feedback': return backFromFeedback()
+      case 'admin': case 'achievements': case 'circle': case 'friends': return goTab('profile')
       case 'myex': case 'whatsnew': case 'appearance': case 'pushset': return backToSettings()
       default: return undefined
     }
@@ -254,6 +273,7 @@ export function useAppNav(user) {
     }
     // Ответ на обращение (v6.11.0) — экран обратной связи с подсветкой этого обращения.
     if (pushIntent.type === 'feedback') {
+      if (tabRef.current !== 'feedback') feedbackFromRef.current = tabRef.current
       setFeedbackFocus(pushIntent.feedbackId)
       setTab('feedback')
     }
@@ -280,7 +300,7 @@ export function useAppNav(user) {
   return {
     tab, setTab, routeAnim, contentRef, screenRef, edgeSwipeOn,
     memberId, feedRestore, progressExId, setProgressExId, openNewWorkout, setOpenNewWorkout,
-    calendarIntent, setCalendarIntent, feedFlashId, feedbackFocus, setFeedbackFocus,
+    calendarIntent, setCalendarIntent, feedFlashId, feedbackFocus, openFeedback, backFromFeedback,
     focusRhythm, setFocusRhythm, openSettings, setOpenSettings,
     goTab, openNotif, backFromNotif, openProgressFor, openCalendarAt, openMember, backFromMember,
     backToRhythm, backToSettings, nestedBack, startNewWorkout, setPushIntent
