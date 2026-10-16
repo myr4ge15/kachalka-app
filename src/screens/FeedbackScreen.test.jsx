@@ -167,6 +167,7 @@ describe('FeedbackScreen — ответ из Telegram и переоткрыти�
   // v8.6.0 (обращение fb_71127755): дописать к открытому, а не новым обращением.
   it('«Дополнить» открытое: текст уходит в то же обращение, список перечитан', async () => {
     const api = setup({ list: vi.fn(async () => [{ ...ROW, status: 'new', reply: null, replied_at: null }]) })
+    await userEvent.click(await screen.findByRole('button', { name: /Пропал подход/ })) // свернуто — раскрыть
     await userEvent.click(await screen.findByRole('button', { name: 'Дополнить' }))
     expect(screen.queryByRole('button', { name: 'Не помогло — открыть снова' })).toBeNull()
     const send = screen.getByRole('button', { name: 'Дописать' })
@@ -183,11 +184,51 @@ describe('FeedbackScreen — ответ из Telegram и переоткрыти�
     setup({ list: vi.fn(async () => [
       { ...ROW, id: 'f1', status: 'in_progress', reply: null, replied_at: null, additions: adds(2) },
       { ...ROW, id: 'f2', status: 'new', reply: null, replied_at: null, additions: adds(5) },
-      { ...ROW, id: 'f3' }, // решено — только «открыть снова»
+      { ...ROW, id: 'f3', reply_seen_at: '2026-10-05T13:00:00Z' }, // решено — только «открыть снова»
     ]) })
-    expect(await screen.findAllByText('доп 2')).toHaveLength(2)
+    for (const b of await screen.findAllByRole('button', { name: /Пропал подход/ })) await userEvent.click(b)
+    expect(screen.getAllByText('доп 2')).toHaveLength(2)
     expect(screen.getAllByRole('button', { name: 'Дополнить' })).toHaveLength(1)
+    expect(screen.queryByRole('button', { name: 'Не помогло — открыть снова' })).toBeNull() // решенное — в «Закрытых»
+    await userEvent.click(screen.getByRole('tab', { name: /Закрытые · 1/ }))
+    await userEvent.click(screen.getByRole('button', { name: /Пропал подход/ }))
     expect(screen.getAllByRole('button', { name: 'Не помогло — открыть снова' })).toHaveLength(1)
+  })
+})
+
+describe('FeedbackScreen — компактный список (16.10)', () => {
+  const rows = [
+    { ...ROW, id: 'o1', status: 'new', body: 'Открытое без ответа', reply: null, replied_at: null, screenshot_count: 2,
+      additions: [{ n: 1, body: 'доп', created_at: '2026-10-15T01:25:00Z' }] },
+    { ...ROW, id: 'c1', body: 'Закрытое', reply_seen_at: '2026-10-05T13:00:00Z' },
+  ]
+
+  it('свернутая строка: начало текста и значки; тап раскрывает и сворачивает', async () => {
+    setup({ list: vi.fn(async () => rows) })
+    const toggle = await screen.findByRole('button', { name: /Открытое без ответа/ })
+    expect(toggle).toHaveAttribute('aria-expanded', 'false')
+    expect(screen.getByText('📎 2')).toBeTruthy()
+    expect(screen.getByText('➕ 1')).toBeTruthy()
+    expect(screen.queryByRole('button', { name: 'Дополнить' })).toBeNull()
+    expect(screen.queryByText('Закрытое')).toBeNull() // другая вкладка
+    await userEvent.click(toggle)
+    expect(toggle).toHaveAttribute('aria-expanded', 'true')
+    expect(screen.getByRole('button', { name: 'Дополнить' })).toBeTruthy()
+    await userEvent.click(toggle)
+    expect(screen.queryByRole('button', { name: 'Дополнить' })).toBeNull()
+  })
+
+  it('закрытые: прочитанный ответ виден одной строкой в свернутом', async () => {
+    setup({ list: vi.fn(async () => rows) })
+    await userEvent.click(await screen.findByRole('tab', { name: /Закрытые · 1/ }))
+    expect(screen.getByText('Исправлено в 6.11.1')).toBeTruthy()
+    expect(screen.getByRole('button', { name: /Закрытое/ })).toHaveAttribute('aria-expanded', 'false')
+  })
+
+  it('пришли пушем к закрытому — открыта его вкладка, обращение раскрыто', async () => {
+    setup({ list: vi.fn(async () => rows) }, { focusId: 'c1' })
+    expect(await screen.findByRole('tab', { name: /Закрытые/ })).toHaveAttribute('aria-selected', 'true')
+    expect(screen.getByRole('button', { name: 'Не помогло — открыть снова' })).toBeTruthy()
   })
 })
 

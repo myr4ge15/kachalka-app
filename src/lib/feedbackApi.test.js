@@ -17,6 +17,7 @@ import {
   _clearMediaCache, ackMyFeedback, adminListFeedback, adminUpdateFeedback, feedbackMedia, feedbackShotUrl,
   attachFeedbackScreenshots, appendFeedback, listMyFeedback, myUnreadReplies, reopenFeedback, submitFeedback,
 } from './feedbackApi.js'
+import { isVideoMedia } from './feedback.js'
 
 const ok = (payload, status = 200) => Promise.resolve({ ok: status < 400, status, json: async () => payload })
 
@@ -172,7 +173,7 @@ describe('Telegram: переоткрытие и картинки (v6.12.0)', () 
   })
 
   it('media: байты → object URL, повтор из кэша; 404 — not_found и не кэшируется', async () => {
-    const blobRes = { ok: true, status: 200, blob: async () => new Blob(['x']) }
+    const blobRes = { ok: true, status: 200, arrayBuffer: async () => new TextEncoder().encode('x').buffer }
     fetch.mockImplementation(() => Promise.resolve(blobRes))
     await expect(feedbackMedia('f1', 'reply', 1)).resolves.toBe('blob:x')
     await feedbackMedia('f1', 'reply', 1)
@@ -217,6 +218,31 @@ describe('несколько скриншотов', () => {
       .rejects.toMatchObject({ code: 'shot_failed' })
     expect(remove).toHaveBeenCalledWith([mocks.upload.mock.calls[0][0]])
     expect(fetch).not.toHaveBeenCalled()
+  })
+  it('видео (fb_1c5fab9c): без сжатия, путь .mp4/.mov, тип файла; больше 20 МБ — до загрузки', async () => {
+    mocks.upload.mockResolvedValue({ error: null })
+    const compress = vi.fn(async (f) => f)
+    const mp4 = new File(['v'], 'clip.mp4', { type: 'video/mp4' })
+    const mov = new File(['v'], 'IMG_1.MOV', { type: 'video/quicktime' })
+    await submitFeedback('me', { body: 'баг', files: [mp4, mov], compress })
+    expect(compress).not.toHaveBeenCalled()
+    const [[p1, b1, o1], [p2, , o2]] = mocks.upload.mock.calls
+    expect(b1).toBe(mp4)
+    expect([p1.slice(-4), o1.contentType, p2.slice(-4), o2.contentType]).toEqual(['.mp4', 'video/mp4', '.mov', 'video/quicktime'])
+    mocks.upload.mockClear()
+    const big = new File(['v'], 'big.mp4', { type: 'video/mp4' })
+    Object.defineProperty(big, 'size', { value: 21 * 1024 * 1024 })
+    await expect(submitFeedback('me', { body: 'баг', files: [big] })).rejects.toMatchObject({ code: 'video_too_big' })
+    await expect(submitFeedback('me', { body: 'баг', files: [new File(['v'], 'a.webm', { type: 'video/webm' })] }))
+      .rejects.toMatchObject({ code: 'video_format' })
+    expect(mocks.upload).not.toHaveBeenCalled()
+  })
+  it('media: видео узнается по байтам и помечается (плитка рисует плеер)', async () => {
+    _clearMediaCache()
+    const mp4 = new Uint8Array([0, 0, 0, 24, ...new TextEncoder().encode('ftypisom'), 0, 0, 0, 0])
+    fetch.mockImplementation(() => Promise.resolve({ ok: true, status: 200, arrayBuffer: async () => mp4.buffer }))
+    const url = await feedbackMedia('v1', 'screenshots', 0)
+    expect(isVideoMedia(url)).toBe(true)
   })
   it('отклоняет больше пяти файлов до загрузки', async () => {
     await expect(submitFeedback('me', { body: 'баг', files: Array(6).fill(new Blob()) })).rejects.toMatchObject({ code: 'shot_limit' })

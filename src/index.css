@@ -2662,6 +2662,15 @@ label.act.busy { opacity: .55; pointer-events: none; }
   display: grid; place-items: center; color: var(--muted); font-size: 22px;
 }
 .fb-photo img { width: 100%; height: 100%; object-fit: cover; display: block; }
+/* Видео к обращению (16.10): кадр плиткой + ▶ поверх, на весь экран — плеер. */
+.fb-photo video, .fb-shot video { width: 100%; height: 100%; object-fit: cover; display: block; pointer-events: none; }
+.fb-photo--video { position: relative; }
+.fb-photo--video::after {
+  content: "▶"; position: absolute; inset: 0; display: grid; place-items: center;
+  color: #fff; font-size: 20px; text-shadow: 0 1px 4px rgba(0, 0, 0, .6);
+}
+.fb-viewer-body video { max-width: 100%; max-height: 100%; border-radius: 12px; background: #000; }
+.fb-picker .fb-shot video { height: 120px; object-fit: contain; background: var(--bg); border-radius: 12px; }
 .fb-photo--gone { opacity: .6; }
 .fb-viewer-body { flex: 1; min-height: 0; display: grid; place-items: center; overflow: auto; touch-action: pinch-zoom; }
 .fb-viewer-body img { max-width: 100%; max-height: 100%; object-fit: contain; border-radius: 12px; }
@@ -2717,6 +2726,23 @@ label.act.busy { opacity: .55; pointer-events: none; }
 }
 .admin-mini:active { background: var(--acc-soft); color: var(--acc-2); }
 .admin-mini:disabled { opacity: .4; }
+/* Справочник упражнений — компактный (16.10): одна карточка, строки через разделитель, кнопки без
+   плашек. Название — до двух строк, зона тапа кнопок остается 44px по ширине. */
+.admin-catalog {
+  gap: 0; background: var(--surface); border: 1px solid var(--border); border-radius: 14px; overflow: hidden;
+}
+.admin-catalog > .admin-ex { background: none; border: 0; border-radius: 0; padding: 6px 4px 6px 13px; }
+.admin-catalog > .admin-ex + .admin-ex { border-top: 1px solid var(--border); }
+.admin-catalog > .admin-ex:has(.admin-ex-edit) { padding: 12px 13px; background: var(--surface-2); }
+.admin-catalog .admin-ex-row { gap: 4px; }
+.admin-catalog .admin-ex-name {
+  display: -webkit-box; -webkit-box-orient: vertical; -webkit-line-clamp: 2; overflow: hidden;
+  font-size: 14.5px; line-height: 1.3;
+}
+.admin-catalog .admin-ex-btns { gap: 0; }
+.admin-catalog .admin-mini { min-width: 44px; min-height: 40px; background: none; color: var(--muted); font-size: 15px; }
+.admin-catalog .admin-mini:active { background: var(--acc-soft); }
+.admin-catalog-empty { padding: 12px 13px; }
 
 .admin-ex-edit, .admin-user-edit, .admin-merge, .admin-add {
   display: flex; flex-direction: column; gap: 10px;
@@ -4352,6 +4378,30 @@ img.has-img, .avatar-lightbox-img { -webkit-touch-callout: none; -webkit-user-dr
 .fb-list .fb-item .fb-attach, .fb-list .fb-item .fb-reopen-btn {
   width: 100%; align-self: stretch; min-height: 46px; margin-top: 0;
 }
+/* «Мои обращения» свернутыми строками (16.10): шапка-кнопка раскрывает обращение целиком. */
+.fb-list { gap: 6px; }
+.fb-list .fb-item { padding: 0; gap: 8px; }
+.fb-list .fb-item.open { padding-bottom: 12px; }
+.fb-list .fb-item.open > :not(.fb-item-toggle) { margin-left: 13px; margin-right: 13px; }
+.fb-item-toggle {
+  display: flex; flex-direction: column; gap: 4px; width: 100%; min-height: 44px; padding: 10px 13px;
+  background: none; border: 0; color: inherit; font: inherit; text-align: left; cursor: pointer;
+}
+.fb-item.open .fb-item-toggle { padding-bottom: 0; }
+.fb-item-tags { display: inline-flex; align-items: center; gap: 6px; flex: 0 0 auto; }
+.fb-item-sum, .fb-item-reply {
+  display: -webkit-box; -webkit-box-orient: vertical; overflow: hidden; overflow-wrap: anywhere;
+  font-size: 14px; line-height: 1.35;
+}
+.fb-item-sum { -webkit-line-clamp: 2; color: var(--text); }
+.fb-item-reply { -webkit-line-clamp: 1; color: var(--muted); font-size: 13px; }
+.fb-item-marks { display: inline-flex; gap: 10px; }
+.fb-tab-dot {
+  display: inline-block; width: 7px; height: 7px; margin-left: 6px; border-radius: 50%;
+  background: var(--acc); vertical-align: middle;
+}
+.feedback-screen .fb-filter { margin-bottom: 10px; }
+.fb-empty { margin: 4px 2px; }
 .fb-picker .fb-shot { width: 120px; margin: 0; }
 .fb-picker .fb-shot img { width: 100%; height: 120px; object-fit: contain; }
 .fb-picker .btn { min-height: 44px; }

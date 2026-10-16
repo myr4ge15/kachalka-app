@@ -1,16 +1,13 @@
 import FeedbackScreenshotPicker from '../components/social/FeedbackScreenshotPicker.jsx'
-import FeedbackAddScreenshots from '../components/social/FeedbackAddScreenshots.jsx'
+import MyFeedbackItem from '../components/social/MyFeedbackItem.jsx'
 import { useEffect, useRef, useState } from 'react'
 import BackButton from '../components/ui/BackButton.jsx'
 import CardsSkeleton from '../components/ui/CardsSkeleton.jsx'
 import ScrollTopButton from '../components/ui/ScrollTopButton.jsx'
 import { showToast } from '../components/ui/Toast.jsx'
-import FeedbackPhotos from '../components/social/FeedbackPhotos.jsx'
-import FeedbackNoteForm from '../components/social/FeedbackNoteForm.jsx'
 import { useSyncStatus } from '../db/sync.js'
 import {
-  appendProblem, bodyProblem, buildContext, canAppend, canReopen, fmtFeedbackDate, hasReply, hasUnreadReply,
-  isStaleReply, isWebKit26Plus, reopenProblem, APPEND_MAX, FEEDBACK_MAX, REOPEN_MAX, STATUS_LABEL,
+  bodyProblem, buildContext, hasUnreadReply, isOpenStatus, isWebKit26Plus, myFeedbackTab, FEEDBACK_MAX,
 } from '../lib/feedback.js'
 import {
   ackMyFeedback, appendFeedback, feedbackMedia, listMyFeedback, reopenFeedback, submitFeedback as defaultSubmit,
@@ -37,6 +34,8 @@ export default function FeedbackScreen({ user, onBack, focusId = null, fromScree
   // Какие ответы были непрочитаны на момент открытия: метку «новый» держим до
   // ухода с экрана, хотя на сервере она гаснет сразу (ack).
   const [fresh, setFresh] = useState(() => new Set())
+  // Вкладка «Открытые / Закрытые» (16.10): null — еще не выбрана, берем по списку (myFeedbackTab).
+  const [tab, setTab] = useState(null)
   const alive = useRef(true)
   useEffect(() => { alive.current = true; return () => { alive.current = false } }, [])
 
@@ -65,6 +64,12 @@ export default function FeedbackScreen({ user, onBack, focusId = null, fromScree
     if (!focusId || !list?.length) return
     document.getElementById(`fb-${focusId}`)?.scrollIntoView?.({ block: 'center' })
   }, [focusId, list])
+
+  const cur = tab ?? myFeedbackTab(list, focusId)
+  const openRows = (list ?? []).filter((r) => isOpenStatus(r.status))
+  const closedRows = (list ?? []).filter((r) => !isOpenStatus(r.status))
+  const shown = cur === 'open' ? openRows : closedRows
+  const freshIn = (rows) => rows.some((r) => fresh.has(r.id))
 
   const problem = bodyProblem(text)
   const len = text.trim().length
@@ -141,71 +146,25 @@ export default function FeedbackScreen({ user, onBack, focusId = null, fromScree
       {list === null && <CardsSkeleton cards={2} />}
       {list?.length === 0 && !loadErr && <p className="muted">Пока пусто.</p>}
       {list?.length > 0 && (
-        <ul className="admin-list fb-list">
-          {list.map((r) => (
-            <li key={r.id} id={`fb-${r.id}`} className={'admin-user fb-item' + (r.id === focusId ? ' focus' : '')}>
-              <div className="fb-item-head">
-                <span className="admin-ex-meta">{fmtFeedbackDate(r.created_at)}</span>
-                <span className={`fb-status s-${r.status}`}>{STATUS_LABEL[r.status] ?? r.status}</span>
-              </div>
-              <p className="fb-body">{r.body}</p>
-              {r.additions?.map((a) => (
-                <p key={a.n} className="fb-addition">
-                  <span aria-hidden="true">➕ </span>{a.body}
-                  <span className="admin-ex-meta"> · {fmtFeedbackDate(a.created_at)}</span>
-                </p>
-              ))}
-              {r.screenshot_count > 0 ? <FeedbackPhotos id={r.id} kind="screenshots" count={r.screenshot_count}
-                load={api.media} lazy disabled={!online} label="Скриншот к обращению" />
-                : r.has_screenshot && <span className="admin-ex-meta">📎 со скриншотом</span>}
-              <FeedbackAddScreenshots row={r} userId={user.id} api={api} online={online} onDone={() => reload()} />
-              {r.reopened_at && r.reopen_note && (
-                <p className="fb-reopen"><span aria-hidden="true">🔁 </span>Открыто снова: {r.reopen_note}</p>
-              )}
-              {hasReply(r) && (
-                <div className={'fb-reply' + (fresh.has(r.id) ? ' new' : '') + (isStaleReply(r) ? ' stale' : '')}>
-                  <div className="fb-reply-head">
-                    <span>{isStaleReply(r) ? 'Прошлый ответ' : 'Ответ разработчика'} · {fmtFeedbackDate(r.replied_at)}</span>
-                    {fresh.has(r.id) && <span className="act-badge">новый</span>}
-                  </div>
-                  {r.reply && <p className="fb-body">{r.reply}</p>}
-                  {r.reply_photos > 0 && (
-                    <FeedbackPhotos id={r.id} kind="reply" count={r.reply_photos} load={api.media}
-                      label="Скриншот от разработчика" />
-                  )}
-                </div>
-              )}
-              {canAppend(r) && (
-                <FeedbackNoteForm
-                  openLabel="Дополнить"
-                  label="Что добавить?"
-                  placeholder="Например: и еще — то же самое на экране Ленты"
-                  sendLabel="Дописать"
-                  max={APPEND_MAX}
-                  problem={appendProblem}
-                  send={(note) => api.append(r.id, note)}
-                  done={{ emoji: '➕', title: 'Дополнение отправлено', sub: 'Разработчик увидит его в том же обращении.' }}
-                  online={online}
-                  onDone={() => reload()}
-                />
-              )}
-              {canReopen(r) && (
-                <FeedbackNoteForm
-                  openLabel="Не помогло — открыть снова"
-                  label="Что не так?"
-                  placeholder="Например: после обновления подход все равно пропадает"
-                  sendLabel="Открыть снова"
-                  max={REOPEN_MAX}
-                  problem={reopenProblem}
-                  send={(note) => api.reopen(r.id, note)}
-                  done={{ emoji: '🔁', title: 'Обращение открыто снова', sub: 'Разработчик увидит твой комментарий.' }}
-                  online={online}
-                  onDone={() => reload()}
-                />
-              )}
-            </li>
-          ))}
-        </ul>
+        <>
+          <div className="seg fb-filter" role="tablist" aria-label="Какие обращения показать">
+            <button role="tab" aria-selected={cur === 'open'} className={'seg-item' + (cur === 'open' ? ' on' : '')}
+              onClick={() => setTab('open')}>
+              Открытые · {openRows.length}{cur !== 'open' && freshIn(openRows) && <span className="fb-tab-dot" aria-label="есть новый ответ" />}
+            </button>
+            <button role="tab" aria-selected={cur === 'closed'} className={'seg-item' + (cur === 'closed' ? ' on' : '')}
+              onClick={() => setTab('closed')}>
+              Закрытые · {closedRows.length}{cur !== 'closed' && freshIn(closedRows) && <span className="fb-tab-dot" aria-label="есть новый ответ" />}
+            </button>
+          </div>
+          {shown.length === 0 && <p className="muted fb-empty">{cur === 'open' ? 'Открытых нет — все разобрано.' : 'Закрытых пока нет.'}</p>}
+          <ul className="admin-list fb-list">
+            {shown.map((r) => (
+              <MyFeedbackItem key={r.id} row={r} userId={user.id} api={api} online={online}
+                fresh={fresh.has(r.id)} focus={r.id === focusId} onReload={() => reload()} />
+            ))}
+          </ul>
+        </>
       )}
       {/* «Наверх» (v8.8.0, как в профиле участника): список обращений длинный, форма — в самом верху. */}
       <ScrollTopButton />

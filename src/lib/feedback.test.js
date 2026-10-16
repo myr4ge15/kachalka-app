@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
 import {
-  bodyProblem, buildContext, cleanBody, contextLine, describeDevice, feedbackErrorText, isWebKit26Plus,
+  myFeedbackTab, attachmentProblem, sniffMediaType, videoExt, bodyProblem, buildContext, cleanBody, contextLine, describeDevice, feedbackErrorText, isWebKit26Plus,
   fmtFeedbackDate, hasUnreadReply, isOpenStatus, openCount, unreadReplies, FEEDBACK_MAX,
   canReopen, hasReply, isStaleReply, reopenProblem, REOPEN_LIMIT, REOPEN_MAX,
 } from './feedback.js'
@@ -164,5 +164,36 @@ describe('дополнение к открытому (v8.6.0)', () => {
     expect(appendProblem('и еще')).toBeNull()
     expect(feedbackErrorText('append_limit')).toContain('5 дополнений')
     expect(feedbackErrorText('not_open')).toMatch(/открой его снова/)
+  })
+})
+
+describe('myFeedbackTab', () => {
+  const o = { id: 'o', status: 'new' }
+  const c = { id: 'c', status: 'resolved', reply: 'ок', replied_at: '2026-10-05T12:00:00Z', reply_seen_at: '2026-10-05T13:00:00Z' }
+  it('пуш → вкладка обращения; новый ответ → его вкладка; иначе открытые, если есть', () => {
+    expect(myFeedbackTab([o, c], 'c')).toBe('closed')
+    expect(myFeedbackTab([o, { ...c, reply_seen_at: null }])).toBe('closed')
+    expect(myFeedbackTab([o, c])).toBe('open')
+    expect(myFeedbackTab([c])).toBe('closed')
+    expect(myFeedbackTab([])).toBe('open')
+  })
+})
+
+describe('видео к обращению (fb_1c5fab9c)', () => {
+  const f = (name, type, size = 1) => ({ name, type, size })
+  it('MP4/MOV до 20 МБ; другое видео — формат; не картинка и не видео — нельзя', () => {
+    expect([videoExt(f('a.mp4', 'video/mp4')), videoExt(f('IMG.MOV', 'video/quicktime')), videoExt(f('x.mov', ''))]).toEqual(['mp4', 'mov', 'mov'])
+    expect(attachmentProblem(f('a.jpg', 'image/jpeg'))).toBe(null)
+    expect(attachmentProblem(f('a.mp4', 'video/mp4', 20 * 1024 * 1024))).toBe(null)
+    expect(attachmentProblem(f('a.mp4', 'video/mp4', 20 * 1024 * 1024 + 1))).toBe('video_too_big')
+    expect(attachmentProblem(f('a.webm', 'video/webm'))).toBe('video_format')
+    expect(attachmentProblem(f('a.pdf', 'application/pdf'))).toBe('shot_format')
+  })
+  it('тип по первым байтам', () => {
+    const box = (brand) => new Uint8Array([0, 0, 0, 20, ...new TextEncoder().encode('ftyp' + brand)])
+    expect(sniffMediaType(box('isom'))).toBe('video/mp4')
+    expect(sniffMediaType(box('qt  '))).toBe('video/quicktime')
+    expect(sniffMediaType(new Uint8Array([0xff, 0xd8, 0xff, 0xe0]))).toBe('image/jpeg')
+    expect(sniffMediaType(new Uint8Array([1, 2]))).toBe(null)
   })
 })

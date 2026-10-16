@@ -5,7 +5,7 @@
 import { describe, expect, it, vi } from 'vitest'
 import { render, screen, within } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
-import ExercisesSection from './ExercisesSection.jsx'
+import ExercisesSection, { exerciseMeta } from './ExercisesSection.jsx'
 import { adminMergeExercise } from '../../lib/admin.js'
 
 vi.mock('../../lib/admin.js', () => ({ adminUpdateExercise: vi.fn(), adminMergeExercise: vi.fn(async () => true) }))
@@ -48,5 +48,14 @@ describe('ExercisesSection — слитые дубли', () => {
   it('без слитых сводки нет', () => {
     render(<ExercisesSection exercises={EX.slice(0, 4)} online errMsg={String} />)
     expect(screen.queryByText(/Слито дублей/)).toBeNull()
+  })
+})
+
+describe('ExercisesSection — компактная подпись', () => {
+  it('подмышку, совпавшую с группой, не повторяет', () => {
+    expect(exerciseMeta({ muscle_group: 'бицепс', submuscle: 'biceps', secondary: ['forearms'] })).toBe('бицепс +1')
+    expect(exerciseMeta({ muscle_group: 'спина', submuscle: 'lats', metric: 'reps', is_custom: true, is_hidden: true }))
+      .toBe('спина · широчайшие · повторения · свое · скрыто')
+    expect(exerciseMeta({})).toBe('—')
   })
 })

@@ -17,6 +17,23 @@ const METRIC_OPTIONS = [
   { id: 'time', label: 'На время', meta: 'на время' },
   { id: 'distance', label: 'Дистанция и время', meta: 'дистанция' },
 ]
+
+// Подпись строки справочника (16.10, компактный вид): «бицепс · бицепс +1» → «бицепс +1» —
+// подмышку пишем, только если она отличается от группы.
+export function exerciseMeta(ex) {
+  const parts = []
+  const group = String(ex.muscle_group ?? '').trim()
+  const sub = ex.submuscle ? labelOf(ex.submuscle) : ''
+  let muscles = group || '—'
+  if (sub && sub.toLowerCase() !== group.toLowerCase()) muscles += ' · ' + sub
+  if (Array.isArray(ex.secondary) && ex.secondary.length) muscles += ` +${ex.secondary.length}`
+  parts.push(muscles)
+  const metric = METRIC_OPTIONS.find((m) => m.id === normMetric(ex.metric))?.meta
+  if (metric) parts.push(metric)
+  if (ex.is_custom) parts.push('свое')
+  if (ex.is_hidden) parts.push('скрыто')
+  return parts.join(' · ')
+}
 export default function ExercisesSection({ exercises, online, errMsg }) {
   const [query, setQuery] = useState('')
   const [edId, setEdId] = useState(null)
@@ -137,7 +154,7 @@ export default function ExercisesSection({ exercises, online, errMsg }) {
         aria-label="Поиск упражнения"
       />
 
-      <ul className="admin-list">
+      <ul className="admin-list admin-catalog">
         {filtered.map((ex) => (
           <li key={ex.id} className={'admin-ex' + (ex.is_hidden ? ' hidden' : '')}>
             {edId === ex.id ? (
@@ -249,14 +266,7 @@ export default function ExercisesSection({ exercises, online, errMsg }) {
                   <span className="admin-ex-name">
                     {ex.name}
                   </span>
-                  <span className="admin-ex-meta">
-                    {ex.muscle_group || '—'}
-                    {ex.submuscle ? ' · ' + labelOf(ex.submuscle) : ''}
-                    {Array.isArray(ex.secondary) && ex.secondary.length ? ` +${ex.secondary.length}` : ''}
-                    {METRIC_OPTIONS.find((m) => m.id === normMetric(ex.metric))?.meta ? ` · ${METRIC_OPTIONS.find((m) => m.id === normMetric(ex.metric)).meta}` : ''}
-                    {ex.is_custom ? ' · свое' : ''}
-                    {ex.is_hidden ? ' · скрыто' : ''}
-                  </span>
+                  <span className="admin-ex-meta">{exerciseMeta(ex)}</span>
                 </div>
                 <div className="admin-ex-btns">
                   <button className="admin-mini" onClick={() => openEdit(ex)} aria-label="Изменить"><PencilIcon size={16} /></button>
@@ -269,7 +279,7 @@ export default function ExercisesSection({ exercises, online, errMsg }) {
             )}
           </li>
         ))}
-        {filtered.length === 0 && <li className="muted">Ничего не найдено.</li>}
+        {filtered.length === 0 && <li className="muted admin-catalog-empty">Ничего не найдено.</li>}
       </ul>
 
       {mergedCount > 0 && (

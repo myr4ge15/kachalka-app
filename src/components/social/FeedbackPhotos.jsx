@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState } from 'react'
 import SheetDialog from '../ui/SheetDialog.jsx'
 import { dragOpacity, shouldDismiss } from '../../lib/swipeDismiss.js'
+import { isVideoMedia } from '../../lib/feedback.js'
 
 // Картинки обращения из Telegram (v6.12.0): фото ответа разработчика или скриншот
 // участника. Хранятся в Telegram, байты отдает Edge `feedback` — load(id, kind, n)
@@ -8,8 +9,11 @@ import { dragOpacity, shouldDismiss } from '../../lib/swipeDismiss.js'
 // Тап по превью — картинка на весь экран; закрыть — «закрыть» или свайпом вверх/вниз.
 //
 // lazy — сначала кнопка «Показать», грузим по нажатию (Админка: не тянуть байты
-// всех обращений сразу). label — подпись кнопки и alt.
-export default function FeedbackPhotos({ id, kind = 'reply', count = 1, load, lazy = false, label = 'Скриншот', disabled = false }) {
+// всех обращений сразу). label — подпись кнопки и alt. Видео (16.10) — плитка с ▶, на весь
+// экран — плеер; isVideo(url) узнает его по ссылке из load (тип — по байтам, feedbackApi).
+export default function FeedbackPhotos({
+  id, kind = 'reply', count = 1, load, lazy = false, label = 'Скриншот', disabled = false, isVideo = isVideoMedia,
+}) {
   const [on, setOn] = useState(!lazy)
   const [urls, setUrls] = useState(() => Array(count).fill(null)) // null — грузится, '' — не вышло
   const [open, setOpen] = useState(null)
@@ -44,9 +48,10 @@ export default function FeedbackPhotos({ id, kind = 'reply', count = 1, load, la
             : url === null
               ? <span key={n} className="fb-photo skel" aria-label="Загрузка" />
               : (
-                <button key={n} type="button" className="fb-photo" onClick={() => setOpen(url)}
-                  aria-label={count > 1 ? `${label} ${n + 1} из ${count}` : label}>
-                  <img src={url} alt="" />
+                <button key={n} type="button" className={'fb-photo' + (isVideo(url) ? ' fb-photo--video' : '')}
+                  onClick={() => setOpen(url)}
+                  aria-label={(isVideo(url) ? 'Видео: ' : '') + (count > 1 ? `${label} ${n + 1} из ${count}` : label)}>
+                  {isVideo(url) ? <video src={url} muted playsInline preload="metadata" /> : <img src={url} alt="" />}
                 </button>
               )
         ))}
@@ -54,7 +59,9 @@ export default function FeedbackPhotos({ id, kind = 'reply', count = 1, load, la
       {open && (
         <SheetDialog title={label} onDismiss={() => setOpen(null)} className="fb-viewer">
           <SwipeToClose onClose={() => setOpen(null)}>
-            <img src={open} alt={label} />
+            {isVideo(open)
+              ? <video src={open} controls autoPlay playsInline aria-label={label} />
+              : <img src={open} alt={label} />}
           </SwipeToClose>
         </SheetDialog>
       )}

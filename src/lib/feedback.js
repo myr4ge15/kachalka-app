@@ -7,6 +7,45 @@ export const FEEDBACK_SHOTS_MAX = 5
 
 export const FEEDBACK_MAX = 2000
 
+// Видео к обращению (16.10, fb_1c5fab9c): MP4/MOV до 20 МБ — больше бот не скачает обратно
+// (Telegram getFile). Лежит в том же списке вложений, что и скриншоты (всего до 5), без сжатия.
+export const FEEDBACK_VIDEO_MAX_BYTES = 20 * 1024 * 1024
+const VIDEO_TYPES = { 'video/mp4': 'mp4', 'video/quicktime': 'mov' }
+// Расширение пути в Storage: 'mp4' | 'mov' для видео, null — не видео (или формат не тот).
+export function videoExt(file) {
+  const type = String(file?.type ?? '').toLowerCase()
+  if (VIDEO_TYPES[type]) return VIDEO_TYPES[type]
+  const m = /\.(mp4|mov)$/i.exec(String(file?.name ?? ''))
+  return type.startsWith('video/') || !type ? (m ? m[1].toLowerCase() : null) : null
+}
+export const isVideoFile = (file) => String(file?.type ?? '').toLowerCase().startsWith('video/') || videoExt(file) !== null
+// Что можно приложить: null — можно, иначе код для feedbackErrorText.
+export function attachmentProblem(file) {
+  if (isVideoFile(file)) {
+    if (!videoExt(file)) return 'video_format'
+    if (Number(file.size) > FEEDBACK_VIDEO_MAX_BYTES) return 'video_too_big'
+    return null
+  }
+  return String(file?.type ?? '').startsWith('image/') ? null : 'shot_format'
+}
+// Ссылки (object URL) вложений, оказавшихся видео: их отмечает feedbackApi.feedbackMedia,
+// плитка обращения по ним рисует <video> вместо <img>.
+const videoUrls = new Set()
+export const markVideoMedia = (url) => { videoUrls.add(url) }
+export const isVideoMedia = (url) => videoUrls.has(url)
+export const clearVideoMedia = () => { videoUrls.clear() }
+
+// Тип по первым байтам: Edge отдает вложение как octet-stream, а <video> на iPhone без
+// типа не играет. MP4/MOV — коробка ftyp на 4-м байте (бренд «qt  » — QuickTime).
+export function sniffMediaType(bytes) {
+  const b = bytes instanceof Uint8Array ? bytes : new Uint8Array(bytes ?? [])
+  const at = (i, s) => [...s].every((c, k) => b[i + k] === c.charCodeAt(0))
+  if (b.length >= 12 && at(4, 'ftyp')) return at(8, 'qt  ') ? 'video/quicktime' : 'video/mp4'
+  if (b.length >= 3 && b[0] === 0xff && b[1] === 0xd8 && b[2] === 0xff) return 'image/jpeg'
+  if (b.length >= 4 && at(0, '\x89PNG')) return 'image/png'
+  return null
+}
+
 // Статусы бэклога обращений (совпадают с check в feedback.sql).
 export const FEEDBACK_STATUSES = ['new', 'in_progress', 'resolved', 'declined']
 export const STATUS_LABEL = {
@@ -178,6 +217,18 @@ export function unreadReplies(rows) {
   return (rows ?? []).filter(hasUnreadReply).length
 }
 
+// «Мои обращения» (16.10): с какой вкладки открыть экран. Пришли пушем — вкладка этого
+// обращения; есть непрочитанный ответ — вкладка первого такого; иначе открытые, если они есть.
+export function myFeedbackTab(rows, focusId = null) {
+  const list = rows ?? []
+  const tabOf = (r) => (isOpenStatus(r.status) ? 'open' : 'closed')
+  const focus = focusId && list.find((r) => r.id === focusId)
+  if (focus) return tabOf(focus)
+  const fresh = list.find(hasUnreadReply)
+  if (fresh) return tabOf(fresh)
+  return list.some((r) => isOpenStatus(r.status)) || !list.length ? 'open' : 'closed'
+}
+
 // Строка «открытые / всего» для заголовка админского раздела.
 export function openCount(rows) {
   return (rows ?? []).filter((r) => isOpenStatus(r.status)).length
@@ -195,6 +246,9 @@ export function feedbackErrorText(code) {
     case 'offline': return 'Нет связи. Отправь, когда появится интернет.'
     case 'shot_limit': return 'К обращению можно приложить до 5 скриншотов.'
     case 'shot_failed': return 'Не удалось загрузить скриншот. Попробуй без него или другой файл.'
+    case 'shot_format': return 'Можно приложить картинки или видео (MP4, MOV).'
+    case 'video_format': return 'Видео — только MP4 или MOV (как снимает телефон).'
+    case 'video_too_big': return 'Видео больше 20 МБ — обрежь его или запиши покороче.'
     case 'reopen_limit': return `Обращение уже открывали снова ${REOPEN_LIMIT} раза — напиши новое.`
     case 'not_closed': return 'Обращение еще в работе — дождись ответа.'
     case 'append_limit': return `К обращению уже ${APPEND_LIMIT} дополнений — напиши новое.`

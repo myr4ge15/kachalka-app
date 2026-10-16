@@ -18,7 +18,10 @@
 import { supabase, hasSession } from '../db/supabase.js'
 import { compressToJpeg } from './avatar.js'
 import { DB_TIMEOUT_MS, withTimeout } from './withTimeout.js'
-import { FEEDBACK_SHOTS_MAX, appendProblem, bodyProblem, cleanBody, feedbackErrorText, reopenProblem, unreadReplies } from './feedback.js'
+import {
+  FEEDBACK_SHOTS_MAX, appendProblem, attachmentProblem, bodyProblem, cleanBody, feedbackErrorText, reopenProblem,
+  clearVideoMedia, isVideoFile, markVideoMedia, sniffMediaType, unreadReplies, videoExt,
+} from './feedback.js'
 import { cacheFeedbackReplies } from '../db/feedbackReplies.js'
 
 const FN_URL = (import.meta.env.VITE_SUPABASE_URL ?? '') + '/functions/v1/feedback'
@@ -212,7 +215,12 @@ export function feedbackMedia(id, kind = 'reply', n = 0) {
       if (res.status === 404) throw new FeedbackError('not_found')
       if (res.status === 401) throw new FeedbackError('no_session')
       if (!res.ok) throw new FeedbackError('server_error')
-      return URL.createObjectURL(await res.blob())
+      // Тип — по байтам (Edge шлет octet-stream): видео без типа iPhone не проиграет.
+      const buf = await res.arrayBuffer()
+      const type = sniffMediaType(new Uint8Array(buf, 0, Math.min(16, buf.byteLength)))
+      const url = URL.createObjectURL(new Blob([buf], type ? { type } : undefined))
+      if (type?.startsWith('video/')) markVideoMedia(url)
+      return url
     })
     // Неудачу не кэшируем — следующая попытка (появилась сеть) пойдет заново.
     p.catch(() => mediaCache.delete(key))
@@ -223,6 +231,7 @@ export function feedbackMedia(id, kind = 'reply', n = 0) {
 
 export function _clearMediaCache() {
   mediaCache.clear()
+  clearVideoMedia()
 }
 
 export async function feedbackShotUrl(path) {
@@ -236,16 +245,22 @@ async function uploadScreenshots(userId, files, compress = compressToJpeg) {
   const paths = []
   try {
     for (const file of files) {
-      const blob = await compress(file, SHOT_MAX_PX, SHOT_QUALITY)
-      const path = userId + '/' + newId() + '.jpg'
-      const up = await withTimeout(supabase.storage.from('feedback').upload(path, blob, { upsert: false, contentType: 'image/jpeg' }))
+      // Видео (16.10) — как есть, без сжатия; проверки формата и 20 МБ — до загрузки.
+      const problem = isVideoFile(file) ? attachmentProblem(file) : null // картинки решает сжатие
+      if (problem) throw new FeedbackError(problem)
+      const ext = videoExt(file)
+      const blob = ext ? file : await compress(file, SHOT_MAX_PX, SHOT_QUALITY)
+      const path = userId + '/' + newId() + '.' + (ext ?? 'jpg')
+      const contentType = ext === 'mov' ? 'video/quicktime' : ext ? 'video/mp4' : 'image/jpeg'
+      // Видео грузится дольше обычного запроса: свой предел — минута.
+      const up = await withTimeout(supabase.storage.from('feedback').upload(path, blob, { upsert: false, contentType }), ext ? 60000 : undefined)
       if (up?.error) throw up.error
       paths.push(path)
     }
-  } catch {
+  } catch (e) {
     // Только файлы этой незавершенной загрузки, до создания обращения.
     if (paths.length) await supabase.storage.from('feedback').remove(paths).catch(() => {})
-    throw new FeedbackError('shot_failed')
+    throw e instanceof FeedbackError ? e : new FeedbackError('shot_failed')
   }
   return paths
 }
