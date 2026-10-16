@@ -1610,6 +1610,9 @@ html[data-update]:not([data-composer]) .content { padding-top: 64px; }
 .prog-row-head, .prog-row-head .prog-val {
   color: var(--muted); font-family: inherit; font-size: var(--fs-meta); font-weight: var(--fw-strong); padding-top: 0;
 }
+/* Шапка — без высоты строки данных (48px): иначе текст прижат кверху, а под ним пустой зазор
+   до черты, и таблица выглядит неровной (fb_266bb838). */
+.prog-row.prog-row-head { min-height: 0; padding: 0 0 10px; }
 .prog-sets { line-height: 1.4; word-break: break-word; }
 .prog-val { text-align: right; font-weight: var(--fw-strong); white-space: nowrap; }
 .prog-orm { display: block; font-size: var(--fs-meta); font-weight: 400; color: var(--muted); }

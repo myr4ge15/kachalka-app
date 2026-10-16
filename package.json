@@ -1,7 +1,7 @@
 {
   "name": "kachalka-app",
   "private": true,
-  "version": "9.2.4",
+  "version": "9.2.5",
   "type": "module",
   "description": "kachalka-app — приложение для планирования тренировок, отслеживания прогресса и анализа результатов.",
   "scripts": {
