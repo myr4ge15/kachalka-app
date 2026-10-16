@@ -14,7 +14,7 @@
 // records.js, формулу не дублируем.
 // ============================================================================
 import { myBestByExercise, bestWeight } from './records.js'
-import { isCountMetric, leadingValue, normMetric, setTonnage, bestPace } from './metric.js'
+import { isCountMetric, leadingValue, normMetric, setTonnage, bestPace, fmtNum } from './metric.js'
 import { entryExId, currentExerciseShapes, entryUnitMetric } from './entries.js'
 
 // Число тренировок в текущем КАЛЕНДАРНОМ месяце (по дате тренировки).
@@ -135,7 +135,7 @@ export function fmtTonnage(kg) {
   const n = Number(kg) || 0
   if (n < 1000) return { value: String(Math.round(n)), unit: 'кг' }
   const t = n / 1000
-  return { value: t >= 100 ? String(Math.round(t)) : String(Math.round(t * 10) / 10), unit: 'т' }
+  return { value: t >= 100 ? String(Math.round(t)) : fmtNum(Math.round(t * 10) / 10), unit: 'т' }
 }
 
 // Любимое упражнение = с наибольшим числом подходов за всю историю.

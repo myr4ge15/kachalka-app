@@ -1,3 +1,4 @@
+import Chevron from '../components/ui/Chevron.jsx'
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { useLiveQuery } from 'dexie-react-hooks'
 import { getCachedMember, fetchMember, toggleMemberReaction } from '../db/memberProfile.js'
@@ -15,7 +16,7 @@ import { plural } from '../lib/plural.js'
 import AvatarZoom from '../components/ui/AvatarZoom.jsx'
 import BackButton from '../components/ui/BackButton.jsx'
 import CardsSkeleton from '../components/ui/CardsSkeleton.jsx'
-import FeedPrBadge from '../components/social/FeedPrBadge.jsx'
+import FeedPrBadge, { prForEntry } from '../components/social/FeedPrBadge.jsx'
 import ReactionBar from '../components/social/ReactionBar.jsx'
 import FriendButton from '../components/friends/FriendButton.jsx'
 import './MemberScreen.css'
@@ -200,7 +201,7 @@ export default function MemberScreen({ user, memberId, onBack }) {
                       onClick={() => setRecExpanded((v) => !v)}
                     >
                       <span>{recExpanded ? 'Свернуть' : `Показать все ${view.records.length}`}</span>
-                      <span className="pr-toggle-arr" aria-hidden="true">{recExpanded ? '⌃' : '⌄'}</span>
+                      <span className="pr-toggle-arr" aria-hidden="true"><Chevron toggle open={recExpanded} size={16} /></span>
                     </button>
                   </li>
                 )}
@@ -231,15 +232,10 @@ export default function MemberScreen({ user, memberId, onBack }) {
               {view.recent.slice(0, shown).map((w) => (
                 <article key={w.id} className="card feed-card member-card">
                   <div className="member-card-when">{fmtWhen(w.performed_at)}</div>
-                  {w.prs?.length > 0 && (
-                    <div className="feed-prs">
-                      {w.prs.map((pr) => <FeedPrBadge key={`${pr.name}-${pr.value}`} pr={pr} />)}
-                    </div>
-                  )}
                   <ul className="history-list">
                     {w.entries.map((e, i) => (
                       <li key={e.exercise_id ?? e.name ?? i} className="history-ex">
-                        <span className="history-ex-name">{e.name}</span>
+                        <span className="history-ex-name">{e.name}{prForEntry(w, e) && <> <FeedPrBadge pr={prForEntry(w, e)} /></>}</span>
                         <span className="history-ex-sets">
                           <SetsCells metric={e.metric} sets={e.sets} />
                         </span>

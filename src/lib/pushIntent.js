@@ -118,12 +118,26 @@ export async function appendPushLog(ev, detail = '', store = globalThis.caches, 
     const entry = { at: now, who: 'app', ev, detail: String(detail ?? '').slice(0, 160) }
     await c.put(`${PUSH_LOG_PREFIX}${now}-${Math.random().toString(36).slice(2, 8)}`,
       new Response(JSON.stringify(entry), { headers: { 'content-type': 'application/json' } }))
+    await trimLog(c)
   } catch { /* журнал — не повод ломать приложение */ }
 }
 
 const logKeys = async (c) => (await c.keys())
   .map((r) => (typeof r === 'string' ? r : r.url))
   .filter((u) => new URL(u, 'http://x').pathname.startsWith(PUSH_LOG_PREFIX))
+
+// Время строки — из ключа (/__push-log/<время>-<случайное>), без чтения тела.
+const keyTime = (u) => Number(new URL(u, 'http://x').pathname.slice(PUSH_LOG_PREFIX.length).split('-')[0]) || 0
+
+// Подрезка при каждой записи приложения (аудит 16.10, 🟡-3): журнал пишут запуск, возврат из
+// фона и каждый пуш, а читает (и раньше только он и подрезал) один экран Админки — у участников
+// записи копились без предела. Строки SW подрезаются при следующей записи приложения.
+async function trimLog(c) {
+  const keys = await logKeys(c)
+  if (keys.length <= PUSH_LOG_MAX) return
+  keys.sort((a, b) => keyTime(a) - keyTime(b))
+  for (const k of keys.slice(0, keys.length - PUSH_LOG_MAX)) await c.delete(k)
+}
 
 // Строки по времени (старые сверху). Сбой чтения — строкой «error», а не молчаливой пустотой.
 export async function readPushLog(store = globalThis.caches) {

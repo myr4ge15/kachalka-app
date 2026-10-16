@@ -1,3 +1,4 @@
+import Chevron from '../ui/Chevron.jsx'
 import { useEffect, useRef, useState } from 'react'
 import { adminCreateInvite, adminListInvites, adminRevokeInvite } from '../../lib/admin.js'
 import { inviteUrl, inviteListLabel, inviteCreatorLabel, inviteMessage, splitInvites } from '../../lib/invite.js'
@@ -156,7 +157,7 @@ export default function InvitesSection({ online, errMsg, api = adminApi, limit =
           <summary>
             <span>История ссылок: {past.length}</span>
             {used > 0 && <span className="invite-history-used">зарегистрировались: {used}</span>}
-            <span className="invite-history-chev" aria-hidden="true">›</span>
+            <Chevron size={18} className="invite-history-chev" />
           </summary>
           <ul className="admin-list">{past.map(row)}</ul>
         </details>

@@ -1,3 +1,4 @@
+import Chevron from '../ui/Chevron.jsx'
 import { plural } from '../../lib/plural.js'
 import { useState } from 'react'
 import SheetDialog from '../ui/SheetDialog.jsx'
@@ -26,7 +27,7 @@ export default function WhatsNewSheet({ release, onDone, onOpenAll }) {
         ) : (
           <button type="button" className="wn-more" onClick={() => setShowMinor(true)}>
             <span>И еще {minor.length} {minorWord(minor.length)}</span>
-            <span className="wn-more-go">Показать ›</span>
+            <span className="wn-more-go">Показать <Chevron inline size={16} /></span>
           </button>
         ))}
       </div>

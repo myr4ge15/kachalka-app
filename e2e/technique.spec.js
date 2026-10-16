@@ -33,7 +33,7 @@ test('подсказка по технике: карточка и пикер, д
   await expect.poll(() => frame.evaluate(img => img.complete && img.naturalWidth > 0)).toBe(true)
   await page.keyboard.press('Escape')
   await expect(sheet).toHaveCount(0)
-  await expect(page.getByLabel('Вес, подход 1')).toHaveValue('62.5')
+  await expect(page.getByLabel('Вес, подход 1')).toHaveValue('62,5')
   await expect(page.getByLabel('Повторения, подход 1')).toHaveValue('7')
   await expect(info).toBeFocused()
 

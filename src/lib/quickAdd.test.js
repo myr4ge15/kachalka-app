@@ -10,4 +10,8 @@ describe('fabState', () => {
   it('занятый хаб (композер/экспорт) — кнопка утоплена, а не скрыта', () => {
     expect(fabState({ busy: true })).toBe('sunk')
   })
+  it('вложенный экран — спокойный круг; занятый хаб важнее (аудит 16.10)', () => {
+    expect(fabState({ calm: true })).toBe('calm')
+    expect(fabState({ busy: true, calm: true })).toBe('sunk')
+  })
 })

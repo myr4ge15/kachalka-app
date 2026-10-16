@@ -491,7 +491,8 @@ export default function App() {
         {/* «+» по центру меню (редизайн v6): запись тренировки в один тап. Есть
             ВСЕГДА (v6.0.4, в т.ч. на вложенных роутах); когда хаб занят (композер /
             экспорт) — утоплен и неактивен, см. lib/quickAdd.js fabState. */}
-        <AddFab onClick={startNewWorkout} sunk={fabState({ busy: historyBusy }) === 'sunk'} />
+        <AddFab onClick={startNewWorkout} sunk={fabState({ busy: historyBusy }) === 'sunk'}
+          calm={fabState({ busy: historyBusy, calm: isNested(tab) }) === 'calm'} />
         <button
           className={tab === 'feed' || tab === 'member' ? 'tab active' : 'tab'}
           onClick={() => goTab('feed')}

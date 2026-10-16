@@ -1,3 +1,4 @@
+import Chevron from '../ui/Chevron.jsx'
 import { useEffect, useRef, useState } from 'react'
 import SheetDialog from '../ui/SheetDialog.jsx'
 import { useScrollMore } from '../../hooks/useScrollMore.js'
@@ -87,7 +88,7 @@ export default function TechniqueSheet({ slug, name, onClose }) {
                   </svg>
                   <span className="technique-credits-title">Источники рисунков</span>
                   <span className="technique-credits-src">Everkinetic · CC BY-SA</span>
-                  <span className="technique-credits-chev" aria-hidden="true">›</span>
+                  <Chevron size={18} className="technique-credits-chev" />
                 </summary>
                 <p className="technique-credits-body">
                   Рисунки — <a href={state.source.url} target="_blank" rel="noopener noreferrer">{state.source.author}</a>,

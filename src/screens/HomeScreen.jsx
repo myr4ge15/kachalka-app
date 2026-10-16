@@ -1,3 +1,4 @@
+import Chevron from '../components/ui/Chevron.jsx'
 import { useEffect, useRef, useState } from 'react'
 import { fmtHomeTitle } from '../lib/dates.js'
 import { useLiveQuery } from 'dexie-react-hooks'
@@ -23,6 +24,8 @@ const canonIdx = (g) => {
 }
 
 // Подсказка к цвету полоски (ось восстановления, та же, что у подписи).
+// Сколько групп «В прошлый раз» показать в строке, остальные — «+N» (аудит 16.10).
+const TAGS_SHOWN = 2
 const STATE_HINT = { ready: 'можно тренировать', almost: 'почти восстановилась', resting: 'дай отдых', stale: 'давно не тренировал(а)' }
 
 const localDate = (ymd) => new Date(`${ymd}T12:00:00`)
@@ -121,6 +124,7 @@ export default function HomeScreen({ user, onNavigate, onNewWorkout, onOpenProgr
   // но все восстановились»). Про давность говорит только ветка «пора проработать».
   const rec = freshness?.recovery ?? []
   const strip = [...rec].sort((a, b) => canonIdx(a.group) - canonIdx(b.group))
+  const allReady = strip.length > 0 && strip.every((f) => readinessStatus(f) === 'ready')
   const lead = recoveryLead(rec)
   const cardioDays = freshness?.cardio ?? null // v7.5.6: кардио — отдельной строкой, не «мышцей»
 
@@ -142,9 +146,15 @@ export default function HomeScreen({ user, onNavigate, onNewWorkout, onOpenProgr
       {lw?.tags?.length > 0 && (
         <div className="home-tags">
           <span className="home-tags-lab">В прошлый раз:</span>
-          {lw.tags.map((s) => (
+          {/* Одна строка (аудит 16.10): третья группа уходила на вторую строку одна — дальше «+N». */}
+          {lw.tags.slice(0, TAGS_SHOWN).map((s) => (
             <span key={s} className={`day-tag tag-${tagSlug(majorOf(s))}`}>{labelOf(s)}</span>
           ))}
+          {lw.tags.length > TAGS_SHOWN && (
+            <span className="day-tag home-tags-more" title={lw.tags.slice(TAGS_SHOWN).map(labelOf).join(', ')}>
+              +{lw.tags.length - TAGS_SHOWN}
+            </span>
+          )}
         </div>
       )}
 
@@ -175,10 +185,11 @@ export default function HomeScreen({ user, onNavigate, onNewWorkout, onOpenProgr
           <p className="sec-title">Восстановление</p>
           <button className="fr-teaser" onClick={() => onNavigate?.('freshness')}>
             <div className="fr-teaser-head">
-              <span className="fr-teaser-lab">Готовы к нагрузке</span>
-              <span className="go">Подробнее ›</span>
+              <span className="fr-teaser-lab">{allReady ? 'Все группы готовы к нагрузке' : 'Готовы к нагрузке'}</span>
+              <span className="go">Подробнее <Chevron inline size={16} /></span>
             </div>
-            <div className="fr-strip">
+            {/* Все полоски зеленые — они ничего не говорят (аудит 16.10): только подсказка ниже. */}
+            {!allReady && <div className="fr-strip">
               {strip.map((f) => (
                 <div className="fr-strip-cell" key={f.group}>
                   <span
@@ -189,7 +200,7 @@ export default function HomeScreen({ user, onNavigate, onNewWorkout, onOpenProgr
                   <span className="fr-strip-lab">{f.group}</span>
                 </div>
               ))}
-            </div>
+            </div>}
             {lead?.kind === 'target' ? (
               <div className="fr-lead">
                 <span className="em" aria-hidden="true">🎯</span>
@@ -349,7 +360,7 @@ export default function HomeScreen({ user, onNavigate, onNewWorkout, onOpenProgr
               className="rhythm-history"
               onClick={() => (onOpenCalendar ? onOpenCalendar(openDays.at(-1)?.day ?? null) : onNavigate?.('history'))}
             >
-              Открыть в календаре <span aria-hidden="true">›</span>
+              Открыть в календаре <Chevron inline size={18} className="rhythm-history-chev" />
             </button>
           </div>
         </section>
@@ -374,7 +385,7 @@ export default function HomeScreen({ user, onNavigate, onNewWorkout, onOpenProgr
                   onClick={() => onOpenProgress(i.exerciseId)}
                 >
                   {content}
-                  <span className="go" aria-hidden="true">›</span>
+                  <Chevron size={20} className="go" />
                 </button>
               ) : (
                 <div key={i.id} className={`ins-card ins-${i.tone}`}>{content}</div>

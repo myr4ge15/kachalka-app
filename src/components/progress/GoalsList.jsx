@@ -1,3 +1,4 @@
+import Chevron from '../ui/Chevron.jsx'
 import { useState } from 'react'
 import { normMetric, fmtMetricValue } from '../../lib/metric.js'
 import { currentBestValue, goalProgress } from '../../lib/profileStats.js'
@@ -104,7 +105,7 @@ export default function GoalsList({ goalList, workouts, onEdit, onAdd }) {
         >
           <span>{expanded ? 'Свернуть' : `Показать остальные ${hiddenCount}`}</span>
           <span className="goals-toggle-arr" aria-hidden="true">
-            {expanded ? '⌃' : '⌄'}
+            <Chevron toggle open={expanded} size={16} />
           </span>
         </button>
       )}

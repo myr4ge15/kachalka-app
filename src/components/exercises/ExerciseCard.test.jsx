@@ -196,10 +196,21 @@ describe('ExerciseCard — панель автопрогрессии', () => {
   })
 
   it('applied=true → показывает откат и зовет onRevertProg', () => {
-    const entry = { ...weightEntry(), prog: prog({ applied: true }) }
+    const entry = { ...weightEntry(), sets: [{ weight: 62.5, reps: 10, _k: 'a' }], prog: prog({ applied: true }) }
     const { cbs } = renderCard(entry)
     fireEvent.click(screen.getByText('вернуть как в прошлый раз'))
     expect(cbs.onRevertProg).toHaveBeenCalledWith(0)
+  })
+
+  // Аудит 16.10: после правки примененной рекомендации блок — одна строка, раскрывается тапом.
+  it('применена и подходы поправили → одна строка «Прошлая», тап раскрывает, шестеренка на месте', () => {
+    const entry = { ...weightEntry(), prog: prog({ applied: true }) } // 60×10, 60×9 ≠ 62,5×10
+    const { cbs } = renderCard(entry)
+    expect(screen.queryByText('Рекомендуем сегодня', { exact: false })).not.toBeInTheDocument()
+    fireEvent.click(screen.getByLabelText('Настройки прогрессии'))
+    expect(cbs.onToggleProgSettings).toHaveBeenCalledWith(0)
+    fireEvent.click(screen.getByRole('button', { name: /^Прошлая тренировка и рекомендация/ }))
+    expect(screen.getByText('Рекомендуем сегодня', { exact: false })).toBeInTheDocument()
   })
 
   it('muted (стратегия off): компактная строка + шестеренка зовет onToggleProgSettings', () => {
@@ -293,7 +304,7 @@ describe('ExerciseCard — свой вес: доп. вес и помощь (v7.2
   it('недописанный ввод («-», «0.») не стирается — минус и дробь можно набрать', () => {
     renderCard(pullups([{ weight: '-', reps: 8, _k: 'a' }, { weight: '0.', reps: 8, _k: 'b' }]))
     expect(screen.getByLabelText('Доп. вес, подход 1')).toHaveValue('-')
-    expect(screen.getByLabelText('Доп. вес, подход 2')).toHaveValue('0.')
+    expect(screen.getByLabelText('Доп. вес, подход 2')).toHaveValue('0,') // показ — с запятой (аудит 16.10)
   })
 
   it('типографский минус и запятая уходят как «-» и «.»', () => {

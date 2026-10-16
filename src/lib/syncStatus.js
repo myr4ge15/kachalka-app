@@ -48,3 +48,10 @@ export function syncBadgeState({ online, syncing, pending = 0, dead = 0, netErro
   }
   return { cls: 'ok', icon: 'ok', text: '', title: 'Синхронизировано' }
 }
+
+// Прятать ли бейдж (аудит 16.10): в норме шапке нечего сказать — зеленая галочка занимала
+// лучшее место. Крутилка без очереди — фоновый опрос сервера, тоже не повод мигать в шапке.
+// Видно, только когда есть что знать: офлайн, очередь, застрявшие правки, нет связи.
+export function syncBadgeQuiet(state, { pending = 0, dead = 0 } = {}) {
+  return state.cls === 'ok' || (state.icon === 'syncing' && pending === 0 && dead === 0)
+}

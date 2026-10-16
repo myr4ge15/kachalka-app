@@ -12,8 +12,14 @@
 import { supabase, hasSession } from './supabase.js'
 import { withTimeout } from '../lib/withTimeout.js'
 import { deviceSubscriptionEndpoint } from './push.js'
+import { createSerialQueue } from '../lib/serialQueue.js'
 
 const RPC_MS = 8000
+
+// Поставить и снять — строго по очереди (аудит 16.10, 🟢-4): у «поставить» перед RPC два
+// await, у «снять» — один, и при быстром «старт → Стоп» снятие обгоняло постановку —
+// пуш приходил после остановки. Так же частые ±15 с больше не путают порядок.
+const queue = createSerialQueue()
 
 async function ready(userId) {
   if (typeof navigator !== 'undefined' && navigator.onLine === false) return false
@@ -21,7 +27,11 @@ async function ready(userId) {
 }
 
 // true — пуш поставлен; false — нечего ставить (нет подписки/сети/сессии) или сбой.
-export async function scheduleRestPush(userId, { inSec, title, body }) {
+export function scheduleRestPush(userId, args) {
+  return queue(() => setNow(userId, args))
+}
+
+async function setNow(userId, { inSec, title, body }) {
   try {
     if (!(await ready(userId))) return false
     const endpoint = await deviceSubscriptionEndpoint(userId)
@@ -36,7 +46,11 @@ export async function scheduleRestPush(userId, { inSec, title, body }) {
   }
 }
 
-export async function cancelRestPush(userId) {
+export function cancelRestPush(userId) {
+  return queue(() => clearNow(userId))
+}
+
+async function clearNow(userId) {
   try {
     if (!(await ready(userId))) return false
     const res = await withTimeout(supabase.rpc('rest_push_clear'), RPC_MS)

@@ -1,3 +1,5 @@
+import { niceScale } from '../lib/chartScale.js'
+import Chevron from '../components/ui/Chevron.jsx'
 import { useEffect, useMemo, useState } from 'react'
 import { useRevealFocus } from '../hooks/useRevealFocus.js'
 import {
@@ -7,7 +9,7 @@ import {
 import { useLiveQuery } from 'dexie-react-hooks'
 import { getWorkouts } from '../db/repo.js'
 import { readGoals } from '../db/notifications.js'
-import { fmtMetricValue, fmtTime } from '../lib/metric.js'
+import { fmtMetricValue, fmtNum, fmtTime } from '../lib/metric.js'
 import SetsCells from '../components/workout/SetsCells.jsx'
 import { collectExercises, buildSeries, seriesValueSpread } from '../lib/progressSeries.js'
 import { buildGoalGuide, selectProgressGoal } from '../lib/progressGoal.js'
@@ -156,16 +158,12 @@ export default function ProgressScreen({
     () => buildGoalGuide(goal, fullBest),
     [goal, fullBest]
   )
-  const chartDomain = useMemo(() => {
-    if (data.length === 0) return [0, 1]
+  // Круглые деления (аудит 16.10): lib/chartScale.js, а не «мин − 5 … макс + 5».
+  const chartScale = useMemo(() => {
     const values = data.map((p) => p.value)
     if (goalGuide?.target > 0) values.push(goalGuide.target)
-    const pad = weighted ? 5 : 2
-    return [
-      Math.max(0, Math.min(...values) - pad),
-      Math.max(...values) + pad,
-    ]
-  }, [data, goalGuide, weighted])
+    return niceScale(values, { pad: weighted ? 5 : 2, time: metric === 'time' })
+  }, [data, goalGuide, weighted, metric])
 
   const c = useMemo(() => ({
     grid: cssVar(['--border', '--stroke']),
@@ -309,7 +307,7 @@ export default function ProgressScreen({
                     <div className="stat-duo-row one">
                       <div className="stat-cell">
                         <span className="stat-cell-label">Рекорд — и это твоя форма сейчас</span>
-                        <span className="stat-num gold">{allBest} кг</span>
+                        <span className="stat-num gold">{fmtNum(allBest)} кг</span>
                         <span className="muted stat-sub">поставлен за последние {FORM_WEEKS} нед.</span>
                       </div>
                     </div>
@@ -317,12 +315,12 @@ export default function ProgressScreen({
                   <div className="stat-duo-row">
                     <div className="stat-cell">
                       <span className="stat-cell-label">Рекорд</span>
-                      <span className="stat-num gold">{allBest} кг</span>
+                      <span className="stat-num gold">{fmtNum(allBest)} кг</span>
                       <span className="muted stat-sub">за все время</span>
                     </div>
                     <div className="stat-cell stat-cell-right">
                       <span className="stat-cell-label">Форма сейчас</span>
-                      <span className="stat-num">{formBest > 0 ? `${formBest} кг` : '—'}</span>
+                      <span className="stat-num">{formBest > 0 ? `${fmtNum(formBest)} кг` : '—'}</span>
                       <span className="muted stat-sub">лучшее за {FORM_WEEKS} нед.</span>
                     </div>
                   </div>
@@ -330,14 +328,14 @@ export default function ProgressScreen({
                   {/* 1ПМ не считается для подходов > 12 повторов — нечего показывать. */}
                   {allBestOrm > 0 && (
                     <div className="muted stat-orm-note">
-                      в теории (1ПМ): рекорд ~{allBestOrm}
-                      {formBestOrm > 0 && formBestOrm !== allBestOrm ? ` · сейчас ~${formBestOrm}` : ''} кг
+                      в теории (1ПМ): рекорд ~{fmtNum(allBestOrm)}
+                      {formBestOrm > 0 && formBestOrm !== allBestOrm ? ` · сейчас ~${fmtNum(formBestOrm)}` : ''} кг
                     </div>
                   )}
                 </div>
               ) : (
                 <div className="card stat">
-                  <span className="stat-num">{metric === 'time' ? fmtTime(best) : `${best} ${unit}`}</span>
+                  <span className="stat-num">{metric === 'time' ? fmtTime(best) : `${fmtNum(best)} ${unit}`}</span>
                   <span className="muted">лучший подход за день</span>
                 </div>
               )}
@@ -363,7 +361,7 @@ export default function ProgressScreen({
                             : 'целевой показатель уже достигнут'}
                       </span>
                     </span>
-                    <span className="prog-goal-go" aria-hidden="true">›</span>
+                    <Chevron size={22} className="prog-goal-go" />
                   </button>
                 )}
                 <ResponsiveContainer width="100%" height={260}>
@@ -380,7 +378,9 @@ export default function ProgressScreen({
                     <YAxis
                       stroke={c.axis}
                       fontSize={12}
-                      domain={chartDomain}
+                      domain={chartScale.domain}
+                      ticks={chartScale.ticks}
+                      interval={0}
                     />
                     {goalGuide && goalGuide.target !== fullBest && (
                       <ReferenceArea
@@ -409,7 +409,7 @@ export default function ProgressScreen({
                     <Tooltip
                       labelFormatter={(v) => fmtDate(v)}
                       separator=": "
-                      formatter={(v) => [metric === 'time' ? fmtTime(v) : `${v} ${unit}`, metricLabel]}
+                      formatter={(v) => [metric === 'time' ? fmtTime(v) : `${fmtNum(v)} ${unit}`, metricLabel]}
                       contentStyle={{ background: c.bg, border: `1px solid ${c.border}`, borderRadius: 8 }}
                       labelStyle={{ color: c.text }}
                     />
@@ -463,8 +463,8 @@ export default function ProgressScreen({
                         <SetsCells metric={metric} sets={r.sets} empty="" />
                       </span>
                       <span className="prog-val">
-                        {metric === 'time' ? fmtTime(r.value) : r.value}{r.isPr ? ' 🏆' : ''}
-                        {weighted && r.orm > 0 && <span className="prog-orm">1ПМ {r.orm}</span>}
+                        {metric === 'time' ? fmtTime(r.value) : fmtNum(r.value)}{r.isPr ? ' 🏆' : ''}
+                        {weighted && r.orm > 0 && <span className="prog-orm">1ПМ {fmtNum(r.orm)}</span>}
                       </span>
                     </div>
                   ))}

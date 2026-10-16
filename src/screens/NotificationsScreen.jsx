@@ -1,3 +1,4 @@
+import Chevron from '../components/ui/Chevron.jsx'
 import { useEffect, useMemo, useRef, useState } from 'react'
 import { useLiveQuery } from 'dexie-react-hooks'
 import { getNotifications, getSeenAt, markAllSeen } from '../db/notifications.js'
@@ -169,7 +170,7 @@ export default function NotificationsScreen({ user, onBack, onOpenFeedback }) {
                   </div>
                   {onOpenFeedback && (
                     <button type="button" className="link-btn n-open" onClick={() => onOpenFeedback(n.feedbackId)}>
-                      Открыть обращение ›
+                      Открыть обращение <Chevron inline size={16} />
                     </button>
                   )}
                 </>

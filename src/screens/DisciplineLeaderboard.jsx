@@ -116,12 +116,12 @@ function DisciplineBoard({ discipline, user, onOpenMember, circle = null }) {
             <Avatar name={row.user_name} url={avatars.get(row.user_id)} className="avatar-sm" />
             <span className="lb-who"><span className="lb-name">{row.user_name}</span>{row.user_id === user.id && <span className="feed-me">я</span>}</span>
             <span className="lb-fact"><span className="lb-weight">{disciplineResult(metric, row.value)}</span>
-              <span className="lb-sub muted">{metric === 'weight' ? `${row.reps} повт.${row.orm > 0 ? ` · 1ПМ ~${row.orm}` : ''}` : fmtWhen(row.performed_at)}</span>
+              <span className="lb-sub muted">{metric === 'weight' ? `${row.reps} повт.${row.orm > 0 ? ` · 1ПМ ~${Math.round(row.orm)}` : ''}` : fmtWhen(row.performed_at)}</span>
             </span>
           </button>
         </li>)}
       </ol>
-      <p className="muted lb-note">Лучший подход за всё время.{metric === 'weight' ? ' При равном весе выше результат с большим числом повторов. 1ПМ — справочно.' : ' Больше — выше.'} При равенстве — кто достиг раньше.</p>
+      <p className="muted lb-note">Лучший подход за все время.{metric === 'weight' ? ' Равный вес — выше больше повторов, дальше — кто раньше. 1ПМ — справочно.' : ' Больше — выше, при равенстве — кто раньше.'}</p>
       {snapshot && <p className="muted lb-note">{navigator.onLine ? 'Обновлено' : 'Без сети · сохранено'} {fmtWhen(snapshot.fetchedAt)}</p>}
     </div>
     <RivalryCard key={group} rivalry={rivalry} avatarById={avatars} />

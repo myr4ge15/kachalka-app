@@ -89,7 +89,7 @@ describe('NotificationsScreen', () => {
     expect(await screen.findByText('Ответ разработчика · решено')).toBeInTheDocument()
     expect(screen.getByText('📎 Ответ со скриншотом')).toBeInTheDocument()
     expect(screen.getAllByRole('tab').map((t) => t.textContent)).toEqual(['все', 'рекорды', 'ответы'])
-    fireEvent.click(screen.getByRole('button', { name: 'Открыть обращение ›' }))
+    fireEvent.click(screen.getByRole('button', { name: 'Открыть обращение' }))
     expect(onOpenFeedback).toHaveBeenCalledWith('f1')
   })
 

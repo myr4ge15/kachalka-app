@@ -47,12 +47,19 @@ export function isCountMetric(metric) {
 // С v7.2.0 бывает отрицательным — помощь гравитрона/резины.
 export const hasExtraWeight = (metric) => normMetric(metric) === 'reps'
 
+// Число для показа по-русски — с десятичной запятой: 62.5 → «62,5» (аудит 16.10). Только
+// отображение: в базе и в расчетах числа прежние, ввод понимает и точку, и запятую
+// (setLimits.toNum). Минус — как пришел (знак рисуют вызывающие).
+export function fmtNum(v) {
+  return String(v).replace('.', ',')
+}
+
 // Подпись доп. веса «своего веса» со знаком: 10 → '+10 кг', −20 → '−20 кг'
 // (настоящий минус, не дефис), 0/мусор → ''.
 export function fmtExtraWeight(v) {
   const w = Math.round((Number(v) || 0) * 100) / 100
   if (!w) return ''
-  return `${w > 0 ? '+' : '−'}${Math.abs(w)}\u00A0кг` // неразрывный: «−17.5 кг» не рвется
+  return `${w > 0 ? '+' : '−'}${fmtNum(Math.abs(w))}\u00A0кг` // неразрывный: «−17,5 кг» не рвется
 }
 
 // Вклад подхода в тоннаж (кг × повт.) — только у весовых упражнений. У
@@ -104,7 +111,7 @@ export function parseTime(v) {
 // Километры для подписи: до 2 знаков без хвостовых нулей ('5', '5.5', '10.25').
 export function fmtKm(v) {
   const n = Math.round((Number(v) || 0) * 100) / 100
-  return String(n)
+  return fmtNum(n)
 }
 
 // Темп, секунды на км. Нужны дистанция > 0 и время > 0, иначе null.
@@ -142,7 +149,7 @@ export function fmtMetricValue(metric, v) {
   if (m === 'distance') return `${fmtKm(v)} км`
   if (m === 'time') return fmtTime(v)
   if (m === 'reps') return String(Number(v) || 0)
-  return `${Number(v) || 0} кг`
+  return `${fmtNum(Number(v) || 0)} кг`
 }
 
 // Целевой план упражнения в ШАБЛОНЕ — «подходы × повторы (× вес)». В отличие от
@@ -165,7 +172,7 @@ export function fmtTemplateTarget(metric, t) {
   }
   const per = m === 'time' ? fmtTime(reps) : String(reps)
   let s = `${sets}×${per}`
-  if (m === 'weight' && weight > 0) s += `×${weight} кг`
+  if (m === 'weight' && weight > 0) s += `×${fmtNum(weight)} кг`
   return s
 }
 
@@ -186,9 +193,9 @@ export function fmtSet(metric, s) {
   if (m === 'time') return fmtTime(reps)
   if (m === 'reps') {
     const w = Math.round(weight * 100) / 100
-    return w ? `${w > 0 ? '+' : '−'}${Math.abs(w)}×${reps}` : String(reps)
+    return w ? `${w > 0 ? '+' : '−'}${fmtNum(Math.abs(w))}×${reps}` : String(reps)
   }
-  return weight > 0 ? `${weight}×${reps}` : String(reps)
+  return weight > 0 ? `${fmtNum(weight)}×${reps}` : String(reps)
 }
 
 // Подходы упражнения одной строкой для списков (Лента, История, Прогресс, панель

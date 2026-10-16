@@ -18,5 +18,52 @@ const esc = (s) => s.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')
 // Строка пикера упражнений: имя упражнения + подпись группы.
 export const pickerItem = (page, name) => page.getByRole('button', { name: new RegExp(`^${esc(name)}`) })
 
+// Геометрия кнопок на текущем экране (аудит 16.10, 🟡-1): кнопка не выходит за край экрана,
+// кнопки .btn одного ряда (общий родитель, одинаковый верх) — одной высоты. Горизонтальные
+// ленты (чипы дисциплин и т. п.) и скрытые слои стека экранов не проверяются. Пустой массив — ок.
+export function layoutProblems(page) {
+  return page.evaluate(() => {
+    const vw = window.innerWidth
+    const scrollsX = (el) => {
+      for (let p = el.parentElement; p; p = p.parentElement) {
+        const ox = getComputedStyle(p).overflowX
+        if ((ox === 'auto' || ox === 'scroll') && p.scrollWidth > p.clientWidth + 1) return true
+      }
+      return false
+    }
+    const visible = (el) => {
+      if (el.closest('[inert],[aria-hidden="true"],[hidden]')) return false
+      const r = el.getBoundingClientRect()
+      const cs = getComputedStyle(el)
+      return r.width >= 1 && r.height >= 1 && cs.visibility !== 'hidden' && cs.display !== 'none'
+    }
+    const label = (el) => `«${(el.getAttribute('aria-label') || el.textContent || '').trim().slice(0, 30)}» .${[...el.classList].join('.')}`
+    const buttons = [...document.querySelectorAll('button, a.btn, [role="button"]')].filter(visible)
+    const bad = []
+    for (const b of buttons) {
+      const r = b.getBoundingClientRect()
+      if ((r.left < -1 || r.right > vw + 1) && !scrollsX(b)) bad.push(`за краем экрана: ${label(b)} [${Math.round(r.left)}…${Math.round(r.right)}]`)
+    }
+    const rows = new Map()
+    for (const b of buttons.filter((x) => x.classList.contains('btn'))) {
+      const list = rows.get(b.parentElement) ?? []
+      list.push([b, b.getBoundingClientRect()])
+      rows.set(b.parentElement, list)
+    }
+    for (const list of rows.values()) {
+      for (let i = 0; i < list.length; i++) {
+        for (let j = i + 1; j < list.length; j++) {
+          const [a, ra] = list[i]
+          const [c, rc] = list[j]
+          if (Math.abs(ra.top - rc.top) <= 2 && Math.abs(ra.height - rc.height) > 1) {
+            bad.push(`разная высота в ряду: ${label(a)} ${Math.round(ra.height)} ≠ ${label(c)} ${Math.round(rc.height)}`)
+          }
+        }
+      }
+    }
+    return bad
+  })
+}
+
 // «Сохранить» композера (с числом подходов в скобках).
 export const saveButton = (page) => page.getByRole('button', { name: /^Сохранить( \(\d+\))?$/ })

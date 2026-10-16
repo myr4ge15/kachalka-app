@@ -19,7 +19,7 @@
 import { GROUP_ORDER } from './dayTags.js'
 import { lastTrainedBySubmuscle } from './freshness.js'
 import { labelAccusativeOf, isNonMuscleSub } from './muscles.js'
-import { leadingValue, fmtMetricValue, setTonnage } from './metric.js'
+import { leadingValue, fmtMetricValue, fmtNum, setTonnage } from './metric.js'
 import { myBestByExercise } from './records.js'
 import { detectPlateau } from './progression.js'
 import { currentStreak } from './profileStats.js'
@@ -380,7 +380,7 @@ export function pastSelfInsight(sorted, ctx, { minGainPct = 5 } = {}) {
 
   if (!best) return null
   const values = best.metric === 'weight'
-    ? `${best.old} → ${best.current} кг при ${best.reps} повт.`
+    ? `${fmtNum(best.old)} → ${fmtNum(best.current)} кг при ${best.reps} повт.`
     : best.metric === 'reps'
       ? `${best.old} повт. → ${best.current} повт.`
       : `${fmtMetricValue(best.metric, best.old)} → ${fmtMetricValue(best.metric, best.current)}`

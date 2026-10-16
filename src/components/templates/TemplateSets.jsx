@@ -1,5 +1,6 @@
 import { sk } from '../../lib/progressionCard.js'
 import HoldButton from '../ui/HoldButton.jsx'
+import { fmtNum } from '../../lib/metric.js'
 import TimeInput from '../ui/TimeInput.jsx'
 import { useSelectOnFocus } from '../../hooks/useSelectOnFocus.js'
 import './TemplateSets.css'
@@ -36,7 +37,7 @@ export default function TemplateSets({ metric, sets, onChange }) {
       {hasWeight && <div className="stepper">
         <HoldButton aria-label={`Меньше, подход ${i + 1}`} onTrigger={() => bump(i, 'weight', -1)}>−</HoldButton>
         <SetInput inputMode="decimal" aria-label={`Вес или дистанция подхода ${i + 1}`}
-          value={s.weight} onChange={(e) => update(i, 'weight', e.target.value.replace(',', '.').replace('−', '-'))} />
+          value={fmtNum(s.weight ?? '')} onChange={(e) => update(i, 'weight', e.target.value.replace(',', '.').replace('−', '-'))} />
         <HoldButton aria-label={`Больше, подход ${i + 1}`} onTrigger={() => bump(i, 'weight', 1)}>+</HoldButton>
       </div>}
       <div className="stepper">

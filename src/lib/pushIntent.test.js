@@ -140,6 +140,14 @@ describe('журнал нажатий (v8.9.4; строка на запись �
     expect(await readPushLog(store)).toEqual([])
     expect(store.map.size).toBe(1)
   })
+  it('запись сама держит не больше PUSH_LOG_MAX строк — без открытия журнала (аудит 16.10)', async () => {
+    const store = memCaches()
+    await store.open().then((c) => c.put('/__push-intent', { text: async () => '{}' }))
+    for (let i = 0; i < PUSH_LOG_MAX * 3; i++) await appendPushLog('resume', '', store, 1_700_000_000_000 + i)
+    expect(store.map.size).toBe(PUSH_LOG_MAX + 1) // + запись перехода, она не трогается
+    const list = await readPushLog(store)
+    expect(list[0].at).toBe(1_700_000_000_000 + PUSH_LOG_MAX * 2) // остались самые свежие
+  })
   it('сбой чтения — строка error, без кэша — пусто', async () => {
     const broken = { open: async () => { throw new Error('boom') } }
     expect((await readPushLog(broken))[0]).toMatchObject({ ev: 'error' })

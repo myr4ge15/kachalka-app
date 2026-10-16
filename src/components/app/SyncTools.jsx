@@ -1,6 +1,6 @@
 // Статус синхронизации + колокольчик (шапка и сайдбар; вынесено из App.jsx, v6.14.1).
 import { useSyncStatus } from '../../db/sync.js'
-import { syncBadgeState } from '../../lib/syncStatus.js'
+import { syncBadgeQuiet, syncBadgeState } from '../../lib/syncStatus.js'
 import { useSpinPhase } from '../../hooks/useSpinPhase.js'
 
 // Иконка состояния синхронизации — инлайн-SVG (без зависимостей), как TabIcon.
@@ -36,7 +36,10 @@ function SyncBadge() {
   // изменения (dead) делают бейдж предупреждающим, а не «синхронизировано», пока
   // карточки висят с желтым кружком. netError — последний прогон синка упал по сети
   // (напр. таймаут в авиарежиме при online=true): тоже предупреждение, а не галочка.
-  const { cls, icon, text, title } = syncBadgeState({ online, syncing, pending, dead, netError })
+  const state = syncBadgeState({ online, syncing, pending, dead, netError })
+  const { cls, icon, text, title } = state
+  // В норме — без бейджа (аудит 16.10); статус остается для скринридера.
+  if (syncBadgeQuiet(state, { pending, dead })) return <span className="sr-only" role="status">{title}</span>
   return (
     <span className={`sync-badge ${cls}`} role="status" aria-label={title} title={title}>
       <SyncIcon name={icon} />

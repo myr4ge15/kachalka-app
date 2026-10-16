@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest'
-import { syncBadgeState } from './syncStatus.js'
+import { syncBadgeQuiet, syncBadgeState } from './syncStatus.js'
 
 describe('syncBadgeState', () => {
   it('офлайн без очереди — иконка облака, без текста', () => {
@@ -104,5 +104,20 @@ describe('syncBadgeState', () => {
       text: '2',
       title: '2 не синхронизировано',
     })
+  })
+})
+
+describe('syncBadgeQuiet — бейдж только при проблеме (аудит 16.10)', () => {
+  const q = (s) => syncBadgeQuiet(syncBadgeState(s), s)
+  it('синхронизировано и фоновый опрос — скрыт', () => {
+    expect(q({ online: true, syncing: false })).toBe(true)
+    expect(q({ online: true, syncing: true, pending: 0 })).toBe(true)
+  })
+  it('офлайн, очередь, застряло, нет связи, отправка очереди — виден', () => {
+    expect(q({ online: false, syncing: false })).toBe(false)
+    expect(q({ online: true, syncing: false, pending: 2 })).toBe(false)
+    expect(q({ online: true, syncing: true, pending: 2 })).toBe(false)
+    expect(q({ online: true, syncing: false, dead: 1 })).toBe(false)
+    expect(q({ online: true, syncing: false, netError: true })).toBe(false)
   })
 })

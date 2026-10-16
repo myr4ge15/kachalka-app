@@ -34,6 +34,9 @@ describe('summarizeReactions', () => {
     expect(s.total).toBe(4)
     // имена уникальны по пользователю, в порядке появления
     expect(s.names).toEqual(['Петя', 'Вася', 'Я'])
+    // кто поставил каждый вид — для удержания реакции (аудит 16.10)
+    expect(byKind.fire.names).toEqual(['Петя', 'Вася'])
+    expect(byKind.wow.names).toEqual([])
   })
 
   it('всегда возвращает все 4 вида в фиксированном порядке', () => {

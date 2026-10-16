@@ -1,3 +1,5 @@
+import { fmtNum } from '../../lib/metric.js'
+import Chevron from '../ui/Chevron.jsx'
 import { useState } from 'react'
 import { useRevealFocus } from '../../hooks/useRevealFocus.js'
 import Avatar from '../ui/Avatar.jsx'
@@ -12,7 +14,7 @@ function gapText(rivalry) {
 }
 
 function gapValue({ gap, gapMetric }) {
-  return gapMetric === 'time' ? `${gap} сек.` : gapMetric === 'weight' ? `${gap} кг` : `${gap} повт.`
+  return gapMetric === 'time' ? `${gap} сек.` : gapMetric === 'weight' ? `${fmtNum(gap)} кг` : `${gap} повт.`
 }
 
 function RivalRow({ row, place, isMe, avatarUrl, metric = 'weight' }) {
@@ -68,7 +70,7 @@ export default function RivalryCard({ rivalry, avatarById = new Map() }) {
             <span className="rival-progress" style={{ width: `${rivalry.progress}%` }} />
           </span>
         </span>
-        <span className="rival-chevron" aria-hidden="true">{expanded ? '⌃' : '⌄'}</span>
+        <span className="rival-chevron" aria-hidden="true"><Chevron toggle open={expanded} /></span>
       </button>
 
       {expanded && (

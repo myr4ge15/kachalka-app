@@ -238,7 +238,7 @@ export default function ProfileScreen({ user, onLogout, onAccountDeleted, onOpen
                 <div className="v">🏆 Достижения</div>
                 <div className="k">получено {badgesEarned} из {BADGES.length} бейджей</div>
               </div>
-              <span className="go">Открыть ›</span>
+              <span className="go">Открыть <Chevron inline size={16} /></span>
             </button>
           </section>
 
@@ -271,7 +271,7 @@ export default function ProfileScreen({ user, onLogout, onAccountDeleted, onOpen
                   <div className="v">{place.n}-е место {place.board === 'f' ? 'по ягодичному мостику' : 'по жиму'}</div>
                   <div className="k">лидерборд живет в Ленте</div>
                 </div>
-                <span className="go">Лента ›</span>
+                <span className="go">Лента <Chevron inline size={16} /></span>
               </button>
             </section>
           )}

@@ -78,14 +78,23 @@ export function playRestDone(sound = 'mix') {
 
 // Screen Wake Lock: экран не гаснет, пока идет отдых. Браузер сам снимает блокировку
 // при сворачивании, поэтому при возврате ее берут заново (hooks/useRestTimer.js).
+// Аудит 16.10 (🟢-5): `wanted` — нужна ли блокировка сейчас, `pending` — запрос в пути.
+// Снятие во время запроса раньше «теряло» блокировку (присваивалась уже после release), а
+// два одновременных вызова (эффект и возврат на экран) брали две, освобождалась одна.
 let sentinel = null
+let pending = null
+let wanted = false
 
 export async function holdScreen() {
+  wanted = true
   try {
     if (typeof navigator === 'undefined' || !navigator.wakeLock?.request) return false
     if (typeof document !== 'undefined' && document.visibilityState !== 'visible') return false
     if (sentinel && !sentinel.released) return true
-    sentinel = await navigator.wakeLock.request('screen')
+    pending ??= navigator.wakeLock.request('screen').finally(() => { pending = null })
+    const s = await pending
+    if (!wanted) { try { s.release?.() } catch { /* уже снята */ } return false }
+    sentinel = s
     return true
   } catch {
     sentinel = null
@@ -94,6 +103,7 @@ export async function holdScreen() {
 }
 
 export function releaseScreen() {
+  wanted = false
   const s = sentinel
   sentinel = null
   try { s?.release?.() } catch { /* уже снята */ }

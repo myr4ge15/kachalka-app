@@ -23,7 +23,7 @@ import globals from 'globals'
 import reactHooks from 'eslint-plugin-react-hooks'
 
 export default [
-  { ignores: ['dist/**', 'dev-dist/**', 'node_modules/**', 'coverage/**', 'test-results/**', 'playwright-report/**', '.local/**', 'work/**', 'debug/**'] },
+  { ignores: ['dist/**', 'dev-dist/**', 'node_modules/**', 'coverage/**', 'test-results/**', 'playwright-report/**', '.local/**', 'work/**', 'debug/**', 'feedback-local/**'] },
 
   js.configs.recommended,
 

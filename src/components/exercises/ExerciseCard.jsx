@@ -1,3 +1,4 @@
+import { useState } from 'react'
 import Chevron from '../ui/Chevron.jsx'
 import HoldButton from '../ui/HoldButton.jsx'
 import TimeInput from '../ui/TimeInput.jsx'
@@ -5,7 +6,7 @@ import { useSelectOnFocus } from '../../hooks/useSelectOnFocus.js'
 import SetsCells from '../workout/SetsCells.jsx'
 import SetVoice from '../workout/SetVoice.jsx'
 import { VOICE_ENABLED } from '../../lib/features.js'
-import { exerciseMetric, isCountMetric, hasExtraWeight, bestPace, fmtPace, paceSecPerKm } from '../../lib/metric.js'
+import { exerciseMetric, isCountMetric, hasExtraWeight, bestPace, fmtNum, fmtPace, paceSecPerKm } from '../../lib/metric.js'
 import { resolveProgSettings } from '../../lib/progression.js'
 import {
   daysAgoLabel, progArrow, progTone, nextProgStep, fmtProgStep,
@@ -57,6 +58,13 @@ export default function ExerciseCard({
   const valLabel = isTime ? 'мин:сек' : 'повт.'
   const pace = isDistance ? bestPace(entry.sets) ?? lastPace(entry.sets) : null
   const summary = exerciseFocusSummary(entry)
+  // Блок «Прошлая / Рекомендуем» (аудит 16.10): занимал ~40% карточки и после того, как
+  // подходы уже правят. Рекомендация применена, а подходы с ней разошлись (человек ввел свое) —
+  // сворачиваем в одну строку, раскрыть можно тапом; шестеренка остается в строке. Не применена
+  // (в т. ч. план шаблона) — блок целиком: там кнопка «Применить рекомендацию».
+  const [apOpen, setApOpen] = useState(false)
+  const live = entry.prog && !entry.prog.muted && entry.prog.applied ? entry.prog : null
+  const apCompact = Boolean(live) && !apOpen && !live.settingsOpen && !sameSets(entry.sets, live.recSets)
 
   // Свернутое упражнение доступно одной крупной кнопкой со сводкой подходов.
   if (!active) {
@@ -113,6 +121,22 @@ export default function ExerciseCard({
                 className={`btn-gear${entry.prog.settingsOpen ? ' on' : ''}`}
                 aria-label="Настройки прогрессии"
                 aria-expanded={entry.prog.settingsOpen}
+                onClick={() => onToggleProgSettings(ei)}
+              ><GearIcon /></button>
+            </div>
+          ) : apCompact ? (
+            <div className="ap-muted-row">
+              <button type="button" className="ap-compact" aria-expanded="false"
+                aria-label={`Прошлая тренировка и рекомендация: ${daysAgoLabel(entry.prog.whenIso)}`}
+                onClick={() => setApOpen(true)}>
+                <span className="ap-lbl">Прошлая · {daysAgoLabel(entry.prog.whenIso)}</span>
+                <span className="ap-prev"><SetsCells metric={metric} sets={entry.prog.prev} sep=" · " empty="" /></span>
+                <Chevron toggle size={16} />
+              </button>
+              <button
+                className="btn-gear"
+                aria-label="Настройки прогрессии"
+                aria-expanded={false}
                 onClick={() => onToggleProgSettings(ei)}
               ><GearIcon /></button>
             </div>
@@ -199,7 +223,7 @@ export default function ExerciseCard({
               {/* Ноль доп. веса — пустое поле. Только ЧИСЛОВОЙ ноль: строку ввода
                   («-», «0.») показываем как есть, иначе минус и «0,5» не набрать. */}
               <SetInput
-                inputMode="decimal" value={extra && s.weight === 0 ? '' : s.weight}
+                inputMode="decimal" value={extra && s.weight === 0 ? '' : fmtNum(s.weight ?? '')}
                 aria-label={`${isDistance ? 'Дистанция, км' : extra ? 'Доп. вес' : 'Вес'}, подход ${si + 1}`}
                 placeholder={isDistance ? 'км' : extra ? '0' : undefined}
                 onChange={(e) => onUpdateSet(ei, si, 'weight', e.target.value.replace(',', '.').replace('−', '-'))}
@@ -308,6 +332,11 @@ function TitleWithTechnique({ name, onTechnique }) {
       <span className="exercise-name-tail">{last}<TechniqueButton name={name} onClick={onTechnique} className="tb-after" /></span>
     </span>
   )
+}
+
+// Подходы совпадают с предложенными (рекомендация или прошлая) — значит, их еще не правили.
+function sameSets(a = [], b = []) {
+  return a.length === b.length && a.every((s, i) => String(s.weight ?? '') === String(b[i]?.weight ?? '') && String(s.reps ?? '') === String(b[i]?.reps ?? ''))
 }
 
 function GearIcon() {

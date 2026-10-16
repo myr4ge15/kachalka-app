@@ -27,8 +27,8 @@ describe('metric: дистанция', () => {
   it('форматы: подход, значение, план шаблона; старый бег без км — только время', () => {
     expect(fmtSet('distance', { weight: 5, reps: 1500 })).toBe('5 км · 25:00')
     expect(fmtSet('distance', { weight: 0, reps: 1200 })).toBe('20:00')
-    expect(fmtSet('distance', { weight: 3.25, reps: 0 })).toBe('3.25 км')
-    expect(fmtMetricValue('distance', 10.5)).toBe('10.5 км')
+    expect(fmtSet('distance', { weight: 3.25, reps: 0 })).toBe('3,25 км')
+    expect(fmtMetricValue('distance', 10.5)).toBe('10,5 км')
     expect(fmtTemplateTarget('distance', { sets: 1, reps: 1800, weight: 5 })).toBe('5 км · 30:00')
     expect(fmtTemplateTarget('distance', { sets: 2, reps: 600, weight: 0 })).toBe('2×10:00')
   })

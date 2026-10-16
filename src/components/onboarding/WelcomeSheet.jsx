@@ -1,3 +1,4 @@
+import Chevron from '../ui/Chevron.jsx'
 import { Suspense, lazy, useRef, useState } from 'react'
 import SheetDialog from '../ui/SheetDialog.jsx'
 import { WELCOME_STEPS, swipeOutcome } from '../../lib/welcome.js'
@@ -73,7 +74,7 @@ export default function WelcomeSheet({ onStart, onClose }) {
         <p className="welcome-text">{s.text}</p>
         {last && (
           <button type="button" className="link-btn welcome-more" onClick={() => setGuide(true)}>
-            Подробная инструкция ›
+            Подробная инструкция <Chevron inline size={16} />
           </button>
         )}
       </div>

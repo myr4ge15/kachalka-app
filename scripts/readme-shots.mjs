@@ -29,7 +29,7 @@
 import { createServer } from 'vite'
 import { chromium } from '@playwright/test'
 import { spawnSync } from 'node:child_process'
-import { mkdirSync } from 'node:fs'
+import { existsSync, mkdirSync } from 'node:fs'
 import { fileURLToPath } from 'node:url'
 import path from 'node:path'
 
@@ -307,7 +307,7 @@ async function main() {
     await shot('home')
 
     if (want('recovery')) {
-      await page.getByText('Подробнее ›').first().click()
+      await page.getByText('Подробнее', { exact: true }).first().click() // стрелка — SVG (v9.4.0)
       await shot('recovery')
       await tab('Главная')
     }
@@ -458,13 +458,16 @@ async function main() {
   }
 
   const files = saved.map((n) => path.join(OUT, `${n}.png`))
-  const pq = spawnSync('pngquant', ['--version'], { encoding: 'utf8', shell: process.platform === 'win32' })
+  // pngquant — из PATH или локальная копия scripts/pngquant/pngquant.exe (в git не идет, см. .gitignore).
+  const localPq = path.join(ROOT, 'scripts', 'pngquant', 'pngquant.exe')
+  const PQ = existsSync(localPq) ? localPq : 'pngquant'
+  const pq = spawnSync(PQ, ['--version'], { encoding: 'utf8', shell: process.platform === 'win32' && PQ === 'pngquant' })
   if (pq.status === 0 && files.length) {
-    const r = spawnSync('pngquant', ['--quality=80-95', '--speed', '1', '--force', '--ext', '.png', ...files],
-      { stdio: 'inherit', shell: process.platform === 'win32' })
+    const r = spawnSync(PQ, ['--quality=80-95', '--speed', '1', '--force', '--ext', '.png', ...files],
+      { stdio: 'inherit', shell: process.platform === 'win32' && PQ === 'pngquant' })
     console.log(r.status === 0 ? 'PNG дожаты pngquant.' : 'pngquant завершился с ошибкой — PNG оставлены как есть.')
   } else {
-    console.log('pngquant не найден — PNG без дожатия (~300 КБ на экран). Windows: winget install pngquant')
+    console.log('pngquant не найден — PNG без дожатия (~300 КБ на экран). Windows: pngquant.exe с https://pngquant.org (в winget пакета нет) — в PATH или в scripts/pngquant/')
   }
   console.log(`Готово: ${saved.length} из ${only.length || ALL.length}.`)
 }

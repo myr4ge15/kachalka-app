@@ -13,7 +13,7 @@ import { pullDistance, shouldTriggerRefresh, PULL_THRESHOLD } from '../lib/pullR
 import Leaderboard from './Leaderboard.jsx'
 import Avatar from '../components/ui/Avatar.jsx'
 import CardsSkeleton from '../components/ui/CardsSkeleton.jsx'
-import FeedPrBadge from '../components/social/FeedPrBadge.jsx'
+import FeedPrBadge, { prForEntry } from '../components/social/FeedPrBadge.jsx'
 import ReactionBar from '../components/social/ReactionBar.jsx'
 import { useSpinPhase } from '../hooks/useSpinPhase.js'
 import { usePresence } from '../hooks/usePresence.js'
@@ -309,18 +309,10 @@ export default function FeedScreen({ user, onOpenMember, flashId = null, onOpenC
               )}
             </button>
 
-            {w.prs?.length > 0 && (
-              <div className="feed-prs">
-                {w.prs.map((pr) => (
-                  <FeedPrBadge key={`${pr.name}-${pr.value}`} pr={pr} />
-                ))}
-              </div>
-            )}
-
             <ul className="history-list">
               {w.entries.map((e, i) => (
                 <li key={e.exercise_id ?? e.name ?? i} className="history-ex">
-                  <span className="history-ex-name">{e.name}</span>
+                  <span className="history-ex-name">{e.name}{prForEntry(w, e) && <> <FeedPrBadge pr={prForEntry(w, e)} /></>}</span>
                   <span className="history-ex-sets">
                     <SetsCells metric={e.metric} sets={e.sets} />
                   </span>

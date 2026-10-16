@@ -59,3 +59,6 @@ scripts/gen-icons.mjs
 
 # рабочие скрипты проверок (живут в приватном репо) — в публичный не нужны
 /work/
+
+# pngquant для дожатия скриншотов README (scripts/readme-shots.mjs) — локальная копия, бинарник в репо не нужен
+/scripts/pngquant/

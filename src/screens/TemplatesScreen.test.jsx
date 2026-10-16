@@ -184,7 +184,7 @@ describe('TemplatesScreen — редактор', () => {
     // Степпер как в тренировке: + к весу первого подхода — шаг 1,25 кг.
     fireEvent.pointerDown(screen.getByRole('button', { name: 'Больше, подход 1' }))
     fireEvent.pointerUp(screen.getByRole('button', { name: 'Больше, подход 1' }))
-    expect(screen.getByLabelText('Вес или дистанция подхода 1')).toHaveValue('21.25')
+    expect(screen.getByLabelText('Вес или дистанция подхода 1')).toHaveValue('21,25')
     fireEvent.click(screen.getByRole('button', { name: 'Удалить подход 3' }))
     fireEvent.click(screen.getByRole('button', { name: '+ подход (повтор предыдущего)' }))
     save()

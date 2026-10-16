@@ -75,9 +75,13 @@ it('does not flash the long "preparing" status when recognition loads fast', asy
   const seen = new Set()
   const observer = new MutationObserver(() => seen.add(document.body.textContent))
   observer.observe(document.body, { childList: true, subtree: true, characterData: true })
-  render(<ExerciseScanner exercises={exercises} onClose={vi.fn()} onManual={vi.fn()} />)
-  await screen.findByText('Ищу название…')
-  observer.disconnect()
+  // Снимаем и при падении: живой наблюдатель стрелял после закрытия jsdom (аудит 16.10, 🟢-8).
+  try {
+    render(<ExerciseScanner exercises={exercises} onClose={vi.fn()} onManual={vi.fn()} />)
+    await screen.findByText('Ищу название…')
+  } finally {
+    observer.disconnect()
+  }
   expect([...seen].some(t => t.includes('Готовлю распознавание'))).toBe(false)
 })
 it('explains a slow first load of recognition', async () => {

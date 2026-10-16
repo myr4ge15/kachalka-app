@@ -8,10 +8,11 @@
 //
 // Иконка — инлайн-SVG (как TabIcon/SyncIcon, без зависимостей), красится через
 // currentColor; круг, цвет и анимация утапливания — в CSS (.tab-add / .tab-add-circle).
-export default function AddFab({ onClick, sunk = false }) {
+// calm (аудит 16.10) — вложенный экран со своей главной кнопкой: круг нейтральный, но рабочий.
+export default function AddFab({ onClick, sunk = false, calm = false }) {
   return (
     <button
-      className={'tab-add' + (sunk ? ' tab-add--sunk' : '')}
+      className={'tab-add' + (sunk ? ' tab-add--sunk' : calm ? ' tab-add--calm' : '')}
       onClick={onClick}
       disabled={sunk}
       aria-label="Записать тренировку"

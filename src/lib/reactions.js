@@ -27,18 +27,21 @@ const KIND_ORDER = new Map(REACTION_KINDS.map((k, i) => [k.kind, i]))
 //          очередь; см. applyReactionQueue);
 //   myId — id текущего зрителя (для подсветки «моя реакция»).
 // Возвращает:
-//   kinds — все четыре вида в фиксированном порядке: { kind, emoji, count, mine };
+//   kinds — все четыре вида в фиксированном порядке: { kind, emoji, count, mine, names };
+//           names — кто поставил ЭТОТ вид (для удержания реакции, аудит 16.10);
 //   names — УНИКАЛЬНЫЕ имена реагировавших (по любому виду), в порядке появления;
 //   total — суммарное число реакций.
 export function summarizeReactions(list, myId) {
   const items = Array.isArray(list) ? list : []
   const counts = new Map()
   const mine = new Set()
+  const byKind = new Map()
   const names = []
   const seenUsers = new Set()
   for (const r of items) {
     if (!isReactionKind(r?.kind)) continue
     counts.set(r.kind, (counts.get(r.kind) ?? 0) + 1)
+    byKind.set(r.kind, [...(byKind.get(r.kind) ?? []), r.name ?? '—'])
     if (r.user_id != null && r.user_id === myId) mine.add(r.kind)
     if (r.user_id != null && !seenUsers.has(r.user_id)) {
       seenUsers.add(r.user_id)
@@ -50,6 +53,7 @@ export function summarizeReactions(list, myId) {
     emoji: k.emoji,
     count: counts.get(k.kind) ?? 0,
     mine: mine.has(k.kind),
+    names: byKind.get(k.kind) ?? [],
   }))
   const total = kinds.reduce((n, k) => n + k.count, 0)
   return { kinds, names, total }

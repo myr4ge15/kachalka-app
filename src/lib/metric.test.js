@@ -157,10 +157,10 @@ describe('fmtSet', () => {
   })
   it('свой вес с доп. весом → «+10×8», как у весовых, но со знаком (v7.5.2)', () => {
     expect(fmtSet('reps', { weight: 10, reps: 8 })).toBe('+10×8')
-    expect(fmtSet('reps', { weight: 2.5, reps: 12 })).toBe('+2.5×12')
+    expect(fmtSet('reps', { weight: 2.5, reps: 12 })).toBe('+2,5×12')
     // v7.2.0: помощь гравитрона — настоящий минус
     expect(fmtSet('reps', { weight: -20, reps: 8 })).toBe('−20×8')
-    expect(fmtSet('reps', { weight: -17.5, reps: 10 })).toBe('−17.5×10')
+    expect(fmtSet('reps', { weight: -17.5, reps: 10 })).toBe('−17,5×10')
     expect(fmtExtraWeight(10)).toBe(`+10${N}кг`)
     expect(fmtExtraWeight(0)).toBe('')
     expect(fmtExtraWeight('abc')).toBe('')

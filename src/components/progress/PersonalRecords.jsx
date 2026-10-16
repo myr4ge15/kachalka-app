@@ -52,7 +52,7 @@ export default function PersonalRecords({ records, onOpenProgress }) {
             >
               <span>{expanded ? 'Свернуть' : `Показать все ${records.length}`}</span>
               <span className="pr-toggle-arr" aria-hidden="true">
-                {expanded ? '⌃' : '⌄'}
+                <Chevron toggle open={expanded} size={16} />
               </span>
             </button>
           </li>

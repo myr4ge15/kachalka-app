@@ -1,3 +1,4 @@
+import { fmtNum } from '../lib/metric.js'
 import { useEffect, useMemo, useState } from 'react'
 import { useLiveQuery } from 'dexie-react-hooks'
 import { getCachedLeaderboard, fetchLeaderboard, getLeadExerciseNames, viewerBoard } from '../db/leaderboard.js'
@@ -138,8 +139,8 @@ function BoardCard({ title, rows, user, avatarById, onOpenMember }) {
                 {isMe && <span className="feed-me">я</span>}
               </span>
               <span className="lb-fact">
-                <span className="lb-weight">{row.weight} кг</span>
-                <span className="lb-sub muted">{row.reps} повт.{row.orm > 0 ? ` · 1ПМ ~${row.orm}` : ''}</span>
+                <span className="lb-weight">{fmtNum(row.weight)} кг</span>
+                <span className="lb-sub muted">{row.reps} повт.{row.orm > 0 ? ` · 1ПМ ~${Math.round(row.orm)}` : ''}</span>
               </span>
               {onOpenMember && (
                 <svg className="go-chev" viewBox="0 0 24 24" width="20" height="20" fill="none"

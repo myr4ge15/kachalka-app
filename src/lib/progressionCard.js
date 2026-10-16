@@ -2,7 +2,7 @@
 // упражнения в WorkoutScreen + чистые форматтеры панели. Без React/Dexie/сети —
 // покрыто progressionCard.test.js. Вынесено из WorkoutScreen.jsx (техдолг: разбить
 // экран на 800+ строк), сам экран остается оркестратором стейта.
-import { exerciseMetric, normMetric } from './metric.js'
+import { exerciseMetric, fmtNum, normMetric } from './metric.js'
 import { recommendProgression, resolveProgSettings } from './progression.js'
 import { plural } from './plural.js'
 
@@ -71,7 +71,7 @@ export function nextProgStep(cur, metric, dir) {
   return Math.max(d, Math.round(v * 100) / 100)
 }
 export function fmtProgStep(step, metric) {
-  return `${Math.round((Number(step) || 0) * 100) / 100} ${progStepUnit(metric)}`
+  return `${fmtNum(Math.round((Number(step) || 0) * 100) / 100)} ${progStepUnit(metric)}`
 }
 
 // ── Оркестрация рекомендации ────────────────────────────────────────────────
