@@ -15,7 +15,8 @@ function SyncIcon({ name }) {
     strokeLinecap: 'round', strokeLinejoin: 'round', 'aria-hidden': true,
   }
   if (name === 'ok') return <svg {...p}><path d="M4 12.5l5 5L20 6" /></svg>
-  if (name === 'syncing') return <svg {...p}><path d="M21 12a9 9 0 1 1-2.64-6.36" /><path d="M21 4v5h-5" /></svg>
+  // Кольцо без стрелки: стрелка в углу перевешивала вращающийся значок вправо-вверх (fb_28f66247).
+  if (name === 'syncing') return <svg {...p}><path d="M21 12a9 9 0 1 1-6.22-8.56" /></svg>
   if (name === 'pending') return <svg {...p}><path d="M12 19V6" /><path d="M6 11l6-6 6 6" /></svg>
   if (name === 'offline') return (
     <svg {...p}>

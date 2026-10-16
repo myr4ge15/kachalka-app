@@ -61,6 +61,14 @@ describe('buildHomeSummary', () => {
     expect(s.workouts30).toBe(1)
   })
 
+  it('прошлый период почти пустой — дельту не показываем (fb_571f6d88)', () => {
+    const list = [
+      wk({ id: 'r', at: daysAgo(5), entries: [{ exId: 'x', sets: [S(100, 10)] }] }),  // 1000
+      wk({ id: 'o', at: daysAgo(40), entries: [{ exId: 'x', sets: [S(20, 10)] }] }),   // 200 → +400%
+    ]
+    expect(buildHomeSummary({ workouts: list, goals: [], now: NOW }).tonnage.pct).toBe(0)
+  })
+
   it('последний рекорд — самый свежий момент превышения', () => {
     const list = [
       wk({ id: 'new', at: daysAgo(0), entries: [{ exId: 'bp', name: 'Жим', bench: true, sets: [S(95, 3)] }] }),

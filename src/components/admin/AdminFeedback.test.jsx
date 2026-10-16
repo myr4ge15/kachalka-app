@@ -95,7 +95,7 @@ describe('AdminFeedback — Telegram (v6.12.0)', () => {
     const api = setup({ list: vi.fn(async () => [TG]) })
     expect(await screen.findByText('Открыто снова (2-й раз): Все еще не грузится')).toBeTruthy()
     expect(api.media).not.toHaveBeenCalled() // байты не тянем, пока не попросили
-    await userEvent.click(screen.getByRole('button', { name: '📎 Показать скриншот от оля' }))
+    await userEvent.click(screen.getByRole('button', { name: '📎 Показать скриншот от Оля' }))
     await waitFor(() => expect(api.media).toHaveBeenCalledWith('t', 'shot', 0))
     await userEvent.click(screen.getByRole('button', { name: '📎 Показать фото ответа (2)' }))
     await waitFor(() => expect(api.media).toHaveBeenCalledWith('t', 'reply', 1))

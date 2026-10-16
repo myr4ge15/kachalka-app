@@ -188,11 +188,6 @@ export default function InviteScreen({ token = null, code = null, friend = null,
         <LoginField value={login} check={checkLogin} disabled={busy}
           onChange={(v) => { setLogin(v); setError('') }} />
         <label className="field">
-          <span className="field-lab">Имя (как тебя увидят)</span>
-          <input className="admin-input" type="text" maxLength={30} autoComplete="off"
-            value={name} onChange={(e) => { setName(e.target.value); setError('') }} disabled={busy} />
-        </label>
-        <label className="field">
           <span className="field-lab">PIN — 4 цифры</span>
           <input className="pin-input" type="password" inputMode="numeric" maxLength={4}
             autoComplete="new-password" placeholder="••••"
@@ -203,6 +198,15 @@ export default function InviteScreen({ token = null, code = null, friend = null,
           <input className="pin-input" type="password" inputMode="numeric" maxLength={4}
             autoComplete="new-password" placeholder="••••"
             value={pin2} onChange={(e) => { setPin2(onlyDigits(e.target.value).slice(0, 4)); setError('') }} disabled={busy} />
+        </label>
+        {/* Имя — ПОСЛЕ PIN и с явным autoComplete="nickname" (обращение fb_159354b9): между логином и PIN iOS
+            принимала его за логин парольной формы — только английская клавиатура, имя по-русски не ввести.
+            Логин остается первым (П4) и стоит прямо перед PIN, как ждет автозаполнение. */}
+        <label className="field">
+          <span className="field-lab">Имя (как тебя увидят)</span>
+          <input className="admin-input" type="text" maxLength={30} autoComplete="nickname" name="nickname"
+            autoCapitalize="words"
+            value={name} onChange={(e) => { setName(e.target.value); setError('') }} disabled={busy} />
         </label>
         <SexPicker value={sex} busy={busy} onChange={setSex} />
         <p className="muted invite-note">Запомни логин и PIN: по ним ты будешь входить. Сменить их можно в Профиле → Настройки.</p>

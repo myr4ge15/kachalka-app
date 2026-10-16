@@ -163,20 +163,33 @@ export function feelStreak(recentSessions, feel) {
   return streak
 }
 
-// Плато: ведущий показатель (макс. вес / макс. повторы / макс. секунды) не вырос
-// за последние `window` сессий — в окне нет нового максимума. Нужно ≥ window
-// сессий, иначе false (рано судить). Переиспользуемо в «Инсайтах».
+// Плато: за последние `window` сессий результат не вырос — ни одна более свежая
+// сессия не превзошла самую раннюю в окне. «Превзошла» — больше ведущий показатель
+// (вес / повторы / секунды) ИЛИ при том же ведущем больше второй: повторы на лучшем
+// весе, доп. вес на лучших повторах (16.10, обращение fb_51c94466: 60×6 → 60×8 раньше
+// считалось «не растет», а легкая свежая тренировка сама по себе объявляла плато).
+// Нужно ≥ window сессий, иначе false (рано судить). Переиспользуемо в «Инсайтах».
 export function detectPlateau(recentSessions, metric = 'weight', { window = 4 } = {}) {
   const m = normMetric(metric)
-  const vals = (recentSessions ?? []).slice(0, window).map((sess) => {
+  const keys = (recentSessions ?? []).slice(0, window).map((sess) => {
     const sets = Array.isArray(sess) ? sess : sess?.sets
-    return leadingValue(m, sets ?? [])
+    return bestSetKey(m, sets ?? [])
   })
-  if (vals.length < window) return false
-  const newest = vals[0]
-  const restMax = Math.max(...vals.slice(1))
-  return newest <= restMax
+  if (keys.length < window) return false
+  const oldest = keys[keys.length - 1]
+  return keys.slice(0, -1).every((k) => !beats(k, oldest))
 }
+
+// [ведущий, второй] лучшего подхода. Второй — повторы для веса, доп. вес для повторов;
+// у времени и дистанции второго нет (у дистанции больше секунд — хуже, не лучше).
+function bestSetKey(m, sets) {
+  const lead = leadingValue(m, sets)
+  const top = sets.filter((x) => (isCountMetric(m) ? Number(x?.reps) || 0 : Number(x?.weight) || 0) === lead)
+  const second = m === 'weight' ? Math.max(0, ...top.map((x) => Number(x?.reps) || 0))
+    : m === 'reps' ? Math.max(-Infinity, ...top.map((x) => Number(x?.weight) || 0)) : 0
+  return [lead, Number.isFinite(second) ? second : 0]
+}
+const beats = (a, b) => a[0] > b[0] || (a[0] === b[0] && a[1] > b[1])
 
 // Собрать результат: пометить, отличается ли рекомендация от простой копии
 // прошлой сессии (для UI: показывать ли «Применить» и что вообще изменилось).

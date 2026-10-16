@@ -3,11 +3,14 @@ import { fmtCode, joinStatusText, normCode } from '../../lib/friendCircles.js'
 
 // «Вступить по коду» (уже с учеткой): код → превью «Сега зовет в «Зал»» → вступить.
 // initialCode — из ссылки #join=… (сразу показываем превью).
-export default function JoinByCode({ api, initialCode = '', onJoined, compact = false }) {
+// memberOf — id кругов, где человек сейчас: «Ты в круге» гаснет, когда того круга в списке больше нет
+// (вышел, удалили) — обращение fb_04d85b8f.
+export default function JoinByCode({ api, initialCode = '', onJoined, compact = false, memberOf = null }) {
   const [code, setCode] = useState(initialCode ? fmtCode(initialCode) : '')
   const [preview, setPreview] = useState(null) // { status, circle_name, inviter_name }
   const [msg, setMsg] = useState('')
   const [busy, setBusy] = useState(false)
+  const [joinedId, setJoinedId] = useState(null)
   const alive = useRef(true)
   useEffect(() => { alive.current = true; return () => { alive.current = false } }, [])
 
@@ -27,6 +30,16 @@ export default function JoinByCode({ api, initialCode = '', onJoined, compact = 
   }
   // eslint-disable-next-line react-hooks/exhaustive-deps
   useEffect(() => { if (initialCode) check(initialCode) }, [initialCode])
+  // Гасим, только если круг уже был в списке и пропал: сразу после вступления список еще старый.
+  const seenJoined = useRef(false)
+  const inList = Boolean(joinedId && memberOf?.includes(joinedId))
+  useEffect(() => {
+    if (inList) { seenJoined.current = true; return }
+    if (!joinedId || !seenJoined.current) return
+    seenJoined.current = false
+    setJoinedId(null)
+    setMsg('')
+  }, [inList, joinedId])
 
   async function join() {
     setBusy(true); setMsg('')
@@ -35,7 +48,7 @@ export default function JoinByCode({ api, initialCode = '', onJoined, compact = 
       if (!alive.current) return
       setPreview(null)
       setMsg(joinStatusText(r?.status))
-      if (r?.status === 'active' || r?.status === 'pending') { setCode(''); onJoined?.(r) }
+      if (r?.status === 'active' || r?.status === 'pending') { setCode(''); seenJoined.current = false; setJoinedId(r?.circle_id ?? null); onJoined?.(r) }
     } catch (e) {
       if (alive.current) setMsg(e.message)
     } finally {
@@ -52,7 +65,7 @@ export default function JoinByCode({ api, initialCode = '', onJoined, compact = 
           <input id="fc-join-code" className="admin-input fc-code-input" type="text" maxLength={12}
             autoCapitalize="characters" autoCorrect="off" spellCheck={false} placeholder="XXXX-XXXX"
             value={code} disabled={busy}
-            onChange={(e) => { setCode(e.target.value); setPreview(null); setMsg('') }}
+            onChange={(e) => { setCode(e.target.value); setPreview(null); setMsg(''); setJoinedId(null) }}
             onKeyDown={(e) => { if (e.key === 'Enter') check() }} />
           <button type="button" className="btn ghost" disabled={busy || !code.trim()} onClick={() => check()}>
             {busy && !preview ? '…' : 'Проверить'}

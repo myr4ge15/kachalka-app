@@ -19,7 +19,7 @@
 import { supabase, isConfigured, hasSession } from './supabase.js'
 import { withTimeout } from '../lib/withTimeout.js'
 import { db, getMeta, setMeta } from './local.js'
-import { SELECT_FEED, rowToItem, computePrs, attachReactions } from './feed.js'
+import { SELECT_FEED, rowToItem, computePrs, attachReactions, fetchPrBaseline } from './feed.js'
 import { toggleReaction } from './repo.js'
 import { applyReactionQueue } from '../lib/reactions.js'
 import { MEMBER_LIMIT } from '../lib/memberProfile.js'
@@ -81,7 +81,8 @@ export async function fetchMember(viewerId, memberId, d = db) {
   ])
   if (list.error) throw list.error
   const items = (list.data ?? []).map(rowToItem)
-  computePrs(items) // отметки рекордов на карточках — по окну участника, как в ленте
+  // Отметки рекордов на карточках — по всей истории участника (база до окна), как в ленте.
+  computePrs(items, await fetchPrBaseline(items))
   await attachReactions(items) // сбой/нет таблицы — карточки без реакций, как в ленте
   // Счетчик — украшение: упал → считаем по окну (lib/memberProfile.js).
   const total = count.error ? null : (count.count ?? null)

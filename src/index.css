@@ -490,7 +490,9 @@ select, textarea { font-variant-numeric: inherit; font-feature-settings: inherit
 .field-hint.bad { color: var(--red); }
 .invite-form .error { margin-top: 0; }
 .invite-actions { display: flex; gap: 10px; margin-top: 14px; }
-.invite-actions .btn { flex: 1; }
+/* margin-top у .btn.ghost делал «Скопировать» ниже соседней кнопки (fb_5f7cb7e7). */
+.invite-actions .btn { flex: 1; margin-top: 0; }
+.recovery-code + .invite-note { margin-top: 14px; }
 /* Админка → «Приглашения»: блоки с ровным зазором, кнопки ссылки — «Скопировать»
    во всю ширину, под ней две половины (три в ряд на 390 px не влезали). */
 .invite-sec { display: flex; flex-direction: column; gap: 10px; }
@@ -2297,6 +2299,8 @@ label.act.busy { opacity: .55; pointer-events: none; }
 .danger-text { margin: 0; font-size: 13px; color: #fca5a5; line-height: 1.5; }
 .danger-actions { display: flex; gap: 10px; }
 .danger-actions .btn { flex: 1; margin-top: 0; }
+/* Подтверждение удаления шаблона — не встык к «Сохранить» (fb_b5e4c20f). */
+.save-btn + .danger-confirm { margin-top: 12px; }
 .btn.danger { background: rgba(248, 113, 113, .16); border: 1px solid rgba(248, 113, 113, .5); color: var(--red); }
 
 /* Форма «Сделать шаблон из тренировки» — нейтральная (не «опасная») коробка. */
@@ -3336,6 +3340,9 @@ label.act.busy { opacity: .55; pointer-events: none; }
 /* ============================================================================
    Оформление (Профиль → Настройки) — редизайн «Спорт-блоки», этап 1.
    7 готовых акцентов + «свой оттенок» (screens/AppearanceScreen.jsx). */
+/* Экран «Оформление» не внутри .profile: без своего отступа заголовки секций
+   прилипали к карточке над ними (fb_4d60a491). */
+.appearance-screen .sec + .sec { margin-top: 20px; }
 .accent-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 8px; }
 .accent-tile {
   display: flex; flex-direction: column; align-items: center; gap: 8px;
@@ -3395,6 +3402,8 @@ label.act.busy { opacity: .55; pointer-events: none; }
 .screen-head { display: flex; align-items: center; justify-content: space-between; gap: 12px; margin: 4px 0 12px; }
 .screen-head .screen-title { margin: 0; }
 .cal { display: flex; flex-direction: column; gap: 14px; }
+/* Полоса прокрутки — в поле листа, не поверх колонки «Вс» (fb_7a14e6e0; прием как у .technique). */
+.sheet-scroll.cal { padding-right: 12px; margin-right: -12px; }
 .cal-nav { display: flex; align-items: center; gap: 10px; }
 .cal-nav .back-btn:disabled { opacity: .35; cursor: default; }
 .cal-title { flex: 1; display: flex; flex-direction: column; align-items: center; gap: 2px; text-align: center; }

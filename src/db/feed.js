@@ -133,11 +133,15 @@ function reactionsKey(items) {
 // отдельно отслеживаем лучший ВЕДУЩИЙ показатель по упражнению (вес для weight,
 // макс. повторов/секунд для reps/time). Если в тренировке упражнение превысило
 // прежний максимум этого автора (в пределах окна) — это рекорд. Рекорд = лучший
-// единичный подход (а не расчетный 1ПМ). NB: окно ограничено FEED_LIMIT, поэтому
-// рекорды считаются «по недавним тренировкам», а не по всей истории.
+// единичный подход (а не расчетный 1ПМ).
+// baseline — лучшие результаты ДО окна (fetchPrBaseline, 16.10): без него рекорды
+// считались только по окну FEED_LIMIT, и старый результат, выпавший из окна, давал
+// ложный кубок (обращение fb_b85b578b: «Махи 8 кг» уже были, бот промолчал верно).
+// Нет baseline (офлайн, старый сервер) — как раньше, по окну.
 // Экспортируется для тестов (чистая функция; мутирует item.prs на месте).
-export function computePrs(items) {
+export function computePrs(items, baseline = null) {
   const byUser = new Map() // user_id → Map(exercise_id → лучшее ведущее значение)
+  for (const [uid, best] of baseline ?? []) byUser.set(uid, new Map(best))
   const chronological = [...items].sort((a, b) =>
     cmpIsoAsc(a.performed_at, b.performed_at)
   )
@@ -159,6 +163,34 @@ export function computePrs(items) {
       }
     }
   }
+}
+
+// Лучшие ведущие показатели (участник → упражнение → значение) ДО самой ранней
+// тренировки окна — серверный feed_pr_baseline (только видимые участники). Сбой,
+// офлайн, сервер без функции — null: computePrs посчитает по окну, как раньше.
+export async function fetchPrBaseline(items) {
+  if (!items?.length) return null
+  const oldest = items.reduce((m, i) => (cmpIsoAsc(i.performed_at, m) < 0 ? i.performed_at : m), items[0].performed_at)
+  const users = [...new Set(items.map((i) => i.user_id))]
+  try {
+    const res = await withTimeout(supabase.rpc('feed_pr_baseline', { p_before: oldest, p_user_ids: users }))
+    if (res.error || !Array.isArray(res.data)) return null
+    return baselineMap(res.data)
+  } catch {
+    return null
+  }
+}
+
+// Строки feed_pr_baseline → Map(user_id → Map(exercise_id → best)).
+export function baselineMap(rows) {
+  const out = new Map()
+  for (const r of rows ?? []) {
+    const best = Number(r?.best)
+    if (!r?.user_id || !r?.exercise_id || !(best > 0)) continue
+    if (!out.has(r.user_id)) out.set(r.user_id, new Map())
+    out.get(r.user_id).set(r.exercise_id, best)
+  }
+  return out
 }
 
 // Обновить снимок ленты с сервера. Тихо выходит офлайн / без конфигурации.
@@ -190,7 +222,8 @@ export async function fetchFeed(userId, d = db) {
       .limit(FEED_LIMIT)
   )
   if (probe.error) throw probe.error
-  const sig = rosterSignature(probe.data ?? []) + '|ex:' + ((await getMeta(EXERCISES_SIG, d)) ?? '')
+  // |pr:2 — версия правила кубков (16.10, база до окна): после обновления кэш пересчитается один раз.
+  const sig = rosterSignature(probe.data ?? []) + '|ex:' + ((await getMeta(EXERCISES_SIG, d)) ?? '') + '|pr:2'
   const changed = sig !== (await getMeta(FEED_SIG, d))
 
   let items
@@ -204,7 +237,7 @@ export async function fetchFeed(userId, d = db) {
     )
     if (res.error) throw res.error
     items = (res.data ?? []).map(rowToItem)
-    computePrs(items)
+    computePrs(items, await fetchPrBaseline(items))
   } else {
     // Окно ленты не изменилось — берем готовый кэш (тот же порядок «свежее сверху»,
     // с уже посчитанными prs) и лишь переналожим свежие реакции. Кэш пуст (первый

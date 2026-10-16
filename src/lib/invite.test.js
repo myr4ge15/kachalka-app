@@ -90,6 +90,8 @@ describe('тексты', () => {
     expect(inviteCreatorLabel({ created_by_name: 'Дима', created_at: '2026-10-02T10:00:00' })).toBe('Создал: Дима · 02.10')
     expect(inviteCreatorLabel({ created_by_name: null, created_at: '2026-10-02T10:00:00' })).toMatch(/удаленный/)
     expect(inviteCreatorLabel({ created_by_name: 'Дима' })).toBe('Создал: Дима')
+    // fb_dc523ca0: ссылка из заявки «Хочу в круг» создателя не имела никогда
+    expect(inviteCreatorLabel({ created_by_name: null, note: 'Заявка: аааа', created_at: '2026-10-15T10:00:00' })).toBe('Из заявки «Хочу в круг» · 15.10')
   })
 })
 

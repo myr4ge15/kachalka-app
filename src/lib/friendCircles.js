@@ -93,7 +93,9 @@ function humanError(error) {
   if (m.includes('rate limited')) return 'Слишком часто — попробуй завтра.'
   if (m.includes('недоступно') || m.includes('Не заданы')) return 'Это упражнение нельзя взять в рейтинг.'
   if (error?.code === 'PGRST202') return '«Мой круг» пока недоступен. Попробуй позже.'
-  return 'Не получилось. Проверь связь и попробуй еще раз.'
+  if (error?.code === 'PGRST301' || /jwt expired/i.test(m)) return 'Сессия устарела — закрой и снова открой приложение.'
+  // Сервер ответил ошибкой (не сеть): код — в текст, по скриншоту видно причину (обращение fb_c64a8a8f).
+  return 'Не получилось — попробуй еще раз.' + (error?.code ? ` (${error.code})` : '')
 }
 
 async function rpc(userId, name, args) {

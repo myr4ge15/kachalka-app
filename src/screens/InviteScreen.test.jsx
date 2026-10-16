@@ -71,6 +71,16 @@ describe('InviteScreen', () => {
     expect(screen.getByLabelText('Имя (как тебя увидят)')).toBeInTheDocument()
   })
 
+  // fb_159354b9: имя между логином и PIN iOS принимала за логин (только английская клавиатура).
+  it('имя — после PIN и не похоже на логин: логин стоит прямо перед PIN', async () => {
+    vi.mocked(checkInvite).mockResolvedValue('ok')
+    render(<InviteScreen token={TOKEN} onRegistered={vi.fn()} onCancel={vi.fn()} />)
+    const name = await screen.findByLabelText('Имя (как тебя увидят)')
+    const inputs = [...document.querySelectorAll('form input:not([type=radio])')]
+    expect(inputs.map((i) => i.getAttribute('autocomplete'))).toEqual(['username', 'new-password', 'new-password', 'nickname'])
+    expect(inputs[3]).toBe(name)
+  })
+
   // П4 (07.10.2026, решение владельца): логин — первым полем, из имени НЕ подставляется.
   it('логин: первым полем, сам не подставляется, занятость — сразу', async () => {
     vi.mocked(checkInvite).mockResolvedValue('ok')
@@ -79,7 +89,7 @@ describe('InviteScreen', () => {
     await screen.findByLabelText('Логин (для входа)')
     const inputs = [...container.querySelectorAll('input')]
     expect(inputs[0]).toBe(screen.getByLabelText('Логин (для входа)'))
-    expect(inputs[1]).toBe(screen.getByLabelText('Имя (как тебя увидят)'))
+    expect(inputs[1]).toBe(screen.getByLabelText('PIN — 4 цифры'))
     fireEvent.change(screen.getByLabelText('Имя (как тебя увидят)'), { target: { value: 'Сега' } })
     const login = screen.getByLabelText('Логин (для входа)')
     expect(login.value).toBe('')

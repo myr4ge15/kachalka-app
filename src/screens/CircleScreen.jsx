@@ -63,7 +63,7 @@ export default function CircleScreen({ user, onBack, onOpenMember, joinCode = nu
       {err && <div className="banner error" role="alert">{err}</div>}
 
       {joinCode && online && (
-        <JoinByCode api={api} initialCode={joinCode} onJoined={(r) => { onJoinCodeConsumed?.(); setSelected(r?.circle_id ?? null); changed() }} />
+        <JoinByCode api={api} initialCode={joinCode} memberOf={circles?.map((c) => c.circle_id) ?? null} onJoined={(r) => { onJoinCodeConsumed?.(); setSelected(r?.circle_id ?? null); changed() }} />
       )}
 
       {circles === null && online && !err && <p className="muted" role="status">Загружаю…</p>}
@@ -92,7 +92,7 @@ export default function CircleScreen({ user, onBack, onOpenMember, joinCode = nu
       )}
 
       {circles && !ownCircle && online && <CreateCircle api={api} onCreated={(id) => { setSelected(id); changed() }} />}
-      {circles && online && !joinCode && <JoinByCode api={api} onJoined={(r) => { setSelected(r?.circle_id ?? null); changed() }} />}
+      {circles && online && !joinCode && <JoinByCode api={api} memberOf={circles.map((c) => c.circle_id)} onJoined={(r) => { setSelected(r?.circle_id ?? null); changed() }} />}
     </div>
   )
 }

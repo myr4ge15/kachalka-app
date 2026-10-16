@@ -1,4 +1,6 @@
-import { useEffect, useSyncExternalStore } from 'react'
+import { useEffect, useMemo, useSyncExternalStore } from 'react'
+import { useLiveQuery } from 'dexie-react-hooks'
+import { getUsers } from '../db/repo.js'
 import { getPresence, refreshPresence, subscribePresence, touchPresence, FETCH_EVERY_MS, TOUCH_EVERY_MS } from '../db/presence.js'
 
 // Пока приложение на экране — раз в period зовем fn; при возврате в приложение и
@@ -32,4 +34,11 @@ export function usePresence(userId) {
   const presence = useSyncExternalStore(subscribePresence, getPresence, getPresence)
   useWhileVisible(() => { refreshPresence(userId) }, FETCH_EVERY_MS, [userId])
   return presence
+}
+
+// Пол из ростера — Map(userId → 'm'|'f'): «был»/«была» вместо «был(а)» в списках друзей
+// и участников круга (обращение fb_242bb1bb; MemberScreen берет пол так же — из ростера).
+export function useRosterSex() {
+  const roster = useLiveQuery(() => getUsers(), [], [])
+  return useMemo(() => new Map((roster ?? []).filter((u) => u.sex).map((u) => [u.id, u.sex])), [roster])
 }

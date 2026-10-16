@@ -72,14 +72,14 @@ export default function CircleOwnerSettings({ api, circle, onChanged, onDeleted 
 
       <div className="fc-danger">
         {armDelete ? (
-          <>
+          <div className="danger-confirm">
             <p className="danger-text">Удалить круг «{circle.name}»? Участники перестанут видеть друг друга (если их не связывает что-то еще), коды сгорят. Тренировки у всех останутся.</p>
             <div className="danger-actions">
               <button type="button" className="btn ghost" onClick={() => setArmDelete(false)} disabled={!!busy}>Отмена</button>
               <button type="button" className="btn danger" disabled={!!busy}
                 onClick={() => act('del', () => api.remove_circle(circle.circle_id), onDeleted)}>Удалить круг</button>
             </div>
-          </>
+          </div>
         ) : (
           <button type="button" className="act danger" onClick={() => setArmDelete(true)}>Удалить круг</button>
         )}

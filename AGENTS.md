@@ -390,6 +390,9 @@ updated_at)` + `upsert_user_meta` (`supabase/user-meta.sql`, RLS «только 
   `bot_feedback_set_author` (кнопка `fa:<uuid>:<8 hex>`), EXECUTE только `service_role`. Схема `feedback` не меняется:
   происхождение — в `context` (`source: 'telegram'`, `tg_from`, `tg_user_id`). Дальше — обычный путь `feedback-tg.sql`.
   Накат SQL — ДО деплоя `tg-bot` (иначе пересылка отвечает «Не получилось завести обращение»).
+  **С 16.10.2026 канон `bot_feedback_create` — `migrations/20261016100000_feedback_album_screenshots.sql`** (фото альбома
+  сверх первого — в `feedback.screenshots`, до 5; накат после `…_feedback_screenshots.sql`). Тело из `feedback-tg-forward.sql`
+  не перезапускать — вернет потерю фото альбома; он остается каноном `bot_feedback_set_author`.
 - **Telegram на разных ботах (v7.5.0)** → `_shared/tgBots.ts` + `_shared/tgApi.ts tgBot(role)`, план
   `docs/plans/PLAN-tg-bots-split.md`, накат `tg-bots-split-deploy.md`. Роли: `notify` (kachalka-notifier,
   `TELEGRAM_BOT_TOKEN`, беседа: `tg-record`/`tg-digest`), `stats` (`TELEGRAM_STATS_BOT_TOKEN`, `tg-summary`),
@@ -454,6 +457,10 @@ updated_at)` + `upsert_user_meta` (`supabase/user-meta.sql`, RLS «только 
   и общие рейтинги»), новичок по ссылке больше НЕ приватный (`invite_newcomer_private` только ставит дружбу с
   пригласившим), сняты `admin_set_private` / `admin_set_connection` / `admin_list_connections`. Клиент: вкладки «Общий» в
   рейтинге нет — доски только кругов; в Админке нет переключателя приватности.
+- **Кубки в Ленте (v9.2.2)** → `migrations/20261016110000_feed_pr_baseline.sql`: `feed_pr_baseline(p_before, p_user_ids)` —
+  лучший ведущий показатель (участник, упражнение) до окна Ленты, только `visible_user_ids()`, DEFINER, `authenticated`.
+  `computePrs` стартует с него (иначе рекорды по окну 50 тренировок давали ложный кубок); правило показателя — как у
+  `new_prs_for_workout`, менять оба вместе. Накат SQL — до тега клиента.
 - **«В сети» (v8.6.0)** → канон `presence.sql`: своя таблица `user_presence(user_id, last_seen_at)` (cascade с
   `users`), не колонка `users` — правка `users` двигает `updated_at` и перекачивала бы ростер. `touch_my_presence`
   (своя строка, не чаще раза в 60 с), `presence_visible` (только `visible_user_ids()`, как Лента). Таблица закрыта,

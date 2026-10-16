@@ -30,7 +30,7 @@ export default function FeedbackPhotos({ id, kind = 'reply', count = 1, load, la
   if (!on) {
     return (
       <button type="button" className="btn ghost fb-attach" onClick={() => setOn(true)} disabled={disabled}>
-        📎 Показать {count > 1 ? `${label.toLowerCase()} (${count})` : label.toLowerCase()}
+        📎 Показать {count > 1 ? `${lowerFirst(label)} (${count})` : lowerFirst(label)}
       </button>
     )
   }
@@ -103,4 +103,9 @@ function SwipeToClose({ onClose, children }) {
       </div>
     </div>
   )
+}
+
+// Строчной — только первая буква: имя автора в подписи остается с заглавной (обращение fb_c9aa4b86).
+function lowerFirst(s) {
+  return s ? s[0].toLowerCase() + s.slice(1) : s
 }

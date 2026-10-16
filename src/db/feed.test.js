@@ -5,7 +5,7 @@ import 'fake-indexeddb/auto' // ПЕРВЫМ: local.js создает Dexie на
 import { describe, it, expect, beforeEach, afterEach } from 'vitest'
 import { openUserDb, closeUserDb, db } from './local.js'
 import { uniqueUserId } from '../test/idbHarness.js'
-import { rowToItem, computePrs, getCachedFeed } from './feed.js'
+import { rowToItem, computePrs, baselineMap, getCachedFeed } from './feed.js'
 
 describe('rowToItem (денормализация серверной строки)', () => {
   const row = {
@@ -73,6 +73,24 @@ describe('computePrs (отметки рекордов в окне)', () => {
     computePrs(items)
     expect(items.find((i) => i.id === 'a2').prs).toHaveLength(1)
     expect(items.find((i) => i.id === 'b1').prs).toEqual([])
+  })
+
+  // fb_b85b578b: 8 кг уже было до окна — кубка нет (бот тоже молчит).
+  it('результат до окна (baseline) — повтор старого максимума не рекорд', () => {
+    const items = [it_('w2', 'a', '2026-10-15', 8), it_('w1', 'a', '2026-10-11', 7)]
+    computePrs(items, baselineMap([{ user_id: 'a', exercise_id: 'ex_bench', best: '8.00' }]))
+    expect(items.find((i) => i.id === 'w2').prs).toEqual([])
+  })
+
+  it('baseline: первый замер в окне выше старого лучшего — рекорд', () => {
+    const items = [it_('w1', 'a', '2026-10-11', 85)]
+    computePrs(items, baselineMap([{ user_id: 'a', exercise_id: 'ex_bench', best: 80 }]))
+    expect(items[0].prs).toEqual([expect.objectContaining({ value: 85 })])
+  })
+
+  it('baselineMap отбрасывает мусор', () => {
+    const m = baselineMap([{ user_id: 'a', exercise_id: 'x', best: 0 }, { user_id: null, exercise_id: 'y', best: 5 }, { user_id: 'a', exercise_id: 'z', best: '7' }])
+    expect([...m.get('a')]).toEqual([['z', 7]])
   })
 })
 

@@ -1,6 +1,6 @@
 import { useState } from 'react'
 import Avatar from '../ui/Avatar.jsx'
-import { usePresence } from '../../hooks/usePresence.js'
+import { usePresence, useRosterSex } from '../../hooks/usePresence.js'
 import { isOnline, presenceLabel } from '../../lib/presence.js'
 import { groupFriends } from '../../lib/friends.js'
 
@@ -10,6 +10,7 @@ import { groupFriends } from '../../lib/friends.js'
 // «Разблокировать». Отказ, удаление и блок другая сторона не видит.
 export default function FriendLists({ rows, me, onAct, onOpenMember }) {
   const presence = usePresence(me)
+  const sexOf = useRosterSex()
   const [busy, setBusy] = useState('')
   const [menu, setMenu] = useState(null) // id друга с открытым «⋯»
   const [arm, setArm] = useState(null) // 'remove' | 'block' — ждет второго нажатия
@@ -31,7 +32,7 @@ export default function FriendLists({ rows, me, onAct, onOpenMember }) {
   const seen = (r) => presence.get(r.user_id)
   const status = (r) => {
     if (isOnline(seen(r))) return <span className="frd-sub frd-sub-on">в сети</span>
-    const l = presenceLabel(seen(r))
+    const l = presenceLabel(seen(r), { sex: sexOf.get(r.user_id) ?? null })
     return l ? <span className="frd-sub">{l}</span> : null
   }
   const avatar = (r, online = false) => (

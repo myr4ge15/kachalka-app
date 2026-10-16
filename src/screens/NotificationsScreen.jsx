@@ -81,8 +81,9 @@ export default function NotificationsScreen({ user, onBack, onOpenFeedback }) {
         </div>
       )}
 
+      {/* Переносом, а не прокруткой: последний чип у края читался обрезанным (fb_3289040f). */}
       {!loading && cats.length > 2 && (
-        <div className="chips" role="tablist" aria-label="Фильтр уведомлений">
+        <div className="chips wrap" role="tablist" aria-label="Фильтр уведомлений">
           {cats.map((c) => (
             <button
               key={c.key}

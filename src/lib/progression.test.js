@@ -250,9 +250,25 @@ describe('easyStreak', () => {
 })
 
 describe('detectPlateau', () => {
-  it('нет роста ведущего показателя в окне → плато', () => {
-    const sessions = [sess([s(80, 8)]), sess([s(80, 8)]), sess([s(80, 7)]), sess([s(80, 6)])]
+  it('нет роста ни веса, ни повторов в окне → плато', () => {
+    const sessions = [sess([s(80, 8)]), sess([s(80, 8)]), sess([s(80, 7)]), sess([s(80, 8)])]
     expect(detectPlateau(sessions, 'weight', { window: 4 })).toBe(true)
+  })
+
+  // fb_51c94466: «жим 60 не растет», хотя повторы на 60 росли.
+  it('повторы на том же весе растут → не плато', () => {
+    const sessions = [sess([s(80, 8)]), sess([s(80, 8)]), sess([s(80, 7)]), sess([s(80, 6)])]
+    expect(detectPlateau(sessions, 'weight', { window: 4 })).toBe(false)
+  })
+
+  it('рост был внутри окна, свежая тренировка легче → не плато', () => {
+    const sessions = [sess([s(40, 10)]), sess([s(60, 6)]), sess([s(60, 5)]), sess([s(55, 5)])]
+    expect(detectPlateau(sessions, 'weight', { window: 4 })).toBe(false)
+  })
+
+  it('свой вес: больше доп. веса на тех же повторах → не плато', () => {
+    const sessions = [sess([s(10, 12)]), sess([s(5, 12)]), sess([s(5, 12)]), sess([s(0, 12)])]
+    expect(detectPlateau(sessions, 'reps', { window: 4 })).toBe(false)
   })
 
   it('новый максимум веса в окне → не плато', () => {

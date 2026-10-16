@@ -145,6 +145,9 @@ function nearestGoal(goals, sorted) {
 }
 
 // Полная сводка. Пустая история → { hasData:false } + нули (экран покажет empty).
+// Предел осмысленного роста тоннажа к прошлым 30 дням, %.
+export const TONNAGE_PCT_MAX = 300
+
 export function buildHomeSummary({ workouts, goals, now = new Date() } = {}) {
   const sorted = sortDesc(workouts)
   if (!sorted.length) {
@@ -174,7 +177,10 @@ export function buildHomeSummary({ workouts, goals, now = new Date() } = {}) {
   // 1-го числа плитка писала «0 трен.» рядом с тоннажем за 30 дней — читалось как ошибка.
   const workouts30 = sorted.filter((w) => w.performed_at && today - dayIndex(new Date(w.performed_at)) < 30).length
   const prevMonth = tonnageInWindow(sorted, now, 60, 30)
-  const pct = prevMonth > 0 ? Math.round(((month - prevMonth) / prevMonth) * 100) : 0
+  // Рост больше чем вчетверо — не прогресс, а почти пустой прошлый период (только начал записывать):
+  // «+1698%» ничего не сообщает (обращение fb_571f6d88). 0 = плитка дельту не показывает.
+  const raw = prevMonth > 0 ? Math.round(((month - prevMonth) / prevMonth) * 100) : 0
+  const pct = raw > TONNAGE_PCT_MAX ? 0 : raw
 
   return {
     hasData: true,

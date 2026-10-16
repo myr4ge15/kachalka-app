@@ -104,14 +104,17 @@ export function inviteErrorText(code) {
 
 // Строка статуса в списке приглашений админки.
 // Кто и когда создал ссылку (admin_list_invites → created_by_name, created_at).
-// Создатель мог быть удален (FK on delete set null) — тогда имя неизвестно.
+// Создатель мог быть удален (FK on delete set null) — тогда имя неизвестно. У ссылки из заявки
+// «Хочу в круг» создателя нет с самого начала (join_poll, подпись «Заявка: …») — это не «удаленный
+// участник» (обращение fb_dc523ca0).
 export function inviteCreatorLabel(inv) {
   if (!inv) return ''
-  const who = inv.created_by_name ?? 'удаленный участник'
-  if (!inv.created_at) return `Создал: ${who}`
+  const fromJoin = !inv.created_by_name && String(inv.note ?? '').startsWith('Заявка: ')
+  const head = fromJoin ? 'Из заявки «Хочу в круг»' : `Создал: ${inv.created_by_name ?? 'удаленный участник'}`
+  if (!inv.created_at) return head
   const x = new Date(inv.created_at)
   const dd = `${String(x.getDate()).padStart(2, '0')}.${String(x.getMonth() + 1).padStart(2, '0')}`
-  return `Создал: ${who} · ${dd}`
+  return `${head} · ${dd}`
 }
 
 // Список приглашений (v8.2.1): действующие — сверху, остальное — история под спойлером

@@ -3,7 +3,11 @@ import { describe, it, vi, expect } from 'vitest'
 import { render, screen, waitFor } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import CircleMembers from './CircleMembers.jsx'
-vi.mock('../../hooks/usePresence.js', () => ({ usePresence: () => new Map() }))
+// «Друг» был в сети час назад, в ростере — женский пол (fb_242bb1bb: «была», а не «был(а)»).
+vi.mock('../../hooks/usePresence.js', () => ({
+  usePresence: () => new Map([['other', new Date(Date.now() - 3600e3).toISOString()]]),
+  useRosterSex: () => new Map([['other', 'f']]),
+}))
 vi.mock('../friends/FriendButton.jsx', () => ({ default: () => <button>В друзья</button> }))
 const rows = [{ user_id: 'me', name: 'Я', is_owner: true, status: 'active' }, { user_id: 'other', name: 'Друг', status: 'active' }]
 describe('участники как друзья', () => {
@@ -11,8 +15,9 @@ describe('участники как друзья', () => {
     const api = { members: vi.fn(async () => rows), remove: vi.fn(async () => {}) }
     const open = vi.fn()
     render(<CircleMembers api={api} circle={{ circle_id: 'c', is_owner: true }} me="me" onOpenMember={open} />)
-    await userEvent.click(await screen.findByRole('button', { name: 'Друг' }))
+    await userEvent.click(await screen.findByRole('button', { name: /^Друг/ }))
     expect(open).toHaveBeenCalledWith('other')
+    expect(screen.getByText(/^была /)).toBeInTheDocument()
     expect(screen.queryByRole('button', { name: 'Убрать' })).toBeNull()
     await userEvent.click(screen.getByRole('button', { name: 'Действия: Друг' }))
     await userEvent.click(screen.getByRole('button', { name: 'Убрать' }))

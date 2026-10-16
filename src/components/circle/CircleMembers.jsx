@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useRef, useState } from 'react'
 import Avatar from '../ui/Avatar.jsx'
-import { usePresence } from '../../hooks/usePresence.js'
+import { usePresence, useRosterSex } from '../../hooks/usePresence.js'
 import { isOnline, presenceLabel } from '../../lib/presence.js'
 import FriendButton from '../friends/FriendButton.jsx'
 
@@ -9,6 +9,7 @@ import FriendButton from '../friends/FriendButton.jsx'
 export default function CircleMembers({ api, circle, me, onChanged, onOpenMember }) {
   // «В сети» (v8.6.0) — точка на аватарке участника.
   const presence = usePresence(me)
+  const sexOf = useRosterSex()
   const [list, setList] = useState(null)
   const [err, setErr] = useState('')
   const [busy, setBusy] = useState('')
@@ -80,7 +81,7 @@ export default function CircleMembers({ api, circle, me, onChanged, onOpenMember
                   <span className="frd-name">{m.name}{m.user_id === me && <span className="feed-me">я</span>}</span>
                   {m.is_owner && <span className="frd-sub">владелец</span>}
                   {m.user_id !== me && <span className={'frd-sub' + (isOnline(presence.get(m.user_id)) ? ' frd-sub-on' : '')}>
-                    {presenceLabel(presence.get(m.user_id))}
+                    {presenceLabel(presence.get(m.user_id), { sex: sexOf.get(m.user_id) ?? null })}
                   </span>}
                 </span>
               </button>
