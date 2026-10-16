@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
 import {
-  WELCOME_STEPS, isWelcomePending, markWelcomeDone, markWelcomePending, stepAfterSwipe, welcomeKey,
+  WELCOME_STEPS, isWelcomePending, markWelcomeDone, markWelcomePending, stepAfterSwipe, swipeOutcome, welcomeKey,
 } from './welcome.js'
 
 function memStorage() {
@@ -33,6 +33,14 @@ describe('welcome', () => {
     expect(isWelcomePending('u1', broken)).toBe(false)
     expect(isWelcomePending(null, memStorage())).toBe(false)
     expect(isWelcomePending('u1', null)).toBe(false)
+  })
+
+  it('swipeOutcome: вертикаль не листает; дотянул до четверти или бросил быстро — листает', () => {
+    expect(swipeOutcome(-60, 80, 300, 320)).toBe(0)   // прокрутка с уклоном вбок
+    expect(swipeOutcome(-50, 5, 400, 320)).toBe(0)    // медленно и недотянул
+    expect(swipeOutcome(-90, 5, 400, 320)).toBe(1)    // дотянул до четверти — вперед
+    expect(swipeOutcome(90, 5, 400, 320)).toBe(-1)    // вправо — назад
+    expect(swipeOutcome(-40, 4, 60, 320)).toBe(1)     // бросок
   })
 
   it('stepAfterSwipe: короткий жест — на месте, влево — вперед, вправо — назад, в пределах', () => {

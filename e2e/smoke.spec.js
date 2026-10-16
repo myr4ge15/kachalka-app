@@ -156,11 +156,14 @@ test('вход → запись тренировки → она в истори�
   await slowAnim.evaluate((node) => node.remove())
   await openTab(page, 'Тренировки')
 
-  // Desktop master-detail: список остается слева, справа открывается тот же
-  // focus-композер с одной активной и одной компактной карточкой.
+  // Desktop master-detail: список остается слева, справа — тот же композер. Сохраненная
+  // тренировка открывается со свернутыми упражнениями (9.2.7), тап раскрывает одно.
   await page.setViewportSize({ width: 1200, height: 900 })
   await afterReload.click()
   await expect(page.locator('.md-list-col')).toBeVisible()
+  await expect(page.locator('.exercise-card--active')).toHaveCount(0)
+  await expect(page.locator('.exercise-card--compact')).toHaveCount(2)
+  await page.locator('.exercise-card--compact').filter({ hasText: EXERCISE }).first().click()
   await expect(page.locator('.exercise-card--active')).toContainText(EXERCISE)
   await expect(page.locator('.exercise-card--compact')).toContainText(SECOND_EXERCISE)
 
@@ -175,7 +178,9 @@ test('вход → запись тренировки → она в истори�
   // Крестики соседних подходов не имеют права делить межстрочный зазор: тап чуть
   // выше ✕ второго подхода не должен удалить первый. Ничего не сохраняем, это
   // последний шаг сценария.
+  // Сохраненная тренировка открывается свернутой (9.2.7) — раскрываем упражнение сами.
   await historyCard(page).click()
+  await page.locator('.exercise-card--compact').filter({ hasText: EXERCISE }).first().click()
   await expect(page.locator('.exercise-card--active')).toContainText(EXERCISE)
   await page.getByRole('button', { name: '+ подход (повтор предыдущего)' }).click()
   const removes = page.locator('.exercise-card--active .set-rm')

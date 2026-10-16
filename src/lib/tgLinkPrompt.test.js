@@ -44,9 +44,9 @@ describe('tgLinkDone / laterLabel', () => {
     expect(tgLinkDone({ tgLinked: false })).toBe(false)
   })
   it('обратный отсчет «Позже»', () => {
-    expect(laterLabel(3000)).toBe('Позже (3)')
-    expect(laterLabel(2001)).toBe('Позже (3)')
-    expect(laterLabel(999)).toBe('Позже (1)')
+    expect(laterLabel(3000)).toBe('Позже · через 3 с')
+    expect(laterLabel(2001)).toBe('Позже · через 3 с')
+    expect(laterLabel(999)).toBe('Позже · через 1 с')
     expect(laterLabel(0)).toBe('Позже')
     expect(laterLabel(-5)).toBe('Позже')
   })

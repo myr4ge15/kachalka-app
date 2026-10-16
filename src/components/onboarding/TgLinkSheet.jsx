@@ -102,6 +102,8 @@ export default function TgLinkSheet({ kind, userId, onClose }) {
         aria-label={laterReady ? 'Позже' : `Позже, через ${Math.ceil(left / 1000)} с`}
       >
         {laterLabel(left)}
+        {/* Полоска под кнопкой заполняется за те же 3 секунды — видно, что «Позже» ждет таймер. */}
+        {!laterReady && <span className="later-bar" aria-hidden="true" />}
       </button>
       <p className="push-ask-hint">
         {kind === 'relink' ? 'Напомню при следующем запуске.' : 'Напомню через 3 дня.'} Привязать можно и в Профиль → Настройки → «Восстановление доступа».

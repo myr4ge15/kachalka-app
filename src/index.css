@@ -3561,6 +3561,19 @@ html[data-sheet-open], html[data-sheet-open] body { overscroll-behavior: none; }
 /* Разовый вопрос про пуши (components/PushAskSheet.jsx, v6.6.1) — в той же сетке, что «Что нового». */
 .push-ask-text { font-size: 15px; line-height: 1.45; margin: 4px 0 14px; }
 .push-ask-later { align-self: center; margin-top: 6px; min-height: 44px; font-weight: var(--fw-strong); flex-shrink: 0; }
+/* «Позже» в привязке Telegram (fb_2a79e7c4): ширина под самую длинную подпись — текст не прыгает,
+   а полоска под ним заполняется за 3 с (LATER_DELAY_MS) и показывает, чего ждем. */
+.push-ask-later { position: relative; min-width: 190px; }
+.push-ask-later .later-bar {
+  position: absolute; left: 20%; right: 20%; bottom: 6px; height: 2px; border-radius: 2px;
+  background: var(--acc-soft); overflow: hidden;
+}
+.push-ask-later .later-bar::after {
+  content: ''; position: absolute; inset: 0; background: var(--acc);
+  transform-origin: left; animation: later-fill 3s linear forwards;
+}
+@keyframes later-fill { from { transform: scaleX(0); } to { transform: scaleX(1); } }
+@media (prefers-reduced-motion: reduce) { .push-ask-later .later-bar::after { animation: none; transform: scaleX(.5); } }
 .push-ask-hint { color: var(--muted); font-size: 12px; text-align: center; margin: 2px 0 0; }
 .sheet .push-err { margin: 0 0 10px; }
 /* Лист «Добро пожаловать» (components/WelcomeSheet.jsx, v6.15.0) — сетка «Что нового»;
@@ -3598,6 +3611,12 @@ html[data-sheet-open], html[data-sheet-open] body { overscroll-behavior: none; }
 }
 .qs-doc hr { border: none; border-top: 1px solid var(--border); margin: 18px 0; }
 .qs-doc strong { font-weight: var(--fw-strong); }
+/* Новая карточка въезжает со стороны листания (fb_a0994990). */
+.welcome-in-next { animation: welcome-in-next var(--dur-base, .24s) var(--ease-out, ease-out); }
+.welcome-in-prev { animation: welcome-in-prev var(--dur-base, .24s) var(--ease-out, ease-out); }
+@keyframes welcome-in-next { from { transform: translateX(48px); opacity: 0; } to { transform: none; opacity: 1; } }
+@keyframes welcome-in-prev { from { transform: translateX(-48px); opacity: 0; } to { transform: none; opacity: 1; } }
+@media (prefers-reduced-motion: reduce) { .welcome-in-next, .welcome-in-prev { animation: none; } }
 .welcome-dots { display: flex; justify-content: center; margin: 4px 0 0; flex-shrink: 0; }
 .welcome-dot {
   width: 36px; height: 44px; padding: 0; border: none; background: none; cursor: pointer;

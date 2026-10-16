@@ -64,6 +64,9 @@ const secondEntry = {
   sets: [{ weight: 0, reps: 12, _k: 'set-2' }],
 }
 
+// Сохраненная тренировка открывается свернутой (fb_223cf43d) — раскрываем упражнение тапом.
+const expand = (name = 'Жим лежа') => fireEvent.click(screen.getByRole('button', { name: new RegExp('^Открыть ' + name) }))
+
 describe('WorkoutScreen', () => {
   beforeEach(() => {
     resetDraftMemory()
@@ -265,6 +268,7 @@ describe('WorkoutScreen', () => {
     render(<WorkoutScreen user={user} workoutId="w1" />)
 
     await screen.findByText('Жим лежа')
+    expand()
     await waitFor(() =>
       expect(screen.getByRole('button', { name: 'легко' })).toHaveAttribute('aria-pressed', 'true')
     )
@@ -284,6 +288,7 @@ describe('WorkoutScreen', () => {
 
     await screen.findByText('Жим лежа')
     expect(screen.getByRole('button', { name: 'Сохранить (2)' })).toBeInTheDocument()
+    expand()
     fireEvent.click(screen.getByRole('button', { name: 'Удалить подход 2' }))
     fireEvent.click(screen.getByRole('button', { name: 'Сохранить (1)' }))
 
@@ -334,6 +339,7 @@ describe('WorkoutScreen', () => {
     render(<WorkoutScreen user={user} workoutId="w1" />)
 
     await screen.findByText('Жим лежа')
+    expand()
     fireEvent.click(screen.getByRole('button', { name: '+ подход (повтор предыдущего)' }))
     fireEvent.click(screen.getByRole('button', { name: 'Сохранить (2)' }))
 
@@ -360,7 +366,7 @@ describe('WorkoutScreen', () => {
     expect(detectNewPrsOnSave).not.toHaveBeenCalled()
   })
 
-  it('при редактировании начинает с первого незаполненного упражнения', async () => {
+  it('сохраненная открывается со свернутыми упражнениями; раскрывает человек', async () => {
     vi.mocked(getWorkout).mockResolvedValue({
       id: 'w1',
       performed_at: '2026-07-30T12:00:00.000Z',
@@ -377,6 +383,8 @@ describe('WorkoutScreen', () => {
 
     await screen.findByText('Присед')
     expect(container.querySelector('[data-exercise-id="bench"]')).toHaveAttribute('data-active', 'false')
+    expect(container.querySelector('[data-exercise-id="squat"]')).toHaveAttribute('data-active', 'false')
+    expand('Присед')
     expect(container.querySelector('[data-exercise-id="squat"]')).toHaveAttribute('data-active', 'true')
   })
 
@@ -482,6 +490,7 @@ describe('WorkoutScreen', () => {
     vi.mocked(getWorkout).mockResolvedValue(existing())
     const first = render(<WorkoutScreen user={user} workoutId="w1" />)
     await screen.findByText('Жим лежа')
+    expand()
     fireEvent.click(screen.getByRole('button', { name: '+ подход (повтор предыдущего)' }))
     expect(screen.getByRole('button', { name: 'Сохранить (2)' })).toBeInTheDocument()
     first.unmount() // «Назад», другая вкладка, поворот планшета
@@ -511,6 +520,7 @@ describe('WorkoutScreen', () => {
     vi.mocked(getWorkout).mockResolvedValue(existing())
     render(<WorkoutScreen user={user} workoutId="w1" onBack={() => {}} />)
     await screen.findByText('Жим лежа')
+    expand()
     fireEvent.click(screen.getByRole('button', { name: '+ подход (повтор предыдущего)' }))
     expect(readDraft('workout_edit_u1_w1')).toBeTruthy()
     fireEvent.click(screen.getByRole('button', { name: 'Сохранить (2)' }))

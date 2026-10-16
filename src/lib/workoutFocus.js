@@ -27,9 +27,12 @@ export function isExerciseIncomplete(entry) {
 
 // Стабильный id важнее индекса: состав можно удалять, заменять и дополнять
 // шаблоном, не переводя фокус на случайную соседнюю карточку.
-export function pickActiveExerciseId(entries, currentId, { preferIncomplete = false } = {}) {
+// collapsed (16.10, обращение fb_223cf43d): сохраненная тренировка открывается со ВСЕМИ
+// упражнениями свернутыми — пока человек сам не раскроет карточку, активной нет.
+export function pickActiveExerciseId(entries, currentId, { preferIncomplete = false, collapsed = false } = {}) {
   const list = entries ?? []
   if (currentId && list.some((entry) => entry?.exercise?.id === currentId)) return currentId
+  if (collapsed) return null
 
   const preferred = preferIncomplete
     ? list.find((entry) => isExerciseIncomplete(entry))

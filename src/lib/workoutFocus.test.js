@@ -40,6 +40,9 @@ describe('pickActiveExerciseId', () => {
   it('иначе выбирает первое упражнение и устойчив к пустому составу', () => {
     expect(pickActiveExerciseId([filled, incomplete], null)).toBe('filled')
     expect(pickActiveExerciseId([], 'missing')).toBeNull()
+    // сохраненная тренировка: без явного выбора все свернуты; выбор — уважается
+    expect(pickActiveExerciseId([filled, incomplete], null, { collapsed: true })).toBeNull()
+    expect(pickActiveExerciseId([filled, incomplete], 'filled', { collapsed: true })).toBe('filled')
   })
 })
 

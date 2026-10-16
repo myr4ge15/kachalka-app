@@ -54,6 +54,17 @@ export const WELCOME_STEPS = [
   },
 ]
 
+// Итог свайпа карусели (16.10, обращение fb_a0994990): +1 — вперед, -1 — назад, 0 — на месте.
+// Вертикальный жест (прокрутка) карточку не листает; листает горизонтальный — дотянутый до
+// четверти ширины или брошенный быстро (≥ 0,5 px/мс). Палец влево (dx < 0) — вперед.
+export function swipeOutcome(dx, dy, dtMs, width) {
+  const ax = Math.abs(dx)
+  if (ax <= Math.abs(dy)) return 0
+  const fast = ax >= 24 && ax / Math.max(1, dtMs) >= 0.5
+  if (ax < Math.max(40, width * 0.25) && !fast) return 0
+  return dx < 0 ? 1 : -1
+}
+
 // Следующий шаг по свайпу: dx < 0 — влево (вперед). Короткий жест — на месте.
 export function stepAfterSwipe(step, dx, total, threshold = 40) {
   if (Math.abs(dx) < threshold) return step

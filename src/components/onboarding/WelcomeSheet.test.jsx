@@ -51,14 +51,27 @@ describe('WelcomeSheet', () => {
     expect(dot).toHaveAttribute('aria-current', 'step')
   })
 
+  // Жест: палец ведет карточку (touchMove), отпустил — листается (fb_a0994990).
+  const swipe = (title, from, to, dy = 0) => {
+    const card = screen.getByText(title).closest('.welcome-card')
+    fireEvent.touchStart(card, { touches: [{ clientX: from, clientY: 100 }] })
+    fireEvent.touchMove(card, { touches: [{ clientX: to, clientY: 100 + dy }] })
+    fireEvent.touchEnd(card, { changedTouches: [{ clientX: to, clientY: 100 + dy }] })
+  }
+
   it('свайп влево — вперед, вправо — назад', () => {
     render(<WelcomeSheet onStart={vi.fn()} onClose={vi.fn()} />)
-    const card = screen.getByText(WELCOME_STEPS[0].title).closest('.welcome-card')
-    fireEvent.touchStart(card, { touches: [{ clientX: 300 }] })
-    fireEvent.touchEnd(card, { changedTouches: [{ clientX: 200 }] })
+    swipe(WELCOME_STEPS[0].title, 300, 100)
     expect(screen.getByText(WELCOME_STEPS[1].title)).toBeInTheDocument()
-    fireEvent.touchStart(card, { touches: [{ clientX: 100 }] })
-    fireEvent.touchEnd(card, { changedTouches: [{ clientX: 220 }] })
+    expect(screen.getByText(WELCOME_STEPS[1].title).closest('.welcome-card')).toHaveClass('welcome-in-next')
+    swipe(WELCOME_STEPS[1].title, 100, 300)
+    expect(screen.getByText(WELCOME_STEPS[0].title)).toBeInTheDocument()
+    expect(screen.getByText(WELCOME_STEPS[0].title).closest('.welcome-card')).toHaveClass('welcome-in-prev')
+  })
+
+  it('прокрутка вверх-вниз с уклоном вбок слайд не листает', () => {
+    render(<WelcomeSheet onStart={vi.fn()} onClose={vi.fn()} />)
+    swipe(WELCOME_STEPS[0].title, 300, 240, 160)
     expect(screen.getByText(WELCOME_STEPS[0].title)).toBeInTheDocument()
   })
 })

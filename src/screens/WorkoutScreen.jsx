@@ -96,8 +96,10 @@ export default function WorkoutScreen({ user, workoutId = null, onBack, onSaved 
     onLift: id => { if (id === activeExerciseId) setDragFolded(id) },
     onDrop: () => setDragFolded(null),
   })
+  // Сохраненная — все упражнения свернуты, раскрывает человек (fb_223cf43d).
   const { activeExerciseId, activeCardRef, activateExercise } = useWorkoutFocus(entries, {
     preferIncomplete: !isNew,
+    startCollapsed: !isNew,
   })
   const [pickerOpen, setPickerOpen] = useState(false)
   // null → пикер в режиме «добавить»; число → индекс entry, который заменяем.

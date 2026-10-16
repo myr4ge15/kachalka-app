@@ -33,8 +33,9 @@ export function shouldShowTgPrompt(kind, snoozedUntil, now = Date.now()) {
 // Привязка удалась: в новом боте (или хотя бы есть, если сервер о боте не сообщает).
 export const tgLinkDone = (status) => Boolean(status?.tgLinked) && status.tgBot !== 'notifier'
 
-// Подпись «Позже» с обратным отсчетом: 3000 мс → «Позже (3)», 0 → «Позже».
+// Подпись «Позже» с обратным отсчетом: 3000 мс → «Позже · через 3 с», 0 → «Позже».
+// Было «Позже (3)» — голая цифра в скобках читалась непонятно (обращение fb_2a79e7c4).
 export function laterLabel(leftMs) {
   const s = Math.ceil(Math.max(0, Number(leftMs) || 0) / 1000)
-  return s > 0 ? `Позже (${s})` : 'Позже'
+  return s > 0 ? `Позже · через ${s} с` : 'Позже'
 }
