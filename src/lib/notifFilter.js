@@ -58,6 +58,19 @@ export function activeCategories(list) {
   return NOTIF_CATEGORIES.filter((c) => c.key === 'all' || present.has(c.key))
 }
 
+// Ограничение длины списка — ПО КАТЕГОРИЯМ (16.10, обращение fb_72a45812): общий срез «40 последних»
+// давал одной волне событий (62 ответа разработчика за минуту) вытеснить рекорды и реакции, и чипы
+// фильтра пропадали. list — уже свежие сверху; порядок сохраняется.
+export function capPerCategory(list, perCategory) {
+  const seen = new Map()
+  return (list ?? []).filter((n) => {
+    const c = notifCategory(n.type)
+    const k = (seen.get(c) ?? 0) + 1
+    seen.set(c, k)
+    return k <= perCategory
+  })
+}
+
 // Число непрочитанных = событий строго новее водяного знака «прочитано» (seen).
 // Чистый счетчик над готовым списком: db-слой (notifications.countUnread) строит
 // список и делегирует сюда — так логика счетчика тестируема без Dexie. Пустой

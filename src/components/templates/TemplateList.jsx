@@ -19,7 +19,7 @@ function TemplateCard({ t, mine, onOpen, selectMode = false, picked = false, onP
   return (
     <button
       className={
-        'card history-card history-tap' + (selectMode && picked ? ' picked' : '')
+        'card history-card history-tap tpl-card' + (selectMode && picked ? ' picked' : '')
       }
       onClick={() => (selectMode ? onPick?.(t.id) : onOpen(t.id))}
     >

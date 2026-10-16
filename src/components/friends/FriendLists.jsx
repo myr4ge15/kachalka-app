@@ -61,10 +61,11 @@ export default function FriendLists({ rows, me, onAct, onOpenMember }) {
         </div>
       )}
 
-      <p className="frd-lab frd-lab-out">Друзья{g.friend.length ? ` · ${g.friend.length}` : ''}</p>
+      {/* Пустой список — без подписи «Друзья» прямо под заголовком экрана «Друзья» (fb_976e29fd). */}
+      {g.friend.length > 0 && <p className="frd-lab frd-lab-out">Друзья · {g.friend.length}</p>}
       {g.friend.length === 0 ? (
         <div className="card frd-card">
-          <p className="muted frd-empty">Пока никого. Нажми «Добавить друга» и отправь свой код — или позови из круга: в профиле участника есть «В друзья».</p>
+          <p className="muted frd-empty">Пока никого. Нажми «Добавить друга» и отправь другу свой код.</p>
         </div>
       ) : (
         <div className="card frd-card frd-list">

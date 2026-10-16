@@ -67,7 +67,7 @@ export default function NotificationsScreen({ user, onBack, onOpenFeedback }) {
         <BackButton onClick={onBack} />
         <h2 className="admin-title">Уведомления</h2>
       </div>
-      <p className="muted sub">Твои рекорды, реакции друзей и кто обходит тебя в кругу</p>
+      <p className="muted sub">Рекорды, реакции друзей, обгоны в круге и ответы на обращения</p>
 
       {loading && <CardsSkeleton cards={4} />}
 

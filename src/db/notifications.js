@@ -21,14 +21,14 @@ import { getCachedFeedbackReplies } from './feedbackReplies.js'
 import { getBadges, getCachedUser } from './repo.js'
 import { getCachedLeaderboard } from './leaderboard.js'
 import { normMetric } from '../lib/metric.js'
-import { unreadCount } from '../lib/notifFilter.js'
+import { capPerCategory, unreadCount } from '../lib/notifFilter.js'
 
 // Метка «прочитано» неймспейснута по userId — иначе на общем устройстве второй
 // вошедший наследует «прочитано» первого (notif_seen_at был глобальным). Старый
 // глобальный ключ больше не читаем (станет мертвым; одноразовый эффект — при
 // первом открытии после обновления уведомления покажутся непрочитанными).
 const seenKey = (userId) => `notif_seen_at_${userId}`
-const LIMIT = 40 // сколько последних уведомлений держим в списке
+const LIMIT = 40 // сколько последних уведомлений КАЖДОЙ категории держим в списке (capPerCategory)
 
 // Ключ личных целей в meta. Мульти-цели (фаза 2c): значение — МАССИВ целей:
 //   [{ exerciseId, exerciseName, metric, targetWeight, achievedAt, _dirty, _deleted }]
@@ -115,7 +115,7 @@ async function badgeNotifs(userId) {
     }))
 }
 
-// Полный список уведомлений (свежие сверху), ограниченный LIMIT.
+// Полный список уведомлений (свежие сверху), по LIMIT на категорию.
 export async function getNotifications(userId) {
   const workouts = await myWorkouts(userId)
   const feedItems = await db.feed.toArray()
@@ -129,9 +129,9 @@ export async function getNotifications(userId) {
   const badges = await badgeNotifs(userId)
   // Ответы разработчика на мои обращения (v6.12.0) — кэш с сервера, см. db/feedbackReplies.js.
   const replies = await getCachedFeedbackReplies(userId)
-  return [...mine, ...beaten, ...goal, ...reactions, ...insights, ...badges, ...replies]
+  const all = [...mine, ...beaten, ...goal, ...reactions, ...insights, ...badges, ...replies]
     .sort((a, b) => cmpIsoDesc(a.at, b.at))
-    .slice(0, LIMIT)
+  return capPerCategory(all, LIMIT)
 }
 
 // Метка «последнего просмотра» (ISO, '' если еще не открывали) — для своего userId.

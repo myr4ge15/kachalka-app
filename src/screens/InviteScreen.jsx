@@ -179,11 +179,11 @@ export default function InviteScreen({ token = null, code = null, friend = null,
     body = (
       <form className="invite-form" onSubmit={submit} noValidate>
         {preview && friend ? (
-          <p className="invite-lead"><b>{preview.inviter_name}</b> зовет тебя в друзья. Придумай логин и PIN для входа и имя, которое увидят друзья.</p>
+          <p className="invite-lead"><b>{preview.inviter_name}</b> зовет тебя в друзья. Придумай логин и PIN для входа и имя, которое увидят другие.</p>
         ) : preview ? (
-          <p className="invite-lead"><b>{preview.inviter_name}</b> зовет тебя в круг <b>«{preview.circle_name}»</b>. Придумай логин и PIN для входа и имя, которое увидят друзья.</p>
+          <p className="invite-lead"><b>{preview.inviter_name}</b> зовет тебя в круг <b>«{preview.circle_name}»</b>. Придумай логин и PIN для входа и имя, которое увидят другие.</p>
         ) : (
-          <p className="invite-lead">Тебя пригласили. Придумай логин и PIN для входа и имя, которое увидят друзья.</p>
+          <p className="invite-lead">Тебя пригласили. Придумай логин и PIN для входа и имя, которое увидят другие.</p>
         )}
         <LoginField value={login} check={checkLogin} disabled={busy}
           onChange={(v) => { setLogin(v); setError('') }} />

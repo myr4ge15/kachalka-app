@@ -9,8 +9,9 @@ import { showToast } from '../ui/Toast.jsx'
 // подпись под именем (`label`), без кнопки. Состояние — снимок fr_list (db/friends.js).
 // Удалить и заблокировать — в «Друзьях».
 const LABELS = { friend: 'в друзьях', outgoing: 'заявка в друзья отправлена', blocked: 'заблокирован(а)' }
-// compact (v9.0.0, строка участника «Моего круга»): ссылка под именем вместо кнопки.
-const COMPACT = { friend: 'друг', outgoing: 'заявка отправлена' }
+// compact (v9.0.0, с 9.2.0 — пункт меню «⋯» участника «Моего круга»): строка меню вместо кнопки.
+// Полные подписи: голое «друг» между пунктами меню читалось как обрывок (fb_a8121a0a).
+const COMPACT = { friend: '✓ Уже друзья', outgoing: 'Заявка в друзья отправлена' }
 
 export default function FriendButton({ me, memberId, label = false, compact = false }) {
   const rows = useLiveQuery(() => getFriends(), [me], undefined)

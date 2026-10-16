@@ -92,6 +92,6 @@ describe('ProgressScreen — рекорд и форма (v6.5.1)', () => {
     vi.mocked(useLiveQuery).mockReturnValueOnce([]).mockReturnValueOnce([])
     render(<ProgressScreen user={{ id: 'u1' }} />)
     expect(screen.getByText('Здесь будет твой прогресс')).toBeInTheDocument()
-    expect(screen.getByText(/личные рекорды/)).toBeInTheDocument()
+    expect(screen.getByText(/пару тренировок/)).toBeInTheDocument() // fb_e3c71c08: не «после первой»
   })
 })

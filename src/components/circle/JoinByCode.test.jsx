@@ -10,7 +10,7 @@ const api = {
 }
 
 async function joinCircle(rerender, memberOf) {
-  fireEvent.change(screen.getByLabelText('Код от друга'), { target: { value: 'ABCD-EFGH' } })
+  fireEvent.change(screen.getByLabelText('Вступить по коду'), { target: { value: 'ABCD-EFGH' } })
   fireEvent.click(screen.getByRole('button', { name: 'Проверить' }))
   fireEvent.click(await screen.findByRole('button', { name: 'Вступить' }))
   expect(await screen.findByText('Ты в круге 🎉')).toBeInTheDocument()

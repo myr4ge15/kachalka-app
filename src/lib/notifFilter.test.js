@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest'
-import { NOTIF_CATEGORIES, notifCategory, filterNotifs, activeCategories, unreadCount } from './notifFilter.js'
+import { NOTIF_CATEGORIES, notifCategory, filterNotifs, activeCategories, unreadCount, capPerCategory } from './notifFilter.js'
 
 const n = (type, at = '2026-07-10') => ({ type, at, id: `${type}:${at}` })
 
@@ -74,5 +74,17 @@ describe('unreadCount', () => {
   })
   it('метка свежее всех событий → 0', () => {
     expect(unreadCount(list, '2026-07-31')).toBe(0)
+  })
+})
+
+// fb_72a45812: волна ответов разработчика вытесняла рекорды и реакции — чипы пропадали.
+describe('capPerCategory', () => {
+  it('ограничивает каждую категорию отдельно, порядок сохраняет', () => {
+    const list = [
+      ...Array.from({ length: 5 }, (_, i) => ({ id: 'f' + i, type: 'feedback' })),
+      { id: 'r1', type: 'mine' },
+      { id: 'x1', type: 'reaction' },
+    ]
+    expect(capPerCategory(list, 2).map((n) => n.id)).toEqual(['f0', 'f1', 'r1', 'x1'])
   })
 })

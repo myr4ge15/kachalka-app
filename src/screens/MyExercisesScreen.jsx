@@ -80,7 +80,7 @@ export default function MyExercisesScreen({ user, onBack }) {
         <>
           <p className="muted sub">
             Справочник один на всех: править можно свои упражнения, и изменения
-            увидят все. Базовые ведет админ.
+            увидят все.
           </p>
 
           <Section

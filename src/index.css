@@ -490,8 +490,9 @@ select, textarea { font-variant-numeric: inherit; font-feature-settings: inherit
 .field-hint.bad { color: var(--red); }
 .invite-form .error { margin-top: 0; }
 .invite-actions { display: flex; gap: 10px; margin-top: 14px; }
-/* margin-top у .btn.ghost делал «Скопировать» ниже соседней кнопки (fb_5f7cb7e7). */
-.invite-actions .btn { flex: 1; margin-top: 0; }
+/* margin-top у .btn.ghost делал «Скопировать» ниже соседней кнопки (fb_5f7cb7e7). Правило .btn.ghost
+   стоит ниже по файлу с тем же весом — поэтому селектор усилен (в 9.2.2 он проигрывал). */
+.invite-actions > .btn, .invite-actions > .btn.ghost { flex: 1; margin-top: 0; }
 .recovery-code + .invite-note { margin-top: 14px; }
 /* Админка → «Приглашения»: блоки с ровным зазором, кнопки ссылки — «Скопировать»
    во всю ширину, под ней две половины (три в ряд на 390 px не влезали). */
@@ -1104,6 +1105,11 @@ a.btn { display: block; text-align: center; text-decoration: none; }
   color: var(--text); font-size: 16px; font-weight: 600; text-align: left;
 }
 .picker-item:active { background: var(--surface); }
+/* Пикер (fb_90085b6d, fb_d4439e87): подсвечивается вся строка, а не кусок между «ⓘ» и звездой;
+   долгое касание не выделяет текст названий. */
+.picker-list { -webkit-user-select: none; user-select: none; -webkit-touch-callout: none; }
+.picker-row > .picker-item:active { background: none; }
+.picker-row:has(> .picker-item:active) { background: var(--surface); }
 /* v6.2.4: строки списка в flex-колонке НЕ сжимаются. min-height у .picker-item
    отменяет min-height:auto flex-элемента, и многострочные строки (шаблоны с
    составом) сплющивались до 56 px и наезжали друг на друга. */
@@ -1273,6 +1279,10 @@ a.btn { display: block; text-align: center; text-decoration: none; }
   font: inherit; -webkit-appearance: none; appearance: none;
 }
 .history-tap:active { background: var(--surface-2); }
+/* Карточка шаблона: без подсветки при удержании и без выделения текста (fb_e143d1b2) —
+   долгое касание при прокрутке списка «зажигало» карточку. */
+.history-tap.tpl-card:active { background: var(--glass); }
+.tpl-card { -webkit-user-select: none; user-select: none; -webkit-touch-callout: none; }
 .history-chevron { flex-shrink: 0; color: var(--muted); margin-top: 2px; }
 /* Экспорт: переключатель режима выбора + панель действий */
 .export-toggle { display: block; margin: -8px 0 16px; color: var(--muted); }
@@ -2781,8 +2791,6 @@ label.act.busy { opacity: .55; pointer-events: none; }
 .admin-add-link:disabled { opacity: .45; }
 
 /* Порядок учеток на входе (drag-and-drop) */
-.user-reorder { margin-top: 6px; }
-.user-reorder .admin-ex-actions { margin-top: 16px; margin-bottom: 8px; }
 .admin-list.reorder { margin-top: 8px; gap: 10px; }
 .reorder-row { display: flex; align-items: center; gap: 12px; padding: 6px 13px; }
 .user-drag-handle {
@@ -3818,9 +3826,9 @@ html[data-sheet-open], html[data-sheet-open] body { overscroll-behavior: none; }
 .fc-code {
   margin: 6px 0 4px; text-align: center; color: var(--text);
   font: 700 30px/1.2 ui-monospace, SFMono-Regular, Menlo, monospace; letter-spacing: .12em;
-  /* Код — одним куском (v8.9.9): Safari понимает только -webkit-, без него выделение рвалось
-     на дефисе. Тап по коду еще и копирует его (FriendCode / CircleCode). */
-  -webkit-user-select: all; user-select: all; cursor: pointer;
+  /* Тап по коду копирует его (FriendCode / CircleCode); само выделение синим не нужно
+     (16.10, fb_31f059ad; до этого с v8.9.9 код выделялся целиком). */
+  -webkit-user-select: none; user-select: none; -webkit-touch-callout: none; cursor: pointer;
 }
 .fc-code-meta { margin: 0 0 12px; text-align: center; font-size: 13px; }
 .fc-code-input { font-family: ui-monospace, SFMono-Regular, Menlo, monospace; letter-spacing: .08em; text-transform: uppercase; }
@@ -3902,6 +3910,11 @@ html[data-sheet-open], html[data-sheet-open] body { overscroll-behavior: none; }
 .frd-code-lab { display: block; }
 .feed-empty-acts { margin-top: 12px; }
 .frd-compact { align-self: flex-start; padding: 6px 0 2px; font-size: 13px; min-height: 0; }
+/* В меню «⋯» участника круга — как остальные пункты меню, а не мелкая подпись (fb_a8121a0a). */
+.frd-menu > .frd-compact {
+  align-self: stretch; display: flex; align-items: center; min-height: 44px; padding: 0 14px;
+  font-size: inherit; text-align: left; border-top: 1px solid var(--border);
+}
 /* Аватары — не «картинки сайта» (v8.9.6): долгое нажатие на iPhone открывало меню
    «Сохранить в Фото / Скопировать субъект» и фото тащилось по экрану. */
 img.has-img, .avatar-lightbox-img { -webkit-touch-callout: none; -webkit-user-drag: none; -webkit-user-select: none; user-select: none; }

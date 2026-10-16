@@ -61,7 +61,7 @@ describe('CircleScreen', () => {
 
   it('вступить по коду: проверить → превью → вступить', async () => {
     render(<CircleScreen user={ME} onBack={vi.fn()} />)
-    fireEvent.change(await screen.findByLabelText('Код от друга'), { target: { value: '7f3q9xwd' } })
+    fireEvent.change(await screen.findByLabelText('Вступить по коду'), { target: { value: '7f3q9xwd' } })
     fireEvent.click(screen.getByRole('button', { name: 'Проверить' }))
     expect(await screen.findByText(/зовет в круг/)).toHaveTextContent('Маша зовет в круг «Бег»')
     fireEvent.click(screen.getByRole('button', { name: 'Вступить' }))
@@ -71,7 +71,7 @@ describe('CircleScreen', () => {
 
   it('мусорный код — отказ без запроса', async () => {
     render(<CircleScreen user={ME} onBack={vi.fn()} />)
-    fireEvent.change(await screen.findByLabelText('Код от друга'), { target: { value: 'abc' } })
+    fireEvent.change(await screen.findByLabelText('Вступить по коду'), { target: { value: 'abc' } })
     fireEvent.click(screen.getByRole('button', { name: 'Проверить' }))
     expect(await screen.findByText(/Код не подходит/)).toBeInTheDocument()
     expect(api.preview).not.toHaveBeenCalled()

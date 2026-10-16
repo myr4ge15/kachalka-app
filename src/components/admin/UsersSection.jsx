@@ -2,12 +2,11 @@
 import { useEffect, useRef, useState } from 'react'
 import { normalizeLogin, loginProblem } from '../../lib/login.js'
 import LoginField from '../auth/LoginField.jsx'
-import { adminListUsers, adminSetUser, adminSetSex, adminResetPin, adminCreateUser, adminDeleteUser, adminSetUserOrder } from '../../lib/admin.js'
+import { adminListUsers, adminSetUser, adminSetSex, adminResetPin, adminCreateUser, adminDeleteUser } from '../../lib/admin.js'
 import { onlyDigits } from '../../lib/text.js'
 import { showToast } from '../ui/Toast.jsx'
 import CardsSkeleton from '../ui/CardsSkeleton.jsx'
 import PencilIcon from '../ui/PencilIcon.jsx'
-import UserReorderList from './UserReorderList.jsx'
 import { useRevealFocus } from '../../hooks/useRevealFocus.js'
 
 // ─────────────────────────── Пользователи ─────────────────────────────────
@@ -42,7 +41,6 @@ export default function UsersSection({ meId, online, errMsg, cache = null }) {
   const [deleteConfirm, setDeleteConfirm] = useState('')
 
   // порядок учеток на экране входа (drag-and-drop)
-  const [reorder, setReorder] = useState(false)
 
   // добавить участника
   const [addOpen, setAddOpen] = useState(false)
@@ -185,20 +183,6 @@ export default function UsersSection({ meId, online, errMsg, cache = null }) {
       {loadErr && <p className="admin-offline" role="alert">{loadErr}</p>}
       {users === null && <CardsSkeleton cards={4} />}
 
-      {reorder ? (
-        <UserReorderList
-          users={users ?? []}
-          meId={meId}
-          onCancel={() => setReorder(false)}
-          onSave={async (ids) => {
-            await adminSetUserOrder(ids)
-            showToast({ emoji: '↕️', title: 'Порядок сохранен', sub: 'Так учетки идут на экране входа.' })
-            setReorder(false)
-            reload()
-          }}
-          errMsg={errMsg}
-        />
-      ) : (
       <>
       <ul className="admin-list">
         {(users ?? []).map((u) => (
@@ -356,13 +340,7 @@ export default function UsersSection({ meId, online, errMsg, cache = null }) {
         </button>
       )}
 
-      {(users?.length ?? 0) > 1 && (
-        <button className="admin-add-link" onClick={() => setReorder(true)} disabled={!online}>
-          ↕️ Порядок на экране входа
-        </button>
-      )}
       </>
-      )}
     </section>
   )
 }

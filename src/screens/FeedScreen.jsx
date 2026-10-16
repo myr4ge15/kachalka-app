@@ -270,7 +270,7 @@ export default function FeedScreen({ user, onOpenMember, flashId = null, onOpenC
             <>
               <EmptyHint emoji="👥" title="Лента друзей">
                 Здесь появляются тренировки друзей и участников твоих кругов — на них можно ставить
-                реакции. Пока пусто: добавь друзей своим кодом или вступи в круг.
+                реакции. Пока пусто: добавь друзей или вступи в круг.
               </EmptyHint>
               <div className="fc-actions feed-empty-acts">
                 {onOpenFriends && <button type="button" className="btn primary" onClick={onOpenFriends}>Друзья</button>}

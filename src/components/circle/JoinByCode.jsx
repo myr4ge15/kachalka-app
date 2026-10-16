@@ -58,9 +58,9 @@ export default function JoinByCode({ api, initialCode = '', onJoined, compact = 
 
   return (
     <div className={compact ? 'fc-join' : 'card fc-join'}>
-      {!compact && <h3 className="fc-h">Вступить по коду</h3>}
+      {/* Заголовок карточки и есть подпись поля — как в «Добавить друга» (fb_bc9c2c3d, fb_6e30d0a4). */}
       <div className="field">
-        <label className="field-lab" htmlFor="fc-join-code">Код от друга</label>
+        <label className={compact ? 'field-lab' : 'fc-h frd-code-lab'} htmlFor="fc-join-code">Вступить по коду</label>
         <div className="fc-join-row">
           <input id="fc-join-code" className="admin-input fc-code-input" type="text" maxLength={12}
             autoCapitalize="characters" autoCorrect="off" spellCheck={false} placeholder="XXXX-XXXX"

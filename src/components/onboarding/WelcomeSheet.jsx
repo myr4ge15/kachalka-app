@@ -61,7 +61,7 @@ export default function WelcomeSheet({ onStart, onClose }) {
         </button>
       )}
       <button type="button" className="link-btn welcome-skip" onClick={() => onClose?.()}>
-        {last ? 'Осмотрюсь сам' : 'Пропустить'}
+        {last ? 'Сначала осмотрюсь' : 'Пропустить'}
       </button>
     </SheetDialog>
     {guide && (

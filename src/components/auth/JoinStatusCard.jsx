@@ -17,7 +17,8 @@ export default function JoinStatusCard({ pending, joinNote, onInvite, onCheck, o
   if (pending) {
     return (
       <div className="join-status" role="status">
-        <p><b>Заявка отправлена</b>{pending.name ? ` — ${pending.name}` : ''}</p>
+        <p><b>Заявка отправлена</b></p>
+        {pending.name && <p className="muted">Имя в заявке: {pending.name}</p>}
         <p className="muted">Как только владелец ответит, приглашение откроется здесь.</p>
         <button className="btn ghost" onClick={onCheck}>Проверить</button>
         <button className="link-btn" onClick={onForget}>Отменить заявку</button>

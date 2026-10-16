@@ -328,7 +328,7 @@ export default function App() {
           aria-label="Открыть профиль"
         >
           <Avatar name={user.name} url={myCached?.avatar_url} className="avatar-sm" />
-          {user.name} <span className="chev" aria-hidden="true">▾</span>
+          {user.name}
         </button>
         <SyncTools unread={unread} onOpenNotif={openNotif} />
       </header>
