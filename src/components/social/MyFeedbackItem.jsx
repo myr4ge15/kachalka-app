@@ -1,16 +1,18 @@
 import { useState } from 'react'
 import FeedbackPhotos from './FeedbackPhotos.jsx'
 import FeedbackNoteForm from './FeedbackNoteForm.jsx'
-import FeedbackAddScreenshots from './FeedbackAddScreenshots.jsx'
+import Chevron from '../ui/Chevron.jsx'
 import { useRevealFocus } from '../../hooks/useRevealFocus.js'
 import {
   appendProblem, canAppend, canReopen, fmtFeedbackDate, hasReply, isStaleReply, reopenProblem,
-  APPEND_MAX, REOPEN_MAX, STATUS_LABEL,
+  APPEND_MAX, FEEDBACK_SHOTS_MAX, REOPEN_MAX, STATUS_LABEL,
 } from '../../lib/feedback.js'
 
 // Одно обращение в «Моих обращениях» (16.10: список был громоздким — каждое обращение во всю
 // высоту со всеми фото и кнопками). Свернутое — строка: дата, статус, начало текста, начало
 // ответа, значки 📎/➕. Тап раскрывает целиком. Раскрыто сразу — пришли пушем или есть новый ответ.
+// 16.10 (fb_bd776cf0): стрелка в шапке и «Свернуть» внизу — свернуть раскрытое было нечем, кроме
+// неочевидного тапа по дате. Вложения — внутри «Дополнить» / «Открыть снова» (fb_a4e36c94).
 // Пропсы: row, userId, api, online, fresh (ответ новый), focus (пришли пушем), onReload().
 export default function MyFeedbackItem({ row: r, userId, api, online, fresh = false, focus = false, onReload }) {
   const [open, setOpen] = useState(fresh || focus)
@@ -26,9 +28,20 @@ export default function MyFeedbackItem({ row: r, userId, api, online, fresh = fa
   const shots = Number(r.screenshot_count) || (r.has_screenshot ? 1 : 0)
   const adds = r.additions?.length ?? 0
 
+  // Сколько еще можно приложить (всего до FEEDBACK_SHOTS_MAX) и как.
+  const room = FEEDBACK_SHOTS_MAX - shots
+  const attachTo = (textOptional) => (room > 0
+    ? { max: room, textOptional, testId: 'fb-file-' + r.id, send: (files) => api.attach(userId, r.id, files) }
+    : null)
+
   function toggle() {
     setOpen((o) => !o)
     if (!open) setRev((n) => n + 1)
+  }
+  function collapse() {
+    setOpen(false)
+    // Свернули снизу длинной карточки — вернуть ее шапку в кадр.
+    document.getElementById(`fb-${r.id}`)?.scrollIntoView?.({ block: 'nearest' })
   }
 
   return (
@@ -39,6 +52,7 @@ export default function MyFeedbackItem({ row: r, userId, api, online, fresh = fa
           <span className="fb-item-tags">
             {fresh && <span className="act-badge">новый</span>}
             <span className={`fb-status s-${r.status}`}>{STATUS_LABEL[r.status] ?? r.status}</span>
+            <Chevron className="fb-item-chev" open={open} />
           </span>
         </span>
         {!open && (
@@ -70,7 +84,6 @@ export default function MyFeedbackItem({ row: r, userId, api, online, fresh = fa
           {r.screenshot_count > 0 ? <FeedbackPhotos id={r.id} kind="screenshots" count={r.screenshot_count}
             load={api.media} lazy disabled={!online} label="Скриншот к обращению" />
             : r.has_screenshot && <span className="admin-ex-meta">📎 со скриншотом</span>}
-          <FeedbackAddScreenshots row={r} userId={userId} api={api} online={online} onDone={onReload} />
           {r.reopened_at && r.reopen_note && (
             <p className="fb-reopen"><span aria-hidden="true">🔁 </span>Открыто снова: {r.reopen_note}</p>
           )}
@@ -98,6 +111,7 @@ export default function MyFeedbackItem({ row: r, userId, api, online, fresh = fa
               done={{ emoji: '➕', title: 'Дополнение отправлено', sub: 'Разработчик увидит его в том же обращении.' }}
               online={online}
               onDone={onReload}
+              attach={attachTo(true)}
             />
           )}
           {canReopen(r) && (
@@ -112,8 +126,12 @@ export default function MyFeedbackItem({ row: r, userId, api, online, fresh = fa
               done={{ emoji: '🔁', title: 'Обращение открыто снова', sub: 'Разработчик увидит твой комментарий.' }}
               online={online}
               onDone={onReload}
+              attach={attachTo(false)}
             />
           )}
+          <button type="button" className="btn ghost fb-collapse" onClick={collapse} aria-label="Свернуть обращение">
+            Свернуть
+          </button>
         </>
       )}
     </li>

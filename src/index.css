@@ -4374,10 +4374,15 @@ img.has-img, .avatar-lightbox-img { -webkit-touch-callout: none; -webkit-user-dr
 .fb-picker { display: flex; flex-wrap: wrap; gap: 8px; margin: 8px 0; }
 .fb-picker:empty { display: none; }
 /* «Мои обращения» (fb_ffef26a9): кнопки карточки — одной ширины и высоты, без своих отступов
-   (были во всю ширину / по тексту / прижатая влево — три разных правила рядом). */
-.fb-list .fb-item .fb-attach, .fb-list .fb-item .fb-reopen-btn {
-  width: 100%; align-self: stretch; min-height: 46px; margin-top: 0;
+   (были во всю ширину / по тексту / прижатая влево — три разных правила рядом).
+   16.10 (fb_bd776cf0): width:auto — 100% плюс боковые отступы раскрытой карточки (13px)
+   вылезали за правый край; ширину дает stretch. */
+.fb-list .fb-item .fb-attach, .fb-list .fb-item .fb-reopen-btn, .fb-list .fb-item .fb-collapse {
+  width: auto; align-self: stretch; min-height: 46px; margin-top: 0; box-sizing: border-box;
 }
+.fb-list .fb-item .fb-collapse { color: var(--muted); }
+.fb-item-chev { transition: transform .2s ease; }
+@media (prefers-reduced-motion: reduce) { .fb-item-chev { transition: none; } }
 /* «Мои обращения» свернутыми строками (16.10): шапка-кнопка раскрывает обращение целиком. */
 .fb-list { gap: 6px; }
 .fb-list .fb-item { padding: 0; gap: 8px; }

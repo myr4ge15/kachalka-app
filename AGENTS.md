@@ -377,6 +377,8 @@ updated_at)` + `upsert_user_meta` (`supabase/user-meta.sql`, RLS «только 
   `.jpg|.mp4|.mov`, bucket `feedback` 20 МБ + `video/mp4`/`video/quicktime`; тело из `…_feedback_screenshots.sql` после
   него не перезапускать). Видео — в том же списке вложений, file_id — там же, где фото; тип клиент узнает по байтам.
   Пуш «ответ/решено» самому владельцу не шлем — `_shared/feedbackSelf.ts` (Edge `feedback` и `tg-bot`).
+  **v9.3.2 — канон `my_feedback`** — `migrations/20261016130000_my_feedback_all_open.sql`: ВСЕ открытые автора + 50 последних
+  закрытых (тело из `feedback-tg.sql` после него не перезапускать — давние открытые снова выпадут из «Моих обращений»).
   **v8.6.0 — дополнения** → добавочный канон `feedback-append.sql`: `feedback_additions` (закрыта, без ссылки на
   `users`: автор — `feedback.user_id`), `append_my_feedback` (автор, только `new`/`in_progress`, 1..1000, ≤5,
   статус не меняет), `my_feedback_additions` (отдельно, чтобы не менять контракт `my_feedback`). Edge `feedback`

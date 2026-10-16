@@ -254,15 +254,58 @@ it('несколько файлов: повторный выбор добавл�
   await waitFor(() => expect(api.submit.mock.calls[0][1].files).toEqual([a, c]))
 })
 
-it('можно добавить фото к закрытому обращению со старым скриншотом; ошибка сохраняет выбор', async () => {
-  const attach = vi.fn().mockRejectedValueOnce(new Error('Нет связи')).mockResolvedValue({ delivered: true })
-  const api = setup({ list: vi.fn(async () => [{ ...ROW, screenshot_count: 1 }]), attach })
+// 16.10 (fb_a4e36c94): вложения — прямо в «Дополнить», можно и без текста.
+it('«Дополнить»: только скриншот, без текста; ошибка сохраняет выбор', async () => {
+  const attach = vi.fn().mockRejectedValueOnce(new FeedbackError('Нет связи')).mockResolvedValue({ delivered: true })
+  const api = setup({ list: vi.fn(async () => [{ ...ROW, status: 'new', reply: null, replied_at: null, screenshot_count: 1 }]), attach })
+  await userEvent.click(await screen.findByRole('button', { name: /Пропал подход/ }))
+  await userEvent.click(screen.getByRole('button', { name: 'Дополнить' }))
+  const send = screen.getByRole('button', { name: 'Дописать' })
+  expect(send).toBeDisabled()
   const file = new File(['x'], 'more.png', { type: 'image/png' })
-  await userEvent.upload(await screen.findByTestId('fb-file-f1'), file)
-  await userEvent.click(screen.getByRole('button', { name: 'Отправить скриншоты' }))
-  expect(await screen.findByRole('alert')).toHaveTextContent('Нет связи')
-  expect(screen.getByAltText('Скриншот к обращению')).toBeTruthy()
-  await userEvent.click(screen.getByRole('button', { name: 'Отправить скриншоты' }))
+  await userEvent.upload(screen.getByTestId('fb-file-f1'), file)
+  expect(send).toBeEnabled()
+  await userEvent.click(send)
+  await waitFor(() => expect(attach).toHaveBeenCalledTimes(1))
+  expect(api.append).not.toHaveBeenCalled()
+  expect(screen.getByAltText('Скриншот к обращению')).toBeTruthy() // выбор не потерян
+  await userEvent.click(screen.getByRole('button', { name: 'Дописать' }))
   await waitFor(() => expect(api.list).toHaveBeenCalledTimes(2))
   expect(attach).toHaveBeenLastCalledWith('me', 'f1', [file])
+  expect(screen.queryByRole('button', { name: 'Дописать' })).toBeNull() // форма закрылась
+})
+
+it('«Дополнить»: текст и скриншот уходят вместе', async () => {
+  const attach = vi.fn(async () => ({ delivered: true }))
+  const api = setup({ list: vi.fn(async () => [{ ...ROW, status: 'new', reply: null, replied_at: null }]), attach })
+  await userEvent.click(await screen.findByRole('button', { name: /Пропал подход/ }))
+  await userEvent.click(screen.getByRole('button', { name: 'Дополнить' }))
+  await userEvent.type(screen.getByLabelText('Что добавить?'), 'вот еще')
+  const file = new File(['x'], 'b.png', { type: 'image/png' })
+  await userEvent.upload(screen.getByTestId('fb-file-f1'), file)
+  await userEvent.click(screen.getByRole('button', { name: 'Дописать' }))
+  await waitFor(() => expect(attach).toHaveBeenCalledWith('me', 'f1', [file]))
+  expect(api.append).toHaveBeenCalledWith('f1', 'вот еще')
+})
+
+it('«Открыть снова»: без комментария одни файлы не уходят; при 5 вложениях выбора нет', async () => {
+  const seen = { ...ROW, reply_seen_at: '2026-10-05T13:00:00Z' } // прочитано — свернуто
+  setup({ list: vi.fn(async () => [seen, { ...seen, id: 'f2', body: 'Полное', screenshot_count: 5 }]) })
+  await userEvent.click(await screen.findByRole('tab', { name: /Закрытые/ }))
+  await userEvent.click(screen.getByRole('button', { name: /Пропал подход/ }))
+  await userEvent.click(screen.getByRole('button', { name: 'Не помогло — открыть снова' }))
+  await userEvent.upload(screen.getByTestId('fb-file-f1'), new File(['x'], 'c.png', { type: 'image/png' }))
+  expect(screen.getByRole('button', { name: 'Открыть снова' })).toBeDisabled()
+  await userEvent.click(screen.getByRole('button', { name: /Полное/ }))
+  expect(screen.queryByTestId('fb-file-f2')).toBeNull()
+})
+
+// 16.10 (fb_bd776cf0): раскрытое сворачивается кнопкой внизу.
+it('«Свернуть» возвращает строку списка', async () => {
+  setup({ list: vi.fn(async () => [{ ...ROW, status: 'new', reply: null, replied_at: null }]) })
+  await userEvent.click(await screen.findByRole('button', { name: /Пропал подход/ }))
+  expect(screen.getByRole('button', { name: 'Дополнить' })).toBeTruthy()
+  await userEvent.click(screen.getByRole('button', { name: 'Свернуть обращение' }))
+  expect(screen.queryByRole('button', { name: 'Дополнить' })).toBeNull()
+  expect(screen.getByRole('button', { name: /Пропал подход/ })).toHaveAttribute('aria-expanded', 'false')
 })
