@@ -48,7 +48,11 @@ describe('TechniqueSheet', () => {
     expect(shown()).toBe('Жим лежа со штангой: Руки выпрямлены')
     // Во время смены подписи не подсвечиваются
     expect(screen.getByRole('button', { name: 'Руки выпрямлены' })).toHaveAttribute('aria-pressed', 'false')
-    await act(async () => { vi.advanceTimersByTime(1200) })
+    // Шагами до первой смены, не дольше 3 с: одним advanceTimersByTime(1200) при FRAME_MS 1150 тест
+    // однажды не увидел смены в CI (16.10, пояс LA) — проверяем сам факт смены, а не точную миллисекунду.
+    for (let t = 0; t < 3000 && shown() === 'Жим лежа со штангой: Руки выпрямлены'; t += 100) {
+      await act(async () => { vi.advanceTimersByTime(100) })
+    }
     expect(shown()).toBe('Жим лежа со штангой: Гриф у груди')
     expect(screen.getByRole('button', { name: 'Гриф у груди' })).toHaveAttribute('aria-pressed', 'false')
 

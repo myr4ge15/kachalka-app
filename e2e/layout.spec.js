@@ -43,7 +43,8 @@ test('кнопки на главных экранах не выходят за �
   await openTab(page, 'Тренировки')
   await expectTidy(page, 'Тренировки')
 
-  await page.getByRole('button', { name: 'Записать тренировку' }).click()
+  // exact: при пустой истории есть еще «+ Записать тренировку» пустого экрана (в CI так и было, 16.10).
+  await page.getByRole('button', { name: 'Записать тренировку', exact: true }).click()
   await page.getByRole('button', { name: 'Добавить упражнение' }).click()
   await expectTidy(page, 'пикер упражнений')
   await pickerItem(page, EXERCISE).click()
