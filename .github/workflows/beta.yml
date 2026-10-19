@@ -6,8 +6,10 @@ name: Beta (Cloudflare Pages)
 #
 # Друзья бету не видят и ничего о ней не узнают:
 #  - их приложение по-прежнему публикует только deploy.yml по тегу v*;
-#  - пуш «Вышла версия» (push-update) отсюда НЕ вызывается, а функция и так читает
-#    version.json только с основного адреса (APP_URL);
+#  - пуш «Вышла версия» отсюда — push-update?app=beta (19.10.2026, у беты свои пуши): функция
+#    читает version.json беты (BETA_APP_URL) и шлет только подпискам беты
+#    (push_subscriptions.app = 'beta', migrations/20261019230000_push_app_channel.sql);
+#    приложение друзей объявляет только deploy.yml по тегу;
 #  - домен другой, значит у беты свои localStorage, IndexedDB, кэши, service worker и вход.
 #    На github.io бета делила бы все это с основным приложением (один origin).
 # Бэкенд Supabase общий: записи с беты — настоящие данные учетки, тестировать под своей.
@@ -52,6 +54,7 @@ jobs:
     timeout-minutes: 15
     permissions:
       contents: read
+      statuses: write  # статус «Beta» на коммите (кружок проверок)
     environment:
       name: beta
       url: ${{ steps.deploy.outputs.url }}
@@ -71,6 +74,19 @@ jobs:
           else
             echo "ready=true" >> "$GITHUB_OUTPUT"
           fi
+
+      # Статус «Beta» на коммите (19.10.2026). Прогон по workflow_run GitHub к проверкам коммита не
+      # привязывает — бета видна только в «All workflows». Ставим статус сами: «идет» сейчас,
+      # итог — последним шагом, со ссылкой на бету. Сбой статуса бету не валит.
+      - name: Статус «Beta» — идет
+        if: steps.cf.outputs.ready == 'true'
+        continue-on-error: true
+        env:
+          GH_TOKEN: ${{ github.token }}
+          RUN_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
+        run: |
+          gh api "repos/${{ github.repository }}/statuses/$SHA" -f state=pending -f context=Beta \
+            -f description="Сборка и выкат на бету" -f target_url="$RUN_URL" > /dev/null
 
       # Ровно тот коммит, на котором Tests был зеленым, а не «текущий main».
       - uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09 # v5.1.0
@@ -121,3 +137,42 @@ jobs:
           url="https://${one#https://*.}"
           echo "url=$url" >> "$GITHUB_OUTPUT"
           echo "::notice title=Бета обновлена::$url — ${SHA:0:7} (эта сборка: $one)"
+
+      # Пуш о бета-сборке — только подпискам беты, по тем же правилам, что у друзей: на смену x.y,
+      # «тихая» запись «Что нового» — без пуша. Так на бете проверяется путь «пуш → нажал →
+      # обновилось». Сбой рассылки бету не валит.
+      - name: Пуш «вышла версия» на бету
+        if: steps.cf.outputs.ready == 'true'
+        continue-on-error: true
+        env:
+          PUSH_WEBHOOK_SECRET: ${{ secrets.PUSH_WEBHOOK_SECRET }}
+        run: |
+          if [ -z "$PUSH_WEBHOOK_SECRET" ]; then
+            echo "::notice title=Пуш беты пропущен::В Actions нет секрета PUSH_WEBHOOK_SECRET."
+            exit 0
+          fi
+          code=$(curl -sS --max-time 120 -o push-update.txt -w '%{http_code}' -X POST \
+            -H "x-webhook-secret: $PUSH_WEBHOOK_SECRET" \
+            'https://lkrrbpbytinrdpfmhxep.functions.supabase.co/push-update?app=beta' || echo 000)
+          echo "push-update (бета) ответил $code: $(cat push-update.txt 2>/dev/null)"
+          case "$code" in
+            200|202) ;;
+            *) echo "::warning title=Пуш беты не отправлен::push-update ответил $code — смотри логи функции в Supabase." ;;
+          esac
+
+      - name: Статус «Beta» — итог
+        if: always() && steps.cf.outputs.ready == 'true'
+        continue-on-error: true
+        env:
+          GH_TOKEN: ${{ github.token }}
+          RUN_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
+          BETA_URL: ${{ steps.deploy.outputs.url }}
+          OUTCOME: ${{ steps.deploy.outcome }}
+        run: |
+          if [ "$OUTCOME" = success ] && [ -n "$BETA_URL" ]; then
+            state=success; desc="Выкачена: ${BETA_URL#https://}"; url="$BETA_URL"
+          else
+            state=failure; desc="Бета не выкачена — смотри прогон"; url="$RUN_URL"
+          fi
+          gh api "repos/${{ github.repository }}/statuses/$SHA" -f state="$state" -f context=Beta \
+            -f description="$desc" -f target_url="$url" > /dev/null

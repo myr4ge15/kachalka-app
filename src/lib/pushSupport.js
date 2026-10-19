@@ -68,8 +68,10 @@ function toBytes(v) {
 }
 
 // Подписка браузера (PushSubscription.toJSON()) → аргументы push_subscribe.
-// Неполная подписка → null: такую на сервер не отправляем.
-export function subscriptionArgs(json, userAgent = '') {
+// Неполная подписка → null: такую на сервер не отправляем. beta: true — подписка бета-стенда
+// (19.10.2026, у беты свои пуши: «Вышла версия» беты — только ей, приложения — только ему);
+// приложение p_app не шлет (сервер по умолчанию 'prod'), поэтому без SQL оно не ломается.
+export function subscriptionArgs(json, userAgent = '', { beta = false } = {}) {
   const endpoint = json?.endpoint
   const p256dh = json?.keys?.p256dh
   const auth = json?.keys?.auth
@@ -80,6 +82,7 @@ export function subscriptionArgs(json, userAgent = '') {
     p_p256dh: p256dh,
     p_auth: auth,
     p_user_agent: String(userAgent).slice(0, 300) || null,
+    ...(beta ? { p_app: 'beta' } : {}),
   }
 }
 

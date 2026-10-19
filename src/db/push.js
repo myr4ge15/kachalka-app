@@ -14,6 +14,7 @@
 import { supabase, hasSession } from './supabase.js'
 import { ensureOwnSession } from '../lib/auth.js'
 import { withTimeout } from '../lib/withTimeout.js'
+import { IS_BETA } from '../lib/appVersion.js'
 import { pushAvailability, desktopAvailability, DESKTOP_QUERY, isIOSDevice, urlB64ToUint8Array, subscriptionArgs, isStaleServerKey } from '../lib/pushSupport.js'
 
 const VAPID_PUBLIC_KEY = import.meta.env.VITE_VAPID_PUBLIC_KEY ?? ''
@@ -163,7 +164,7 @@ export async function deviceSubscriptionEndpoint(userId) {
 }
 
 async function saveOnServer(sub) {
-  const args = subscriptionArgs(sub?.toJSON?.(), navigator.userAgent)
+  const args = subscriptionArgs(sub?.toJSON?.(), navigator.userAgent, { beta: IS_BETA })
   if (!args) throw new PushError('Браузер выдал неполную подписку — попробуй еще раз.')
   let res
   try {

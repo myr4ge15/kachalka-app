@@ -76,6 +76,10 @@ describe('subscriptionArgs', () => {
     expect(args.p_user_agent).toHaveLength(300)
     expect(subscriptionArgs(json).p_user_agent).toBeNull()
   })
+  it('бета помечает подписку, приложение p_app не шлет (у беты свои пуши)', () => {
+    expect(subscriptionArgs(json, 'ua', { beta: true }).p_app).toBe('beta')
+    expect(subscriptionArgs(json, 'ua')).not.toHaveProperty('p_app')
+  })
   it('неполная или не https подписка — null', () => {
     expect(subscriptionArgs(null)).toBeNull()
     expect(subscriptionArgs({ ...json, endpoint: 'http://x' })).toBeNull()
