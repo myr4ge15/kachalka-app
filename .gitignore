@@ -26,6 +26,10 @@ blob-report/
 docs/*
 !docs/quick-start.md
 !docs/screenshots/
+# Рабочие инструкции агентов (Codex — AGENTS.md, Claude — CLAUDE.md) — тоже в приватном репозитории
+# (19.10.2026): там серверные каноны и устройство защиты. Прежние версии остались в истории этого репо.
+/AGENTS.md
+/CLAUDE.md
 # архив (старое ТЗ, прежний CLAUDE.md) и кликабельные прототипы/мокапы — целиком
 archive/
 prototypes/
