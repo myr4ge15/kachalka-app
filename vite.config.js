@@ -13,6 +13,14 @@ import { ocrAssets } from './scripts/ocrAssets.mjs'
 // import-assertion удалён в Node 22+/24 и даёт deprecation-предупреждение.
 const pkg = JSON.parse(readFileSync(new URL('./package.json', import.meta.url), 'utf-8'))
 
+// Бета-стенд (docs/guides/бета-стенд.md, .github/workflows/beta.yml): VITE_BETA=1 собирает копию
+// для проверки на своем iPhone на ОТДЕЛЬНОМ домене. Версия — с номером сборки (9.5.10-beta.42):
+// каждый пуш в main дает новую версию, и плашка обновления на бете срабатывает без бампа.
+// На экране «Домой» — свое имя и иконка с лентой BETA, в шапке — пометка «БЕТА» (lib/appVersion.js).
+const viteEnv = (mode) => loadEnv(mode, process.cwd(), 'VITE_')
+const isBeta = (mode) => viteEnv(mode).VITE_BETA === '1'
+const appVersion = (mode) => (isBeta(mode) ? `${pkg.version}-beta.${viteEnv(mode).VITE_BETA_BUILD || '0'}` : pkg.version)
+
 // «Что нового» (v6.4.0): главное из свежей записи уходит в version.json — строка новой
 // версии показывает его ДО обновления. Запись не про эту версию → без заголовка.
 // push: false у записи (v7.5.0) → silent, пуш «Вышла версия» не уходит (lib/whatsNew.js).
@@ -22,14 +30,15 @@ const pkg = JSON.parse(readFileSync(new URL('./package.json', import.meta.url), 
 // показывается, если обновляться не на что (см. lib/pwaUpdate.isRealUpdate).
 // Файл сознательно исключён из precache (globIgnores ниже) и запрашивается с
 // `cache:'no-store'` — иначе SW отдавал бы старую копию и проверка теряла смысл.
-const versionJson = () => ({
+const versionJson = (version) => ({
   name: 'app-version-json',
   apply: 'build',
   generateBundle() {
     this.emitFile({
       type: 'asset',
       fileName: 'version.json',
-      source: JSON.stringify(versionInfo(WHATS_NEW, pkg.version)),
+      // Заголовок — по записи «Что нового» релиза; версия беты — со своим суффиксом.
+      source: JSON.stringify({ ...versionInfo(WHATS_NEW, pkg.version), version }),
     })
   },
 })
@@ -43,11 +52,21 @@ const backendCsp = (url) => ({
   transformIndexHtml: (html) => withBackendCsp(html, url),
 })
 
+// Бета: другое имя под иконкой на iPhone (apple-mobile-web-app-title), заголовок вкладки и
+// apple-touch-icon с лентой BETA. Файлы beta-*.png лежат в public/ и в основной сборке не используются.
+const betaHtml = (on) => ({
+  name: 'beta-html',
+  transformIndexHtml: (html) => (!on ? html : html
+    .replace('href="./apple-touch-icon.png"', 'href="./beta-apple-touch-icon.png"')
+    .replace('name="apple-mobile-web-app-title" content="kachalka-app"', 'name="apple-mobile-web-app-title" content="kachalka-beta"')
+    .replace('<title>Журнал тренировок</title>', '<title>Журнал тренировок · бета</title>')),
+})
+
 // VITE_APP_BASE=/ for the custom domain; keep the existing Pages path by default.
 export default defineConfig(({ mode }) => ({
   base: loadEnv(mode, process.cwd(), 'VITE_').VITE_APP_BASE || '/kachalka-app/',
   define: {
-    __APP_VERSION__: JSON.stringify(pkg.version),
+    __APP_VERSION__: JSON.stringify(appVersion(mode)),
   },
   // Тест-сьют (Vitest). ДЕФОЛТ окружения — node: чистый слой src/lib и src/db
   // (без UI) гоняется быстро и без DOM, как раньше. Компонентные тесты (RTL)
@@ -64,8 +83,9 @@ export default defineConfig(({ mode }) => ({
   plugins: [
     react(),
     ocrAssets(),
-    versionJson(),
+    versionJson(appVersion(mode)),
     backendCsp(backendUrl(mode)),
+    betaHtml(isBeta(mode)),
     VitePWA({
       registerType: 'prompt',
       includeAssets: ['favicon.svg'],
@@ -82,7 +102,7 @@ export default defineConfig(({ mode }) => ({
         // ?v=<версия> (v8.9.5): по умолчанию (updateViaCache: 'imports') браузер при обновлении SW
         // перепроверяет только sw.js, а файл из importScripts может взять из HTTP-кэша (Pages — 10 мин).
         // Так на iPhone жил старый push-sw.js, и правки перехода по пушу 8.9.2–8.9.4 не доходили.
-        importScripts: [`push-sw.js?v=${pkg.version}`],
+        importScripts: [`push-sw.js?v=${appVersion(mode)}`],
         // Активированный (после SKIP_WAITING) SW сразу берёт под контроль уже
         // открытые НЕконтролируемые вкладки. Без этого на десктопе первая сессия
         // часто идёт без контроллера → skipWaiting активирует новый SW, но он не
@@ -127,8 +147,8 @@ export default defineConfig(({ mode }) => ({
         ],
       },
       manifest: {
-        name: 'kachalka-app',
-        short_name: 'kachalka-app',
+        name: isBeta(mode) ? 'kachalka-app (бета)' : 'kachalka-app',
+        short_name: isBeta(mode) ? 'kachalka-beta' : 'kachalka-app',
         description: 'Strength training tracker',
         lang: 'ru',
         theme_color: '#111827',
@@ -138,9 +158,9 @@ export default defineConfig(({ mode }) => ({
         start_url: '.',
         scope: '.',
         icons: [
-          { src: 'icon-192.png', sizes: '192x192', type: 'image/png' },
-          { src: 'icon-512.png', sizes: '512x512', type: 'image/png' },
-          { src: 'icon-512.png', sizes: '512x512', type: 'image/png', purpose: 'maskable' }
+          { src: (isBeta(mode) ? 'beta-' : '') + 'icon-192.png', sizes: '192x192', type: 'image/png' },
+          { src: (isBeta(mode) ? 'beta-' : '') + 'icon-512.png', sizes: '512x512', type: 'image/png' },
+          { src: (isBeta(mode) ? 'beta-' : '') + 'icon-512.png', sizes: '512x512', type: 'image/png', purpose: 'maskable' }
         ]
       }
     })

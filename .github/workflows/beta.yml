@@ -1,0 +1,115 @@
+name: Beta (Cloudflare Pages)
+
+# Бета-стенд (19.10.2026, docs/guides/бета-стенд.md): каждый пуш в main после зеленого Tests
+# собирается и уезжает на ОТДЕЛЬНЫЙ домен — https://kachalka-beta.pages.dev. Владелец ставит
+# его второй PWA на экран «Домой» и проверяет правки на своем iPhone без тега v*.
+#
+# Друзья бету не видят и ничего о ней не узнают:
+#  - их приложение по-прежнему публикует только deploy.yml по тегу v*;
+#  - пуш «Вышла версия» (push-update) отсюда НЕ вызывается, а функция и так читает
+#    version.json только с основного адреса (APP_URL);
+#  - домен другой, значит у беты свои localStorage, IndexedDB, кэши, service worker и вход.
+#    На github.io бета делила бы все это с основным приложением (один origin).
+# Бэкенд Supabase общий: записи с беты — настоящие данные учетки, тестировать под своей.
+#
+# Сборка беты: VITE_BETA=1 (пометка «БЕТА» в шапке, имя kachalka-beta и иконка с лентой BETA),
+# VITE_BETA_BUILD = номер прогона (версия 9.5.10-beta.42 — плашка обновления на бете
+# срабатывает на каждом пуше без бампа), VITE_APP_BASE=/ (бета живет в корне домена).
+#
+# Что нужно вне репозитория (один раз, инструкция — docs/guides/бета-стенд.md):
+#   секреты Actions CLOUDFLARE_API_TOKEN (Cloudflare Pages: Edit) и CLOUDFLARE_ACCOUNT_ID;
+#   проект Pages kachalka-beta (Direct Upload, production branch = main). Другое имя
+#   проекта — переменная репозитория BETA_PAGES_PROJECT. Без секретов workflow не падает:
+#   пишет предупреждение и выходит.
+#   Адрес беты — в секрет Edge Functions CORS_ALLOWED_ORIGINS, иначе на бете не войти.
+
+on:
+  workflow_run:
+    workflows: [Tests]
+    types: [completed]
+    branches: [main]
+  # Ручной запуск — выкатить на бету текущий main (первый раз или после сбоя).
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+# Новый пуш отменяет недоехавшую сборку прошлого: на бете нужен только свежий main.
+concurrency:
+  group: beta
+  cancel-in-progress: true
+
+jobs:
+  beta:
+    # Только зеленый Tests на пуше в main (не PR и не прогон из deploy.yml), либо ручной запуск с main.
+    if: >-
+      ${{ (github.event_name == 'workflow_run'
+           && github.event.workflow_run.conclusion == 'success'
+           && github.event.workflow_run.event == 'push'
+           && github.event.workflow_run.head_branch == 'main')
+        || (github.event_name == 'workflow_dispatch' && github.ref == 'refs/heads/main') }}
+    runs-on: ubuntu-24.04  # закреплено 15.10.2026: ubuntu-latest с 19.10 → Ubuntu 26 (runner-images#14748)
+    timeout-minutes: 15
+    permissions:
+      contents: read
+    environment:
+      name: beta
+      url: https://${{ vars.BETA_PAGES_PROJECT || 'kachalka-beta' }}.pages.dev
+    env:
+      PROJECT: ${{ vars.BETA_PAGES_PROJECT || 'kachalka-beta' }}
+      SHA: ${{ github.event.workflow_run.head_sha || github.sha }}
+    steps:
+      - name: Секреты Cloudflare заданы?
+        id: cf
+        env:
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+        run: |
+          if [ -z "$CLOUDFLARE_API_TOKEN" ] || [ -z "$CLOUDFLARE_ACCOUNT_ID" ]; then
+            echo "::warning title=Бета не выкачена::Нет секретов CLOUDFLARE_API_TOKEN / CLOUDFLARE_ACCOUNT_ID (docs/guides/бета-стенд.md)."
+            echo "ready=false" >> "$GITHUB_OUTPUT"
+          else
+            echo "ready=true" >> "$GITHUB_OUTPUT"
+          fi
+
+      # Ровно тот коммит, на котором Tests был зеленым, а не «текущий main».
+      - uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09 # v5.1.0
+        if: steps.cf.outputs.ready == 'true'
+        with:
+          ref: ${{ env.SHA }}
+
+      - uses: actions/setup-node@a0853c24544627f65ddf259abe73b1d18a591444 # v5.0.0
+        if: steps.cf.outputs.ready == 'true'
+        with:
+          node-version: 22
+          cache: npm
+
+      - if: steps.cf.outputs.ready == 'true'
+        run: npm ci
+
+      - name: Build (бета)
+        if: steps.cf.outputs.ready == 'true'
+        env:
+          VITE_APP_BASE: /
+          VITE_BETA: '1'
+          VITE_BETA_BUILD: ${{ github.run_number }}
+          VITE_SUPABASE_URL: ${{ secrets.VITE_SUPABASE_URL }}
+          VITE_SUPABASE_KEY: ${{ secrets.VITE_SUPABASE_KEY }}
+          VITE_SUPABASE_REF: ${{ secrets.VITE_SUPABASE_REF }}
+          VITE_VAPID_PUBLIC_KEY: ${{ secrets.VITE_VAPID_PUBLIC_KEY }}
+        run: |
+          npm run build
+          # Бету не индексируем: заголовок для всех путей (файл _headers понимает Cloudflare Pages).
+          printf '/*\n  X-Robots-Tag: noindex\n' > dist/_headers
+          echo "Собрана $(node -p "require('./dist/version.json').version") (${SHA:0:7})."
+
+      # Wrangler — точная версия через npx, без стороннего action: меньше движущихся частей.
+      - name: Публикация на Cloudflare Pages
+        if: steps.cf.outputs.ready == 'true'
+        env:
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+        run: |
+          npx --yes wrangler@4.146.0 pages deploy dist \
+            --project-name="$PROJECT" --branch=main --commit-hash="$SHA" --commit-dirty=true
+          echo "::notice title=Бета обновлена::https://$PROJECT.pages.dev — ${SHA:0:7}"

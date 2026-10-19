@@ -237,6 +237,13 @@ select, textarea { font-variant-numeric: inherit; font-feature-settings: inherit
 .topbar-user.active { color: var(--acc); }
 .topbar-user .chev { color: var(--muted); }
 .topbar-user:active { opacity: .7; }
+/* Пометка бета-стенда (VITE_BETA=1, lib/appVersion.js IS_BETA): в шапке и в сайдбаре десктопа.
+   Желтый — смысловой «внимание», не акцент: бету не спутать с приложением друзей. */
+.beta-badge {
+  flex: none; margin-right: 8px; padding: 3px 7px; border-radius: 6px;
+  background: var(--yellow); color: var(--bg);
+  font-family: var(--font-display); font-weight: 800; font-size: 12px; letter-spacing: .06em; line-height: 1;
+}
 
 /* Индикатор синхронизации в шапке — иконка (всегда) + компактный текст (когда есть
    что чинить). Без текста бейдж почти круглый. */

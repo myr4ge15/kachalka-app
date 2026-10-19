@@ -14,6 +14,7 @@ import { fabState } from './lib/quickAdd.js'
 import { useTabDot } from './hooks/useTabDot.js'
 import { isNested } from './lib/screenNav.js'
 import { useAccentSync } from './hooks/useAccentSync.js'
+import { IS_BETA } from './lib/appVersion.js'
 import LoginScreen from './screens/LoginScreen.jsx'
 import InviteScreen from './screens/InviteScreen.jsx'
 import LoginSetupScreen from './screens/LoginSetupScreen.jsx'
@@ -332,6 +333,7 @@ export default function App() {
           <Avatar name={user.name} url={myCached?.avatar_url} className="avatar-sm" />
           {user.name}
         </button>
+        {IS_BETA && <span className="beta-badge">БЕТА</span>}
         <SyncTools unread={unread} onOpenNotif={openNotif} userId={user.id} onOpenProfile={() => goTab('profile')} />
       </header>
 
@@ -465,6 +467,7 @@ export default function App() {
             <AppMarkGlyph width="24" height="15" />
           </span>
           <span className="side-brand-txt">Журнал тренировок</span>
+          {IS_BETA && <span className="beta-badge">БЕТА</span>}
         </button>
         {/* Десктоп (≥900px, v6.2.3): явная «+ Новая тренировка» — круглой «+» меню там
             нет. На мобиле скрыта. Пока открыт композер/экспорт — неактивна, как «+». */}
