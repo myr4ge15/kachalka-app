@@ -235,7 +235,9 @@ const PATCHES = [
 const patchMisses = new Set()
 
 async function newContext(browser) {
-  const ctx = await browser.newContext({ viewport: VIEWPORT, deviceScaleFactor: SCALE, locale: 'ru-RU', timezoneId: 'Europe/Moscow' })
+  // hasTouch: экран телефона (hover: none, pointer: coarse) — иначе в кадр попадает десктопное
+  // (кнопка «Обновить» Ленты, на телефоне скрытая с v6.7.0).
+  const ctx = await browser.newContext({ viewport: VIEWPORT, deviceScaleFactor: SCALE, hasTouch: true, locale: 'ru-RU', timezoneId: 'Europe/Moscow' })
   await ctx.addInitScript(() => Object.defineProperty(navigator, 'onLine', { get: () => false, configurable: true }))
   await ctx.addInitScript((a) => { try { localStorage.setItem('gym_app_accent', JSON.stringify(a)) } catch { /* приватный режим */ } }, ACCENT)
   await ctx.route(/supabase\.co/, (r) => {
@@ -339,8 +341,8 @@ async function main() {
         await page.getByRole('button', { name: 'Рейтинг', exact: true }).click()
       }
       if (want('feed')) {
-        await page.evaluate(() => document.querySelector('.feed-card,.feed-item,article')?.scrollIntoView({ block: 'start' }))
-        await page.mouse.wheel(0, -90)
+        // С самого верха: заголовок, рейтинг и первая карточка (колесо при hasTouch не крутит).
+        await page.evaluate(() => document.querySelectorAll('.content').forEach((e) => { e.scrollTop = 0 }))
         await shot('feed')
       }
       if (want('rating')) {

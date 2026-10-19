@@ -5,7 +5,8 @@
 import 'fake-indexeddb/auto'
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest'
 
-const toggleReaction = vi.fn(async () => {})
+// как настоящая: возвращает поставленную операцию (снимок профиля правится по ней)
+const toggleReaction = vi.fn(async ({ mine }) => (mine ? 'remove' : 'add'))
 vi.mock('./repo.js', () => ({ toggleReaction: (...a) => toggleReaction(...a) }))
 
 let hasSessionValue = true

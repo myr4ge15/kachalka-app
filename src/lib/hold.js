@@ -7,6 +7,8 @@
 export const HOLD_START = 300
 export const HOLD_MIN = 40
 export const HOLD_STEP = 25
+// Сдвиг пальца (px), после которого касание — прокрутка, а не тап (fb_52059bc8).
+export const HOLD_SLOP = 10
 
 export function nextHoldDelay(prev) {
   return Math.max(HOLD_MIN, (Number(prev) || HOLD_START) - HOLD_STEP)

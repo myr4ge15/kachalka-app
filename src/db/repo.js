@@ -602,12 +602,28 @@ async function enqueue(type, workoutId) {
 // Схлопывание очереди: держим ≤1 операцию на (workoutId, kind). Тап туда-обратно
 // (add затем remove или наоборот) взаимно отменяется — возврат к серверному
 // состоянию, лишняя операция не уезжает.
+// В очереди держим только ПОСЛЕДНЕЕ намерение по паре (тренировка, вид). Раньше
+// add+remove взаимно гасились до пустой очереди — но add мог уже лететь на сервер:
+// он доезжал, а снятие терялось, и после синка реакция возвращалась (fb_53077e01,
+// «быстрые тапы ломают реакции»). Обе операции на сервере идемпотентны, поэтому
+// лишний запрос безопаснее, чем угаданное «ничего не отправлять».
 async function enqueueReaction(workoutId, kind, op) {
   const same = (await db.reaction_outbox.where('workoutId').equals(workoutId).toArray())
     .filter((o) => o.kind === kind)
-  const hadOpposite = same.some((o) => o.op !== op)
   for (const o of same) await db.reaction_outbox.delete(o.seq)
-  if (!hadOpposite) await db.reaction_outbox.add({ workoutId, kind, op, createdAt: nowIso() })
+  await db.reaction_outbox.add({ workoutId, kind, op, createdAt: nowIso() })
+}
+
+// Стоит ли сейчас моя реакция: последняя операция очереди → кэш ленты → значение
+// из UI. Кнопка знает состояние только с прошлого рендера: два тапа быстрее
+// useLiveQuery оба приходили с mine=false, и второй «ставил» вместо «снять».
+async function currentMine(workoutId, kind, userId, fallback) {
+  const same = (await db.reaction_outbox.where('workoutId').equals(workoutId).toArray())
+    .filter((o) => o.kind === kind)
+  if (same.length) return same.reduce((a, b) => (b.seq > a.seq ? b : a)).op === 'add'
+  const item = await db.feed.get(workoutId)
+  if (item) return (item.reactions ?? []).some((r) => r.user_id === userId && r.kind === kind)
+  return Boolean(fallback)
 }
 
 // Оптимистичная правка элемента кэша ленты: добавить/убрать МОЮ реакцию, чтобы
@@ -627,15 +643,19 @@ async function patchFeedReaction(workoutId, kind, op, me) {
   await db.feed.put({ ...item, reactions })
 }
 
-// Переключить реакцию текущего пользователя. mine — стоит ли она сейчас (из UI).
+// Переключить реакцию текущего пользователя. mine — стоит ли она сейчас по UI
+// (запасное значение: решает свежее состояние очереди/кэша, см. currentMine).
 // Ставит операцию в очередь + мгновенно правит кэш ленты. Дальше — syncNow.
+// Возвращает поставленную операцию ('add'|'remove') или null.
 export async function toggleReaction({ userId, userName, workoutId, kind, mine }) {
-  if (!isReactionKind(kind) || !workoutId || !userId) return
-  const op = mine ? 'remove' : 'add'
+  if (!isReactionKind(kind) || !workoutId || !userId) return null
+  let op = null
   await db.transaction('rw', db.reaction_outbox, db.feed, async () => {
+    op = (await currentMine(workoutId, kind, userId, mine)) ? 'remove' : 'add'
     await enqueueReaction(workoutId, kind, op)
     await patchFeedReaction(workoutId, kind, op, { id: userId, name: userName })
   })
+  return op
 }
 
 // NB: связи «избранного круга» (v3.14.0) ЗДЕСЬ НЕ ЖИВУТ — ими управляет админ

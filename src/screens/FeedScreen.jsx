@@ -33,6 +33,8 @@ function writeRailOpen(userId, open) {
 
 // flashId — id тренировки, к которой привел пуш о реакции (v6.7.3): ее карточка
 // коротко подсвечивается акцентом, чтобы было видно, какую оценили.
+const OFFLINE_EMPTY = 'Лента недоступна офлайн. Подключись к сети.'
+
 export default function FeedScreen({ user, onOpenMember, flashId = null, onOpenCircle, onOpenFriends }) {
   // Кэш ленты (офлайн-доступен, обновляется мгновенно при фоновой подтяжке).
   const feed = useLiveQuery(() => getCachedFeed(), [], undefined)
@@ -96,7 +98,7 @@ export default function FeedScreen({ user, onOpenMember, flashId = null, onOpenC
 
   const refresh = useCallback(async () => {
     if (!navigator.onLine) {
-      setError(listRef.current.length ? null : 'Лента недоступна офлайн. Подключись к сети.')
+      setError(OFFLINE_EMPTY)
       return
     }
     setRefreshing(true)
@@ -262,7 +264,9 @@ export default function FeedScreen({ user, onOpenMember, flashId = null, onOpenC
           order:-1), как было раньше. */}
       <div className="feed-layout">
         <div className="feed-main">
-          {error && <div className="banner error">{error}</div>}
+          {/* «Офлайн» — только пока показать нечего: при запуске кэш еще не прочитан (список
+              пуст), и плашка оставалась висеть над подгрузившимися карточками. */}
+          {error && !(error === OFFLINE_EMPTY && list.length) && <div className="banner error">{error}</div>}
 
           {loading && <CardsSkeleton cards={3} height={120} />}
 

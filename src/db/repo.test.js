@@ -345,13 +345,35 @@ describe('toggleReaction (очередь реакций + кэш ленты)', (
     expect(item.reactions).toEqual([{ user_id: userId, name: 'Я', kind: 'fire' }])
   })
 
-  it('add затем remove того же вида — взаимно отменяются (очередь пуста)', async () => {
+  it('add затем remove того же вида — в очереди остается последнее намерение (fb_53077e01)', async () => {
     await seedFeed('w1')
     await toggleReaction({ userId, userName: 'Я', workoutId: 'w1', kind: 'fire', mine: false })
     await toggleReaction({ userId, userName: 'Я', workoutId: 'w1', kind: 'fire', mine: true })
-    expect(await db.reaction_outbox.count()).toBe(0)
+    // add мог уже уйти на сервер — снятие обязано тоже уйти, а не сгореть вместе с ним
+    const ops = await db.reaction_outbox.toArray()
+    expect(ops).toHaveLength(1)
+    expect(ops[0]).toMatchObject({ kind: 'fire', op: 'remove' })
     const item = await db.feed.get('w1')
     expect(item.reactions).toEqual([]) // моя реакция снята из кэша
+  })
+
+  it('быстрый второй тап с устаревшим mine снимает реакцию, а не ставит снова', async () => {
+    await seedFeed('w1')
+    // UI не успел перерисоваться: оба тапа пришли с mine=false
+    expect(await toggleReaction({ userId, userName: 'Я', workoutId: 'w1', kind: 'fire', mine: false })).toBe('add')
+    expect(await toggleReaction({ userId, userName: 'Я', workoutId: 'w1', kind: 'fire', mine: false })).toBe('remove')
+    expect(await toggleReaction({ userId, userName: 'Я', workoutId: 'w1', kind: 'fire', mine: false })).toBe('add')
+    const ops = await db.reaction_outbox.toArray()
+    expect(ops).toHaveLength(1)
+    expect(ops[0]).toMatchObject({ op: 'add' })
+    expect((await db.feed.get('w1')).reactions).toEqual([{ user_id: userId, name: 'Я', kind: 'fire' }])
+  })
+
+  it('отправленный add (очередь уже пуста) + тап — remove по кэшу ленты', async () => {
+    await seedFeed('w1')
+    await toggleReaction({ userId, userName: 'Я', workoutId: 'w1', kind: 'fire', mine: false })
+    await db.reaction_outbox.clear() // push отправил и удалил операцию
+    expect(await toggleReaction({ userId, userName: 'Я', workoutId: 'w1', kind: 'fire', mine: false })).toBe('remove')
   })
 
   it('разные виды — независимые операции', async () => {

@@ -1,15 +1,23 @@
 import { useRef, useCallback, useEffect } from 'react'
-import { HOLD_START, nextHoldDelay } from '../../lib/hold.js'
+import { HOLD_START, HOLD_SLOP, nextHoldDelay } from '../../lib/hold.js'
 
 // Кнопка степпера с длинным нажатием (long-press auto-repeat). Один тап =
 // один вызов onTrigger; если кнопку удерживают — onTrigger повторяется сам,
 // с ускорением, пока палец/кнопка не отпущены. Работает на тач и мышь
-// (Pointer Events). Без onClick, чтобы тап не срабатывал дважды.
+// (Pointer Events).
+// Тап считается на ОТПУСКАНИИ, а не на касании (fb_52059bc8): палец, начавший
+// прокрутку на «+» последнего подхода, раньше тут же прибавлял повтор — «сам
+// добавляет повтор при завершении упражнения». Сдвиг больше HOLD_SLOP или
+// pointercancel (прокрутку забрал браузер) — это не тап: ничего не меняем.
+// Авто-повтор — после HOLD_START удержания на месте; первый его шаг и есть «тап».
+// Клик с клавиатуры (detail === 0) — один шаг; клик после касания пропускаем.
 export default function HoldButton({ onTrigger, children, className, disabled, ...rest }) {
   const timer = useRef(null)
   const delay = useRef(HOLD_START)
   const pointer = useRef(null)
   const target = useRef(null)
+  const origin = useRef(null) // { x, y } точки касания; null — касания нет
+  const fired = useRef(false) // авто-повтор уже сработал — отпускание шаг не добавляет
   const cb = useRef(onTrigger)
   cb.current = onTrigger
 
@@ -23,12 +31,14 @@ export default function HoldButton({ onTrigger, children, className, disabled, .
     }
     pointer.current = null
     target.current = null
+    origin.current = null
   }, [])
 
   // На размонтировании гасим таймер (защита от утечки при удалении подхода/строки).
   useEffect(() => stop, [stop])
 
   const tick = useCallback(() => {
+    fired.current = true
     cb.current?.()
     delay.current = nextHoldDelay(delay.current)
     timer.current = setTimeout(tick, delay.current)
@@ -44,10 +54,28 @@ export default function HoldButton({ onTrigger, children, className, disabled, .
     pointer.current = e.pointerId
     target.current = e.currentTarget
     try { e.currentTarget.setPointerCapture?.(e.pointerId) } catch { /* fallback: pointerleave */ }
-    cb.current?.()              // мгновенный отклик на первый тап
+    origin.current = { x: e.clientX ?? 0, y: e.clientY ?? 0 }
+    fired.current = false
     delay.current = HOLD_START  // пауза перед стартом авто-повтора
     timer.current = setTimeout(tick, delay.current)
   }, [disabled, tick])
+
+  const move = useCallback((e) => {
+    const o = origin.current
+    if (!o || fired.current) return
+    if (Math.abs((e.clientX ?? 0) - o.x) > HOLD_SLOP || Math.abs((e.clientY ?? 0) - o.y) > HOLD_SLOP) stop()
+  }, [stop])
+
+  const release = useCallback(() => {
+    const tap = origin.current && !fired.current
+    stop()
+    if (tap) cb.current?.()
+  }, [stop])
+
+  const click = useCallback((e) => {
+    if (disabled || e.detail !== 0) return
+    cb.current?.()
+  }, [disabled])
 
   return (
     <button
@@ -55,10 +83,12 @@ export default function HoldButton({ onTrigger, children, className, disabled, .
       className={className}
       disabled={disabled}
       onPointerDown={start}
-      onPointerUp={stop}
+      onPointerMove={move}
+      onPointerUp={release}
       onPointerLeave={stop}
       onPointerCancel={stop}
       onLostPointerCapture={stop}
+      onClick={click}
       {...rest}
     >
       {children}

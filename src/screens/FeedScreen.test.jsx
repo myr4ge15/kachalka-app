@@ -104,6 +104,16 @@ describe('FeedScreen', () => {
     expect(screen.queryByText(/недоступна офлайн/)).toBeNull()
   })
 
+  it('офлайн при запуске: кэш подгрузился позже — плашки «недоступна» нет', () => {
+    online = false
+    mocks.feed = undefined // кэш еще читается
+    const { rerender } = renderFeed()
+    mocks.feed = [post()]
+    rerender(<div className="content"><FeedScreen user={ME} onOpenMember={vi.fn()} /></div>)
+    expect(screen.getByText('Петя')).toBeInTheDocument()
+    expect(screen.queryByText(/недоступна офлайн/)).toBeNull()
+  })
+
   it('ошибка обновления — баннер; кнопка «Обновить» повторяет', async () => {
     vi.mocked(fetchFeed).mockRejectedValueOnce(new Error('503'))
     mocks.feed = []

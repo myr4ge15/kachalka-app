@@ -248,19 +248,12 @@ export async function fetchFeed(userId, d = db) {
   // Снимок реакций кэша ДО переналожения (attachReactions мутирует элементы): при
   // неизменном окне по нему решаем, есть ли что писать вообще.
   const reactionsBefore = changed ? null : reactionsKey(items)
+  const opsBefore = await readReactionOps(d)
   await attachReactions(items)
 
   // Оптимистичная очередь реакций поверх серверного снимка: еще не отправленные
-  // (или отправляемые прямо сейчас) МОИ тапы не должны пропадать при перезаписи
-  // кэша. me — из общего ростра (loginDb) по userId.
-  let finalItems = items
-  try {
-    const ops = await d.reaction_outbox.toArray()
-    if (ops.length && userId) {
-      const me = await getCachedUser(userId)
-      finalItems = applyReactionQueue(items, ops, { id: userId, name: me?.name })
-    }
-  } catch { /* нет очереди/ростра — показываем как есть */ }
+  // (или отправляемые прямо сейчас) МОИ тапы не должны пропадать при перезаписи кэша.
+  const finalItems = await overlayReactionOps(items, opsBefore, userId, d)
 
   // Окно не изменилось и реакции те же — кэш не трогаем. Иначе clear+bulkPut на
   // каждом поллинге (20–60 c) будил все useLiveQuery по ленте, включая счетчик
@@ -280,6 +273,26 @@ export async function fetchFeed(userId, d = db) {
   // тяжелый join, пока окно не изменится. Сетевые/серверные сбои уходят в throw
   // выше и сюда не доходят, поэтому метку не двигают.
   await setMeta(FEED_SIG, sig, d)
+}
+
+// Очередь реакций до запроса снимка: операция, которую push отправил и удалил,
+// пока шел запрос, в серверном ответе может еще не числиться (fb_53077e01 —
+// реакция пропадала до следующего опроса). Поэтому накладываем объединение
+// «до» и «после» по seq: последнее намерение выигрывает, повтор идемпотентен.
+export async function readReactionOps(d = db) {
+  try { return await d.reaction_outbox.toArray() } catch { return [] }
+}
+
+export async function overlayReactionOps(items, opsBefore, userId, d = db) {
+  if (!userId) return items
+  try {
+    const bySeq = new Map()
+    for (const op of [...(opsBefore ?? []), ...(await d.reaction_outbox.toArray())]) bySeq.set(op.seq, op)
+    if (!bySeq.size) return items
+    const ops = [...bySeq.values()].sort((a, b) => (a.seq ?? 0) - (b.seq ?? 0))
+    const me = await getCachedUser(userId)
+    return applyReactionQueue(items, ops, { id: userId, name: me?.name })
+  } catch { return items } // нет очереди/ростра — показываем как есть
 }
 
 // Лента из локального кэша (офлайн-доступна), свежее сверху.

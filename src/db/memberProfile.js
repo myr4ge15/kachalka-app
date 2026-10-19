@@ -19,7 +19,7 @@
 import { supabase, isConfigured, hasSession } from './supabase.js'
 import { withTimeout } from '../lib/withTimeout.js'
 import { db, getMeta, setMeta } from './local.js'
-import { SELECT_FEED, rowToItem, computePrs, attachReactions, fetchPrBaseline } from './feed.js'
+import { SELECT_FEED, rowToItem, computePrs, attachReactions, fetchPrBaseline, readReactionOps, overlayReactionOps } from './feed.js'
 import { toggleReaction } from './repo.js'
 import { applyReactionQueue } from '../lib/reactions.js'
 import { MEMBER_LIMIT } from '../lib/memberProfile.js'
@@ -50,10 +50,11 @@ export async function getCachedMember(memberId, me = null, d = db) {
 // оптимистичная правка снимка профиля (иначе после отправки очереди реакция
 // «мигнула» бы до следующего fetchMember).
 export async function toggleMemberReaction({ userId, userName, memberId, workoutId, kind, mine }, d = db) {
-  await toggleReaction({ userId, userName, workoutId, kind, mine })
+  const op = await toggleReaction({ userId, userName, workoutId, kind, mine })
+  if (!op) return
   const cached = await getMeta(memberKey(memberId), d)
   if (!cached?.items) return
-  const items = applyReactionQueue(cached.items, [{ workoutId, kind, op: mine ? 'remove' : 'add' }], { id: userId, name: userName })
+  const items = applyReactionQueue(cached.items, [{ workoutId, kind, op }], { id: userId, name: userName })
   await setMeta(memberKey(memberId), { ...cached, items }, d)
 }
 
@@ -83,9 +84,12 @@ export async function fetchMember(viewerId, memberId, d = db) {
   const items = (list.data ?? []).map(rowToItem)
   // Отметки рекордов на карточках — по всей истории участника (база до окна), как в ленте.
   computePrs(items, await fetchPrBaseline(items))
+  const opsBefore = await readReactionOps(d)
   await attachReactions(items) // сбой/нет таблицы — карточки без реакций, как в ленте
+  // Мой тап, ушедший на сервер во время запроса, в снимке может не оказаться (fb_53077e01).
+  const shown = await overlayReactionOps(items, opsBefore, viewerId, d)
   // Счетчик — украшение: упал → считаем по окну (lib/memberProfile.js).
   const total = count.error ? null : (count.count ?? null)
-  await setMeta(memberKey(memberId), { at: Date.now(), total, items }, d)
+  await setMeta(memberKey(memberId), { at: Date.now(), total, items: shown }, d)
   return true
 }

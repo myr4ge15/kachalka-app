@@ -4,7 +4,7 @@
 import 'fake-indexeddb/auto'
 import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest'
 
-const server = vi.hoisted(() => ({ workouts: [], reactions: [], session: 'u' }))
+const server = vi.hoisted(() => ({ workouts: [], reactions: [], session: 'u', onReactions: null }))
 
 vi.mock('./supabase.js', () => {
   function from(table) {
@@ -17,8 +17,11 @@ vi.mock('./supabase.js', () => {
       in() { return b },
       then(ok, fail) {
         let res
-        if (table === 'reactions') res = { data: server.reactions, error: null }
-        else if (b.selection === 'id, updated_at') res = { data: server.workouts.map(({ id, updated_at }) => ({ id, updated_at })), error: null }
+        if (table === 'reactions') {
+          res = { data: server.reactions, error: null }
+          // гонка: снимок реакций уже снят, а push тем временем отправил и удалил операцию
+          if (server.onReactions) return server.onReactions().then(() => res).then(ok, fail)
+        } else if (b.selection === 'id, updated_at') res = { data: server.workouts.map(({ id, updated_at }) => ({ id, updated_at })), error: null }
         else res = { data: server.workouts, error: null }
         return Promise.resolve(res).then(ok, fail)
       },
@@ -48,6 +51,7 @@ beforeEach(async () => {
     user: { id: 'friend', name: 'Дима' }, workout_exercises: [],
   }]
   server.reactions = [{ workout_id: 'w1', user_id: 'x', kind: 'fire', created_at: '2026-07-28T11:00:00.000Z', user: { name: 'Икс' } }]
+  server.onReactions = null
   await openUserDb(userId)
 })
 
@@ -88,6 +92,18 @@ describe('fetchFeed — запись кэша только при изменен
     await fetchFeed(userId, db)
 
     expect((await db.feed.get('w1')).reactions).toHaveLength(2)
+  })
+
+  it('мой тап, отправленный во время запроса, не пропадает из кэша (fb_53077e01)', async () => {
+    await fetchFeed(userId, db)
+    await db.reaction_outbox.add({ workoutId: 'w1', kind: 'clap', op: 'add', createdAt: '2026-07-28T12:00:00.000Z' })
+    // сервер ответил снимком без моей реакции, а очередь за это время опустела
+    server.onReactions = () => db.reaction_outbox.clear()
+
+    await fetchFeed(userId, db)
+
+    const mine = (await db.feed.get('w1')).reactions.filter((r) => r.user_id === userId)
+    expect(mine).toMatchObject([{ kind: 'clap' }])
   })
 
   it('под сессией другой учетки ленту не трогает', async () => {
