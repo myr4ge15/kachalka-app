@@ -1,11 +1,12 @@
 import { useState } from 'react'
 import Avatar from '../ui/Avatar.jsx'
+import MoreMenu from '../ui/MoreMenu.jsx'
 import { usePresence, useRosterSex } from '../../hooks/usePresence.js'
 import { isOnline, presenceLabel } from '../../lib/presence.js'
 import { groupFriends } from '../../lib/friends.js'
 
 // Списки «Друзей» (вариант A, 15.10.2026: «как контакты»). Входящие заявки — карточкой
-// сверху (Принять / Нет); друзья — строки: тап — профиль, «⋯» — меню (профиль, удалить,
+// сверху (Принять / Нет); друзья — строки: тап — профиль, «⋯» — выпадающее меню (ui/MoreMenu, 9.5.4: профиль, удалить,
 // заблокировать; опасное — во второе нажатие); мои заявки — «Отозвать»; заблокированные —
 // «Разблокировать». Отказ, удаление и блок другая сторона не видит.
 export default function FriendLists({ rows, me, onAct, onOpenMember }) {
@@ -24,6 +25,10 @@ export default function FriendLists({ rows, me, onAct, onOpenMember }) {
     } finally {
       setBusy('')
     }
+  }
+  function closeMenu() {
+    if (busy) return // идет удаление/блок — меню закроет act
+    setMenu(null); setArm(null)
   }
   function toggleMenu(id) {
     setArm(null)
@@ -76,22 +81,21 @@ export default function FriendLists({ rows, me, onAct, onOpenMember }) {
                   {avatar(r, isOnline(seen(r)))}
                   <span className="frd-who"><span className="frd-name">{r.name}</span>{status(r)}</span>
                 </button>
-                <button type="button" className="frd-more" aria-label={`Действия: ${r.name}`}
-                  aria-expanded={menu === r.user_id} onClick={() => toggleMenu(r.user_id)}>⋯</button>
-              </div>
-              {menu === r.user_id && (
-                <div className="frd-menu" role="group" aria-label={r.name}>
-                  <button type="button" onClick={() => onOpenMember?.(r.user_id)}>Открыть профиль</button>
-                  <button type="button" disabled={!!busy}
+                <MoreMenu label={`Действия: ${r.name}`} btnClassName="frd-more" open={menu === r.user_id}
+                  onToggle={() => toggleMenu(r.user_id)} onClose={closeMenu}>
+                  <button type="button" role="menuitem" onClick={() => { closeMenu(); onOpenMember?.(r.user_id) }}>
+                    Открыть профиль
+                  </button>
+                  <button type="button" role="menuitem" disabled={!!busy}
                     onClick={() => (arm === 'remove' ? act(`rm-${r.user_id}`, 'remove', r.user_id) : setArm('remove'))}>
                     {arm === 'remove' ? 'Точно удалить из друзей?' : 'Удалить из друзей'}
                   </button>
-                  <button type="button" className="frd-danger" disabled={!!busy}
+                  <button type="button" role="menuitem" className="danger" disabled={!!busy}
                     onClick={() => (arm === 'block' ? act(`bl-${r.user_id}`, 'block', r.user_id) : setArm('block'))}>
                     {arm === 'block' ? 'Точно заблокировать?' : 'Заблокировать'}
                   </button>
-                </div>
-              )}
+                </MoreMenu>
+              </div>
             </div>
           ))}
         </div>

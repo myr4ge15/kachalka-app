@@ -112,7 +112,7 @@ function splashUpdateUi(root) {
       bar.classList.remove('splash-upd-bar--busy')
       fill.style.width = `${p.pct}%`
       bar.setAttribute('aria-valuenow', String(p.pct))
-      cap.textContent = `Загружено ${p.done} из ${p.total} · ${p.pct}%`
+      cap.textContent = `Загружено ${p.done} из ${p.total}`
     },
     installing() {
       bar.classList.remove('splash-upd-bar--busy')

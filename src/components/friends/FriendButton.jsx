@@ -41,7 +41,7 @@ export default function FriendButton({ me, memberId, label = false, compact = fa
     if (COMPACT[state]) return <span className="muted frd-compact">{COMPACT[state]}</span>
     if (state !== 'none' && state !== 'incoming') return null
     return (
-      <button type="button" className="link-btn frd-compact" disabled={busy}
+      <button type="button" role="menuitem" className="link-btn frd-compact" disabled={busy}
         onClick={() => run(state === 'incoming'
           ? async () => { await api.respond(memberId, true); return 'accepted' }
           : () => api.request(memberId))}>

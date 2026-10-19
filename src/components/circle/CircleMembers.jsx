@@ -3,6 +3,7 @@ import Avatar from '../ui/Avatar.jsx'
 import { usePresence, useRosterSex } from '../../hooks/usePresence.js'
 import { isOnline, presenceLabel } from '../../lib/presence.js'
 import FriendButton from '../friends/FriendButton.jsx'
+import MoreMenu from '../ui/MoreMenu.jsx'
 
 // Участники круга: кто кого привел; владельцу — заявки (принять/отклонить), удалить
 // участника, передать круг. Действия с последствиями — в два нажатия.
@@ -46,6 +47,7 @@ export default function CircleMembers({ api, circle, me, onChanged, onOpenMember
 
   const pending = (list ?? []).filter((m) => m.status === 'pending')
   const active = (list ?? []).filter((m) => m.status === 'active')
+  const closeMenu = () => { if (!busy) { setMenu(null); setArm(null) } }
   const armed = (kind, id) => arm?.kind === kind && arm?.id === id
 
   return (
@@ -85,32 +87,28 @@ export default function CircleMembers({ api, circle, me, onChanged, onOpenMember
                   </span>}
                 </span>
               </button>
-              <button type="button" className="frd-more" aria-label={'Действия: ' + m.name}
-                aria-expanded={menu === m.user_id} disabled={!!busy}
-                onClick={() => { setArm(null); setMenu(menu === m.user_id ? null : m.user_id) }}>⋯</button>
-            </div>
-            {menu === m.user_id && (
-              <div className="frd-menu" role="group" aria-label={m.name}>
-                <button type="button" onClick={() => onOpenMember?.(m.user_id)}>Открыть профиль</button>
-                {m.invited_by_name && !m.is_owner && <span className="frd-sub fc-menu-note">Пришел(а) по коду {m.invited_by_name}</span>}
+              <MoreMenu label={'Действия: ' + m.name} btnClassName="frd-more" open={menu === m.user_id}
+                onToggle={() => { setArm(null); setMenu(menu === m.user_id ? null : m.user_id) }} onClose={closeMenu}>
+                <button type="button" role="menuitem" onClick={() => { closeMenu(); onOpenMember?.(m.user_id) }}>Открыть профиль</button>
+                {m.invited_by_name && !m.is_owner && <span className="more-menu-note">Пришел(а) по коду {m.invited_by_name}</span>}
                 {m.user_id !== me && <FriendButton me={me} memberId={m.user_id} compact />}
                 {isOwner && !m.is_owner && <>
-                  <button type="button" disabled={!!busy}
+                  <button type="button" role="menuitem" disabled={!!busy}
                     onClick={() => armed('transfer', m.user_id)
                       ? act('tr-' + m.user_id, () => api.transfer(circle.circle_id, m.user_id).then((r) => {
                         if (r === 'has_own') throw new Error('У ' + m.name + ' уже есть свой круг — передать нельзя.')
                       })) : setArm({ kind: 'transfer', id: m.user_id })}>
                     {armed('transfer', m.user_id) ? 'Точно передать?' : 'Передать круг'}
                   </button>
-                  <button type="button" className="frd-danger" disabled={!!busy}
+                  <button type="button" role="menuitem" className="danger" disabled={!!busy}
                     onClick={() => armed('remove', m.user_id)
                       ? act('rm-' + m.user_id, () => api.remove(circle.circle_id, m.user_id))
                       : setArm({ kind: 'remove', id: m.user_id })}>
                     {armed('remove', m.user_id) ? 'Точно убрать?' : 'Убрать'}
                   </button>
                 </>}
-              </div>
-            )}
+              </MoreMenu>
+            </div>
           </div>
         ))}
       </div>

@@ -1,5 +1,6 @@
 import { useEffect, useLayoutEffect, useRef, useState } from 'react'
 import Avatar from '../ui/Avatar.jsx'
+import MoreMenu from '../ui/MoreMenu.jsx'
 import SheetDialog from '../ui/SheetDialog.jsx'
 import { showToast } from '../ui/Toast.jsx'
 import { useAliveRef } from '../../hooks/useAliveRef.js'
@@ -18,6 +19,7 @@ import { postComment, removeComment, setCommentLike, updateComment } from '../..
 // 9.5.3: «⋯» у своего — «Изменить / Удалить» (правка — в том же поле, полоска «Изменяешь…»,
 // у строки метка «изменено»); у чужого под своей тренировкой — сразу «Удалить?». ❤️ справа
 // в строке: на чужой — кнопка, на своем — только счетчик. Правка и ❤️ тоже оптимистичные.
+// 9.5.4: «⋯» — выпадающее меню (ui/MoreMenu), не лист снизу; у чужого под своей тренировкой — только «Удалить».
 // Пропсы: workoutId, ownerId, comments, me {id, name}, open, onOpen(), focusTick (растет —
 // поставить курсор в поле), onOpenMember(userId).
 export default function CommentThread({ workoutId, ownerId, comments, me, open, onOpen, focusTick = 0, onOpenMember }) {
@@ -25,7 +27,7 @@ export default function CommentThread({ workoutId, ownerId, comments, me, open, 
   const aliveRef = useAliveRef()
   const [text, setText] = useState('')
   const [pending, setPending] = useState([])
-  const [menu, setMenu] = useState(null) // свой комментарий, для которого открыт лист действий
+  const [menu, setMenu] = useState(null) // комментарий, у которого открыто меню «⋯»
   const [asking, setAsking] = useState(null) // комментарий, который спрашиваем удалить
   const [deleting, setDeleting] = useState(false)
   const [editing, setEditing] = useState(null) // свой комментарий в правке
@@ -181,9 +183,15 @@ export default function CommentThread({ workoutId, ownerId, comments, me, open, 
               ? (
                 <div className="cm-acts">
                   {likeBtn}
-                  {more && (mine
-                    ? <button type="button" className="cm-more-btn" aria-label="Действия с комментарием" onClick={() => setMenu(c)}>⋯</button>
-                    : <button type="button" className="cm-more-btn" aria-label="Удалить комментарий" onClick={() => setAsking(c)}>⋯</button>)}
+                  {more && (
+                    <MoreMenu label="Действия с комментарием" btnClassName="cm-more-btn" open={menu?.id === c.id}
+                      onToggle={() => setMenu((m) => (m?.id === c.id ? null : c))} onClose={() => setMenu(null)}>
+                      {mine && <button type="button" role="menuitem" onClick={() => startEdit(c)} disabled={!online}>Изменить</button>}
+                      <button type="button" role="menuitem" className="danger" onClick={() => { setMenu(null); setAsking(c) }}>
+                        Удалить
+                      </button>
+                    </MoreMenu>
+                  )}
                 </div>
               )
               : <span />}
@@ -235,20 +243,6 @@ export default function CommentThread({ workoutId, ownerId, comments, me, open, 
       ) : (
         <div className="cm-offline" role="status">📡 Нет сети — комментарии только читать</div>
       ))}
-
-      {menu && (
-        <SheetDialog title="Твой комментарий" actionLabel="отмена" onDismiss={() => setMenu(null)} className="sheet--compact">
-          <p className="cm-del-quote">«{menu.body.length > 80 ? `${menu.body.slice(0, 79)}…` : menu.body}»</p>
-          <div className="btn-row">
-            <button type="button" className="btn ghost" onClick={() => startEdit(menu)} disabled={!online} data-autofocus>
-              Изменить
-            </button>
-            <button type="button" className="btn danger-ghost" onClick={() => { setAsking(menu); setMenu(null) }}>
-              Удалить
-            </button>
-          </div>
-        </SheetDialog>
-      )}
 
       {asking && (
         <SheetDialog title="Удалить комментарий?" actionLabel="отмена" onDismiss={() => setAsking(null)}
