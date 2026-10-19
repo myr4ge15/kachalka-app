@@ -8,8 +8,8 @@ import { useAliveRef } from '../../hooks/useAliveRef.js'
 import { useRevealFocus } from '../../hooks/useRevealFocus.js'
 import { useKeyboardLift } from '../../hooks/useKeyboardLift.js'
 import {
-  COMMENT_COUNTER_FROM, COMMENT_MAX, canDeleteComment, canEditComment, canLikeComment, cleanBody, commentAgo,
-  previewComments, toggleLike,
+  COMMENT_COUNTER_FROM, COMMENT_MAX, canDeleteComment, canEditComment, canLikeComment, canReplyComment, cleanBody,
+  commentAgo, previewComments, replyQuote, toggleLike,
 } from '../../lib/comments.js'
 import { postComment, removeComment, setCommentLike, updateComment } from '../../db/comments.js'
 
@@ -22,6 +22,8 @@ import { postComment, removeComment, setCommentLike, updateComment } from '../..
 // у строки метка «изменено»); у чужого под своей тренировкой — сразу «Удалить?». ❤️ справа
 // в строке: на чужой — кнопка, на своем — только счетчик. Правка и ❤️ тоже оптимистичные.
 // 9.5.4: «⋯» — выпадающее меню (ui/MoreMenu), не лист снизу; у чужого под своей тренировкой — только «Удалить».
+// Ответ (20261019235000_comment_reply.sql): «Ответить» под чужим — полоска «Ответ: Имя ✕» над полем, ветка
+// остается плоской по времени, у ответа — цитата исходного (имя + начало текста). Адресату — пуш «ответил тебе».
 // Пропсы: workoutId, ownerId, comments, me {id, name}, open, onOpen(), focusTick (растет —
 // поставить курсор в поле), onOpenMember(userId).
 export default function CommentThread({ workoutId, ownerId, comments, me, open, onOpen, focusTick = 0, onOpenMember }) {
@@ -33,6 +35,7 @@ export default function CommentThread({ workoutId, ownerId, comments, me, open, 
   const [asking, setAsking] = useState(null) // комментарий, который спрашиваем удалить
   const [deleting, setDeleting] = useState(false)
   const [editing, setEditing] = useState(null) // свой комментарий в правке
+  const [replying, setReplying] = useState(null) // комментарий, на который отвечаем
   const [edits, setEdits] = useState({}) // id → текст, пока правка уходит на сервер
   const [likes, setLikes] = useState({}) // id → { like_count, liked }, пока ❤️ уходит на сервер
   const [reveal, setReveal] = useState(null)
@@ -65,6 +68,12 @@ export default function CommentThread({ workoutId, ownerId, comments, me, open, 
     el.setSelectionRange?.(el.value.length, el.value.length)
   }, [editing, open])
 
+  // Нажали «Ответить» — курсор в поле (ветка уже раскрыта или раскрывается сейчас).
+  useEffect(() => {
+    if (!replying || !open) return
+    inputRef.current?.focus({ preventScroll: true })
+  }, [replying, open])
+
   useLayoutEffect(() => {
     const el = inputRef.current
     if (!el) return
@@ -87,14 +96,20 @@ export default function CommentThread({ workoutId, ownerId, comments, me, open, 
   async function send() {
     if (!canSend) return
     if (editing) return saveEdit()
+    const replyTo = replying
     const tmp = { id: `tmp-${Date.now()}`, workout_id: workoutId, user_id: me.id, name: me.name || 'Я',
-      known: true, avatar_url: me.avatar ?? null, body, created_at: new Date().toISOString(), pending: true }
+      known: true, avatar_url: me.avatar ?? null, body, created_at: new Date().toISOString(), pending: true,
+      reply_to: replyTo?.id ?? null, reply_to_user: replyTo?.user_id ?? null, reply_to_name: replyTo?.name ?? null }
     setPending((p) => [...p, tmp])
     setText('')
+    setReplying(null)
     try {
-      await postComment({ userId: me.id, workoutId, ownerId, text: body })
+      await postComment({ userId: me.id, workoutId, ownerId, text: body, replyTo })
     } catch (e) {
-      if (aliveRef.current) setText((cur) => cur || body)
+      if (aliveRef.current) {
+        setText((cur) => cur || body)
+        setReplying((cur) => cur ?? replyTo)
+      }
       showToast({ emoji: '⚠️', title: 'Комментарий не отправлен', sub: e?.message })
     } finally {
       if (aliveRef.current) setPending((p) => p.filter((x) => x.id !== tmp.id))
@@ -117,8 +132,16 @@ export default function CommentThread({ workoutId, ownerId, comments, me, open, 
     }
   }
 
+  function startReply(c) {
+    setMenu(null)
+    if (editing) { setEditing(null); setText('') }
+    setReplying(c)
+    if (!open) { onOpen?.(); setReveal({}) }
+  }
+
   function startEdit(c) {
     setMenu(null)
+    setReplying(null)
     setEditing(c)
     setText(c.body)
     if (!open) onOpen?.()
@@ -151,6 +174,7 @@ export default function CommentThread({ workoutId, ownerId, comments, me, open, 
       if (aliveRef.current) {
         setAsking(null)
         if (editing?.id === c.id) cancelEdit()
+        if (replying?.id === c.id) setReplying(null)
       }
     } catch (e) {
       showToast({ emoji: '⚠️', title: 'Не удалось удалить', sub: e?.message })
@@ -163,6 +187,8 @@ export default function CommentThread({ workoutId, ownerId, comments, me, open, 
     <div className="cm" ref={boxRef}>
       {shown.map((c) => {
         const mine = canEditComment(c, me.id)
+        const quote = replyQuote(c, all)
+        const canReply = !c.pending && online && canReplyComment(c, me.id)
         const canLike = canLikeComment(c, me.id)
         const more = !c.pending && (mine || canDeleteComment(c, me.id, ownerId))
         const likeBtn = !c.pending && (canLike || c.like_count > 0) && (
@@ -187,7 +213,18 @@ export default function CommentThread({ workoutId, ownerId, comments, me, open, 
                 <span className="cm-time">{c.pending ? 'отправка…' : commentAgo(c.created_at)}</span>
                 {!c.pending && c.edited_at && <span className="cm-edited">· изменено</span>}
               </div>
+              {quote && (
+                <div className="cm-quote">
+                  <span className="cm-quote-name">{quote.name}</span>
+                  {quote.text && <span className="cm-quote-text">{quote.text}</span>}
+                </div>
+              )}
               <div className="cm-text">{c.body}</div>
+              {canReply && (
+                <button type="button" className="cm-reply-btn" onClick={() => startReply(c)} aria-label={`Ответить: ${c.name}`}>
+                  Ответить
+                </button>
+              )}
             </div>
             {likeBtn || more
               ? (
@@ -223,6 +260,12 @@ export default function CommentThread({ workoutId, ownerId, comments, me, open, 
               <button type="button" onClick={cancelEdit} aria-label="Отменить правку">✕</button>
             </div>
           )}
+          {replying && (
+            <div className="cm-editing">
+              <span>Ответ: {replying.name}</span>
+              <button type="button" onClick={() => setReplying(null)} aria-label="Отменить ответ">✕</button>
+            </div>
+          )}
           <div className="cm-form" ref={formRef}>
             <textarea
               ref={inputRef}
@@ -230,7 +273,7 @@ export default function CommentThread({ workoutId, ownerId, comments, me, open, 
               rows={1}
               value={text}
               maxLength={COMMENT_MAX + 50}
-              placeholder="Написать комментарий"
+              placeholder={replying ? 'Написать ответ' : 'Написать комментарий'}
               aria-label="Комментарий"
               onChange={(e) => setText(e.target.value)}
               onFocus={liftAboveKeyboard}

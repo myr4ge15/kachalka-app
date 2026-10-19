@@ -30,6 +30,11 @@ export function normComment(r) {
     edited_at: r.edited_at ?? null,
     like_count: Math.max(0, Number(r.like_count) || 0),
     liked: Boolean(r.liked),
+    // Ответ (20261019235000_comment_reply.sql): на какой комментарий и кому. Исходный удалили — reply_to пуст,
+    // «кому» остается; адресат в блоке со мной — имени нет. Сервер без ответов — обычный комментарий.
+    reply_to: r.reply_to ? String(r.reply_to) : null,
+    reply_to_user: r.reply_to_user ? String(r.reply_to_user) : null,
+    reply_to_name: (r.reply_to_name ?? '').trim() || null,
   }
 }
 
@@ -76,6 +81,24 @@ export function canEditComment(c, myId) {
 // ❤️ — на чужой комментарий; свой — только счетчик (как самолайк тренировки).
 export function canLikeComment(c, myId) {
   return Boolean(myId) && Boolean(c?.user_id) && c.user_id !== myId
+}
+
+// Ответить — на чужой (себе отвечать незачем).
+export function canReplyComment(c, myId) {
+  return Boolean(myId) && Boolean(c?.user_id) && c.user_id !== myId
+}
+
+// Цитата над ответом: имя адресата и начало исходного. Исходный в ветке — берем оттуда (свежее имя и текст),
+// удален — только имя; не ответ или адресат скрыт (блок) — null.
+export const QUOTE_MAX = 60
+export function replyQuote(c, list) {
+  if (!c?.reply_to_user) return null
+  const orig = c.reply_to ? (list ?? []).find((x) => x.id === c.reply_to) : null
+  const name = orig?.name ?? c.reply_to_name
+  if (!name) return null
+  if (!orig) return { name, text: null }
+  const s = orig.body.replace(/\s+/g, ' ').trim()
+  return { name, text: s.length > QUOTE_MAX ? `${s.slice(0, QUOTE_MAX - 1).trimEnd()}…` : s }
 }
 
 // Оптимистичный лайк: новое состояние счетчика.
@@ -134,11 +157,13 @@ async function rpc(userId, name, args) {
   return res.data
 }
 
-// Отправить комментарий → готовая строка (заменяет оптимистичную).
-export async function addComment(userId, workoutId, text) {
+// Отправить комментарий (replyTo — id исходного, если это ответ) → готовая строка (заменяет оптимистичную).
+export async function addComment(userId, workoutId, text, replyTo = null) {
   const body = cleanBody(text)
   if (!body || body.length > COMMENT_MAX) throw new CommentError(`Комментарий — от 1 до ${COMMENT_MAX} знаков.`)
-  const data = await rpc(userId, 'comment_add', { p_workout_id: workoutId, p_body: body })
+  const args = { p_workout_id: workoutId, p_body: body }
+  if (replyTo) args.p_reply_to = replyTo
+  const data = await rpc(userId, 'comment_add', args)
   const c = normComment(Array.isArray(data) ? data[0] : data)
   if (!c) throw new CommentError('Не получилось — попробуй еще раз.')
   return c

@@ -64,9 +64,10 @@ async function patchCaches(workoutId, ownerId, fn, d = db) {
   await setMeta(key, { ...cached, items }, d)
 }
 
-// Отправить → комментарий с сервера (ошибку бросает CommentError с понятным текстом).
-export async function postComment({ userId, workoutId, ownerId, text }, d = db) {
-  const c = await addComment(userId, workoutId, text)
+// Отправить (replyTo — исходный комментарий, если это ответ) → комментарий с сервера
+// (ошибку бросает CommentError с понятным текстом).
+export async function postComment({ userId, workoutId, ownerId, text, replyTo = null }, d = db) {
+  const c = await addComment(userId, workoutId, text, replyTo?.id ?? null)
   recentAdds.set(c.id, { c, at: Date.now() })
   await patchCaches(workoutId, ownerId, (list) => upsertComment(list, c), d)
   return c

@@ -107,7 +107,7 @@ describe('CommentThread', () => {
     fireEvent.click(screen.getByRole('button', { name: 'Отправить' }))
     expect(screen.getByText('в четверг жмем?').closest('.cm-item')).toHaveClass('pending')
     expect(box).toHaveValue('')
-    expect(postComment).toHaveBeenCalledWith({ userId: 'me', workoutId: 'w1', ownerId: 'owner', text: 'в четверг жмем?' })
+    expect(postComment).toHaveBeenCalledWith({ userId: 'me', workoutId: 'w1', ownerId: 'owner', text: 'в четверг жмем?', replyTo: null })
     await act(async () => { fail(new Error('Нет сети.')) })
     expect(box).toHaveValue('в четверг жмем?')
     expect(screen.queryByText('отправка…')).toBeNull()
@@ -198,6 +198,63 @@ describe('CommentThread', () => {
     setOnline(false)
     rerender(<CommentThread workoutId="w1" ownerId="other" comments={[c('a', 'x', { like_count: 3, liked: true })]} me={me} open onOpen={vi.fn()} />)
     expect(screen.getByRole('button', { name: 'Убрать лайк' })).toHaveTextContent('3')
+  })
+
+  it('ответ: «Ответить» только у чужого; из свернутой ветки — раскрывает', () => {
+    const onOpen = vi.fn()
+    renderThread({ comments: [c('a', 'x'), c('b', 'me')], onOpen })
+    expect(screen.queryByRole('button', { name: 'Ответить: Илья' })).toBeNull()
+    fireEvent.click(screen.getByRole('button', { name: 'Ответить: Имя-a' }))
+    expect(onOpen).toHaveBeenCalled()
+  })
+
+  it('ответ: отправка уходит с исходным, полоска пропадает, у новой строки цитата', async () => {
+    let done
+    postComment.mockReturnValue(new Promise((res) => { done = res }))
+    renderThread({ open: true, comments: [c('a', 'x')] })
+    fireEvent.click(screen.getByRole('button', { name: 'Ответить: Имя-a' }))
+    expect(screen.getByText('Ответ: Имя-a')).toBeInTheDocument()
+    const box = screen.getByRole('textbox', { name: 'Комментарий' })
+    expect(box).toHaveFocus()
+    expect(box).toHaveAttribute('placeholder', 'Написать ответ')
+    fireEvent.change(box, { target: { value: 'спасибо!' } })
+    fireEvent.click(screen.getByRole('button', { name: 'Отправить' }))
+    expect(postComment).toHaveBeenCalledWith(expect.objectContaining({ text: 'спасибо!', replyTo: expect.objectContaining({ id: 'a' }) }))
+    expect(screen.queryByText('Ответ: Имя-a')).toBeNull()
+    // цитата у отправляемой строки: имя и начало исходного
+    expect(document.querySelector('.cm-quote')).toHaveTextContent('Имя-aтекст a')
+    await act(async () => { done(c('n', 'me')) })
+  })
+
+  it('ответ: ошибка — текст и адресат вернулись; ✕ — отмена ответа', async () => {
+    postComment.mockRejectedValue(new Error('Нет сети.'))
+    renderThread({ open: true, comments: [c('a', 'x')] })
+    fireEvent.click(screen.getByRole('button', { name: 'Ответить: Имя-a' }))
+    fireEvent.change(screen.getByRole('textbox', { name: 'Комментарий' }), { target: { value: 'ну' } })
+    fireEvent.click(screen.getByRole('button', { name: 'Отправить' }))
+    await waitFor(() => expect(showToast).toHaveBeenCalled())
+    expect(screen.getByText('Ответ: Имя-a')).toBeInTheDocument()
+    expect(screen.getByRole('textbox', { name: 'Комментарий' })).toHaveValue('ну')
+    fireEvent.click(screen.getByRole('button', { name: 'Отменить ответ' }))
+    expect(screen.queryByText('Ответ: Имя-a')).toBeNull()
+  })
+
+  it('цитата с сервера: исходный в ветке — имя и текст, удален — только имя', () => {
+    renderThread({ open: true, comments: [
+      c('a', 'x'),
+      c('r1', 'y', { reply_to: 'a', reply_to_user: 'x', reply_to_name: 'Имя-a' }),
+      c('r2', 'y', { reply_to: null, reply_to_user: 'z', reply_to_name: 'Ушедший' }),
+    ] })
+    const quotes = document.querySelectorAll('.cm-quote')
+    expect(quotes).toHaveLength(2)
+    expect(quotes[0]).toHaveTextContent('Имя-aтекст a')
+    expect(quotes[1]).toHaveTextContent('Ушедший')
+  })
+
+  it('без сети «Ответить» нет', () => {
+    setOnline(false)
+    renderThread({ open: true, comments: [c('a', 'x')] })
+    expect(screen.queryByRole('button', { name: 'Ответить: Имя-a' })).toBeNull()
   })
 
   it('❤️ ошибка — откат и тост', async () => {

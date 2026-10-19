@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
 import {
-  canDeleteComment, canEditComment, canLikeComment, toggleLike, cleanBody, commentAgo, groupComments, normComment, previewComments, upsertComment,
+  canDeleteComment, canEditComment, canLikeComment, canReplyComment, replyQuote, toggleLike, cleanBody, commentAgo, groupComments, normComment, previewComments, upsertComment,
 } from './comments.js'
 
 const row = (id, at, extra = {}) => ({
@@ -72,5 +72,26 @@ describe('comments', () => {
     expect(toggleLike({ like_count: 3, liked: true }, false)).toEqual({ like_count: 2, liked: false })
     expect(toggleLike({ like_count: 0, liked: true }, false)).toEqual({ like_count: 0, liked: false })
     expect(toggleLike({ like_count: 1, liked: true }, true)).toEqual({ like_count: 1, liked: true })
+  })
+
+  it('ответ: поля с сервера, кому можно ответить, цитата', () => {
+    expect(normComment(row('c1', '2026-10-19T10:00:00Z'))).toMatchObject({ reply_to: null, reply_to_user: null, reply_to_name: null })
+    expect(normComment(row('c2', '2026-10-19T10:00:00Z', { reply_to: 'c1', reply_to_user: 'u2', reply_to_name: ' Борис ' })))
+      .toMatchObject({ reply_to: 'c1', reply_to_user: 'u2', reply_to_name: 'Борис' })
+    expect(canReplyComment({ user_id: 'x' }, 'me')).toBe(true)
+    expect(canReplyComment({ user_id: 'me' }, 'me')).toBe(false)
+    expect(canReplyComment({ user_id: 'x' }, null)).toBe(false)
+
+    const orig = { id: 'c1', name: 'Борис', body: `очень   длинный\n${'а'.repeat(80)}` }
+    const reply = { id: 'c2', reply_to: 'c1', reply_to_user: 'u2', reply_to_name: 'Боря (старое)' }
+    const q = replyQuote(reply, [orig, reply])
+    expect(q.name).toBe('Борис')
+    expect(q.text.startsWith('очень длинный а')).toBe(true)
+    expect(q.text.endsWith('…')).toBe(true)
+    expect(q.text.length).toBe(60)
+    // исходный удален — только имя; адресат скрыт или не ответ — без цитаты
+    expect(replyQuote({ ...reply, reply_to: null }, [])).toEqual({ name: 'Боря (старое)', text: null })
+    expect(replyQuote({ ...reply, reply_to: null, reply_to_name: null }, [])).toBeNull()
+    expect(replyQuote({ id: 'c3' }, [orig])).toBeNull()
   })
 })

@@ -1914,6 +1914,20 @@ button.cm-name { cursor: pointer; }
 .cm-like.on { color: var(--acc-2); }
 .cm-like.on svg { fill: currentColor; }
 .cm-edited { font-size: 12px; color: var(--muted); white-space: nowrap; }
+/* Ответ (comment_reply): цитата исходного над текстом — полоска акцента слева, имя и начало одной строкой. */
+.cm-quote {
+  display: flex; gap: 6px; min-width: 0; margin-top: 3px; padding: 2px 0 2px 8px; border-left: 2px solid var(--acc);
+  font-size: 13px; line-height: 1.35;
+}
+.cm-quote-name { flex: none; max-width: 50%; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; color: var(--acc-2); font-weight: 600; }
+.cm-quote-text { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; color: var(--muted); }
+/* «Ответить» под текстом: мелкой ссылкой, зона тапа 44px — невидимым слоем, строка от нее не растет. */
+.cm-reply-btn {
+  position: relative; display: inline-flex; align-items: center; min-height: 24px; margin: 2px 0 -4px -6px; padding: 0 6px;
+  background: none; border: 0; border-radius: 8px; color: var(--muted); font: inherit; font-size: 12px; font-weight: 600; cursor: pointer;
+}
+.cm-reply-btn::before { content: ''; position: absolute; inset: -10px 0; }
+.cm-reply-btn:active { background: var(--surface-2); }
 /* Полоска «Изменяешь комментарий ✕» над полем в режиме правки. */
 .cm-editing {
   display: flex; align-items: center; gap: 8px; margin-top: 6px; padding-left: 14px; font-size: 13px; color: var(--acc-2);
