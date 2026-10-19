@@ -4,11 +4,12 @@ import { fireEvent, render, screen } from '@testing-library/react'
 import PushTypes from './PushTypes.jsx'
 
 describe('PushTypes', () => {
-  it('v7.1.4: все пять тумблеров сразу, без аккордеона', () => {
+  it('v7.1.4: все тумблеры сразу, без аккордеона (с комментариями — шесть)', () => {
     render(<PushTypes prefs={{}} onChange={() => {}} />)
     expect(screen.queryByRole('button', { name: /Какие присылать/ })).toBeNull()
     expect(screen.getByRole('group', { name: /Какие уведомления/ })).toBeInTheDocument()
-    expect(screen.getAllByRole('switch')).toHaveLength(5)
+    expect(screen.getAllByRole('switch')).toHaveLength(6)
+    expect(screen.getByRole('switch', { name: /Комментарии/ })).toHaveAttribute('aria-checked', 'true')
   })
 
   it('по умолчанию все включено, выключенное — выключено', () => {
