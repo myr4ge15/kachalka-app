@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { keyboardLift } from './keyboardLift.js'
+import { keyboardAlign, keyboardLift, keyboardOpen } from './keyboardLift.js'
 
 describe('keyboardLift', () => {
   const vv = { offsetTop: 0, height: 400 } // клавиатура съела низ экрана
@@ -21,5 +21,26 @@ describe('keyboardLift', () => {
   })
   it('нет visualViewport — 0', () => {
     expect(keyboardLift({ top: 600, bottom: 660 }, null)).toBe(0)
+  })
+})
+
+describe('keyboardAlign (fb_5b764337)', () => {
+  const vv = { offsetTop: 0, height: 400 } // видно 0..388 (зазор 12)
+  it('карточка уехала слишком высоко — опускаем низ к клавиатуре', () => {
+    expect(keyboardAlign({ bottom: 300 }, { top: 220 }, vv)).toBe(-88)
+  })
+  it('низ под клавиатурой — поднимаем ровно до нее', () => {
+    expect(keyboardAlign({ bottom: 600 }, { top: 520 }, vv)).toBe(212)
+  })
+  it('уже ровно — 0', () => {
+    expect(keyboardAlign({ bottom: 388 }, { top: 300 }, vv)).toBe(0)
+  })
+  it('поле не уходит под шапку', () => {
+    expect(keyboardAlign({ bottom: 900 }, { top: 100 }, vv, { topInset: 70 })).toBe(30)
+  })
+  it('keyboardOpen: сжат только visualViewport', () => {
+    expect(keyboardOpen({ height: 400 }, 793)).toBe(true)
+    expect(keyboardOpen({ height: 793 }, 793)).toBe(false)
+    expect(keyboardOpen(null, 793)).toBe(false)
   })
 })

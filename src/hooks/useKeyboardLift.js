@@ -1,11 +1,13 @@
 import { useCallback, useEffect, useRef } from 'react'
-import { keyboardLift } from '../lib/keyboardLift.js'
+import { keyboardAlign, keyboardLift, keyboardOpen } from '../lib/keyboardLift.js'
 
 // Поле над экранной клавиатурой (19.10.2026, fb_9e892d66: тап по 💬 ставил курсор в поле
 // комментария, а клавиатура его закрывала). Вешается на onFocus поля: пока клавиатура
 // выезжает (visualViewport resize, ~1 с), поднимаем ближайший скроллер так, чтобы блок
 // boxRef (поле + кнопка) был над ней. Без visualViewport (десктоп) — ничего не делает.
 // Сверху не уводим под липкую шапку (.topbar).
+// Клавиатура открыта (fb_5b764337) — низ карточки (.card вокруг поля) встает ровно над ней, в обе стороны:
+// центрирование ветки поднимало поле к середине экрана, а под карточкой оставалась пустая полоса.
 export function useKeyboardLift(boxRef) {
   const stop = useRef(null)
   useEffect(() => () => stop.current?.(), [])
@@ -20,7 +22,11 @@ export function useKeyboardLift(boxRef) {
       const scroller = box?.closest('.content') ?? document.scrollingElement
       if (!box || !scroller) return
       const topInset = Math.max(0, (document.querySelector('.topbar')?.getBoundingClientRect().bottom ?? 0) - vv.offsetTop)
-      const d = keyboardLift(box.getBoundingClientRect(), vv, { topInset })
+      const field = box.getBoundingClientRect()
+      const card = box.closest('.card')
+      const d = card && keyboardOpen(vv, window.innerHeight)
+        ? keyboardAlign(card.getBoundingClientRect(), field, vv, { topInset })
+        : keyboardLift(field, vv, { topInset })
       if (d) scroller.scrollBy({ top: d })
     }
     const settle = () => { clearTimeout(timer); timer = setTimeout(lift, 120) }
