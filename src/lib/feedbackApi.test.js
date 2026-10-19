@@ -248,7 +248,7 @@ describe('несколько скриншотов', () => {
     expect([p1.slice(-4), t1, p2.slice(-4), t2]).toEqual(['.mp4', 'video/mp4', '.mov', 'video/quicktime'])
     uploadVideo.mockClear()
     const big = new File(['v'], 'big.mp4', { type: 'video/mp4' })
-    Object.defineProperty(big, 'size', { value: 21 * 1024 * 1024 })
+    Object.defineProperty(big, 'size', { value: 51 * 1024 * 1024 })
     await expect(submitFeedback('me', { body: 'баг', files: [big], uploadVideo })).rejects.toMatchObject({ code: 'video_too_big' })
     await expect(submitFeedback('me', { body: 'баг', files: [new File(['v'], 'a.webm', { type: 'video/webm' })], uploadVideo }))
       .rejects.toMatchObject({ code: 'video_format' })

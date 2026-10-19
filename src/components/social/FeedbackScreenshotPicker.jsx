@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState } from 'react'
-import { FEEDBACK_SHOTS_MAX, attachmentProblem, feedbackErrorText, fmtFileSize, isVideoFile, videoPosterSrc } from '../../lib/feedback.js'
+import { FEEDBACK_SHOTS_MAX, attachmentProblemText, fmtFileSize, isVideoFile, videoPosterSrc } from '../../lib/feedback.js'
 
-// Вложения обращения: скриншоты и (16.10, fb_1c5fab9c) видео MP4/MOV до 20 МБ — всего до max.
+// Вложения обращения: скриншоты и (16.10, fb_1c5fab9c) видео MP4/MOV до 50 МБ — всего до max.
 
 export default function FeedbackScreenshotPicker({ files, onChange, disabled, max = FEEDBACK_SHOTS_MAX, testId = 'fb-file' }) {
   const input = useRef(null)
@@ -15,8 +15,8 @@ export default function FeedbackScreenshotPicker({ files, onChange, disabled, ma
   function pick(e) {
     const picked = Array.from(e.target.files ?? [])
     e.target.value = ''
-    const bad = picked.map(attachmentProblem).find(Boolean)
-    if (bad) { setError(feedbackErrorText(bad)); return }
+    const bad = picked.map(attachmentProblemText).find(Boolean)
+    if (bad) { setError(bad); return }
     if (files.length + picked.length > max) { setError('Можно добавить еще ' + Math.max(0, max - files.length) + ' вложений.'); return }
     setError(''); onChange([...files, ...picked])
   }

@@ -9,9 +9,12 @@ export const FEEDBACK_SHOTS_MAX = 5
 
 export const FEEDBACK_MAX = 2000
 
-// Видео к обращению (16.10, fb_1c5fab9c): MP4/MOV до 20 МБ — больше бот не скачает обратно
-// (Telegram getFile). Лежит в том же списке вложений, что и скриншоты (всего до 5), без сжатия.
-export const FEEDBACK_VIDEO_MAX_BYTES = 20 * 1024 * 1024
+// Видео к обращению (16.10, fb_1c5fab9c): MP4/MOV, лежит в том же списке вложений, что и скриншоты
+// (всего до 5), без сжатия. Предел — 50 МБ (19.10, fb_2bd2021d): столько бот отправляет в Telegram.
+// Было 20 МБ (столько бот скачивает обратно), но iPhone при выборе из «Фото» перекодирует HEVC-запись
+// экрана в H.264, и 12,9 МБ в «Фото» приходили файлом больше 20 МБ. Видео больше 20 МБ разработчик
+// получает в Telegram, а в приложении его плитка остается недоступной (getFile отдает до 20 МБ).
+export const FEEDBACK_VIDEO_MAX_BYTES = 50 * 1024 * 1024
 const VIDEO_TYPES = { 'video/mp4': 'mp4', 'video/quicktime': 'mov' }
 // Расширение пути в Storage: 'mp4' | 'mov' для видео, null — не видео (или формат не тот).
 export function videoExt(file) {
@@ -39,6 +42,14 @@ export const clearVideoMedia = () => { videoUrls.clear() }
 // iPhone не рисует кадр <video preload=metadata> из blob-ссылки — плитка черная, и непонятно, приложилось ли
 // видео (fb_59c95046). Фрагмент #t=0.1 просит Safari показать кадр с этой секунды.
 export const videoPosterSrc = (url) => (url ? url + '#t=0.1' : url)
+// Текст отказа во вложении: у слишком большого видео — его настоящий размер, который отдал телефон
+// (fb_2bd2021d: «в смысле больше 20 МБ?» — в «Фото» было 12,9 МБ).
+export function attachmentProblemText(file) {
+  const code = attachmentProblem(file)
+  if (code !== 'video_too_big') return code ? feedbackErrorText(code) : ''
+  return 'Видео ' + fmtFileSize(file.size) + ' — больше 50 МБ. iPhone при отправке пересжимает запись,'
+    + ' и она выходит больше, чем в «Фото». Обрежь ее или запиши покороче.'
+}
 // «2,3 МБ» — подпись видео в форме.
 export function fmtFileSize(bytes) {
   const mb = Number(bytes) / (1024 * 1024)
@@ -259,7 +270,7 @@ export function feedbackErrorText(code) {
     case 'shot_failed': return 'Не удалось загрузить скриншот. Попробуй без него или другой файл.'
     case 'shot_format': return 'Можно приложить картинки или видео (MP4, MOV).'
     case 'video_format': return 'Видео — только MP4 или MOV (как снимает телефон).'
-    case 'video_too_big': return 'Видео больше 20 МБ — обрежь его или запиши покороче.'
+    case 'video_too_big': return 'Видео больше 50 МБ — обрежь его или запиши покороче.'
     case 'video_failed': return 'Не удалось загрузить видео. Попробуй еще раз или запиши покороче.'
     case 'upload_stalled': return 'Видео не загрузилось: связь слишком слабая. Попробуй на Wi-Fi или запиши покороче.'
     case 'reopen_limit': return `Обращение уже открывали снова ${REOPEN_LIMIT} раза — напиши новое.`
