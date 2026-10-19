@@ -55,3 +55,42 @@ export function syncBadgeState({ online, syncing, pending = 0, dead = 0, netErro
 export function syncBadgeQuiet(state, { pending = 0, dead = 0 } = {}) {
   return state.cls === 'ok' || (state.icon === 'syncing' && pending === 0 && dead === 0)
 }
+
+// Что не так — по тапу на бейдж (fb_dbdf463c: «как понять, что не так?»). Бейдж был просто
+// картинкой, `title` на телефоне не всплывает, а текст ошибки синка нигде не показывался —
+// розовое облако одинаково выглядело и при обрыве сети, и при слетевшей сессии.
+// Возвращает { emoji, title, sub, action } для тоста; action: 'retry' | 'profile' | null.
+export function syncBadgeHelp(state, { online = true, pending = 0, dead = 0, lastError = null } = {}) {
+  if (!online) {
+    return {
+      emoji: '📴', title: 'Нет сети', action: null,
+      sub: pending > 0
+        ? `Изменений в очереди: ${pending}. Отправятся сами, когда появится связь.`
+        : 'Все записывается на телефон и отправится, когда появится связь.',
+    }
+  }
+  if (state.icon === 'pending') {
+    return { emoji: '⏳', title: `Ждут отправки: ${pending}`, sub: 'Уйдут сами в течение минуты.', action: 'retry' }
+  }
+  if (state.cls === 'warn') {
+    return {
+      emoji: '⚠️', title: `Не отправилось: ${dead}`, action: 'profile',
+      sub: 'Сервер не принял эти изменения. В Профиле их можно повторить или отменить.',
+    }
+  }
+  if (state.cls === 'offline') {
+    return { emoji: '📡', title: 'Не получилось связаться с сервером', sub: syncErrorText(lastError), action: 'retry' }
+  }
+  return null
+}
+
+// Текст последней ошибки синка — по-человечески. Русский текст sync.js пишет сам
+// (сессия, вход) — его показываем как есть; техничный — коротким пояснением.
+export function syncErrorText(lastError) {
+  const e = String(lastError ?? '').trim()
+  if (!e) return 'Проверь интернет. Данные на телефоне целы — отправятся, когда связь вернется.'
+  if (/[а-яё]/i.test(e)) return e
+  if (/timeout|timed out|abort/i.test(e)) return 'Сервер не ответил вовремя — бывает при слабой сети. Данные на телефоне целы.'
+  if (/fetch|network|load failed|offline/i.test(e)) return 'Нет связи с сервером — проверь интернет. Данные на телефоне целы.'
+  return `Сервер ответил ошибкой: ${e.length > 80 ? e.slice(0, 79) + '…' : e}`
+}

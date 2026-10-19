@@ -242,9 +242,13 @@ select, textarea { font-variant-numeric: inherit; font-feature-settings: inherit
    что чинить). Без текста бейдж почти круглый. */
 .sync-badge {
   display: inline-flex; align-items: center; gap: 5px;
-  font-size: 12px; line-height: 1; padding: 5px 8px; border-radius: 999px;
+  font: inherit; font-size: 12px; line-height: 1; padding: 5px 8px; border-radius: 999px;
   margin-right: 12px; white-space: nowrap; border: 1px solid var(--border);
+  cursor: pointer; position: relative;
 }
+/* Бейдж — кнопка «что не так» (fb_dbdf463c): зона тапа шире самого кружка, до 44 px. */
+.sync-badge::before { content: ''; position: absolute; inset: -9px -6px; }
+.sync-badge:active { transform: scale(var(--press-scale)); }
 /* Текст только для скринридера (аудит 16.10: статус синка без видимого бейджа в норме). */
 .sr-only {
   position: absolute; width: 1px; height: 1px; padding: 0; margin: -1px; overflow: hidden;

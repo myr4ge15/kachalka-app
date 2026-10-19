@@ -1,6 +1,7 @@
 // Статус синхронизации + колокольчик (шапка и сайдбар; вынесено из App.jsx, v6.14.1).
-import { useSyncStatus } from '../../db/sync.js'
-import { syncBadgeQuiet, syncBadgeState } from '../../lib/syncStatus.js'
+import { syncNow, useSyncStatus } from '../../db/sync.js'
+import { syncBadgeHelp, syncBadgeQuiet, syncBadgeState } from '../../lib/syncStatus.js'
+import { showToast } from '../ui/Toast.jsx'
 import { useSpinPhase } from '../../hooks/useSpinPhase.js'
 
 // Иконка состояния синхронизации — инлайн-SVG (без зависимостей), как TabIcon.
@@ -28,9 +29,10 @@ function SyncIcon({ name }) {
   return <svg {...p}><path d="M12 4l9 16H3z" /><path d="M12 10v4" /><path d="M12 17h.01" /></svg>
 }
 
-// Индикатор состояния синхронизации в шапке.
-function SyncBadge() {
-  const { online, syncing, pending, dead, netError } = useSyncStatus()
+// Индикатор состояния синхронизации в шапке. Тап — тост «что не так» и действие
+// (повторить / в Профиль к застрявшим), fb_dbdf463c.
+function SyncBadge({ userId, onOpenProfile }) {
+  const { online, syncing, pending, dead, netError, lastError } = useSyncStatus()
   // Класс/иконка/текст — чистой логикой (см. lib/syncStatus.js). Иконка есть всегда,
   // текст — только когда есть что чинить (очередь/офлайн/застряло). Застрявшие
   // изменения (dead) делают бейдж предупреждающим, а не «синхронизировано», пока
@@ -40,20 +42,30 @@ function SyncBadge() {
   const { cls, icon, text, title } = state
   // В норме — без бейджа (аудит 16.10); статус остается для скринридера.
   if (syncBadgeQuiet(state, { pending, dead })) return <span className="sr-only" role="status">{title}</span>
+  const help = syncBadgeHelp(state, { online, pending, dead, lastError })
+  const explain = () => {
+    if (!help) return
+    const act = help.action === 'retry' && userId
+      ? { actionLabel: 'Повторить', onAction: () => { syncNow(userId) } }
+      : help.action === 'profile' && onOpenProfile ? { actionLabel: 'Открыть', onAction: onOpenProfile } : {}
+    showToast({ emoji: help.emoji, title: help.title, sub: help.sub, duration: 6000, kind: 'sync-help', ...act })
+  }
   return (
-    <span className={`sync-badge ${cls}`} role="status" aria-label={title} title={title}>
+    <button type="button" className={`sync-badge ${cls}`} onClick={explain}
+      aria-label={`${title}. Что не так?`} title={title}>
+      <span className="sr-only" role="status">{title}</span>
       <SyncIcon name={icon} />
       {text && <span className="sync-badge-txt">{text}</span>}
-    </span>
+    </button>
   )
 }
 
 // Статус синхронизации + колокольчик уведомлений — единый блок. Живет и в шапке
 // (мобайл), и в сайдбаре (десктоп); раньше разметка колокольчика дублировалась.
-export default function SyncTools({ unread, onOpenNotif }) {
+export default function SyncTools({ unread, onOpenNotif, userId, onOpenProfile }) {
   return (
     <>
-      <SyncBadge />
+      <SyncBadge userId={userId} onOpenProfile={onOpenProfile} />
       <button
         className={'bell' + (unread > 0 ? ' has' : '')}
         onClick={onOpenNotif}

@@ -330,7 +330,7 @@ export default function App() {
           <Avatar name={user.name} url={myCached?.avatar_url} className="avatar-sm" />
           {user.name}
         </button>
-        <SyncTools unread={unread} onOpenNotif={openNotif} />
+        <SyncTools unread={unread} onOpenNotif={openNotif} userId={user.id} onOpenProfile={() => goTab('profile')} />
       </header>
 
       <main className="content" ref={contentRef}>
@@ -515,7 +515,7 @@ export default function App() {
           {/* Статус синка + колокольчик уведомлений на десктопе живут здесь
               (шапка на десктопе скрыта). На мобиле этот блок скрыт — они в шапке. */}
           <div className="side-tools">
-            <SyncTools unread={unread} onOpenNotif={openNotif} />
+            <SyncTools unread={unread} onOpenNotif={openNotif} userId={user.id} onOpenProfile={() => goTab('profile')} />
           </div>
           <button
             className={'side-profile' + (tab === 'profile' ? ' active' : '')}

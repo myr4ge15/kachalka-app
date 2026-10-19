@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest'
-import { syncBadgeQuiet, syncBadgeState } from './syncStatus.js'
+import { syncBadgeHelp, syncBadgeQuiet, syncBadgeState, syncErrorText } from './syncStatus.js'
 
 describe('syncBadgeState', () => {
   it('офлайн без очереди — иконка облака, без текста', () => {
@@ -119,5 +119,38 @@ describe('syncBadgeQuiet — бейдж только при проблеме (а
     expect(q({ online: true, syncing: true, pending: 2 })).toBe(false)
     expect(q({ online: true, syncing: false, dead: 1 })).toBe(false)
     expect(q({ online: true, syncing: false, netError: true })).toBe(false)
+  })
+})
+
+describe('syncBadgeHelp — что не так, по тапу на бейдж (fb_dbdf463c)', () => {
+  const help = (st, extra = {}) => syncBadgeHelp(syncBadgeState(st), { ...st, ...extra })
+
+  it('офлайн — без действия, с очередью', () => {
+    expect(help({ online: false, pending: 2 })).toMatchObject({ title: 'Нет сети', action: null })
+    expect(help({ online: false, pending: 2 }).sub).toContain('2')
+  })
+
+  it('очередь — «Повторить», застрявшие — в Профиль', () => {
+    expect(help({ online: true, pending: 3 })).toMatchObject({ action: 'retry' })
+    expect(help({ online: true, dead: 1 })).toMatchObject({ title: 'Не отправилось: 1', action: 'profile' })
+  })
+
+  it('сбой прогона — причина из lastError и «Повторить»', () => {
+    const h = help({ online: true, netError: true }, { lastError: 'Сессия завершена на сервере — войди заново' })
+    expect(h).toMatchObject({ action: 'retry', sub: 'Сессия завершена на сервере — войди заново' })
+  })
+
+  it('в норме подсказки нет', () => {
+    expect(help({ online: true })).toBeNull()
+  })
+})
+
+describe('syncErrorText', () => {
+  it('русский текст — как есть, технический — по-человечески', () => {
+    expect(syncErrorText('Нет входа на сервере')).toBe('Нет входа на сервере')
+    expect(syncErrorText('TimeoutError: timed out after 15000ms')).toMatch(/не ответил вовремя/)
+    expect(syncErrorText('TypeError: Load failed')).toMatch(/Нет связи/)
+    expect(syncErrorText('')).toMatch(/Проверь интернет/)
+    expect(syncErrorText('x'.repeat(200)).length).toBeLessThan(110)
   })
 })

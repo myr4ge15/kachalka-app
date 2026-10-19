@@ -124,7 +124,10 @@ export default function HomeScreen({ user, onNavigate, onNewWorkout, onOpenProgr
   // но все восстановились»). Про давность говорит только ветка «пора проработать».
   const rec = freshness?.recovery ?? []
   const strip = [...rec].sort((a, b) => canonIdx(a.group) - canonIdx(b.group))
-  const allReady = strip.length > 0 && strip.every((f) => readinessStatus(f) === 'ready')
+  // «Все отдохнуло» — по оси восстановления (fb_9376ae43): группа, которую давно не тренировали
+  // («давно», синяя), тоже отдохнула — полоска с одной синей ничего не добавляет к подсказке
+  // «Пора проработать …» ниже. Раньше синяя держала полоску развернутой.
+  const allReady = strip.length > 0 && strip.every((f) => f.state === 'ready')
   const lead = recoveryLead(rec)
   const cardioDays = freshness?.cardio ?? null // v7.5.6: кардио — отдельной строкой, не «мышцей»
 

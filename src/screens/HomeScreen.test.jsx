@@ -141,4 +141,25 @@ describe('HomeScreen', () => {
     fireEvent.click(screen.getByRole('button', { name: '+ Записать тренировку' }))
     expect(onNewWorkout).toHaveBeenCalledOnce()
   })
+
+  it('все отдохнуло, одна группа «давно» — полоска свернута, подсказка остается (fb_9376ae43)', () => {
+    const g = (group, extra = {}) => ({ group, state: 'ready', bucket: 'fresh', daysSince: 3, ...extra })
+    vi.mocked(useLiveQuery).mockReturnValue({
+      ...readyHome,
+      freshness: { recovery: [g('грудь'), g('спина'), g('трапеции', { bucket: 'overdue', daysSince: 14 })] },
+    })
+    const { container, unmount } = render(<HomeScreen user={user} />)
+    expect(screen.getByText('Все группы готовы к нагрузке')).toBeInTheDocument()
+    expect(container.querySelector('.fr-strip')).toBeNull()
+    expect(screen.getByText(/трапеции/)).toBeInTheDocument()
+    unmount()
+
+    // группа еще отдыхает — полоска нужна
+    vi.mocked(useLiveQuery).mockReturnValue({
+      ...readyHome,
+      freshness: { recovery: [g('грудь', { state: 'resting', daysSince: 1 }), g('спина')] },
+    })
+    const again = render(<HomeScreen user={user} />)
+    expect(again.container.querySelector('.fr-strip')).not.toBeNull()
+  })
 })
