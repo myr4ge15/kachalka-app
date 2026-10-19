@@ -24,7 +24,7 @@
 
 export const WHATS_NEW = [
   {
-    version: '9.5.11',
+    version: '9.6.0',
     date: '2026-10-19',
     headline: 'Комментарии под тренировками',
     main: [

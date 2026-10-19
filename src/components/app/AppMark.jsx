@@ -1,3 +1,5 @@
+import { IS_BETA } from '../../lib/appVersion.js'
+
 // Знак приложения — одна штанга везде (иконка на экране «Домой», сплэш
 // index.html #splash, вход/регистрация, бренд боковой колонки ПК).
 // v6.16.0 — общий компонент для входа и регистрации; v7.1.4 — глиф вынесен
@@ -15,10 +17,12 @@ export function AppMarkGlyph({ width, height }) {
   )
 }
 
+// На бете (VITE_BETA=1) под знаком — пометка «БЕТА»: вход и регистрация копии не путаются с приложением друзей.
 export default function AppMark() {
   return (
     <div className="login-mark" aria-hidden="true">
       <AppMarkGlyph width="84" height="51" />
+      {IS_BETA && <span className="beta-badge">БЕТА</span>}
     </div>
   )
 }

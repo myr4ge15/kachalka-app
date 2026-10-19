@@ -459,6 +459,7 @@ select, textarea { font-variant-numeric: inherit; font-feature-settings: inherit
 /* Знак как на сплэше: блины — акцент, гриф — светлый. */
 .login-mark svg { display: block; fill: currentColor; }
 .login-mark .app-mark-bar { fill: var(--text); }
+.login-mark .beta-badge { margin: 12px 0 0; }
 .user-list { display: flex; flex-direction: column; gap: 8px; margin-top: 18px; text-align: left; }
 .user-btn {
   display: flex; align-items: center; gap: 12px; min-height: 56px; padding: 10px 16px;
