@@ -1,6 +1,6 @@
 import { describe, expect, it, vi } from 'vitest'
 import {
-  TRIED_KEY, downloadProgress, parsePrecacheManifest, precacheKey, reloadForUpdatePush, runLaunchUpdate,
+  RESUME_KEY, TRIED_KEY, downloadProgress, parsePrecacheManifest, precacheKey, reloadForUpdatePush, runLaunchUpdate,
 } from './launchUpdate.js'
 
 const SW_TEXT = 'e.precacheAndRoute([{url:"index.html",revision:"abc"},{url:"assets/app-1.js",revision:null},{url:"assets/app-1.css",revision:null}],{})'
@@ -154,6 +154,17 @@ describe('reloadForUpdatePush', () => {
     expect(await reloadForUpdatePush(args)).toBe('composer')
     expect(args.fetchFn).not.toHaveBeenCalled()
     expect(args.reload).not.toHaveBeenCalled()
+  })
+
+  it('возврат из фона — перезагрузка одна на версию за сессию, флаг сплэша не трогаем', async () => {
+    const { store, args } = base({ resume: true })
+    expect(await reloadForUpdatePush(args)).toBe('reload')
+    expect(store.get(RESUME_KEY)).toBe('1.1.0')
+    expect(store.get(TRIED_KEY)).toBe('1.1.0')
+    expect(await reloadForUpdatePush(args)).toBe('tried')
+    expect(args.reload).toHaveBeenCalledTimes(1)
+    args.fetchFn = fetchVer('1.2.0') // вышла еще одна — снова можно
+    expect(await reloadForUpdatePush(args)).toBe('reload')
   })
 
   it('версия та же, сервер не ответил, офлайн — остаемся', async () => {

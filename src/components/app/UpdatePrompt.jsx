@@ -3,6 +3,7 @@ import { useRegisterSW } from 'virtual:pwa-register/react'
 import { onOnline, onResume } from '../../lib/appEvents.js'
 import { shouldReshowUpdate, makeReloadOnce, isRealUpdate, shouldAutoApply, shouldSurfaceWaiting } from '../../lib/pwaUpdate.js'
 import { pushIntentFromUrl } from '../../lib/pushIntent.js'
+import { reloadForUpdatePush } from '../../lib/launchUpdate.js'
 
 // Открыли нажатием на пуш «вышла новая версия»? Читаем адрес в момент монтирования:
 // App убирает `?push=` из адреса только в эффекте, позже первого рендера.
@@ -171,9 +172,23 @@ export default function UpdatePrompt() {
       if (navigator.onLine) updateAndSurface(r)
     }
     const id = setInterval(check, UPDATE_CHECK_MS)
-    const offResume = onResume(check)
+    // Возврат из фона (19.10.2026): на сервере новая версия — сразу на сплэш обновления, как при
+    // запуске (lib/launchUpdate.js reloadForUpdatePush, resume). Так нажатие на пуш «Вышла версия»
+    // у свернутой PWA на iPhone ведет на загрузку, хотя само нажатие приложение не видит. Не
+    // перезагрузились (та же версия, запись тренировки, уже пробовали) — обычная проверка с плашкой.
+    let alive = true
+    const onBack = () => {
+      if (!navigator.onLine) { check(); return }
+      reloadForUpdatePush({
+        versionUrl: `${import.meta.env.BASE_URL}version.json`,
+        currentVersion: __APP_VERSION__,
+        composerOpen: document.documentElement.dataset.composer === '1',
+        resume: true,
+      }).then((r) => { if (alive && r !== 'reload') check() }, () => { if (alive) check() })
+    }
+    const offResume = onResume(onBack)
     const offOnline = onOnline(check)
-    return () => { clearInterval(id); offResume(); offOnline() }
+    return () => { alive = false; clearInterval(id); offResume(); offOnline() }
   }, [setNeedRefresh, surfaceWaiting, updateAndSurface])
 
   // Плашка поднялась — прежде чем показывать, убедимся, что на сервере правда

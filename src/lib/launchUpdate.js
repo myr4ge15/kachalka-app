@@ -176,7 +176,15 @@ export async function runLaunchUpdate({
 // Флаг «уже пробовали эту версию» снимаем: нажатие — явное согласие; петли нет — перезагрузка
 // идет на адрес без `?push=`, второй раз намерение не придет.
 // Посреди записи тренировки не перезагружаем ('composer'): там остается плашка UpdatePrompt.
-// Возвращает 'composer' | 'none' | 'reload'.
+//
+// resume: true — возврат из фона без распознанного нажатия (журнал владельца 19.10: свернутая PWA
+// на iPhone при возврате НЕ видит свежих записей SW в Cache Storage — они проявляются только после
+// холодного запуска, поэтому нажатие на пуш при развороте не узнать). Новая версия на сервере —
+// та же перезагрузка на сплэш, но одна на версию за сессию (RESUME_KEY): на слабой связи сплэш
+// отпускает внутрь без обновления, и каждый возврат не должен снова держать его до полминуты.
+// Флаг сплэша TRIED_KEY тут не трогаем. Уже пробовали — 'tried', дальше обычная плашка.
+// Возвращает 'composer' | 'none' | 'tried' | 'reload'.
+export const RESUME_KEY = 'gym_app_update_resume'
 export async function reloadForUpdatePush({
   fetchFn = typeof fetch !== 'undefined' ? fetch : null,
   storage = typeof sessionStorage !== 'undefined' ? sessionStorage : null,
@@ -186,6 +194,7 @@ export async function reloadForUpdatePush({
   // replaceState + reload, а не location.replace: адрес с #… дал бы переход по якорю без перезагрузки.
   reload = (to) => { window.history.replaceState(window.history.state, '', to); window.location.reload() },
   href = typeof window !== 'undefined' ? window.location.href : '',
+  resume = false,
 } = {}) {
   if (composerOpen) return 'composer'
   if (!fetchFn) return 'none'
@@ -195,7 +204,14 @@ export async function reloadForUpdatePush({
     if (res.ok) server = (await res.json())?.version ?? null
   } catch { /* офлайн/таймаут — остаемся, плашка догонит */ }
   if (!server || !isRealUpdate(currentVersion, server)) return 'none'
-  try { storage?.removeItem(TRIED_KEY) } catch { /* приватный режим */ }
+  if (resume) {
+    let done = null
+    try { done = storage?.getItem(RESUME_KEY) } catch { /* приватный режим */ }
+    if (done === String(server)) return 'tried'
+    try { storage?.setItem(RESUME_KEY, String(server)) } catch { /* приватный режим */ }
+  } else {
+    try { storage?.removeItem(TRIED_KEY) } catch { /* приватный режим */ }
+  }
   let target = href
   try {
     const u = new URL(href)

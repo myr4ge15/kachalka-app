@@ -19,6 +19,9 @@ vi.mock('virtual:pwa-register/react', () => ({
   },
 }))
 const resume = { fn: null }
+// Возврат из фона сначала спрашивает сплэш обновления (lib/launchUpdate.js); по умолчанию — «не на что».
+const resumeUpdate = vi.hoisted(() => ({ result: 'none' }))
+vi.mock('../../lib/launchUpdate.js', () => ({ reloadForUpdatePush: vi.fn(async () => resumeUpdate.result) }))
 vi.mock('../../lib/appEvents.js', () => ({
   onResume: (fn) => { resume.fn = fn; return () => {} },
   onOnline: () => () => {},
@@ -136,6 +139,22 @@ describe('UpdatePrompt — версия скачалась, пока прило�
 
   // 19.10.2026: применяет сплэш обновления (useAppNav → reloadForUpdatePush), плашка сама
   // не перезагружает — иначе SKIP_WAITING без экрана загрузки гонялся бы с ним.
+  // 19.10.2026: свернутая PWA на iPhone не видит нажатия на пуш — на возврате сама уходит на сплэш.
+  it('возврат в приложение с новой версией на сервере — на сплэш обновления, без плашки', async () => {
+    const { reloadForUpdatePush } = await import('../../lib/launchUpdate.js')
+    vi.mocked(reloadForUpdatePush).mockClear()
+    resumeUpdate.result = 'reload'
+    try {
+      render(<UpdatePrompt />)
+      await act(async () => { resume.fn() })
+      expect(reloadForUpdatePush).toHaveBeenCalledWith(expect.objectContaining({ resume: true, composerOpen: false }))
+      expect(screen.queryByRole('alert')).toBeNull()
+      expect(reg.update).not.toHaveBeenCalled()
+    } finally {
+      resumeUpdate.result = 'none'
+    }
+  })
+
   it('нажали пуш при открытом приложении — плашка, без тихого применения', async () => {
     render(<UpdatePrompt />)
     act(() => {
