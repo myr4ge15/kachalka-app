@@ -27,7 +27,11 @@ export function useKeyboardLift(boxRef) {
       const d = card && keyboardOpen(vv, window.innerHeight)
         ? keyboardAlign(card.getBoundingClientRect(), field, vv, { topInset })
         : keyboardLift(field, vv, { topInset })
-      if (d) scroller.scrollBy({ top: d })
+      // Абсолютная позиция, а не scrollBy (fb_17aad9f1): на iPhone прокрутку .content ведет процесс интерфейса,
+      // и пока выезжает клавиатура, iOS сам докручивает к полю, а страница еще видит старые координаты.
+      // Относительный сдвиг ложился поверх системного — экран улетал на две карточки вниз. scrollTop и rect
+      // сняты в одном замере, поэтому цель верна, а повторный расчет (resize клавиатуры) ее не удваивает.
+      if (d) scroller.scrollTo({ top: Math.max(0, scroller.scrollTop + d) })
     }
     const settle = () => { clearTimeout(timer); timer = setTimeout(lift, 120) }
     vv.addEventListener('resize', settle)
