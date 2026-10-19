@@ -1,11 +1,11 @@
 # Еженедельная сводка админу в Telegram (П10 «Моего круга», 07.10.2026): Edge tg-summary.
-# Понедельник 09:00 МСК = 06:00 UTC. Секреты репозитория: SUMMARY_URL
-# (https://<REF>.functions.supabase.co/tg-summary) и WEBHOOK_SECRET (тот же, что у tg-digest).
+# С 19.10.2026 по расписанию ее шлет pg_cron в базе (задание edge-tg-summary, пн 09:00 МСК):
+# плановые запуски GitHub опаздывали на часы, а 19.10 не случились вовсе. Здесь остался
+# только ручной запуск — повторить сводку или проверить цепочку. Секреты репозитория:
+# SUMMARY_URL (https://<REF>.functions.supabase.co/tg-summary) и WEBHOOK_SECRET.
 # Секретов нет — шаг пропускается, workflow не падает.
 name: tg-summary
 on:
-  schedule:
-    - cron: "0 6 * * 1"
   workflow_dispatch:
 # Токену репозитория здесь делать нечего: только curl с секретом.
 permissions: {}
