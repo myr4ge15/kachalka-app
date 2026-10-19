@@ -31,7 +31,13 @@ vi.mock('./WorkoutScreen.jsx', () => ({
   ),
 }))
 vi.mock('./TemplatesScreen.jsx', () => ({
-  default: () => <div data-testid="templates-screen">templates</div>,
+  default: ({ onEditingChange }) => (
+    <div data-testid="templates-screen">
+      templates
+      <button onClick={() => onEditingChange?.(true)}>открыть редактор</button>
+      <button onClick={() => onEditingChange?.(false)}>к списку шаблонов</button>
+    </div>
+  ),
 }))
 vi.mock('../lib/exportWorkout.js', () => ({ exportWorkouts: vi.fn() }))
 
@@ -120,6 +126,22 @@ describe('HistoryScreen', () => {
     expect(screen.getByTestId('workout-screen')).toHaveTextContent('new')
     await waitFor(() => expect(onConsumed).toHaveBeenCalledOnce())
     expect(onBusy).toHaveBeenCalledWith(true)
+  })
+
+  it('шаблоны: в списке «+» рабочая и спокойная, в редакторе — утоплена (19.10.2026)', () => {
+    const onBusy = vi.fn()
+    const onCalm = vi.fn()
+    render(<HistoryScreen user={user} onBusyChange={onBusy} onCalmChange={onCalm} />)
+    fireEvent.click(screen.getByRole('button', { name: /Шаблоны/ }))
+    expect(screen.getByTestId('templates-screen')).toBeInTheDocument()
+    expect(onBusy).toHaveBeenLastCalledWith(false)
+    expect(onCalm).toHaveBeenLastCalledWith(true)
+    fireEvent.click(screen.getByRole('button', { name: 'открыть редактор' }))
+    expect(onBusy).toHaveBeenLastCalledWith(true)
+    expect(onCalm).toHaveBeenLastCalledWith(false)
+    fireEvent.click(screen.getByRole('button', { name: 'к списку шаблонов' }))
+    expect(onBusy).toHaveBeenLastCalledWith(false)
+    expect(onCalm).toHaveBeenLastCalledWith(true)
   })
 
   it('после локального сохранения возвращает историю и открывает итог', async () => {

@@ -56,8 +56,11 @@ function useMediaQuery(query) {
 //   openNew            — одноразовый интент «открой сразу новую тренировку»
 //                        (плавающая «+» и кнопки Главной); гасится через
 //                        onOpenNewConsumed, чтобы не переоткрывать композер.
-//   onBusyChange(bool) — хаб ушел в под-вид (композер/деталь/шаблоны) или включил
-//                        режим выбора для экспорта: App прячет плавающую «+».
+//   onBusyChange(bool) — хаб ушел в под-вид (композер/деталь/редактор шаблона) или включил
+//                        режим выбора для экспорта: App утапливает «+» меню.
+//   onCalmChange(bool) — открыт список шаблонов (19.10.2026): «+» рабочая, но «спокойная»,
+//                        как на вложенных экранах. До этого шаблоны считались «занятым»
+//                        под-видом — наследие плавающей «+» v5, и кнопка была утоплена.
 //   openCalendar       — одноразовый интент «открой календарь» (v6.3.0): false —
 //                        нет; null — на сегодня; 'YYYY-MM-DD' — сразу этот день.
 //   onReturn()         — календарь открыт из Ритма Главной: закрытие календаря или
@@ -72,6 +75,7 @@ export default function HistoryScreen({
   onOpenCalendarConsumed,
   onReturn,
   onBusyChange,
+  onCalmChange,
   onOpenProgress,
   contentRef,
   edgeSwipeOn = false,
@@ -173,10 +177,17 @@ export default function HistoryScreen({
   // Сообщаем App, занят ли хаб собственным под-видом (тогда плавающая «+» прячется:
   // в композере она не нужна, а над баром экспорта/«Сохранить» — просто мешает).
   // На размонтировании гасим флаг, чтобы кнопка вернулась на других вкладках.
+  // Список шаблонов — не «занят» (там нечего терять), редактор шаблона — занят.
+  const [tplEditing, setTplEditing] = useState(false)
+  const tplList = selected === 'templates' && !tplEditing
   useEffect(() => {
-    onBusyChange?.(selected !== null || selectMode || finishResult !== null)
+    onBusyChange?.((selected !== null && !tplList) || selectMode || finishResult !== null)
     return () => onBusyChange?.(false)
-  }, [selected, selectMode, finishResult, onBusyChange])
+  }, [selected, tplList, selectMode, finishResult, onBusyChange])
+  useEffect(() => {
+    onCalmChange?.(tplList)
+    return () => onCalmChange?.(false)
+  }, [tplList, onCalmChange])
 
   function handleSaved(result) {
     setSelected(null)
@@ -408,6 +419,7 @@ export default function HistoryScreen({
     const tplSwipe = edgeSwipeOn && !isDesktop
     return (
       <TemplatesScreen user={user} onBack={() => setSelected(null)} contentRef={contentRef} swipeOn={tplSwipe}
+        onEditingChange={setTplEditing}
         underlay={tplSwipe ? <div className="screen">{renderHead()}{renderList()}</div> : null} />
     )
   }

@@ -213,6 +213,22 @@ describe('ExerciseCard — панель автопрогрессии', () => {
     expect(screen.getByText('Рекомендуем сегодня', { exact: false })).toBeInTheDocument()
   })
 
+  it('раскрытую вручную можно свернуть обратно (fb_cc29e75a)', () => {
+    renderCard({ ...weightEntry(), prog: prog({ applied: true }) })
+    fireEvent.click(screen.getByRole('button', { name: /^Прошлая тренировка и рекомендация/ }))
+    fireEvent.click(screen.getByRole('button', { name: 'Свернуть прошлую тренировку и рекомендацию' }))
+    expect(screen.queryByText('Рекомендуем сегодня', { exact: false })).not.toBeInTheDocument()
+  })
+
+  it('вернул подходы ровно к рекомендации — блок сам не разворачивается (fb_420182ea)', () => {
+    const entry = { ...weightEntry(), prog: prog({ applied: true }) }
+    const { rerender, cbs } = renderCard(entry)
+    expect(screen.queryByText('Рекомендуем сегодня', { exact: false })).not.toBeInTheDocument()
+    rerender(<ExerciseCard entry={{ ...entry, sets: entry.prog.recSets }} ei={0}
+      prog={{ enabled: true, byExercise: {} }} active {...cbs} />)
+    expect(screen.queryByText('Рекомендуем сегодня', { exact: false })).not.toBeInTheDocument()
+  })
+
   it('muted (стратегия off): компактная строка + шестеренка зовет onToggleProgSettings', () => {
     const entry = { ...weightEntry(), prog: prog({ muted: true, strategy: 'off' }) }
     const { cbs } = renderCard(entry)

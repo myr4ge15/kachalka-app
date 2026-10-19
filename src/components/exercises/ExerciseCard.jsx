@@ -62,9 +62,17 @@ export default function ExerciseCard({
   // подходы уже правят. Рекомендация применена, а подходы с ней разошлись (человек ввел свое) —
   // сворачиваем в одну строку, раскрыть можно тапом; шестеренка остается в строке. Не применена
   // (в т. ч. план шаблона) — блок целиком: там кнопка «Применить рекомендацию».
+  // 19.10.2026 (fb_420182ea, fb_cc29e75a): «правили» запоминается — вернул подходы ровно к
+  // рекомендации, блок больше не разворачивается сам; раскрытый вручную сворачивается стрелкой
+  // в его шапке. Отметка сбрасывается, когда рекомендация снята (откат / выключили).
   const [apOpen, setApOpen] = useState(false)
+  const [apEdited, setApEdited] = useState(false)
   const live = entry.prog && !entry.prog.muted && entry.prog.applied ? entry.prog : null
-  const apCompact = Boolean(live) && !apOpen && !live.settingsOpen && !sameSets(entry.sets, live.recSets)
+  const diverged = Boolean(live) && !sameSets(entry.sets, live.recSets)
+  if (diverged && !apEdited) setApEdited(true)
+  if (!live && (apEdited || apOpen)) { setApEdited(false); setApOpen(false) }
+  const apFoldable = Boolean(live) && apEdited
+  const apCompact = apFoldable && !apOpen && !live.settingsOpen
 
   // Свернутое упражнение доступно одной крупной кнопкой со сводкой подходов.
   if (!active) {
@@ -142,10 +150,18 @@ export default function ExerciseCard({
             </div>
           ) : (
             <>
-              <div className="ap-row">
-                <span className="ap-lbl">Прошлая</span>
-                <span className="ap-when">{daysAgoLabel(entry.prog.whenIso)}</span>
-              </div>
+              {apFoldable && !entry.prog.settingsOpen ? (
+                <button type="button" className="ap-row ap-fold" aria-expanded="true"
+                  aria-label="Свернуть прошлую тренировку и рекомендацию" onClick={() => setApOpen(false)}>
+                  <span className="ap-lbl">Прошлая</span>
+                  <span className="ap-when">{daysAgoLabel(entry.prog.whenIso)} <Chevron toggle open size={16} /></span>
+                </button>
+              ) : (
+                <div className="ap-row">
+                  <span className="ap-lbl">Прошлая</span>
+                  <span className="ap-when">{daysAgoLabel(entry.prog.whenIso)}</span>
+                </div>
+              )}
               <div className="ap-prev">
                 <SetsCells metric={metric} sets={entry.prog.prev} sep=" · " empty="" />
               </div>

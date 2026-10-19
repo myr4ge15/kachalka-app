@@ -146,6 +146,8 @@ export default function App() {
   // выбора для экспорта) — тогда FAB прячем: он там либо не нужен, либо налезает
   // на нижнюю панель («Сохранить» / бар экспорта). Хаб сообщает об этом сам.
   const [historyBusy, setHistoryBusy] = useState(false)
+  // Список шаблонов (19.10.2026): «+» там рабочая, но спокойная, как на вложенных экранах.
+  const [historyCalm, setHistoryCalm] = useState(false)
 
   // «Добро пожаловать», «Что нового» и вопрос про уведомления — hooks/useLaunchSheets.js.
   const { welcome, closeWelcome, whatsNew, closeWhatsNew, tgAsk, closeTgAsk, pushAsk, closePushAsk } = useLaunchSheets(user, historyBusy)
@@ -362,6 +364,7 @@ export default function App() {
                   onOpenCalendarConsumed={() => setCalendarIntent(false)}
                   onReturn={backToRhythm}
                   onBusyChange={setHistoryBusy}
+                  onCalmChange={setHistoryCalm}
                   onOpenProgress={openProgressFor}
                   contentRef={contentRef}
                   edgeSwipeOn={edgeSwipeOn && route === tab}
@@ -492,7 +495,7 @@ export default function App() {
             ВСЕГДА (v6.0.4, в т.ч. на вложенных роутах); когда хаб занят (композер /
             экспорт) — утоплен и неактивен, см. lib/quickAdd.js fabState. */}
         <AddFab onClick={startNewWorkout} sunk={fabState({ busy: historyBusy }) === 'sunk'}
-          calm={fabState({ busy: historyBusy, calm: isNested(tab) }) === 'calm'} />
+          calm={fabState({ busy: historyBusy, calm: isNested(tab) || historyCalm }) === 'calm'} />
         <button
           className={tab === 'feed' || tab === 'member' ? 'tab active' : 'tab'}
           onClick={() => goTab('feed')}

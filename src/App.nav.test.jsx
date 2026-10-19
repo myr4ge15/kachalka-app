@@ -316,6 +316,16 @@ describe('App: интенты «Тренировок»', () => {
     act(() => seen.history.onBusyChange(false)); await settle()
     expect(document.querySelector('.side-new')).not.toBeDisabled()
   })
+
+  it('список шаблонов — «+» рабочая, но спокойная', async () => {
+    await boot()
+    tab('Тренировки'); await settle()
+    act(() => seen.history.onCalmChange(true)); await settle()
+    expect(document.querySelector('.tab-add')).toHaveClass('tab-add--calm')
+    expect(document.querySelector('.tab-add')).not.toBeDisabled()
+    act(() => seen.history.onCalmChange(false)); await settle()
+    expect(document.querySelector('.tab-add')).not.toHaveClass('tab-add--calm')
+  })
 })
 
 describe('App: пуш при холодном старте', () => {

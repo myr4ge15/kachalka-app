@@ -171,6 +171,8 @@ export default function TemplateList({ user, onBack, onOpen }) {
         </>
       )}
 
+      {/* Резерв под бар «Скачать» внизу экрана — после списка, а не под кнопкой (fb_f0dfa756). */}
+      {selectMode && <div className="wk-save-spacer" aria-hidden="true" />}
       <ScrollTopButton />
     </div>
   )

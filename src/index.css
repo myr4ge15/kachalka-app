@@ -881,6 +881,12 @@ a.btn { display: flex; text-decoration: none; }
   padding: 0; background: none; border: 0; color: inherit; text-align: left;
 }
 .ap-compact .ap-lbl { flex: none; }
+/* Раскрытая вручную рекомендация сворачивается тапом по шапке (fb_cc29e75a). */
+.ap-fold {
+  width: 100%; min-height: 44px; margin: -10px 0 -8px; padding: 0; align-items: center;
+  background: none; border: 0; color: inherit; text-align: left; cursor: pointer;
+}
+.ap-fold .ap-when { display: inline-flex; align-items: center; gap: 4px; }
 .ap-compact .ap-prev { flex: 1; min-width: 0; margin: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .ap-actions { display: flex; align-items: center; gap: 8px; margin-top: 8px; }
 .ap-actions .ap-revert { flex: 1; text-align: left; font-size: 13px; font-weight: 600; color: var(--acc-2); padding: 10px 0; }

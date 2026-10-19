@@ -36,4 +36,11 @@ describe('ExportBar', () => {
     fireEvent.click(screen.getByRole('button', { name: '⬇ Скачать (3)' }))
     expect(h.onExport).toHaveBeenCalledTimes(1)
   })
+
+  it('резерв под бар — только у кнопки внизу; у кнопки наверху пустоты над списком нет (fb_f0dfa756)', () => {
+    const { container, rerender } = render(<ExportBar selectMode label="x" {...handlers()} />)
+    expect(container.querySelector('.wk-save-spacer')).not.toBeNull()
+    rerender(<ExportBar selectMode placement="top" label="x" {...handlers()} />)
+    expect(container.querySelector('.wk-save-spacer')).toBeNull()
+  })
 })

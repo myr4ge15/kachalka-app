@@ -1,4 +1,4 @@
-import { useLayoutEffect, useRef, useState } from 'react'
+import { useEffect, useLayoutEffect, useRef, useState } from 'react'
 import TemplateList from '../components/templates/TemplateList.jsx'
 import TemplateEditor from '../components/templates/TemplateEditor.jsx'
 import { useEdgeSwipeBack } from '../hooks/useEdgeSwipeBack.js'
@@ -18,7 +18,9 @@ import { settleScroll } from '../lib/scrollBox.js'
 //     скелетона, и вернуть позицию было бы некуда.
 //   contentRef, swipeOn — скроллер приложения и «свайп доступен» (iOS-PWA, мобайл);
 //   underlay — что показать под списком во время свайпа (список «Тренировок»).
-export default function TemplatesScreen({ user, onBack, contentRef = null, swipeOn = false, underlay = null }) {
+//   onEditingChange(bool) — открыт ли редактор (19.10.2026): «+» меню в редакторе утоплена
+//     (переход в композер выбросил бы несохраненный шаблон), в списке — рабочая.
+export default function TemplatesScreen({ user, onBack, contentRef = null, swipeOn = false, underlay = null, onEditingChange }) {
   const [editing, setEditing] = useState(null)
   const listTop = useRef(0)
   const listRef = useRef(null)
@@ -37,6 +39,11 @@ export default function TemplatesScreen({ user, onBack, contentRef = null, swipe
   useEdgeSwipeBack(contentRef, editing !== null ? editorRef : listRef, back, swipeOn)
 
   const editorOpen = editing !== null
+  useEffect(() => {
+    onEditingChange?.(editorOpen)
+    return () => onEditingChange?.(false)
+  }, [editorOpen, onEditingChange])
+
   return (
     <div className="nav-stack">
       {swipeOn && !editorOpen && underlay && (
