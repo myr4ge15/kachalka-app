@@ -12,7 +12,10 @@ name: Beta (Cloudflare Pages)
 #    приложение друзей объявляет только deploy.yml по тегу;
 #  - домен другой, значит у беты свои localStorage, IndexedDB, кэши, service worker и вход.
 #    На github.io бета делила бы все это с основным приложением (один origin).
-# Бэкенд Supabase общий: записи с беты — настоящие данные учетки, тестировать под своей.
+# Бэкенд у беты свой (19.10.2026): проект Supabase kachalka-beta со слепком прода
+# (supabase/beta/README.md в приватном репо). Его адрес, ключ и ref — секреты ОКРУЖЕНИЯ beta
+# (VITE_SUPABASE_URL/_KEY/_REF, VITE_VAPID_PUBLIC_KEY, PUSH_WEBHOOK_SECRET), они перекрывают
+# одноименные секреты репозитория. Сборка с ref прода останавливается: бета не пишет в прод.
 #
 # Сборка беты: VITE_BETA=1 (пометка «БЕТА» в шапке, имя kachalka-beta и иконка с лентой BETA),
 # VITE_BETA_BUILD = номер прогона (версия 9.5.10-beta.42 — плашка обновления на бете
@@ -114,6 +117,12 @@ jobs:
           VITE_SUPABASE_REF: ${{ secrets.VITE_SUPABASE_REF }}
           VITE_VAPID_PUBLIC_KEY: ${{ secrets.VITE_VAPID_PUBLIC_KEY }}
         run: |
+          # Бета — только на своей базе. Секретов окружения beta нет → взялись секреты прода → стоп.
+          case "$VITE_SUPABASE_REF|$VITE_SUPABASE_URL" in
+            *lkrrbpbytinrdpfmhxep*|'|'*|*'|')
+              echo "::error title=Бета не выкачена::Нужны секреты окружения beta с проектом kachalka-beta (VITE_SUPABASE_URL, VITE_SUPABASE_KEY, VITE_SUPABASE_REF)."
+              exit 1 ;;
+          esac
           npm run build
           # Бету не индексируем: заголовок для всех путей (файл _headers понимает Cloudflare Pages).
           printf '/*\n  X-Robots-Tag: noindex\n' > dist/_headers
@@ -146,6 +155,7 @@ jobs:
         continue-on-error: true
         env:
           PUSH_WEBHOOK_SECRET: ${{ secrets.PUSH_WEBHOOK_SECRET }}
+          REF: ${{ secrets.VITE_SUPABASE_REF }}
         run: |
           if [ -z "$PUSH_WEBHOOK_SECRET" ]; then
             echo "::notice title=Пуш беты пропущен::В Actions нет секрета PUSH_WEBHOOK_SECRET."
@@ -153,7 +163,7 @@ jobs:
           fi
           code=$(curl -sS --max-time 120 -o push-update.txt -w '%{http_code}' -X POST \
             -H "x-webhook-secret: $PUSH_WEBHOOK_SECRET" \
-            'https://lkrrbpbytinrdpfmhxep.functions.supabase.co/push-update?app=beta' || echo 000)
+            "https://$REF.functions.supabase.co/push-update?app=beta" || echo 000)
           echo "push-update (бета) ответил $code: $(cat push-update.txt 2>/dev/null)"
           case "$code" in
             200|202) ;;
