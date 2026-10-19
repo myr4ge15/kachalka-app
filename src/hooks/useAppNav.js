@@ -33,7 +33,7 @@ export function useAppNav(user) {
   // проваливается в дефолт.
   const [tab, setTab] = useState(() => {
     // Холодный старт с пуша о реакции — сразу Лента, без кадра Главной.
-    if (pushIntentFromUrl(window.location.href)?.type === 'reaction') return 'feed'
+    if (['reaction', 'comment'].includes(pushIntentFromUrl(window.location.href)?.type)) return 'feed'
     const saved = storageGet('sessionStorage', TAB_KEY)
     if (saved === 'member') return 'feed' // id участника не переживает F5 → назад в Ленту
     return saved && saved !== 'workout' ? saved : 'home'
@@ -63,6 +63,9 @@ export function useAppNav(user) {
   // Подсветка карточки Ленты, к которой привел пуш о реакции (v6.7.3): id
   // тренировки на пару секунд, потом гаснет сама.
   const [feedFlashId, setFeedFlashId] = useState(null)
+  // Пуш о комментарии (19.10.2026): у этой карточки ветка раскрыта. Не гасим: сброс
+  // перемонтировал бы ветку свернутой; следующий пуш просто заменит id.
+  const [feedThreadId, setFeedThreadId] = useState(null)
   // Обращение, к которому привел пуш с ответом разработчика (v6.11.0).
   const [feedbackFocus, setFeedbackFocus] = useState(null)
   useEffect(() => {
@@ -266,9 +269,10 @@ export function useAppNav(user) {
   useEffect(() => {
     if (!user?.id || !pushIntent) return
     appendPushLog('apply', pushIntent.type)
-    if (pushIntent.type === 'reaction') {
+    if (pushIntent.type === 'reaction' || pushIntent.type === 'comment') {
       setFeedRestore(pushAnchor(pushIntent.workoutId))
       setFeedFlashId(pushIntent.workoutId)
+      if (pushIntent.type === 'comment') setFeedThreadId(pushIntent.workoutId)
       setTab('feed')
     }
     // Ответ на обращение (v6.11.0) — экран обратной связи с подсветкой этого обращения.
@@ -300,7 +304,7 @@ export function useAppNav(user) {
   return {
     tab, setTab, routeAnim, contentRef, screenRef, edgeSwipeOn,
     memberId, feedRestore, progressExId, setProgressExId, openNewWorkout, setOpenNewWorkout,
-    calendarIntent, setCalendarIntent, feedFlashId, feedbackFocus, openFeedback, backFromFeedback,
+    calendarIntent, setCalendarIntent, feedFlashId, feedThreadId, feedbackFocus, openFeedback, backFromFeedback,
     focusRhythm, setFocusRhythm, openSettings, setOpenSettings,
     goTab, openNotif, backFromNotif, openProgressFor, openCalendarAt, openMember, backFromMember,
     backToRhythm, backToSettings, nestedBack, startNewWorkout, setPushIntent

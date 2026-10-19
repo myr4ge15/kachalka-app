@@ -17,6 +17,8 @@ import { cmpIsoAsc, cmpIsoDesc } from '../lib/cmp.js'
 import { leadingValue, normMetric, setTonnage } from '../lib/metric.js'
 import { applyReactionQueue } from '../lib/reactions.js'
 import { rosterSignature } from '../lib/pullWatermark.js'
+import { groupComments } from '../lib/comments.js'
+import { overlayRecentComments } from './comments.js'
 
 // Сколько последних тренировок показываем в ленте.
 const FEED_LIMIT = 50
@@ -84,6 +86,7 @@ export function rowToItem(w) {
     tonnage: Math.round(tonnage),
     prs: [], // заполняется в computePrs()
     reactions: [], // [{ user_id, name, kind }] — заполняется в attachReactions()
+    comments: [], // lib/comments.js normComment — заполняется в attachComments()
   }
 }
 
@@ -115,7 +118,31 @@ export async function attachReactions(items) {
   } catch { /* нет таблицы/офлайн — карточки без реакций */ }
 }
 
-// Стабильный отпечаток реакций окна ленты (порядок элементов уже задан сортировкой).
+// Комментарии окна (19.10.2026, PLAN-comments.md): один вызов comments_for на все
+// карточки. Сбой, офлайн, сервер без функции — оставляем то, что было в элементах
+// (у свежих из сети — комментарии из кэша, их подкладывает fetchFeed), и false.
+export async function attachComments(items) {
+  if (items.length === 0) return true
+  let ok = false
+  try {
+    const res = await withTimeout(supabase.rpc('comments_for', { p_workout_ids: items.map((i) => i.id) }))
+    if (!res.error && Array.isArray(res.data)) {
+      const byWorkout = groupComments(res.data)
+      for (const item of items) item.comments = byWorkout.get(item.id) ?? []
+      ok = true
+    }
+  } catch { /* офлайн — как было */ }
+  overlayRecentComments(items)
+  return ok
+}
+
+// Комментарии из прежнего снимка — новым элементам (тяжелый join их не несет).
+export function carryComments(items, prev) {
+  const byId = new Map((prev ?? []).map((i) => [i.id, i.comments]))
+  for (const item of items) if (!item.comments?.length && byId.get(item.id)?.length) item.comments = byId.get(item.id)
+}
+
+// Стабильный отпечаток реакций и комментариев окна ленты (порядок элементов уже задан сортировкой).
 function reactionsKey(items) {
   return JSON.stringify(
     (items ?? []).map((i) => [
@@ -124,6 +151,7 @@ function reactionsKey(items) {
       (i.reactions ?? [])
         .map((r) => [String(r.user_id), String(r.kind), r.name ?? null, r.created_at ?? null])
         .sort((a, b) => (a[0] + a[1]).localeCompare(b[0] + b[1])),
+      (i.comments ?? []).map((c) => [c.id, c.name, c.known, c.avatar_url ?? null]),
     ])
   )
 }
@@ -238,6 +266,7 @@ export async function fetchFeed(userId, d = db) {
     if (res.error) throw res.error
     items = (res.data ?? []).map(rowToItem)
     computePrs(items, await fetchPrBaseline(items))
+    carryComments(items, await d.feed.toArray())
   } else {
     // Окно ленты не изменилось — берем готовый кэш (тот же порядок «свежее сверху»,
     // с уже посчитанными prs) и лишь переналожим свежие реакции. Кэш пуст (первый
@@ -249,7 +278,7 @@ export async function fetchFeed(userId, d = db) {
   // неизменном окне по нему решаем, есть ли что писать вообще.
   const reactionsBefore = changed ? null : reactionsKey(items)
   const opsBefore = await readReactionOps(d)
-  await attachReactions(items)
+  await Promise.all([attachReactions(items), attachComments(items)])
 
   // Оптимистичная очередь реакций поверх серверного снимка: еще не отправленные
   // (или отправляемые прямо сейчас) МОИ тапы не должны пропадать при перезаписи кэша.

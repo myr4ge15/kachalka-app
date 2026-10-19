@@ -1810,6 +1810,56 @@ img.avatar-lg.has-img {
 .reaction-btn.mine { border-color: color-mix(in srgb, var(--acc) 60%, transparent); background: var(--acc-soft); }
 .reaction-emoji { font-size: 16px; }
 .reaction-count { font-size: 13px; font-weight: 600; color: var(--muted); }
+
+/* ---------- комментарии к тренировкам (19.10.2026, PLAN-comments.md, components/social/CommentThread.jsx) ---------- */
+.reaction-btns .cm-pill { margin-left: auto; }
+.cm { margin-top: 12px; padding-top: 6px; border-top: 1px solid var(--border); }
+.cm-item { display: grid; grid-template-columns: 26px minmax(0, 1fr) auto; column-gap: 10px; padding: 8px 0; align-items: start; }
+.cm-item .avatar-sm { margin-top: 1px; }
+.cm-item.pending { opacity: .55; }
+.avatar-sm.unknown { background: var(--surface-2); color: var(--muted); border: 1px solid var(--border); }
+.cm-main { min-width: 0; }
+.cm-head { display: flex; align-items: baseline; gap: 6px; min-width: 0; }
+.cm-name {
+  font-size: 14px; font-weight: 600; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+  background: none; border: none; padding: 0; text-align: left;
+}
+.cm-name.link { color: var(--text); }
+button.cm-name { cursor: pointer; }
+.cm-name.plain { color: var(--muted); }
+.cm-time { font-size: 12px; color: var(--muted); white-space: nowrap; }
+.cm-text { font-size: 15px; line-height: 1.4; margin-top: 2px; overflow-wrap: anywhere; white-space: pre-wrap; }
+.cm-more-btn {
+  width: 44px; height: 44px; margin: -10px -12px -10px 0; display: flex; align-items: center; justify-content: center;
+  background: none; border: none; color: var(--muted); font-size: 18px; border-radius: 50%; cursor: pointer;
+}
+.cm-more-btn:active { background: var(--surface-2); }
+.cm-all {
+  display: flex; align-items: center; min-height: 44px; padding: 0; background: none; border: none;
+  color: var(--acc-2); font-size: 14px; font-weight: 600; cursor: pointer;
+}
+.cm-form { display: flex; gap: 8px; align-items: flex-end; margin-top: 6px; }
+/* Авторост до 4 строк (высоту ставит компонент по scrollHeight), дальше — прокрутка внутри. */
+.cm-input {
+  flex: 1; min-width: 0; min-height: 44px; max-height: 106px; padding: 11px 14px; border-radius: 22px; resize: none;
+  background: var(--surface-2); border: 1px solid var(--border); color: var(--text);
+  font: inherit; font-size: 15px; line-height: 1.4; overflow-y: auto;
+}
+.cm-input::placeholder { color: var(--muted); }
+.cm-input:focus { outline: none; border-color: color-mix(in srgb, var(--acc) 70%, transparent); }
+.cm-send {
+  width: 44px; height: 44px; flex: none; border-radius: 50%; border: none; cursor: pointer;
+  background: var(--acc); color: var(--on-acc); display: flex; align-items: center; justify-content: center;
+}
+.cm-send.off { background: var(--surface-2); color: var(--muted); cursor: default; }
+.cm-hint { display: flex; gap: 8px; font-size: 12px; color: var(--muted); margin: 6px 4px 0; }
+.cm-count { margin-left: auto; white-space: nowrap; }
+.cm-count.over { color: var(--red-text); }
+.cm-offline {
+  display: flex; align-items: center; gap: 8px; min-height: 44px; margin-top: 6px; padding: 0 14px; border-radius: 22px;
+  background: var(--surface-2); border: 1px dashed var(--border); color: var(--muted); font-size: 14px;
+}
+.cm-del-quote { margin: 0 0 14px; color: var(--muted); font-size: 14px; line-height: 1.45; overflow-wrap: anywhere; }
 .reaction-btn.mine .reaction-count { color: var(--acc-2); }
 .reaction-who { font-size: 12px; margin-top: 6px; }
 /* Удержание реакции (аудит 16.10): без меню «Скопировать/Выделить» iOS; строка «кто поставил» — ярче. */

@@ -5,7 +5,8 @@ import 'fake-indexeddb/auto' // ПЕРВЫМ: local.js создает Dexie на
 import { describe, it, expect, beforeEach, afterEach } from 'vitest'
 import { openUserDb, closeUserDb, db } from './local.js'
 import { uniqueUserId } from '../test/idbHarness.js'
-import { rowToItem, computePrs, baselineMap, getCachedFeed } from './feed.js'
+import { rowToItem, computePrs, baselineMap, getCachedFeed, carryComments } from './feed.js'
+import { overlayRecentComments, resetRecentComments } from './comments.js'
 
 describe('rowToItem (денормализация серверной строки)', () => {
   const row = {
@@ -116,5 +117,20 @@ describe('getCachedFeed (кэш, свежее сверху)', () => {
 
   it('пустой кэш → пустой массив', async () => {
     expect(await getCachedFeed()).toEqual([])
+  })
+})
+
+describe('комментарии в снимке ленты (19.10.2026)', () => {
+  it('carryComments: свежим из сети элементам — комментарии прежнего снимка, свои не затирает', () => {
+    const items = [{ id: 'w1', comments: [] }, { id: 'w2', comments: [{ id: 'new' }] }, { id: 'w3', comments: [] }]
+    carryComments(items, [{ id: 'w1', comments: [{ id: 'old' }] }, { id: 'w2', comments: [{ id: 'old2' }] }])
+    expect(items.map((i) => i.comments.map((c) => c.id))).toEqual([['old'], ['new'], []])
+  })
+
+  it('overlayRecentComments без свежих правок ничего не меняет', () => {
+    resetRecentComments()
+    const items = [{ id: 'w1', comments: [{ id: 'a' }] }]
+    overlayRecentComments(items)
+    expect(items[0].comments).toEqual([{ id: 'a' }])
   })
 })

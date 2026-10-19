@@ -328,6 +328,15 @@ describe('App: пуш при холодном старте', () => {
     expect(window.location.search).toBe('')
   })
 
+  it('пуш о комментарии — Лента, подсветка и раскрытая ветка этой карточки', async () => {
+    window.history.replaceState(null, '', `/kachalka-app/?push=${REACTION.replace('reaction-', 'comment-')}`)
+    await boot()
+    expect(current()).toBe('feed')
+    await settle()
+    expect(seen.feed.flashId).toBe('11111111-2222-4333-8444-555555555555')
+    expect(seen.feed.threadId).toBe('11111111-2222-4333-8444-555555555555')
+  })
+
   it('пуш «Друзей» («N теперь в друзьях») — экран «Друзья»', async () => {
     window.history.replaceState(null, '', '/kachalka-app/?push=friend')
     render(<App />)

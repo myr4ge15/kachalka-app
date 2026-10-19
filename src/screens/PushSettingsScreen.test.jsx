@@ -12,12 +12,12 @@ const user = { id: 'u1' }
 describe('PushSettingsScreen (v7.1.4)', () => {
   beforeEach(() => { push = { ...base, toggle: vi.fn(), setType: vi.fn() } })
 
-  it('включены: тумблер устройства и пять типов', () => {
+  it('включены: тумблер устройства и шесть типов', () => {
     render(<PushSettingsScreen user={user} onBack={() => {}} />)
     expect(screen.getByRole('heading', { name: 'Пуш-уведомления' })).toBeInTheDocument()
     expect(screen.getByRole('switch', { name: /на это устройство/ })).toHaveAttribute('aria-checked', 'true')
     expect(screen.getByRole('group', { name: /Какие уведомления/ })).toBeInTheDocument()
-    expect(screen.getAllByRole('switch')).toHaveLength(6)
+    expect(screen.getAllByRole('switch')).toHaveLength(7)
     fireEvent.click(screen.getByRole('switch', { name: /Реакции/ }))
     expect(push.setType).toHaveBeenCalledWith('reaction', false)
   })

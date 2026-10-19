@@ -10,9 +10,11 @@ import { useLongPress } from '../../hooks/useLongPress.js'
 // висит облачко «💪 Борис, Аня» — кто поставил именно ее; отпустил — облачко скрылось. Строка под
 // кнопками (все, кто отреагировал) пальцем не закрывается. Тап после удержания реакцию не меняет.
 // Подстраховка: если отпускание потерялось, облачко гаснет само.
+// comment (19.10.2026, PLAN-comments.md) — { count, mine, onClick }: «💬 N» в конце ряда,
+// и на своей, и на чужой тренировке. Нет пропа — ряд как раньше.
 const WHO_MS = 6000
 
-export default function ReactionBar({ reactions, myId, isMe, onReact }) {
+export default function ReactionBar({ reactions, myId, isMe, onReact, comment = null }) {
   const { kinds, names, total } = summarizeReactions(reactions, myId)
   const [who, setWho] = useState(null) // { kind, x } — чье облачко и где его хвостик
   const { bind, wasLong } = useLongPress((kind, el) => {
@@ -32,11 +34,18 @@ export default function ReactionBar({ reactions, myId, isMe, onReact }) {
       {shown.emoji} {shown.names.length ? shown.names.join(', ') : 'пока никто'}
     </div>
   )
+  const commentBtn = comment && (
+    <button type="button" className={`reaction-btn cm-pill${comment.mine ? ' mine' : ''}`} onClick={comment.onClick}
+      aria-label={comment.count ? `Комментарии: ${comment.count}` : 'Написать комментарий'}>
+      <span className="reaction-emoji" aria-hidden="true">💬</span>
+      {comment.count > 0 && <span className="reaction-count">{comment.count}</span>}
+    </button>
+  )
   const line = reactorLine(names)
   const whoLine = line && <div className="muted reaction-who">{line}</div>
 
   if (isMe) {
-    if (total === 0) return null
+    if (total === 0 && !commentBtn) return null
     return (
       <div className="reactions">
         <div className="reaction-btns">
@@ -48,6 +57,7 @@ export default function ReactionBar({ reactions, myId, isMe, onReact }) {
               <span className="reaction-count">{k.count}</span>
             </span>
           ))}
+          {commentBtn}
         </div>
         {whoLine}
       </div>
@@ -70,6 +80,7 @@ export default function ReactionBar({ reactions, myId, isMe, onReact }) {
             {k.count > 0 && <span className="reaction-count">{k.count}</span>}
           </button>
         ))}
+        {commentBtn}
       </div>
       {whoLine}
     </div>

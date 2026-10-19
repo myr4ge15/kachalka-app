@@ -11,6 +11,11 @@ describe('pushIntent', () => {
     expect(pushIntentFromTag(`reaction-${W}-${U}`)).toEqual({ type: 'reaction', workoutId: W })
   })
 
+  it('комментарий ведет к своей тренировке в Ленте с раскрытой веткой', () => {
+    expect(pushIntentFromTag(`comment-${W}-${U}`)).toEqual({ type: 'comment', workoutId: W })
+    expect(pushIntentFromTag('comment-123-456')).toBeNull()
+  })
+
   it('id из tag приводится к нижнему регистру', () => {
     expect(pushIntentFromTag(`reaction-${W.toUpperCase()}-${U}`)?.workoutId).toBe(W)
   })

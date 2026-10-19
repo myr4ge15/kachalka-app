@@ -129,7 +129,9 @@ export function shouldAskPush({ availability, permission, enabled, asked }) {
 // supabase/push-types.sql) и тип в Edge Functions (_shared/webpush.ts PushType).
 // Порядок = порядок тумблеров в Настройках.
 export const PUSH_TYPES = [
-  { type: 'reaction', emoji: '💬', label: 'Реакции на мои тренировки' },
+  { type: 'reaction', emoji: '💪', label: 'Реакции на мои тренировки' },
+  // 19.10.2026: 💬 — комментариям (до этого стоял у реакций).
+  { type: 'comment', emoji: '💬', label: 'Комментарии', sub: 'под моими тренировками' },
   { type: 'record', emoji: '🏆', label: 'Побили мой рекорд' },
   { type: 'overtake', emoji: '🥇', label: 'Обогнали в рейтинге' },
   { type: 'reminder', emoji: '⏰', label: 'Напоминание о тренировке', sub: 'если 3 дня без зала — в 18:00' },

@@ -17,7 +17,7 @@ import AvatarZoom from '../components/ui/AvatarZoom.jsx'
 import BackButton from '../components/ui/BackButton.jsx'
 import CardsSkeleton from '../components/ui/CardsSkeleton.jsx'
 import FeedPrBadge, { prForEntry } from '../components/social/FeedPrBadge.jsx'
-import ReactionBar from '../components/social/ReactionBar.jsx'
+import WorkoutSocial from '../components/social/WorkoutSocial.jsx'
 import FriendButton from '../components/friends/FriendButton.jsx'
 import './MemberScreen.css'
 import ScrollTopButton from '../components/ui/ScrollTopButton.jsx'
@@ -94,6 +94,8 @@ export default function MemberScreen({ user, memberId, onBack }) {
     return () => { off1(); off2() }
   }, [refresh])
 
+  // Я — для оптимистичной строки комментария (19.10.2026).
+  const me = useMemo(() => ({ id: user.id, name: user.name, avatar: null }), [user.id, user.name])
   const view = useMemo(
     () => (snap ? buildMemberView(snap.items, { total: snap.total }) : null),
     [snap]
@@ -245,9 +247,9 @@ export default function MemberScreen({ user, memberId, onBack }) {
                   <div className="muted feed-foot">
                     {w.exCount} упр. · {w.setCount} подх. · {(w.tonnage ?? 0).toLocaleString('ru-RU')} кг тоннаж
                   </div>
-                  <ReactionBar
-                    reactions={w.reactions}
-                    myId={user.id}
+                  <WorkoutSocial
+                    workout={w}
+                    me={me}
                     isMe={w.user_id === user.id}
                     onReact={(kind, mine) => onReact(w.id, kind, mine)}
                   />

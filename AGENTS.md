@@ -139,7 +139,7 @@
   «избранного круга»); гейт админки — серверный `is_admin()`.
 - **Чистая логика — в `src/lib/`** (без Dexie/React/сети), покрывается тестами. Исключения — онлайн-модули
   вне очередей синка: `auth.js` (вход, кэш PIN), `avatar.js`, `admin.js`, `adminDisciplines.js`, `adminMfa.js`,
-  `feedbackApi.js`, `friendCircles.js`, `friends.js`, `memberInvites.js`; новый такой модуль — в этот список. DB-обвязка — в
+  `feedbackApi.js`, `friendCircles.js`, `friends.js`, `memberInvites.js`, `comments.js`; новый такой модуль — в этот список. DB-обвязка — в
   `src/db/`; презентационные куски экранов — в `src/components/` (props-driven, состояние остаётся
   в экране). **Секции крупных экранов** (v6.14.1) — в `src/components/<экран>/` (`admin/`, `profile/`):
   самостоятельный блок со СВОИМ состоянием и обработчиками (форма, подтверждение, онлайн-операция),
@@ -468,6 +468,12 @@ updated_at)` + `upsert_user_meta` (`supabase/user-meta.sql`, RLS «только 
   и общие рейтинги»), новичок по ссылке больше НЕ приватный (`invite_newcomer_private` только ставит дружбу с
   пригласившим), сняты `admin_set_private` / `admin_set_connection` / `admin_list_connections`. Клиент: вкладки «Общий» в
   рейтинге нет — доски только кругов; в Админке нет переключателя приватности.
+- **Комментарии к тренировкам (v9.5.0)** → канон `migrations/20261019120000_workout_comments.sql` (накат
+  `workout-comments-deploy.md`): `workout_comments` закрыта, только DEFINER `comments_for`/`comment_add`/`comment_delete`
+  (`authenticated`). Видно под тренировками владельцев из `visible_user_ids()`, автор из блока со зрителем выкинут, незнакомый
+  автор (`user_can_see` = нет) — имя без фото и профиля. Пуш — `trg_push_comment` → Edge `push-comment` (`--no-verify-jwt`),
+  тип `comment` в `push_prefs`. **Канон `set_push_pref` — этот файл** (белый список + `comment`), не `push-types.sql`.
+  Клиент: `lib/comments.js` (онлайн, вне очередей; неотправленное не копим), `db/comments.js`, `db/feed.js attachComments`.
 - **Кубки в Ленте (v9.2.2)** → `migrations/20261016110000_feed_pr_baseline.sql`: `feed_pr_baseline(p_before, p_user_ids)` —
   лучший ведущий показатель (участник, упражнение) до окна Ленты, только `visible_user_ids()`, DEFINER, `authenticated`.
   `computePrs` стартует с него (иначе рекорды по окну 50 тренировок давали ложный кубок); правило показателя — как у

@@ -113,8 +113,12 @@ describe('shouldAskPush', () => {
 })
 
 describe('типы пушей', () => {
-  it('пять типов, ключи совпадают с белым списком set_push_pref', () => {
-    expect(PUSH_TYPES.map((t) => t.type)).toEqual(['reaction', 'record', 'overtake', 'reminder', 'update'])
+  it('шесть типов, ключи совпадают с белым списком set_push_pref', () => {
+    expect(PUSH_TYPES.map((t) => t.type)).toEqual(['reaction', 'comment', 'record', 'overtake', 'reminder', 'update'])
+  })
+  it('💬 — у комментариев, у реакций — 💪 (19.10.2026)', () => {
+    const emoji = Object.fromEntries(PUSH_TYPES.map((t) => [t.type, t.emoji]))
+    expect(emoji).toMatchObject({ reaction: '💪', comment: '💬' })
   })
   it('по умолчанию все включено, выключено — только явным false', () => {
     expect(isPushTypeOn({}, 'reminder')).toBe(true)
@@ -169,8 +173,8 @@ describe('desktopAvailability (v7.1.4)', () => {
 
 describe('pushRowSubtitle (v7.1.4)', () => {
   it('включены — со счетчиком типов, пока грузятся — без него', () => {
-    expect(pushRowSubtitle({ availability: 'ok', enabled: true, prefs: { reminder: false } })).toBe('включены · 4 из 5')
-    expect(pushRowSubtitle({ availability: 'ok', enabled: true, prefs: {} })).toBe('включены · 5 из 5')
+    expect(pushRowSubtitle({ availability: 'ok', enabled: true, prefs: { reminder: false } })).toBe('включены · 5 из 6')
+    expect(pushRowSubtitle({ availability: 'ok', enabled: true, prefs: {} })).toBe('включены · 6 из 6')
     expect(pushRowSubtitle({ availability: 'ok', enabled: true })).toBe('включены')
   })
   it('выключены и случаи, когда включить нельзя', () => {

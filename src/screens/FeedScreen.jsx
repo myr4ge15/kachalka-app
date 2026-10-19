@@ -14,7 +14,7 @@ import Leaderboard from './Leaderboard.jsx'
 import Avatar from '../components/ui/Avatar.jsx'
 import CardsSkeleton from '../components/ui/CardsSkeleton.jsx'
 import FeedPrBadge, { prForEntry } from '../components/social/FeedPrBadge.jsx'
-import ReactionBar from '../components/social/ReactionBar.jsx'
+import WorkoutSocial from '../components/social/WorkoutSocial.jsx'
 import { useSpinPhase } from '../hooks/useSpinPhase.js'
 import { usePresence } from '../hooks/usePresence.js'
 import { isOnline } from '../lib/presence.js'
@@ -35,7 +35,8 @@ function writeRailOpen(userId, open) {
 // коротко подсвечивается акцентом, чтобы было видно, какую оценили.
 const OFFLINE_EMPTY = 'Лента недоступна офлайн. Подключись к сети.'
 
-export default function FeedScreen({ user, onOpenMember, flashId = null, onOpenCircle, onOpenFriends }) {
+// threadId — тренировка, к которой привел пуш о комментарии (19.10.2026): ее ветка раскрыта.
+export default function FeedScreen({ user, onOpenMember, flashId = null, threadId = null, onOpenCircle, onOpenFriends }) {
   // Кэш ленты (офлайн-доступен, обновляется мгновенно при фоновой подтяжке).
   const feed = useLiveQuery(() => getCachedFeed(), [], undefined)
 
@@ -52,6 +53,10 @@ export default function FeedScreen({ user, onOpenMember, flashId = null, onOpenC
   const myName = useMemo(
     () => (users ?? []).find((u) => u.id === user.id)?.name ?? user.name ?? 'Ты',
     [users, user.id, user.name]
+  )
+  const me = useMemo(
+    () => ({ id: user.id, name: myName, avatar: avatarById.get(user.id) ?? null }),
+    [user.id, myName, avatarById]
   )
   const [refreshing, setRefreshing] = useState(false)
   const spinStyle = useSpinPhase(refreshing) // стрелка в такт синку в шапке (v6.3.6)
@@ -330,11 +335,14 @@ export default function FeedScreen({ user, onOpenMember, flashId = null, onOpenC
               {w.exCount} упр. · {w.setCount} подх.{w.tonnage > 0 ? ` · ${w.tonnage.toLocaleString('ru-RU')} кг тоннаж` : ''}
             </div>
 
-            <ReactionBar
-              reactions={w.reactions}
-              myId={user.id}
+            <WorkoutSocial
+              key={w.id === threadId ? `${w.id}-thread` : w.id}
+              workout={w}
+              me={me}
               isMe={isMe}
               onReact={(kind, mine) => onReact(w.id, kind, mine)}
+              onOpenMember={onOpenMember ? (uid) => onOpenMember(uid, `feed-${w.id}`) : undefined}
+              openThread={w.id === threadId}
             />
           </div>
         )

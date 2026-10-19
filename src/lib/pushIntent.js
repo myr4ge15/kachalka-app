@@ -5,6 +5,7 @@
 //
 //   reaction-<workoutId>-<reactorId> → Лента, прокрутка к этой тренировке
 //   (v6.7.3; в v6.7.2 открывалась карточка тренировки — не прижилось).
+//   comment-<workoutId>-<authorId> → то же, плюс ветка комментариев раскрыта (19.10.2026).
 //   feedback-<feedbackId> → экран «Написать разработчику» с ответом (v6.11.0).
 //   friend, friend-<событие>-<кто> (с 16.10, свой tag у каждого) → заявка в друзья / новый друг —
 //   экран «Друзья».
@@ -16,6 +17,7 @@
 
 const UUID = '[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}'
 const REACTION_RE = new RegExp(`^reaction-(${UUID})-`, 'i')
+const COMMENT_RE = new RegExp(`^comment-(${UUID})-`, 'i')
 const FEEDBACK_RE = new RegExp(`^feedback-(${UUID})$`, 'i')
 const FRIEND_RE = /^friend(-[a-z]+-[0-9a-f-]{36})?$/i
 
@@ -34,6 +36,8 @@ export function pushIntentFromTag(tag) {
   if (FRIEND_RE.test(tag)) return { type: 'friend' }
   const m = REACTION_RE.exec(tag)
   if (m) return { type: 'reaction', workoutId: m[1].toLowerCase() }
+  const c = COMMENT_RE.exec(tag)
+  if (c) return { type: 'comment', workoutId: c[1].toLowerCase() }
   const f = FEEDBACK_RE.exec(tag)
   if (f) return { type: 'feedback', feedbackId: f[1].toLowerCase() }
   return null

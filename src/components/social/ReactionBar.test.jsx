@@ -109,4 +109,15 @@ describe('ReactionBar', () => {
     render(<ReactionBar reactions={many} myId="me" isMe={false} />)
     expect(screen.getByText('A, B, C +2')).toBeInTheDocument()
   })
+  it('💬 в конце ряда: счетчик, пометка своих, тап; на своей тренировке без реакций — тоже', () => {
+    const onClick = vi.fn()
+    const { rerender } = render(<ReactionBar reactions={R} myId="me" isMe={false} onReact={vi.fn()}
+      comment={{ count: 3, mine: true, onClick }} />)
+    const pill = screen.getByRole('button', { name: 'Комментарии: 3' })
+    expect(pill).toHaveClass('cm-pill', 'mine')
+    fireEvent.click(pill)
+    expect(onClick).toHaveBeenCalled()
+    rerender(<ReactionBar reactions={[]} myId="me" isMe comment={{ count: 0, mine: false, onClick }} />)
+    expect(screen.getByRole('button', { name: 'Написать комментарий' })).toBeInTheDocument()
+  })
 })

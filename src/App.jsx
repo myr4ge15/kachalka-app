@@ -76,7 +76,7 @@ export default function App() {
   const {
     tab, setTab, routeAnim, contentRef, screenRef, edgeSwipeOn,
     memberId, progressExId, setProgressExId, openNewWorkout, setOpenNewWorkout,
-    calendarIntent, setCalendarIntent, feedFlashId, feedbackFocus, openFeedback, backFromFeedback,
+    calendarIntent, setCalendarIntent, feedFlashId, feedThreadId, feedbackFocus, openFeedback, backFromFeedback,
     focusRhythm, setFocusRhythm, openSettings, setOpenSettings,
     goTab, openNotif, backFromNotif, openProgressFor, openCalendarAt, openMember, backFromMember,
     backToRhythm, backToSettings, startNewWorkout,
@@ -368,7 +368,7 @@ export default function App() {
                 />
 
               )}
-              {route === 'feed' && <FeedScreen user={user} onOpenMember={openMember} flashId={feedFlashId} onOpenCircle={() => goTab('circle')} onOpenFriends={() => goTab('friends')} />}
+              {route === 'feed' && <FeedScreen user={user} onOpenMember={openMember} flashId={feedFlashId} threadId={feedThreadId} onOpenCircle={() => goTab('circle')} onOpenFriends={() => goTab('friends')} />}
               {route === 'member' && memberId && (
                 <MemberScreen user={user} memberId={memberId} onBack={backFromMember} />
               )}

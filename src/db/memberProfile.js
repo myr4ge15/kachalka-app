@@ -19,7 +19,7 @@
 import { supabase, isConfigured, hasSession } from './supabase.js'
 import { withTimeout } from '../lib/withTimeout.js'
 import { db, getMeta, setMeta } from './local.js'
-import { SELECT_FEED, rowToItem, computePrs, attachReactions, fetchPrBaseline, readReactionOps, overlayReactionOps } from './feed.js'
+import { SELECT_FEED, rowToItem, computePrs, attachReactions, attachComments, carryComments, fetchPrBaseline, readReactionOps, overlayReactionOps } from './feed.js'
 import { toggleReaction } from './repo.js'
 import { applyReactionQueue } from '../lib/reactions.js'
 import { MEMBER_LIMIT } from '../lib/memberProfile.js'
@@ -85,7 +85,9 @@ export async function fetchMember(viewerId, memberId, d = db) {
   // Отметки рекордов на карточках — по всей истории участника (база до окна), как в ленте.
   computePrs(items, await fetchPrBaseline(items))
   const opsBefore = await readReactionOps(d)
-  await attachReactions(items) // сбой/нет таблицы — карточки без реакций, как в ленте
+  // Комментарии (19.10.2026): сбой — прежние из кэша профиля, как в ленте.
+  carryComments(items, (await getMeta(memberKey(memberId), d))?.items)
+  await Promise.all([attachReactions(items), attachComments(items)]) // сбой/нет таблицы — карточки без реакций, как в ленте
   // Мой тап, ушедший на сервер во время запроса, в снимке может не оказаться (fb_53077e01).
   const shown = await overlayReactionOps(items, opsBefore, viewerId, d)
   // Счетчик — украшение: упал → считаем по окну (lib/memberProfile.js).
