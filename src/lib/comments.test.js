@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
 import {
-  canDeleteComment, cleanBody, commentAgo, groupComments, normComment, previewComments, upsertComment,
+  canDeleteComment, canEditComment, canLikeComment, toggleLike, cleanBody, commentAgo, groupComments, normComment, previewComments, upsertComment,
 } from './comments.js'
 
 const row = (id, at, extra = {}) => ({
@@ -57,5 +57,20 @@ describe('comments', () => {
   it('текст поля обрезается по краям', () => {
     expect(cleanBody('  ого, сотка \n')).toBe('ого, сотка')
     expect(cleanBody(null)).toBe('')
+  })
+
+  it('9.5.3: правка, ❤️ и поля с сервера', () => {
+    expect(normComment(row('c1', '2026-10-19T10:00:00Z'))).toMatchObject({ edited_at: null, like_count: 0, liked: false })
+    expect(normComment(row('c1', '2026-10-19T10:00:00Z', { edited_at: 'e', like_count: '3', liked: true })))
+      .toMatchObject({ edited_at: 'e', like_count: 3, liked: true })
+    expect(canEditComment({ user_id: 'me' }, 'me')).toBe(true)
+    expect(canEditComment({ user_id: 'x' }, 'me')).toBe(false)
+    expect(canEditComment({ user_id: 'me' }, null)).toBe(false)
+    expect(canLikeComment({ user_id: 'x' }, 'me')).toBe(true)
+    expect(canLikeComment({ user_id: 'me' }, 'me')).toBe(false)
+    expect(toggleLike({ like_count: 2, liked: false }, true)).toEqual({ like_count: 3, liked: true })
+    expect(toggleLike({ like_count: 3, liked: true }, false)).toEqual({ like_count: 2, liked: false })
+    expect(toggleLike({ like_count: 0, liked: true }, false)).toEqual({ like_count: 0, liked: false })
+    expect(toggleLike({ like_count: 1, liked: true }, true)).toEqual({ like_count: 1, liked: true })
   })
 })

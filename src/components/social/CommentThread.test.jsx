@@ -4,9 +4,13 @@ import { act, fireEvent, render, screen, waitFor } from '@testing-library/react'
 
 const postComment = vi.fn()
 const removeComment = vi.fn()
+const updateComment = vi.fn()
+const setCommentLike = vi.fn()
 vi.mock('../../db/comments.js', () => ({
   postComment: (...a) => postComment(...a),
   removeComment: (...a) => removeComment(...a),
+  updateComment: (...a) => updateComment(...a),
+  setCommentLike: (...a) => setCommentLike(...a),
 }))
 const showToast = vi.fn()
 vi.mock('../ui/Toast.jsx', () => ({ showToast: (...a) => showToast(...a) }))
@@ -20,7 +24,10 @@ const c = (id, user_id, extra = {}) => ({
 })
 const setOnline = (v) => Object.defineProperty(navigator, 'onLine', { configurable: true, get: () => v })
 
-beforeEach(() => { setOnline(true); postComment.mockReset(); removeComment.mockReset(); showToast.mockReset() })
+beforeEach(() => {
+  setOnline(true)
+  for (const f of [postComment, removeComment, updateComment, setCommentLike, showToast]) f.mockReset()
+})
 afterEach(() => setOnline(true))
 
 const renderThread = (props = {}) => render(
@@ -52,11 +59,13 @@ describe('CommentThread', () => {
     expect(onOpenMember).toHaveBeenCalledWith('y')
   })
 
-  it('⋯ — у своих и у всех под своей тренировкой', () => {
+  it('⋯ — у своего «Действия», у чужого под своей тренировкой — «Удалить», у чужого под чужой — нет', () => {
     const { rerender } = renderThread({ open: true, comments: [c('a', 'x'), c('b', 'me')] })
-    expect(screen.getAllByRole('button', { name: 'Удалить комментарий' })).toHaveLength(1)
+    expect(screen.getAllByRole('button', { name: 'Действия с комментарием' })).toHaveLength(1)
+    expect(screen.queryByRole('button', { name: 'Удалить комментарий' })).toBeNull()
     rerender(<CommentThread workoutId="w1" ownerId="me" comments={[c('a', 'x'), c('b', 'me')]} me={me} open onOpen={vi.fn()} />)
-    expect(screen.getAllByRole('button', { name: 'Удалить комментарий' })).toHaveLength(2)
+    expect(screen.getAllByRole('button', { name: 'Удалить комментарий' })).toHaveLength(1)
+    expect(screen.getAllByRole('button', { name: 'Действия с комментарием' })).toHaveLength(1)
   })
 
   it('отправка: строка сразу, поле очищено; ошибка — текст вернулся и тост', async () => {
@@ -94,13 +103,78 @@ describe('CommentThread', () => {
     expect(screen.getByRole('status')).toHaveTextContent('Нет сети — комментарии только читать')
   })
 
-  it('удаление через подтверждение', async () => {
+  it('удаление своего: ⋯ → Удалить → подтверждение', async () => {
     removeComment.mockResolvedValue(undefined)
     renderThread({ open: true, comments: [c('a', 'me')] })
-    fireEvent.click(screen.getByRole('button', { name: 'Удалить комментарий' }))
+    fireEvent.click(screen.getByRole('button', { name: 'Действия с комментарием' }))
+    fireEvent.click(screen.getByRole('button', { name: 'Удалить' }))
     expect(screen.getByText(/Твой комментарий/)).toBeInTheDocument()
     fireEvent.click(screen.getByRole('button', { name: 'Удалить' }))
     await waitFor(() => expect(screen.queryByText(/Твой комментарий/)).toBeNull())
     expect(removeComment).toHaveBeenCalledWith({ userId: 'me', comment: expect.objectContaining({ id: 'a' }), ownerId: 'owner' })
+  })
+
+  it('правка своего: текст в поле, «Сохранить», сразу новый текст и «изменено»; ошибка — правка вернулась', async () => {
+    let fail
+    updateComment.mockReturnValue(new Promise((_, rej) => { fail = rej }))
+    renderThread({ open: true, comments: [c('a', 'me')] })
+    fireEvent.click(screen.getByRole('button', { name: 'Действия с комментарием' }))
+    fireEvent.click(screen.getByRole('button', { name: 'Изменить' }))
+    const box = screen.getByRole('textbox', { name: 'Комментарий' })
+    expect(box).toHaveValue('текст a')
+    expect(screen.getByText('Изменяешь комментарий')).toBeInTheDocument()
+    fireEvent.change(box, { target: { value: 'новый текст' } })
+    fireEvent.click(screen.getByRole('button', { name: 'Сохранить' }))
+    expect(screen.getByText('новый текст')).toBeInTheDocument()
+    expect(screen.getByText('· изменено')).toBeInTheDocument()
+    expect(box).toHaveValue('')
+    expect(updateComment).toHaveBeenCalledWith({ userId: 'me', comment: expect.objectContaining({ id: 'a' }), ownerId: 'owner', text: 'новый текст' })
+    await act(async () => { fail(new Error('Нет сети.')) })
+    expect(screen.getByText('текст a')).toBeInTheDocument()
+    expect(box).toHaveValue('новый текст')
+    expect(screen.getByText('Изменяешь комментарий')).toBeInTheDocument()
+  })
+
+  it('правка без изменений и отмена — сервер не трогаем', () => {
+    renderThread({ open: true, comments: [c('a', 'me')] })
+    fireEvent.click(screen.getByRole('button', { name: 'Действия с комментарием' }))
+    fireEvent.click(screen.getByRole('button', { name: 'Изменить' }))
+    fireEvent.click(screen.getByRole('button', { name: 'Сохранить' }))
+    expect(updateComment).not.toHaveBeenCalled()
+    expect(screen.queryByText('Изменяешь комментарий')).toBeNull()
+    fireEvent.click(screen.getByRole('button', { name: 'Действия с комментарием' }))
+    fireEvent.click(screen.getByRole('button', { name: 'Изменить' }))
+    fireEvent.click(screen.getByRole('button', { name: 'Отменить правку' }))
+    expect(screen.getByRole('textbox')).toHaveValue('')
+    expect(screen.queryByText('· изменено')).toBeNull()
+  })
+
+  it('метка «изменено» с сервера', () => {
+    renderThread({ open: true, comments: [c('a', 'x', { edited_at: '2026-10-19T12:00:00Z' })] })
+    expect(screen.getByText('· изменено')).toBeInTheDocument()
+  })
+
+  it('❤️: на чужой — сразу закрашено и +1; на своем — только счетчик; без сети — неактивно', async () => {
+    let done
+    setCommentLike.mockReturnValue(new Promise((res) => { done = res }))
+    const { rerender } = renderThread({ open: true, comments: [c('a', 'x', { like_count: 2 }), c('b', 'me', { like_count: 1 })] })
+    const btn = screen.getByRole('button', { name: 'Лайк' })
+    expect(btn).toHaveTextContent('2')
+    expect(screen.getByRole('button', { name: 'Лайков: 1' })).toBeDisabled()
+    fireEvent.click(btn)
+    expect(screen.getByRole('button', { name: 'Убрать лайк' })).toHaveTextContent('3')
+    expect(setCommentLike).toHaveBeenCalledWith({ userId: 'me', comment: expect.objectContaining({ id: 'a' }), ownerId: 'owner', on: true })
+    await act(async () => { done({ like_count: 3, liked: true }) })
+    setOnline(false)
+    rerender(<CommentThread workoutId="w1" ownerId="other" comments={[c('a', 'x', { like_count: 3, liked: true })]} me={me} open onOpen={vi.fn()} />)
+    expect(screen.getByRole('button', { name: 'Убрать лайк' })).toHaveTextContent('3')
+  })
+
+  it('❤️ ошибка — откат и тост', async () => {
+    setCommentLike.mockRejectedValue(new Error('Нет сети.'))
+    renderThread({ open: true, comments: [c('a', 'x')] })
+    fireEvent.click(screen.getByRole('button', { name: 'Лайк' }))
+    await waitFor(() => expect(showToast).toHaveBeenCalled())
+    expect(screen.getByRole('button', { name: 'Лайк' }).textContent).toBe('')
   })
 })

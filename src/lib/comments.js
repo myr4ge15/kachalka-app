@@ -26,6 +26,10 @@ export function normComment(r) {
     avatar_url: r.author_known ? (r.author_avatar_url ?? null) : null,
     body: r.body,
     created_at: r.created_at ?? null,
+    // 9.5.3: правка и ❤️. Сервер 9.5.2 (без колонок) — не правлено, лайков нет.
+    edited_at: r.edited_at ?? null,
+    like_count: Math.max(0, Number(r.like_count) || 0),
+    liked: Boolean(r.liked),
   }
 }
 
@@ -64,6 +68,24 @@ export function canDeleteComment(c, myId, ownerId) {
   return Boolean(myId) && (c?.user_id === myId || ownerId === myId)
 }
 
+// Изменить — только свой (владелец тренировки чужие только удаляет).
+export function canEditComment(c, myId) {
+  return Boolean(myId) && c?.user_id === myId
+}
+
+// ❤️ — на чужой комментарий; свой — только счетчик (как самолайк тренировки).
+export function canLikeComment(c, myId) {
+  return Boolean(myId) && Boolean(c?.user_id) && c.user_id !== myId
+}
+
+// Оптимистичный лайк: новое состояние счетчика.
+export function toggleLike(c, on) {
+  const was = Boolean(c?.liked)
+  const n = Math.max(0, Number(c?.like_count) || 0)
+  if (was === on) return { like_count: n, liked: was }
+  return { like_count: Math.max(0, n + (on ? 1 : -1)), liked: on }
+}
+
 // Короткое время у комментария: «сейчас», «5 мин», «3 ч», «2 дн», дальше — дата.
 export function commentAgo(iso, now = Date.now()) {
   const t = Date.parse(iso ?? '')
@@ -91,6 +113,8 @@ function humanError(error) {
   if (m.includes('comment_rate_limited')) return 'Слишком много комментариев за час — попробуй позже.'
   if (m.includes('comment_bad_length')) return `Комментарий — от 1 до ${COMMENT_MAX} знаков.`
   if (m.includes('comment_no_workout')) return 'Эта тренировка тебе больше не видна.'
+  if (m.includes('comment_not_found')) return 'Комментарий уже удален или тебе больше не виден.'
+  if (m.includes('comment_own_like')) return 'Свой комментарий лайкать нельзя.'
   if (error?.code === '42501') return 'Войди в свою учетную запись с интернетом.'
   if (error?.code === 'PGRST202') return 'Комментарии пока недоступны. Попробуй позже.'
   if (error?.code === 'PGRST301' || /jwt expired/i.test(m)) return 'Сессия устарела — закрой и снова открой приложение.'
@@ -118,6 +142,23 @@ export async function addComment(userId, workoutId, text) {
   const c = normComment(Array.isArray(data) ? data[0] : data)
   if (!c) throw new CommentError('Не получилось — попробуй еще раз.')
   return c
+}
+
+// Изменить свой → строка с сервера (без лайков: их сохраняет вызывающий).
+export async function editComment(userId, commentId, text) {
+  const body = cleanBody(text)
+  if (!body || body.length > COMMENT_MAX) throw new CommentError(`Комментарий — от 1 до ${COMMENT_MAX} знаков.`)
+  const data = await rpc(userId, 'comment_edit', { p_id: commentId, p_body: body })
+  const c = normComment(Array.isArray(data) ? data[0] : data)
+  if (!c) throw new CommentError('Не получилось — попробуй еще раз.')
+  return { body: c.body, edited_at: c.edited_at }
+}
+
+// ❤️ поставить/снять → { like_count, liked } с сервера.
+export async function likeComment(userId, commentId, on) {
+  const data = await rpc(userId, 'comment_like', { p_id: commentId, p_on: Boolean(on) })
+  const r = Array.isArray(data) ? data[0] : data
+  return { like_count: Math.max(0, Number(r?.like_count) || 0), liked: Boolean(r?.liked) }
 }
 
 // Удалить → true; false — уже удален или нет прав.

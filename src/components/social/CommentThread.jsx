@@ -5,15 +5,19 @@ import { showToast } from '../ui/Toast.jsx'
 import { useAliveRef } from '../../hooks/useAliveRef.js'
 import { useRevealFocus } from '../../hooks/useRevealFocus.js'
 import {
-  COMMENT_COUNTER_FROM, COMMENT_MAX, canDeleteComment, cleanBody, commentAgo, previewComments,
+  COMMENT_COUNTER_FROM, COMMENT_MAX, canDeleteComment, canEditComment, canLikeComment, cleanBody, commentAgo,
+  previewComments, toggleLike,
 } from '../../lib/comments.js'
-import { postComment, removeComment } from '../../db/comments.js'
+import { postComment, removeComment, setCommentLike, updateComment } from '../../db/comments.js'
 
 // Ветка комментариев под тренировкой (19.10.2026, PLAN-comments.md; мокап prototypes/comments).
 // Свернута — два последних и «Все комментарии (N)»; раскрыта — все по времени и поле внизу.
 // Незнакомый автор (сервер: author_known=false) — серая буква и имя без перехода в профиль.
 // Отправка оптимистичная: строка сразу (полупрозрачная), ошибка — убрать, вернуть текст, тост.
 // Неотправленное не копим: черновик живет в состоянии открытой карточки. Без сети — только чтение.
+// 9.5.3: «⋯» у своего — «Изменить / Удалить» (правка — в том же поле, полоска «Изменяешь…»,
+// у строки метка «изменено»); у чужого под своей тренировкой — сразу «Удалить?». ❤️ справа
+// в строке: на чужой — кнопка, на своем — только счетчик. Правка и ❤️ тоже оптимистичные.
 // Пропсы: workoutId, ownerId, comments, me {id, name}, open, onOpen(), focusTick (растет —
 // поставить курсор в поле), onOpenMember(userId).
 export default function CommentThread({ workoutId, ownerId, comments, me, open, onOpen, focusTick = 0, onOpenMember }) {
@@ -21,8 +25,12 @@ export default function CommentThread({ workoutId, ownerId, comments, me, open, 
   const aliveRef = useAliveRef()
   const [text, setText] = useState('')
   const [pending, setPending] = useState([])
+  const [menu, setMenu] = useState(null) // свой комментарий, для которого открыт лист действий
   const [asking, setAsking] = useState(null) // комментарий, который спрашиваем удалить
   const [deleting, setDeleting] = useState(false)
+  const [editing, setEditing] = useState(null) // свой комментарий в правке
+  const [edits, setEdits] = useState({}) // id → текст, пока правка уходит на сервер
+  const [likes, setLikes] = useState({}) // id → { like_count, liked }, пока ❤️ уходит на сервер
   const [reveal, setReveal] = useState(null)
   const boxRef = useRevealFocus(reveal)
   const inputRef = useRef(null)
@@ -36,6 +44,15 @@ export default function CommentThread({ workoutId, ownerId, comments, me, open, 
     inputRef.current?.focus({ preventScroll: true })
   }, [focusTick])
 
+  // Начали править — поле уже с текстом (ветка раскрылась), курсор в конец.
+  useEffect(() => {
+    if (!editing || !open) return
+    const el = inputRef.current
+    if (!el) return
+    el.focus({ preventScroll: true })
+    el.setSelectionRange?.(el.value.length, el.value.length)
+  }, [editing, open])
+
   useLayoutEffect(() => {
     const el = inputRef.current
     if (!el) return
@@ -43,7 +60,12 @@ export default function CommentThread({ workoutId, ownerId, comments, me, open, 
     el.style.height = `${el.scrollHeight}px`
   }, [text, open])
 
-  const all = [...(comments ?? []), ...pending]
+  const all = [...(comments ?? []), ...pending].map((c) => {
+    let x = c
+    if (edits[c.id] != null) x = { ...x, body: edits[c.id], edited_at: x.edited_at ?? 'pending' }
+    if (likes[c.id]) x = { ...x, ...likes[c.id] }
+    return x
+  })
   const { shown, hidden } = previewComments(all, open)
   if (!open && all.length === 0) return null
 
@@ -52,6 +74,7 @@ export default function CommentThread({ workoutId, ownerId, comments, me, open, 
 
   async function send() {
     if (!canSend) return
+    if (editing) return saveEdit()
     const tmp = { id: `tmp-${Date.now()}`, workout_id: workoutId, user_id: me.id, name: me.name || 'Я',
       known: true, avatar_url: me.avatar ?? null, body, created_at: new Date().toISOString(), pending: true }
     setPending((p) => [...p, tmp])
@@ -66,12 +89,57 @@ export default function CommentThread({ workoutId, ownerId, comments, me, open, 
     }
   }
 
+  async function saveEdit() {
+    const c = editing
+    setEditing(null)
+    setText('')
+    if (body === c.body) return // ничего не поменялось — не трогаем сервер и метку
+    setEdits((m) => ({ ...m, [c.id]: body }))
+    try {
+      await updateComment({ userId: me.id, comment: c, ownerId, text: body })
+    } catch (e) {
+      if (aliveRef.current) { setEditing(c); setText((cur) => cur || body) }
+      showToast({ emoji: '⚠️', title: 'Не удалось изменить', sub: e?.message })
+    } finally {
+      if (aliveRef.current) setEdits((m) => { const n = { ...m }; delete n[c.id]; return n })
+    }
+  }
+
+  function startEdit(c) {
+    setMenu(null)
+    setEditing(c)
+    setText(c.body)
+    if (!open) onOpen?.()
+    setReveal({})
+  }
+
+  function cancelEdit() {
+    setEditing(null)
+    setText('')
+  }
+
+  async function like(c) {
+    if (!online) return
+    const on = !c.liked
+    setLikes((m) => ({ ...m, [c.id]: toggleLike(c, on) }))
+    try {
+      await setCommentLike({ userId: me.id, comment: c, ownerId, on })
+    } catch (e) {
+      showToast({ emoji: '⚠️', title: 'Не получилось', sub: e?.message })
+    } finally {
+      if (aliveRef.current) setLikes((m) => { const n = { ...m }; delete n[c.id]; return n })
+    }
+  }
+
   async function confirmDelete() {
     const c = asking
     setDeleting(true)
     try {
       await removeComment({ userId: me.id, comment: c, ownerId })
-      if (aliveRef.current) setAsking(null)
+      if (aliveRef.current) {
+        setAsking(null)
+        if (editing?.id === c.id) cancelEdit()
+      }
     } catch (e) {
       showToast({ emoji: '⚠️', title: 'Не удалось удалить', sub: e?.message })
     } finally {
@@ -81,23 +149,47 @@ export default function CommentThread({ workoutId, ownerId, comments, me, open, 
 
   return (
     <div className="cm" ref={boxRef}>
-      {shown.map((c) => (
-        <div key={c.id} className={`cm-item${c.pending ? ' pending' : ''}`}>
-          <Avatar name={c.name} url={c.known ? c.avatar_url : null} className={`avatar-sm${c.known ? '' : ' unknown'}`} />
-          <div className="cm-main">
-            <div className="cm-head">
-              {c.known && onOpenMember && c.user_id
-                ? <button type="button" className="cm-name link" onClick={() => onOpenMember(c.user_id)}>{c.name}</button>
-                : <span className={`cm-name ${c.known ? 'link' : 'plain'}`}>{c.name}</span>}
-              <span className="cm-time">{c.pending ? 'отправка…' : commentAgo(c.created_at)}</span>
+      {shown.map((c) => {
+        const mine = canEditComment(c, me.id)
+        const canLike = canLikeComment(c, me.id)
+        const more = !c.pending && (mine || canDeleteComment(c, me.id, ownerId))
+        const likeBtn = !c.pending && (canLike || c.like_count > 0) && (
+          <button type="button" className={`cm-like${c.liked ? ' on' : ''}`} onClick={() => like(c)}
+            disabled={!canLike || !online} aria-pressed={canLike ? c.liked : undefined}
+            aria-label={canLike ? (c.liked ? 'Убрать лайк' : 'Лайк') : `Лайков: ${c.like_count}`}>
+            <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" strokeWidth="2"
+              strokeLinejoin="round" aria-hidden="true">
+              <path d="M12 20s-7-4.4-7-10a4 4 0 0 1 7-2.6A4 4 0 0 1 19 10c0 5.6-7 10-7 10z" />
+            </svg>
+            {c.like_count > 0 && <span>{c.like_count}</span>}
+          </button>
+        )
+        return (
+          <div key={c.id} className={`cm-item${c.pending ? ' pending' : ''}`}>
+            <Avatar name={c.name} url={c.known ? c.avatar_url : null} className={`avatar-sm${c.known ? '' : ' unknown'}`} />
+            <div className="cm-main">
+              <div className="cm-head">
+                {c.known && onOpenMember && c.user_id
+                  ? <button type="button" className="cm-name link" onClick={() => onOpenMember(c.user_id)}>{c.name}</button>
+                  : <span className={`cm-name ${c.known ? 'link' : 'plain'}`}>{c.name}</span>}
+                <span className="cm-time">{c.pending ? 'отправка…' : commentAgo(c.created_at)}</span>
+                {!c.pending && c.edited_at && <span className="cm-edited">· изменено</span>}
+              </div>
+              <div className="cm-text">{c.body}</div>
             </div>
-            <div className="cm-text">{c.body}</div>
+            {likeBtn || more
+              ? (
+                <div className="cm-acts">
+                  {likeBtn}
+                  {more && (mine
+                    ? <button type="button" className="cm-more-btn" aria-label="Действия с комментарием" onClick={() => setMenu(c)}>⋯</button>
+                    : <button type="button" className="cm-more-btn" aria-label="Удалить комментарий" onClick={() => setAsking(c)}>⋯</button>)}
+                </div>
+              )
+              : <span />}
           </div>
-          {!c.pending && canDeleteComment(c, me.id, ownerId)
-            ? <button type="button" className="cm-more-btn" aria-label="Удалить комментарий" onClick={() => setAsking(c)}>⋯</button>
-            : <span />}
-        </div>
-      ))}
+        )
+      })}
 
       {hidden > 0 && (
         <button type="button" className="cm-all" onClick={() => { onOpen?.(); setReveal({}) }}>
@@ -107,6 +199,12 @@ export default function CommentThread({ workoutId, ownerId, comments, me, open, 
 
       {open && (online ? (
         <>
+          {editing && (
+            <div className="cm-editing">
+              <span>Изменяешь комментарий</span>
+              <button type="button" onClick={cancelEdit} aria-label="Отменить правку">✕</button>
+            </div>
+          )}
           <div className="cm-form">
             <textarea
               ref={inputRef}
@@ -119,9 +217,12 @@ export default function CommentThread({ workoutId, ownerId, comments, me, open, 
               onChange={(e) => setText(e.target.value)}
             />
             <button type="button" className={`cm-send${canSend ? '' : ' off'}`} onClick={send} disabled={!canSend}
-              aria-label="Отправить">
-              <svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" strokeWidth="2.4"
-                strokeLinecap="round" strokeLinejoin="round" aria-hidden="true"><path d="M12 19V5" /><path d="M6 11l6-6 6 6" /></svg>
+              aria-label={editing ? 'Сохранить' : 'Отправить'}>
+              {editing
+                ? <svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" strokeWidth="2.6"
+                    strokeLinecap="round" strokeLinejoin="round" aria-hidden="true"><path d="M5 12.5l4.5 4.5L19 7.5" /></svg>
+                : <svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" strokeWidth="2.4"
+                    strokeLinecap="round" strokeLinejoin="round" aria-hidden="true"><path d="M12 19V5" /><path d="M6 11l6-6 6 6" /></svg>}
             </button>
           </div>
           <div className="cm-hint">
@@ -134,6 +235,20 @@ export default function CommentThread({ workoutId, ownerId, comments, me, open, 
       ) : (
         <div className="cm-offline" role="status">📡 Нет сети — комментарии только читать</div>
       ))}
+
+      {menu && (
+        <SheetDialog title="Твой комментарий" actionLabel="отмена" onDismiss={() => setMenu(null)} className="sheet--compact">
+          <p className="cm-del-quote">«{menu.body.length > 80 ? `${menu.body.slice(0, 79)}…` : menu.body}»</p>
+          <div className="btn-row">
+            <button type="button" className="btn ghost" onClick={() => startEdit(menu)} disabled={!online} data-autofocus>
+              Изменить
+            </button>
+            <button type="button" className="btn danger-ghost" onClick={() => { setAsking(menu); setMenu(null) }}>
+              Удалить
+            </button>
+          </div>
+        </SheetDialog>
+      )}
 
       {asking && (
         <SheetDialog title="Удалить комментарий?" actionLabel="отмена" onDismiss={() => setAsking(null)}

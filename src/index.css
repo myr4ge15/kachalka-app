@@ -1840,6 +1840,26 @@ button.cm-name { cursor: pointer; }
   background: none; border: none; color: var(--muted); font-size: 18px; border-radius: 50%; cursor: pointer;
 }
 .cm-more-btn:active { background: var(--surface-2); }
+/* Справа в строке (9.5.3): ❤️ со счетчиком и «⋯». Отрицательные поля — зона тапа 44px без роста строки. */
+.cm-acts { display: flex; align-items: center; margin: -10px -12px -10px 0; }
+.cm-acts .cm-more-btn { margin: 0; }
+.cm-like {
+  min-width: 44px; height: 44px; padding: 0 6px; display: flex; align-items: center; justify-content: center; gap: 3px;
+  background: none; border: none; border-radius: 22px; color: var(--muted); font-size: 13px; font-weight: 600; cursor: pointer;
+}
+.cm-like:active:not(:disabled) { background: var(--surface-2); }
+.cm-like:disabled { cursor: default; }
+.cm-like.on { color: var(--acc-2); }
+.cm-like.on svg { fill: currentColor; }
+.cm-edited { font-size: 12px; color: var(--muted); white-space: nowrap; }
+/* Полоска «Изменяешь комментарий ✕» над полем в режиме правки. */
+.cm-editing {
+  display: flex; align-items: center; gap: 8px; margin-top: 6px; padding-left: 14px; font-size: 13px; color: var(--acc-2);
+}
+.cm-editing span { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.cm-editing button {
+  width: 44px; height: 36px; flex: none; background: none; border: none; color: var(--muted); font-size: 18px; cursor: pointer;
+}
 .cm-all {
   display: flex; align-items: center; min-height: 44px; padding: 0; background: none; border: none;
   color: var(--acc-2); font-size: 14px; font-weight: 600; cursor: pointer;

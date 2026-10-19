@@ -151,7 +151,9 @@ function reactionsKey(items) {
       (i.reactions ?? [])
         .map((r) => [String(r.user_id), String(r.kind), r.name ?? null, r.created_at ?? null])
         .sort((a, b) => (a[0] + a[1]).localeCompare(b[0] + b[1])),
-      (i.comments ?? []).map((c) => [c.id, c.name, c.known, c.avatar_url ?? null]),
+      // текст, метка правки и ❤️ — иначе правка/лайк с другого устройства не перезапишут кэш (9.5.3)
+      (i.comments ?? []).map((c) => [c.id, c.name, c.known, c.avatar_url ?? null, c.body, c.edited_at ?? null,
+        c.like_count ?? 0, Boolean(c.liked)]),
     ])
   )
 }

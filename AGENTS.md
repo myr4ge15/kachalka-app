@@ -474,6 +474,9 @@ updated_at)` + `upsert_user_meta` (`supabase/user-meta.sql`, RLS «только 
   автор (`user_can_see` = нет) — имя без фото и профиля. Пуш — `trg_push_comment` → Edge `push-comment` (`--no-verify-jwt`),
   тип `comment` в `push_prefs`. **Канон `set_push_pref` — этот файл** (белый список + `comment`), не `push-types.sql`.
   Клиент: `lib/comments.js` (онлайн, вне очередей; неотправленное не копим), `db/comments.js`, `db/feed.js attachComments`.
+  **v9.5.3 — правка и ❤️** → канон `comments_for` и `comment_edit`/`comment_like` — `migrations/20261019150000_comment_edit.sql`
+  (`edited_at`, таблица `comment_likes` с cascade; в конце контракта `edited_at, like_count, liked`). Править — только автор,
+  ❤️ — только чужой видимый. Первый файл после него не перезапускать (guard сам откажет: откатил бы контракт).
 - **Кубки в Ленте (v9.2.2)** → `migrations/20261016110000_feed_pr_baseline.sql`: `feed_pr_baseline(p_before, p_user_ids)` —
   лучший ведущий показатель (участник, упражнение) до окна Ленты, только `visible_user_ids()`, DEFINER, `authenticated`.
   `computePrs` стартует с него (иначе рекорды по окну 50 тренировок давали ложный кубок); правило показателя — как у

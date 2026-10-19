@@ -7,29 +7,38 @@
 // Свежие правки помним в памяти пару минут и накладываем на ответ comments_for
 // (overlayRecentComments): опрос, ушедший ДО отправки, иначе вернул бы снимок без
 // нового комментария, и он «мигнул» бы до следующего опроса (тот же случай, что
-// fb_53077e01 у реакций).
+// fb_53077e01 у реакций). Так же — правка текста и ❤️ (9.5.3): накладываются полями на
+// уже пришедший комментарий (recentPatches), не подменяя остальное.
 // ============================================================================
 import { db, getMeta, setMeta } from './local.js'
-import { addComment, deleteComment, upsertComment } from '../lib/comments.js'
+import { addComment, deleteComment, editComment, likeComment, upsertComment } from '../lib/comments.js'
 
 const RECENT_MS = 2 * 60 * 1000
 const recentAdds = new Map() // id → { c, at }
 const recentDeletes = new Map() // id → at
+const recentPatches = new Map() // id → { patch, at } — правка текста / ❤️
 
 function prune(now) {
   for (const [id, v] of recentAdds) if (now - v.at > RECENT_MS) recentAdds.delete(id)
   for (const [id, at] of recentDeletes) if (now - at > RECENT_MS) recentDeletes.delete(id)
+  for (const [id, v] of recentPatches) if (now - v.at > RECENT_MS) recentPatches.delete(id)
+}
+
+function patchOne(id, patch) {
+  const prev = recentPatches.get(id)?.patch ?? {}
+  recentPatches.set(id, { patch: { ...prev, ...patch }, at: Date.now() })
 }
 
 // Наложить свежие локальные правки на серверный снимок. Мутирует item.comments.
 export function overlayRecentComments(items, now = Date.now()) {
   prune(now)
-  if (!recentAdds.size && !recentDeletes.size) return
+  if (!recentAdds.size && !recentDeletes.size && !recentPatches.size) return
   for (const item of items ?? []) {
     let list = (item.comments ?? []).filter((c) => !recentDeletes.has(c.id))
     for (const { c } of recentAdds.values()) {
       if (c.workout_id === item.id && !recentDeletes.has(c.id)) list = upsertComment(list, c)
     }
+    if (recentPatches.size) list = list.map((c) => (recentPatches.has(c.id) ? { ...c, ...recentPatches.get(c.id).patch } : c))
     item.comments = list
   }
 }
@@ -38,6 +47,7 @@ export function overlayRecentComments(items, now = Date.now()) {
 export function resetRecentComments() {
   recentAdds.clear()
   recentDeletes.clear()
+  recentPatches.clear()
 }
 
 async function patchCaches(workoutId, ownerId, fn, d = db) {
@@ -62,10 +72,27 @@ export async function postComment({ userId, workoutId, ownerId, text }, d = db) 
   return c
 }
 
+// Изменить свой → новые { body, edited_at }; лайки и остальное остаются.
+export async function updateComment({ userId, comment, ownerId, text }, d = db) {
+  const patch = await editComment(userId, comment.id, text)
+  patchOne(comment.id, patch)
+  await patchCaches(comment.workout_id, ownerId, (list) => list.map((x) => (x.id === comment.id ? { ...x, ...patch } : x)), d)
+  return patch
+}
+
+// ❤️ поставить/снять → { like_count, liked } с сервера.
+export async function setCommentLike({ userId, comment, ownerId, on }, d = db) {
+  const patch = await likeComment(userId, comment.id, on)
+  patchOne(comment.id, patch)
+  await patchCaches(comment.workout_id, ownerId, (list) => list.map((x) => (x.id === comment.id ? { ...x, ...patch } : x)), d)
+  return patch
+}
+
 // Удалить. Уже удален (false с сервера) — тоже убираем из кэша.
 export async function removeComment({ userId, comment, ownerId }, d = db) {
   await deleteComment(userId, comment.id)
   recentDeletes.set(comment.id, Date.now())
   recentAdds.delete(comment.id)
+  recentPatches.delete(comment.id)
   await patchCaches(comment.workout_id, ownerId, (list) => list.filter((x) => x.id !== comment.id), d)
 }
