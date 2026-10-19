@@ -67,3 +67,41 @@ export function layoutProblems(page) {
 
 // «Сохранить» композера (с числом подходов в скобках).
 export const saveButton = (page) => page.getByRole('button', { name: /^Сохранить( \(\d+\))?$/ })
+
+// Сеть по требованию (покрытие тестами 19.10.2026): navigator.onLine читает флаг страницы.
+// По умолчанию офлайн, как в остальных спеках; setOnline(page, true) включает сеть до
+// следующей загрузки страницы (флаг живет в window и после перезагрузки снова false).
+export async function switchableOnline(context) {
+  await context.addInitScript(() => {
+    Object.defineProperty(window.navigator, 'onLine', { get: () => window.__e2eOnline === true, configurable: true })
+  })
+}
+export async function setOnline(page, on, { fire = true } = {}) {
+  await page.evaluate(([v, f]) => {
+    window.__e2eOnline = v
+    if (f) window.dispatchEvent(new Event(v ? 'online' : 'offline'))
+  }, [on, fire])
+}
+
+// Сид устройства «уже входило» + офлайн-вход по PIN (как в smoke.spec.js). Возвращает учетку.
+export async function seedAndLogin(page, app = '/kachalka-app/') {
+  await page.goto(app)
+  const user = await page.evaluate(async () => (await import('/kachalka-app/src/test/e2eSeed.js')).seedE2E())
+  await page.reload()
+  await page.getByRole('button', { name: user.name }).click()
+  await enterPin(page, user.pin)
+  await tabbar(page).waitFor()
+  return user
+}
+
+// Ответ Supabase с CORS (страница на 127.0.0.1, бэкенд — e2e-offline.supabase.co).
+export const CORS = {
+  'access-control-allow-origin': '*',
+  'access-control-allow-headers': '*',
+  'access-control-allow-methods': '*',
+  'access-control-expose-headers': '*',
+}
+export function fulfillJson(route, json, status = 200) {
+  if (route.request().method() === 'OPTIONS') return route.fulfill({ status: 200, headers: CORS })
+  return route.fulfill({ status, headers: CORS, contentType: 'application/json', body: JSON.stringify(json) })
+}

@@ -29,7 +29,8 @@ export default defineConfig({
   forbidOnly: Boolean(process.env.CI),
   retries: process.env.CI ? 1 : 0,
   workers: 1,
-  reporter: process.env.CI ? [['list'], ['html', { open: 'never' }]] : [['list']],
+  // github — падения аннотациями на прогоне (видны в сводке Actions без скачивания отчета).
+  reporter: process.env.CI ? [['list'], ['github'], ['html', { open: 'never' }]] : [['list']],
 
   use: {
     baseURL: BASE,
@@ -38,7 +39,14 @@ export default defineConfig({
     video: 'retain-on-failure',
   },
 
-  projects: [{ name: 'chromium', use: { ...devices['Desktop Chrome'], viewport: { width: 390, height: 844 } } }],
+  projects: [
+    { name: 'chromium', use: { ...devices['Desktop Chrome'], viewport: { width: 390, height: 844 } } },
+    // Smoke в WebKit (19.10.2026, задача e2e-webkit в test.yml): только по E2E_WEBKIT=1 —
+    // обычный прогон и локальный запуск остаются на одном Chromium.
+    ...(process.env.E2E_WEBKIT
+      ? [{ name: 'webkit', testMatch: /smoke\.spec\.js$/, use: { ...devices['iPhone 13'], defaultBrowserType: 'webkit' } }]
+      : []),
+  ],
 
   webServer: {
     // --host 127.0.0.1 обязателен: по умолчанию vite слушает `localhost`, который

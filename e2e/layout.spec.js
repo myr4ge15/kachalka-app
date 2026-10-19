@@ -59,3 +59,43 @@ test('кнопки на главных экранах не выходят за �
   await page.getByRole('button', { name: 'Открыть профиль' }).first().click()
   await expectTidy(page, 'Профиль')
 })
+
+// Вложенные экраны (покрытие тестами 19.10.2026): раньше e2e их не открывал вовсе — тест
+// заодно ловит «экран не открывается». Назад — общая BackButton.
+test('вложенные экраны открываются и кнопки на них ровные', async ({ page, context }) => {
+  await context.addInitScript(() => {
+    Object.defineProperty(window.navigator, 'onLine', { get: () => false, configurable: true })
+  })
+  await context.route(/supabase\.co/, (route) => route.abort())
+
+  await page.goto(APP)
+  const user = await page.evaluate(async () => (await import('/kachalka-app/src/test/e2eSeed.js')).seedE2E())
+  await page.reload()
+  await page.getByRole('button', { name: user.name }).click()
+  await enterPin(page, user.pin)
+  await expect(tabbar(page)).toBeVisible()
+
+  const back = () => page.getByRole('button', { name: /Назад/ }).first().click()
+  const visit = async (heading) => {
+    await expect(page.getByRole('heading', { name: heading, exact: true })).toBeVisible()
+    await expectTidy(page, heading)
+    await back()
+  }
+
+  await page.getByRole('button', { name: /^Уведомления/ }).first().click()
+  await visit('Уведомления')
+
+  await page.getByRole('button', { name: 'Открыть профиль' }).first().click()
+  await page.getByRole('button', { name: /Достижения/ }).first().click()
+  await visit('Достижения')
+
+  await page.getByRole('button', { name: 'Настройки', exact: true }).click()
+  for (const [button, heading] of [
+    [/Оформление/, 'Оформление'],
+    [/Каталог упражнений/, 'Каталог упражнений'],
+    [/Что нового/, 'Обновления'],
+  ]) {
+    await page.getByRole('button', { name: button }).first().click()
+    await visit(heading)
+  }
+})

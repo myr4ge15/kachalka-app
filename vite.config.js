@@ -81,6 +81,15 @@ export default defineConfig(({ mode }) => ({
     environment: 'node',
     include: ['src/**/*.test.{js,jsx}'],
     setupFiles: ['./src/test/setup.js'],
+    // Покрытие (19.10.2026) — только по флагу --coverage: в CI его снимает одна нога
+    // задачи unit (Москва), отчет — артефакт `coverage`. Порогов пока нет: снимаем базу.
+    coverage: {
+      provider: 'v8',
+      include: ['src/**/*.{js,jsx}'],
+      exclude: ['src/**/*.test.{js,jsx}', 'src/test/**', 'src/content/**'],
+      reporter: ['text-summary', 'json-summary', 'html'],
+      reportsDirectory: 'coverage',
+    },
   },
   plugins: [
     react(),
