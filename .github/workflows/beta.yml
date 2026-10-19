@@ -54,7 +54,7 @@ jobs:
       contents: read
     environment:
       name: beta
-      url: https://${{ vars.BETA_PAGES_PROJECT || 'kachalka-beta' }}.pages.dev
+      url: ${{ steps.deploy.outputs.url }}
     env:
       PROJECT: ${{ vars.BETA_PAGES_PROJECT || 'kachalka-beta' }}
       SHA: ${{ github.event.workflow_run.head_sha || github.sha }}
@@ -105,11 +105,19 @@ jobs:
 
       # Wrangler — точная версия через npx, без стороннего action: меньше движущихся частей.
       - name: Публикация на Cloudflare Pages
+        id: deploy
         if: steps.cf.outputs.ready == 'true'
         env:
           CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
           CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
         run: |
+          set -o pipefail  # иначе tee проглотит падение wrangler
           npx --yes wrangler@4.146.0 pages deploy dist \
-            --project-name="$PROJECT" --branch=main --commit-hash="$SHA" --commit-dirty=true
-          echo "::notice title=Бета обновлена::https://$PROJECT.pages.dev — ${SHA:0:7}"
+            --project-name="$PROJECT" --branch=main --commit-hash="$SHA" --commit-dirty=true | tee deploy.log
+          # Адрес — из ответа wrangler, а не из имени проекта: занятое имя Cloudflare выдает с хвостом
+          # (kachalka-beta-xyz.pages.dev). Wrangler печатает адрес сборки https://<хэш>.<проект>.pages.dev,
+          # постоянный адрес беты — он же без первой части.
+          one=$(grep -oE 'https://[a-z0-9-]+\.[a-z0-9-]+\.pages\.dev' deploy.log | tail -1)
+          url="https://${one#https://*.}"
+          echo "url=$url" >> "$GITHUB_OUTPUT"
+          echo "::notice title=Бета обновлена::$url — ${SHA:0:7} (эта сборка: $one)"
