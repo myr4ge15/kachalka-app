@@ -4,6 +4,7 @@ import { normalizeLogin } from '../../lib/login.js'
 import { recoveryCodeLooksValid, resetErrorText } from '../../lib/recovery.js'
 import NewPinFields, { newPinProblem } from './NewPinFields.jsx'
 import RecoveryCodeView from './RecoveryCodeView.jsx'
+import BusyText from '../ui/BusyText.jsx'
 
 function errText(e) {
   if (e instanceof LoginError && e.code === 'locked' && e.retryAfter) {
@@ -132,7 +133,7 @@ export default function ForgotPin({ initialLogin = '', onBack, onLogin }) {
       <p className="invite-lead">Бот в Telegram пришлет ссылку — по ней задашь новый PIN.</p>
       {loginField}
       {error && <p className="error" role="alert">{error}</p>}
-      <button className="btn primary" type="submit" disabled={busy}>{busy ? 'Отправляю…' : 'Прислать ссылку в Telegram'}</button>
+      <button className="btn primary" type="submit" disabled={busy}>{busy ? <BusyText>Отправляю</BusyText> : 'Прислать ссылку в Telegram'}</button>
       <div className="login-alt">
         <button type="button" className="link-btn" disabled={busy} onClick={() => { setError(''); setWay('code') }}>Нет Telegram? Восстановить кодом</button>
         <button type="button" className="link-btn" disabled={busy} onClick={onBack}>К входу</button>

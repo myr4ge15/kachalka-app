@@ -302,7 +302,7 @@ it('«Дополнить»: только скриншот, без текста; 
   expect(screen.getByAltText('Скриншот к обращению')).toBeTruthy() // выбор не потерян
   await userEvent.click(screen.getByRole('button', { name: 'Дописать' }))
   await waitFor(() => expect(api.list).toHaveBeenCalledTimes(2))
-  expect(attach).toHaveBeenLastCalledWith('me', 'f1', [file])
+  expect(attach).toHaveBeenLastCalledWith('me', 'f1', [file], undefined, { onProgress: expect.any(Function) })
   expect(screen.queryByRole('button', { name: 'Дописать' })).toBeNull() // форма закрылась
 })
 
@@ -315,7 +315,7 @@ it('«Дополнить»: текст и скриншот уходят вмес
   const file = new File(['x'], 'b.png', { type: 'image/png' })
   await userEvent.upload(screen.getByTestId('fb-file-f1'), file)
   await userEvent.click(screen.getByRole('button', { name: 'Дописать' }))
-  await waitFor(() => expect(attach).toHaveBeenCalledWith('me', 'f1', [file]))
+  await waitFor(() => expect(attach).toHaveBeenCalledWith('me', 'f1', [file], undefined, { onProgress: expect.any(Function) }))
   expect(api.append).toHaveBeenCalledWith('f1', 'вот еще')
 })
 

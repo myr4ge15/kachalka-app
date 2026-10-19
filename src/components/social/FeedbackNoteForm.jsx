@@ -1,5 +1,7 @@
 import { useState } from 'react'
 import { showToast } from '../ui/Toast.jsx'
+import BusyText from '../ui/BusyText.jsx'
+import UploadProgress from './UploadProgress.jsx'
 import FeedbackScreenshotPicker from './FeedbackScreenshotPicker.jsx'
 import { cleanBody } from '../../lib/feedback.js'
 import { FeedbackError } from '../../lib/feedbackApi.js'
@@ -19,6 +21,7 @@ export default function FeedbackNoteForm({
   const [note, setNote] = useState('')
   const [files, setFiles] = useState([])
   const [busy, setBusy] = useState(false)
+  const [progress, setProgress] = useState(null) // { loaded, total } вложений
   const len = cleanBody(note).length
   const filesOnly = !!attach?.textOptional && files.length > 0 && len === 0
   const problem = filesOnly ? null : problemOf(note)
@@ -31,7 +34,7 @@ export default function FeedbackNoteForm({
     let textSent = false
     try {
       if (!filesOnly) { await send(note); textSent = true; setNote('') }
-      if (files.length) await attach.send(files)
+      if (files.length) await attach.send(files, setProgress)
       showToast(done)
       close()
       onDone?.()
@@ -42,6 +45,7 @@ export default function FeedbackNoteForm({
       if (textSent) onDone?.()
     } finally {
       setBusy(false)
+      setProgress(null)
     }
   }
 
@@ -64,9 +68,10 @@ export default function FeedbackNoteForm({
         <FeedbackScreenshotPicker files={files} onChange={setFiles} disabled={busy || !online} max={attach.max}
           testId={attach.testId} />
       )}
+      {busy && <UploadProgress progress={progress} />}
       <div className="invite-fresh-actions">
         <button className="btn primary" onClick={submit} disabled={busy || !!problem || !online}>
-          {busy ? 'Отправляю…' : sendLabel}
+          {busy ? <BusyText>Отправляю</BusyText> : sendLabel}
         </button>
         <button className="btn ghost" onClick={close} disabled={busy}>Отмена</button>
       </div>

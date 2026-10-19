@@ -2,6 +2,8 @@ import FeedbackScreenshotPicker from '../components/social/FeedbackScreenshotPic
 import MyFeedbackItem from '../components/social/MyFeedbackItem.jsx'
 import { useEffect, useRef, useState } from 'react'
 import BackButton from '../components/ui/BackButton.jsx'
+import BusyText from '../components/ui/BusyText.jsx'
+import UploadProgress from '../components/social/UploadProgress.jsx'
 import CardsSkeleton from '../components/ui/CardsSkeleton.jsx'
 import ScrollTopButton from '../components/ui/ScrollTopButton.jsx'
 import { showToast } from '../components/ui/Toast.jsx'
@@ -30,6 +32,7 @@ export default function FeedbackScreen({ user, onBack, focusId = null, fromScree
   const [text, setText] = useState('')
   const [files, setFiles] = useState([])
   const [busy, setBusy] = useState(false)
+  const [progress, setProgress] = useState(null) // { loaded, total } вложений, пока идет отправка
   const [list, setList] = useState(null)
   const [loadErr, setLoadErr] = useState('')
   // Какие ответы были непрочитаны на момент открытия: метку «новый» держим до
@@ -109,7 +112,7 @@ export default function FeedbackScreen({ user, onBack, focusId = null, fromScree
         screen: fromScreen ?? 'profile',
         online: navigator.onLine,
       })
-      const result = await api.submit(user.id, { body: text, context, files })
+      const result = await api.submit(user.id, { body: text, context, files, onProgress: (p) => { if (alive.current) setProgress(p) } })
       if (!alive.current) return
       setText('')
       setFiles([])
@@ -118,7 +121,7 @@ export default function FeedbackScreen({ user, onBack, focusId = null, fromScree
     } catch (e) {
       showToast({ emoji: '⚠️', title: 'Не отправилось', sub: e instanceof FeedbackError ? e.message : 'Попробуй еще раз.' })
     } finally {
-      if (alive.current) setBusy(false)
+      if (alive.current) { setBusy(false); setProgress(null) }
     }
   }
 
@@ -157,8 +160,9 @@ export default function FeedbackScreen({ user, onBack, focusId = null, fromScree
           К сообщению приложим версию приложения и модель телефона — так быстрее разобраться.
         </p>
         {!online && <p className="admin-offline" role="status">Нет связи. Отправить можно будет онлайн.</p>}
+        {busy && <UploadProgress progress={progress} />}
         <button className="btn primary" onClick={send} disabled={busy || !!problem || !online}>
-          {busy ? 'Отправляю…' : 'Отправить'}
+          {busy ? <BusyText>Отправляю</BusyText> : 'Отправить'}
         </button>
       </section>
 

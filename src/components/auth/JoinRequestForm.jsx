@@ -1,5 +1,6 @@
 import { useState } from 'react'
 import { submitJoin, validateJoin, joinErrorText, NAME_MAX, ABOUT_MAX, JoinError } from '../../lib/joinRequest.js'
+import BusyText from '../ui/BusyText.jsx'
 
 // Форма «Хочу в круг» (v6.12.0): имя + пара слов → владельцу в Telegram.
 // Пропсы: onSubmitted(pending) — заявка принята сервером; onBack() — назад.
@@ -49,7 +50,7 @@ export default function JoinRequestForm({ onSubmitted, onBack }) {
       </div>
       {error && <p className="error" role="alert">{error}</p>}
       <button className="btn primary" type="submit" disabled={busy}>
-        {busy ? 'Отправляю…' : 'Отправить заявку'}
+        {busy ? <BusyText>Отправляю</BusyText> : 'Отправить заявку'}
       </button>
       <button className="btn ghost" type="button" onClick={onBack} disabled={busy}>Назад</button>
     </form>

@@ -35,7 +35,7 @@ export default function MyFeedbackItem({ row: r, userId, api, online, fresh = fa
   // Сколько еще можно приложить (всего до FEEDBACK_SHOTS_MAX) и как.
   const room = FEEDBACK_SHOTS_MAX - shots
   const attachTo = (textOptional) => (room > 0
-    ? { max: room, textOptional, testId: 'fb-file-' + r.id, send: (files) => api.attach(userId, r.id, files) }
+    ? { max: room, textOptional, testId: 'fb-file-' + r.id, send: (files, onProgress) => api.attach(userId, r.id, files, undefined, { onProgress }) }
     : null)
 
   function toggle() {

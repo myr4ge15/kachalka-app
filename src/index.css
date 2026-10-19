@@ -1820,6 +1820,23 @@ img.avatar-lg.has-img {
 /* ---------- «⋯» и выпадающее меню (19.10.2026, 9.5.4, components/ui/MoreMenu.jsx: комментарии, «Друзья», «Мой круг») ----------
    Поверх соседних строк, список не сдвигает; .up — над кнопкой, когда снизу мало места. Плотная подложка, как у оверлеев. */
 .more-wrap { position: relative; flex: none; display: flex; }
+
+/* Живое многоточие «Отправляю.» → «..» → «...» (19.10.2026, fb_5ef64577, components/ui/BusyText.jsx). Символ «…»
+   остается в тексте, clip-path прячет его часть — ширина подписи не меняется. */
+.busy-dots { display: inline-block; animation: busy-dots 1.2s steps(1, end) infinite; }
+@keyframes busy-dots {
+  0% { clip-path: inset(0 66% 0 0); }
+  33% { clip-path: inset(0 33% 0 0); }
+  66% { clip-path: inset(0 0 0 0); }
+}
+@media (prefers-reduced-motion: reduce) { .busy-dots { animation: none; } }
+
+/* Загрузка вложений обращения: полоса и «5,1 из 12,4 МБ» над кнопкой (fb_5ef64577, social/UploadProgress.jsx). */
+.fb-upload { display: flex; flex-direction: column; gap: 6px; margin: 4px 0 10px; }
+.fb-upload-bar { height: 6px; border-radius: 999px; background: var(--surface-2); overflow: hidden; }
+.fb-upload-fill { height: 100%; border-radius: inherit; background: var(--acc); transition: width .3s ease; }
+.fb-upload-cap { font-size: 13px; color: var(--muted); }
+@media (prefers-reduced-motion: reduce) { .fb-upload-fill { transition: none; } }
 .more-menu {
   position: absolute; z-index: 30; right: 0; top: calc(100% + 4px); min-width: 200px; max-width: calc(100vw - 32px);
   display: flex; flex-direction: column; padding: 4px 0; border: 1px solid var(--border); border-radius: 14px;
@@ -1848,9 +1865,12 @@ img.avatar-lg.has-img {
 .reaction-foot { display: flex; align-items: center; justify-content: space-between; gap: 12px; margin-top: 6px; min-height: 24px; }
 .reaction-foot .reaction-who { margin-top: 0; min-width: 0; }
 .cm-link {
-  flex: none; display: inline-flex; align-items: center; gap: 5px; min-height: 44px; margin: -10px -8px -10px auto; padding: 0 8px;
-  background: none; border: 0; border-radius: 12px; color: var(--acc-2); font: inherit; font-size: 13px; font-weight: 600; cursor: pointer;
+  position: relative; flex: none; display: inline-flex; align-items: center; gap: 5px; min-height: 30px; margin: -3px -8px -3px auto;
+  padding: 0 8px; background: none; border: 0; border-radius: 10px; color: var(--acc-2); font: inherit; font-size: 13px; font-weight: 600;
+  cursor: pointer;
 }
+/* Зона тапа 44px — невидимым слоем (как у .reaction-btn): подложка нажатия не наезжает на ряд реакций (fb_5ef64577). */
+.cm-link::before { content: ''; position: absolute; inset: -7px 0; }
 .cm-link:active { background: var(--surface-2); }
 .cm-link svg { display: block; flex: none; }
 .cm { margin-top: 12px; padding-top: 6px; border-top: 1px solid var(--border); }

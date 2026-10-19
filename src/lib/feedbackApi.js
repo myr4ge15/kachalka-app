@@ -26,6 +26,10 @@ import { cacheFeedbackReplies } from '../db/feedbackReplies.js'
 
 const FN_URL = (import.meta.env.VITE_SUPABASE_URL ?? '') + '/functions/v1/feedback'
 const ANON = import.meta.env.VITE_SUPABASE_KEY ?? ''
+const STORAGE_URL = (import.meta.env.VITE_SUPABASE_URL ?? '') + '/storage/v1/object/feedback/'
+// Видео без новых байт дольше этого — обрыв (19.10, fb_5ef64577). Раньше был жесткий предел в минуту на
+// весь файл: 12 МБ на слабом LTE не успевали, хотя загрузка шла.
+export const UPLOAD_STALL_MS = 30000
 // Скриншот: телефонный экран после сжатия ~150–400 КБ; bucket пускает до 2 МБ.
 const SHOT_MAX_PX = 1280
 const SHOT_QUALITY = 0.75
@@ -114,14 +118,17 @@ function newId() {
 }
 
 // Отправить обращение. file — необязательный скриншот (File/Blob картинки).
+// onProgress({ loaded, total }) — байты вложений (видео — по мере отправки, картинка — целиком по готовности).
 // Возвращает { id, delivered } (delivered=false — записано, но Telegram не ответил).
-export async function submitFeedback(userId, { body, context, file = null, files = null, compress = compressToJpeg } = {}) {
+export async function submitFeedback(userId, {
+  body, context, file = null, files = null, compress = compressToJpeg, onProgress = null, uploadVideo = xhrUpload,
+} = {}) {
   const problem = bodyProblem(body)
   if (problem) throw new FeedbackError(problem)
   if (isOffline()) throw new FeedbackError('offline')
   if (!await hasSession(userId)) throw new FeedbackError('no_session')
 
-  const shots = await uploadScreenshots(userId, files ?? (file ? [file] : []), compress)
+  const shots = await uploadScreenshots(userId, files ?? (file ? [file] : []), { compress, onProgress, uploadVideo })
   const res = await callFn({ action: files ? 'submit_screenshots' : 'submit', body: cleanBody(body), context: context ?? {},
     ...(files ? { screenshots: shots } : { screenshot: shots[0] ?? null }) })
   return { id: res.id, delivered: res.delivered !== false }
@@ -240,36 +247,73 @@ export async function feedbackShotUrl(path) {
   return data.signedUrl
 }
 
-async function uploadScreenshots(userId, files, compress = compressToJpeg) {
+// Видео в Storage через XHR (19.10, fb_5ef64577): у supabase-js нет прогресса отправки, а видео 10–20 МБ на
+// слабой связи шло дольше любого разумного общего предела. Здесь — onBytes(отправлено) и обрыв только при
+// простое UPLOAD_STALL_MS. Права те же: JWT вызывающего, политика бакета пускает только в свою папку.
+function xhrUpload(path, blob, contentType, onBytes) {
+  return accessToken().then((token) => new Promise((resolve, reject) => {
+    if (!token) { reject(new FeedbackError('no_session')); return }
+    const xhr = new XMLHttpRequest()
+    let stall = 0
+    const fail = (code) => { clearTimeout(stall); reject(new FeedbackError(code)) }
+    const arm = () => { clearTimeout(stall); stall = setTimeout(() => { xhr.abort(); fail('upload_stalled') }, UPLOAD_STALL_MS) }
+    xhr.open('POST', STORAGE_URL + path)
+    xhr.setRequestHeader('authorization', `Bearer ${token}`)
+    xhr.setRequestHeader('apikey', ANON)
+    xhr.setRequestHeader('content-type', contentType)
+    xhr.setRequestHeader('x-upsert', 'false')
+    xhr.upload.onprogress = (e) => { arm(); onBytes?.(e.loaded) }
+    xhr.onload = () => {
+      clearTimeout(stall)
+      if (xhr.status >= 200 && xhr.status < 300) resolve()
+      else fail(xhr.status === 413 ? 'video_too_big' : 'video_failed')
+    }
+    xhr.onerror = () => fail('network')
+    arm()
+    xhr.send(blob)
+  }))
+}
+
+async function uploadScreenshots(userId, files, { compress = compressToJpeg, onProgress = null, uploadVideo = xhrUpload } = {}) {
   if (!Array.isArray(files) || files.length > FEEDBACK_SHOTS_MAX) throw new FeedbackError('shot_limit')
   const paths = []
+  const total = files.reduce((s, f) => s + (Number(f?.size) || 0), 0)
+  let done = 0 // байты уже загруженных файлов
+  const report = (loaded) => onProgress?.({ loaded: Math.min(total, loaded), total })
+  let video = false
   try {
+    report(0)
     for (const file of files) {
       // Видео (16.10) — как есть, без сжатия; проверки формата и 20 МБ — до загрузки.
       const problem = isVideoFile(file) ? attachmentProblem(file) : null // картинки решает сжатие
       if (problem) throw new FeedbackError(problem)
       const ext = videoExt(file)
-      const blob = ext ? file : await compress(file, SHOT_MAX_PX, SHOT_QUALITY)
+      video = Boolean(ext)
       const path = userId + '/' + newId() + '.' + (ext ?? 'jpg')
-      const contentType = ext === 'mov' ? 'video/quicktime' : ext ? 'video/mp4' : 'image/jpeg'
-      // Видео грузится дольше обычного запроса: свой предел — минута.
-      const up = await withTimeout(supabase.storage.from('feedback').upload(path, blob, { upsert: false, contentType }), ext ? 60000 : undefined)
-      if (up?.error) throw up.error
+      if (ext) {
+        await uploadVideo(path, file, ext === 'mov' ? 'video/quicktime' : 'video/mp4', (b) => report(done + b))
+      } else {
+        const blob = await compress(file, SHOT_MAX_PX, SHOT_QUALITY)
+        const up = await withTimeout(supabase.storage.from('feedback').upload(path, blob, { upsert: false, contentType: 'image/jpeg' }))
+        if (up?.error) throw up.error
+      }
       paths.push(path)
+      done += Number(file?.size) || 0
+      report(done)
     }
   } catch (e) {
     // Только файлы этой незавершенной загрузки, до создания обращения.
     if (paths.length) await supabase.storage.from('feedback').remove(paths).catch(() => {})
-    throw e instanceof FeedbackError ? e : new FeedbackError('shot_failed')
+    throw e instanceof FeedbackError ? e : new FeedbackError(video ? 'video_failed' : 'shot_failed')
   }
   return paths
 }
 
-export async function attachFeedbackScreenshots(userId, id, files, compress = compressToJpeg) {
+export async function attachFeedbackScreenshots(userId, id, files, compress = compressToJpeg, { onProgress = null, uploadVideo = xhrUpload } = {}) {
   if (isOffline()) throw new FeedbackError('offline')
   if (!await hasSession(userId)) throw new FeedbackError('no_session')
   if (!files?.length) throw new FeedbackError('shot_failed')
-  const screenshots = await uploadScreenshots(userId, files, compress)
+  const screenshots = await uploadScreenshots(userId, files, { compress, onProgress, uploadVideo })
   return callFn({ action: 'attach', id, screenshots })
 }
 

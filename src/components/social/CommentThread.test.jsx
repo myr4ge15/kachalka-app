@@ -35,6 +35,18 @@ const renderThread = (props = {}) => render(
 )
 
 describe('CommentThread', () => {
+  it('«Комментировать» при открытой ветке — только курсор, экран не центрирует (fb_17aad9f1)', () => {
+    const scroll = vi.fn()
+    Element.prototype.scrollIntoView = scroll
+    const { rerender } = renderThread({ comments: [c('a', 'x')] })
+    rerender(<CommentThread workoutId="w1" ownerId="owner" comments={[c('a', 'x')]} me={me} open onOpen={vi.fn()} focusTick={1} />)
+    expect(scroll).toHaveBeenCalledTimes(1)
+    expect(screen.getByRole('textbox', { name: 'Комментарий' })).toHaveFocus()
+    rerender(<CommentThread workoutId="w1" ownerId="owner" comments={[c('a', 'x')]} me={me} open onOpen={vi.fn()} focusTick={2} />)
+    expect(scroll).toHaveBeenCalledTimes(1)
+    delete Element.prototype.scrollIntoView
+  })
+
   it('пусто и свернуто — ничего не рисует', () => {
     const { container } = renderThread()
     expect(container).toBeEmptyDOMElement()

@@ -15,7 +15,7 @@ vi.mock('../db/supabase.js', () => ({
 
 import {
   _clearMediaCache, ackMyFeedback, adminListFeedback, adminUpdateFeedback, feedbackMedia, feedbackShotUrl,
-  attachFeedbackScreenshots, appendFeedback, listMyFeedback, myUnreadReplies, reopenFeedback, submitFeedback,
+  attachFeedbackScreenshots, appendFeedback, listMyFeedback, myUnreadReplies, reopenFeedback, submitFeedback, FeedbackError,
 } from './feedbackApi.js'
 import { isVideoMedia } from './feedback.js'
 
@@ -220,22 +220,38 @@ describe('несколько скриншотов', () => {
     expect(fetch).not.toHaveBeenCalled()
   })
   it('видео (fb_1c5fab9c): без сжатия, путь .mp4/.mov, тип файла; больше 20 МБ — до загрузки', async () => {
-    mocks.upload.mockResolvedValue({ error: null })
+    const uploadVideo = vi.fn(async () => {})
     const compress = vi.fn(async (f) => f)
     const mp4 = new File(['v'], 'clip.mp4', { type: 'video/mp4' })
     const mov = new File(['v'], 'IMG_1.MOV', { type: 'video/quicktime' })
-    await submitFeedback('me', { body: 'баг', files: [mp4, mov], compress })
+    await submitFeedback('me', { body: 'баг', files: [mp4, mov], compress, uploadVideo })
     expect(compress).not.toHaveBeenCalled()
-    const [[p1, b1, o1], [p2, , o2]] = mocks.upload.mock.calls
+    expect(mocks.upload).not.toHaveBeenCalled() // видео — своим загрузчиком с прогрессом
+    const [[p1, b1, t1], [p2, , t2]] = uploadVideo.mock.calls
     expect(b1).toBe(mp4)
-    expect([p1.slice(-4), o1.contentType, p2.slice(-4), o2.contentType]).toEqual(['.mp4', 'video/mp4', '.mov', 'video/quicktime'])
-    mocks.upload.mockClear()
+    expect([p1.slice(-4), t1, p2.slice(-4), t2]).toEqual(['.mp4', 'video/mp4', '.mov', 'video/quicktime'])
+    uploadVideo.mockClear()
     const big = new File(['v'], 'big.mp4', { type: 'video/mp4' })
     Object.defineProperty(big, 'size', { value: 21 * 1024 * 1024 })
-    await expect(submitFeedback('me', { body: 'баг', files: [big] })).rejects.toMatchObject({ code: 'video_too_big' })
-    await expect(submitFeedback('me', { body: 'баг', files: [new File(['v'], 'a.webm', { type: 'video/webm' })] }))
+    await expect(submitFeedback('me', { body: 'баг', files: [big], uploadVideo })).rejects.toMatchObject({ code: 'video_too_big' })
+    await expect(submitFeedback('me', { body: 'баг', files: [new File(['v'], 'a.webm', { type: 'video/webm' })], uploadVideo }))
       .rejects.toMatchObject({ code: 'video_format' })
-    expect(mocks.upload).not.toHaveBeenCalled()
+    expect(uploadVideo).not.toHaveBeenCalled()
+  })
+  it('видео (fb_5ef64577): прогресс по байтам; сбой видео — «видео», а не «скриншот»; простой — свой код', async () => {
+    mocks.upload.mockResolvedValue({ error: null })
+    const shot = new File(['x'.repeat(100)], 'a.png', { type: 'image/png' })
+    const clip = new File(['v'.repeat(1000)], 'clip.mp4', { type: 'video/mp4' })
+    const steps = []
+    const uploadVideo = vi.fn(async (path, blob, type, onBytes) => { onBytes(250); onBytes(1000) })
+    await submitFeedback('me', { body: 'баг', files: [shot, clip], compress: async (f) => f, uploadVideo,
+      onProgress: (p) => steps.push(p.loaded + '/' + p.total) })
+    expect(steps).toEqual(['0/1100', '100/1100', '350/1100', '1100/1100', '1100/1100'])
+    const fail = (e) => vi.fn(async () => { throw e })
+    await expect(submitFeedback('me', { body: 'баг', files: [clip], uploadVideo: fail(new Error('x')) }))
+      .rejects.toMatchObject({ code: 'video_failed' })
+    await expect(submitFeedback('me', { body: 'баг', files: [clip], uploadVideo: fail(new FeedbackError('upload_stalled')) }))
+      .rejects.toMatchObject({ code: 'upload_stalled' })
   })
   it('media: видео узнается по байтам и помечается (плитка рисует плеер)', async () => {
     _clearMediaCache()

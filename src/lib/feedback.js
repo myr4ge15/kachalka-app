@@ -260,6 +260,8 @@ export function feedbackErrorText(code) {
     case 'shot_format': return 'Можно приложить картинки или видео (MP4, MOV).'
     case 'video_format': return 'Видео — только MP4 или MOV (как снимает телефон).'
     case 'video_too_big': return 'Видео больше 20 МБ — обрежь его или запиши покороче.'
+    case 'video_failed': return 'Не удалось загрузить видео. Попробуй еще раз или запиши покороче.'
+    case 'upload_stalled': return 'Видео не загрузилось: связь слишком слабая. Попробуй на Wi-Fi или запиши покороче.'
     case 'reopen_limit': return `Обращение уже открывали снова ${REOPEN_LIMIT} раза — напиши новое.`
     case 'not_closed': return 'Обращение еще в работе — дождись ответа.'
     case 'append_limit': return `К обращению уже ${APPEND_LIMIT} дополнений — напиши новое.`

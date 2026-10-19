@@ -3,6 +3,7 @@ import { useLiveQuery } from 'dexie-react-hooks'
 import { friendsApi, pairState, requestStatusText } from '../../lib/friends.js'
 import { getFriends, refreshFriends } from '../../db/friends.js'
 import { showToast } from '../ui/Toast.jsx'
+import BusyText from '../ui/BusyText.jsx'
 
 // Дружба в профиле участника (15.10.2026). Кнопка — только когда есть действие:
 // «+ В друзья» или «Принять заявку». Уже друзья, заявка отправлена, заблокирован — тихая
@@ -61,7 +62,7 @@ export default function FriendButton({ me, memberId, label = false, compact = fa
   return (
     <button type="button" className="btn ghost frd-btn" disabled={busy}
       onClick={() => run(() => api.request(memberId))}>
-      {busy ? 'Отправляю…' : '+ В друзья'}
+      {busy ? <BusyText>Отправляю</BusyText> : '+ В друзья'}
     </button>
   )
 }

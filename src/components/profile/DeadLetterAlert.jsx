@@ -4,6 +4,7 @@ import { deadLetterCount, retryDeadLetter, discardDeadLetter } from '../../db/re
 import { syncNow } from '../../db/sync.js'
 import { showToast } from '../ui/Toast.jsx'
 import { useAliveRef } from '../../hooks/useAliveRef.js'
+import BusyText from '../ui/BusyText.jsx'
 
 // Застрявшие изменения (dead-letter) — операции, провалившие все попытки отправки.
 // Обычно — затянувшийся холодный старт/обрыв; даем пересобрать или отклонить, чтобы
@@ -58,7 +59,7 @@ export default function DeadLetterAlert({ userId }) {
       ) : (
         <div className="danger-actions">
           <button className="btn primary" onClick={retryDead} disabled={dlBusy}>
-            {dlBusy ? 'Отправляю…' : '🔄 Повторить отправку'}
+            {dlBusy ? <BusyText>Отправляю</BusyText> : '🔄 Повторить отправку'}
           </button>
           <button className="btn ghost" onClick={() => setDlArm(true)} disabled={dlBusy}>Отклонить</button>
         </div>

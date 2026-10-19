@@ -43,13 +43,18 @@ export default function CommentThread({ workoutId, ownerId, comments, me, open, 
   const liftAboveKeyboard = useKeyboardLift(formRef)
 
   // Раскрытие пользователем — карточку в центр; курсор в поле по «Комментировать» (ReactionBar).
+  // Ветка уже была раскрыта — только курсор, без центрирования: повторный тап двигал экран (fb_5ef64577;
+  // AGENTS: reveal — только на фактическую смену раскрытого).
   const lastTick = useRef(focusTick)
+  const wasOpen = useRef(open)
   useEffect(() => {
+    const opened = !wasOpen.current && open
+    wasOpen.current = open
     if (focusTick === lastTick.current) return
     lastTick.current = focusTick
-    setReveal({})
+    if (opened) setReveal({})
     inputRef.current?.focus({ preventScroll: true })
-  }, [focusTick])
+  }, [focusTick, open])
 
   // Начали править — поле уже с текстом (ветка раскрылась), курсор в конец.
   useEffect(() => {
