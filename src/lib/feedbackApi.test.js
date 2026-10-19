@@ -130,6 +130,22 @@ describe('админка', () => {
     await expect(adminUpdateFeedback('f1', 'resolved', '  Исправлено  ')).resolves.toEqual({ notified: true, pushed: 2 })
     expect(JSON.parse(fetch.mock.calls[0][1].body)).toEqual({ action: 'update', id: 'f1', status: 'resolved', reply: 'Исправлено' })
   })
+  it('дополнения автора видны админу (fb_5b764337); нет функции на сервере — список без них', async () => {
+    const rows = [{ id: 'f1', body: 'скриншот' }, { id: 'f2', body: 'второе' }]
+    mocks.rpc.mockImplementation(async (name) => {
+      if (name === 'admin_list_feedback') return { data: rows }
+      if (name === 'admin_feedback_additions') {
+        return { data: [{ feedback_id: 'f1', n: 2, body: 'и еще', created_at: 'b' }, { feedback_id: 'f1', n: 1, body: 'дописал', created_at: 'a' }] }
+      }
+      return { data: null, error: null }
+    })
+    const list = await adminListFeedback(false)
+    expect(list[0].additions.map((a) => a.body)).toEqual(['дописал', 'и еще'])
+    expect(list[1].additions).toBeUndefined()
+    mocks.rpc.mockImplementation(async (name) => (name === 'admin_list_feedback'
+      ? { data: rows } : { data: null, error: { code: 'PGRST202' } }))
+    expect((await adminListFeedback(false)).map((r) => r.additions)).toEqual([undefined, undefined])
+  })
   it('пустой ответ уходит как null; 403 — нет прав', async () => {
     fetch.mockImplementationOnce(() => ok({ ok: true, notified: false }))
     await adminUpdateFeedback('f1', 'in_progress', '   ')

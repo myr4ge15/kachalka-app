@@ -142,13 +142,13 @@ export async function listMyFeedback(userId) {
 }
 
 // Дополнения (v8.6.0) — к строкам списка полем additions: [{ n, body, created_at }].
-// Отдельный RPC, чтобы не менять контракт my_feedback. Нет его на сервере или сбой —
-// список без дополнений: это не повод не показать обращения.
-async function withAdditions(rows) {
+// Отдельный RPC, чтобы не менять контракт my_feedback / admin_list_feedback. Нет его на сервере или
+// сбой — список без дополнений: это не повод не показать обращения.
+async function withAdditions(rows, fn = 'my_feedback_additions') {
   if (!rows.length) return rows
   let adds = []
   try {
-    const { data, error } = await withTimeout(supabase.rpc('my_feedback_additions'))
+    const { data, error } = await withTimeout(supabase.rpc(fn))
     if (!error && Array.isArray(data)) adds = data.filter((a) => a?.feedback_id)
   } catch { /* без дополнений */ }
   if (!adds.length) return rows
@@ -182,8 +182,10 @@ export async function myUnreadReplies(userId) {
   }
 }
 
+// Дополнения автора — отдельным admin_feedback_additions (19.10.2026, fb_5b764337: админ их не видел).
 export async function adminListFeedback(openOnly = false) {
-  return withScreenshotCounts((await rpc('admin_list_feedback', { p_open_only: Boolean(openOnly) })) ?? [])
+  const rows = (await rpc('admin_list_feedback', { p_open_only: Boolean(openOnly) })) ?? []
+  return withScreenshotCounts(await withAdditions(rows, 'admin_feedback_additions'))
 }
 
 // Статус + ответ. Сервер сам решает, слать ли пуш (новый ответ или финальный статус).

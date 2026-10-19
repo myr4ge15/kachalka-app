@@ -111,6 +111,12 @@ function FeedbackCard({ row, online, api, editing, onEdit, onSaved }) {
       </div>
       <span className="admin-ex-meta">{fmtFeedbackDate(row.created_at)}</span>
       <p className="fb-body">{row.body}</p>
+      {row.additions?.map((a) => (
+        <p key={a.n} className="fb-addition">
+          <span aria-hidden="true">➕ </span>{a.body}
+          <span className="admin-ex-meta"> · {fmtFeedbackDate(a.created_at)}</span>
+        </p>
+      ))}
       {(version || ctx) && (
         <p className="admin-ex-meta fb-ctx">
           {version && <span className="version-number">v{version}</span>}
