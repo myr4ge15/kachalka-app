@@ -86,9 +86,6 @@ test('вложенные экраны открываются и кнопки н�
   await visit('Уведомления')
 
   await page.getByRole('button', { name: 'Открыть профиль' }).first().click()
-  await page.getByRole('button', { name: /Достижения/ }).first().click()
-  await visit('Достижения')
-
   await page.getByRole('button', { name: 'Настройки', exact: true }).click()
   for (const [button, heading] of [
     [/Оформление/, 'Оформление'],

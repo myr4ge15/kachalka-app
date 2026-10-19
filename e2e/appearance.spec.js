@@ -8,16 +8,17 @@ import { seedAndLogin } from './helpers.js'
 
 test('акцент: выбор → перезагрузка → стоит с первого кадра, у своей учетки', async ({ page, context }) => {
   await context.addInitScript(() => Object.defineProperty(navigator, 'onLine', { get: () => false, configurable: true }))
-  // Первое значение data-accent на <html> — кто бы его ни поставил первым.
+  // Первое значение data-accent на <html> — кто бы его ни поставил первым. Init-скрипт
+  // выполняется до разбора HTML (<html> еще нет), поэтому наблюдаем за всем документом.
   await context.addInitScript(() => {
     new MutationObserver((list, obs) => {
       for (const m of list) {
-        if (m.attributeName === 'data-accent' && window.__firstAccent === undefined) {
+        if (m.target === document.documentElement && window.__firstAccent === undefined) {
           window.__firstAccent = document.documentElement.getAttribute('data-accent')
           obs.disconnect()
         }
       }
-    }).observe(document.documentElement, { attributes: true })
+    }).observe(document, { subtree: true, attributes: true, attributeFilter: ['data-accent'] })
   })
   await context.route(/supabase\.co/, (route) => route.abort())
   const user = await seedAndLogin(page)

@@ -48,7 +48,8 @@ test('сервер лежит (503) — вход по кэшу PIN, как оф�
   const { user, calls } = await setup(page, context, 503, { error: 'down' })
   await enterPin(page, user.pin)
   await expect(tabbar(page)).toBeVisible()
-  expect(calls.login).toBe(1)
+  // Сначала ждали сервер (а не кэш сразу); после входа по кэшу сессию добирает фоновый вход.
+  expect(calls.login).toBeGreaterThanOrEqual(1)
 })
 
 test('сервер лежит, PIN неверный — кэш тоже не пускает', async ({ page, context }) => {
