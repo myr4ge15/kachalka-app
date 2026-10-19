@@ -59,6 +59,8 @@ const betaHtml = (on) => ({
   transformIndexHtml: (html) => (!on ? html : html
     .replace('href="./apple-touch-icon.png"', 'href="./beta-apple-touch-icon.png"')
     .replace('name="apple-mobile-web-app-title" content="kachalka-app"', 'name="apple-mobile-web-app-title" content="kachalka-beta"')
+    .replace('name="application-name" content="kachalka-app"', 'name="application-name" content="kachalka-beta"')
+    .replace('<p class="splash-title">kachalka-app</p>', '<p class="splash-title">kachalka-beta</p>')
     .replace('<title>Журнал тренировок</title>', '<title>Журнал тренировок · бета</title>')),
 })
 
