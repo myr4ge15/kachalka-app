@@ -1,6 +1,6 @@
 import { describe, it, expect } from 'vitest'
 import {
-  cmpVersion, pendingWhatsNew, mergeForSheet, hasUnopened, updateHeadline, versionJson, fmtWhatsNewDate, readMark, writeMark,
+  cmpVersion, pendingWhatsNew, mergeForSheet, hasUnopened, updateHeadline, versionJson, fmtWhatsNewDate, readMark, writeMark, ofEpoch, VERSION_EPOCH,
 } from './whatsNew.js'
 import { WHATS_NEW } from '../content/whatsNew.js'
 
@@ -49,11 +49,11 @@ describe('mergeForSheet', () => {
 describe('versionJson (v7.5.0)', () => {
   const E = [{ version: '7.5.0', headline: 'Новое', main: [{ t: 'a' }], push: false }, { version: '7.4.0', main: [{ t: 'b' }] }]
   it('push: false у свежей записи — silent; иначе поля нет', () => {
-    expect(versionJson(E, '7.5.0')).toEqual({ version: '7.5.0', headline: 'Новое', silent: true })
-    expect(versionJson(E.slice(1), '7.4.0')).toEqual({ version: '7.4.0', headline: 'b' })
+    expect(versionJson(E, '7.5.0')).toEqual({ version: '7.5.0', epoch: 2, headline: 'Новое', silent: true })
+    expect(versionJson(E.slice(1), '7.4.0')).toEqual({ version: '7.4.0', epoch: 2, headline: 'b' })
   })
   it('запись не про эту версию — без заголовка и без silent', () => {
-    expect(versionJson(E, '7.5.1')).toEqual({ version: '7.5.1', headline: null })
+    expect(versionJson(E, '7.5.1')).toEqual({ version: '7.5.1', epoch: 2, headline: null })
   })
 })
 
@@ -80,10 +80,13 @@ describe('hasUnopened / updateHeadline / дата', () => {
 })
 
 describe('content/whatsNew — правила записей', () => {
-  it('свежие сверху, по одной на день, пункты в одну строку', () => {
+  it('свежие сверху (эпоха, затем версия), по одной на выпуск, пункты в одну строку', () => {
     for (let i = 1; i < WHATS_NEW.length; i++) {
-      expect(cmpVersion(WHATS_NEW[i - 1].version, WHATS_NEW[i].version)).toBe(1)
-      expect(WHATS_NEW[i - 1].date > WHATS_NEW[i].date).toBe(true)
+      const a = WHATS_NEW[i - 1], b = WHATS_NEW[i]
+      const ea = a.epoch ?? VERSION_EPOCH, eb = b.epoch ?? VERSION_EPOCH
+      expect(ea >= eb).toBe(true)
+      if (ea === eb) expect(cmpVersion(a.version, b.version)).toBe(1)
+      expect(a.date >= b.date).toBe(true)
     }
     for (const e of WHATS_NEW) {
       expect(e.main.length).toBeGreaterThan(0)
@@ -103,5 +106,24 @@ describe('content/whatsNew — правила записей', () => {
   it('свежая запись — версия из package.json (запись обязана попасть в релиз)', async () => {
     const pkg = await import('../../package.json')
     expect(WHATS_NEW[0].version).toBe(pkg.default.version)
+  })
+})
+
+describe('эпохи нумерации (v1.0.0 э2)', () => {
+  const E2 = [
+    { version: '1.1.0', date: '2026-10-25', main: [{ t: 'new2' }] },
+    { version: '1.0.0', date: '2026-10-19', main: [{ t: 'new1' }] },
+    { version: '9.6.0', date: '2026-10-19', epoch: 1, main: [{ t: 'old' }] },
+  ]
+  it('записи старой эпохи не идут ни в лист, ни в метку «новое»', () => {
+    expect(ofEpoch(E2).map((e) => e.version)).toEqual(['1.1.0', '1.0.0'])
+    expect(pendingWhatsNew(E2, '1.0.0', '1.1.0').show.map((e) => e.version)).toEqual(['1.1.0'])
+    expect(pendingWhatsNew(E2.slice(1), null, '1.0.0', { knownDevice: true }).show.map((e) => e.version)).toEqual(['1.0.0'])
+    expect(hasUnopened(E2.slice(1), '1.0.0')).toBe(false)
+    expect(hasUnopened(E2, '1.0.0')).toBe(true)
+  })
+  it('свежая запись в content — текущей эпохи, version.json несет эпоху', () => {
+    expect(WHATS_NEW[0].epoch ?? VERSION_EPOCH).toBe(VERSION_EPOCH)
+    expect(versionJson(WHATS_NEW, WHATS_NEW[0].version).epoch).toBe(VERSION_EPOCH)
   })
 })

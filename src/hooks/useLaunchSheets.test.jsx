@@ -38,12 +38,19 @@ describe('useLaunchSheets', () => {
 
   it('знакомое устройство со старой отметкой — лист; закрытие пишет текущую версию', () => {
     localStorage.setItem(SESSION_KEY, JSON.stringify({ id: 'u1' }))
-    localStorage.setItem(SEEN_KEY, '1.0.0')
+    localStorage.setItem(SEEN_KEY, '0.9.0')
     const { result } = renderHook(() => useLaunchSheets(ME, false))
     expect(result.current.whatsNew).toBeTruthy()
     act(() => result.current.closeWhatsNew())
     expect(result.current.whatsNew).toBeNull()
-    expect(localStorage.getItem(SEEN_KEY)).not.toBe('1.0.0')
+    expect(localStorage.getItem(SEEN_KEY)).not.toBe('0.9.0')
+  })
+
+  it('переход на 1.0.0 (э2): старая отметка 9.6.0 не глушит лист — показываем свежую запись', () => {
+    localStorage.setItem(SESSION_KEY, JSON.stringify({ id: 'u1' }))
+    localStorage.setItem('kachalka:whats_new_seen', '9.6.0')
+    const { result } = renderHook(() => useLaunchSheets(ME, false))
+    expect(result.current.whatsNew?.version).toBe(__APP_VERSION__)
   })
 
   it('вопрос про пуши — не во время записи тренировки; «Не сейчас» больше не спросит', async () => {
