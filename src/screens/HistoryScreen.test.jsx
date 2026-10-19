@@ -31,9 +31,11 @@ vi.mock('./WorkoutScreen.jsx', () => ({
   ),
 }))
 vi.mock('./TemplatesScreen.jsx', () => ({
-  default: ({ onEditingChange }) => (
+  default: ({ onEditingChange, onSelectModeChange }) => (
     <div data-testid="templates-screen">
       templates
+      <button onClick={() => onSelectModeChange?.(true)}>выбрать шаблоны</button>
+      <button onClick={() => onSelectModeChange?.(false)}>отменить выбор</button>
       <button onClick={() => onEditingChange?.(true)}>открыть редактор</button>
       <button onClick={() => onEditingChange?.(false)}>к списку шаблонов</button>
     </div>
@@ -142,6 +144,11 @@ describe('HistoryScreen', () => {
     fireEvent.click(screen.getByRole('button', { name: 'к списку шаблонов' }))
     expect(onBusy).toHaveBeenLastCalledWith(false)
     expect(onCalm).toHaveBeenLastCalledWith(true)
+    // Выбор на скачивание — бар экспорта над таббаром, «+» утоплена (fb_d9f26797).
+    fireEvent.click(screen.getByRole('button', { name: 'выбрать шаблоны' }))
+    expect(onBusy).toHaveBeenLastCalledWith(true)
+    fireEvent.click(screen.getByRole('button', { name: 'отменить выбор' }))
+    expect(onBusy).toHaveBeenLastCalledWith(false)
   })
 
   it('после локального сохранения возвращает историю и открывает итог', async () => {

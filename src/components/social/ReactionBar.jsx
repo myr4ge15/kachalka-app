@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react'
 import { summarizeReactions, reactorLine } from '../../lib/reactions.js'
 import { useLongPress } from '../../hooks/useLongPress.js'
+import { pluralize } from '../../lib/plural.js'
 
 // Реакции под тренировкой (вынесено из FeedScreen в v6.7.1 — теперь и в профиле
 // участника). Чужая тренировка — кнопки 💪/🔥/👏/😮 со счетчиками; своя — самолайк
@@ -10,8 +11,10 @@ import { useLongPress } from '../../hooks/useLongPress.js'
 // висит облачко «💪 Борис, Аня» — кто поставил именно ее; отпустил — облачко скрылось. Строка под
 // кнопками (все, кто отреагировал) пальцем не закрывается. Тап после удержания реакцию не меняет.
 // Подстраховка: если отпускание потерялось, облачко гаснет само.
-// comment (19.10.2026, PLAN-comments.md) — { count, mine, onClick }: «💬 N» в конце ряда,
-// и на своей, и на чужой тренировке. Нет пропа — ряд как раньше.
+// comment (19.10.2026, PLAN-comments.md) — { count, mine, onClick }: ссылка «N комментариев» /
+// «Комментировать» справа в строке под рядом (слева — кто поставил), и на своей, и на чужой
+// тренировке. С 9.5.5 (fb_9e892d66) не таблеткой в ряду — читалась как пятая реакция. Нет пропа —
+// как раньше.
 const WHO_MS = 6000
 
 export default function ReactionBar({ reactions, myId, isMe, onReact, comment = null }) {
@@ -35,30 +38,37 @@ export default function ReactionBar({ reactions, myId, isMe, onReact, comment = 
     </div>
   )
   const commentBtn = comment && (
-    <button type="button" className={`reaction-btn cm-pill${comment.mine ? ' mine' : ''}`} onClick={comment.onClick}
-      aria-label={comment.count ? `Комментарии: ${comment.count}` : 'Написать комментарий'}>
-      <span className="reaction-emoji" aria-hidden="true">💬</span>
-      {comment.count > 0 && <span className="reaction-count">{comment.count}</span>}
+    <button type="button" className="cm-link" onClick={comment.onClick}>
+      <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" strokeWidth="2"
+        strokeLinecap="round" strokeLinejoin="round" aria-hidden="true"><path d="M4 18.5l1.3-3.9A8 8 0 1 1 8.5 18z" /></svg>
+      {comment.count > 0 ? pluralize(comment.count, 'комментарий', 'комментария', 'комментариев') : 'Комментировать'}
     </button>
   )
   const line = reactorLine(names)
-  const whoLine = line && <div className="muted reaction-who">{line}</div>
+  // Строка под рядом: слева кто поставил, справа комментарии.
+  const whoLine = (line || commentBtn) && (
+    <div className="reaction-foot">
+      <span className="muted reaction-who">{line}</span>
+      {commentBtn}
+    </div>
+  )
 
   if (isMe) {
     if (total === 0 && !commentBtn) return null
     return (
       <div className="reactions">
-        <div className="reaction-btns">
-          {bubble}
-          {kinds.filter((k) => k.count > 0).map((k) => (
-            <span key={k.kind} className="reaction-btn static" {...bind(k.kind)}
-              title={`Удержи — кто поставил ${k.emoji}`}>
-              <span className="reaction-emoji">{k.emoji}</span>
-              <span className="reaction-count">{k.count}</span>
-            </span>
-          ))}
-          {commentBtn}
-        </div>
+        {total > 0 && (
+          <div className="reaction-btns">
+            {bubble}
+            {kinds.filter((k) => k.count > 0).map((k) => (
+              <span key={k.kind} className="reaction-btn static" {...bind(k.kind)}
+                title={`Удержи — кто поставил ${k.emoji}`}>
+                <span className="reaction-emoji">{k.emoji}</span>
+                <span className="reaction-count">{k.count}</span>
+              </span>
+            ))}
+          </div>
+        )}
         {whoLine}
       </div>
     )
@@ -80,7 +90,6 @@ export default function ReactionBar({ reactions, myId, isMe, onReact, comment = 
             {k.count > 0 && <span className="reaction-count">{k.count}</span>}
           </button>
         ))}
-        {commentBtn}
       </div>
       {whoLine}
     </div>

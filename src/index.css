@@ -1842,7 +1842,17 @@ img.avatar-lg.has-img {
 @media (prefers-reduced-motion: reduce) { .more-menu { animation: none; } }
 
 /* ---------- комментарии к тренировкам (19.10.2026, PLAN-comments.md, components/social/CommentThread.jsx) ---------- */
-.reaction-btns .cm-pill { margin-left: auto; }
+/* Строка под рядом реакций (9.5.5, fb_9e892d66): слева кто поставил, справа «N комментариев» —
+   ссылкой, а не таблеткой в ряду (та читалась как пятая реакция). Зона тапа 44px — отрицательными
+   полями, строка от нее не растет. */
+.reaction-foot { display: flex; align-items: center; justify-content: space-between; gap: 12px; margin-top: 6px; min-height: 24px; }
+.reaction-foot .reaction-who { margin-top: 0; min-width: 0; }
+.cm-link {
+  flex: none; display: inline-flex; align-items: center; gap: 5px; min-height: 44px; margin: -10px -8px -10px auto; padding: 0 8px;
+  background: none; border: 0; border-radius: 12px; color: var(--acc-2); font: inherit; font-size: 13px; font-weight: 600; cursor: pointer;
+}
+.cm-link:active { background: var(--surface-2); }
+.cm-link svg { display: block; flex: none; }
 .cm { margin-top: 12px; padding-top: 6px; border-top: 1px solid var(--border); }
 .cm-item { display: grid; grid-template-columns: 26px minmax(0, 1fr) auto; column-gap: 10px; padding: 8px 0; align-items: start; }
 .cm-item .avatar-sm { margin-top: 1px; }

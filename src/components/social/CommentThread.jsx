@@ -1,10 +1,12 @@
 import { useEffect, useLayoutEffect, useRef, useState } from 'react'
 import Avatar from '../ui/Avatar.jsx'
+import CheckIcon from '../ui/CheckIcon.jsx'
 import MoreMenu from '../ui/MoreMenu.jsx'
 import SheetDialog from '../ui/SheetDialog.jsx'
 import { showToast } from '../ui/Toast.jsx'
 import { useAliveRef } from '../../hooks/useAliveRef.js'
 import { useRevealFocus } from '../../hooks/useRevealFocus.js'
+import { useKeyboardLift } from '../../hooks/useKeyboardLift.js'
 import {
   COMMENT_COUNTER_FROM, COMMENT_MAX, canDeleteComment, canEditComment, canLikeComment, cleanBody, commentAgo,
   previewComments, toggleLike,
@@ -36,8 +38,11 @@ export default function CommentThread({ workoutId, ownerId, comments, me, open, 
   const [reveal, setReveal] = useState(null)
   const boxRef = useRevealFocus(reveal)
   const inputRef = useRef(null)
+  const formRef = useRef(null)
+  // Фокус в поле (тап по 💬, «Изменить», тап по полю) — поле с кнопкой над клавиатурой (fb_9e892d66).
+  const liftAboveKeyboard = useKeyboardLift(formRef)
 
-  // Раскрытие пользователем — карточку в центр; курсор в поле по 💬.
+  // Раскрытие пользователем — карточку в центр; курсор в поле по «Комментировать» (ReactionBar).
   const lastTick = useRef(focusTick)
   useEffect(() => {
     if (focusTick === lastTick.current) return
@@ -213,7 +218,7 @@ export default function CommentThread({ workoutId, ownerId, comments, me, open, 
               <button type="button" onClick={cancelEdit} aria-label="Отменить правку">✕</button>
             </div>
           )}
-          <div className="cm-form">
+          <div className="cm-form" ref={formRef}>
             <textarea
               ref={inputRef}
               className="cm-input"
@@ -223,12 +228,12 @@ export default function CommentThread({ workoutId, ownerId, comments, me, open, 
               placeholder="Написать комментарий"
               aria-label="Комментарий"
               onChange={(e) => setText(e.target.value)}
+              onFocus={liftAboveKeyboard}
             />
             <button type="button" className={`cm-send${canSend ? '' : ' off'}`} onClick={send} disabled={!canSend}
               aria-label={editing ? 'Сохранить' : 'Отправить'}>
               {editing
-                ? <svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" strokeWidth="2.6"
-                    strokeLinecap="round" strokeLinejoin="round" aria-hidden="true"><path d="M5 12.5l4.5 4.5L19 7.5" /></svg>
+                ? <CheckIcon size={20} />
                 : <svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" strokeWidth="2.4"
                     strokeLinecap="round" strokeLinejoin="round" aria-hidden="true"><path d="M12 19V5" /><path d="M6 11l6-6 6 6" /></svg>}
             </button>

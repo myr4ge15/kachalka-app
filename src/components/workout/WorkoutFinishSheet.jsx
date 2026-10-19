@@ -1,4 +1,5 @@
 import SheetDialog from '../ui/SheetDialog.jsx'
+import CheckIcon from '../ui/CheckIcon.jsx'
 import { fmtTonnage } from '../../lib/profileStats.js'
 import { formatWorkoutDuration, workoutFinishSummary } from '../../lib/workoutFinish.js'
 
@@ -22,7 +23,7 @@ export default function WorkoutFinishSheet({
   return (
     <SheetDialog title="Тренировка готова" onDismiss={onDone}>
       <div className={`workout-finish${mainEvent?.celebrated ? ' has-celebration' : ''}`}>
-        <div className="workout-finish-mark" aria-hidden="true">✓</div>
+        <div className="workout-finish-mark" aria-hidden="true"><CheckIcon size={38} strokeWidth={3} /></div>
         <p className="workout-finish-lead">Записали. Можно выдохнуть.</p>
 
         <dl className="workout-finish-stats">

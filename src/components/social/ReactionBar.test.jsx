@@ -109,15 +109,17 @@ describe('ReactionBar', () => {
     render(<ReactionBar reactions={many} myId="me" isMe={false} />)
     expect(screen.getByText('A, B, C +2')).toBeInTheDocument()
   })
-  it('💬 в конце ряда: счетчик, пометка своих, тап; на своей тренировке без реакций — тоже', () => {
+  it('комментарии — ссылкой под рядом, не в ряду реакций; на своей тренировке без реакций — тоже', () => {
     const onClick = vi.fn()
-    const { rerender } = render(<ReactionBar reactions={R} myId="me" isMe={false} onReact={vi.fn()}
+    const { container, rerender } = render(<ReactionBar reactions={R} myId="me" isMe={false} onReact={vi.fn()}
       comment={{ count: 3, mine: true, onClick }} />)
-    const pill = screen.getByRole('button', { name: 'Комментарии: 3' })
-    expect(pill).toHaveClass('cm-pill', 'mine')
-    fireEvent.click(pill)
+    const link = screen.getByRole('button', { name: '3 комментария' })
+    expect(link.closest('.reaction-btns')).toBeNull()
+    expect(link.closest('.reaction-foot')).not.toBeNull()
+    fireEvent.click(link)
     expect(onClick).toHaveBeenCalled()
     rerender(<ReactionBar reactions={[]} myId="me" isMe comment={{ count: 0, mine: false, onClick }} />)
-    expect(screen.getByRole('button', { name: 'Написать комментарий' })).toBeInTheDocument()
+    expect(screen.getByRole('button', { name: 'Комментировать' })).toBeInTheDocument()
+    expect(container.querySelector('.reaction-btns')).toBeNull()
   })
 })

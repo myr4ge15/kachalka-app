@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 import { useRevealFocus } from '../../hooks/useRevealFocus.js'
 import { useLiveQuery } from 'dexie-react-hooks'
 import { getTemplates } from '../../db/repo.js'
@@ -9,6 +9,7 @@ import CardsSkeleton from '../ui/CardsSkeleton.jsx'
 import ExportBar from '../workout/ExportBar.jsx'
 import BackButton from '../ui/BackButton.jsx'
 import Chevron from '../ui/Chevron.jsx'
+import CheckIcon from '../ui/CheckIcon.jsx'
 import ScrollTopButton from '../ui/ScrollTopButton.jsx'
 
 // Список шаблонов: «Мои» и «Общие» сворачиваемыми группами, экспорт выбранных в JSON
@@ -47,7 +48,7 @@ function TemplateCard({ t, mine, onOpen, selectMode = false, picked = false, onP
         </div>
         {selectMode ? (
           <span className={'history-check' + (picked ? ' on' : '')} aria-hidden="true">
-            {picked ? '✓' : ''}
+            {picked && <CheckIcon size={16} strokeWidth={3} />}
           </span>
         ) : mine ? (
           <Chevron className="history-chevron" />
@@ -82,7 +83,9 @@ function GroupHeader({ title, count, open, onToggle, btnRef = null }) {
 }
 
 // ----------------------------- список --------------------------------------
-export default function TemplateList({ user, onBack, onOpen }) {
+// onSelectModeChange(bool) — включен ли выбор на скачивание (19.10, fb_d9f26797): «+» меню на это
+// время утоплена, иначе приподнятый круг перекрывает «Скачать» на баре экспорта (как в «Истории»).
+export default function TemplateList({ user, onBack, onOpen, onSelectModeChange }) {
   const templates = useLiveQuery(() => getTemplates(user.id), [user.id])
   const loading = templates === undefined
   const list = templates ?? []
@@ -110,6 +113,10 @@ export default function TemplateList({ user, onBack, onOpen }) {
   // Режим экспорта: мультивыбор шаблонов → выгрузка в JSON. Общий хук с «Историей».
   const { selectMode, picked, toggleSelectMode, togglePick, pickAll, exportPicked } =
     useExportSelection(exportTemplates)
+  useEffect(() => {
+    onSelectModeChange?.(selectMode)
+    return () => onSelectModeChange?.(false)
+  }, [selectMode, onSelectModeChange])
 
   const renderCard = (t, isMine) => (
     <TemplateCard

@@ -13,6 +13,7 @@ import WorkoutScreen from './WorkoutScreen.jsx'
 import TemplatesScreen from './TemplatesScreen.jsx'
 import CardsSkeleton from '../components/ui/CardsSkeleton.jsx'
 import ExportBar from '../components/workout/ExportBar.jsx'
+import CheckIcon from '../components/ui/CheckIcon.jsx'
 import WorkoutFinishSheet from '../components/workout/WorkoutFinishSheet.jsx'
 import WorkoutCalendar from '../components/workout/WorkoutCalendar.jsx'
 import { defaultTemplateName, templateExercisesFromWorkout } from '../lib/templateFromWorkout.js'
@@ -177,13 +178,15 @@ export default function HistoryScreen({
   // Сообщаем App, занят ли хаб собственным под-видом (тогда плавающая «+» прячется:
   // в композере она не нужна, а над баром экспорта/«Сохранить» — просто мешает).
   // На размонтировании гасим флаг, чтобы кнопка вернулась на других вкладках.
-  // Список шаблонов — не «занят» (там нечего терять), редактор шаблона — занят.
+  // Список шаблонов — не «занят» (там нечего терять), редактор шаблона и выбор шаблонов на
+  // скачивание (бар экспорта, fb_d9f26797) — заняты.
   const [tplEditing, setTplEditing] = useState(false)
+  const [tplSelecting, setTplSelecting] = useState(false)
   const tplList = selected === 'templates' && !tplEditing
   useEffect(() => {
-    onBusyChange?.((selected !== null && !tplList) || selectMode || finishResult !== null)
+    onBusyChange?.((selected !== null && !tplList) || selectMode || (tplList && tplSelecting) || finishResult !== null)
     return () => onBusyChange?.(false)
-  }, [selected, tplList, selectMode, finishResult, onBusyChange])
+  }, [selected, tplList, tplSelecting, selectMode, finishResult, onBusyChange])
   useEffect(() => {
     onCalmChange?.(tplList)
     return () => onCalmChange?.(false)
@@ -369,7 +372,7 @@ export default function HistoryScreen({
                 </div>
                 {selectMode ? (
                   <span className={'history-check' + (picked.has(w.id) ? ' on' : '')} aria-hidden="true">
-                    {picked.has(w.id) ? '✓' : ''}
+                    {picked.has(w.id) && <CheckIcon size={16} strokeWidth={3} />}
                   </span>
                 ) : (
                   <Chevron className="history-chevron" />
@@ -419,7 +422,7 @@ export default function HistoryScreen({
     const tplSwipe = edgeSwipeOn && !isDesktop
     return (
       <TemplatesScreen user={user} onBack={() => setSelected(null)} contentRef={contentRef} swipeOn={tplSwipe}
-        onEditingChange={setTplEditing}
+        onEditingChange={setTplEditing} onSelectModeChange={setTplSelecting}
         underlay={tplSwipe ? <div className="screen">{renderHead()}{renderList()}</div> : null} />
     )
   }

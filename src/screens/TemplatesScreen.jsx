@@ -20,7 +20,8 @@ import { settleScroll } from '../lib/scrollBox.js'
 //   underlay — что показать под списком во время свайпа (список «Тренировок»).
 //   onEditingChange(bool) — открыт ли редактор (19.10.2026): «+» меню в редакторе утоплена
 //     (переход в композер выбросил бы несохраненный шаблон), в списке — рабочая.
-export default function TemplatesScreen({ user, onBack, contentRef = null, swipeOn = false, underlay = null, onEditingChange }) {
+//   onSelectModeChange(bool) — в списке включен выбор на скачивание (бар экспорта над таббаром).
+export default function TemplatesScreen({ user, onBack, contentRef = null, swipeOn = false, underlay = null, onEditingChange, onSelectModeChange }) {
   const [editing, setEditing] = useState(null)
   const listTop = useRef(0)
   const listRef = useRef(null)
@@ -54,7 +55,7 @@ export default function TemplatesScreen({ user, onBack, contentRef = null, swipe
         // Под редактором при свайпе список показываем там, где его оставили (useEdgeSwipeBack).
         data-scroll-top={editorOpen ? listTop.current : undefined}
         inert={editorOpen || undefined} aria-hidden={editorOpen || undefined}>
-        <TemplateList user={user} onBack={onBack} onOpen={open} />
+        <TemplateList user={user} onBack={onBack} onOpen={open} onSelectModeChange={onSelectModeChange} />
       </div>
       {editorOpen && (
         <div key="editor" className="nav-layer nav-current" ref={editorRef}>

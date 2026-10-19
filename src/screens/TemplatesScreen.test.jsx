@@ -46,9 +46,9 @@ const THEIR_TPL = { id: 't2', user_id: 'petya', name: 'Спина', author_name:
 let onBack
 // Группы при входе свернуты (fb_88be7eab); expand — раскрыть обе, как сделал бы человек.
 let expand = false
-const renderScreen = () => {
+const renderScreen = (props = {}) => {
   onBack = vi.fn()
-  const r = render(<TemplatesScreen user={ME} onBack={onBack} />)
+  const r = render(<TemplatesScreen user={ME} onBack={onBack} {...props} />)
   if (expand) for (const name of [/Мои шаблоны/, /Общие шаблоны/]) {
     const b = screen.queryByRole('button', { name })
     if (b?.getAttribute('aria-expanded') === 'false') fireEvent.click(b)
@@ -108,14 +108,18 @@ describe('TemplatesScreen — список', () => {
   it('экспорт: выбор карточек вместо открытия, «Скачать» отдает выбранные', () => {
     mocks.templates = [MY_TPL, THEIR_TPL]
     expand = true
-    renderScreen()
+    const onSelectModeChange = vi.fn()
+    renderScreen({ onSelectModeChange })
+    expect(onSelectModeChange).toHaveBeenLastCalledWith(false)
     fireEvent.click(screen.getByRole('button', { name: /Скачать шаблоны/ }))
+    expect(onSelectModeChange).toHaveBeenLastCalledWith(true)
     expect(screen.queryByRole('button', { name: '+ Новый шаблон' })).toBeNull()
     fireEvent.click(screen.getByText('Спина').closest('button'))
     expect(screen.getByText('Спина').closest('button')).toHaveClass('picked')
     fireEvent.click(screen.getByRole('button', { name: '⬇ Скачать (1)' }))
     expect(exportTemplates).toHaveBeenCalledWith([THEIR_TPL], expect.any(String))
     expect(screen.getByRole('button', { name: '+ Новый шаблон' })).toBeInTheDocument()
+    expect(onSelectModeChange).toHaveBeenLastCalledWith(false)
   })
 })
 
