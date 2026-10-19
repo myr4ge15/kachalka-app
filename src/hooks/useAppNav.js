@@ -7,6 +7,7 @@ import { storageGet, storageSet } from '../lib/safeStorage.js'
 import { captureAnchor, useScrollAnchorRestore } from './useScrollAnchor.js'
 import { edgeSwipeAvailable, useEdgeSwipeBack } from './useEdgeSwipeBack.js'
 import { scrollToTop, settleScroll } from '../lib/scrollBox.js'
+import { reloadForUpdatePush } from '../lib/launchUpdate.js'
 
 // Навигация приложения (вынесено из App.jsx в v6.14.1, код — дословно): активная
 // вкладка и стек вложенных экранов (анимация, прокрутка, свайп «назад»), одноразовые
@@ -22,6 +23,22 @@ const FEED_FLASH_MS = 2400
 // center (v8.9.8): карточка серединой в середину экрана — видны и тренировка, и реакции под ней.
 const pushAnchor = (workoutId) => ({ anchor: `feed-${workoutId}`, offset: 12, scrollTop: 0, ms: 2500, center: true })
 const TAB_KEY = 'gym_app_tab'
+
+// Пуш «вышла новая версия» нажали у уже запущенного приложения (19.10.2026): любым путем —
+// сообщением SW, записью в кэше или «пуша нет в шторке» — уходим на сплэш обновления
+// (lib/launchUpdate.js reloadForUpdatePush). Посреди записи тренировки — только плашка.
+function openUpdateFromPush() {
+  reloadForUpdatePush({
+    versionUrl: `${import.meta.env.BASE_URL}version.json`,
+    currentVersion: __APP_VERSION__,
+    composerOpen: document.documentElement.dataset.composer === '1',
+  }).then((r) => appendPushLog('update', r), () => {})
+}
+// Намерение из пуша: «обновись» навигации не касается — сразу на сплэш, прочее — экранам.
+function routeIntent(intent, setPushIntent) {
+  if (intent?.type === 'update') openUpdateFromPush()
+  else if (intent) setPushIntent(intent)
+}
 
 export function useAppNav(user) {
   // Нажатие на пуш (v6.7.2): service worker открывает приложение с `?push=<tag>`
@@ -76,10 +93,7 @@ export function useAppNav(user) {
 
   // Уже открытое приложение: адрес не меняется, service worker шлет сообщение. Слушатель
   // ставит main.jsx до рендера (lib/pushIntent.js startPushListener), здесь — подписка.
-  useEffect(() => onPushOpen((url) => {
-    const intent = pushIntentFromUrl(url)
-    if (intent) setPushIntent(intent)
-  }), [])
+  useEffect(() => onPushOpen((url) => routeIntent(pushIntentFromUrl(url), setPushIntent)), [])
 
   // Нажатие, не дошедшее сообщением (v8.9.2, iPhone: свернутая PWA «заморожена»): SW
   // положил адрес в кэш — забираем при открытии, возврате на экран и фокусе окна.
@@ -96,7 +110,7 @@ export function useAppNav(user) {
       .then((url) => url ?? (apply ? tapped() : null))
       .then((url) => {
         const intent = url && apply ? pushIntentFromUrl(url) : null
-        if (alive && intent) setPushIntent(intent)
+        if (alive) routeIntent(intent, setPushIntent)
       })
     // v8.9.3: iPhone сначала показывает приложение (запуск или возврат из фона) и только потом
     // отдает нажатие SW — запись появляется позже нашей проверки. Поэтому после запуска,

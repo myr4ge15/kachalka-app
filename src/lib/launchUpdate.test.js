@@ -1,6 +1,6 @@
 import { describe, expect, it, vi } from 'vitest'
 import {
-  TRIED_KEY, downloadProgress, parsePrecacheManifest, precacheKey, runLaunchUpdate,
+  TRIED_KEY, downloadProgress, parsePrecacheManifest, precacheKey, reloadForUpdatePush, runLaunchUpdate,
 } from './launchUpdate.js'
 
 const SW_TEXT = 'e.precacheAndRoute([{url:"index.html",revision:"abc"},{url:"assets/app-1.js",revision:null},{url:"assets/app-1.css",revision:null}],{})'
@@ -129,5 +129,39 @@ describe('runLaunchUpdate', () => {
     s.storage.setItem(TRIED_KEY, '6.13.0')
     expect(await s.run()).toBe('retried')
     expect(s.ui.start).not.toHaveBeenCalled()
+  })
+})
+
+// Обращение 19.10.2026: пуш «вышла версия» у запущенного приложения — сразу на сплэш обновления.
+describe('reloadForUpdatePush', () => {
+  const fetchVer = (version) => vi.fn(async () => ({ ok: true, json: async () => ({ version }) }))
+  const base = (over = {}) => {
+    const store = new Map([[TRIED_KEY, '1.1.0']])
+    const storage = { getItem: (k) => store.get(k) ?? null, setItem: (k, v) => store.set(k, v), removeItem: (k) => store.delete(k) }
+    return { store, args: { fetchFn: fetchVer('1.1.0'), storage, versionUrl: '/version.json', currentVersion: '1.0.0', reload: vi.fn(), href: 'https://x.dev/app/?push=update#reset=1', ...over } }
+  }
+
+  it('новая версия на сервере — перезагрузка на адрес без ?push= и новая попытка сплэша', async () => {
+    const { store, args } = base()
+    expect(await reloadForUpdatePush(args)).toBe('reload')
+    expect(args.reload).toHaveBeenCalledWith('https://x.dev/app/#reset=1')
+    expect(args.fetchFn).toHaveBeenCalledWith('/version.json', { cache: 'no-store' })
+    expect(store.has(TRIED_KEY)).toBe(false)
+  })
+
+  it('посреди записи тренировки — не трогаем (остается плашка)', async () => {
+    const { args } = base({ composerOpen: true })
+    expect(await reloadForUpdatePush(args)).toBe('composer')
+    expect(args.fetchFn).not.toHaveBeenCalled()
+    expect(args.reload).not.toHaveBeenCalled()
+  })
+
+  it('версия та же, сервер не ответил, офлайн — остаемся', async () => {
+    for (const fetchFn of [fetchVer('1.0.0'), vi.fn(async () => ({ ok: false })), vi.fn(async () => { throw new Error('net') })]) {
+      const { store, args } = base({ fetchFn })
+      expect(await reloadForUpdatePush(args)).toBe('none')
+      expect(args.reload).not.toHaveBeenCalled()
+      expect(store.get(TRIED_KEY)).toBe('1.1.0')
+    }
   })
 })

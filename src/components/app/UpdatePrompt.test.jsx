@@ -134,13 +134,16 @@ describe('UpdatePrompt — версия скачалась, пока прило�
     expect(updateServiceWorker).not.toHaveBeenCalled()
   })
 
-  it('нажали пуш при открытом приложении — новая версия применяется сама', async () => {
+  // 19.10.2026: применяет сплэш обновления (useAppNav → reloadForUpdatePush), плашка сама
+  // не перезагружает — иначе SKIP_WAITING без экрана загрузки гонялся бы с ним.
+  it('нажали пуш при открытом приложении — плашка, без тихого применения', async () => {
     render(<UpdatePrompt />)
     act(() => {
       const e = new Event('message')
       e.data = { type: 'push-open', url: 'https://x/kachalka-app/?push=update' }
       swTarget.dispatchEvent(e)
     })
-    await waitFor(() => expect(updateServiceWorker).toHaveBeenCalledWith(true))
+    expect(await screen.findByRole('alert')).toHaveTextContent('Обновление 999.0.0')
+    expect(updateServiceWorker).not.toHaveBeenCalled()
   })
 })

@@ -167,3 +167,41 @@ export async function runLaunchUpdate({
   reload()
   return 'applied'
 }
+
+// Нажали пуш «вышла новая версия», а приложение уже запущено или свернуто (обращение 19.10.2026,
+// 1.1.0 э2). Раньше оно оставалось на месте: на iPhone нажатие у свернутой PWA доходит только
+// записью в кэше (lib/pushIntent.js), а ее навигация для update игнорировала; а и дошедшее
+// сообщение лишь тихо качало версию за плашкой. Теперь, если на сервере правда новая версия,
+// перезагружаемся — запуск показывает сплэш «Обновляем до v…» с прогрессом (runLaunchUpdate).
+// Флаг «уже пробовали эту версию» снимаем: нажатие — явное согласие; петли нет — перезагрузка
+// идет на адрес без `?push=`, второй раз намерение не придет.
+// Посреди записи тренировки не перезагружаем ('composer'): там остается плашка UpdatePrompt.
+// Возвращает 'composer' | 'none' | 'reload'.
+export async function reloadForUpdatePush({
+  fetchFn = typeof fetch !== 'undefined' ? fetch : null,
+  storage = typeof sessionStorage !== 'undefined' ? sessionStorage : null,
+  versionUrl,
+  currentVersion,
+  composerOpen = false,
+  // replaceState + reload, а не location.replace: адрес с #… дал бы переход по якорю без перезагрузки.
+  reload = (to) => { window.history.replaceState(window.history.state, '', to); window.location.reload() },
+  href = typeof window !== 'undefined' ? window.location.href : '',
+} = {}) {
+  if (composerOpen) return 'composer'
+  if (!fetchFn) return 'none'
+  let server = null
+  try {
+    const res = await withTimeout(fetchFn(versionUrl, { cache: 'no-store' }), VERSION_TIMEOUT_MS)
+    if (res.ok) server = (await res.json())?.version ?? null
+  } catch { /* офлайн/таймаут — остаемся, плашка догонит */ }
+  if (!server || !isRealUpdate(currentVersion, server)) return 'none'
+  try { storage?.removeItem(TRIED_KEY) } catch { /* приватный режим */ }
+  let target = href
+  try {
+    const u = new URL(href)
+    u.searchParams.delete('push')
+    target = u.href
+  } catch { /* оставляем как есть */ }
+  reload(target)
+  return 'reload'
+}

@@ -209,13 +209,15 @@ export default function UpdatePrompt() {
   }, [needRefresh, setNeedRefresh])
 
   // Пуш о новой версии нажали, когда приложение уже открыто: SW шлет сообщение
-  // (ответ ему дает App). Запоминаем нажатие и сразу проверяем обновление.
+  // (ответ ему дает App). Применяет НЕ плашка: навигация уводит на сплэш обновления
+  // (hooks/useAppNav.js → lib/launchUpdate.js reloadForUpdatePush, 19.10.2026) — там
+  // видно загрузку. Здесь только поднимаем плашку, даже отложенную: она остается,
+  // если перезагрузиться нельзя (посреди записи тренировки).
   useEffect(() => {
     const sw = typeof navigator !== 'undefined' ? navigator.serviceWorker : null
     if (!sw) return undefined
     const onMessage = (e) => {
       if (e.data?.type !== 'push-open' || pushIntentFromUrl(e.data.url)?.type !== 'update') return
-      setAutoAt(Date.now())
       // Версию SW мог скачать еще при получении пуша — тогда она уже ждет (v6.15.0).
       if (!surfaceWaiting(regRef.current, true)) updateAndSurface(regRef.current, true)
     }
