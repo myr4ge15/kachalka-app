@@ -7,8 +7,6 @@
 // Каждый пуш ОБЯЗАН показать уведомление: «тихие» пуши браузеры запрещают,
 // а Safari за них отзывает подписку.
 
-/* global self, clients, URL, MessageChannel, setTimeout, clearTimeout, caches, Response */
-
 // Версия этого файла (v8.9.6) = версия приложения; сверяет тест src/lib/pushIntent.test.js.
 // Отвечает на «пинг» журнала нажатий: так видно, что пуши обрабатывает свежий код.
 const PUSH_SW_VER = '1.1.0'

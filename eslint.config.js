@@ -77,9 +77,23 @@ export default [
     languageOptions: { globals: { localStorage: 'readonly' } },
   },
 
-  // Конфиги, служебные скрипты и серверные JS-тесты — node-окружение.
+  // Файлы из public/ идут в браузер без сборки: push-sw.js — внутри service worker
+  // (importScripts), accent-boot.js — обычный скрипт из <head>. Глобалы — по среде,
+  // а не только по шапочным /* global */ (покрытие тестами 19.10.2026).
   {
-    files: ['*.{js,cjs,mjs}', 'scripts/**/*.{js,cjs,mjs}', 'supabase/tests/**/*.mjs'],
+    files: ['public/push-sw.js'],
+    languageOptions: { sourceType: 'script', globals: { ...globals.serviceworker } },
+  },
+  {
+    files: ['public/accent-boot.js'],
+    languageOptions: { sourceType: 'script', globals: { ...globals.browser } },
+  },
+
+  // Конфиги, служебные скрипты и серверные JS-скрипты — node-окружение.
+  // supabase/ (приватный, в публичном CI его нет) — целиком: локальный `npm run lint`
+  // падал на supabase/beta/copy-data.mjs (Buffer, setTimeout).
+  {
+    files: ['*.{js,cjs,mjs}', 'scripts/**/*.{js,cjs,mjs}', 'supabase/**/*.mjs'],
     languageOptions: {
       ecmaVersion: 'latest',
       sourceType: 'module',

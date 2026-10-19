@@ -3,7 +3,6 @@
 // позже — без этого первый кадр мигал бы акцентом по умолчанию.
 // Логика повторяет parseAccent/customTokens из src/lib/accent.js; совпадение
 // проверяет src/lib/accent.test.js. Меняешь одно — меняй и другое.
-/* global document, localStorage */
 (function () {
   var root = document.documentElement
   var PRESETS = ['volt', 'teal', 'red', 'yellow', 'pink', 'violet', 'peach']

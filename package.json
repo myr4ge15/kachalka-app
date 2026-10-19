@@ -12,7 +12,7 @@
     "test:watch": "vitest",
     "test:e2e": "playwright test",
     "test:e2e:ui": "playwright test --ui",
-    "lint": "eslint .",
+    "lint": "eslint . --max-warnings 0",
     "check": "npm run lint && npm test && npm run build",
     "shots:readme": "node scripts/readme-shots.mjs"
   },
