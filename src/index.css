@@ -2680,7 +2680,17 @@ label.act.busy { opacity: .55; pointer-events: none; }
   display: block; max-width: 100%; max-height: 320px; width: auto; align-self: flex-start;
   border-radius: 12px; border: 1px solid var(--border); object-fit: contain; background: var(--bg);
 }
-.feedback-screen .fb-list-title { margin-top: 22px; }
+/* Заголовок «Мои обращения» + «Обновить список» (fb_6e2e0d6c): кнопка-иконка 44 px справа. */
+.feedback-screen .fb-list-head { display: flex; align-items: center; justify-content: space-between; gap: 8px; margin-top: 22px; margin-bottom: 10px; }
+.feedback-screen .fb-list-head .fb-list-title { margin: 0; }
+.fb-refresh {
+  flex: none; width: 44px; height: 44px; display: grid; place-items: center; margin-right: -10px;
+  border: 0; border-radius: 12px; background: none; color: var(--muted); cursor: pointer;
+}
+.fb-refresh:active:not(:disabled) { background: var(--surface-2); color: var(--text); }
+.fb-refresh:disabled { cursor: default; opacity: .5; }
+.fb-refresh:has(.spin):disabled { opacity: 1; }
+.fb-refresh-ico.spin { animation: spin var(--spin-dur) linear infinite; }
 .fb-item { display: flex; flex-direction: column; gap: 6px; scroll-margin: 80px; }
 .fb-item.focus { border-color: color-mix(in srgb, var(--acc) 60%, transparent); }
 .fb-item-head { display: flex; align-items: center; justify-content: space-between; gap: 10px; min-width: 0; }

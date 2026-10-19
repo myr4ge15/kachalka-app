@@ -6,6 +6,7 @@ import CardsSkeleton from '../components/ui/CardsSkeleton.jsx'
 import ScrollTopButton from '../components/ui/ScrollTopButton.jsx'
 import { showToast } from '../components/ui/Toast.jsx'
 import { useSyncStatus } from '../db/sync.js'
+import { onResume } from '../lib/appEvents.js'
 import {
   bodyProblem, buildContext, hasUnreadReply, isOpenStatus, isWebKit26Plus, myFeedbackTab, FEEDBACK_MAX,
 } from '../lib/feedback.js'
@@ -39,8 +40,11 @@ export default function FeedbackScreen({ user, onBack, focusId = null, fromScree
   const alive = useRef(true)
   useEffect(() => { alive.current = true; return () => { alive.current = false } }, [])
 
+  const [loading, setLoading] = useState(false)
+
   async function reload({ ack = false } = {}) {
     setLoadErr('')
+    setLoading(true)
     try {
       const rows = await api.list(user.id)
       if (!alive.current) return
@@ -54,10 +58,17 @@ export default function FeedbackScreen({ user, onBack, focusId = null, fromScree
       if (!alive.current) return
       setLoadErr(e instanceof FeedbackError ? e.message : 'Не удалось загрузить обращения.')
       setList([])
+    } finally {
+      if (alive.current) setLoading(false)
     }
   }
   // eslint-disable-next-line react-hooks/exhaustive-deps
   useEffect(() => { if (online) reload({ ack: true }); else setList((l) => l ?? []) }, [online, user.id])
+  // Обновить список (fb_6e2e0d6c): кнопкой у заголовка и сам при возврате в приложение —
+  // ответ мог прийти, пока экран висел открытым в фоне.
+  const reloadRef = useRef(reload)
+  reloadRef.current = reload
+  useEffect(() => onResume(() => { if (navigator.onLine) reloadRef.current({ ack: true }) }), [])
 
   // Новое обращение в фокусе на уже открытом экране (16.10, fb_bb404b7e: экран оставался на
   // прежнем) — вкладку снова выбирает список (myFeedbackTab по focusId).
@@ -151,7 +162,16 @@ export default function FeedbackScreen({ user, onBack, focusId = null, fromScree
         </button>
       </section>
 
-      <h3 className="sec-title fb-list-title">Мои обращения</h3>
+      <div className="fb-list-head">
+        <h3 className="sec-title fb-list-title">Мои обращения</h3>
+        <button type="button" className="fb-refresh" onClick={() => reload({ ack: true })}
+          disabled={!online || loading} aria-label={loading ? 'Обновляется' : 'Обновить список'} title="Обновить список">
+          <svg className={loading ? 'fb-refresh-ico spin' : 'fb-refresh-ico'} viewBox="0 0 24 24" width="20" height="20"
+            fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+            <path d="M20 11a8 8 0 1 0-2.3 5.7" /><path d="M20 4v7h-7" />
+          </svg>
+        </button>
+      </div>
       {loadErr && <p className="admin-offline" role="alert">{loadErr}</p>}
       {list === null && <CardsSkeleton cards={2} />}
       {list?.length === 0 && !loadErr && <p className="muted">Пока пусто.</p>}

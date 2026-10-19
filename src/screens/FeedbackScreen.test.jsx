@@ -47,6 +47,28 @@ beforeEach(() => {
 })
 
 describe('FeedbackScreen', () => {
+  it('«Обновить список» и возврат в приложение перечитывают обращения (fb_6e2e0d6c)', async () => {
+    const list = vi.fn(async () => [])
+    setup({ list })
+    await waitFor(() => expect(list).toHaveBeenCalledTimes(1))
+    expect(await screen.findByText('Пока пусто.')).toBeInTheDocument()
+
+    list.mockResolvedValue([ROW])
+    await userEvent.click(screen.getByRole('button', { name: 'Обновить список' }))
+    expect(await screen.findByRole('button', { name: /Пропал подход/ })).toBeInTheDocument()
+    expect(list).toHaveBeenCalledTimes(2)
+
+    // вкладка снова видна (вернулись из фона) — тихий повторный запрос
+    document.dispatchEvent(new Event('visibilitychange'))
+    await waitFor(() => expect(list).toHaveBeenCalledTimes(3))
+  })
+
+  it('без сети «Обновить список» неактивна', async () => {
+    sync.online = false
+    setup()
+    expect(screen.getByRole('button', { name: 'Обновить список' })).toBeDisabled()
+  })
+
   it('контекст: вкладка, с которой пришли в Настройки, а не всегда «Профиль»', async () => {
     const api = setup({}, { fromScreen: 'feed' })
     await userEvent.type(screen.getByLabelText('Что случилось?'), 'Не грузится')

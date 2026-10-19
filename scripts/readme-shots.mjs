@@ -161,14 +161,16 @@ async function seedData({ uid, EXERCISES, FRIENDS, AVATARS, ACCENT }) {
   await db.feed.clear()
   await db.feed.bulkPut(items)
 
-  // Рейтинг: снимки дисциплин в meta, как их кладет db/disciplines.js.
+  // Рейтинг (с v9.1.0 — только доски кругов): снимок «моих кругов» (db/circles.js) и каталог
+  // круга под rating_fc_<круг>, доски — rating_board_<дисциплина>, как кладет db/disciplines.js.
   const catalog = [
     { id: 'bench', exercise_id: 'bench', name: 'Жим лежа', metric: 'weight', split_by_sex: false, updated_at: '2026-10-02' },
     { id: 'pullups', exercise_id: 'pullups', name: 'Подтягивания', metric: 'reps', split_by_sex: false, updated_at: '2026-10-02' },
     { id: 'plank', exercise_id: 'plank', name: 'Планка', metric: 'time', split_by_sex: false, updated_at: '2026-10-02' },
   ]
   const fetchedAt = new Date().toISOString()
-  await L.setMeta('rating_catalog', { items: catalog, fetchedAt })
+  await L.setMeta('fc_circles', { items: [{ circle_id: 'c1', name: 'Зал на Ленина', is_owner: true, my_status: 'active', auto_approve: true, owner_name: 'Андрей', members: 4, pending: 0 }], fetchedAt })
+  await L.setMeta('rating_fc_c1', { items: catalog, fetchedAt })
   const P = (id, name) => ({ user_id: id, user_name: name, board: 'all' })
   const boards = [
     [{ ...P(uid, 'Андрей'), weight: 105, reps: 8, value: 105, orm: 133 },
