@@ -157,6 +157,11 @@ async function seedData({ uid, EXERCISES, FRIENDS, AVATARS, ACCENT }) {
   items[1].reactions = [R('f2', 'Сергей', 'clap')]
   items[2].reactions = [R('f1', 'Борис', 'muscle'), R('f3', 'Аня', 'muscle')]
   items[3].reactions = [R('f2', 'Сергей', 'wow'), R(uid, 'Андрей', 'fire')]
+  // Комментарии (1.1.2 э2): в карточке — строка с аватарками и «N комментариев», как в Telegram.
+  const C = (n, u, name, body) => ({ id: `cm-${n}`, workout_id: items[0].id, user_id: u, name, known: true,
+    avatar_url: avatar(AVATARS[u]), body, created_at: new Date(Date.now() - (5 - n) * 6e5).toISOString(), like_count: 0, liked: false })
+  items[0].comments = [C(1, 'f1', 'Борис', 'Мощно, 90 на пять!'), C(2, 'f3', 'Аня', 'Планка 2:30 — уважение 🔥'),
+    C(3, uid, 'Андрей', 'Догоняю 💪')]
   const db = await L.openUserDb(uid)
   await db.feed.clear()
   await db.feed.bulkPut(items)

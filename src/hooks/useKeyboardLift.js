@@ -16,6 +16,11 @@ export function useKeyboardLift(boxRef) {
     const vv = window.visualViewport
     if (!vv) return
     stop.current?.()
+    // Поле внутри листа во весь экран (ветка комментариев, 20.10.2026, fb_904e3fb8): прокручивать
+    // нечего — iOS уводил весь экран вверх, а клавиатура закрывала поле. Лист ужимаем до видимой
+    // части над клавиатурой, как в мессенджерах: шапка сверху, поле над клавиатурой, список между.
+    const sheet = boxRef.current?.closest('.sheet')
+    if (sheet) { stop.current = fitSheetToKeyboard(sheet, boxRef.current, vv); return }
     let timer = 0
     const lift = () => {
       const box = boxRef.current
@@ -43,4 +48,40 @@ export function useKeyboardLift(boxRef) {
       stop.current = null
     }
   }, [boxRef])
+}
+
+// Пока клавиатура открыта — подложка листа (.overlay) ровно в видимой полосе (offsetTop, height),
+// лист той же высоты; закрылась — прежние размеры. Слушаем, пока фокус внутри блока поля.
+// Список ветки при первом сжатии прокручиваем к концу: свежие комментарии — над полем.
+// Возвращает функцию остановки (сбрасывает стили).
+export function fitSheetToKeyboard(sheet, box, vv) {
+  const overlay = sheet.parentElement
+  const scroll = sheet.querySelector('.sheet-scroll')
+  let fitted = false
+  const reset = () => {
+    for (const el of [overlay, sheet]) if (el) el.style.top = el.style.height = el.style.maxHeight = el.style.bottom = ''
+    fitted = false
+  }
+  const apply = () => {
+    if (!keyboardOpen(vv, window.innerHeight)) { reset(); return }
+    const h = Math.round(vv.height) + 'px'
+    if (overlay) { overlay.style.top = Math.round(vv.offsetTop) + 'px'; overlay.style.bottom = 'auto'; overlay.style.height = h }
+    sheet.style.height = sheet.style.maxHeight = h
+    if (!fitted && scroll) scroll.scrollTop = scroll.scrollHeight
+    fitted = true
+  }
+  let left = 0
+  const onFocusOut = () => { clearTimeout(left); left = setTimeout(() => { if (!box.contains(document.activeElement)) stop() }, 400) }
+  const stop = () => {
+    clearTimeout(left)
+    vv.removeEventListener('resize', apply)
+    vv.removeEventListener('scroll', apply)
+    box.removeEventListener('focusout', onFocusOut)
+    reset()
+  }
+  vv.addEventListener('resize', apply)
+  vv.addEventListener('scroll', apply)
+  box.addEventListener('focusout', onFocusOut)
+  apply()
+  return stop
 }
