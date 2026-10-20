@@ -143,7 +143,7 @@ export function carryComments(items, prev) {
 }
 
 // Стабильный отпечаток реакций и комментариев окна ленты (порядок элементов уже задан сортировкой).
-function reactionsKey(items) {
+export function reactionsKey(items) {
   return JSON.stringify(
     (items ?? []).map((i) => [
       i.id,
@@ -152,9 +152,12 @@ function reactionsKey(items) {
         .map((r) => [String(r.user_id), String(r.kind), r.name ?? null, r.created_at ?? null])
         .sort((a, b) => (a[0] + a[1]).localeCompare(b[0] + b[1])),
       // текст, метка правки и ❤️ — иначе правка/лайк с другого устройства не перезапишут кэш (9.5.3);
-      // «кому ответ» — удаление исходного меняет цитату
+      // «кому ответ» — удаление исходного меняет цитату; виды реакций (1.2.0 э2) — смена ❤️ на 🔥
+      // не меняет ни счетчик, ни «моя есть» (аудит сервера 20.10.2026)
       (i.comments ?? []).map((c) => [c.id, c.name, c.known, c.avatar_url ?? null, c.body, c.edited_at ?? null,
-        c.like_count ?? 0, Boolean(c.liked), c.reply_to ?? null, c.reply_to_name ?? null]),
+        c.like_count ?? 0, Boolean(c.liked), c.reply_to ?? null, c.reply_to_name ?? null,
+        Object.entries(c.reactions ?? {}).filter(([, n]) => n > 0).sort(([a], [b]) => a.localeCompare(b)),
+        c.my_reaction ?? null]),
     ])
   )
 }

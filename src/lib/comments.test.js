@@ -1,4 +1,6 @@
 import { describe, expect, it } from 'vitest'
+import { existsSync, readFileSync } from 'node:fs'
+import { resolve } from 'node:path'
 import {
   canDeleteComment, canEditComment, canReactComment, canReplyComment, replyQuote, applyReaction, nextReaction, reactionPills, COMMENT_REACTIONS, cleanBody, commentAgo, commentClock, commentDayBreaks, commentDayLabel, commentSeries, isDoubleTap, DOUBLE_TAP_MS, groupComments, nameTone, NAME_TONES, normComment, previewComments, upsertComment,
 } from './comments.js'
@@ -162,5 +164,17 @@ describe('comments', () => {
     expect(isDoubleTap({ id: 'a', t: 100 }, 'a', 101 + DOUBLE_TAP_MS)).toBe(false)
     expect(isDoubleTap({ id: 'a', t: 100 }, 'b', 150)).toBe(false)
     expect(isDoubleTap({ id: 'a', t: 200 }, 'a', 100)).toBe(false)
+  })
+})
+
+// Виды реакций — одним списком на клиенте и в SQL (check comment_likes.kind и проверка в comment_react).
+// supabase/ живет в приватном репо: в публичном CI файла нет, тест пропускается (как pinPolicy.test.js).
+const REACTIONS_SQL = resolve(__dirname, '../../supabase/migrations/20261020160000_comment_reactions.sql')
+describe.skipIf(!existsSync(REACTIONS_SQL))('COMMENT_REACTIONS ↔ comment_reactions.sql', () => {
+  it('check таблицы и comment_react — те же виды, что на клиенте', () => {
+    const src = readFileSync(REACTIONS_SQL, 'utf8')
+    const lists = [...src.matchAll(/in \(('[a-z]+'(?:,\s*'[a-z]+')*)\)/g)].map((m) => m[1].match(/[a-z]+/g))
+    expect(lists.length).toBeGreaterThanOrEqual(2)
+    for (const kinds of lists) expect(kinds).toEqual(COMMENT_REACTIONS.map((r) => r.kind))
   })
 })

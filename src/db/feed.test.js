@@ -5,7 +5,7 @@ import 'fake-indexeddb/auto' // ПЕРВЫМ: local.js создает Dexie на
 import { describe, it, expect, beforeEach, afterEach } from 'vitest'
 import { openUserDb, closeUserDb, db } from './local.js'
 import { uniqueUserId } from '../test/idbHarness.js'
-import { rowToItem, computePrs, baselineMap, getCachedFeed, carryComments } from './feed.js'
+import { rowToItem, computePrs, baselineMap, getCachedFeed, carryComments, reactionsKey } from './feed.js'
 import { overlayRecentComments, resetRecentComments } from './comments.js'
 
 describe('rowToItem (денормализация серверной строки)', () => {
@@ -132,5 +132,27 @@ describe('комментарии в снимке ленты (19.10.2026)', () =>
     const items = [{ id: 'w1', comments: [{ id: 'a' }] }]
     overlayRecentComments(items)
     expect(items[0].comments).toEqual([{ id: 'a' }])
+  })
+})
+
+describe('reactionsKey (писать ли кэш Ленты)', () => {
+  const item = (comment) => [{ id: 'w1', reactions: [], comments: [{ id: 'c1', name: 'Аня', body: 'огонь', ...comment }] }]
+
+  it('смена вида реакции на комментарий меняет отпечаток, хотя счетчик и «моя есть» те же', () => {
+    const heart = item({ like_count: 1, liked: false, reactions: { heart: 1 }, my_reaction: null })
+    const fire = item({ like_count: 1, liked: false, reactions: { fire: 1 }, my_reaction: null })
+    expect(reactionsKey(fire)).not.toBe(reactionsKey(heart))
+  })
+
+  it('своя реакция сменила вид — отпечаток другой', () => {
+    const a = item({ like_count: 1, liked: true, reactions: { heart: 1 }, my_reaction: 'heart' })
+    const b = item({ like_count: 1, liked: true, reactions: { laugh: 1 }, my_reaction: 'laugh' })
+    expect(reactionsKey(b)).not.toBe(reactionsKey(a))
+  })
+
+  it('порядок ключей и нулевые виды не дают ложной перезаписи', () => {
+    const a = item({ reactions: { heart: 2, fire: 1 } })
+    const b = item({ reactions: { fire: 1, heart: 2, wow: 0 } })
+    expect(reactionsKey(b)).toBe(reactionsKey(a))
   })
 })

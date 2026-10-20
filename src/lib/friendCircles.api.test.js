@@ -33,6 +33,7 @@ describe('circleApi — гарды и ошибки', () => {
     [{ code: '42501', message: '' }, /Нет доступа/],
     [{ message: 'forbidden' }, /Нет доступа/],
     [{ message: 'own circle exists' }, 'Свой круг у тебя уже есть.'],
+    [{ code: 'P0001', message: 'founders circle' }, 'Круг «Основатели» удалить нельзя.'],
     [{ message: 'max circles' }, 'Можно быть не больше чем в 5 кругах.'],
     [{ message: 'bad name' }, 'Название — от 1 до 40 символов.'],
     [{ message: 'rate limited' }, 'Слишком часто — попробуй завтра.'],

@@ -88,6 +88,8 @@ function humanError(error) {
   const m = String(error?.message ?? '')
   if (error?.code === '42501' || m.includes('forbidden')) return 'Нет доступа — ты не в этом круге или не его владелец.'
   if (m.includes('own circle exists')) return 'Свой круг у тебя уже есть.'
+  // На круге «Основатели» держатся бот, общий рейтинг и «обогнали» (аудит сервера 20.10.2026).
+  if (m.includes('founders circle')) return 'Круг «Основатели» удалить нельзя.'
   if (m.includes('max circles')) return 'Можно быть не больше чем в 5 кругах.'
   if (m.includes('bad name')) return 'Название — от 1 до 40 символов.'
   if (m.includes('rate limited')) return 'Слишком часто — попробуй завтра.'
