@@ -84,11 +84,10 @@ export default defineConfig(({ mode }) => ({
     // Покрытие (19.10.2026) — только по флагу --coverage: в CI его снимает одна нога
     // задачи unit (Москва), отчет — артефакт `coverage`, итог — аннотацией прогона.
     // main.jsx — только склейка запуска (логика сплэша — lib/splashBoot.js), его грузит
-    // каждый e2e; content/ — тексты. Пороги (20.10.2026) — от отчета 19.10 (строки 90,3,
-    // операторы 86,4, функции 84,4, ветки 78,8; lib 93,9/91,3/92,9/84,2) минус 1–2 пункта,
-    // с округлением вниз: обычный рефактор не роняет CI, заметная потеря покрытия — роняет.
-    // Поднимать вслед за фактом раз в несколько выпусков, не опускать
-    // (docs/reviews/ПОКРЫТИЕ-ТЕСТАМИ-2026-10-19.md, раздел 7).
+    // каждый e2e; content/ — тексты. Пороги — храповик (AGENTS.md, DoD п. 2): «факт минус
+    // 1–2 пункта», вниз; только поднимаем. 20.10.2026 (прогон 4e81416): строки 96,4,
+    // операторы 92,9, функции 92,4, ветки 84,1; lib — от 774ec2f (96,9/94,3/95,6/86,9).
+    // История — docs/reviews/ПОКРЫТИЕ-ТЕСТАМИ-2026-10-19.md, разделы 7–8.
     coverage: {
       provider: 'v8',
       include: ['src/**/*.{js,jsx}'],
@@ -96,11 +95,11 @@ export default defineConfig(({ mode }) => ({
       reporter: ['text-summary', 'json-summary', 'html'],
       reportsDirectory: 'coverage',
       thresholds: {
-        lines: 89,
-        statements: 85,
-        functions: 83,
-        branches: 77,
-        'src/lib/**': { lines: 92, statements: 90, functions: 91, branches: 82 },
+        lines: 95,
+        statements: 91,
+        functions: 91,
+        branches: 83,
+        'src/lib/**': { lines: 95, statements: 93, functions: 94, branches: 85 },
       },
     },
   },

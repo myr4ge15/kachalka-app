@@ -71,7 +71,20 @@ jobs:
       # Итог покрытия — аннотацией прогона: видно в сводке Actions без скачивания артефакта.
       - name: Coverage summary
         if: matrix.tz == 'Europe/Moscow' && !cancelled()
-        run: node -e "const t=require('./coverage/coverage-summary.json').total;const p=k=>t[k].pct+'%';console.log('::notice title=Покрытие::строки '+p('lines')+', операторы '+p('statements')+', функции '+p('functions')+', ветки '+p('branches'))"
+        # Итог всего src и отдельно src/lib (у него свой порог) — числа для храповика порогов.
+        run: |
+          node -e "
+          const j = require('./coverage/coverage-summary.json');
+          const M = ['lines', 'statements', 'functions', 'branches'];
+          const fmt = (t) => M.map((m) => t[m].pct + '%').join(' / ');
+          const lib = {};
+          for (const [f, v] of Object.entries(j)) {
+            if (!f.split(String.fromCharCode(92)).join('/').includes('/src/lib/')) continue; // и с Windows-разделителями
+            for (const m of M) { lib[m] ??= { c: 0, t: 0 }; lib[m].c += v[m].covered; lib[m].t += v[m].total; }
+          }
+          const libPct = Object.fromEntries(M.map((m) => [m, { pct: Math.round(1e4 * lib[m].c / lib[m].t) / 100 }]));
+          console.log('::notice title=Покрытие::строки / операторы / функции / ветки — src ' + fmt(j.total) + '; src/lib ' + fmt(libPct));
+          "
 
       - name: Upload coverage report
         if: matrix.tz == 'Europe/Moscow' && !cancelled()
