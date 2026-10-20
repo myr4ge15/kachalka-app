@@ -56,10 +56,14 @@ describe('useKeyboardLift — поле в листе', () => {
     expect(sheet.style.paddingTop).toBe('')
     expect(u.getByTestId('overlay').style.top).toBe('')
     expect(scroll.scrollTop).toBe(1500)
-    scroll.scrollTop = 300 // листали список при открытой клавиатуре — повторный resize его не сбрасывает
+    Object.defineProperty(scroll, 'clientHeight', { value: 400, configurable: true })
+    scroll.scrollTop = 300 // листали список вверх при открытой клавиатуре — повторный resize его не сбрасывает
     act(() => vv.set(470, 0))
     expect(scroll.scrollTop).toBe(300)
-    expect(sheet.style.getPropertyValue('--kb')).toBe('330px')
+    scroll.scrollTop = 1090 // у конца (1500 − 1090 − 400 < 24) — следующий resize держит у конца (fb_82ee17ce)
+    act(() => vv.set(460, 0))
+    expect(scroll.scrollTop).toBe(1500)
+    expect(sheet.style.getPropertyValue('--kb')).toBe('340px')
     Object.defineProperty(window, 'scrollY', { value: 0, configurable: true })
     scrollTo.mockRestore()
   })

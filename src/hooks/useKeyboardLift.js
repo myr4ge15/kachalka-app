@@ -61,7 +61,7 @@ export function useKeyboardLift(boxRef) {
 //  2. низ листа поднимаем отступом на высоту клавиатуры: --kb = innerHeight − vv.height.
 // Лист и подложка — во весь экран (в iOS 26 строка «^ v ✓» над клавиатурой прозрачная).
 // На бете в углу листа — замеры (vv, offsetTop, scrollY), чтобы следующий шаг был по цифрам.
-// Список при первой подгонке — к концу: свежие комментарии над полем. Возвращает stop().
+// Список при первой подгонке — к концу и дальше у конца, если там был: свежие комментарии над полем. Возвращает stop().
 export function holdSheetAboveKeyboard(sheet, box, vv, { debug = false } = {}) {
   const overlay = sheet.parentElement
   const scroll = sheet.querySelector('.sheet-scroll')
@@ -82,13 +82,16 @@ export function holdSheetAboveKeyboard(sheet, box, vv, { debug = false } = {}) {
   const apply = () => {
     if (!keyboardOpen(vv, window.innerHeight)) { reset(); return }
     unpan()
+    // Список был у конца — держим у конца и после подъема (клавиатура выезжает несколькими resize,
+    // каждый ужимает список; иначе последний комментарий уходил под строку «Ответ», fb_82ee17ce).
+    const atEnd = !scroll || scroll.scrollHeight - scroll.scrollTop - scroll.clientHeight < 24
     const kb = Math.max(0, Math.round(window.innerHeight - vv.height))
     sheet.style.setProperty('--kb', kb + 'px')
     sheet.classList.add('kb-fit')
     if (debug) {
       sheet.dataset.kbDebug = `vv ${Math.round(vv.height)}/${Math.round(vv.offsetTop)} in ${window.innerHeight} sy ${Math.round(window.scrollY)} kb ${kb}`
     }
-    if (first && scroll) scroll.scrollTop = scroll.scrollHeight
+    if ((first || atEnd) && scroll) scroll.scrollTop = scroll.scrollHeight
     first = false
   }
   let left = 0
