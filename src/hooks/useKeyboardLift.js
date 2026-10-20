@@ -62,6 +62,9 @@ export function useKeyboardLift(boxRef) {
 // Лист и подложка — во весь экран (в iOS 26 строка «^ v ✓» над клавиатурой прозрачная).
 // На бете в углу листа — замеры (vv, offsetTop, scrollY), чтобы следующий шаг был по цифрам.
 // Список при первой подгонке — к концу и дальше у конца, если там был: свежие комментарии над полем. Возвращает stop().
+// Меньше этой доли экрана над клавиатурой не бывает (и в горизонтали ~0,38) — это кадр анимации iOS.
+const MIN_VISIBLE = 0.3
+
 export function holdSheetAboveKeyboard(sheet, box, vv, { debug = false } = {}) {
   const overlay = sheet.parentElement
   const scroll = sheet.querySelector('.sheet-scroll')
@@ -81,6 +84,9 @@ export function holdSheetAboveKeyboard(sheet, box, vv, { debug = false } = {}) {
   }
   const apply = () => {
     if (!keyboardOpen(vv, window.innerHeight)) { reset(); return }
+    // Пока клавиатура выезжает после свайпа-ответа, iOS на кадр отдает нереальное vv.height (155 из 793,
+    // fb_f4aa0954): подъем на 638 бросал поле под шапку. Такие замеры пропускаем, ждем следующий resize.
+    if (vv.height < window.innerHeight * MIN_VISIBLE) return
     unpan()
     // Список был у конца — держим у конца и после подъема (клавиатура выезжает несколькими resize,
     // каждый ужимает список; иначе последний комментарий уходил под строку «Ответ», fb_82ee17ce).

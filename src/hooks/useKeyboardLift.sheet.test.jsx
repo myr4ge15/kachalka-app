@@ -68,6 +68,17 @@ describe('useKeyboardLift — поле в листе', () => {
     scrollTo.mockRestore()
   })
 
+  it('кадр анимации iOS с нереальной высотой (155 из 800) пропускаем — подъем прежний (fb_f4aa0954)', () => {
+    const u = render(<Sheet />)
+    const sheet = u.getByTestId('sheet')
+    fireEvent.focus(u.getByLabelText('Комментарий'))
+    act(() => vv.set(155, 0))
+    expect(sheet).not.toHaveClass('kb-fit')
+    act(() => vv.set(480, 0))
+    act(() => vv.set(155, 0))
+    expect(sheet.style.getPropertyValue('--kb')).toBe('320px')
+  })
+
   it('клавиатура закрылась — без подъема', () => {
     const u = render(<Sheet />)
     const sheet = u.getByTestId('sheet')
