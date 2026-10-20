@@ -1,7 +1,7 @@
 // @vitest-environment jsdom
 // Сплэш холодного старта и блок «Обновляем до v…» (lib/splashBoot.js, вынесено из main.jsx).
 import { beforeEach, describe, expect, it } from 'vitest'
-import { splashUpdateUi, startSplash, SPLASH_HARD_MS } from './splashBoot.js'
+import { barStep, splashUpdateUi, startSplash, BAR_MIN_SPEED, SPLASH_HARD_MS } from './splashBoot.js'
 import { SPLASH_FADE_MS, SPLASH_MAX_MS } from './splash.js'
 
 // Та же разметка, что в index.html.
@@ -45,7 +45,7 @@ describe('splashUpdateUi', () => {
   })
 
   it('progress — проценты и «Загружено N из M», пустой прогресс ничего не меняет', () => {
-    const ui = splashUpdateUi(document, $('splash'))
+    const ui = splashUpdateUi(document, $('splash'), { reduce: true })
     ui.start('1.2.0')
     ui.progress(null)
     expect($('splash-upd-cap').textContent).toBe('Загружаем…')
@@ -53,13 +53,46 @@ describe('splashUpdateUi', () => {
     expect($('splash-upd-bar').classList.contains('splash-upd-bar--busy')).toBe(false)
     expect($('splash-upd-fill').style.width).toBe('30%')
     expect($('splash-upd-bar').getAttribute('aria-valuenow')).toBe('30')
-    expect($('splash-upd-cap').textContent).toBe('Загружено 3 из 10')
-    // число — в рамке ширины общего: подпись по центру не дергается при «3» → «13» (20.10.2026)
-    expect($('splash-upd-cap').querySelector('.splash-upd-n').style.minWidth).toBe('2ch')
+    expect($('splash-upd-cap').querySelector('.splash-upd-live').textContent).toBe('Загружено 3 из 10')
+    // ширину держит невидимая финальная строка: подпись не дергается и без дыры у цифры (fb_afd6d919)
+    const ghost = $('splash-upd-cap').querySelector('.splash-upd-ghost')
+    expect(ghost.textContent).toBe('Загружено 10 из 10')
+    expect(ghost.getAttribute('aria-hidden')).toBe('true')
+  })
+
+  it('полоска догоняет загрузку по кадрам, не обгоняет и не откатывается (fb_afd6d919)', () => {
+    const frames = []
+    let t = 0
+    const raf = (fn) => frames.push(fn)
+    const run = (n) => { for (let i = 0; i < n && frames.length; i++) frames.shift()((t += 16)) }
+    const w = () => parseFloat($('splash-upd-fill').style.width)
+    const ui = splashUpdateUi(document, $('splash'), { raf })
+    ui.start('1.2.0')
+    ui.progress({ done: 5, total: 10, pct: 50 })
+    expect($('splash-upd-bar').getAttribute('aria-valuenow')).toBe('50')
+    run(1)
+    expect(w()).toBeGreaterThan(0)
+    expect(w()).toBeLessThan(50)
+    run(300)
+    expect(w()).toBe(50)
+    expect(frames).toHaveLength(0) // дошла — кадры не крутит
+    ui.progress({ done: 3, total: 10, pct: 30 }) // запоздавшее событие не откатывает
+    expect(w()).toBe(50)
+    ui.installing()
+    run(300)
+    expect(w()).toBe(100)
+  })
+
+  it('barStep: быстро при большом отставании, не медленнее минимума у цели, без обгона', () => {
+    expect(barStep(0, 100, 100)).toBeCloseTo(40)
+    expect(barStep(99.9, 100, 16)).toBe(100)
+    expect(barStep(90, 91, 16)).toBeCloseTo(90 + BAR_MIN_SPEED * 0.016)
+    expect(barStep(50, 40, 16)).toBe(40)
+    expect(barStep(0, 100, 5000)).toBeCloseTo(40) // долгий кадр (вкладка спала) — без прыжка
   })
 
   it('installing — 100% и «Устанавливаем…»; fallback — «Связь слабая»', () => {
-    const ui = splashUpdateUi(document, $('splash'))
+    const ui = splashUpdateUi(document, $('splash'), { reduce: true })
     ui.start('1.2.0')
     ui.installing()
     expect($('splash-upd-fill').style.width).toBe('100%')

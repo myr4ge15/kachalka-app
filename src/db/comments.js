@@ -11,7 +11,7 @@
 // уже пришедший комментарий (recentPatches), не подменяя остальное.
 // ============================================================================
 import { db, getMeta, setMeta } from './local.js'
-import { addComment, deleteComment, editComment, likeComment, upsertComment } from '../lib/comments.js'
+import { addComment, deleteComment, editComment, reactComment, upsertComment } from '../lib/comments.js'
 
 const RECENT_MS = 2 * 60 * 1000
 const recentAdds = new Map() // id → { c, at }
@@ -81,9 +81,9 @@ export async function updateComment({ userId, comment, ownerId, text }, d = db) 
   return patch
 }
 
-// ❤️ поставить/снять → { like_count, liked } с сервера.
-export async function setCommentLike({ userId, comment, ownerId, on }, d = db) {
-  const patch = await likeComment(userId, comment.id, on)
+// Реакция: kind — вид или null (снять) → { reactions, my_reaction, like_count, liked } с сервера.
+export async function setCommentReaction({ userId, comment, ownerId, kind }, d = db) {
+  const patch = await reactComment(userId, comment.id, kind)
   patchOne(comment.id, patch)
   await patchCaches(comment.workout_id, ownerId, (list) => list.map((x) => (x.id === comment.id ? { ...x, ...patch } : x)), d)
   return patch

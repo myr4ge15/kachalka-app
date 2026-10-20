@@ -1,5 +1,5 @@
 // @vitest-environment jsdom
-// Комментарии «как в Telegram» (20.10.2026, fb_152f36fc): в карточке — одна строка с
+// Комментарии одной строкой (20.10.2026, fb_152f36fc): в карточке — одна строка с
 // аватарками последних комментаторов и счетчиком; ветка — листом во весь экран.
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { fireEvent, render, screen, within } from '@testing-library/react'

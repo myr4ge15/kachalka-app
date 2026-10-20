@@ -8,10 +8,20 @@ import { videoPoster as defaultPoster } from '../lib/videoPoster.js'
 // Ушли с экрана или нажали «Отмена», не отправив, — загруженное удаляется (discard); что не успели
 // удалить (закрыли приложение) — подчистит сервер (Edge feedback-cleanup, раз в час, старше суток).
 //
+// По очереди и с автоповтором (fb_afd6d919): два видео разом на слабом LTE делили канал, оба срывались в
+// «Повторить» и начинали с нуля. Теперь файлы грузятся по одному (остальные ждут с 0%), а обрыв сети,
+// зависание и сбой сервера повторяются сами до AUTO_RETRIES раз с паузой; «Повторить» — когда не вышло.
+//
 // api — { upload(userId, file, { onBytes }) → path, discard(paths) }; может пересоздаваться на каждом
-// рендере — держим в ref. poster(file) → dataURL|null — кадр видео для миниатюры.
+// рендере — держим в ref. poster(file) → dataURL|null — кадр видео для миниатюры. wait(ms) — пауза
+// перед автоповтором (тест подставляет мгновенную).
 // Элемент: { key, file, video, status: 'uploading'|'done'|'error', loaded, total, path, poster, error }.
-export function useAttachments(userId, api, { poster = defaultPoster } = {}) {
+export const AUTO_RETRIES = 2
+export const RETRY_PAUSE_MS = 2000
+const RETRYABLE = new Set(['network', 'upload_stalled', 'video_failed', 'shot_failed'])
+const sleep = (ms) => new Promise((r) => setTimeout(r, ms))
+
+export function useAttachments(userId, api, { poster = defaultPoster, wait = sleep } = {}) {
   const [items, setItems] = useState([])
   const itemsRef = useRef(items)
   itemsRef.current = items
@@ -21,6 +31,7 @@ export function useAttachments(userId, api, { poster = defaultPoster } = {}) {
   const dropped = useRef(new Set()) // убранные, пока шла загрузка: путь — сразу в discard
   const pending = useRef(new Map()) // key → промис загрузки (для readyPaths)
   const seq = useRef(0)
+  const queue = useRef(Promise.resolve()) // загрузки — по одной
   // Статус и путь каждого элемента — еще и здесь, синхронно: readyPaths не ждет, пока React
   // применит последние setItems. Порядок вставки = порядок миниатюр.
   const live = useRef(new Map())
@@ -33,16 +44,30 @@ export function useAttachments(userId, api, { poster = defaultPoster } = {}) {
   const discard = useCallback((paths) => { if (paths.length) apiRef.current?.discard(paths) }, [])
 
   const start = useCallback((item) => {
-    const run = Promise.resolve()
-      .then(() => apiRef.current.upload(userId, item.file, { onBytes: (b) => patch(item.key, { loaded: b }) }))
-      .then((path) => {
-        if (dropped.current.has(item.key) || !alive.current) { discard([path]); return }
+    const gone = () => dropped.current.has(item.key) || !alive.current
+    const attempt = async (n) => {
+      try {
+        return await apiRef.current.upload(userId, item.file, { onBytes: (b) => patch(item.key, { loaded: b }) })
+      } catch (e) {
+        if (n >= AUTO_RETRIES || !RETRYABLE.has(e?.code) || gone()) throw e
+        await wait(RETRY_PAUSE_MS * (n + 1))
+        if (gone()) throw e
+        patch(item.key, { loaded: 0 })
+        return attempt(n + 1)
+      }
+    }
+    const run = queue.current
+      .then(async () => {
+        if (gone()) return // убрали, пока ждал очереди — и не грузим
+        const path = await attempt(0)
+        if (gone()) { discard([path]); return }
         patch(item.key, { status: 'done', path, loaded: item.total })
       })
       .catch((e) => { patch(item.key, { status: 'error', error: e?.message || 'Не загрузилось' }) })
       .finally(() => pending.current.delete(item.key))
+    queue.current = run
     pending.current.set(item.key, run)
-  }, [userId, patch, discard])
+  }, [userId, patch, discard, wait])
 
   const add = useCallback((files) => {
     const fresh = files.map((file) => ({

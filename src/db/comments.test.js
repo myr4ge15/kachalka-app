@@ -11,10 +11,10 @@ vi.mock('../lib/comments.js', async (orig) => ({
   ...(await orig()),
   addComment: (...a) => api.addComment(...a),
   editComment: (...a) => api.editComment(...a),
-  likeComment: (...a) => api.likeComment(...a),
+  reactComment: (...a) => api.reactComment(...a),
   deleteComment: (...a) => api.deleteComment(...a),
 }))
-const { postComment, updateComment, setCommentLike, removeComment, overlayRecentComments, resetRecentComments } =
+const { postComment, updateComment, setCommentReaction, removeComment, overlayRecentComments, resetRecentComments } =
   await import('./comments.js')
 
 const OLD = { id: 'c0', workout_id: 'w1', body: 'старый', created_at: '2026-10-19T09:00:00Z', like_count: 0, liked: false }
@@ -26,7 +26,7 @@ beforeEach(async () => {
   Object.assign(api, {
     addComment: vi.fn(async () => NEW),
     editComment: vi.fn(async () => ({ body: 'исправил', edited_at: '2026-10-19T11:00:00Z' })),
-    likeComment: vi.fn(async () => ({ like_count: 1, liked: true })),
+    reactComment: vi.fn(async () => ({ reactions: { heart: 1 }, my_reaction: 'heart', like_count: 1, liked: true })),
     deleteComment: vi.fn(async () => true),
   })
   await db.feed.put({ id: 'w1', user_id: 'owner', comments: [OLD] })
@@ -56,9 +56,9 @@ describe('db/comments', () => {
 
   it('правка и ❤️ — полями поверх, остальное не трогаем; поверх опоздавшего ответа тоже', async () => {
     await updateComment({ userId: 'me', comment: OLD, ownerId: 'owner', text: 'исправил' })
-    await setCommentLike({ userId: 'me', comment: OLD, ownerId: 'owner', on: true })
-    expect(api.likeComment).toHaveBeenCalledWith('me', 'c0', true)
-    expect((await feedComments())[0]).toMatchObject({ id: 'c0', body: 'исправил', like_count: 1, liked: true, created_at: OLD.created_at })
+    await setCommentReaction({ userId: 'me', comment: OLD, ownerId: 'owner', kind: 'heart' })
+    expect(api.reactComment).toHaveBeenCalledWith('me', 'c0', 'heart')
+    expect((await feedComments())[0]).toMatchObject({ id: 'c0', body: 'исправил', like_count: 1, liked: true, my_reaction: 'heart', created_at: OLD.created_at })
     expect((await memberComments())[0]).toMatchObject({ body: 'исправил', liked: true })
     const stale = [{ id: 'w1', comments: [OLD] }]
     overlayRecentComments(stale)

@@ -5,14 +5,16 @@ import Avatar from '../ui/Avatar.jsx'
 import Chevron from '../ui/Chevron.jsx'
 import SheetDialog from '../ui/SheetDialog.jsx'
 import { pluralize } from '../../lib/plural.js'
+import { fmtWhen } from '../../lib/dates.js'
+import { summarizeReactions } from '../../lib/reactions.js'
 
 // Низ карточки тренировки в Ленте и в профиле участника: реакции + комментарии.
-// 20.10.2026 (fb_152f36fc, «как в Telegram»): вместо двух последних комментариев в карточке —
+// 20.10.2026 (fb_152f36fc): вместо двух последних комментариев в карточке —
 // одна строка «аватарки комментаторов · N комментариев ›»; тап открывает ветку листом во
 // весь экран (все комментарии и поле внизу), закрытие — свайпом назад, как у других листов.
 // openThread — открыть ветку сразу (пуш о комментарии привел к этой карточке).
-// me — { id, name, avatar }.
-export default function WorkoutSocial({ workout, me, isMe, onReact, onOpenMember, openThread = false }) {
+// me — { id, name, avatar }; authorAvatar — фото автора тренировки для «поста» над веткой.
+export default function WorkoutSocial({ workout, me, isMe, onReact, onOpenMember, openThread = false, authorAvatar = null }) {
   const [open, setOpen] = useState(openThread)
   const [focusTick, setFocusTick] = useState(0)
   const wantFocus = useRef(false)
@@ -33,7 +35,10 @@ export default function WorkoutSocial({ workout, me, isMe, onReact, onOpenMember
       <CommentStrip comments={comments} onOpen={openSheet} />
       {open && (
         <SheetDialog title="Комментарии" actionLabel="закрыть" onDismiss={() => setOpen(false)} swipeBack className="cm-sheet">
-          <div className="sheet-scroll">
+          {/* data-sheet-bounce: у края ветка пружинит, как родной список, а не «упирается» (fb_4cbd8655). */}
+          <div className="sheet-scroll" data-sheet-bounce="">
+            <WorkoutPost workout={workout} avatar={authorAvatar} myId={me.id} />
+            <div className="cm-start"><span>{comments.length > 0 ? 'Начало обсуждения' : 'Пока без комментариев'}</span></div>
             <CommentThread
               workoutId={workout.id}
               ownerId={workout.user_id}
@@ -47,6 +52,54 @@ export default function WorkoutSocial({ workout, me, isMe, onReact, onOpenMember
         </SheetDialog>
       )}
     </>
+  )
+}
+
+// «Пост» над веткой — какую тренировку обсуждаем (fb_830c22d6): чья тренировка, когда,
+// сводка и первые упражнения (рекорды — 🏆). Имени нет (профиль участника) — только дата.
+export const POST_EXERCISES = 4
+export function WorkoutPost({ workout, avatar, myId }) {
+  const entries = workout.entries ?? []
+  const prs = new Set((workout.prs ?? []).map((p) => p.name))
+  const names = entries.slice(0, POST_EXERCISES).map((e) => e.name)
+  // Сводка крупными цифрами, как в мокапе (fb_afd6d919); реакции тренировки — таблетками только для чтения.
+  const sum = [
+    workout.tonnage > 0 && { n: workout.tonnage.toLocaleString('ru-RU'), cap: 'кг тоннаж' },
+    workout.exCount != null && { n: workout.exCount, cap: 'упражнений' },
+    workout.setCount != null && { n: workout.setCount, cap: 'подходов' },
+  ].filter(Boolean)
+  const reacts = summarizeReactions(workout.reactions, myId).kinds.filter((k) => k.count > 0)
+  return (
+    <div className="cm-post">
+      <div className="cm-post-top">
+        {workout.user_name && <Avatar name={workout.user_name} url={avatar ?? null} className="avatar-sm" />}
+        <div className="cm-post-head">
+          {workout.user_name && <div className="cm-post-who">{workout.user_name}</div>}
+          <div className="cm-post-when">{fmtWhen(workout.performed_at)}</div>
+        </div>
+      </div>
+      {sum.length > 0 && (
+        <div className="cm-post-sum">
+          {sum.map((x) => <div key={x.cap}><b>{x.n}</b><span>{x.cap}</span></div>)}
+        </div>
+      )}
+      {names.length > 0 && (
+        <div className="cm-post-ex">
+          {names.map((n, i) => (
+            <span key={`${n}-${i}`}>
+              {i > 0 && ' · '}
+              {prs.has(n) ? <span className="cm-post-pr">🏆 {n}</span> : n}
+            </span>
+          ))}
+          {entries.length > POST_EXERCISES && ' …'}
+        </div>
+      )}
+      {reacts.length > 0 && (
+        <div className="cm-post-react" aria-label="Реакции на тренировку">
+          {reacts.map((k) => <span key={k.kind} className={k.mine ? 'mine' : undefined}>{k.emoji} {k.count}</span>)}
+        </div>
+      )}
+    </div>
   )
 }
 

@@ -4,15 +4,18 @@
 // «Отмена» — загруженное удаляется; отправленное (commit) — нет.
 import { describe, expect, it, vi } from 'vitest'
 import { act, renderHook, waitFor } from '@testing-library/react'
-import { useAttachments, NOT_READY } from './useAttachments.js'
+import { useAttachments, AUTO_RETRIES, NOT_READY } from './useAttachments.js'
 
 const png = (n = 'a.png') => new File(['x'], n, { type: 'image/png' })
 const mp4 = () => { const f = new File(['x'], 'v.mp4', { type: 'video/mp4' }); Object.defineProperty(f, 'size', { value: 1000 }); return f }
 const deferred = () => { let ok, fail; const p = new Promise((a, b) => { ok = a; fail = b }); return { p, ok, fail } }
 
+const coded = (code) => Object.assign(new Error(`сбой ${code}`), { code })
+const wait = vi.fn(async () => {})
+
 function setup(upload, poster = vi.fn(async () => null)) {
   const api = { upload: vi.fn(upload ?? (async (uid, f) => `${uid}/${f.name}`)), discard: vi.fn() }
-  const hook = renderHook(() => useAttachments('me', api, { poster }))
+  const hook = renderHook(() => useAttachments('me', api, { poster, wait }))
   return { api, poster, ...hook }
 }
 
@@ -63,6 +66,7 @@ describe('useAttachments', () => {
     expect(api.discard).toHaveBeenCalledWith(['me/a.png'])
     api.upload.mockImplementationOnce(() => d.p)
     act(() => result.current.add([png('b.png')]))
+    await waitFor(() => expect(api.upload).toHaveBeenCalledTimes(2)) // загрузка пошла (очередь — асинхронно)
     act(() => result.current.remove(result.current.items[0].key))
     act(() => result.current.remove('нет-такого'))
     expect(result.current.items).toEqual([])
@@ -104,9 +108,53 @@ describe('useAttachments', () => {
     await waitFor(() => expect(result.current.items[0].status).toBe('done'))
     api.upload.mockImplementationOnce(() => d.p)
     act(() => result.current.add([png('b.png')]))
+    await waitFor(() => expect(api.upload).toHaveBeenCalledTimes(2))
     unmount()
     expect(api.discard).toHaveBeenCalledWith(['me/a.png'])
     await act(async () => d.ok('me/b.png'))
     expect(api.discard).toHaveBeenLastCalledWith(['me/b.png'])
+  })
+
+  it('по одному: второе ждет, пока загрузится первое (fb_afd6d919)', async () => {
+    const d = deferred()
+    const { api, result } = setup()
+    api.upload.mockImplementationOnce(() => d.p)
+    act(() => result.current.add([mp4(), png('b.png')]))
+    await waitFor(() => expect(api.upload).toHaveBeenCalledTimes(1))
+    expect(result.current.items[1]).toMatchObject({ status: 'uploading', loaded: 0 })
+    await act(async () => d.ok('me/v.mp4'))
+    await waitFor(() => expect(result.current.items[1].status).toBe('done'))
+    expect(api.upload).toHaveBeenCalledTimes(2)
+  })
+
+  it('обрыв сети — повтор сам, с нуля по байтам; ошибка данных — сразу «Повторить»', async () => {
+    const { api, result } = setup()
+    api.upload.mockRejectedValueOnce(coded('network')).mockRejectedValueOnce(coded('upload_stalled'))
+    act(() => result.current.add([png('a.png')]))
+    await waitFor(() => expect(result.current.items[0].status).toBe('done'))
+    expect(api.upload).toHaveBeenCalledTimes(3)
+    expect(wait).toHaveBeenCalled()
+    api.upload.mockRejectedValueOnce(coded('video_too_big'))
+    act(() => result.current.add([png('b.png')]))
+    await waitFor(() => expect(result.current.items[1].status).toBe('error'))
+    expect(api.upload).toHaveBeenCalledTimes(4)
+  })
+
+  it('автоповторы кончились — «Повторить»', async () => {
+    const { api, result } = setup(async () => { throw coded('network') })
+    act(() => result.current.add([png('a.png')]))
+    await waitFor(() => expect(result.current.items[0].status).toBe('error'))
+    expect(api.upload).toHaveBeenCalledTimes(AUTO_RETRIES + 1)
+  })
+
+  it('убрали, пока ждал очереди, — не грузится вовсе', async () => {
+    const d = deferred()
+    const { api, result } = setup()
+    api.upload.mockImplementationOnce(() => d.p)
+    act(() => result.current.add([png('a.png'), png('b.png')]))
+    act(() => result.current.remove(result.current.items[1].key))
+    await act(async () => d.ok('me/a.png'))
+    await waitFor(() => expect(result.current.items[0].status).toBe('done'))
+    expect(api.upload).toHaveBeenCalledTimes(1)
   })
 })

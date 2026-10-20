@@ -105,6 +105,12 @@
   --acc-2: #C2B0FF;         /* светлый вариант — ссылки, подписи на темном */
   --on-acc: #0F0826;        /* текст/иконки ПОВЕРХ акцента (всегда темный) */
   --acc-soft: rgba(155, 123, 255, .16); /* подложка выбранного */
+  /* ── Комментарии пузырями (fb_830c22d6): цвет имени автора — 7 оттенков по id (lib/comments.js nameTone),
+     все читаемы на --surface; пузырь своего — подложка из акцента (текст обычный, не --on-acc). ── */
+  --cm-n1: #FF8A80; --cm-n2: #FFB86B; --cm-n3: #7EE0A1; --cm-n4: #6CC7FF;
+  --cm-n5: #C2B0FF; --cm-n6: #FF9BD2; --cm-n7: #5EEAD4;
+  --cm-own: color-mix(in srgb, var(--acc) 26%, var(--surface));
+  --cm-wall: #0E1420;        /* фон ветки — чуть темнее --bg, как стена чата */
   /* ── Имена Aurora, перенаправленные на новую палитру ── */
   --g1: var(--acc);
   --g2: var(--acc-2);
@@ -1887,10 +1893,11 @@ img.avatar-lg.has-img {
 .cm-link:active { background: var(--surface-2); }
 .cm-link svg { display: block; flex: none; }
 .cm { margin-top: 12px; padding-top: 6px; border-top: 1px solid var(--border); }
-/* Вход в комментарии (20.10.2026, fb_152f36fc, «как в Telegram»): одна строка под реакциями —
+/* Вход в комментарии (20.10.2026, fb_152f36fc): одна строка под реакциями —
    аватарки последних комментаторов стопкой, «N комментариев» и стрелка; ветка — листом. */
 .cm-strip {
-  display: flex; align-items: center; gap: 10px; width: 100%; min-height: 44px; margin-top: 10px; padding: 8px 0 0;
+  /* Сверху — столько же, сколько снизу дает поле карточки (.feed-card 14px): при 8px строка сидела низко (fb_042ce02e). */
+  display: flex; align-items: center; gap: 10px; width: 100%; min-height: 44px; margin-top: 10px; padding: 14px 0 0;
   background: none; border: 0; border-top: 1px solid var(--border); color: var(--acc-2); font: inherit; font-size: 14px;
   font-weight: 600; text-align: left; cursor: pointer;
 }
@@ -1902,15 +1909,28 @@ img.avatar-lg.has-img {
 .cm-strip-chev { flex: none; color: var(--muted); }
 /* Ветка во весь экран: блок ввода прижат к низу и при коротком списке (fb_7b5cda99), при длинном — прилипает. */
 .cm-sheet .sheet-scroll { display: flex; flex-direction: column; }
+/* Ветка пружинит у обоих краев, как список пикера (v7.1.10, data-sheet-bounce): SheetDialog жест у края не
+   гасит, а прокрутка есть всегда — пусть на 2 px. Раньше жест, начатый у края (ветка короткая — это почти
+   всегда), гасился целиком, и ветка «замирала» под пальцем (fb_4cbd8655). */
+.cm-sheet .sheet-scroll[data-sheet-bounce] { position: relative; }
+.cm-sheet .sheet-scroll[data-sheet-bounce]::after {
+  content: ''; position: absolute; top: 0; left: 0; width: 1px; height: calc(100% + 2px); pointer-events: none;
+}
 .cm-sheet .cm { flex: 1 0 auto; display: flex; flex-direction: column; margin-top: 0; padding-top: 0; border-top: 0; }
-.cm-sheet .cm-compose { margin-top: auto; position: sticky; bottom: 0; padding: 8px 0 6px; background: var(--bg); }
+.cm-sheet .cm-compose { margin-top: auto; position: sticky; bottom: 0; padding: 8px 0 6px; background: var(--cm-wall); }
 .cm-sheet .cm-offline { margin-top: auto; }
 /* Клавиатура открыта (useKeyboardLift holdSheetAboveKeyboard): низ листа — над клавиатурой. */
 .sheet.kb-fit { padding-bottom: calc(var(--kb, 0px) + 8px); }
 /* Фокус при открытии — на самом листе (SheetDialog), рамка ему не нужна. */
 .sheet:focus, .sheet:focus-visible { outline: none; }
-.cm-item { display: grid; grid-template-columns: 26px minmax(0, 1fr) auto; column-gap: 10px; padding: 8px 0; align-items: start; }
-.cm-item .avatar-sm { margin-top: 1px; }
+/* Пузыри (20.10.2026, fb_830c22d6, мокап prototypes/comments-bubbles.html, вариант B):
+   чужие слева сериями (аватар у последнего пузыря серии, цветное имя у первого), свои справа на подложке
+   из акцента. Внутри пузыря время и ❤️ «обтекают» последнюю строку текста справа снизу. */
+.cm-item { display: flex; align-items: flex-end; gap: 8px; margin-top: 2px; }
+.cm-item.first { margin-top: 10px; }
+.cm-item.own { justify-content: flex-end; }
+.cm-item .avatar-sm { width: 28px; height: 28px; }
+.cm-av-gap { width: 28px; flex: none; }
 .cm-item.pending { opacity: .55; }
 /* Ответ свайпом влево (hooks/useSwipeReply.js): строка едет за пальцем, справа проявляется стрелка. */
 .cm-item { position: relative; touch-action: pan-y; transition: transform .18s ease; }
@@ -1925,48 +1945,140 @@ img.avatar-lg.has-img {
 .cm-sheet .sheet-scroll { overflow-x: hidden; }
 @media (prefers-reduced-motion: reduce) { .cm-item { transition: none; } }
 .avatar-sm.unknown { background: var(--surface-2); color: var(--muted); border: 1px solid var(--border); }
-.cm-main { min-width: 0; }
-.cm-head { display: flex; align-items: baseline; gap: 6px; min-width: 0; }
-.cm-name {
-  font-size: 14px; font-weight: 600; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
-  background: none; border: none; padding: 0; text-align: left;
+.cm-bub {
+  position: relative; min-width: 0; max-width: 80%; padding: 6px 10px 5px; border-radius: 16px 16px 16px 6px;
+  background: var(--surface); -webkit-tap-highlight-color: transparent;
 }
-.cm-name.link { color: var(--text); }
+.cm-item:not(.first) .cm-bub { border-top-left-radius: 6px; }
+.cm-item.last .cm-bub { border-bottom-left-radius: 4px; }
+.cm-item.own .cm-bub { background: var(--cm-own); border-radius: 16px 6px 6px 16px; }
+.cm-item.own.first .cm-bub { border-top-right-radius: 16px; }
+.cm-item.own.last .cm-bub { border-bottom-right-radius: 4px; }
+/* Хвостик — только у последнего пузыря серии. */
+.cm-item.last .cm-bub::before {
+  content: ''; position: absolute; bottom: 0; left: -6px; width: 12px; height: 14px; background: inherit;
+  clip-path: path('M12 0 C12 8 8 13 0 14 L12 14 Z');
+}
+.cm-item.own.last .cm-bub::before { left: auto; right: -6px; clip-path: path('M0 0 C0 8 4 13 12 14 L0 14 Z'); }
+.cm-name {
+  display: block; max-width: 100%; margin-bottom: 1px; font-size: 13px; font-weight: 600; white-space: nowrap; overflow: hidden;
+  text-overflow: ellipsis; background: none; border: none; padding: 0; text-align: left; color: var(--acc-2);
+}
 button.cm-name { cursor: pointer; }
 .cm-name.plain { color: var(--muted); }
-.cm-time { font-size: 12px; color: var(--muted); white-space: nowrap; }
-.cm-text { font-size: 15px; line-height: 1.4; margin-top: 2px; overflow-wrap: anywhere; white-space: pre-wrap; }
-.cm-more-btn {
-  width: 44px; height: 44px; margin: -10px -12px -10px 0; display: flex; align-items: center; justify-content: center;
-  background: none; border: none; color: var(--muted); font-size: 18px; border-radius: 50%; cursor: pointer;
-}
-.cm-more-btn:active { background: var(--surface-2); }
-/* Справа в строке (9.5.3): ❤️ со счетчиком и «⋯». Отрицательные поля — зона тапа 44px без роста строки. */
-.cm-acts { display: flex; align-items: center; margin: -10px -12px -10px 0; }
-.cm-acts .cm-more-btn { margin: 0; }
+.cm-name.t1 { color: var(--cm-n1); } .cm-name.t2 { color: var(--cm-n2); } .cm-name.t3 { color: var(--cm-n3); }
+.cm-name.t4 { color: var(--cm-n4); } .cm-name.t5 { color: var(--cm-n5); } .cm-name.t6 { color: var(--cm-n6); }
+.cm-name.t7 { color: var(--cm-n7); }
+.cm-text { font-size: 15px; line-height: 1.38; overflow-wrap: anywhere; white-space: pre-wrap; }
+.cm-meta { display: inline-flex; align-items: center; gap: 5px; font-size: 11px; color: var(--muted); white-space: nowrap; }
+/* Без ❤️ время стоит в правом нижнем углу пузыря, а ::after в конце текста держит под него место на
+   последней строке: короткий текст — время рядом, длинный — переносится. */
+.cm-bub > .cm-meta { position: absolute; right: 10px; bottom: 6px; }
+.cm-text.with-meta::after { content: ''; display: inline-block; width: calc(var(--meta-ch, 5) * 6.2px + 8px); height: 1px; }
+.cm-time, .cm-edited { font-size: 11px; color: var(--muted); }
+/* ❤️ таблеткой под текстом — только когда лайки есть (первый ставят пунктом меню). Зона тапа 44px — невидимым слоем. */
+.cm-reacts { display: flex; flex-wrap: wrap; align-items: center; gap: 6px; padding: 6px 0 1px; }
+.cm-reacts .cm-meta { margin-left: auto; padding-left: 10px; }
 .cm-like {
-  min-width: 44px; height: 44px; padding: 0 6px; display: flex; align-items: center; justify-content: center; gap: 3px;
-  background: none; border: none; border-radius: 22px; color: var(--muted); font-size: 13px; font-weight: 600; cursor: pointer;
+  position: relative; display: inline-flex; align-items: center; gap: 4px; height: 26px; padding: 0 9px; border: 0;
+  border-radius: 13px; background: color-mix(in srgb, var(--text) 8%, transparent); color: var(--text);
+  font: inherit; font-size: 13px; font-weight: 600; cursor: pointer;
 }
-.cm-like:active:not(:disabled) { background: var(--surface-2); }
+.cm-like::before { content: ''; position: absolute; inset: -9px -4px; }
 .cm-like:disabled { cursor: default; }
-.cm-like.on { color: var(--acc-2); }
-.cm-like.on svg { fill: currentColor; }
-.cm-edited { font-size: 12px; color: var(--muted); white-space: nowrap; }
-/* Ответ (comment_reply): цитата исходного над текстом — полоска акцента слева, имя и начало одной строкой. */
+.cm-like.on { background: var(--acc-soft); color: var(--acc-2); box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--acc) 50%, transparent); }
+.cm-like-emo { font-size: 14px; line-height: 1; }
+/* Меню пузыря — по удержанию (hooks/useLongPress.js), «⋯» нет. Системное меню iOS «Скопировать/Выделить» и выделение
+   текста гасим: копирование — пунктом меню. */
+.cm-bub { -webkit-touch-callout: none; -webkit-user-select: none; user-select: none; }
+.cm-bub:focus { outline: none; }
+.cm-bub:focus-visible { outline: 2px solid var(--acc-2); outline-offset: 2px; }
+/* Пока открыто меню, пузырь в ветке прячем — над размытием стоит его копия (CommentMenu). */
+.cm-bub.held { visibility: hidden; }
+/* Меню по удержанию (components/social/CommentMenu.jsx): размытый фон, пузырь поверх, меню
+   с иконками под ним. Слой — внутри листа ветки (.cm-sheet), без листа — на весь экран. */
+.cm-sheet { position: relative; }
+.cmm { position: absolute; inset: 0; z-index: 40; -webkit-touch-callout: none; -webkit-user-select: none; user-select: none; }
+.cmm.fixed { position: fixed; z-index: 140; }
+.cmm-scrim {
+  position: absolute; inset: 0; background: color-mix(in srgb, var(--bg) 55%, transparent);
+  -webkit-backdrop-filter: blur(16px) saturate(1.2); backdrop-filter: blur(16px) saturate(1.2);
+}
+.cmm-group { position: absolute; display: flex; flex-direction: column; gap: 8px; max-width: calc(100% - 24px); }
+.cmm-group.left { align-items: flex-start; }
+.cmm-group.right { align-items: flex-end; }
+/* Обертка копии несет классы строки (cm-item first/last) ради вида пузыря, но не ее отступ сверху: с ним
+   копия стояла на 10 px ниже оригинала, и меню у нижнего края не влезало (fb_4cbd8655). */
+.cmm-bubble, .cmm-bubble.cm-item, .cmm-bubble.cm-item.first { display: block; margin: 0; }
+/* Полоска реакций над пузырем (fb_4cbd8655): пять эмодзи в капсуле, выбранная — на подложке акцента. */
+.cmm-reacts {
+  display: flex; gap: 2px; padding: 4px; border-radius: 26px;
+  background: var(--surface-solid); border: 1px solid var(--border); box-shadow: 0 10px 30px rgb(0 0 0 / .4);
+}
+.cmm-reacts > button {
+  display: grid; place-items: center; width: 44px; height: 44px; padding: 0; border: 0; border-radius: 50%;
+  background: none; font-size: 26px; line-height: 1; cursor: pointer;
+}
+.cmm-reacts > button.on { background: var(--acc-soft); box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--acc) 50%, transparent); }
+.cmm-reacts > button:focus-visible { outline: 2px solid var(--acc-2); outline-offset: -2px; }
+@media (prefers-reduced-motion: no-preference) {
+  .cmm-reacts > button:active { transform: scale(1.15); transition: transform .1s; }
+}
+.cmm-bubble .cm-bub { max-width: none; }
+.cmm-menu {
+  min-width: 220px; display: flex; flex-direction: column; padding: 6px 0; border-radius: 16px;
+  background: var(--surface-solid); border: 1px solid var(--border); box-shadow: 0 16px 40px rgb(0 0 0 / .45);
+}
+.cmm-menu > button {
+  display: flex; align-items: center; gap: 14px; min-height: 46px; padding: 0 18px; border: 0; background: none;
+  color: var(--text); font: inherit; font-size: 16px; text-align: left; cursor: pointer;
+}
+.cmm-menu > button:active:not(:disabled), .cmm-menu > button:focus-visible { background: var(--surface-2); outline: none; }
+.cmm-menu > button:disabled { color: var(--muted); cursor: default; }
+.cmm-menu > button.danger { color: var(--red); }
+.cmm-ico { display: grid; place-items: center; width: 22px; flex: none; }
+@media (prefers-reduced-motion: no-preference) {
+  .cmm-scrim { animation: cmm-fade .18s ease-out; }
+  .cmm-group { animation: cmm-pop .2s var(--ease-out); transform-origin: top left; }
+  .cmm-group.right { transform-origin: top right; }
+}
+@keyframes cmm-fade { from { opacity: 0; } }
+@keyframes cmm-pop { from { opacity: 0; transform: scale(.94); } }
+/* Ответ (comment_reply): цитата исходного внутри пузыря — полоска акцента слева, имя и начало текста. */
 .cm-quote {
-  display: flex; gap: 6px; min-width: 0; margin-top: 3px; padding: 2px 0 2px 8px; border-left: 2px solid var(--acc);
-  font-size: 13px; line-height: 1.35;
+  display: block; min-width: 0; margin: 2px 0 4px; padding: 3px 8px; border-left: 3px solid var(--acc); border-radius: 6px;
+  background: color-mix(in srgb, var(--acc) 12%, transparent); font-size: 13px; line-height: 1.3;
 }
-.cm-quote-name { flex: none; max-width: 50%; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; color: var(--acc-2); font-weight: 600; }
-.cm-quote-text { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; color: var(--muted); }
-/* «Ответить» под текстом: мелкой ссылкой, зона тапа 44px — невидимым слоем, строка от нее не растет. */
-.cm-reply-btn {
-  position: relative; display: inline-flex; align-items: center; min-height: 24px; margin: 2px 0 -4px -6px; padding: 0 6px;
-  background: none; border: 0; border-radius: 8px; color: var(--muted); font: inherit; font-size: 12px; font-weight: 600; cursor: pointer;
+.cm-quote-name { display: block; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; color: var(--acc-2); font-weight: 600; }
+.cm-quote-text { display: block; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; color: var(--muted); }
+/* Стена ветки, как в мокапе (fb_afd6d919): чуть темнее фона, редкие точки акцента. Плашки дней — как «Начало обсуждения». */
+.cm-sheet { background: var(--cm-wall); }
+.cm-sheet .sheet-scroll {
+  background-image: radial-gradient(color-mix(in srgb, var(--acc) 9%, transparent) 1px, transparent 1.2px);
+  background-size: 18px 18px;
 }
-.cm-reply-btn::before { content: ''; position: absolute; inset: -10px 0; }
-.cm-reply-btn:active { background: var(--surface-2); }
+.cm-day { display: flex; justify-content: center; margin: 12px 0 4px; }
+.cm-day span { padding: 4px 10px; border-radius: 12px; background: var(--surface); color: var(--muted); font-size: 12px; font-weight: 600; }
+/* «Пост» над веткой — какую тренировку обсуждаем (WorkoutSocial), и «Начало обсуждения». */
+.cm-post { padding: 12px 14px; border-radius: 16px; background: var(--surface); }
+.cm-post-top { display: flex; align-items: center; gap: 10px; }
+.cm-post-head { min-width: 0; }
+.cm-post-who { min-width: 0; font-size: 14px; font-weight: 600; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.cm-post-when { font-size: 12px; color: var(--muted); }
+.cm-post-sum { display: flex; gap: 18px; margin-top: 10px; }
+.cm-post-sum div { display: flex; flex-direction: column; }
+.cm-post-sum b { font-family: var(--font-display); font-weight: 900; font-size: 22px; line-height: 1; }
+.cm-post-sum span { margin-top: 2px; font-size: 12px; color: var(--muted); }
+.cm-post-react { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 10px; }
+.cm-post-react span {
+  display: inline-flex; align-items: center; gap: 4px; height: 28px; padding: 0 10px; border-radius: 14px;
+  background: var(--surface-2); font-size: 13px; font-weight: 600;
+}
+.cm-post-react span.mine { background: var(--acc-soft); color: var(--acc-2); box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--acc) 50%, transparent); }
+.cm-post-ex { margin-top: 4px; font-size: 13px; line-height: 1.45; color: var(--muted); }
+.cm-post-pr { color: var(--g4); }
+.cm-start { display: flex; justify-content: center; margin: 12px 0 2px; }
+.cm-start span { padding: 4px 10px; border-radius: 12px; background: var(--surface); color: var(--muted); font-size: 12px; font-weight: 600; }
 /* Полоска «Изменяешь комментарий ✕» над полем в режиме правки. */
 .cm-editing {
   display: flex; align-items: center; gap: 8px; margin-top: 6px; padding-left: 14px; font-size: 13px; color: var(--acc-2);
@@ -3627,7 +3739,7 @@ label.act.busy { opacity: .55; pointer-events: none; }
 }
 .splash-upd-fill {
   position: absolute; left: 0; top: 0; bottom: 0; width: 0; border-radius: 99px;
-  background: var(--acc); transition: width 450ms var(--ease-out);
+  background: var(--acc); /* ширину ведет splashBoot.js по кадрам — без transition, иначе двойное сглаживание */
 }
 /* Сколько всего — неизвестно (манифест не разобран): «бегущая» полоска.
    ОТДЕЛЬНЫЙ слой (::before), а не сама заливка (v7.2.2): раньше бегала заливка, и при
@@ -3641,7 +3753,9 @@ label.act.busy { opacity: .55; pointer-events: none; }
 /* Цифры пропорциональные: моноширинные (tabular-nums) в Onest дают «1 6» с дырой.
    Строка по центру (v6.13.4; в 6.13.2–6.13.3 счетчик и процент были разнесены по краям). */
 .splash-upd-cap { margin: 0; font-size: 12px; color: var(--muted); font-variant-numeric: lining-nums proportional-nums; line-height: 1.4; }
-.splash-upd-n { display: inline-block; text-align: right; }
+.splash-upd-capbox { display: inline-grid; justify-items: start; }
+.splash-upd-ghost, .splash-upd-live { grid-area: 1 / 1; white-space: nowrap; }
+.splash-upd-ghost { visibility: hidden; }
 .splash-upd--note .splash-upd-bar { display: none; }
 .splash-upd--note .splash-upd-cap { font-size: 13px; }
 @keyframes splash-upd-run { from { transform: translateX(-100%); } to { transform: translateX(290%); } }

@@ -340,6 +340,7 @@ export default function FeedScreen({ user, onOpenMember, flashId = null, threadI
               workout={w}
               me={me}
               isMe={isMe}
+              authorAvatar={avatarById.get(w.user_id) ?? null}
               onReact={(kind, mine) => onReact(w.id, kind, mine)}
               onOpenMember={onOpenMember ? (uid) => onOpenMember(uid, `feed-${w.id}`) : undefined}
               openThread={w.id === threadId}

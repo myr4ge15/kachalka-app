@@ -5,7 +5,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 const rpc = vi.fn()
 let session = true
 vi.mock('../db/supabase.js', () => ({ supabase: { rpc: (...a) => rpc(...a) }, hasSession: async () => session }))
-const { addComment, editComment, likeComment, deleteComment, CommentError, COMMENT_MAX } = await import('./comments.js')
+const { addComment, editComment, reactComment, deleteComment, CommentError, COMMENT_MAX } = await import('./comments.js')
 
 beforeEach(() => { rpc.mockReset(); session = true; vi.stubGlobal('navigator', { onLine: true }) })
 afterEach(() => vi.unstubAllGlobals())
@@ -30,7 +30,7 @@ describe('гарды и длина', () => {
   })
   it('сеть оборвалась — «Нет сети — попробуй позже»', async () => {
     rpc.mockRejectedValue(new TypeError('Failed to fetch'))
-    await expect(likeComment('me', 'c1', true)).rejects.toThrow('Нет сети — попробуй позже.')
+    await expect(reactComment('me', 'c1', 'heart')).rejects.toThrow('Нет сети — попробуй позже.')
   })
 })
 
@@ -40,12 +40,13 @@ describe('ошибки сервера человеческим текстом', 
     ['comment_bad_length', /от 1 до/],
     ['comment_no_workout', 'Эта тренировка тебе больше не видна.'],
     ['comment_not_found', /уже удален/],
-    ['comment_own_like', 'Свой комментарий лайкать нельзя.'],
+    ['comment_own_like', 'На свой комментарий реакцию не поставить.'],
+    ['comment_bad_reaction', /Такой реакции нет/],
   ]
   for (const [message, text] of cases) {
     it(message, async () => {
       rpc.mockResolvedValue({ data: null, error: { message } })
-      await expect(likeComment('me', 'c1', true)).rejects.toThrow(text)
+      await expect(reactComment('me', 'c1', 'heart')).rejects.toThrow(text)
     })
   }
   it('коды прав, схемы и JWT; прочее — с кодом в скобках', async () => {
@@ -81,12 +82,13 @@ describe('запросы и разбор ответа', () => {
     expect(await editComment('me', 'c1', 'Новое')).toEqual({ body: 'Новое', edited_at: '2026-10-19T11:00:00Z' })
     expect(rpc).toHaveBeenLastCalledWith('comment_edit', { p_id: 'c1', p_body: 'Новое' })
   })
-  it('❤️: число не меньше нуля, флаг булевый; удаление — true/false', async () => {
-    rpc.mockResolvedValue({ data: [{ like_count: '2', liked: 1 }], error: null })
-    expect(await likeComment('me', 'c1', 'yes')).toEqual({ like_count: 2, liked: true })
-    expect(rpc).toHaveBeenLastCalledWith('comment_like', { p_id: 'c1', p_on: true })
-    rpc.mockResolvedValue({ data: { like_count: -5, liked: null }, error: null })
-    expect(await likeComment('me', 'c1', false)).toEqual({ like_count: 0, liked: false })
+  it('реакция: comment_react с видом или null; ответ нормализован; удаление — true/false', async () => {
+    rpc.mockResolvedValue({ data: [{ like_count: '2', liked: 1, reactions: { laugh: 2, poop: 1 }, my_reaction: 'laugh' }], error: null })
+    expect(await reactComment('me', 'c1', 'laugh')).toEqual({ like_count: 2, liked: true, reactions: { laugh: 2 }, my_reaction: 'laugh' })
+    expect(rpc).toHaveBeenLastCalledWith('comment_react', { p_id: 'c1', p_kind: 'laugh' })
+    rpc.mockResolvedValue({ data: { like_count: -5, liked: null, reactions: null, my_reaction: 'x' }, error: null })
+    expect(await reactComment('me', 'c1', 'poop')).toEqual({ like_count: 0, liked: false, reactions: {}, my_reaction: null })
+    expect(rpc).toHaveBeenLastCalledWith('comment_react', { p_id: 'c1', p_kind: null })
     rpc.mockResolvedValue({ data: false, error: null })
     expect(await deleteComment('me', 'c1')).toBe(false)
     rpc.mockResolvedValue({ data: true, error: null })

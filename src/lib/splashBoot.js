@@ -44,7 +44,7 @@ export function startSplash({
   const maybeHide = () => { if (appReady && updateDone) setTimer(hide, splashDelay(now(), reduce)) }
   onReady(() => { appReady = true; maybeHide() })
   let check
-  try { check = Promise.resolve(runUpdate(splashUpdateUi(doc, splash))) } catch { check = Promise.resolve('skip') }
+  try { check = Promise.resolve(runUpdate(splashUpdateUi(doc, splash, { reduce }))) } catch { check = Promise.resolve('skip') }
   check
     .catch(() => 'skip')
     .then((result) => {
@@ -57,13 +57,43 @@ export function startSplash({
 }
 
 // Блок «Обновляем до v…» на сплэше (разметка — index.html #splash-upd).
-export function splashUpdateUi(doc, root) {
+// Полоска догоняет загрузку плавно (20.10.2026, fb_afd6d919): файлы приходят пачками, и переход CSS
+// к каждой новой точке шел рывками. Каждый кадр показанное значение подтягивается к цели: быстро, когда
+// отстает сильно, и не медленнее BAR_MIN_SPEED (%/с), чтобы не замирать у самой цели. Цель не обгоняет.
+export const BAR_RATE = 4 // доля отставания в секунду
+export const BAR_MIN_SPEED = 15
+export function barStep(shown, target, dtMs) {
+  if (!(target > shown)) return target
+  const dt = Math.max(0, Math.min(dtMs, 100)) / 1000
+  return Math.min(target, shown + Math.max((target - shown) * BAR_RATE, BAR_MIN_SPEED) * dt)
+}
+
+// reduce — «уменьшить движение»: полоска сразу на месте. raf — кадры (тест подставляет свои).
+export function splashUpdateUi(doc, root, { reduce = false, raf } = {}) {
   const box = doc?.getElementById('splash-upd')
   const title = doc?.getElementById('splash-upd-title')
   const bar = doc?.getElementById('splash-upd-bar')
   const fill = doc?.getElementById('splash-upd-fill')
   const cap = doc?.getElementById('splash-upd-cap')
   if (!box || !title || !bar || !fill || !cap) return {}
+  const frame = raf ?? doc.defaultView?.requestAnimationFrame?.bind(doc.defaultView)
+  let shown = 0
+  let target = 0
+  let ticking = false
+  let last = 0
+  const paint = () => { fill.style.width = `${Math.round(shown * 10) / 10}%` }
+  const tick = (t) => {
+    shown = barStep(shown, target, last ? t - last : 16)
+    last = t
+    paint()
+    if (shown < target) frame(tick)
+    else { ticking = false; last = 0 }
+  }
+  const moveTo = (pct) => {
+    target = Math.max(target, pct)
+    if (reduce || !frame) { shown = target; paint(); return }
+    if (!ticking) { ticking = true; frame(tick) }
+  }
   return {
     start(version) {
       root.removeAttribute('aria-hidden') // статус должен услышать и скринридер
@@ -78,19 +108,26 @@ export function splashUpdateUi(doc, root) {
     progress(p) {
       if (!p) return
       bar.classList.remove('splash-upd-bar--busy')
-      fill.style.width = `${p.pct}%`
+      moveTo(p.pct)
       bar.setAttribute('aria-valuenow', String(p.pct))
-      // Число загруженных — в рамке ширины общего числа (20.10.2026): строка по центру, и с ростом
-      // «3» → «13» вся подпись дергалась вбок. Теперь меняются только цифры внутри рамки.
-      const done = doc.createElement('span')
-      done.className = 'splash-upd-n'
-      done.style.minWidth = `${String(p.total).length}ch`
-      done.textContent = String(p.done)
-      cap.replaceChildren('Загружено ', done, ` из ${p.total}`)
+      // Подпись по центру не дергается при «3» → «13» (20.10.2026) и не стоит с дырой «Загружено   8»
+      // (fb_afd6d919: рамка в ch была шире цифры): ширину держит невидимая копия финальной строки
+      // «Загружено M из M», живая строка — от ее левого края.
+      const ghost = doc.createElement('span')
+      ghost.className = 'splash-upd-ghost'
+      ghost.setAttribute('aria-hidden', 'true')
+      ghost.textContent = `Загружено ${p.total} из ${p.total}`
+      const live = doc.createElement('span')
+      live.className = 'splash-upd-live'
+      live.textContent = `Загружено ${p.done} из ${p.total}`
+      const capBox = doc.createElement('span')
+      capBox.className = 'splash-upd-capbox'
+      capBox.append(ghost, live)
+      cap.replaceChildren(capBox)
     },
     installing() {
       bar.classList.remove('splash-upd-bar--busy')
-      fill.style.width = '100%'
+      moveTo(100)
       bar.setAttribute('aria-valuenow', '100')
       cap.textContent = 'Устанавливаем…'
     },

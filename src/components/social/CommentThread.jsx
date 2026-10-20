@@ -1,18 +1,21 @@
-import { useEffect, useLayoutEffect, useRef, useState } from 'react'
+import { Fragment, useEffect, useLayoutEffect, useRef, useState } from 'react'
 import Avatar from '../ui/Avatar.jsx'
 import CheckIcon from '../ui/CheckIcon.jsx'
 import { useSwipeReply } from '../../hooks/useSwipeReply.js'
-import MoreMenu from '../ui/MoreMenu.jsx'
+import { useLongPress } from '../../hooks/useLongPress.js'
+import { vibrate } from '../../lib/haptics.js'
+import CommentMenu from './CommentMenu.jsx'
 import SheetDialog from '../ui/SheetDialog.jsx'
 import { showToast } from '../ui/Toast.jsx'
 import { useAliveRef } from '../../hooks/useAliveRef.js'
 import { useRevealFocus } from '../../hooks/useRevealFocus.js'
 import { useKeyboardLift } from '../../hooks/useKeyboardLift.js'
 import {
-  COMMENT_COUNTER_FROM, COMMENT_MAX, canDeleteComment, canEditComment, canLikeComment, canReplyComment, cleanBody,
-  commentAgo, previewComments, replyQuote, toggleLike,
+  COMMENT_COUNTER_FROM, COMMENT_MAX, applyReaction, canDeleteComment, canEditComment, canReactComment, canReplyComment,
+  cleanBody, commentClock, commentDayBreaks, commentSeries, isDoubleTap, nameTone, nextReaction, previewComments,
+  reactionPills, replyQuote,
 } from '../../lib/comments.js'
-import { postComment, removeComment, setCommentLike, updateComment } from '../../db/comments.js'
+import { postComment, removeComment, setCommentReaction, updateComment } from '../../db/comments.js'
 
 // Ветка комментариев под тренировкой (19.10.2026, PLAN-comments.md; мокап prototypes/comments).
 // Свернута — два последних и «Все комментарии (N)»; раскрыта — все по времени и поле внизу.
@@ -25,6 +28,11 @@ import { postComment, removeComment, setCommentLike, updateComment } from '../..
 // 9.5.4: «⋯» — выпадающее меню (ui/MoreMenu), не лист снизу; у чужого под своей тренировкой — только «Удалить».
 // Ответ (20261019235000_comment_reply.sql): «Ответить» под чужим — полоска «Ответ: Имя ✕» над полем, ветка
 // остается плоской по времени, у ответа — цитата исходного (имя + начало текста). Адресату — пуш «ответил тебе».
+// 20.10.2026 (fb_830c22d6, мокап prototypes/comments-bubbles.html, вариант B): пузыри —
+// свои справа, чужие слева сериями (lib/comments.js commentSeries: цветное имя у первого, аватар у последнего),
+// время в углу пузыря, ❤️ — таблеткой под текстом, когда лайки уже есть (первый — пунктом меню). «⋯» и «Ответить»
+// убраны: удержание пузыря — меню (CommentMenu: размытый фон, пузырь поверх, Ответить / ❤️ /
+// Скопировать / Изменить / Удалить; правый клик и Enter на пузыре — тоже), свайп влево — ответ, как раньше.
 // Пропсы: workoutId, ownerId, comments, me {id, name}, open, onOpen(), focusTick (растет —
 // поставить курсор в поле), onOpenMember(userId).
 export default function CommentThread({ workoutId, ownerId, comments, me, open, onOpen, focusTick = 0, onOpenMember }) {
@@ -32,22 +40,46 @@ export default function CommentThread({ workoutId, ownerId, comments, me, open, 
   const aliveRef = useAliveRef()
   const [text, setText] = useState('')
   const [pending, setPending] = useState([])
-  const [menu, setMenu] = useState(null) // комментарий, у которого открыто меню «⋯»
+  const [menu, setMenu] = useState(null) // { c, el } — меню по удержанию пузыря (CommentMenu)
   const [asking, setAsking] = useState(null) // комментарий, который спрашиваем удалить
   const [deleting, setDeleting] = useState(false)
   const [editing, setEditing] = useState(null) // свой комментарий в правке
   const [replying, setReplying] = useState(null) // комментарий, на который отвечаем
   const [replyTick, setReplyTick] = useState(0) // каждый «Ответить»/свайп — снова курсор в поле (fb_244e1492)
   const [edits, setEdits] = useState({}) // id → текст, пока правка уходит на сервер
-  const [likes, setLikes] = useState({}) // id → { like_count, liked }, пока ❤️ уходит на сервер
+  const [likes, setLikes] = useState({}) // id → { reactions, my_reaction, … }, пока реакция уходит на сервер
   const [reveal, setReveal] = useState(null)
   const boxRef = useRevealFocus(reveal)
   const inputRef = useRef(null)
   const formRef = useRef(null)
   // Фокус в поле (тап по 💬, «Изменить», тап по полю) — поле с кнопкой над клавиатурой (fb_9e892d66).
   const liftAboveKeyboard = useKeyboardLift(formRef)
-  // Свайп влево по комментарию — ответить (20.10.2026, как в Telegram); кнопка «Ответить» остается.
+  // Свайп влево по комментарию — ответить (20.10.2026); кнопка «Ответить» остается.
   const swipe = useSwipeReply((c) => startReply(c))
+  // Удержание пузыря — меню (hooks/useLongPress, как у реакций). Правый клик и системное удержание Android
+  // (contextmenu) — тоже меню; оба могут прийти на одно удержание — меню ставим, а не переключаем.
+  function openMenu(c, el) {
+    if (!el) return
+    setMenu((m) => {
+      if (m?.c.id === c.id) return m
+      vibrate()
+      return { c, el }
+    })
+  }
+  const { bind: holdBind, wasLong } = useLongPress((c, el) => openMenu(c, el))
+  // Двойной тап по чужому пузырю — ❤️ (fb_afd6d919). Тап после удержания (открыл меню) не считаем.
+  const lastTap = useRef(null)
+  function tapBubble(e, c) {
+    if (wasLong() || e.target.closest('button, a')) { lastTap.current = null; return }
+    const t = Date.now()
+    if (isDoubleTap(lastTap.current, c.id, t)) {
+      lastTap.current = null
+      if (online && canReactComment(c, me.id)) { vibrate(); react(c, nextReaction(c, 'heart')) }
+      return
+    }
+    lastTap.current = { id: c.id, t }
+  }
+  const hold = (c) => ({ ...holdBind(c), onContextMenu: (e) => { e.preventDefault(); openMenu(c, e.currentTarget) } })
 
   // Раскрытие пользователем — карточку в центр; курсор в поле по «Комментировать» (ReactionBar).
   // Ветка уже была раскрыта — только курсор, без центрирования: повторный тап двигал экран (fb_5ef64577;
@@ -159,12 +191,12 @@ export default function CommentThread({ workoutId, ownerId, comments, me, open, 
     setText('')
   }
 
-  async function like(c) {
+  // Реакция (fb_4cbd8655): kind — вид или null (снять); одна от человека, новая заменяет прежнюю.
+  async function react(c, kind) {
     if (!online) return
-    const on = !c.liked
-    setLikes((m) => ({ ...m, [c.id]: toggleLike(c, on) }))
+    setLikes((m) => ({ ...m, [c.id]: applyReaction(c, kind) }))
     try {
-      await setCommentLike({ userId: me.id, comment: c, ownerId, on })
+      await setCommentReaction({ userId: me.id, comment: c, ownerId, kind })
     } catch (e) {
       showToast({ emoji: '⚠️', title: 'Не получилось', sub: e?.message })
     } finally {
@@ -189,72 +221,108 @@ export default function CommentThread({ workoutId, ownerId, comments, me, open, 
     }
   }
 
+  async function copy(c) {
+    setMenu(null)
+    try {
+      await navigator.clipboard.writeText(c.body)
+      showToast({ emoji: '📋', title: 'Скопировано' })
+    } catch {
+      showToast({ emoji: '⚠️', title: 'Не получилось скопировать' })
+    }
+  }
+
+  // С клавиатуры: Enter / пробел / клавиша меню на пузыре — то же меню.
+  function keyBubble(e, c) {
+    if (e.target !== e.currentTarget || !['Enter', ' ', 'ContextMenu'].includes(e.key)) return
+    e.preventDefault()
+    openMenu(c, e.currentTarget)
+  }
+
+  const series = commentSeries(shown)
+  const days = commentDayBreaks(shown)
+  // Вид пузыря в меню — как в ветке (свой/чужой, хвостик у последнего в серии).
+  function menuItemClass(c) {
+    const i = shown.findIndex((x) => x.id === c.id)
+    const s = series[i] ?? { first: true, last: true }
+    return `cm-item${c.user_id === me.id ? ' own' : ''}${s.first ? ' first' : ''}${s.last ? ' last' : ''}`
+  }
+  function menuActions(c) {
+    const out = []
+    if (online && canReplyComment(c, me.id)) out.push({ key: 'reply', icon: 'reply', label: 'Ответить', onSelect: () => startReply(c) })
+    out.push({ key: 'copy', icon: 'copy', label: 'Скопировать', onSelect: () => copy(c) })
+    if (canEditComment(c, me.id)) out.push({ key: 'edit', icon: 'edit', label: 'Изменить', disabled: !online, onSelect: () => startEdit(c) })
+    if (canDeleteComment(c, me.id, ownerId)) {
+      out.push({ key: 'delete', icon: 'delete', label: 'Удалить', danger: true, onSelect: () => { setMenu(null); setAsking(c) } })
+    }
+    return out
+  }
   return (
     <div className="cm" ref={boxRef}>
-      {shown.map((c) => {
-        const mine = canEditComment(c, me.id)
+      {shown.map((c, i) => {
+        const own = c.user_id === me.id
+        const { first, last } = series[i]
         const quote = replyQuote(c, all)
         const canReply = !c.pending && online && canReplyComment(c, me.id)
-        const canLike = canLikeComment(c, me.id)
-        const more = !c.pending && (mine || canDeleteComment(c, me.id, ownerId))
-        const likeBtn = !c.pending && (canLike || c.like_count > 0) && (
-          <button type="button" className={`cm-like${c.liked ? ' on' : ''}`} onClick={() => like(c)}
-            disabled={!canLike || !online} aria-pressed={canLike ? c.liked : undefined}
-            aria-label={canLike ? (c.liked ? 'Убрать лайк' : 'Лайк') : `Лайков: ${c.like_count}`}>
-            <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" strokeWidth="2"
-              strokeLinejoin="round" aria-hidden="true">
-              <path d="M12 20s-7-4.4-7-10a4 4 0 0 1 7-2.6A4 4 0 0 1 19 10c0 5.6-7 10-7 10z" />
-            </svg>
-            {c.like_count > 0 && <span>{c.like_count}</span>}
+        const canReact = canReactComment(c, me.id)
+        // Таблетки реакций под текстом (fb_4cbd8655): «эмодзи число», своя подсвечена; тап — поставить/снять этот вид.
+        const pills = c.pending ? [] : reactionPills(c)
+        const likeBtn = pills.length > 0 && pills.map((p) => (
+          <button key={p.kind} type="button" className={`cm-like${p.mine ? ' on' : ''}`}
+            onClick={() => react(c, nextReaction(c, p.kind))}
+            disabled={!canReact || !online} aria-pressed={canReact ? p.mine : undefined}
+            aria-label={canReact ? `${p.label}: ${p.count}${p.mine ? ', убрать' : ''}` : `${p.label}: ${p.count}`}>
+            <span className="cm-like-emo" aria-hidden="true">{p.emoji}</span>
+            <span>{p.count}</span>
           </button>
+        ))
+        const edited = !c.pending && c.edited_at
+        const time = c.pending ? 'отправка…' : commentClock(c.created_at)
+        const metaText = `${edited ? 'изм. ' : ''}${time}`
+        const meta = (
+          <span className="cm-meta">
+            {edited && <span className="cm-edited" title="изменено">изм.</span>}
+            <span className="cm-time">{time}</span>
+          </span>
         )
+        const tone = c.known ? ` link t${nameTone(c.user_id ?? c.name)}` : ' plain'
         return (
-          <div key={c.id} className={`cm-item${c.pending ? ' pending' : ''}`} {...swipe(c, canReply)}>
+          <Fragment key={c.id}>
+          {days[i] && <div className="cm-day"><span>{days[i]}</span></div>}
+          <div className={`cm-item${own ? ' own' : ''}${first ? ' first' : ''}${last ? ' last' : ''}${c.pending ? ' pending' : ''}`}
+            {...swipe(c, canReply)}>
             {canReply && (
               <span className="cm-swipe-ico" aria-hidden="true">
                 <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" strokeWidth="2.2"
                   strokeLinecap="round" strokeLinejoin="round"><path d="M10 7l-5 5 5 5" /><path d="M5 12h9a5 5 0 0 1 5 5v1" /></svg>
               </span>
             )}
-            <Avatar name={c.name} url={c.known ? c.avatar_url : null} className={`avatar-sm${c.known ? '' : ' unknown'}`} />
-            <div className="cm-main">
-              <div className="cm-head">
-                {c.known && onOpenMember && c.user_id
-                  ? <button type="button" className="cm-name link" onClick={() => onOpenMember(c.user_id)}>{c.name}</button>
-                  : <span className={`cm-name ${c.known ? 'link' : 'plain'}`}>{c.name}</span>}
-                <span className="cm-time">{c.pending ? 'отправка…' : commentAgo(c.created_at)}</span>
-                {!c.pending && c.edited_at && <span className="cm-edited">· изменено</span>}
-              </div>
+            {!own && (last
+              ? <Avatar name={c.name} url={c.known ? c.avatar_url : null} className={`avatar-sm${c.known ? '' : ' unknown'}`} />
+              : <span className="cm-av-gap" aria-hidden="true" />)}
+            <div className={`cm-bub${menu?.c.id === c.id ? ' held' : ''}`}
+              tabIndex={c.pending ? undefined : 0} aria-haspopup={c.pending ? undefined : 'menu'}
+              aria-expanded={c.pending ? undefined : menu?.c.id === c.id}
+              onKeyDown={(e) => keyBubble(e, c)} onClick={(e) => tapBubble(e, c)} {...(c.pending ? {} : hold(c))}>
+              {!own && first && (c.known && onOpenMember && c.user_id
+                ? <button type="button" className={`cm-name${tone}`} onClick={() => onOpenMember(c.user_id)}>{c.name}</button>
+                : <span className={`cm-name${tone}`}>{c.name}</span>)}
               {quote && (
                 <div className="cm-quote">
                   <span className="cm-quote-name">{quote.name}</span>
                   {quote.text && <span className="cm-quote-text">{quote.text}</span>}
                 </div>
               )}
-              <div className="cm-text">{c.body}</div>
-              {canReply && (
-                <button type="button" className="cm-reply-btn" onClick={() => startReply(c)} aria-label={`Ответить: ${c.name}`}>
-                  Ответить
-                </button>
-              )}
+              {/* Время — справа на последней строке текста (место держит ::after по длине подписи), а при
+                  реакциях — справа в ряду таблеток. */}
+              <span className={`cm-text${likeBtn ? '' : ' with-meta'}`} style={likeBtn ? undefined : { '--meta-ch': metaText.length }}>
+                {c.body}
+              </span>
+              {likeBtn
+                ? <div className="cm-reacts">{likeBtn}{meta}</div>
+                : meta}
             </div>
-            {likeBtn || more
-              ? (
-                <div className="cm-acts">
-                  {likeBtn}
-                  {more && (
-                    <MoreMenu label="Действия с комментарием" btnClassName="cm-more-btn" open={menu?.id === c.id}
-                      onToggle={() => setMenu((m) => (m?.id === c.id ? null : c))} onClose={() => setMenu(null)}>
-                      {mine && <button type="button" role="menuitem" onClick={() => startEdit(c)} disabled={!online}>Изменить</button>}
-                      <button type="button" role="menuitem" className="danger" onClick={() => { setMenu(null); setAsking(c) }}>
-                        Удалить
-                      </button>
-                    </MoreMenu>
-                  )}
-                </div>
-              )
-              : <span />}
           </div>
+          </Fragment>
         )
       })}
 
@@ -313,6 +381,14 @@ export default function CommentThread({ workoutId, ownerId, comments, me, open, 
       ) : (
         <div className="cm-offline" role="status">📡 Нет сети — комментарии только читать</div>
       ))}
+
+      {menu && (
+        <CommentMenu anchor={menu.el} itemClass={menuItemClass(menu.c)} align={menu.c.user_id === me.id ? 'right' : 'left'}
+          actions={menuActions(menu.c)} onClose={() => setMenu(null)}
+          reactions={online && canReactComment(menu.c, me.id)
+            ? { mine: menu.c.my_reaction, onPick: (kind) => { const c = menu.c; setMenu(null); react(c, nextReaction(c, kind)) } }
+            : null} />
+      )}
 
       {asking && (
         <SheetDialog title="Удалить комментарий?" actionLabel="отмена" onDismiss={() => setAsking(null)}
