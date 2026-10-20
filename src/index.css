@@ -1876,7 +1876,8 @@ img.avatar-lg.has-img {
 .more-menu > button:active:not(:disabled), .more-menu > button:focus-visible { background: var(--surface-2); outline: none; }
 .more-menu > button:disabled { color: var(--muted); cursor: default; }
 .more-menu > button.danger { color: var(--red); }
-.more-menu > * + * { border-top: 1px solid var(--menu-sep); }
+/* button + button — сильнее, чем `.more-menu > button { border: 0 }`: с одним `* + *` черта не рисовалась (fb_9e2f05c2). */
+.more-menu > * + *, .more-menu > button + button { border-top: 1px solid var(--menu-sep); }
 .more-menu-note { padding: 8px 16px; font-size: 13px; color: var(--muted); }
 @keyframes more-menu-in { from { opacity: 0; transform: translateY(-4px); } }
 .more-menu.up { animation-name: more-menu-in-up; }
@@ -2039,7 +2040,7 @@ button.cm-name { cursor: pointer; }
   display: flex; align-items: center; gap: 14px; min-height: 46px; padding: 0 18px; border: 0; background: none;
   color: var(--text); font: inherit; font-size: 16px; text-align: left; cursor: pointer;
 }
-.cmm-menu > * + * { border-top: 1px solid var(--menu-sep); }
+.cmm-menu > button + button { border-top: 1px solid var(--menu-sep); }
 .cmm-menu > button:active:not(:disabled), .cmm-menu > button:focus-visible { background: var(--surface-2); outline: none; }
 .cmm-menu > button:disabled { color: var(--muted); cursor: default; }
 .cmm-menu > button.danger { color: var(--red); }
