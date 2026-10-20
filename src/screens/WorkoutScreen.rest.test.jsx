@@ -120,6 +120,9 @@ describe('WorkoutScreen: таймер отдыха', () => {
 
   it('конец отдыха: «Пора», пуш снят в открытом приложении, затем таймер сам останавливается', async () => {
     vi.useFakeTimers({ toFake: ['Date', 'setInterval', 'clearInterval', 'setTimeout', 'clearTimeout'] })
+    // Полдень по местному времени: от реальных часов тест падал в 23:59 (CI 20.10.2026, пояс
+    // Лос-Анджелеса) — 91 с переходили полночь, тренировка переставала быть «сегодняшней».
+    vi.setSystemTime(new Date(2026, 9, 19, 12, 0, 0))
     writeDraft(`workout_draft_new_${user.id}`, draft)
     render(<WorkoutScreen user={user} />)
     fireEvent.click(pill())
