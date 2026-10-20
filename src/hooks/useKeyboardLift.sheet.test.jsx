@@ -4,7 +4,7 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { act, fireEvent, render } from '@testing-library/react'
 import { useRef } from 'react'
-import { useKeyboardLift, holdSheetAboveKeyboard } from './useKeyboardLift.js'
+import { useKeyboardLift } from './useKeyboardLift.js'
 
 class FakeVV extends EventTarget {
   constructor() { super(); this.height = 800; this.offsetTop = 0 }
@@ -107,17 +107,5 @@ describe('useKeyboardLift — поле в листе', () => {
     fireEvent.focus(u.getByLabelText('Комментарий'))
     act(() => vv.set(760, 0)) // меньше 15 % — не клавиатура
     expect(u.getByTestId('sheet')).not.toHaveClass('kb-fit')
-  })
-})
-
-describe('holdSheetAboveKeyboard — замеры на бете', () => {
-  it('debug — строка с vv, offsetTop, innerHeight, scrollY и высотой клавиатуры; снимается при закрытии', () => {
-    const u = render(<Sheet />)
-    const sheet = u.getByTestId('sheet')
-    const stop = holdSheetAboveKeyboard(sheet, sheet, vv, { debug: true })
-    act(() => vv.set(480, 120))
-    expect(sheet.dataset.kbDebug).toBe('vv 480/120 in 800 sy 0 kb 320')
-    stop()
-    expect(sheet.dataset.kbDebug).toBeUndefined()
   })
 })

@@ -1,6 +1,5 @@
 import { useCallback, useEffect, useRef } from 'react'
 import { keyboardAlign, keyboardLift, keyboardOpen } from '../lib/keyboardLift.js'
-import { IS_BETA } from '../lib/appVersion.js'
 
 // Поле над экранной клавиатурой (19.10.2026, fb_9e892d66: тап по 💬 ставил курсор в поле
 // комментария, а клавиатура его закрывала). Вешается на onFocus поля: пока клавиатура
@@ -21,7 +20,7 @@ export function useKeyboardLift(boxRef) {
     // нечего — iOS уводил весь экран вверх, а клавиатура закрывала поле. Лист ужимаем до видимой
     // части над клавиатурой, как в мессенджерах: шапка сверху, поле над клавиатурой, список между.
     const sheet = boxRef.current?.closest('.sheet')
-    if (sheet) { stop.current = holdSheetAboveKeyboard(sheet, boxRef.current, vv, { debug: IS_BETA }); return }
+    if (sheet) { stop.current = holdSheetAboveKeyboard(sheet, boxRef.current, vv); return }
     let timer = 0
     const lift = () => {
       const box = boxRef.current
@@ -60,19 +59,18 @@ export function useKeyboardLift(boxRef) {
 //     прибит к верху экрана, шапка на месте;
 //  2. низ листа поднимаем отступом на высоту клавиатуры: --kb = innerHeight − vv.height.
 // Лист и подложка — во весь экран (в iOS 26 строка «^ v ✓» над клавиатурой прозрачная).
-// На бете в углу листа — замеры (vv, offsetTop, scrollY), чтобы следующий шаг был по цифрам.
+// Замеры на бете (vv 383/0, sy 0, kb 410 на iPhone, iOS 26) подтвердили: прокрутки iOS здесь нет.
 // Список при первой подгонке — к концу и дальше у конца, если там был: свежие комментарии над полем. Возвращает stop().
 // Меньше этой доли экрана над клавиатурой не бывает (и в горизонтали ~0,38) — это кадр анимации iOS.
 const MIN_VISIBLE = 0.3
 
-export function holdSheetAboveKeyboard(sheet, box, vv, { debug = false } = {}) {
+export function holdSheetAboveKeyboard(sheet, box, vv) {
   const overlay = sheet.parentElement
   const scroll = sheet.querySelector('.sheet-scroll')
   let first = true
   const reset = () => {
     sheet.classList.remove('kb-fit')
     sheet.style.removeProperty('--kb')
-    delete sheet.dataset.kbDebug
     first = true
   }
   const unpan = () => {
@@ -94,9 +92,6 @@ export function holdSheetAboveKeyboard(sheet, box, vv, { debug = false } = {}) {
     const kb = Math.max(0, Math.round(window.innerHeight - vv.height))
     sheet.style.setProperty('--kb', kb + 'px')
     sheet.classList.add('kb-fit')
-    if (debug) {
-      sheet.dataset.kbDebug = `vv ${Math.round(vv.height)}/${Math.round(vv.offsetTop)} in ${window.innerHeight} sy ${Math.round(window.scrollY)} kb ${kb}`
-    }
     if ((first || atEnd) && scroll) scroll.scrollTop = scroll.scrollHeight
     first = false
   }
