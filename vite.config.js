@@ -82,13 +82,26 @@ export default defineConfig(({ mode }) => ({
     include: ['src/**/*.test.{js,jsx}'],
     setupFiles: ['./src/test/setup.js'],
     // Покрытие (19.10.2026) — только по флагу --coverage: в CI его снимает одна нога
-    // задачи unit (Москва), отчет — артефакт `coverage`. Порогов пока нет: снимаем базу.
+    // задачи unit (Москва), отчет — артефакт `coverage`, итог — аннотацией прогона.
+    // main.jsx — только склейка запуска (логика сплэша — lib/splashBoot.js), его грузит
+    // каждый e2e; content/ — тексты. Пороги (20.10.2026) — от отчета 19.10 (строки 90,3,
+    // операторы 86,4, функции 84,4, ветки 78,8; lib 93,9/91,3/92,9/84,2) минус 1–2 пункта,
+    // с округлением вниз: обычный рефактор не роняет CI, заметная потеря покрытия — роняет.
+    // Поднимать вслед за фактом раз в несколько выпусков, не опускать
+    // (docs/reviews/ПОКРЫТИЕ-ТЕСТАМИ-2026-10-19.md, раздел 7).
     coverage: {
       provider: 'v8',
       include: ['src/**/*.{js,jsx}'],
-      exclude: ['src/**/*.test.{js,jsx}', 'src/test/**', 'src/content/**'],
+      exclude: ['src/**/*.test.{js,jsx}', 'src/test/**', 'src/content/**', 'src/main.jsx'],
       reporter: ['text-summary', 'json-summary', 'html'],
       reportsDirectory: 'coverage',
+      thresholds: {
+        lines: 89,
+        statements: 85,
+        functions: 83,
+        branches: 77,
+        'src/lib/**': { lines: 92, statements: 90, functions: 91, branches: 82 },
+      },
     },
   },
   plugins: [
