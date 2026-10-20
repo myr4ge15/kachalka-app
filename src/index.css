@@ -1887,6 +1887,21 @@ img.avatar-lg.has-img {
 .cm-link:active { background: var(--surface-2); }
 .cm-link svg { display: block; flex: none; }
 .cm { margin-top: 12px; padding-top: 6px; border-top: 1px solid var(--border); }
+/* Вход в комментарии (20.10.2026, fb_152f36fc, «как в Telegram»): одна строка под реакциями —
+   аватарки последних комментаторов стопкой, «N комментариев» и стрелка; ветка — листом. */
+.cm-strip {
+  display: flex; align-items: center; gap: 10px; width: 100%; min-height: 44px; margin-top: 10px; padding: 8px 0 0;
+  background: none; border: 0; border-top: 1px solid var(--border); color: var(--acc-2); font: inherit; font-size: 14px;
+  font-weight: 600; text-align: left; cursor: pointer;
+}
+.cm-strip:active { opacity: .7; }
+.cm-strip-avs { display: inline-flex; flex: none; }
+.cm-strip-avs .avatar-sm { box-shadow: 0 0 0 2px var(--surface); }
+.cm-strip-avs .avatar-sm + .avatar-sm { margin-left: -8px; }
+.cm-strip-txt { flex: 1; min-width: 0; }
+.cm-strip-chev { flex: none; color: var(--muted); }
+.cm-sheet .cm { margin-top: 0; padding-top: 0; border-top: 0; }
+.cm-sheet .cm-form { position: sticky; bottom: 0; background: var(--bg); padding-bottom: 6px; }
 .cm-item { display: grid; grid-template-columns: 26px minmax(0, 1fr) auto; column-gap: 10px; padding: 8px 0; align-items: start; }
 .cm-item .avatar-sm { margin-top: 1px; }
 .cm-item.pending { opacity: .55; }
