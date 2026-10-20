@@ -41,8 +41,12 @@ describe('useKeyboardLift — поле в листе', () => {
     const u = render(<Sheet />)
     const scroll = u.getByTestId('scroll')
     Object.defineProperty(scroll, 'scrollHeight', { value: 1500, configurable: true })
+    const sheet = u.getByTestId('sheet')
+    sheet.scrollTop = 200 // iOS докрутил сам лист к полю — шапка уехала (fb_837481a4)
     fireEvent.focus(u.getByLabelText('Комментарий'))
     act(() => vv.set(480, 120)) // iOS: видимая часть 480 px, сдвинута на 120 вниз
+    expect(sheet.scrollTop).toBe(0)
+    expect(sheet).toHaveClass('kb-fit')
     expect(u.getByTestId('sheet').style.height).toBe('480px')
     expect(u.getByTestId('sheet').style.maxHeight).toBe('480px')
     expect(u.getByTestId('overlay').style.top).toBe('120px')
@@ -56,6 +60,7 @@ describe('useKeyboardLift — поле в листе', () => {
     act(() => vv.set(480, 120))
     act(() => vv.set(800, 0))
     expect(u.getByTestId('sheet').style.height).toBe('')
+    expect(u.getByTestId('sheet')).not.toHaveClass('kb-fit')
     expect(u.getByTestId('overlay').style.top).toBe('')
   })
 

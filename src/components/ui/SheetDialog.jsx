@@ -83,7 +83,9 @@ export default function SheetDialog({
     const returnTo = returnToRef.current
     const sheet = sheetRef.current
     const overlay = overlayRef.current
-    const initial = sheet?.querySelector('[data-autofocus]') ?? sheet?.querySelector(FOCUSABLE)
+    // Без [data-autofocus] фокус — на сам лист (role=dialog с заголовком), а не на первую кнопку:
+    // iOS иногда рисовал рамку фокуса на «закрыть» при открытии (20.10.2026). Tab ведет внутрь как обычно.
+    const initial = sheet?.querySelector('[data-autofocus]') ?? sheet
     // React уже применяет autoFocus дочернего поля во время commit. Не фокусируем
     // его повторно из эффекта: в iOS PWA второй программный focus может оставить
     // вложенный scroll-контейнер листа без touch-scroll до реального тапа по полю.

@@ -2,7 +2,7 @@
 // Вложения обращения: кнопка открывает выбор, неподходящий файл и перебор — понятная ошибка;
 // предзагрузка (20.10.2026): кольцо с процентами, ✓ готово, «Повторить», кадр видео; крестик.
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
-import { fireEvent, render, screen } from '@testing-library/react'
+import { cleanup, fireEvent, render, screen } from '@testing-library/react'
 import FeedbackScreenshotPicker from './FeedbackScreenshotPicker.jsx'
 
 const png = (n = 'a.png') => new File(['x'], n, { type: 'image/png' })
@@ -29,12 +29,21 @@ describe('FeedbackScreenshotPicker', () => {
     expect(p.onAdd).toHaveBeenCalledWith([expect.any(File), expect.any(File)])
   })
 
-  it('больше лимита — «Можно добавить еще N», без изменения', () => {
+  it('больше лимита — добавляются первые, что влезают, и подсказка (fb_9e79f821)', () => {
     const p = props({ items: [item(png()), item(png())], max: 3 })
     render(<FeedbackScreenshotPicker {...p} />)
-    fireEvent.change(screen.getByTestId('fb-file'), { target: { files: [png(), png()] } })
-    expect(screen.getByRole('alert')).toHaveTextContent('Можно добавить еще 1 вложений.')
-    expect(p.onAdd).not.toHaveBeenCalled()
+    const a = png('a.png')
+    fireEvent.change(screen.getByTestId('fb-file'), { target: { files: [a, png('b.png')] } })
+    expect(screen.getByRole('alert')).toHaveTextContent('Добавлено 1 из 2: всего можно 3 вложения.')
+    expect(p.onAdd).toHaveBeenCalledWith([a])
+  })
+
+  it('выбрали 6 при пустом списке — добавлены 5', () => {
+    const p = props()
+    render(<FeedbackScreenshotPicker {...p} />)
+    fireEvent.change(screen.getByTestId('fb-file'), { target: { files: [1, 2, 3, 4, 5, 6].map((n) => png(n + '.png')) } })
+    expect(p.onAdd.mock.calls[0][0]).toHaveLength(5)
+    expect(screen.getByRole('alert')).toHaveTextContent('Добавлено 5 из 6: всего можно 5 вложений.')
   })
 
   it('не картинка и не видео — ошибка с причиной', () => {
@@ -78,6 +87,12 @@ describe('FeedbackScreenshotPicker', () => {
     const d = item(png())
     render(<FeedbackScreenshotPicker {...props({ items: [v, i, d] })} />)
     expect(screen.getByRole('status', { name: 'Загружается 1: 42%' })).toHaveTextContent('42%')
+    cleanup()
+    // байты ушли, сервер еще не ответил — без «100%», просто крутится (fb_8e7257c6)
+    render(<FeedbackScreenshotPicker {...props({ items: [item(mp4(1000), { status: 'uploading', loaded: 1000, total: 1000 })] })} />)
+    expect(screen.getByRole('status', { name: 'Загружается' })).toHaveTextContent('')
+    cleanup()
+    render(<FeedbackScreenshotPicker {...props({ items: [v, i, d] })} />)
     expect(screen.getByRole('status', { name: 'Загружается 2' })).toHaveTextContent('')
     expect(screen.getByRole('img', { name: 'Загружено 3' }).querySelector('svg')).not.toBeNull()
     // крестик работает и во время загрузки

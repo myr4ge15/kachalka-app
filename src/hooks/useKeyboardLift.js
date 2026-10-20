@@ -60,6 +60,7 @@ export function fitSheetToKeyboard(sheet, box, vv) {
   let fitted = false
   const reset = () => {
     for (const el of [overlay, sheet]) if (el) el.style.top = el.style.height = el.style.maxHeight = el.style.bottom = ''
+    sheet.classList.remove('kb-fit')
     fitted = false
   }
   const apply = () => {
@@ -67,6 +68,12 @@ export function fitSheetToKeyboard(sheet, box, vv) {
     const h = Math.round(vv.height) + 'px'
     if (overlay) { overlay.style.top = Math.round(vv.offsetTop) + 'px'; overlay.style.bottom = 'auto'; overlay.style.height = h }
     sheet.style.height = sheet.style.maxHeight = h
+    // Без нижнего поля под «полоску Домой» (ее закрывает клавиатура) — поле вплотную к клавиатуре.
+    sheet.classList.add('kb-fit')
+    // fb_837481a4: пока выезжает клавиатура, iOS докручивает к полю и сами .sheet/.overlay (overflow:hidden
+    // прокрутке не мешает) — шапка уезжала вверх, сверху пусто. Сдвиг сбрасываем: прокручивается только список.
+    sheet.scrollTop = 0
+    if (overlay) overlay.scrollTop = 0
     if (!fitted && scroll) scroll.scrollTop = scroll.scrollHeight
     fitted = true
   }

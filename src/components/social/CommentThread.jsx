@@ -1,6 +1,7 @@
 import { useEffect, useLayoutEffect, useRef, useState } from 'react'
 import Avatar from '../ui/Avatar.jsx'
 import CheckIcon from '../ui/CheckIcon.jsx'
+import { useSwipeReply } from '../../hooks/useSwipeReply.js'
 import MoreMenu from '../ui/MoreMenu.jsx'
 import SheetDialog from '../ui/SheetDialog.jsx'
 import { showToast } from '../ui/Toast.jsx'
@@ -44,6 +45,8 @@ export default function CommentThread({ workoutId, ownerId, comments, me, open, 
   const formRef = useRef(null)
   // Фокус в поле (тап по 💬, «Изменить», тап по полю) — поле с кнопкой над клавиатурой (fb_9e892d66).
   const liftAboveKeyboard = useKeyboardLift(formRef)
+  // Свайп влево по комментарию — ответить (20.10.2026, как в Telegram); кнопка «Ответить» остается.
+  const swipe = useSwipeReply((c) => startReply(c))
 
   // Раскрытие пользователем — карточку в центр; курсор в поле по «Комментировать» (ReactionBar).
   // Ветка уже была раскрыта — только курсор, без центрирования: повторный тап двигал экран (fb_5ef64577;
@@ -203,7 +206,13 @@ export default function CommentThread({ workoutId, ownerId, comments, me, open, 
           </button>
         )
         return (
-          <div key={c.id} className={`cm-item${c.pending ? ' pending' : ''}`}>
+          <div key={c.id} className={`cm-item${c.pending ? ' pending' : ''}`} {...swipe(c, canReply)}>
+            {canReply && (
+              <span className="cm-swipe-ico" aria-hidden="true">
+                <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" strokeWidth="2.2"
+                  strokeLinecap="round" strokeLinejoin="round"><path d="M10 7l-5 5 5 5" /><path d="M5 12h9a5 5 0 0 1 5 5v1" /></svg>
+              </span>
+            )}
             <Avatar name={c.name} url={c.known ? c.avatar_url : null} className={`avatar-sm${c.known ? '' : ' unknown'}`} />
             <div className="cm-main">
               <div className="cm-head">

@@ -1905,9 +1905,25 @@ img.avatar-lg.has-img {
 .cm-sheet .cm { flex: 1 0 auto; display: flex; flex-direction: column; margin-top: 0; padding-top: 0; border-top: 0; }
 .cm-sheet .cm-compose { margin-top: auto; position: sticky; bottom: 0; padding: 8px 0 6px; background: var(--bg); }
 .cm-sheet .cm-offline { margin-top: auto; }
+/* Клавиатура открыта (useKeyboardLift fitSheetToKeyboard): лист ровно над ней, без поля под «полоску Домой». */
+.sheet.kb-fit { padding-bottom: 8px; }
+/* Фокус при открытии — на самом листе (SheetDialog), рамка ему не нужна. */
+.sheet:focus, .sheet:focus-visible { outline: none; }
 .cm-item { display: grid; grid-template-columns: 26px minmax(0, 1fr) auto; column-gap: 10px; padding: 8px 0; align-items: start; }
 .cm-item .avatar-sm { margin-top: 1px; }
 .cm-item.pending { opacity: .55; }
+/* Ответ свайпом влево (hooks/useSwipeReply.js): строка едет за пальцем, справа проявляется стрелка. */
+.cm-item { position: relative; touch-action: pan-y; transition: transform .18s ease; }
+.cm-item.swiping { transition: none; }
+.cm-swipe-ico {
+  position: absolute; top: 50%; right: -40px; width: 30px; height: 30px; margin-top: -15px;
+  display: grid; place-items: center; border-radius: 50%; color: var(--muted);
+  background: var(--surface-2); opacity: var(--swipe, 0); pointer-events: none;
+  transform: scale(calc(.6 + .4 * var(--swipe, 0)));
+}
+.cm-item.swipe-ready .cm-swipe-ico { color: var(--on-acc); background: var(--acc); }
+.cm-sheet .sheet-scroll { overflow-x: hidden; }
+@media (prefers-reduced-motion: reduce) { .cm-item { transition: none; } }
 .avatar-sm.unknown { background: var(--surface-2); color: var(--muted); border: 1px solid var(--border); }
 .cm-main { min-width: 0; }
 .cm-head { display: flex; align-items: baseline; gap: 6px; min-width: 0; }
@@ -4667,7 +4683,7 @@ img.has-img, .avatar-lightbox-img { -webkit-touch-callout: none; -webkit-user-dr
   border-radius: 12px; background: color-mix(in srgb, var(--bg) 55%, transparent); color: var(--text);
 }
 .fb-shot-state > * { grid-area: 1 / 1; }
-.fb-shot-pct { font-size: 11px; font-weight: 700; }
+.fb-shot-pct { font-family: var(--font-display); font-weight: 800; font-size: 15px; line-height: 1; font-variant-numeric: tabular-nums; }
 .fb-ring { transform: rotate(-90deg); }
 .fb-ring circle { fill: none; stroke-width: 4; }
 .fb-ring-track { stroke: color-mix(in srgb, var(--text) 20%, transparent); }

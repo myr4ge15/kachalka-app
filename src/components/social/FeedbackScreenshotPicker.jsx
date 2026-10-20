@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState } from 'react'
 import CheckIcon from '../ui/CheckIcon.jsx'
+import { plural } from '../../lib/plural.js'
 import { FEEDBACK_SHOTS_MAX, attachmentProblemText, fmtFileSize } from '../../lib/feedback.js'
 
 // Вложения обращения: скриншоты и (16.10, fb_1c5fab9c) видео MP4/MOV до 50 МБ — всего до max.
@@ -17,16 +18,22 @@ export default function FeedbackScreenshotPicker({ items, onAdd, onRemove, onRet
     e.target.value = ''
     const bad = picked.map(attachmentProblemText).find(Boolean)
     if (bad) { setError(bad); return }
-    if (items.length + picked.length > max) { setError('Можно добавить еще ' + Math.max(0, max - items.length) + ' вложений.'); return }
-    setError('')
-    if (picked.length) onAdd(picked)
+    // Больше, чем влезает (fb_9e79f821: выбрали 6 — не добавлялось ни одного): берем первые, что влезают.
+    const room = Math.max(0, max - items.length)
+    const fit = picked.slice(0, room)
+    setError(picked.length > room
+      ? `Добавлено ${fit.length} из ${picked.length}: всего можно ${max} ${plural(max, 'вложение', 'вложения', 'вложений')}.`
+      : '')
+    if (fit.length) onAdd(fit)
   }
   const one = items.length === 1
   return <>
     <div className="fb-picker">
       {items.map((it, n) => {
         const name = one ? '' : ' ' + (n + 1)
-        const pct = it.total > 0 ? Math.min(100, Math.round((it.loaded / it.total) * 100)) : null
+        // 100 % байтов — еще не готово (сервер дописывает): кольцо крутится без цифр (fb_8e7257c6).
+        const raw = it.total > 0 ? Math.min(100, Math.round((it.loaded / it.total) * 100)) : null
+        const pct = raw != null && raw < 100 ? raw : null
         return <div className={`fb-shot is-${it.status}`} key={it.key}>
           {it.video
             ? <div className="fb-shot-video">
@@ -68,11 +75,11 @@ export default function FeedbackScreenshotPicker({ items, onAdd, onRemove, onRet
 
 // Кольцо загрузки: доля (pct) — заливкой по кругу; без доли (картинка: сжатие + загрузка) — бегущее.
 function Ring({ pct }) {
-  const r = 16, c = 2 * Math.PI * r
+  const r = 24, c = 2 * Math.PI * r
   return (
-    <svg className={'fb-ring' + (pct == null ? ' spin' : '')} viewBox="0 0 40 40" width="40" height="40" aria-hidden="true">
-      <circle className="fb-ring-track" cx="20" cy="20" r={r} />
-      <circle className="fb-ring-arc" cx="20" cy="20" r={r} strokeDasharray={c.toFixed(1)}
+    <svg className={'fb-ring' + (pct == null ? ' spin' : '')} viewBox="0 0 56 56" width="56" height="56" aria-hidden="true">
+      <circle className="fb-ring-track" cx="28" cy="28" r={r} />
+      <circle className="fb-ring-arc" cx="28" cy="28" r={r} strokeDasharray={c.toFixed(1)}
         strokeDashoffset={(pct == null ? c * 0.7 : c * (1 - pct / 100)).toFixed(1)} />
     </svg>
   )

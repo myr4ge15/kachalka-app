@@ -226,6 +226,19 @@ describe('CommentThread', () => {
     await act(async () => { done(c('n', 'me')) })
   })
 
+  it('ответ свайпом влево по чужому — полоска «Ответ» и курсор; свой не свайпается', () => {
+    renderThread({ open: true, comments: [c('a', 'x'), c('b', 'me')] })
+    const [mine, theirs] = [document.querySelectorAll('.cm-item')[1], document.querySelectorAll('.cm-item')[0]]
+    expect(mine.querySelector('.cm-swipe-ico')).toBeNull()
+    const at = (x) => ({ touches: [{ clientX: x, clientY: 50 }] })
+    fireEvent.touchStart(theirs, at(300))
+    fireEvent.touchMove(theirs, at(280))
+    fireEvent.touchMove(theirs, at(220))
+    fireEvent.touchEnd(theirs, { touches: [] })
+    expect(screen.getByText('Ответ: Имя-a')).toBeInTheDocument()
+    expect(screen.getByRole('textbox', { name: 'Комментарий' })).toHaveFocus()
+  })
+
   it('ответ: ошибка — текст и адресат вернулись; ✕ — отмена ответа', async () => {
     postComment.mockRejectedValue(new Error('Нет сети.'))
     renderThread({ open: true, comments: [c('a', 'x')] })
