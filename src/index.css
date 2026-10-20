@@ -1864,7 +1864,8 @@ img.avatar-lg.has-img {
 :root { --menu-sep: color-mix(in srgb, var(--text) 12%, transparent); }
 .more-menu {
   position: absolute; z-index: 30; right: 0; top: calc(100% + 4px); min-width: 200px; max-width: calc(100vw - 32px);
-  display: flex; flex-direction: column; padding: 4px 0; border: 1px solid var(--border); border-radius: 14px;
+  /* Без своего отступа сверху/снизу (fb_9e2f05c2): с чертами крайние пункты выходили выше средних. */
+  display: flex; flex-direction: column; padding: 0; overflow: hidden; border: 1px solid var(--border); border-radius: 14px;
   background: var(--surface-solid); box-shadow: 0 12px 28px rgb(0 0 0 / .45);
   animation: more-menu-in var(--dur-fast) var(--ease-out);
 }
@@ -2033,7 +2034,7 @@ button.cm-name { cursor: pointer; }
 }
 .cmm-bubble .cm-bub { max-width: none; }
 .cmm-menu {
-  min-width: 220px; display: flex; flex-direction: column; padding: 6px 0; border-radius: 16px;
+  min-width: 220px; display: flex; flex-direction: column; padding: 0; overflow: hidden; border-radius: 16px;
   background: var(--surface-solid); border: 1px solid var(--border); box-shadow: 0 16px 40px rgb(0 0 0 / .45);
 }
 .cmm-menu > button {
