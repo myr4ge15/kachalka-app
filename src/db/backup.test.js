@@ -13,7 +13,8 @@ vi.mock('../lib/exportWorkout.js', async (orig) => ({
 
 import { openUserDb, closeUserDb } from './local.js'
 import { uniqueUserId } from '../test/idbHarness.js'
-import { toggleFavorite, setAccentPref, getFavorites, getAccentPref } from './repo.js'
+import { toggleFavorite, setAccentPref, getFavorites, getAccentPref, getBadges, getRpe, progKey } from './repo.js'
+import { getMeta } from './local.js'
 import { getUserMetaState } from './userMeta.js'
 import { exportAllMyData, importAllMyData } from './backup.js'
 import { BACKUP_SCHEMA } from '../lib/backup.js'
@@ -28,7 +29,7 @@ afterEach(async () => {
   await closeUserDb()
 })
 
-const file = (settings) => JSON.stringify({ schema: BACKUP_SCHEMA, user: { id: userId }, settings })
+const file = (settings, extra = {}) => JSON.stringify({ schema: BACKUP_SCHEMA, user: { id: userId }, settings, ...extra })
 
 describe('бэкап: избранное и акцент', () => {
   it('выгрузка содержит избранное и свой акцент', async () => {
@@ -56,5 +57,21 @@ describe('бэкап: избранное и акцент', () => {
     expect((await getAccentPref(userId)).id).toBe('ice')
     const counts = await importAllMyData(userId, file({ progression: null }))
     expect(counts).toMatchObject({ fav: 0, accent: 0 })
+  })
+
+  it('бейджи, автопрогрессия и оценки «как пошло» — дописываются синкаемо; повтор ничего не добавляет', async () => {
+    const extra = {
+      badges: { first_workout: { at: '2026-10-01T10:00:00.000Z' }, bad: null },
+      rpe: { w1: { at: '2026-10-01T10:00:00.000Z', ex: { ex_a: 'hard' } } },
+    }
+    const settings = { progression: { enabled: true, byExercise: { ex_a: { step: 2.5 } } } }
+    const counts = await importAllMyData(userId, file(settings, extra))
+    expect(counts).toMatchObject({ badges: 1, prog: 1, rpe: 1 })
+    expect((await getBadges(userId)).first_workout).toMatchObject({ at: '2026-10-01T10:00:00.000Z', backfilled: true })
+    expect((await getMeta(progKey(userId))).byExercise.ex_a).toEqual({ step: 2.5 })
+    expect((await getRpe(userId)).w1.ex).toEqual({ ex_a: 'hard' })
+    const st = await getUserMetaState()
+    expect([st.badges.dirty, st.prog.dirty, st.rpe.dirty]).toEqual([1, 1, 1])
+    expect(await importAllMyData(userId, file(settings, extra))).toMatchObject({ badges: 0, prog: 0, rpe: 0 })
   })
 })

@@ -1905,8 +1905,7 @@ img.avatar-lg.has-img {
 .cm-sheet .cm { flex: 1 0 auto; display: flex; flex-direction: column; margin-top: 0; padding-top: 0; border-top: 0; }
 .cm-sheet .cm-compose { margin-top: auto; position: sticky; bottom: 0; padding: 8px 0 6px; background: var(--bg); }
 .cm-sheet .cm-offline { margin-top: auto; }
-/* Клавиатура открыта (useKeyboardLift fitSheetToKeyboard): лист ровно над ней, без поля под «полоску Домой». */
-.sheet.kb-fit { padding-bottom: 8px; }
+/* Клавиатура открыта (useKeyboardLift fitSheetToKeyboard): отступы листа задает JS по visualViewport. */
 /* Фокус при открытии — на самом листе (SheetDialog), рамка ему не нужна. */
 .sheet:focus, .sheet:focus-visible { outline: none; }
 .cm-item { display: grid; grid-template-columns: 26px minmax(0, 1fr) auto; column-gap: 10px; padding: 8px 0; align-items: start; }

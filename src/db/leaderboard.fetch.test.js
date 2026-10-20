@@ -5,14 +5,15 @@
 import 'fake-indexeddb/auto' // ПЕРВЫМ: local.js создает Dexie на импорте
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 
-const h = vi.hoisted(() => ({ session: true, rpc: null, catalog: null, boards: {} }))
+const h = vi.hoisted(() => ({ session: true, rpc: null, catalog: null, boards: {}, circleCatalogs: {} }))
 vi.mock('./supabase.js', () => ({
   isConfigured: true,
   hasSession: async () => h.session,
   supabase: { rpc: (...a) => h.rpc(...a) },
 }))
 vi.mock('./disciplines.js', () => ({
-  getRatingCatalog: async () => h.catalog,
+  // каталог круга — h.circleCatalogs[id], общий — h.catalog
+  getRatingCatalog: async (circle = null) => (circle ? h.circleCatalogs[circle] ?? null : h.catalog),
   getRatingBoard: async (d) => h.boards[d.id] ?? null,
 }))
 
@@ -30,7 +31,7 @@ const ROWS = [
 
 beforeEach(async () => {
   await openUserDb(uniqueUserId())
-  Object.assign(h, { session: true, rpc: vi.fn(async () => ({ data: ROWS, error: null })), catalog: null, boards: {} })
+  Object.assign(h, { session: true, rpc: vi.fn(async () => ({ data: ROWS, error: null })), catalog: null, boards: {}, circleCatalogs: {} })
   vi.stubGlobal('navigator', { onLine: true })
 })
 afterEach(async () => { vi.unstubAllGlobals(); await closeUserDb() })
@@ -105,6 +106,19 @@ describe('getCachedLeaderboard с каталогом дисциплин', () => 
     const { male, female } = await getCachedLeaderboard()
     expect(female.map((r) => r.user_id)).toEqual(['f1'])
     expect(male).toEqual([]) // жима в каталоге нет — старый снимок не воскресает
+  })
+
+  it('есть активный круг — место по доске первого круга, а не по старому общему (fb_2115b26b)', async () => {
+    h.catalog = { items: [{ id: 'g', exercise_id: 'bench', metric: 'weight', split_by_sex: false }] }
+    h.boards.g = { rows: [{ user_id: 'x', weight: 200, reps: 1 }, { user_id: 'm1', weight: 90, reps: 1 }] }
+    h.circleCatalogs.c2 = { items: [{ id: 'cd', exercise_id: 'bench', metric: 'weight', split_by_sex: false }] }
+    h.boards.cd = { rows: [{ user_id: 'm1', weight: 90, reps: 1 }] }
+    await setMeta('fc_circles', { items: [
+      { circle_id: 'c1', my_status: 'pending' }, { circle_id: 'c2', my_status: 'active' },
+    ] }, local.db)
+    expect((await getCachedLeaderboard()).male.map((r) => r.user_id)).toEqual(['m1'])
+    delete h.circleCatalogs.c2 // доску круга еще не открывали — пусто, а не старое общее место
+    expect(await getCachedLeaderboard()).toEqual({ male: [], female: [] })
   })
 
   it('имена ведущих упражнений — из справочника', async () => {

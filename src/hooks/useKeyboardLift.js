@@ -50,30 +50,34 @@ export function useKeyboardLift(boxRef) {
   }, [boxRef])
 }
 
-// Пока клавиатура открыта — подложка листа (.overlay) ровно в видимой полосе (offsetTop, height),
-// лист той же высоты; закрылась — прежние размеры. Слушаем, пока фокус внутри блока поля.
-// Список ветки при первом сжатии прокручиваем к концу: свежие комментарии — над полем.
+// Пока клавиатура открыта — содержимое листа ровно в видимой полосе над ней: верхний отступ листа
+// растет на часть, уехавшую вверх (iOS сдвигает видимую область — vv.offsetTop), нижний — на часть,
+// закрытую клавиатурой. Сам лист и подложка остаются во весь экран: в iOS 26 строка «^ v ✓» над
+// клавиатурой прозрачная, и лист, обрезанный по видимой области, показывал сквозь нее карточку под
+// ним (fb_83895083). Закрылась клавиатура — прежние отступы. Слушаем, пока фокус внутри блока поля.
+// Список ветки при первой подгонке прокручиваем к концу: свежие комментарии — над полем.
 // Возвращает функцию остановки (сбрасывает стили).
 export function fitSheetToKeyboard(sheet, box, vv) {
   const overlay = sheet.parentElement
   const scroll = sheet.querySelector('.sheet-scroll')
   let fitted = false
   const reset = () => {
-    for (const el of [overlay, sheet]) if (el) el.style.top = el.style.height = el.style.maxHeight = el.style.bottom = ''
+    sheet.style.paddingTop = sheet.style.paddingBottom = ''
     sheet.classList.remove('kb-fit')
     fitted = false
   }
   const apply = () => {
     if (!keyboardOpen(vv, window.innerHeight)) { reset(); return }
-    const h = Math.round(vv.height) + 'px'
-    if (overlay) { overlay.style.top = Math.round(vv.offsetTop) + 'px'; overlay.style.bottom = 'auto'; overlay.style.height = h }
-    sheet.style.height = sheet.style.maxHeight = h
-    // Без нижнего поля под «полоску Домой» (ее закрывает клавиатура) — поле вплотную к клавиатуре.
-    sheet.classList.add('kb-fit')
     // fb_837481a4: пока выезжает клавиатура, iOS докручивает к полю и сами .sheet/.overlay (overflow:hidden
-    // прокрутке не мешает) — шапка уезжала вверх, сверху пусто. Сдвиг сбрасываем: прокручивается только список.
+    // прокрутке не мешает) — шапка уезжала вверх. Сдвиг сбрасываем до замера: прокручивается только список.
     sheet.scrollTop = 0
     if (overlay) overlay.scrollTop = 0
+    const rect = sheet.getBoundingClientRect()
+    const above = Math.max(0, Math.round(vv.offsetTop - rect.top))
+    const below = Math.max(0, Math.round(rect.bottom - (vv.offsetTop + vv.height)))
+    sheet.style.paddingTop = `calc(16px + env(safe-area-inset-top) + ${above}px)`
+    sheet.style.paddingBottom = `${below + 8}px`
+    sheet.classList.add('kb-fit')
     if (!fitted && scroll) scroll.scrollTop = scroll.scrollHeight
     fitted = true
   }

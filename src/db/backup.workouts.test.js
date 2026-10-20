@@ -87,6 +87,17 @@ describe('бэкап тренировок', () => {
     expect(await getWorkouts(userId)).toEqual([])
   })
 
+  it('тренировка, которую не записать (вес без повторов), считается в failed и не роняет импорт', async () => {
+    const snap = JSON.parse(await seedAndExport())
+    const bad = { ...snap.workouts[0], id: '33333333-3333-4333-8333-333333333333' }
+    bad.entries = bad.entries.map((e) => ({ ...e, sets: [{ weight: 80, reps: 0 }] })) // вес без повторов: файл пропускает, запись — нет
+    snap.workouts = [snap.workouts[1], bad]
+    await freshDevice()
+    const counts = await importAllMyData(userId, JSON.stringify(snap))
+    expect(counts).toMatchObject({ workouts: 1, failed: 1 })
+    expect((await getWorkouts(userId)).map((w) => w.id)).toEqual([snap.workouts[0].id])
+  })
+
   it('битый файл — понятная ошибка', async () => {
     await expect(importAllMyData(userId, '{не json')).rejects.toThrow()
     expect(await getWorkouts(userId)).toEqual([])

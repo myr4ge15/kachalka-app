@@ -20,6 +20,7 @@ import { setOneRepMax } from '../lib/oneRepMax.js'
 import { cmpIsoAsc } from '../lib/cmp.js'
 import { shouldRefetchLeaderboard } from '../lib/leaderboardCache.js'
 import { getRatingCatalog, getRatingBoard } from './disciplines.js'
+import { getMyCircles } from './circles.js'
 
 // Порядок рейтинга — по ФАКТИЧЕСКОМУ весу: тяжелее выше; при равном весе —
 // больше повторов; при равных и весе, и повторах — кто достиг раньше.
@@ -163,7 +164,13 @@ export function computeBoardFromFeed(feedItems, sexById) {
 export async function getCachedLeaderboard() {
   // Старые карточки профиля/инсайты про жим используют только актуальный снимок
   // соответствующей дисциплины. Убранный из рейтинга жим не воскресает из старого кэша.
-  const catalog = await getRatingCatalog()
+  // С v9.1.0 в Ленте — только доски кругов, общего рейтинга нет: есть активный круг — место
+  // считаем по доске ПЕРВОГО круга (ее Лента показывает по умолчанию), а не по снимку общего
+  // рейтинга, который больше не обновляется (fb_2115b26b: Профиль — «4-е место», Лента — второе).
+  // Снимка доски круга еще нет (Ленту не открывали) — пусто, а не старое общее место.
+  const circle = ((await getMyCircles()) ?? []).find((c) => c.my_status === 'active')
+  const catalog = circle ? await getRatingCatalog(circle.circle_id) : await getRatingCatalog()
+  if (circle && !catalog) return { male: [], female: [] }
   if (catalog) {
     const [exercises, users] = await Promise.all([db.exercises.toArray(), loginDb.users.toArray()])
     const sex = new Map(users.map(u => [u.id, u.sex]))

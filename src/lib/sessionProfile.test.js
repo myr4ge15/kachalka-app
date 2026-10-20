@@ -18,6 +18,11 @@ describe('readStoredUserId', () => {
     expect(readStoredUserId(null)).toBe(null)
     expect(readStoredUserId('')).toBe(null)
   })
+  it('число → строка id; true и пустая JSON-строка → null', () => {
+    expect(readStoredUserId('42')).toBe('42')
+    expect(readStoredUserId('true')).toBe(null)
+    expect(readStoredUserId('""')).toBe(null)
+  })
   it('объект без id → null', () => {
     expect(readStoredUserId(JSON.stringify({ name: 'Аня' }))).toBe(null)
   })
