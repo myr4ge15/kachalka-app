@@ -85,16 +85,7 @@ test('вложенные экраны открываются и кнопки н�
   await page.getByRole('button', { name: /^Уведомления/ }).first().click()
   await visit('Уведомления')
 
-  // «Достижения» в Профиле есть только у того, кто записал хоть одну тренировку
-  // (ProfileScreen: summary.totalWorkouts > 0) — запишем одну, как smoke.spec.js.
-  await page.evaluate(async (userId) => {
-    const [{ saveWorkout }, { E2E_EXERCISES }] = await Promise.all([
-      import('/kachalka-app/src/db/repo.js'),
-      import('/kachalka-app/src/test/e2eSeed.js'),
-    ])
-    await saveWorkout({ user_id: userId, performed_at: '2026-06-01T12:00:00.000Z', entries: [{ exercise: E2E_EXERCISES[0], sets: [{ weight: 50, reps: 8 }] }] })
-  }, user.id)
-
+  // У тестовой учетки тренировок нет — «Достижения» видны и новичку (с 20.10.2026).
   await page.getByRole('button', { name: 'Открыть профиль' }).first().click()
   await page.getByRole('button', { name: /Достижения/ }).first().click()
   await visit('Достижения')

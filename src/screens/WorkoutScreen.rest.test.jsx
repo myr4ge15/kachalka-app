@@ -135,6 +135,30 @@ describe('WorkoutScreen: таймер отдыха', () => {
     expect(localStorage.getItem('gym_app_rest_run_u1')).toBeNull()
   })
 
+  // 20.10.2026: «сегодня» — день открытия экрана записи. Раньше в 00:00 тренировка, начатая
+  // в 23:5x, переставала быть «сегодняшней»: таймер пропадал, отдых и его пуш гасли.
+  it('отдых через полночь не гаснет: таймер на месте, пуш не снят', async () => {
+    vi.useFakeTimers({ toFake: ['Date', 'setInterval', 'clearInterval', 'setTimeout', 'clearTimeout'] })
+    vi.setSystemTime(new Date(2026, 9, 19, 23, 59, 30))
+    writeDraft(`workout_draft_new_${user.id}`, draft)
+    render(<WorkoutScreen user={user} />)
+    fireEvent.click(pill())
+    vi.mocked(cancelRestPush).mockClear()
+    await act(async () => { vi.advanceTimersByTime(45_000) }) // 00:00:15 следующего дня
+    expect(pill()).toHaveAccessibleName(/^Отдых, /)
+    expect(cancelRestPush).not.toHaveBeenCalled()
+    expect(localStorage.getItem('gym_app_rest_run_u1')).not.toBeNull()
+  })
+
+  it('дата новой тренировки — вчера: таймера нет (запись задним числом)', () => {
+    const yesterday = new Date()
+    yesterday.setDate(yesterday.getDate() - 1)
+    writeDraft(`workout_draft_new_${user.id}`, draft)
+    writeDraft(`workout_date_new_${user.id}`, yesterday.toISOString())
+    render(<WorkoutScreen user={user} />)
+    expect(pill()).toBeNull()
+  })
+
   it('сохранение тренировки гасит отдых', async () => {
     writeDraft(`workout_draft_new_${user.id}`, draft)
     render(<WorkoutScreen user={user} onSaved={() => {}} />)

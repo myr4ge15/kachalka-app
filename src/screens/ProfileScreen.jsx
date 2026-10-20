@@ -146,6 +146,19 @@ export default function ProfileScreen({ user, onLogout, onAccountDeleted, onOpen
 
   useEdgeSwipeBack(contentRef, settingsSurfaceRef, closeSettings, edgeSwipeOn && settingsOpen)
 
+  // Вход на экран достижений/бейджей.
+  const achievementsLink = (
+    <section className="sec">
+      <button className="leader-link" onClick={() => onOpenAchievements?.()}>
+        <div>
+          <div className="v">🏆 Достижения</div>
+          <div className="k">получено {badgesEarned} из {BADGES.length} бейджей</div>
+        </div>
+        <span className="go">Открыть <Chevron inline size={16} /></span>
+      </button>
+    </section>
+  )
+
   const settingsView = (
       <div className="screen profile settings-screen">
         <div className="detail-head">
@@ -220,9 +233,13 @@ export default function ProfileScreen({ user, onLogout, onAccountDeleted, onOpen
       {loading && <CardsSkeleton cards={3} />}
 
       {!loading && summary.totalWorkouts === 0 && (
-        <p className="muted empty">
-          Здесь будет твоя сводка: рекорды и цель. Запиши первую тренировку 💪
-        </p>
+        <>
+          <p className="muted empty">
+            Здесь будет твоя сводка: рекорды и цель. Запиши первую тренировку 💪
+          </p>
+          {/* Достижения видны и до первой тренировки (20.10.2026): новичок видит, к чему идти. */}
+          {achievementsLink}
+        </>
       )}
 
       {!loading && summary.totalWorkouts > 0 && (
@@ -231,16 +248,7 @@ export default function ProfileScreen({ user, onLogout, onAccountDeleted, onOpen
               серия) живут на Главной, здесь не дублируем (акценты разведены). */}
           <StatGrid totalWorkouts={summary.totalWorkouts} tonnage={summary.tonnage} />
 
-          {/* вход на экран достижений/бейджей */}
-          <section className="sec">
-            <button className="leader-link" onClick={() => onOpenAchievements?.()}>
-              <div>
-                <div className="v">🏆 Достижения</div>
-                <div className="k">получено {badgesEarned} из {BADGES.length} бейджей</div>
-              </div>
-              <span className="go">Открыть <Chevron inline size={16} /></span>
-            </button>
-          </section>
+          {achievementsLink}
 
           {/* личные цели (мульти-цели) */}
           <GoalsSection userId={user.id} goals={goals} records={records} workouts={workouts} />

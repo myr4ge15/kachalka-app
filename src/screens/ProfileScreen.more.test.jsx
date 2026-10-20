@@ -89,6 +89,17 @@ describe('Профиль — переходы и метки', () => {
     expect(on.onOpenFeed).toHaveBeenCalled()
   })
 
+  it('новичок без тренировок — Достижения тоже видны («получено 0 из …»)', async () => {
+    vi.mocked(repo.getWorkouts).mockResolvedValue([])
+    const onOpenAchievements = vi.fn()
+    render(<Harness onOpenAchievements={onOpenAchievements} />)
+    expect(await screen.findByText(/Запиши первую тренировку/)).toBeInTheDocument()
+    const link = screen.getByRole('button', { name: /Достижения/ })
+    expect(link).toHaveTextContent(/получено 0 из/)
+    fireEvent.click(link)
+    expect(onOpenAchievements).toHaveBeenCalled()
+  })
+
   it('женский борд — место «по ягодичному мостику»; рейтинг недоступен — без строки', async () => {
     vi.mocked(repo.getWorkouts).mockResolvedValue([WORKOUT])
     vi.mocked(getCachedLeaderboard).mockResolvedValueOnce({ female: [{ user_id: 'me' }], male: [] })

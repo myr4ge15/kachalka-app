@@ -122,7 +122,10 @@ export default function WorkoutScreen({ user, workoutId = null, onBack, onSaved 
   // тренировку не надо листать наверх, а пустая тренировка таймера не показывает.
   const [restOpen, setRestOpen] = useState(false)
   const activeExercise = entries.find((e) => e.exercise.id === activeExerciseId)?.exercise ?? null
-  const isToday = !loading && localYmd(performedAt) === localYmd(new Date())
+  // «Сегодня» — день, когда открыли экран записи, а не текущие часы (20.10.2026): в полночь
+  // тренировка, начатая в 23:5x, переставала быть «сегодняшней», и идущий отдых гас вместе с пушем.
+  const [openDay] = useState(() => localYmd(new Date()))
+  const isToday = !loading && localYmd(performedAt) === openDay
   const restShown = isNew && isToday
   const rest = useRestTimer(user.id, { exercise: activeExercise, ready: !loading, active: restShown })
   const restVisible = restShown && rest.settings.on
