@@ -54,6 +54,8 @@ describe('splashUpdateUi', () => {
     expect($('splash-upd-fill').style.width).toBe('30%')
     expect($('splash-upd-bar').getAttribute('aria-valuenow')).toBe('30')
     expect($('splash-upd-cap').textContent).toBe('Загружено 3 из 10')
+    // число — в рамке ширины общего: подпись по центру не дергается при «3» → «13» (20.10.2026)
+    expect($('splash-upd-cap').querySelector('.splash-upd-n').style.minWidth).toBe('2ch')
   })
 
   it('installing — 100% и «Устанавливаем…»; fallback — «Связь слабая»', () => {

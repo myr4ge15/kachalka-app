@@ -80,7 +80,13 @@ export function splashUpdateUi(doc, root) {
       bar.classList.remove('splash-upd-bar--busy')
       fill.style.width = `${p.pct}%`
       bar.setAttribute('aria-valuenow', String(p.pct))
-      cap.textContent = `Загружено ${p.done} из ${p.total}`
+      // Число загруженных — в рамке ширины общего числа (20.10.2026): строка по центру, и с ростом
+      // «3» → «13» вся подпись дергалась вбок. Теперь меняются только цифры внутри рамки.
+      const done = doc.createElement('span')
+      done.className = 'splash-upd-n'
+      done.style.minWidth = `${String(p.total).length}ch`
+      done.textContent = String(p.done)
+      cap.replaceChildren('Загружено ', done, ` из ${p.total}`)
     },
     installing() {
       bar.classList.remove('splash-upd-bar--busy')
