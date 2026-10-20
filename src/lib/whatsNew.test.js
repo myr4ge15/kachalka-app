@@ -64,7 +64,8 @@ describe('hasUnopened / updateHeadline / дата', () => {
     expect(hasUnopened(E, '6.5.0')).toBe(false)
   })
   it('заголовок строки обновления', () => {
-    expect(updateHeadline({ headline: 'Новое', main: [1, 2, 3], minor: [4] })).toBe('Новое и еще 2')
+    expect(updateHeadline({ headline: 'Новое', main: [1, 2, 3], minor: [4] })).toBe('Новое — и еще 2 улучшения')
+    expect(updateHeadline({ headline: 'Новое', main: [1, 2, 3], minor: [4, 5, 6, 7, 8, 9, 10] })).toBe('Новое — и еще 8 улучшений')
     expect(updateHeadline({ headline: 'Новое', main: [1, 2], minor: [] })).toBe('Новое')
     expect(updateHeadline(null)).toBeNull()
   })

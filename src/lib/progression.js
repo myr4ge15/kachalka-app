@@ -180,6 +180,21 @@ export function detectPlateau(recentSessions, metric = 'weight', { window = 4 } 
   return keys.slice(0, -1).every((k) => !beats(k, oldest))
 }
 
+// Сколько последних сессий прошло БЕЗ нового рекорда (fb_e87fb37b): индекс самой свежей сессии, которая побила
+// все более старые (сессии — свежие сверху). 0 — свежая и есть рекорд. Первая сессия в истории — рекорд по
+// определению. → { since, record } — since: число сессий новее рекорда, record: индекс рекордной сессии.
+export function sinceRecord(sessions, metric = 'weight') {
+  const m = normMetric(metric)
+  const keys = (sessions ?? []).map((sess) => bestSetKey(m, (Array.isArray(sess) ? sess : sess?.sets) ?? []))
+  if (!keys.length) return { since: 0, record: -1 }
+  let best = keys[keys.length - 1]
+  let record = keys.length - 1
+  for (let i = keys.length - 2; i >= 0; i--) {
+    if (beats(keys[i], best)) { best = keys[i]; record = i }
+  }
+  return { since: record, record }
+}
+
 // [ведущий, второй] лучшего подхода. Второй — повторы для веса, доп. вес для повторов;
 // у времени и дистанции второго нет (у дистанции больше секунд — хуже, не лучше).
 function bestSetKey(m, sets) {

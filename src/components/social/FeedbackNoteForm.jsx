@@ -11,13 +11,13 @@ import { useAttachments } from '../../hooks/useAttachments.js'
 // и «Отмена». Одна форма на два случая экрана «Обратная связь»:
 //   «Не помогло — открыть снова» (v6.12.0) — к решенному/отклоненному;
 //   «Дополнить» (v8.6.0) — к открытому, статус не меняется.
-// Пропсы: openLabel, label, placeholder, sendLabel, max, problem(text) → код|null,
+// Пропсы: openLabel, openClass (доп. класс кнопки-раскрывашки), label, placeholder, sendLabel, max, problem(text) → код|null,
 // send(text) → Promise, done: { emoji, title, sub } для тоста, online, onDone().
 // attach (16.10, fb_a4e36c94: в «Дополнить» не приложить скриншот) — { max, send(paths),
 // textOptional, testId, userId, api: {upload, discard} }: вложения прямо в форме, грузятся сразу
 // после выбора (20.10, useAttachments); textOptional — можно без текста, одни файлы.
 export default function FeedbackNoteForm({
-  openLabel, label, placeholder, sendLabel, max, problem: problemOf, send, done, online, onDone, attach = null,
+  openLabel, openClass = '', label, placeholder, sendLabel, max, problem: problemOf, send, done, online, onDone, attach = null,
 }) {
   const [open, setOpen] = useState(false)
   const [note, setNote] = useState('')
@@ -54,7 +54,7 @@ export default function FeedbackNoteForm({
 
   if (!open) {
     return (
-      <button type="button" className="btn ghost fb-reopen-btn" onClick={() => setOpen(true)} disabled={!online}>
+      <button type="button" className={`btn ghost fb-reopen-btn${openClass ? ` ${openClass}` : ''}`} onClick={() => setOpen(true)} disabled={!online}>
         {openLabel}
       </button>
     )
@@ -72,11 +72,13 @@ export default function FeedbackNoteForm({
           disabled={busy || !online} max={attach.max} testId={attach.testId} />
       )}
       {busy && att.progress && <UploadProgress progress={att.progress} />}
-      <div className="invite-fresh-actions">
+      {/* Одним рядом, «Отмена» слева (fb_e87fb37b): столбик из трех кнопок во всю ширину с «Добавить еще» сверху
+          читался как три равных действия. */}
+      <div className="btn-row">
+        <button className="btn ghost" onClick={() => close()} disabled={busy}>Отмена</button>
         <button className="btn primary" onClick={submit} disabled={busy || !!problem || !online}>
           {busy ? <BusyText>{att.uploading ? 'Догружаю' : 'Отправляю'}</BusyText> : sendLabel}
         </button>
-        <button className="btn ghost" onClick={() => close()} disabled={busy}>Отмена</button>
       </div>
     </div>
   )

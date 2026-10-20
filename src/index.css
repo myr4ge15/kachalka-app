@@ -655,6 +655,9 @@ select, textarea { font-variant-numeric: inherit; font-feature-settings: inherit
 .btn--sm { --btn-h: 40px; padding: 8px 12px; font-size: 14px; border-radius: 12px; }
 .btn-row { display: grid; grid-auto-flow: column; grid-auto-columns: 1fr; gap: 8px; }
 .btn-row > .btn { width: auto; margin: 0; }
+/* .btn.ghost (ниже по файлу, та же специфичность) дает margin-top: 6px — в ряду «Отмена» садилась ниже соседки
+   (лист «Удалить комментарий?», fb_e87fb37b). Ряд сильнее. */
+.btn-row > .btn.ghost { margin: 0; }
 .btn.full { width: 100%; }
 /* Ссылка в виде кнопки (v7.5.0, TgLinkSheet): без подчеркивания и по центру, как <button>. */
 a.btn { display: flex; text-decoration: none; }
@@ -1856,6 +1859,9 @@ img.avatar-lg.has-img {
 .fb-upload-fill { height: 100%; border-radius: inherit; background: var(--acc); transition: width .3s ease; }
 .fb-upload-cap { font-size: 13px; color: var(--muted); }
 @media (prefers-reduced-motion: reduce) { .fb-upload-fill { transition: none; } }
+/* Разделитель пунктов меню (fb_e87fb37b): --border на плотной подложке почти не виден. Общий для «⋯» и меню
+   комментария. */
+:root { --menu-sep: color-mix(in srgb, var(--text) 12%, transparent); }
 .more-menu {
   position: absolute; z-index: 30; right: 0; top: calc(100% + 4px); min-width: 200px; max-width: calc(100vw - 32px);
   display: flex; flex-direction: column; padding: 4px 0; border: 1px solid var(--border); border-radius: 14px;
@@ -1870,7 +1876,7 @@ img.avatar-lg.has-img {
 .more-menu > button:active:not(:disabled), .more-menu > button:focus-visible { background: var(--surface-2); outline: none; }
 .more-menu > button:disabled { color: var(--muted); cursor: default; }
 .more-menu > button.danger { color: var(--red); }
-.more-menu > * + * { border-top: 1px solid var(--border); }
+.more-menu > * + * { border-top: 1px solid var(--menu-sep); }
 .more-menu-note { padding: 8px 16px; font-size: 13px; color: var(--muted); }
 @keyframes more-menu-in { from { opacity: 0; transform: translateY(-4px); } }
 .more-menu.up { animation-name: more-menu-in-up; }
@@ -1987,7 +1993,7 @@ button.cm-name { cursor: pointer; }
 .cm-like::before { content: ''; position: absolute; inset: -9px -4px; }
 .cm-like:disabled { cursor: default; }
 .cm-like.on { background: var(--acc-soft); color: var(--acc-2); box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--acc) 50%, transparent); }
-.cm-like-emo { font-size: 14px; line-height: 1; }
+.cm-like-emo { display: block; font-size: 14px; line-height: 1; transform: translateY(1px); } /* эмодзи iOS сидит на 1 px выше цифр (fb_c2b3f276) */
 /* Меню пузыря — по удержанию (hooks/useLongPress.js), «⋯» нет. Системное меню iOS «Скопировать/Выделить» и выделение
    текста гасим: копирование — пунктом меню. */
 .cm-bub { -webkit-touch-callout: none; -webkit-user-select: none; user-select: none; }
@@ -2033,6 +2039,7 @@ button.cm-name { cursor: pointer; }
   display: flex; align-items: center; gap: 14px; min-height: 46px; padding: 0 18px; border: 0; background: none;
   color: var(--text); font: inherit; font-size: 16px; text-align: left; cursor: pointer;
 }
+.cmm-menu > * + * { border-top: 1px solid var(--menu-sep); }
 .cmm-menu > button:active:not(:disabled), .cmm-menu > button:focus-visible { background: var(--surface-2); outline: none; }
 .cmm-menu > button:disabled { color: var(--muted); cursor: default; }
 .cmm-menu > button.danger { color: var(--red); }
@@ -3020,7 +3027,14 @@ label.act.busy { opacity: .55; pointer-events: none; }
 .fb-reply.stale { opacity: .75; }
 .fb-reopen { margin: 0; font-size: 13px; line-height: 1.4; color: var(--yellow); white-space: pre-wrap; overflow-wrap: anywhere; }
 .fb-reopen-btn { align-self: flex-start; min-height: 44px; margin-top: 2px; }
+/* «Не помогло — открыть снова» (fb_e87fb37b): не серая, а заметная — акцентная рамка и текст. */
+.btn.ghost.fb-reopen-btn.fb-reopen-again {
+  color: var(--acc-2); border-color: color-mix(in srgb, var(--acc) 55%, transparent);
+  background: color-mix(in srgb, var(--acc) 10%, transparent);
+}
 /* Дополнение автора к открытому обращению (v8.6.0). */
+/* Дополнения — каждое отделено чертой от предыдущего и от текста обращения (fb_85c57f78). */
+.fb-addition + .fb-addition, .fb-body + .fb-addition { border-top: 1px solid var(--menu-sep); padding-top: 8px; }
 .fb-addition { margin: 0; font-size: 14px; line-height: 1.45; color: var(--text); white-space: pre-wrap; overflow-wrap: anywhere; }
 .fb-reopen-form { display: flex; flex-direction: column; gap: 6px; margin-top: 4px; }
 .fb-photos { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 4px; }

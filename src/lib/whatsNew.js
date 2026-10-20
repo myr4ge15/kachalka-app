@@ -8,6 +8,7 @@
 // на 1.0.0. Метки ниже сравниваются «больше/меньше», поэтому у эпохи 2 — свои ключи:
 // на знакомом устройстве новой метки нет → покажется свежая запись (как при первом
 // запуске 6.4.0), новичку — молча. Эпоха уходит и в version.json (Edge push-update).
+import { plural } from './plural.js'
 export const VERSION_EPOCH = 2
 export const SEEN_KEY = 'kachalka:whats_new_seen.e2'       // показан лист A
 export const OPENED_KEY = 'kachalka:whats_new_opened.e2'   // открыт экран «Обновления»
@@ -76,13 +77,14 @@ export function versionJson(entries, version, epoch = VERSION_EPOCH) {
   return { version, epoch, headline: updateHeadline(latest), ...(latest?.push === false ? { silent: true } : {}) }
 }
 
-// Заголовок для строки новой версии (version.json): headline + «и еще N».
+// Заголовок для строки новой версии и пуша «Вышла версия» (version.json): headline + « — и еще N улучшений».
+// Через тире (fb_f8deafbe): «Комментарии пузырями и реакции и еще 8» — два «и» подряд, и непонятно, чего 8.
 export function updateHeadline(entry) {
   if (!entry) return null
   const n = (entry.main?.length ?? 0) + (entry.minor?.length ?? 0)
   const base = entry.headline ?? entry.main?.[0]?.t ?? ''
   const rest = n - 2
-  return rest > 0 ? `${base} и еще ${rest}` : base
+  return rest > 0 ? `${base} — и еще ${rest} ${plural(rest, 'улучшение', 'улучшения', 'улучшений')}` : base
 }
 
 const MONTHS = ['января', 'февраля', 'марта', 'апреля', 'мая', 'июня', 'июля',

@@ -21,7 +21,7 @@ import { lastTrainedBySubmuscle } from './freshness.js'
 import { labelAccusativeOf, isNonMuscleSub } from './muscles.js'
 import { leadingValue, fmtMetricValue, fmtNum, setTonnage } from './metric.js'
 import { myBestByExercise } from './records.js'
-import { detectPlateau } from './progression.js'
+import { sinceRecord } from './progression.js'
 import { currentStreak } from './profileStats.js'
 import { cmpIsoDesc } from './cmp.js'
 import { entryExId, entryMetric, sortDesc, entryUnitMetric } from './entries.js'
@@ -208,8 +208,8 @@ function rBiggestSession(sorted, ctx) {
   }
 }
 
-// R4. Плато в жиме: ведущий вес не растет 4 тренировки подряд (нет нового
-// максимума в окне). Переиспользует детектор плато из progression.js.
+// R4. Плато в жиме: рекорд (лучший подход по ведущей метрике, повторы — тай-брейк) не побит 3 тренировки подряд
+// (окно W = 4 вместе с рекордной). Счет — progression.js sinceRecord.
 function rPlateau(sorted, anchor) {
   const W = 4 // окно плато (сессий)
   const bench = findBench(sorted)
@@ -219,26 +219,29 @@ function rPlateau(sorted, anchor) {
     const e = (w.entries ?? []).find((x) => entryExId(x) === bench.exId)
     // Сессии в другой единице (до смены типа) в окно плато не берем: их
     // leadingValue несравним с текущим (РЕВЬЮ-КОДА-2026-10-02, п. 17).
-    if (e && entryUnitMetric(e, bench.metric) === bench.metric) recent.push({ sets: e.sets ?? [] })
+    if (e && entryUnitMetric(e, bench.metric) === bench.metric) recent.push({ sets: e.sets ?? [], id: w.id, at: w.performed_at })
   }
   if (recent.length < W) return null
-  if (!detectPlateau(recent, bench.metric, { window: W })) return null
-  // Показываем ПОТОЛОК — лучший результат в окне, который не удается побить. Это
-  // осознанно максимум: плато = «нет нового рекорда N тренировок». Более поздние
-  // сессии с меньшим весом потолок не опускают (важно, что выше него не прыгнул).
-  // Поэтому глагол «не растет» (а не «стоит»): корректен и когда результат просел.
-  const ceiling = recent
-    .slice(0, W)
-    .reduce((mx, s) => Math.max(mx, leadingValue(bench.metric, s.sets)), 0)
+  // fb_e87fb37b: раньше текст всегда говорил «4 тренировки», а дата вывода была датой последней тренировки — вывод
+  // всплывал свежим после каждого жима и не менялся, сколько бы раз ни жали. Теперь — настоящее число тренировок
+  // с последнего рекорда, потолок — сам рекорд, дата — тренировка, на которой плато наступило (W-я после рекорда
+  // считая его самого), и id с рекордной сессией: новый рекорд и новое плато — новый вывод.
+  // Гейт — тоже от рекорда: W-1 тренировок подряд его не побили (повтор на том же весе — рост, fb_51c94466).
+  const { since, record } = sinceRecord(recent, bench.metric)
+  if (since < W - 1) return null
+  const n = since // тренировок без роста после рекорда
+  const rec = recent[record] ?? recent[W - 1]
+  const ceiling = leadingValue(bench.metric, rec.sets)
   const ceilingStr = ceiling > 0 ? ` (${fmtMetricValue(bench.metric, ceiling)})` : ''
+  const startedAt = recent[Math.max(0, record - (W - 1))]?.at ?? anchor
   return {
-    id: `ins:plateau:${bench.exId}`,
+    id: `ins:plateau:${bench.exId}:${rec.id ?? 'x'}`,
     kind: 'plateau',
     emoji: '🧗',
     tone: 'warn',
     priority: 65,
-    at: anchor,
-    text: `${bench.name}: результат${ceilingStr} не растет ${W} ${plWorkouts(W)} — попробуй сменить схему`,
+    at: startedAt,
+    text: `${bench.name}: рекорд${ceilingStr} не обновлялся ${n} ${plWorkouts(n)} подряд — попробуй сменить схему`,
   }
 }
 

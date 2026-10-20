@@ -105,7 +105,7 @@ export default function MyFeedbackItem({ row: r, userId, api, online, fresh = fa
             <FeedbackNoteForm
               openLabel="Дополнить"
               label="Что добавить?"
-              placeholder="Например: и еще — то же самое на экране Ленты"
+              placeholder="Например: на экране Ленты то же самое"
               sendLabel="Дописать"
               max={APPEND_MAX}
               problem={appendProblem}
@@ -119,6 +119,7 @@ export default function MyFeedbackItem({ row: r, userId, api, online, fresh = fa
           {canReopen(r) && (
             <FeedbackNoteForm
               openLabel="Не помогло — открыть снова"
+              openClass="fb-reopen-again"
               label="Что не так?"
               placeholder="Например: после обновления подход все равно пропадает"
               sendLabel="Открыть снова"

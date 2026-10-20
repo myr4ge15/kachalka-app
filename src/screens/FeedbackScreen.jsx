@@ -114,11 +114,13 @@ export default function FeedbackScreen({ user, onBack, focusId = null, fromScree
         online: navigator.onLine,
       })
       const paths = await att.readyPaths() // ждем догрузки выбранного (кольца на миниатюрах)
-      const result = await api.submit(user.id, { body: text, context, paths })
+      await api.submit(user.id, { body: text, context, paths })
       if (!alive.current) return
       setText('')
       att.commit()
-      showToast({ emoji: '📨', title: 'Отправлено', sub: result.delivered === false ? 'Сохранено, но доставка разработчику задержалась.' : 'Спасибо! Ответ появится здесь.' })
+      // Обращение уже в базе — его видят Админка и desk; задержка Telegram (а на бете Telegram нет вовсе) участника
+      // не касается, поэтому «доставка задержалась» не пишем (fb_e87fb37b).
+      showToast({ emoji: '📨', title: 'Отправлено', sub: 'Спасибо! Ответ появится здесь.' })
       reload()
     } catch (e) {
       showToast({ emoji: '⚠️', title: 'Не отправилось', sub: e instanceof FeedbackError || e?.message === NOT_READY ? e.message : 'Попробуй еще раз.' })

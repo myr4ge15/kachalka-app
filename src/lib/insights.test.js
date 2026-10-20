@@ -183,6 +183,21 @@ describe('R4 плато в жиме', () => {
     expect(p.text).toContain('80') // показываем застрявший вес
   })
 
+  it('fb_e87fb37b: число — тренировки с рекорда, дата — когда плато наступило; новая тренировка вывод не освежает', () => {
+    // рекорд 60×8 семь тренировок назад (w7), дальше только 60×6–8 — шесть тренировок без роста
+    const sets = [S(60, 6), S(60, 7), S(60, 8), S(60, 6), S(60, 7), S(60, 8), S(60, 8), S(55, 10)]
+    const list = sets.map((x, i) =>
+      wk({ id: 'w' + i, at: daysAgo(i * 3), entries: [{ exId: 'bench', name: 'Жим', bench: true, sets: [x] }] }))
+    const p = buildInsights({ workouts: list, now: NOW, max: 5 }).find((i) => i.kind === 'plateau')
+    expect(p.text).toBe('Жим: рекорд (60 кг) не обновлялся 6 тренировок подряд — попробуй сменить схему')
+    expect(p.at).toBe(list[3].performed_at) // третья после рекорда
+    expect(p.id).toBe('ins:plateau:bench:w6')
+    const more = [wk({ id: 'n', at: daysAgo(-1), entries: [{ exId: 'bench', name: 'Жим', bench: true, sets: [S(60, 5)] }] }), ...list]
+    const q = buildInsights({ workouts: more, now: NOW, max: 5 }).find((i) => i.kind === 'plateau')
+    expect(q.at).toBe(p.at)
+    expect(q.text).toContain('7 тренировок')
+  })
+
   it('растущий вес → нет плато', () => {
     const list = [0, 1, 2, 3].map((i) =>
       wk({ id: 'w' + i, at: daysAgo(i * 3), entries: [{ exId: 'bench', name: 'Жим', bench: true, sets: [S(90 - i * 2, 5)] }] })
