@@ -37,6 +37,7 @@ export default function CommentThread({ workoutId, ownerId, comments, me, open, 
   const [deleting, setDeleting] = useState(false)
   const [editing, setEditing] = useState(null) // свой комментарий в правке
   const [replying, setReplying] = useState(null) // комментарий, на который отвечаем
+  const [replyTick, setReplyTick] = useState(0) // каждый «Ответить»/свайп — снова курсор в поле (fb_244e1492)
   const [edits, setEdits] = useState({}) // id → текст, пока правка уходит на сервер
   const [likes, setLikes] = useState({}) // id → { like_count, liked }, пока ❤️ уходит на сервер
   const [reveal, setReveal] = useState(null)
@@ -71,11 +72,12 @@ export default function CommentThread({ workoutId, ownerId, comments, me, open, 
     el.setSelectionRange?.(el.value.length, el.value.length)
   }, [editing, open])
 
-  // Нажали «Ответить» — курсор в поле (ветка уже раскрыта или раскрывается сейчас).
+  // Нажали «Ответить» — курсор в поле (ветка уже раскрыта или раскрывается сейчас). По replyTick,
+  // а не по replying: повторный свайп при уже выбранном адресате тоже открывает клавиатуру.
   useEffect(() => {
     if (!replying || !open) return
     inputRef.current?.focus({ preventScroll: true })
-  }, [replying, open])
+  }, [replyTick, replying, open])
 
   useLayoutEffect(() => {
     const el = inputRef.current
@@ -139,6 +141,7 @@ export default function CommentThread({ workoutId, ownerId, comments, me, open, 
     setMenu(null)
     if (editing) { setEditing(null); setText('') }
     setReplying(c)
+    setReplyTick((n) => n + 1)
     if (!open) { onOpen?.(); setReveal({}) }
   }
 
@@ -277,7 +280,10 @@ export default function CommentThread({ workoutId, ownerId, comments, me, open, 
             </div>
           )}
           <div className="cm-form" ref={formRef}>
+            {/* key по подсказке: iOS не перерисовывает ширину смененного placeholder — после ответа
+                оставалось «Написать комм» (fb_244e1492). Текст в состоянии, фокус вернет эффект ответа. */}
             <textarea
+              key={replying ? 'reply' : 'comment'}
               ref={inputRef}
               className="cm-input"
               rows={1}

@@ -239,6 +239,16 @@ describe('CommentThread', () => {
     expect(screen.getByRole('textbox', { name: 'Комментарий' })).toHaveFocus()
   })
 
+  it('повторный «Ответить» тому же — снова курсор в поле; отмена ответа — подсказка «Написать комментарий» (fb_244e1492)', () => {
+    renderThread({ open: true, comments: [c('a', 'x')] })
+    fireEvent.click(screen.getByRole('button', { name: 'Ответить: Имя-a' }))
+    screen.getByRole('button', { name: 'Отменить ответ' }).focus() // клавиатуру убрали
+    fireEvent.click(screen.getByRole('button', { name: 'Ответить: Имя-a' }))
+    expect(screen.getByRole('textbox', { name: 'Комментарий' })).toHaveFocus()
+    fireEvent.click(screen.getByRole('button', { name: 'Отменить ответ' }))
+    expect(screen.getByRole('textbox', { name: 'Комментарий' })).toHaveAttribute('placeholder', 'Написать комментарий')
+  })
+
   it('ответ: ошибка — текст и адресат вернулись; ✕ — отмена ответа', async () => {
     postComment.mockRejectedValue(new Error('Нет сети.'))
     renderThread({ open: true, comments: [c('a', 'x')] })

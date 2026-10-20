@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useRef } from 'react'
 import { keyboardAlign, keyboardLift, keyboardOpen } from '../lib/keyboardLift.js'
+import { IS_BETA } from '../lib/appVersion.js'
 
 // Поле над экранной клавиатурой (19.10.2026, fb_9e892d66: тап по 💬 ставил курсор в поле
 // комментария, а клавиатура его закрывала). Вешается на onFocus поля: пока клавиатура
@@ -20,7 +21,7 @@ export function useKeyboardLift(boxRef) {
     // нечего — iOS уводил весь экран вверх, а клавиатура закрывала поле. Лист ужимаем до видимой
     // части над клавиатурой, как в мессенджерах: шапка сверху, поле над клавиатурой, список между.
     const sheet = boxRef.current?.closest('.sheet')
-    if (sheet) { stop.current = fitSheetToKeyboard(sheet, boxRef.current, vv); return }
+    if (sheet) { stop.current = holdSheetAboveKeyboard(sheet, boxRef.current, vv, { debug: IS_BETA }); return }
     let timer = 0
     const lift = () => {
       const box = boxRef.current
@@ -50,36 +51,45 @@ export function useKeyboardLift(boxRef) {
   }, [boxRef])
 }
 
-// Пока клавиатура открыта — содержимое листа ровно в видимой полосе над ней: верхний отступ листа
-// растет на часть, уехавшую вверх (iOS сдвигает видимую область — vv.offsetTop), нижний — на часть,
-// закрытую клавиатурой. Сам лист и подложка остаются во весь экран: в iOS 26 строка «^ v ✓» над
-// клавиатурой прозрачная, и лист, обрезанный по видимой области, показывал сквозь нее карточку под
-// ним (fb_83895083). Закрылась клавиатура — прежние отступы. Слушаем, пока фокус внутри блока поля.
-// Список ветки при первой подгонке прокручиваем к концу: свежие комментарии — над полем.
-// Возвращает функцию остановки (сбрасывает стили).
-export function fitSheetToKeyboard(sheet, box, vv) {
+// Поле в листе во весь экран над клавиатурой (переписано начисто 20.10.2026, fb_244e1492).
+// Видео с iPhone (iOS 26) показало, что прежние варианты воевали с самой iOS: на тап по полю внизу она
+// прокручивает страницу (vv.offsetTop > 0), а мы двигали лист или его отступы на это же смещение —
+// содержимое уезжало вниз под клавиатуру или сверху оставалась пустота.
+// Теперь две простые вещи, без замеров положения листа:
+//  1. прокрутку страницы, которую сделала iOS, сразу отменяем (window.scrollTo(0, 0)) — лист
+//     прибит к верху экрана, шапка на месте;
+//  2. низ листа поднимаем отступом на высоту клавиатуры: --kb = innerHeight − vv.height.
+// Лист и подложка — во весь экран (в iOS 26 строка «^ v ✓» над клавиатурой прозрачная).
+// На бете в углу листа — замеры (vv, offsetTop, scrollY), чтобы следующий шаг был по цифрам.
+// Список при первой подгонке — к концу: свежие комментарии над полем. Возвращает stop().
+export function holdSheetAboveKeyboard(sheet, box, vv, { debug = false } = {}) {
   const overlay = sheet.parentElement
   const scroll = sheet.querySelector('.sheet-scroll')
-  let fitted = false
+  let first = true
   const reset = () => {
-    sheet.style.paddingTop = sheet.style.paddingBottom = ''
     sheet.classList.remove('kb-fit')
-    fitted = false
+    sheet.style.removeProperty('--kb')
+    delete sheet.dataset.kbDebug
+    first = true
+  }
+  const unpan = () => {
+    if (window.scrollY || window.pageYOffset) window.scrollTo(0, 0)
+    if (document.scrollingElement?.scrollTop) document.scrollingElement.scrollTop = 0
+    // iOS докручивает к полю и сами .sheet/.overlay (overflow:hidden этому не мешает).
+    if (sheet.scrollTop) sheet.scrollTop = 0
+    if (overlay?.scrollTop) overlay.scrollTop = 0
   }
   const apply = () => {
     if (!keyboardOpen(vv, window.innerHeight)) { reset(); return }
-    // fb_837481a4: пока выезжает клавиатура, iOS докручивает к полю и сами .sheet/.overlay (overflow:hidden
-    // прокрутке не мешает) — шапка уезжала вверх. Сдвиг сбрасываем до замера: прокручивается только список.
-    sheet.scrollTop = 0
-    if (overlay) overlay.scrollTop = 0
-    const rect = sheet.getBoundingClientRect()
-    const above = Math.max(0, Math.round(vv.offsetTop - rect.top))
-    const below = Math.max(0, Math.round(rect.bottom - (vv.offsetTop + vv.height)))
-    sheet.style.paddingTop = `calc(16px + env(safe-area-inset-top) + ${above}px)`
-    sheet.style.paddingBottom = `${below + 8}px`
+    unpan()
+    const kb = Math.max(0, Math.round(window.innerHeight - vv.height))
+    sheet.style.setProperty('--kb', kb + 'px')
     sheet.classList.add('kb-fit')
-    if (!fitted && scroll) scroll.scrollTop = scroll.scrollHeight
-    fitted = true
+    if (debug) {
+      sheet.dataset.kbDebug = `vv ${Math.round(vv.height)}/${Math.round(vv.offsetTop)} in ${window.innerHeight} sy ${Math.round(window.scrollY)} kb ${kb}`
+    }
+    if (first && scroll) scroll.scrollTop = scroll.scrollHeight
+    first = false
   }
   let left = 0
   const onFocusOut = () => { clearTimeout(left); left = setTimeout(() => { if (!box.contains(document.activeElement)) stop() }, 400) }
@@ -87,11 +97,13 @@ export function fitSheetToKeyboard(sheet, box, vv) {
     clearTimeout(left)
     vv.removeEventListener('resize', apply)
     vv.removeEventListener('scroll', apply)
+    window.removeEventListener('scroll', apply)
     box.removeEventListener('focusout', onFocusOut)
     reset()
   }
   vv.addEventListener('resize', apply)
   vv.addEventListener('scroll', apply)
+  window.addEventListener('scroll', apply)
   box.addEventListener('focusout', onFocusOut)
   apply()
   return stop

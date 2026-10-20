@@ -1,10 +1,10 @@
 // @vitest-environment jsdom
 // Поле в листе во весь экран (ветка комментариев, 20.10.2026, fb_904e3fb8): при открытой
-// клавиатуре содержимое листа — в видимой части над ней — экран не уплывает, поле не под клавиатурой.
+// клавиатуре низ листа поднимается на ее высоту, прокрутка страницы iOS отменяется (переписано 20.10, fb_244e1492).
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { act, fireEvent, render } from '@testing-library/react'
 import { useRef } from 'react'
-import { useKeyboardLift } from './useKeyboardLift.js'
+import { useKeyboardLift, holdSheetAboveKeyboard } from './useKeyboardLift.js'
 
 class FakeVV extends EventTarget {
   constructor() { super(); this.height = 800; this.offsetTop = 0 }
@@ -37,39 +37,44 @@ beforeEach(() => {
 afterEach(() => { vi.useRealTimers(); delete window.visualViewport })
 
 describe('useKeyboardLift — поле в листе', () => {
-  it('клавиатура открылась — содержимое листа в видимой полосе, лист во весь экран; список — к концу', () => {
+  it('клавиатура открылась — низ листа на ее высоту, прокрутка страницы и листа отменена, список к концу', () => {
+    const scrollTo = vi.spyOn(window, 'scrollTo').mockImplementation(() => {})
     const u = render(<Sheet />)
     const scroll = u.getByTestId('scroll')
     Object.defineProperty(scroll, 'scrollHeight', { value: 1500, configurable: true })
     const sheet = u.getByTestId('sheet')
-    sheet.getBoundingClientRect = () => ({ top: 0, bottom: 800, height: 800 })
-    sheet.scrollTop = 200 // iOS докрутил сам лист к полю — шапка уехала (fb_837481a4)
+    sheet.scrollTop = 200 // iOS докрутил сам лист к полю
+    Object.defineProperty(window, 'scrollY', { value: 120, configurable: true }) // и страницу
     fireEvent.focus(u.getByLabelText('Комментарий'))
-    act(() => vv.set(480, 120)) // iOS: видимая часть 480 px, сдвинута на 120 вниз
+    act(() => vv.set(480, 120))
+    expect(scrollTo).toHaveBeenCalledWith(0, 0)
     expect(sheet.scrollTop).toBe(0)
     expect(sheet).toHaveClass('kb-fit')
-    expect(sheet.style.paddingTop).toMatch(/136px|120px/) // 16 + сдвиг 120 (jsdom сворачивает calc)
-    expect(sheet.style.paddingBottom).toBe('208px') // 800 − (120 + 480) + 8
-    // fb_83895083: лист и подложку не обрезаем — сквозь прозрачную строку над клавиатурой видно было карточку
+    expect(sheet.style.getPropertyValue('--kb')).toBe('320px') // 800 − 480, смещение iOS не прибавляем
+    // лист и подложку не трогаем: ни высоты, ни сдвига (в iOS 26 строка над клавиатурой прозрачная)
     expect(sheet.style.height).toBe('')
+    expect(sheet.style.paddingTop).toBe('')
     expect(u.getByTestId('overlay').style.top).toBe('')
     expect(scroll.scrollTop).toBe(1500)
+    scroll.scrollTop = 300 // листали список при открытой клавиатуре — повторный resize его не сбрасывает
+    act(() => vv.set(470, 0))
+    expect(scroll.scrollTop).toBe(300)
+    expect(sheet.style.getPropertyValue('--kb')).toBe('330px')
+    Object.defineProperty(window, 'scrollY', { value: 0, configurable: true })
+    scrollTo.mockRestore()
   })
 
-  it('клавиатура закрылась — прежние отступы', () => {
+  it('клавиатура закрылась — без подъема', () => {
     const u = render(<Sheet />)
     const sheet = u.getByTestId('sheet')
-    sheet.getBoundingClientRect = () => ({ top: 0, bottom: 800, height: 800 })
     fireEvent.focus(u.getByLabelText('Комментарий'))
     act(() => vv.set(480, 0))
-    expect(sheet.style.paddingBottom).toBe('328px')
     act(() => vv.set(800, 0))
-    expect(sheet.style.paddingTop).toBe('')
-    expect(sheet.style.paddingBottom).toBe('')
     expect(sheet).not.toHaveClass('kb-fit')
+    expect(sheet.style.getPropertyValue('--kb')).toBe('')
   })
 
-  it('фокус ушел из поля — стили сброшены, дальнейшие resize ничего не делают', () => {
+  it('фокус ушел из поля — подъем снят, дальнейшие resize ничего не делают', () => {
     const u = render(<Sheet />)
     const field = u.getByLabelText('Комментарий')
     field.focus()
@@ -77,15 +82,27 @@ describe('useKeyboardLift — поле в листе', () => {
     act(() => vv.set(480, 120))
     act(() => { u.getByRole('button', { name: 'мимо' }).focus(); fireEvent.focusOut(field) })
     act(() => { vi.advanceTimersByTime(500) })
-    expect(u.getByTestId('sheet').style.paddingBottom).toBe('')
+    expect(u.getByTestId('sheet')).not.toHaveClass('kb-fit')
     act(() => vv.set(400, 0))
-    expect(u.getByTestId('sheet').style.paddingBottom).toBe('')
+    expect(u.getByTestId('sheet')).not.toHaveClass('kb-fit')
   })
 
   it('без клавиатуры (resize на десктопе) — ничего не меняем', () => {
     const u = render(<Sheet />)
     fireEvent.focus(u.getByLabelText('Комментарий'))
     act(() => vv.set(760, 0)) // меньше 15 % — не клавиатура
-    expect(u.getByTestId('sheet').style.paddingBottom).toBe('')
+    expect(u.getByTestId('sheet')).not.toHaveClass('kb-fit')
+  })
+})
+
+describe('holdSheetAboveKeyboard — замеры на бете', () => {
+  it('debug — строка с vv, offsetTop, innerHeight, scrollY и высотой клавиатуры; снимается при закрытии', () => {
+    const u = render(<Sheet />)
+    const sheet = u.getByTestId('sheet')
+    const stop = holdSheetAboveKeyboard(sheet, sheet, vv, { debug: true })
+    act(() => vv.set(480, 120))
+    expect(sheet.dataset.kbDebug).toBe('vv 480/120 in 800 sy 0 kb 320')
+    stop()
+    expect(sheet.dataset.kbDebug).toBeUndefined()
   })
 })
