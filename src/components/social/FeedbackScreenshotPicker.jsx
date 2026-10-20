@@ -30,9 +30,13 @@ export default function FeedbackScreenshotPicker({ files, onChange, disabled, ma
             <span className="fb-shot-tag">▶ Видео{file.size ? ' · ' + fmtFileSize(file.size) : ''}</span>
           </div>
           : <img src={urls[n]} alt={files.length === 1 ? 'Скриншот к обращению' : 'Скриншот к обращению ' + (n + 1)} />}
-        <button type="button" className="btn ghost" disabled={disabled}
+        {/* Крестик в углу миниатюры (20.10.2026, fb_7e661cff) вместо кнопки «Убрать» под ней. */}
+        <button type="button" className="fb-shot-rm" disabled={disabled}
           onClick={() => { setError(''); onChange(files.filter((_, i) => i !== n)) }}
-          aria-label={files.length === 1 ? 'Убрать скриншот' : 'Убрать скриншот ' + (n + 1)}>Убрать</button>
+          aria-label={files.length === 1 ? 'Убрать скриншот' : 'Убрать скриншот ' + (n + 1)}>
+          <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" strokeWidth="2.6"
+            strokeLinecap="round" aria-hidden="true"><path d="M6 6l12 12M18 6L6 18" /></svg>
+        </button>
       </div>)}
     </div>
     <button type="button" className="btn ghost fb-attach" disabled={disabled || files.length >= max}

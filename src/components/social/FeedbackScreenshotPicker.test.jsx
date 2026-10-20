@@ -39,6 +39,16 @@ describe('FeedbackScreenshotPicker', () => {
     expect(onChange).not.toHaveBeenCalled()
   })
 
+  it('убрать — крестик в углу самой миниатюры, без текста (fb_7e661cff), а не кнопка «Убрать» под ней', () => {
+    render(<FeedbackScreenshotPicker files={[png()]} onChange={vi.fn()} />)
+    const rm = screen.getByRole('button', { name: 'Убрать скриншот' })
+    expect(rm).toHaveClass('fb-shot-rm')
+    expect(rm.textContent).toBe('') // только значок ✕
+    expect(rm.querySelector('svg')).not.toBeNull()
+    expect(rm.parentElement).toContainElement(screen.getByAltText('Скриншот к обращению')) // в той же карточке, что и картинка
+    expect(screen.queryByText('Убрать')).toBeNull()
+  })
+
   it('видео — плашка с размером; «Убрать» убирает нужное; на лимите «Добавить еще» неактивна', () => {
     const onChange = vi.fn()
     render(<FeedbackScreenshotPicker files={[png(), mp4()]} max={2} onChange={onChange} />)

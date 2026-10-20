@@ -1900,8 +1900,11 @@ img.avatar-lg.has-img {
 .cm-strip-avs .avatar-sm + .avatar-sm { margin-left: -8px; }
 .cm-strip-txt { flex: 1; min-width: 0; }
 .cm-strip-chev { flex: none; color: var(--muted); }
-.cm-sheet .cm { margin-top: 0; padding-top: 0; border-top: 0; }
-.cm-sheet .cm-form { position: sticky; bottom: 0; background: var(--bg); padding-bottom: 6px; }
+/* Ветка во весь экран: блок ввода прижат к низу и при коротком списке (fb_7b5cda99), при длинном — прилипает. */
+.cm-sheet .sheet-scroll { display: flex; flex-direction: column; }
+.cm-sheet .cm { flex: 1 0 auto; display: flex; flex-direction: column; margin-top: 0; padding-top: 0; border-top: 0; }
+.cm-sheet .cm-compose { margin-top: auto; position: sticky; bottom: 0; padding: 8px 0 6px; background: var(--bg); }
+.cm-sheet .cm-offline { margin-top: auto; }
 .cm-item { display: grid; grid-template-columns: 26px minmax(0, 1fr) auto; column-gap: 10px; padding: 8px 0; align-items: start; }
 .cm-item .avatar-sm { margin-top: 1px; }
 .cm-item.pending { opacity: .55; }
@@ -4643,6 +4646,14 @@ img.has-img, .avatar-lightbox-img { -webkit-touch-callout: none; -webkit-user-dr
 }
 .feedback-screen .fb-filter { margin-bottom: 10px; }
 .fb-empty { margin: 4px 2px; }
-.fb-picker .fb-shot { width: 120px; margin: 0; }
+.fb-picker .fb-shot { position: relative; width: 120px; margin: 0; }
+/* Убрать вложение — крестик в углу миниатюры (fb_7e661cff); зона нажатия 44px — невидимым слоем. */
+.fb-shot-rm {
+  position: absolute; top: 6px; right: 6px; z-index: 1; display: grid; place-items: center; width: 28px; height: 28px;
+  padding: 0; border: 0; border-radius: 50%; background: color-mix(in srgb, var(--bg) 78%, transparent);
+  color: var(--text); cursor: pointer;
+}
+.fb-shot-rm::before { content: ''; position: absolute; inset: -8px; }
+.fb-shot-rm:disabled { opacity: .4; cursor: default; }
 .fb-picker .fb-shot img { width: 100%; height: 120px; object-fit: contain; }
 .fb-picker .btn { min-height: 44px; }

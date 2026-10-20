@@ -51,6 +51,16 @@ describe('WorkoutSocial — строка комментариев', () => {
     expect(screen.queryByRole('dialog', { name: 'Комментарии' })).toBeNull()
   })
 
+  it('в листе блок ввода — одним узлом внизу ветки (его прижимает CSS), без подписи «Видят все…»', () => {
+    renderSocial()
+    fireEvent.click(screen.getByRole('button', { name: '4 комментария' }))
+    const sheet = screen.getByRole('dialog', { name: 'Комментарии' })
+    const compose = sheet.querySelector('.cm-compose')
+    expect(compose).toContainElement(within(sheet).getByLabelText('Комментарий'))
+    expect(compose.parentElement.lastElementChild).toBe(compose) // после всех комментариев
+    expect(within(sheet).queryByText(/Видят все/)).toBeNull()
+  })
+
   it('комментариев нет — «Оставить комментарий», лист сразу с курсором в поле', () => {
     render(<WorkoutSocial workout={workout([])} me={me} isMe={false} onReact={vi.fn()} />)
     fireEvent.click(screen.getByRole('button', { name: 'Оставить комментарий' }))

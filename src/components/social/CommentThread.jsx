@@ -253,7 +253,8 @@ export default function CommentThread({ workoutId, ownerId, comments, me, open, 
       )}
 
       {open && (online ? (
-        <>
+        // Блок ввода — одним узлом: в листе ветки (WorkoutSocial) он прижат к низу экрана (fb_7b5cda99).
+        <div className="cm-compose">
           {editing && (
             <div className="cm-editing">
               <span>Изменяешь комментарий</span>
@@ -286,13 +287,14 @@ export default function CommentThread({ workoutId, ownerId, comments, me, open, 
                     strokeLinecap="round" strokeLinejoin="round" aria-hidden="true"><path d="M12 19V5" /><path d="M6 11l6-6 6 6" /></svg>}
             </button>
           </div>
-          <div className="cm-hint">
-            <span>Видят все, кто видит эту тренировку</span>
-            {body.length >= COMMENT_COUNTER_FROM && (
+          {/* Подпись «Видят все, кто видит эту тренировку» убрана (20.10.2026, просьба владельца) —
+              строка только со счетчиком знаков, когда до предела близко. */}
+          {body.length >= COMMENT_COUNTER_FROM && (
+            <div className="cm-hint">
               <span className={`cm-count${body.length > COMMENT_MAX ? ' over' : ''}`}>{body.length} / {COMMENT_MAX}</span>
-            )}
-          </div>
-        </>
+            </div>
+          )}
+        </div>
       ) : (
         <div className="cm-offline" role="status">📡 Нет сети — комментарии только читать</div>
       ))}
