@@ -14,12 +14,14 @@ import {
 } from '../lib/feedback.js'
 import {
   ackMyFeedback, appendFeedback, feedbackMedia, listMyFeedback, reopenFeedback, submitFeedback as defaultSubmit,
-  FeedbackError, attachFeedbackScreenshots,
+  FeedbackError, attachUploadedScreenshots, discardAttachments, uploadAttachment,
 } from '../lib/feedbackApi.js'
+import { useAttachments, NOT_READY } from '../hooks/useAttachments.js'
 
+// Вложения грузятся сразу после выбора (upload/discard, 20.10.2026); submit и attach получают пути.
 const defaultApi = {
   submit: defaultSubmit, list: listMyFeedback, ack: ackMyFeedback, reopen: reopenFeedback, media: feedbackMedia,
-  append: appendFeedback, attach: attachFeedbackScreenshots,
+  append: appendFeedback, attach: attachUploadedScreenshots, upload: uploadAttachment, discard: discardAttachments,
 }
 
 // «Написать разработчику» (v6.11.0, Профиль → Настройки). Обращение уходит
@@ -30,9 +32,8 @@ const defaultApi = {
 export default function FeedbackScreen({ user, onBack, focusId = null, fromScreen = null, api = defaultApi }) {
   const { online } = useSyncStatus()
   const [text, setText] = useState('')
-  const [files, setFiles] = useState([])
+  const att = useAttachments(user.id, api)
   const [busy, setBusy] = useState(false)
-  const [progress, setProgress] = useState(null) // { loaded, total } вложений, пока идет отправка
   const [list, setList] = useState(null)
   const [loadErr, setLoadErr] = useState('')
   // Какие ответы были непрочитаны на момент открытия: метку «новый» держим до
@@ -112,16 +113,17 @@ export default function FeedbackScreen({ user, onBack, focusId = null, fromScree
         screen: fromScreen ?? 'profile',
         online: navigator.onLine,
       })
-      const result = await api.submit(user.id, { body: text, context, files, onProgress: (p) => { if (alive.current) setProgress(p) } })
+      const paths = await att.readyPaths() // ждем догрузки выбранного (кольца на миниатюрах)
+      const result = await api.submit(user.id, { body: text, context, paths })
       if (!alive.current) return
       setText('')
-      setFiles([])
+      att.commit()
       showToast({ emoji: '📨', title: 'Отправлено', sub: result.delivered === false ? 'Сохранено, но доставка разработчику задержалась.' : 'Спасибо! Ответ появится здесь.' })
       reload()
     } catch (e) {
-      showToast({ emoji: '⚠️', title: 'Не отправилось', sub: e instanceof FeedbackError ? e.message : 'Попробуй еще раз.' })
+      showToast({ emoji: '⚠️', title: 'Не отправилось', sub: e instanceof FeedbackError || e?.message === NOT_READY ? e.message : 'Попробуй еще раз.' })
     } finally {
-      if (alive.current) { setBusy(false); setProgress(null) }
+      if (alive.current) setBusy(false)
     }
   }
 
@@ -154,15 +156,16 @@ export default function FeedbackScreen({ user, onBack, focusId = null, fromScree
           {len} / {FEEDBACK_MAX}
         </div>
 
-        <FeedbackScreenshotPicker files={files} onChange={setFiles} disabled={busy} />
+        <FeedbackScreenshotPicker items={att.items} onAdd={att.add} onRemove={att.remove} onRetry={att.retry}
+          disabled={busy || !online} />
 
         <p className="admin-hint">
           К сообщению приложим версию приложения и модель телефона — так быстрее разобраться.
         </p>
         {!online && <p className="admin-offline" role="status">Нет связи. Отправить можно будет онлайн.</p>}
-        {busy && <UploadProgress progress={progress} />}
+        {busy && att.progress && <UploadProgress progress={att.progress} />}
         <button className="btn primary" onClick={send} disabled={busy || !!problem || !online}>
-          {busy ? <BusyText>Отправляю</BusyText> : 'Отправить'}
+          {busy ? <BusyText>{att.uploading ? 'Догружаю' : 'Отправляю'}</BusyText> : 'Отправить'}
         </button>
       </section>
 

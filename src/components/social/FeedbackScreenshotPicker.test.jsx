@@ -1,46 +1,52 @@
 // @vitest-environment jsdom
-// Вложения обращения (покрытие тестами 20.10.2026: ветки 63 %): кнопка открывает выбор,
-// неподходящий файл и перебор — понятная ошибка; видео — плашка с размером; «Убрать».
+// Вложения обращения: кнопка открывает выбор, неподходящий файл и перебор — понятная ошибка;
+// предзагрузка (20.10.2026): кольцо с процентами, ✓ готово, «Повторить», кадр видео; крестик.
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { fireEvent, render, screen } from '@testing-library/react'
 import FeedbackScreenshotPicker from './FeedbackScreenshotPicker.jsx'
 
 const png = (n = 'a.png') => new File(['x'], n, { type: 'image/png' })
 const mp4 = (size = 3 * 1024 * 1024) => { const f = new File(['x'], 'v.mp4', { type: 'video/mp4' }); Object.defineProperty(f, 'size', { value: size }); return f }
+let seq = 0
+const item = (file, over = {}) => ({
+  key: 'k' + ++seq, file, video: file.type.startsWith('video/'), status: 'done', loaded: file.size, total: file.size,
+  path: 'me/x', poster: null, error: '', ...over,
+})
+const props = (over = {}) => ({ items: [], onAdd: vi.fn(), onRemove: vi.fn(), onRetry: vi.fn(), ...over })
 
 beforeEach(() => { URL.createObjectURL = vi.fn(() => 'blob:x'); URL.revokeObjectURL = vi.fn() })
 afterEach(() => vi.clearAllMocks())
 
 describe('FeedbackScreenshotPicker', () => {
   it('«Приложить» открывает выбор; выбранные уходят наверх', () => {
-    const onChange = vi.fn()
-    render(<FeedbackScreenshotPicker files={[]} onChange={onChange} />)
+    const p = props()
+    render(<FeedbackScreenshotPicker {...p} />)
     const input = screen.getByTestId('fb-file')
     const click = vi.spyOn(input, 'click')
     fireEvent.click(screen.getByRole('button', { name: /Приложить скриншоты или видео/ }))
     expect(click).toHaveBeenCalled()
     fireEvent.change(input, { target: { files: [png(), png('b.png')] } })
-    expect(onChange).toHaveBeenCalledWith([expect.any(File), expect.any(File)])
+    expect(p.onAdd).toHaveBeenCalledWith([expect.any(File), expect.any(File)])
   })
 
   it('больше лимита — «Можно добавить еще N», без изменения', () => {
-    const onChange = vi.fn()
-    render(<FeedbackScreenshotPicker files={[png(), png()]} max={3} onChange={onChange} />)
+    const p = props({ items: [item(png()), item(png())], max: 3 })
+    render(<FeedbackScreenshotPicker {...p} />)
     fireEvent.change(screen.getByTestId('fb-file'), { target: { files: [png(), png()] } })
     expect(screen.getByRole('alert')).toHaveTextContent('Можно добавить еще 1 вложений.')
-    expect(onChange).not.toHaveBeenCalled()
+    expect(p.onAdd).not.toHaveBeenCalled()
   })
 
   it('не картинка и не видео — ошибка с причиной', () => {
-    const onChange = vi.fn()
-    render(<FeedbackScreenshotPicker files={[]} onChange={onChange} />)
+    const p = props()
+    render(<FeedbackScreenshotPicker {...p} />)
     fireEvent.change(screen.getByTestId('fb-file'), { target: { files: [new File(['x'], 'a.pdf', { type: 'application/pdf' })] } })
     expect(screen.getByRole('alert')).not.toBeEmptyDOMElement()
-    expect(onChange).not.toHaveBeenCalled()
+    expect(p.onAdd).not.toHaveBeenCalled()
   })
 
   it('убрать — крестик в углу самой миниатюры, без текста (fb_7e661cff), а не кнопка «Убрать» под ней', () => {
-    render(<FeedbackScreenshotPicker files={[png()]} onChange={vi.fn()} />)
+    render(<FeedbackScreenshotPicker {...props({ items: [item(png())] })} />)
     const rm = screen.getByRole('button', { name: 'Убрать скриншот' })
     expect(rm).toHaveClass('fb-shot-rm')
     expect(rm.textContent).toBe('') // только значок ✕
@@ -49,13 +55,51 @@ describe('FeedbackScreenshotPicker', () => {
     expect(screen.queryByText('Убрать')).toBeNull()
   })
 
-  it('видео — плашка с размером; «Убрать» убирает нужное; на лимите «Добавить еще» неактивна', () => {
-    const onChange = vi.fn()
-    render(<FeedbackScreenshotPicker files={[png(), mp4()]} max={2} onChange={onChange} />)
+  it('видео без кадра — плашка с размером; крестик убирает нужное; на лимите «Добавить еще» неактивна', () => {
+    const a = item(png()), v = item(mp4())
+    const p = props({ items: [a, v], max: 2 })
+    render(<FeedbackScreenshotPicker {...p} />)
     expect(screen.getByLabelText('Видео к обращению 2')).toBeInTheDocument()
     expect(screen.getByText(/▶ Видео · 3/)).toBeInTheDocument()
     expect(screen.getByRole('button', { name: /Добавить еще/ })).toBeDisabled()
     fireEvent.click(screen.getByRole('button', { name: 'Убрать скриншот 1' }))
-    expect(onChange).toHaveBeenCalledWith([expect.objectContaining({ name: 'v.mp4' })])
+    expect(p.onRemove).toHaveBeenCalledWith(a.key)
+  })
+
+  it('видео с кадром — картинкой, а не черным <video>', () => {
+    const { container } = render(<FeedbackScreenshotPicker {...props({ items: [item(mp4(), { poster: 'data:image/jpeg;base64,AA' })] })} />)
+    expect(screen.getByAltText('Видео к обращению')).toHaveAttribute('src', 'data:image/jpeg;base64,AA')
+    expect(container.querySelector('video')).toBeNull()
+  })
+
+  it('загрузка видео — кольцо с процентами; картинки — без процентов; готово — ✓', () => {
+    const v = item(mp4(1000), { status: 'uploading', loaded: 420, total: 1000 })
+    const i = item(png(), { status: 'uploading', loaded: 0 })
+    const d = item(png())
+    render(<FeedbackScreenshotPicker {...props({ items: [v, i, d] })} />)
+    expect(screen.getByRole('status', { name: 'Загружается 1: 42%' })).toHaveTextContent('42%')
+    expect(screen.getByRole('status', { name: 'Загружается 2' })).toHaveTextContent('')
+    expect(screen.getByRole('img', { name: 'Загружено 3' }).querySelector('svg')).not.toBeNull()
+    // крестик работает и во время загрузки
+    expect(screen.getByRole('button', { name: 'Убрать скриншот 1' })).toBeEnabled()
+  })
+
+  it('ошибка загрузки — «Повторить» зовет onRetry с ключом', () => {
+    const e = item(png(), { status: 'error', error: 'Не загрузилось' })
+    const p = props({ items: [e] })
+    render(<FeedbackScreenshotPicker {...p} />)
+    fireEvent.click(screen.getByRole('button', { name: 'Повторить загрузку' }))
+    expect(p.onRetry).toHaveBeenCalledWith(e.key)
+  })
+
+  it('ссылки на картинки освобождаются, когда картинку убрали и при уходе', () => {
+    const a = item(png()), b = item(png())
+    const { rerender, unmount } = render(<FeedbackScreenshotPicker {...props({ items: [a, b] })} />)
+    expect(URL.createObjectURL).toHaveBeenCalledTimes(2)
+    rerender(<FeedbackScreenshotPicker {...props({ items: [b] })} />)
+    expect(URL.revokeObjectURL).toHaveBeenCalledTimes(1)
+    expect(URL.createObjectURL).toHaveBeenCalledTimes(2) // оставшейся новую ссылку не делаем
+    unmount()
+    expect(URL.revokeObjectURL).toHaveBeenCalledTimes(2)
   })
 })

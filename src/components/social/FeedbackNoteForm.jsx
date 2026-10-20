@@ -5,6 +5,7 @@ import UploadProgress from './UploadProgress.jsx'
 import FeedbackScreenshotPicker from './FeedbackScreenshotPicker.jsx'
 import { cleanBody } from '../../lib/feedback.js'
 import { FeedbackError } from '../../lib/feedbackApi.js'
+import { useAttachments } from '../../hooks/useAttachments.js'
 
 // Короткий комментарий к своему обращению — кнопка раскрывается в поле с «Отправить»
 // и «Отмена». Одна форма на два случая экрана «Обратная связь»:
@@ -12,31 +13,34 @@ import { FeedbackError } from '../../lib/feedbackApi.js'
 //   «Дополнить» (v8.6.0) — к открытому, статус не меняется.
 // Пропсы: openLabel, label, placeholder, sendLabel, max, problem(text) → код|null,
 // send(text) → Promise, done: { emoji, title, sub } для тоста, online, onDone().
-// attach (16.10, fb_a4e36c94: в «Дополнить» не приложить скриншот) — { max, send(files),
-// textOptional, testId }: вложения прямо в форме; textOptional — можно без текста, одни файлы.
+// attach (16.10, fb_a4e36c94: в «Дополнить» не приложить скриншот) — { max, send(paths),
+// textOptional, testId, userId, api: {upload, discard} }: вложения прямо в форме, грузятся сразу
+// после выбора (20.10, useAttachments); textOptional — можно без текста, одни файлы.
 export default function FeedbackNoteForm({
   openLabel, label, placeholder, sendLabel, max, problem: problemOf, send, done, online, onDone, attach = null,
 }) {
   const [open, setOpen] = useState(false)
   const [note, setNote] = useState('')
-  const [files, setFiles] = useState([])
+  const att = useAttachments(attach?.userId, attach?.api)
   const [busy, setBusy] = useState(false)
-  const [progress, setProgress] = useState(null) // { loaded, total } вложений
   const len = cleanBody(note).length
-  const filesOnly = !!attach?.textOptional && files.length > 0 && len === 0
+  const filesOnly = !!attach?.textOptional && att.items.length > 0 && len === 0
   const problem = filesOnly ? null : problemOf(note)
 
-  function close() { setOpen(false); setNote(''); setFiles([]) }
+  // Отмена — загруженное удаляется; после отправки (commit) файлы уже принадлежат обращению.
+  function close({ sent = false } = {}) { setOpen(false); setNote(''); if (sent) att.commit(); else att.clear() }
 
   async function submit() {
     if (busy || problem || !online) return
     setBusy(true)
     let textSent = false
     try {
+      // Сначала догрузка вложений: не загрузилось — не шлем и текст, чтобы не было «половины».
+      const paths = att.items.length ? await att.readyPaths() : null
       if (!filesOnly) { await send(note); textSent = true; setNote('') }
-      if (files.length) await attach.send(files, setProgress)
+      if (paths) await attach.send(paths)
       showToast(done)
-      close()
+      close({ sent: true })
       onDone?.()
     } catch (e) {
       // Текст уже ушел, файлы — нет: выбор файлов остается, повторно уйдут только они.
@@ -45,7 +49,6 @@ export default function FeedbackNoteForm({
       if (textSent) onDone?.()
     } finally {
       setBusy(false)
-      setProgress(null)
     }
   }
 
@@ -65,15 +68,15 @@ export default function FeedbackNoteForm({
       </label>
       <div className={'fb-count' + (len > max ? ' over' : '')} aria-live="polite">{len} / {max}</div>
       {attach && attach.max > 0 && (
-        <FeedbackScreenshotPicker files={files} onChange={setFiles} disabled={busy || !online} max={attach.max}
-          testId={attach.testId} />
+        <FeedbackScreenshotPicker items={att.items} onAdd={att.add} onRemove={att.remove} onRetry={att.retry}
+          disabled={busy || !online} max={attach.max} testId={attach.testId} />
       )}
-      {busy && <UploadProgress progress={progress} />}
+      {busy && att.progress && <UploadProgress progress={att.progress} />}
       <div className="invite-fresh-actions">
         <button className="btn primary" onClick={submit} disabled={busy || !!problem || !online}>
-          {busy ? <BusyText>Отправляю</BusyText> : sendLabel}
+          {busy ? <BusyText>{att.uploading ? 'Догружаю' : 'Отправляю'}</BusyText> : sendLabel}
         </button>
-        <button className="btn ghost" onClick={close} disabled={busy}>Отмена</button>
+        <button className="btn ghost" onClick={() => close()} disabled={busy}>Отмена</button>
       </div>
     </div>
   )

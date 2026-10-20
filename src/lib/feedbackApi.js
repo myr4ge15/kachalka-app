@@ -120,17 +120,20 @@ function newId() {
 // Отправить обращение. file — необязательный скриншот (File/Blob картинки).
 // onProgress({ loaded, total }) — байты вложений (видео — по мере отправки, картинка — целиком по готовности).
 // Возвращает { id, delivered } (delivered=false — записано, но Telegram не ответил).
+// paths (20.10.2026) — вложения, уже загруженные uploadAttachment (предзагрузка в форме): тогда здесь
+// только текст и пути, без загрузки.
 export async function submitFeedback(userId, {
-  body, context, file = null, files = null, compress = compressToJpeg, onProgress = null, uploadVideo = xhrUpload,
+  body, context, file = null, files = null, paths = null, compress = compressToJpeg, onProgress = null, uploadVideo = xhrUpload,
 } = {}) {
   const problem = bodyProblem(body)
   if (problem) throw new FeedbackError(problem)
   if (isOffline()) throw new FeedbackError('offline')
   if (!await hasSession(userId)) throw new FeedbackError('no_session')
 
-  const shots = await uploadScreenshots(userId, files ?? (file ? [file] : []), { compress, onProgress, uploadVideo })
-  const res = await callFn({ action: files ? 'submit_screenshots' : 'submit', body: cleanBody(body), context: context ?? {},
-    ...(files ? { screenshots: shots } : { screenshot: shots[0] ?? null }) })
+  const many = Boolean(files || paths)
+  const shots = paths ?? await uploadScreenshots(userId, files ?? (file ? [file] : []), { compress, onProgress, uploadVideo })
+  const res = await callFn({ action: many ? 'submit_screenshots' : 'submit', body: cleanBody(body), context: context ?? {},
+    ...(many ? { screenshots: shots } : { screenshot: shots[0] ?? null }) })
   return { id: res.id, delivered: res.delivered !== false }
 }
 
@@ -274,6 +277,46 @@ function xhrUpload(path, blob, contentType, onBytes) {
     arm()
     xhr.send(blob)
   }))
+}
+
+// Одно вложение в Storage сразу после выбора (20.10.2026, предзагрузка): картинка — сжатием в JPEG,
+// видео — как есть через XHR с прогрессом (onBytes). Возвращает путь `<userId>/<uuid>.<ext>` —
+// его потом получат submit/attach. Ошибка — FeedbackError с понятным кодом.
+export async function uploadAttachment(userId, file, { compress = compressToJpeg, onBytes = null, uploadVideo = xhrUpload } = {}) {
+  if (isOffline()) throw new FeedbackError('offline')
+  if (!await hasSession(userId)) throw new FeedbackError('no_session')
+  const problem = isVideoFile(file) ? attachmentProblem(file) : null // картинки решает сжатие
+  if (problem) throw new FeedbackError(problem)
+  const ext = videoExt(file)
+  const path = userId + '/' + newId() + '.' + (ext ?? 'jpg')
+  try {
+    if (ext) {
+      await uploadVideo(path, file, ext === 'mov' ? 'video/quicktime' : 'video/mp4', (b) => onBytes?.(b))
+    } else {
+      const blob = await compress(file, SHOT_MAX_PX, SHOT_QUALITY)
+      const up = await withTimeout(supabase.storage.from('feedback').upload(path, blob, { upsert: false, contentType: 'image/jpeg' }))
+      if (up?.error) throw up.error
+    }
+  } catch (e) {
+    throw e instanceof FeedbackError ? e : new FeedbackError(ext ? 'video_failed' : 'shot_failed')
+  }
+  return path
+}
+
+// Убрать загруженные, но не отправленные вложения (убрали из формы, ушли с экрана). Тихо: не вышло —
+// подчистит плановая уборка на сервере (Edge feedback-cleanup, раз в час, старше суток).
+export async function discardAttachments(paths) {
+  const list = (paths ?? []).filter(Boolean)
+  if (!list.length) return
+  try { await withTimeout(supabase.storage.from('feedback').remove(list)) } catch { /* уборка сервера */ }
+}
+
+// Дополнить обращение уже загруженными вложениями (предзагрузка, 20.10.2026).
+export async function attachUploadedScreenshots(userId, id, paths) {
+  if (isOffline()) throw new FeedbackError('offline')
+  if (!await hasSession(userId)) throw new FeedbackError('no_session')
+  if (!paths?.length) throw new FeedbackError('shot_failed')
+  return callFn({ action: 'attach', id, screenshots: paths })
 }
 
 async function uploadScreenshots(userId, files, { compress = compressToJpeg, onProgress = null, uploadVideo = xhrUpload } = {}) {

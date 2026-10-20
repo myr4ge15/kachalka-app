@@ -4657,3 +4657,34 @@ img.has-img, .avatar-lightbox-img { -webkit-touch-callout: none; -webkit-user-dr
 .fb-shot-rm:disabled { opacity: .4; cursor: default; }
 .fb-picker .fb-shot img { width: 100%; height: 120px; object-fit: contain; }
 .fb-picker .btn { min-height: 44px; }
+/* Предзагрузка вложений (20.10.2026): кольцо с процентами поверх миниатюры, ✓ готово, «Повторить». */
+.fb-shot-plate {
+  height: 120px; border-radius: 12px; border: 1px solid var(--border); background: var(--bg);
+  display: grid; place-items: center; color: var(--muted); font-size: 26px;
+}
+.fb-shot-state {
+  position: absolute; left: 0; right: 0; top: 0; height: 120px; display: grid; place-items: center;
+  border-radius: 12px; background: color-mix(in srgb, var(--bg) 55%, transparent); color: var(--text);
+}
+.fb-shot-state > * { grid-area: 1 / 1; }
+.fb-shot-pct { font-size: 11px; font-weight: 700; }
+.fb-ring { transform: rotate(-90deg); }
+.fb-ring circle { fill: none; stroke-width: 4; }
+.fb-ring-track { stroke: color-mix(in srgb, var(--text) 20%, transparent); }
+.fb-ring-arc { stroke: var(--acc); stroke-linecap: round; transition: stroke-dashoffset .2s linear; }
+.fb-ring.spin { animation: fb-ring-spin 1s linear infinite; }
+@keyframes fb-ring-spin { to { transform: rotate(270deg); } }
+.fb-shot-ok {
+  position: absolute; left: 6px; top: 6px; width: 22px; height: 22px; display: grid; place-items: center;
+  border-radius: 50%; background: var(--green); color: var(--bg); font-size: 13px; font-weight: 800; pointer-events: none;
+}
+.fb-shot-retry {
+  border: 0; padding: 0; font: inherit; cursor: pointer; display: flex; flex-direction: column; align-items: center;
+  justify-content: center; gap: 2px; font-size: 22px; color: var(--red);
+  background: color-mix(in srgb, var(--bg) 70%, transparent);
+}
+.fb-shot-retry span { font-size: 12px; font-weight: 600; color: var(--text); }
+@media (prefers-reduced-motion: reduce) {
+  .fb-ring.spin { animation: none; }
+  .fb-ring-arc { transition: none; }
+}
