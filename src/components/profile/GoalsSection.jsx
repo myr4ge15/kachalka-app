@@ -201,7 +201,9 @@ export default function GoalsSection({ userId, goals, records, workouts }) {
                 <div className="goal-editor-ex">{edName}</div>
               </div>
             )}
-            <label className="field">
+            {/* div, а не label: первый «подписываемый» элемент внутри — кнопка «−» степпера, и тап по
+                подписи «Целевой вес» уменьшал цель, а скринридер читал «−» как подпись (20.10.2026). */}
+            <div className="field">
               <span className="field-lab">
                 {edMetric === 'time' ? 'Цель (время)' : edMetric === 'reps' ? 'Цель (повторения)' : 'Целевой вес'}
               </span>
@@ -261,9 +263,9 @@ export default function GoalsSection({ userId, goals, records, workouts }) {
                   <span className="u">мин:сек</span>
                 </GoalStepper>
               )}
-            </label>
+            </div>
             {edMetric === 'weight' && (
-              <label className="field">
+              <div className="field">
                 <span className="field-lab">Повторения при этом весе <span className="muted">(необязательно)</span></span>
                 <GoalStepper
                   onDec={() => setEdReps((v) => Math.max(0, Math.round(Number(v) || 0) - 1))}
@@ -281,7 +283,7 @@ export default function GoalsSection({ userId, goals, records, workouts }) {
                   />
                   <span className="u">повт.</span>
                 </GoalStepper>
-              </label>
+              </div>
             )}
             <div className="goal-editor-actions">
               {!edIsNew && (

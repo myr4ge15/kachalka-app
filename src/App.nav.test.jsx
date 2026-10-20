@@ -50,6 +50,10 @@ vi.mock('./screens/FriendsScreen.jsx', () => stub('friends'))
 vi.mock('./db/friends.js', () => ({ refreshFriends: vi.fn(), getFriends: vi.fn(async () => null) }))
 vi.mock('./screens/LoginScreen.jsx', () => stub('login'))
 vi.mock('./screens/InviteScreen.jsx', () => stub('invite'))
+vi.mock('./screens/ResetPinScreen.jsx', () => stub('reset'))
+vi.mock('./screens/LoginSetupScreen.jsx', () => stub('loginsetup'))
+const loginSetupState = vi.hoisted(() => ({ needed: false }))
+vi.mock('./hooks/useLoginSetup.js', () => ({ useLoginSetup: () => ({ needed: loginSetupState.needed, done: vi.fn() }) }))
 
 let mockUser = { id: 'me', name: 'Саня', role: 'admin' }
 vi.mock('./hooks/useSession.js', () => ({
@@ -352,5 +356,64 @@ describe('App: пуш при холодном старте', () => {
     render(<App />)
     await waitFor(() => expect(current()).toBe('friends'))
     expect(window.location.search).toBe('')
+  })
+})
+
+// Ссылка открыта во вкладке, где приложение уже загружено: меняется только фрагмент
+// (hashchange), страница не перезагружается (покрытие тестами 20.10.2026). Код или токен
+// подхватываем и сразу стираем из адреса.
+describe('App: ссылки при уже открытом приложении', () => {
+  const TOKEN = 'A'.repeat(43)
+  const go = async (hash) => {
+    await act(async () => {
+      window.history.replaceState(null, '', '/kachalka-app/' + hash)
+      window.dispatchEvent(new HashChangeEvent('hashchange'))
+    })
+  }
+  const shown = () => document.querySelector('[data-testid^="screen-"]')?.dataset.testid.slice(7)
+
+  it('без учетки: #friend=, #join=, #reset=, #invite= — свой экран, адрес чистый', async () => {
+    mockUser = null
+    render(<App />)
+    await screen.findByTestId('screen-login')
+    await go('#friend=7f3q-9xwd')
+    expect(shown()).toBe('invite')
+    expect(seen.invite.friend).toBe('7F3Q9XWD')
+    expect(window.location.hash).toBe('')
+    act(() => seen.invite.onCancel())
+    await go('#join=7F3Q9XWD')
+    expect(seen.invite.code).toBe('7F3Q9XWD')
+    act(() => seen.invite.onCancel())
+    await go('#reset=' + TOKEN)
+    expect(shown()).toBe('reset')
+    expect(window.location.hash).toBe('')
+    act(() => seen.reset.onCancel())
+    await go('#invite=' + TOKEN)
+    expect(shown()).toBe('invite')
+    expect(seen.invite.token).toBe(TOKEN)
+    expect(window.location.hash).toBe('')
+    await go('#что-то-другое')
+    expect(shown()).toBe('invite')
+  })
+
+  it('вошедший: #friend= — экран «Друзья» с кодом, #join= — «Мой круг» с кодом', async () => {
+    await boot()
+    await go('#friend=7F3Q9XWD')
+    await waitFor(() => expect(current()).toBe('friends'))
+    expect(seen.friends.friendCode).toBe('7F3Q9XWD')
+    act(() => seen.friends.onFriendCodeConsumed())
+    await go('#join=7F3Q9XWD')
+    await waitFor(() => expect(current()).toBe('circle'))
+    expect(seen.circle.joinCode).toBe('7F3Q9XWD')
+  })
+
+  it('у старой учетки нет логина — сначала «Придумай логин»', async () => {
+    loginSetupState.needed = true
+    try {
+      render(<App />)
+      expect(await screen.findByTestId('screen-loginsetup')).toBeInTheDocument()
+    } finally {
+      loginSetupState.needed = false
+    }
   })
 })
