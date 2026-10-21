@@ -16,7 +16,10 @@
 // «не тренировал» (pattern mm-untracked-*): пустая зона читается намеренно, а не
 // как сломанная заливка. Легенду «нет данных» держит FreshnessScreen.
 //
-// Пропсы: bySub ({submuscle→status}), selected (region|null), onSelect(region).
+// Выбранная в списке подмышца (selectedSub) красит СВОЮ зону своим статусом: иначе «середина груди — можно»
+// подсвечивала красную грудь (отдыхает верх), и карта спорила с подписью (fb_87363ee7).
+//
+// Пропсы: bySub ({submuscle→status}), selected (region|null), selectedSub (submuscle|null), onSelect(region).
 // ============================================================================
 import { BODY_OUTLINE, NEUTRAL_PARTS, FRONT_REGIONS, BACK_REGIONS } from './muscleBodyPaths.js'
 
@@ -76,7 +79,7 @@ function regionBucket(region, bySub) {
   return best
 }
 
-export default function MuscleMap({ bySub = {}, selected = null, onSelect }) {
+export default function MuscleMap({ bySub = {}, selected = null, selectedSub = null, onSelect }) {
   const figure = (side, regions) => {
     const viewBox = side === 'front' ? '0 0 724 1448' : '724 0 724 1448'
     const untrackedId = `mm-untracked-${side}`
@@ -96,7 +99,9 @@ export default function MuscleMap({ bySub = {}, selected = null, onSelect }) {
             <path key={`n${i}`} className="mm-muscle" d={d} strokeWidth="1" vectorEffect="non-scaling-stroke" aria-hidden="true" />
           ))}
           {Object.entries(regions).map(([region, paths]) => {
-            const bucket = regionBucket(region, bySub)
+            const bucket = selectedSub && SUB_REGION[selectedSub] === region && bySub[selectedSub]
+              ? bySub[selectedSub]
+              : regionBucket(region, bySub)
             // Есть данные → класс цвета давности; нет данных → штриховка «не тренировал».
             const cls = bucket ? bucketClass(bucket) : null
             const fill = bucket ? undefined : `url(#${untrackedId})`

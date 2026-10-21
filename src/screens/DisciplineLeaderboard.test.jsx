@@ -73,5 +73,7 @@ describe('дисциплины в Ленте',()=>{
     render(<DisciplineLeaderboard user={{id:'woman'}} />)
     expect(screen.getByText(/В круге пока нет дисциплин/)).toBeInTheDocument()
     expect(screen.queryByText('Старый рейтинг')).toBeNull()
+    // Пустой ряд дисциплин не рисуем — он добавлял отступ над карточкой (fb_c0b7096d).
+    expect(screen.queryByRole('group',{name:'Дисциплина'})).toBeNull()
   })
 })

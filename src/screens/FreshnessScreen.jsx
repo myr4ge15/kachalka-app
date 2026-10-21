@@ -156,7 +156,7 @@ export default function FreshnessScreen({ user, onBack }) {
           <Tip lead={lead} cardioDays={data?.cardio ?? null} onFocusGroup={focusOn} />
 
           <div className="fr-map">
-            <MuscleMap bySub={view.bySub} selected={mapSelected} onSelect={pickRegion} />
+            <MuscleMap bySub={view.bySub} selected={mapSelected} selectedSub={selected?.submuscle ?? null} onSelect={pickRegion} />
             <div className="fr-legend">
               <span><i className="fr-sw st-ready" />можно</span>
               <span><i className="fr-sw st-resting" />отдыхает</span>

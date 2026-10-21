@@ -167,6 +167,17 @@ describe('App: вложенные экраны и «назад»', () => {
     expect(current()).toBe('profile')
   })
 
+  // fb_89880c2d (20.10): форма живет в Профиле — «открыто с:» называет вкладку, откуда пришли в Профиль.
+  it('Лента → Профиль → обращение: источник — Лента через Профиль', async () => {
+    await boot()
+    tab('Лента'); await settle()
+    fireEvent.click(screen.getAllByRole('button', { name: 'Открыть профиль' })[0]); await settle()
+    act(() => seen.profile.onOpenFeedback()); await settle()
+    expect(current()).toBe('feedback')
+    expect(seen.feedback.fromScreen).toBe('feed')
+    expect(seen.feedback.viaScreen).toBe('profile')
+  })
+
   it('Профиль → Админка/Достижения → назад в Профиль', async () => {
     await boot()
     fireEvent.click(screen.getAllByRole('button', { name: 'Открыть профиль' })[0]); await settle()

@@ -28,8 +28,8 @@ export default function DisciplineLeaderboard({ user, onOpenMember, onOpenCircle
   const current = boards.find(b => b.key === board) ?? boards[0]
   if (!current) {
     return <div className="card lb-card fc-empty">
-      <h3 className="lb-title">Рейтинг</h3>
-      <p className="muted">Рейтинг — среди своих. Создай круг и позови друзей или вступи в круг по коду.</p>
+      <h3 className="lb-title lb-empty-title">Рейтинг</h3>
+      <p className="muted lb-empty">Рейтинг — среди своих. Создай круг и позови друзей или вступи в круг по коду.</p>
       {onOpenCircle && <button type="button" className="btn primary" onClick={onOpenCircle}>Мой круг</button>}
     </div>
   }
@@ -61,13 +61,14 @@ function ScopeLeaderboard({ user, onOpenMember, circle }) {
   // Старый сервер: привычный рейтинг остается до наката SQL.
   if (!catalog && !circle) return <LegacyLeaderboard user={user} onOpenMember={onOpenMember} />
   return <section aria-label="Рейтинг по дисциплинам">
-    <div className="discipline-tabs" role="group" aria-label="Дисциплина">
+    {/* Пустой ряд дисциплин с полями 12px раздувал отступ над карточкой «нет дисциплин» (fb_c0b7096d). */}
+    {items.length > 0 && <div className="discipline-tabs" role="group" aria-label="Дисциплина">
       {items.map(d => <button type="button" key={d.id} className={'chip' + (d.id === discipline?.id ? ' active' : '')}
         aria-pressed={d.id === discipline?.id} onClick={() => setSelected(d.id)}>{d.name}</button>)}
-    </div>
+    </div>}
     {error && <p className="muted" role="status">{error} Показан сохраненный список.</p>}
     {discipline ? <DisciplineBoard key={discipline.id} discipline={discipline} user={user} onOpenMember={onOpenMember} circle={circle} />
-      : <div className="card lb-card"><h3 className="lb-title">Рейтинг</h3><p className="muted">{!catalog
+      : <div className="card lb-card"><h3 className="lb-title lb-empty-title">Рейтинг</h3><p className="muted lb-empty">{!catalog
         ? 'Рейтинг круга еще не загружен. Подключись к сети.'
         : circle ? 'В круге пока нет дисциплин. Владелец круга выбирает их в «Мой круг».'
         : 'Пока нет дисциплин. Администратор может выбрать их в «Дисциплинах рейтинга».'}</p></div>}

@@ -134,7 +134,7 @@ export function shouldAskPush({ availability, permission, enabled, asked }) {
 export const PUSH_TYPES = [
   { type: 'reaction', emoji: '💪', label: 'Реакции на мои тренировки' },
   // 19.10.2026: 💬 — комментариям (до этого стоял у реакций).
-  { type: 'comment', emoji: '💬', label: 'Комментарии', sub: 'под моими тренировками и ответы мне' },
+  { type: 'comment', emoji: '💬', label: 'Комментарии', sub: 'под моими тренировками, ответы и реакции мне' },
   { type: 'record', emoji: '🏆', label: 'Побили мой рекорд' },
   { type: 'overtake', emoji: '🥇', label: 'Обогнали в рейтинге' },
   { type: 'reminder', emoji: '⏰', label: 'Напоминание о тренировке', sub: 'если 3 дня без зала — в 18:00' },

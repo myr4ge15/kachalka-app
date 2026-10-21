@@ -70,6 +70,14 @@ const WhatsNewScreen = lazyScreen(() => import('./screens/WhatsNewScreen.jsx'))
 const FeedbackScreen = lazyScreen(() => import('./screens/FeedbackScreen.jsx'))
 const MemberScreen = lazyScreen(() => import('./screens/MemberScreen.jsx'))
 
+// «Открыто с:» обращения (fb_89880c2d): форма — в Профиле, корень стека там всегда «Профиль»; называем вкладку,
+// с которой пришли в Профиль («Лента → Профиль»). Профиль открыт сразу при запуске — просто «Профиль».
+function feedbackFrom(root, lastMainTab) {
+  return root === 'profile' && lastMainTab
+    ? { fromScreen: lastMainTab, viaScreen: 'profile' }
+    : { fromScreen: root, viaScreen: null }
+}
+
 export default function App() {
   // Сессия (вход/выход/восстановление) — hooks/useSession.js.
   const { user, handleLogin, handleRenamed, handleLogout } = useSession(() => setTab('home'))
@@ -77,7 +85,7 @@ export default function App() {
   const {
     tab, setTab, routeAnim, contentRef, screenRef, edgeSwipeOn,
     memberId, progressExId, setProgressExId, openNewWorkout, setOpenNewWorkout,
-    calendarIntent, setCalendarIntent, feedFlashId, feedThreadId, feedbackFocus, openFeedback, backFromFeedback,
+    calendarIntent, setCalendarIntent, feedFlashId, feedThreadId, feedbackFocus, openFeedback, backFromFeedback, lastMainTab,
     focusRhythm, setFocusRhythm, openSettings, setOpenSettings,
     goTab, openNotif, backFromNotif, openProgressFor, openCalendarAt, openMember, backFromMember,
     backToRhythm, backToSettings, startNewWorkout,
@@ -443,7 +451,7 @@ export default function App() {
               )}
               {route === 'feedback' && (
                 <FeedbackScreen user={user} focusId={feedbackFocus} onBack={backFromFeedback}
-                  fromScreen={routeAnim.stack.find((t) => !isNested(t)) ?? null} />
+                  {...feedbackFrom(routeAnim.stack.find((t) => !isNested(t)) ?? null, lastMainTab)} />
               )}
             </ErrorBoundary>
               </Suspense>

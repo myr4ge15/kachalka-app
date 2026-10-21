@@ -29,6 +29,15 @@ describe('MuscleMap', () => {
     expect(p.getAttribute('fill')).toMatch(/^url\(#mm-untracked-(front|back)\)$/)
   })
 
+  it('выбранная подмышца красит свою зону своим статусом (fb_87363ee7)', () => {
+    render(<MuscleMap bySub={{ chest_upper: 'resting', chest_middle: 'ready', biceps: 'stale' }}
+      selected="chest" selectedSub="chest_middle" />)
+    const chest = screen.getAllByRole('button', { name: 'грудь' })[0]
+    chest.querySelectorAll('path').forEach((p) => expect(p).toHaveClass('mm-s-ready'))
+    const biceps = screen.getAllByRole('button', { name: 'бицепс' })[0]
+    expect(biceps.querySelector('path')).toHaveClass('mm-s-stale')
+  })
+
   it('две фигуры (спереди/сзади) с подписями', () => {
     render(<MuscleMap />)
     expect(screen.getByRole('img', { name: /спереди/ })).toBeInTheDocument()

@@ -36,6 +36,11 @@ describe('buildContext', () => {
       version: '6.11.0', device: 'iPhone · iOS 17.5', standalone: true, screen: 'Профиль', viewport: '390×844',
     })
   })
+  it('экран между вкладкой и формой — «Лента → Профиль» (fb_89880c2d)', () => {
+    expect(buildContext({ screen: 'feed', via: 'profile' }).screen).toBe('Лента → Профиль')
+    expect(buildContext({ screen: 'profile', via: 'profile' }).screen).toBe('Профиль')
+    expect(buildContext({ screen: 'profile', via: null }).screen).toBe('Профиль')
+  })
   it('неизвестный экран — как есть (обрезан), офлайн помечается', () => {
     const c = buildContext({ screen: 'x'.repeat(50), online: false })
     expect(c.screen).toHaveLength(30)

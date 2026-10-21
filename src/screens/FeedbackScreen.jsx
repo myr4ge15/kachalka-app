@@ -29,7 +29,7 @@ const defaultApi = {
 // (tag feedback-<id> открывает этот экран и подсвечивает обращение).
 // Пропсы: user, onBack(), [focusId] — id из пуша, [fromScreen] — вкладка, с которой
 // пришли в Настройки (в контекст обращения), [api] — для тестов.
-export default function FeedbackScreen({ user, onBack, focusId = null, fromScreen = null, api = defaultApi }) {
+export default function FeedbackScreen({ user, onBack, focusId = null, fromScreen = null, viaScreen = null, api = defaultApi }) {
   const { online } = useSyncStatus()
   const [text, setText] = useState('')
   const att = useAttachments(user.id, api)
@@ -111,6 +111,7 @@ export default function FeedbackScreen({ user, onBack, focusId = null, fromScree
         standalone,
         viewport: { w: window.innerWidth, h: window.innerHeight },
         screen: fromScreen ?? 'profile',
+        via: viaScreen,
         online: navigator.onLine,
       })
       const paths = await att.readyPaths() // ждем догрузки выбранного (кольца на миниатюрах)

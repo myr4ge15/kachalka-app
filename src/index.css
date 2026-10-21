@@ -1045,6 +1045,9 @@ a.btn { display: flex; text-decoration: none; }
   border: 1px solid var(--border); background: var(--surface); color: var(--text);
   flex-shrink: 0;
 }
+/* Фокус — рамкой поля, а не обводкой браузера: в прокручиваемом листе («Свое упражнение») обводку срезал
+   край контейнера, и она выходила кривой (fb_431df12a). */
+.search:focus { outline: none; border-color: var(--acc); }
 .chips {
   display: flex; gap: 8px; overflow-x: auto; overflow-y: hidden;
   padding: 12px 0; flex-shrink: 0; -webkit-overflow-scrolling: touch;
@@ -1724,6 +1727,9 @@ html[data-update]:not([data-composer]) .content { padding-top: 64px; }
    свернут, на десктопе (сайдбар) кнопки нет и он виден всегда — см. @media ниже. */
 .feed-rail-toggle { margin: 4px 0 12px; }
 .feed-rail[data-open="0"] .feed-rail-body { display: none; }
+/* Над карточкой «нет дисциплин» уже стоит строка «🏆 Рейтинг» — второй заголовок «Рейтинг» на телефоне
+   не дублируем (fb_c0b7096d); на десктопе строки нет, и заголовок остается (см. @media ниже). */
+.feed-rail .lb-empty-title { display: none; }
 .feed-head { display: flex; align-items: center; justify-content: space-between; gap: 10px; margin: 4px 0 8px; }
 /* Заголовок и кнопка в одной строке, подзаголовок — ПОД строкой целиком: у .sub
    отрицательный отступ, и двухстрочный текст приватного режима заезжал под
@@ -1842,6 +1848,9 @@ img.avatar-lg.has-img {
 /* ---------- «⋯» и выпадающее меню (19.10.2026, 9.5.4, components/ui/MoreMenu.jsx: комментарии, «Друзья», «Мой круг») ----------
    Поверх соседних строк, список не сдвигает; .up — над кнопкой, когда снизу мало места. Плотная подложка, как у оверлеев. */
 .more-wrap { position: relative; flex: none; display: flex; }
+/* .card с backdrop-filter — свой слой: меню внутри него уходило под следующую карточку («Настройки круга»
+   под «Участниками», fb_778639e9). Карточку с открытым меню поднимаем над соседями. */
+.card:has(.more-menu) { position: relative; z-index: 5; }
 
 /* Живое многоточие «Отправляю.» → «..» → «...» (19.10.2026, fb_5ef64577, components/ui/BusyText.jsx). Символ «…»
    остается в тексте, clip-path прячет его часть — ширина подписи не меняется. */
@@ -2908,6 +2917,7 @@ label.act.busy { opacity: .55; pointer-events: none; }
   }
   .feed-rail-toggle { display: none; }
   .feed-rail[data-open="0"] .feed-rail-body { display: block; }
+  .feed-rail .lb-empty-title { display: block; margin-bottom: 6px; }
 
   /* Мои тренировки (слайс 3): master-detail — список слева (липкий), редактор
      справа. .md-screen шире прочих; список прилипает при прокрутке длинной детали. */

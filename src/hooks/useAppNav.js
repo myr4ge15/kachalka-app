@@ -40,6 +40,9 @@ function routeIntent(intent, setPushIntent) {
   else if (intent) setPushIntent(intent)
 }
 
+// Вкладка таббара (не вложенный экран и не Профиль).
+const isMainTab = (t) => Boolean(t) && t !== 'profile' && !isNested(t)
+
 export function useAppNav(user) {
   // Нажатие на пуш (v6.7.2): service worker открывает приложение с `?push=<tag>`
   // или, если оно уже открыто, присылает сообщение. Намерение ждет входа и
@@ -165,7 +168,11 @@ export function useAppNav(user) {
   // …кроме возврата из профиля участника: Лента встает туда, откуда ушли.
   useScrollAnchorRestore(contentRef, tab === 'feed' ? feedRestore : null, () => setFeedRestore(null))
 
+  // Последняя вкладка таббара перед Профилем: форма обращения живет в Профиле, и корень стека там всегда
+  // «Профиль» — «Открыто с:» должно называть вкладку, откуда пришли (fb_89880c2d).
+  const [lastMainTab, setLastMainTab] = useState(() => (isMainTab(tab) ? tab : null))
   function goTab(next) {
+    if (next !== tab && isMainTab(tab)) setLastMainTab(tab)
     if (screenRef.current) screenRef.current.dataset.scrollTop = String(contentRef.current?.scrollTop || 0)
     // Повторный тап по уже открытой вкладке — контент не меняется: плавно
     // возвращаем его наверх (как «прокрутка к началу» в iOS) + сигнал «обнови меня»
@@ -318,7 +325,7 @@ export function useAppNav(user) {
   return {
     tab, setTab, routeAnim, contentRef, screenRef, edgeSwipeOn,
     memberId, feedRestore, progressExId, setProgressExId, openNewWorkout, setOpenNewWorkout,
-    calendarIntent, setCalendarIntent, feedFlashId, feedThreadId, feedbackFocus, openFeedback, backFromFeedback,
+    calendarIntent, setCalendarIntent, feedFlashId, feedThreadId, feedbackFocus, openFeedback, backFromFeedback, lastMainTab,
     focusRhythm, setFocusRhythm, openSettings, setOpenSettings,
     goTab, openNotif, backFromNotif, openProgressFor, openCalendarAt, openMember, backFromMember,
     backToRhythm, backToSettings, nestedBack, startNewWorkout, setPushIntent

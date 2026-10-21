@@ -151,13 +151,15 @@ export function describeDevice(ua = '', { modernWebKit = false } = {}) {
 // Что приложение само кладет к обращению. Только то, что помогает разобрать баг;
 // никаких персональных данных сверх того, что сервер и так знает (автор — из сессии).
 // screen — откуда пришли к форме: вкладка, с которой открыли Настройки (v6.11.1;
-// сама форма живет в Настройках, и раньше здесь всегда было «Профиль»).
-export function buildContext({ version, userAgent, modernWebKit, standalone, viewport, screen, online } = {}) {
+// сама форма живет в Настройках, и раньше здесь всегда было «Профиль»). via — экран между
+// ними («Лента → Профиль», fb_89880c2d).
+const screenLabel = (s) => SCREEN_LABEL[s] ?? (s ? String(s).slice(0, 30) : '')
+export function buildContext({ version, userAgent, modernWebKit, standalone, viewport, screen, via, online } = {}) {
   const ctx = {
     version: String(version ?? ''),
     device: describeDevice(userAgent, { modernWebKit }),
     standalone: Boolean(standalone),
-    screen: SCREEN_LABEL[screen] ?? (screen ? String(screen).slice(0, 30) : ''),
+    screen: via && via !== screen ? `${screenLabel(screen)} → ${screenLabel(via)}` : screenLabel(screen),
   }
   if (viewport?.w && viewport?.h) ctx.viewport = `${Math.round(viewport.w)}×${Math.round(viewport.h)}`
   if (online === false) ctx.online = false
