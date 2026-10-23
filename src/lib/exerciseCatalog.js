@@ -47,3 +47,24 @@ export function splitCatalog(list, userId) {
   }
   return { mine, others, global }
 }
+
+// Типы упражнения — для формы и подписи строки каталога (общие для участника и Админки, 23.10.2026).
+export const METRIC_OPTIONS = [
+  { id: 'weight', label: 'Вес и повторения' },
+  { id: 'reps', label: 'Только повторения' },
+  { id: 'time', label: 'На время' },
+  { id: 'distance', label: 'Дистанция и время' },
+]
+export const METRIC_LABEL = Object.fromEntries(METRIC_OPTIONS.map((m) => [m.id, m.label.toLowerCase()]))
+
+// Группы мышц для формы: основные из ТЗ + все, что реально встретилось в справочнике (без пустых и
+// повторов, порядок — основные, затем найденные).
+export const BASE_GROUPS = ['грудь', 'спина', 'ноги', 'плечи', 'бицепс', 'трицепс', 'пресс', 'кардио']
+export function catalogGroups(list) {
+  const set = new Set(BASE_GROUPS)
+  for (const e of Array.isArray(list) ? list : []) {
+    const g = String(e?.muscle_group ?? '').trim()
+    if (g) set.add(g)
+  }
+  return Array.from(set)
+}

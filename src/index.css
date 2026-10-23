@@ -1288,6 +1288,17 @@ a.btn { display: flex; text-decoration: none; }
   background: var(--surface); border-radius: 16px; padding: 0 6px;
 }
 .catalog-list .picker-item:last-child { border-bottom: 0; }
+/* Каталог — один для участника и Админки (23.10.2026, components/exercises/ExerciseCatalog.jsx). Тип —
+   строкой под названием; в Админке у строки еще кнопка «Скрыть/Показать», скрытые приглушены. */
+.catalog-search { margin-top: 4px; }
+.catalog-meta { display: block; font-weight: 500; }
+.catalog-row { display: flex; align-items: center; border-bottom: 1px solid var(--border); }
+.catalog-row:last-child { border-bottom: 0; }
+.catalog-row > .picker-item { flex: 1; min-width: 0; border-bottom: 0; }
+.catalog-row.is-hidden > .picker-item { opacity: .55; }
+.catalog-row > .catalog-hide { flex: none; min-width: 44px; min-height: 44px; background: none; color: var(--muted); }
+.catalog-hint { margin: 8px 0 0; font-size: 13px; line-height: 1.35; }
+.catalog-actions { margin-top: 18px; }
 /* Предложение создать упражнение по введенному названию (нет в справочнике) */
 .create-suggest { color: var(--acc-2); font-weight: 600; }
 
@@ -3100,18 +3111,10 @@ label.act.busy { opacity: .55; pointer-events: none; }
 
 .admin-panel .sec { margin-bottom: 0; }
 
-.admin-search {
-  width: 100%; box-sizing: border-box; background: var(--bg);
-  border: 1px solid var(--border); border-radius: 12px; padding: 11px 13px;
-  color: var(--text); font-size: 15px; min-height: 46px; margin-bottom: 10px;
-}
-.admin-search:focus { outline: none; border-color: var(--acc); }
-
 .admin-list { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 8px; }
-.admin-ex, .admin-user {
+.admin-user {
   background: var(--surface); border: 1px solid var(--border); border-radius: 14px; padding: 11px 13px;
 }
-.admin-ex.hidden { opacity: .6; }
 .admin-ex-row, .admin-user-row { display: flex; align-items: center; gap: 10px; }
 .admin-ex-main { display: flex; flex-direction: column; gap: 2px; min-width: 0; flex: 1; }
 .admin-ex-name {
@@ -3138,25 +3141,8 @@ label.act.busy { opacity: .55; pointer-events: none; }
 }
 .admin-mini:active { background: var(--acc-soft); color: var(--acc-2); }
 .admin-mini:disabled { opacity: .4; }
-/* Справочник упражнений — компактный (16.10): одна карточка, строки через разделитель, кнопки без
-   плашек. Название — до двух строк, зона тапа кнопок остается 44px по ширине. */
-.admin-catalog {
-  gap: 0; background: var(--surface); border: 1px solid var(--border); border-radius: 14px; overflow: hidden;
-}
-.admin-catalog > .admin-ex { background: none; border: 0; border-radius: 0; padding: 6px 4px 6px 13px; }
-.admin-catalog > .admin-ex + .admin-ex { border-top: 1px solid var(--border); }
-.admin-catalog > .admin-ex:has(.admin-ex-edit) { padding: 12px 13px; background: var(--surface-2); }
-.admin-catalog .admin-ex-row { gap: 4px; }
-.admin-catalog .admin-ex-name {
-  display: -webkit-box; -webkit-box-orient: vertical; -webkit-line-clamp: 2; overflow: hidden;
-  font-size: 14.5px; line-height: 1.3;
-}
-.admin-catalog .admin-ex-btns { gap: 0; }
-.admin-catalog .admin-mini { min-width: 44px; min-height: 40px; background: none; color: var(--muted); font-size: 15px; }
-.admin-catalog .admin-mini:active { background: var(--acc-soft); }
-.admin-catalog-empty { padding: 12px 13px; }
 
-.admin-ex-edit, .admin-user-edit, .admin-merge, .admin-add {
+.admin-user-edit, .admin-merge, .admin-add {
   display: flex; flex-direction: column; gap: 10px;
 }
 .admin-input {
@@ -3173,16 +3159,13 @@ label.act.busy { opacity: .55; pointer-events: none; }
    что и текстовые инпуты — иначе зазоры «текст ↔ ячейка» и высоты полей разъезжаются
    (у .admin-input и .prog-select были разные paddings/font-size/фон). */
 .admin-user-edit .field,
-.admin-ex-edit .field,
 .admin-add .field { display: block; }
 .admin-user-edit .field-lab,
-.admin-ex-edit .field-lab,
 .admin-add .field-lab {
   display: block; margin-bottom: 6px;
   font-size: 13px; color: var(--muted);
 }
 .admin-user-edit .prog-select,
-.admin-ex-edit .prog-select,
 .admin-add .prog-select {
   padding: 11px 13px; font-size: 15px; font-weight: 600; min-height: 46px; border-radius: 12px;
   background: var(--bg);

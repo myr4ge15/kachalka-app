@@ -106,6 +106,7 @@ export default function AdminScreen({ user, onBack }) {
           <div className="admin-panel">
             <ExercisesSection
               exercises={exercises ?? []}
+              userId={user.id}
               online={online}
               errMsg={errMsg}
             />

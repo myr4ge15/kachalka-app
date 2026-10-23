@@ -193,7 +193,7 @@ describe('AdminScreen: тип упражнения', () => {
     render(<AdminScreen user={ME} onBack={() => {}} />)
     await user.click(await screen.findByRole('button', { name: /Справочник упражнений/ }))
     expect(screen.getByText(/повторения/)).toBeInTheDocument() // тип виден в строке списка
-    await user.click(screen.getByRole('button', { name: 'Изменить' }))
+    await user.click(screen.getByRole('button', { name: /^Подъем ног/ })) // общий каталог (23.10.2026): строка — кнопка правки
   }
 
   beforeEach(() => vi.mocked(adminUpdateExercise).mockReset().mockResolvedValue({}))
@@ -201,8 +201,8 @@ describe('AdminScreen: тип упражнения', () => {
   it('смена типа → adminUpdateExercise с metric', async () => {
     const user = userEvent.setup()
     await openLegEdit(user)
-    expect(screen.getByRole('radio', { name: 'Только повторения' })).toHaveAttribute('aria-checked', 'true')
-    await user.click(screen.getByRole('radio', { name: 'На время' }))
+    expect(screen.getByRole('button', { name: 'Только повторения' })).toHaveAttribute('aria-pressed', 'true')
+    await user.click(screen.getByRole('button', { name: 'На время' }))
     expect(screen.getByText(/не пересчитываются/)).toBeInTheDocument()
     await user.click(screen.getByRole('button', { name: 'Сохранить' }))
     await waitFor(() => expect(adminUpdateExercise).toHaveBeenCalledTimes(1))

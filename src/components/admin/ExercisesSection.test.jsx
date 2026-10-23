@@ -5,7 +5,7 @@
 import { describe, expect, it, vi } from 'vitest'
 import { render, screen, within } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
-import ExercisesSection, { exerciseMeta } from './ExercisesSection.jsx'
+import ExercisesSection from './ExercisesSection.jsx'
 import { adminMergeExercise } from '../../lib/admin.js'
 
 vi.mock('../../lib/admin.js', () => ({ adminUpdateExercise: vi.fn(), adminMergeExercise: vi.fn(async () => true) }))
@@ -23,8 +23,8 @@ const optionValues = (select) => within(select).getAllByRole('option').map((o) =
 
 describe('ExercisesSection — слитые дубли', () => {
   it('алиасов нет в списке, есть сводка «Слито дублей»', () => {
-    render(<ExercisesSection exercises={EX} online errMsg={String} />)
-    expect(screen.getAllByText('Тяга верхнего блока')).toHaveLength(1)
+    render(<ExercisesSection exercises={EX} userId="adm" online errMsg={String} />)
+    expect(screen.getAllByText('Тяга верхнего блока', { selector: '.picker-item > span:first-child' })).toHaveLength(1)
     expect(screen.getByText('Убрано из пикера')).toBeInTheDocument() // просто скрытое — остается
     expect(screen.getByText('Слито дублей: 2')).toBeInTheDocument()
     expect(screen.getByText('Тяга верхнего блока ← 2')).toBeInTheDocument()
@@ -32,7 +32,7 @@ describe('ExercisesSection — слитые дубли', () => {
 
   it('слить: источники без алиасов, цели — видимые; общее только в общее', async () => {
     const user = userEvent.setup()
-    render(<ExercisesSection exercises={EX} online errMsg={String} />)
+    render(<ExercisesSection exercises={EX} userId="adm" online errMsg={String} />)
     await user.click(screen.getByRole('button', { name: /Слить дубль/ }))
     const [from, into] = screen.getAllByRole('combobox')
     expect(optionValues(from)).toEqual(['lat', 'bp', 'mine', 'off'])
@@ -48,14 +48,5 @@ describe('ExercisesSection — слитые дубли', () => {
   it('без слитых сводки нет', () => {
     render(<ExercisesSection exercises={EX.slice(0, 4)} online errMsg={String} />)
     expect(screen.queryByText(/Слито дублей/)).toBeNull()
-  })
-})
-
-describe('ExercisesSection — компактная подпись', () => {
-  it('подмышку, совпавшую с группой, не повторяет', () => {
-    expect(exerciseMeta({ muscle_group: 'бицепс', submuscle: 'biceps', secondary: ['forearms'] })).toBe('бицепс +1')
-    expect(exerciseMeta({ muscle_group: 'спина', submuscle: 'lats', metric: 'reps', is_custom: true, is_hidden: true }))
-      .toBe('спина · широчайшие · повторения · свое · скрыто')
-    expect(exerciseMeta({})).toBe('—')
   })
 })

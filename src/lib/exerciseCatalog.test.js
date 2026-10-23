@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest'
-import { canEditExercise, splitCatalog } from './exerciseCatalog.js'
+import { canEditExercise, splitCatalog, catalogGroups, BASE_GROUPS, METRIC_LABEL } from './exerciseCatalog.js'
 
 const ME = 'u-me'
 const OTHER = 'u-other'
@@ -63,5 +63,17 @@ describe('splitCatalog', () => {
   it('переживает пустой и не-массив', () => {
     expect(splitCatalog([], ME)).toEqual({ mine: [], others: [], global: [] })
     expect(splitCatalog(undefined, ME)).toEqual({ mine: [], others: [], global: [] })
+  })
+})
+
+describe('общие подписи и группы каталога (23.10.2026)', () => {
+  it('METRIC_LABEL — строчными, на все четыре типа', () => {
+    expect(METRIC_LABEL).toEqual({ weight: 'вес и повторения', reps: 'только повторения', time: 'на время', distance: 'дистанция и время' })
+  })
+  it('catalogGroups — основные, затем найденные; без пустых и повторов', () => {
+    const got = catalogGroups([{ muscle_group: 'шея' }, { muscle_group: ' грудь ' }, { muscle_group: '' }, null, { muscle_group: 'шея' }])
+    expect(got.slice(0, BASE_GROUPS.length)).toEqual(BASE_GROUPS)
+    expect(got.slice(BASE_GROUPS.length)).toEqual(['шея'])
+    expect(catalogGroups(null)).toEqual(BASE_GROUPS)
   })
 })

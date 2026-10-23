@@ -1,51 +1,26 @@
 // Секция Админки «Справочник упражнений» (вынесена из screens/AdminScreen.jsx, v6.14.1).
+// С 23.10.2026 список и форма — общие с каталогом участника (components/exercises/ExerciseCatalog.jsx,
+// ExerciseEditForm.jsx): те же разделы, поиск и выбор группы из списка, но править можно все, скрытые
+// из пикера видны с пометкой, сохранение — онлайн admin_update_exercise. Здесь же — слияние дублей.
 import { useEffect, useMemo, useRef, useState } from 'react'
 import { findExactDuplicate } from '../../lib/similar.js'
 import { isMergedAlias, mergeSources, mergeTargets, mergedSummary } from '../../lib/exerciseMerge.js'
 import { adminUpdateExercise, adminMergeExercise } from '../../lib/admin.js'
-import { submusclesOf, secondaryOptionsFor, labelOf, majorOf, defaultSubmuscleFor } from '../../lib/muscles.js'
+import { catalogGroups } from '../../lib/exerciseCatalog.js'
 import { normMetric } from '../../lib/metric.js'
 import { showToast } from '../ui/Toast.jsx'
-import PencilIcon from '../ui/PencilIcon.jsx'
+import ExerciseCatalog from '../exercises/ExerciseCatalog.jsx'
+import ExerciseEditForm from '../exercises/ExerciseEditForm.jsx'
 import { useRevealFocus } from '../../hooks/useRevealFocus.js'
 
-// ─────────────────────────── Упражнения ───────────────────────────────────
-// Тип упражнения (v6.3.6): у админа «Каталога» нет, поэтому меняем здесь.
-const METRIC_OPTIONS = [
-  { id: 'weight', label: 'Вес и повторения', meta: null },
-  { id: 'reps', label: 'Только повторения', meta: 'повторения' },
-  { id: 'time', label: 'На время', meta: 'на время' },
-  { id: 'distance', label: 'Дистанция и время', meta: 'дистанция' },
-]
-
-// Подпись строки справочника (16.10, компактный вид): «бицепс · бицепс +1» → «бицепс +1» —
-// подмышку пишем, только если она отличается от группы.
-export function exerciseMeta(ex) {
-  const parts = []
-  const group = String(ex.muscle_group ?? '').trim()
-  const sub = ex.submuscle ? labelOf(ex.submuscle) : ''
-  let muscles = group || '—'
-  if (sub && sub.toLowerCase() !== group.toLowerCase()) muscles += ' · ' + sub
-  if (Array.isArray(ex.secondary) && ex.secondary.length) muscles += ` +${ex.secondary.length}`
-  parts.push(muscles)
-  const metric = METRIC_OPTIONS.find((m) => m.id === normMetric(ex.metric))?.meta
-  if (metric) parts.push(metric)
-  if (ex.is_custom) parts.push('свое')
-  if (ex.is_hidden) parts.push('скрыто')
-  return parts.join(' · ')
-}
-export default function ExercisesSection({ exercises, online, errMsg }) {
-  const [query, setQuery] = useState('')
-  const [edId, setEdId] = useState(null)
-  const [form, setForm] = useState({ name: '', muscle_group: '', submuscle: '', secondary: [], is_bench_lift: false, is_female_lift: false, is_hidden: false, metric: 'weight' })
-  // Тип на момент открытия формы: p_metric шлем только при реальной смене (см. save).
-  const [metricInit, setMetricInit] = useState('weight')
+export default function ExercisesSection({ exercises, userId, online, errMsg }) {
+  const [editing, setEditing] = useState(null)
   const [busy, setBusy] = useState(false)
 
   // Слияние дублей
   const [mergeOpen, setMergeOpen] = useState(false)
   // Открытые формы — в видимую область (v8.0.1).
-  const edRevealRef = useRevealFocus(edId)
+  const edRevealRef = useRevealFocus(editing?.id ?? null, { block: 'start' })
   const mergeRevealRef = useRevealFocus(mergeOpen ? 'merge' : null)
   const [mFrom, setMFrom] = useState('')
   const [mInto, setMInto] = useState('')
@@ -62,40 +37,26 @@ export default function ExercisesSection({ exercises, online, errMsg }) {
   const live = useMemo(() => exercises.filter((e) => !isMergedAlias(e)), [exercises])
   const merged = useMemo(() => mergedSummary(exercises), [exercises])
   const mergedCount = merged.reduce((n, m) => n + m.count, 0)
-  const filtered = useMemo(() => {
-    const q = query.trim().toLowerCase().replace(/ё/g, 'е')
-    if (!q) return live
-    return live.filter((e) => String(e.name ?? '').toLowerCase().replace(/ё/g, 'е').includes(q))
-  }, [live, query])
+  const groups = useMemo(() => catalogGroups(live), [live])
 
-  function openEdit(ex) {
-    setEdId(ex.id)
-    setForm({
-      name: ex.name ?? '',
-      muscle_group: ex.muscle_group ?? '',
-      submuscle: ex.submuscle ?? defaultSubmuscleFor(ex.muscle_group) ?? '',
-      secondary: Array.isArray(ex.secondary) ? ex.secondary : [],
-      is_bench_lift: Boolean(ex.is_bench_lift),
-      is_female_lift: Boolean(ex.is_female_lift),
-      is_hidden: Boolean(ex.is_hidden),
-      metric: normMetric(ex.metric),
-    })
-    setMetricInit(normMetric(ex.metric))
-  }
-  function closeEdit() { setEdId(null); setBusy(false) }
-
-  async function save() {
+  async function save(f) {
     if (!online) { showToast({ emoji: '📡', title: 'Нужна сеть' }); return }
+    const ex = editing
     setBusy(true)
     try {
       // Тип отправляем, только если его поменяли: так обычная правка работает и до
       // накатки admin-exercise-metric.sql (старая функция не знает p_metric).
-      await adminUpdateExercise({ id: edId, ...form, metric: form.metric !== metricInit ? form.metric : undefined })
+      await adminUpdateExercise({
+        id: ex.id, name: f.name, muscle_group: f.muscle_group, submuscle: f.submuscle, secondary: f.secondary,
+        is_bench_lift: Boolean(ex.is_bench_lift), is_female_lift: Boolean(ex.is_female_lift), is_hidden: f.is_hidden,
+        metric: f.metric !== normMetric(ex.metric) ? f.metric : undefined,
+      })
       showToast({ emoji: '✅', title: 'Упражнение обновлено' })
-      if (alive.current) closeEdit()
+      if (alive.current) setEditing(null)
     } catch (e) {
-      if (alive.current) setBusy(false)
       showToast({ emoji: '⚠️', title: 'Не удалось', sub: errMsg(e) })
+    } finally {
+      if (alive.current) setBusy(false)
     }
   }
 
@@ -143,144 +104,19 @@ export default function ExercisesSection({ exercises, online, errMsg }) {
     }
   }
 
+  if (editing) {
+    return (
+      <section className="sec" ref={edRevealRef}>
+        <p className="sec-title catalog-title">Упражнение</p>
+        <ExerciseEditForm ex={editing} groups={groups} admin busy={busy} saveDisabled={!online}
+          onCancel={() => setEditing(null)} onSubmit={save} />
+      </section>
+    )
+  }
+
   return (
     <section className="sec">
-      <input
-        className="admin-search"
-        type="search"
-        placeholder="Поиск упражнения…"
-        value={query}
-        onChange={(e) => setQuery(e.target.value)}
-        aria-label="Поиск упражнения"
-      />
-
-      <ul className="admin-list admin-catalog">
-        {filtered.map((ex) => (
-          <li key={ex.id} className={'admin-ex' + (ex.is_hidden ? ' hidden' : '')}>
-            {edId === ex.id ? (
-              <div ref={edRevealRef} className="admin-ex-edit">
-                <label className="field">
-                  <span className="field-lab">Название</span>
-                  <input
-                    className="admin-input" type="text" maxLength={60}
-                    value={form.name} onChange={(e) => setForm((f) => ({ ...f, name: e.target.value }))}
-                  />
-                </label>
-                <label className="field">
-                  <span className="field-lab">Группа мышц</span>
-                  <input
-                    className="admin-input" type="text" maxLength={40} placeholder="напр. грудь"
-                    value={form.muscle_group}
-                    onChange={(e) => {
-                      const g = e.target.value
-                      // Смена группы → подмышку сбрасываем на дефолт новой группы,
-                      // вторичные чистим (варианты зависят от primary).
-                      setForm((f) => ({ ...f, muscle_group: g, submuscle: defaultSubmuscleFor(g.trim()) ?? '', secondary: [] }))
-                    }}
-                  />
-                </label>
-
-                {submusclesOf(form.muscle_group.trim()).length > 0 && (
-                  <label className="field">
-                    <span className="field-lab">Основная мышца</span>
-                    <select
-                      className="admin-input"
-                      value={form.submuscle}
-                      onChange={(e) => setForm((f) => ({
-                        ...f,
-                        submuscle: e.target.value,
-                        // выбранная основная не может быть среди вторичных
-                        secondary: (f.secondary ?? []).filter((s) => s !== e.target.value),
-                      }))}
-                    >
-                      {submusclesOf(form.muscle_group.trim()).map((s) => (
-                        <option key={s} value={s}>{labelOf(s)}</option>
-                      ))}
-                    </select>
-                  </label>
-                )}
-
-                {form.submuscle && (
-                  <div className="field">
-                    <span className="field-lab">Вторичные мышцы</span>
-                    <div className="chips wrap admin-sec-chips">
-                      {secondaryOptionsFor(form.submuscle).map((s) => {
-                        const on = (form.secondary ?? []).includes(s)
-                        return (
-                          <button
-                            type="button"
-                            key={s}
-                            className={on ? 'chip active' : 'chip'}
-                            onClick={() => setForm((f) => ({
-                              ...f,
-                              secondary: on
-                                ? f.secondary.filter((x) => x !== s)
-                                : [...(f.secondary ?? []), s],
-                            }))}
-                          >
-                            {labelOf(s)}<span className="chip-major"> · {majorOf(s)}</span>
-                          </button>
-                        )
-                      })}
-                    </div>
-                  </div>
-                )}
-
-                <div className="field">
-                  <span className="field-lab">Тип</span>
-                  <div className="chips wrap" role="radiogroup" aria-label="Тип упражнения">
-                    {METRIC_OPTIONS.map((m) => (
-                      <button
-                        type="button" key={m.id} role="radio" aria-checked={form.metric === m.id}
-                        className={form.metric === m.id ? 'chip active' : 'chip'}
-                        onClick={() => setForm((f) => ({ ...f, metric: m.id }))}
-                      >
-                        {m.label}
-                      </button>
-                    ))}
-                  </div>
-                  {form.metric !== metricInit && (
-                    <p className="muted admin-hint">
-                      Уже записанные подходы не пересчитываются: число в них прочитается по-новому
-                      (например, 60 повторений станут 1:00).
-                    </p>
-                  )}
-                </div>
-
-                <p className="muted admin-hint">Участие в рейтинге настраивается в разделе «Дисциплины рейтинга».</p>
-                <label className="admin-check">
-                  <input type="checkbox" checked={form.is_hidden}
-                    onChange={(e) => setForm((f) => ({ ...f, is_hidden: e.target.checked }))} />
-                  <span>Скрыть из пикера</span>
-                </label>
-                <div className="admin-ex-actions">
-                  <button className="btn ghost" onClick={closeEdit} disabled={busy}>Отмена</button>
-                  <button className="btn primary" onClick={save} disabled={busy || !online}>
-                    {busy ? 'Сохраняю…' : 'Сохранить'}
-                  </button>
-                </div>
-              </div>
-            ) : (
-              <div className="admin-ex-row">
-                <div className="admin-ex-main">
-                  <span className="admin-ex-name">
-                    {ex.name}
-                  </span>
-                  <span className="admin-ex-meta">{exerciseMeta(ex)}</span>
-                </div>
-                <div className="admin-ex-btns">
-                  <button className="admin-mini" onClick={() => openEdit(ex)} aria-label="Изменить"><PencilIcon size={16} /></button>
-                  <button className="admin-mini" onClick={() => toggleHidden(ex)} disabled={!online}
-                    aria-label={ex.is_hidden ? 'Показать' : 'Скрыть'}>
-                    {ex.is_hidden ? '👁' : '🙈'}
-                  </button>
-                </div>
-              </div>
-            )}
-          </li>
-        ))}
-        {filtered.length === 0 && <li className="muted admin-catalog-empty">Ничего не найдено.</li>}
-      </ul>
+      <ExerciseCatalog list={live} userId={userId} admin online={online} onEdit={setEditing} onToggleHidden={toggleHidden} />
 
       {mergedCount > 0 && (
         <details className="admin-merged">

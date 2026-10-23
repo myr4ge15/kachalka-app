@@ -33,72 +33,77 @@ beforeEach(() => {
 afterEach(() => vi.clearAllMocks())
 
 describe('ExercisesSection', () => {
-  it('поиск без учета «ё»; пусто — «Ничего не найдено»', () => {
-    render(<ExercisesSection exercises={EX} online errMsg={errMsg} />)
+  // С 23.10.2026 — общий каталог (components/exercises/ExerciseCatalog.jsx) в режиме Админки.
+  const row = (name) => screen.getByText(name, { selector: '.picker-item > span:first-child' }).closest('.picker-item')
+
+  it('разделы и поиск без учета «ё»; скрытые видны с пометкой; пусто — «Ничего не найдено»', () => {
+    render(<ExercisesSection exercises={EX} userId="adm" online errMsg={errMsg} />)
+    expect(screen.getByText('Базовые')).toBeInTheDocument()
+    expect(row('Планка')).toHaveTextContent('скрыто')
     const search = screen.getByLabelText('Поиск упражнения')
     fireEvent.change(search, { target: { value: 'ЖИМ' } })
-    expect(screen.getByText('Жим лежа')).toBeInTheDocument()
-    expect(screen.queryByText('Планка')).toBeNull()
+    expect(screen.getByText('Жим лежа', { selector: '.picker-item > span:first-child' })).toBeInTheDocument()
+    expect(screen.queryByText('Планка', { selector: '.picker-item > span:first-child' })).toBeNull()
     fireEvent.change(search, { target: { value: 'ёжик' } })
     expect(screen.getByText('Ничего не найдено.')).toBeInTheDocument()
   })
 
-  it('правка: группа сбрасывает подмышцу на основную, вторичные — тумблером; тип уходит только при смене', async () => {
-    render(<ExercisesSection exercises={EX} online errMsg={errMsg} />)
-    fireEvent.click(screen.getAllByRole('button', { name: 'Изменить' })[0])
-    fireEvent.change(screen.getByDisplayValue('Жим лежа'), { target: { value: 'Жим лежа штангой' } })
+  it('правка любого: группа из списка сбрасывает подмышцу, тип уходит только при смене, флаги рейтинга целы', async () => {
+    const ex = [{ ...EX[0], is_bench_lift: true }, ...EX.slice(1)]
+    render(<ExercisesSection exercises={ex} userId="adm" online errMsg={errMsg} />)
+    fireEvent.click(row('Жим лежа'))
+    fireEvent.change(screen.getByLabelText('Название упражнения'), { target: { value: 'Жим лежа штангой' } })
     fireEvent.click(screen.getByRole('button', { name: 'Сохранить' }))
     await waitFor(() => expect(adminUpdateExercise).toHaveBeenCalled())
-    expect(adminUpdateExercise.mock.calls[0][0]).toMatchObject({ id: 'bp', name: 'Жим лежа штангой', submuscle: 'chest_middle', metric: undefined })
+    expect(adminUpdateExercise.mock.calls[0][0]).toMatchObject({
+      id: 'bp', name: 'Жим лежа штангой', submuscle: 'chest_middle', metric: undefined, is_bench_lift: true, is_hidden: false,
+    })
     expect(showToast).toHaveBeenCalledWith(expect.objectContaining({ title: 'Упражнение обновлено' }))
 
-    fireEvent.click(screen.getAllByRole('button', { name: 'Изменить' })[0])
-    fireEvent.change(screen.getByPlaceholderText('напр. грудь'), { target: { value: 'плечи' } })
-    const chips = screen.getByText('Вторичные мышцы').parentElement.querySelectorAll('button')
-    fireEvent.click(chips[0])
-    fireEvent.click(chips[1]); fireEvent.click(chips[1])
-    fireEvent.click(within(screen.getByRole('radiogroup', { name: 'Тип упражнения' })).getAllByRole('radio')[1])
+    fireEvent.click(row('Жим лежа'))
+    fireEvent.click(screen.getByRole('button', { name: 'плечи' }))
+    fireEvent.click(screen.getByRole('button', { name: 'Только повторения' }))
+    expect(screen.getByText(/Уже записанные подходы не пересчитываются/)).toBeInTheDocument()
     fireEvent.click(screen.getByRole('checkbox', { name: 'Скрыть из пикера' }))
     fireEvent.click(screen.getByRole('button', { name: 'Сохранить' }))
     await waitFor(() => expect(adminUpdateExercise).toHaveBeenCalledTimes(2))
-    const arg = adminUpdateExercise.mock.calls[1][0]
-    expect(arg).toMatchObject({ muscle_group: 'плечи', is_hidden: true })
-    expect(arg.secondary).toHaveLength(1)
-    expect(arg.metric).not.toBe('weight')
+    expect(adminUpdateExercise.mock.calls[1][0]).toMatchObject({ muscle_group: 'плечи', secondary: [], metric: 'reps', is_hidden: true })
   })
 
-  it('ошибка сохранения — тост с причиной, форма остается; «Отмена» закрывает', async () => {
+  it('ошибка сохранения — тост с причиной, форма остается; «Отмена» возвращает список', async () => {
     adminUpdateExercise.mockRejectedValueOnce(new Error('admin only'))
-    render(<ExercisesSection exercises={EX} online errMsg={errMsg} />)
-    fireEvent.click(screen.getAllByRole('button', { name: 'Изменить' })[0])
+    render(<ExercisesSection exercises={EX} userId="adm" online errMsg={errMsg} />)
+    fireEvent.click(row('Жим лежа'))
     fireEvent.click(screen.getByRole('button', { name: 'Сохранить' }))
     await waitFor(() => expect(showToast).toHaveBeenCalledWith(expect.objectContaining({ title: 'Не удалось', sub: 'admin only' })))
+    expect(screen.getByRole('button', { name: 'Сохранить' })).toBeEnabled()
     fireEvent.click(screen.getByRole('button', { name: 'Отмена' }))
     expect(screen.queryByRole('button', { name: 'Сохранить' })).toBeNull()
+    expect(screen.getByLabelText('Поиск упражнения')).toBeInTheDocument()
   })
 
   it('быстро скрыть/показать — разметка мышц сохраняется; ошибка — тост', async () => {
-    render(<ExercisesSection exercises={EX} online errMsg={errMsg} />)
-    fireEvent.click(screen.getAllByRole('button', { name: 'Скрыть' })[0])
+    render(<ExercisesSection exercises={EX} userId="adm" online errMsg={errMsg} />)
+    fireEvent.click(screen.getByRole('button', { name: 'Скрыть «Жим лежа» из пикера' }))
     await waitFor(() => expect(adminUpdateExercise).toHaveBeenCalledWith(expect.objectContaining({ id: 'bp', submuscle: 'chest_middle', secondary: ['triceps'], is_hidden: true })))
     expect(showToast).toHaveBeenCalledWith(expect.objectContaining({ title: 'Скрыто из пикера' }))
-    fireEvent.click(screen.getByRole('button', { name: 'Показать' }))
+    fireEvent.click(screen.getByRole('button', { name: 'Показать «Планка» в пикере' }))
     await waitFor(() => expect(showToast).toHaveBeenCalledWith(expect.objectContaining({ title: 'Показано в пикере' })))
     adminUpdateExercise.mockRejectedValueOnce(new Error('x'))
-    fireEvent.click(screen.getAllByRole('button', { name: 'Скрыть' })[0])
+    fireEvent.click(screen.getByRole('button', { name: 'Скрыть «Жим лежа» из пикера' }))
     await waitFor(() => expect(showToast).toHaveBeenLastCalledWith(expect.objectContaining({ title: 'Не удалось' })))
   })
 
   it('офлайн: «Сохранить», скрытие и «Слить» неактивны — запросов нет', () => {
-    render(<ExercisesSection exercises={EX} online={false} errMsg={errMsg} />)
-    for (const b of screen.getAllByRole('button', { name: /^(Скрыть|Показать)$/ })) expect(b).toBeDisabled()
-    fireEvent.click(screen.getAllByRole('button', { name: 'Изменить' })[0])
-    expect(screen.getByRole('button', { name: 'Сохранить' })).toBeDisabled()
+    render(<ExercisesSection exercises={EX} userId="adm" online={false} errMsg={errMsg} />)
+    for (const b of screen.getAllByRole('button', { name: /^(Скрыть|Показать) «/ })) expect(b).toBeDisabled()
     fireEvent.click(screen.getByRole('button', { name: /Слить дубль/ }))
     const [from, into] = screen.getAllByRole('combobox').slice(-2)
     fireEvent.change(from, { target: { value: 'pl2' } })
     fireEvent.change(into, { target: { value: 'bp' } })
     expect(screen.getByRole('button', { name: 'Слить' })).toBeDisabled()
+    fireEvent.click(row('Жим лежа'))
+    expect(screen.getByRole('button', { name: 'Сохранить' })).toBeDisabled()
     expect(adminUpdateExercise).not.toHaveBeenCalled()
     expect(adminMergeExercise).not.toHaveBeenCalled()
   })
