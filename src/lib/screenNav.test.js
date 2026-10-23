@@ -1,5 +1,6 @@
 import { describe, it, expect } from 'vitest'
-import { transitionKind, isNested, swipeAxis, swipeBackBlocked, swipeCommits, textSelectionActive, edgeSwipeSupported, nextScreenStack, initialScreenStack } from './screenNav.js'
+import { transitionKind, isNested, swipeAxis, swipeBackBlocked, swipeCommits, textSelectionActive, edgeSwipeSupported, nextScreenStack, initialScreenStack,
+  pushSample, releaseVelocity, settleMotion, underlayShift, underlayDim } from './screenNav.js'
 
 describe('стек возврата', () => {
   it('сохраняет предков и убирает закрытые дочерние экраны', () => {
@@ -110,5 +111,55 @@ describe('textSelectionActive (v7.5.5)', () => {
     expect(textSelectionActive({ isCollapsed: true, toString: () => '' })).toBe(false)
     expect(textSelectionActive({ isCollapsed: false, toString: () => '  ' })).toBe(false)
     expect(textSelectionActive(null)).toBe(false)
+  })
+})
+
+// fb_37f0c1a8: доезд после отпускания — со скоростью пальца, а не всегда за 180 мс.
+describe('мягкий доезд свайпа', () => {
+  it('скорость — по последним ~80 мс, а не по одному кадру', () => {
+    const s = []
+    pushSample(s, 0, 0)
+    pushSample(s, 10, 16)
+    pushSample(s, 20, 32)
+    pushSample(s, 60, 48) // рывок в последнем кадре
+    expect(releaseVelocity(s, 48)).toBeCloseTo(60 / 48)
+    pushSample(s, 70, 200) // старые точки выпали из окна
+    expect(s.length).toBe(2)
+    expect(releaseVelocity(s, 200)).toBeCloseTo(10 / 152)
+  })
+  it('палец постоял перед отпусканием — броска нет; мало точек — ноль', () => {
+    const s = pushSample(pushSample([], 0, 0), 100, 50)
+    expect(releaseVelocity(s, 60)).toBeCloseTo(2)
+    expect(releaseVelocity(s, 200)).toBe(0)
+    expect(releaseVelocity(pushSample([], 5, 0), 0)).toBe(0)
+    expect(releaseVelocity(pushSample(pushSample([], 0, 10), 50, 10), 10)).toBe(0) // одно время — не делим на ноль
+  })
+  it('медленно отпустил — доезд дольше и стартует плавно', () => {
+    const slow = settleMotion(260, 0)
+    expect(slow.ms).toBe(250)
+    expect(slow.easing).toBe('cubic-bezier(0.25, 0, 0.35, 1)')
+    const fast = settleMotion(260, 3)
+    expect(fast.ms).toBeLessThan(slow.ms)
+    expect(fast.ms).toBeGreaterThanOrEqual(140)
+    // начальный наклон кривой (y1/x1) ≈ скорость пальца × время / путь
+    const y1 = Number(fast.easing.match(/0\.25, ([\d.]+),/)[1])
+    expect(y1 / 0.25).toBeCloseTo(Math.min(4, (3 * fast.ms) / 260), 1)
+  })
+  it('время в пределах, скорость от цели не ускоряет', () => {
+    expect(settleMotion(2000, 0).ms).toBe(320)
+    expect(settleMotion(10, 50).ms).toBe(140)
+    expect(settleMotion(0, 1)).toEqual({ ms: 140, easing: 'cubic-bezier(0.25, 0, 0.35, 1)' })
+    expect(settleMotion(-200, -2)).toEqual(settleMotion(200, 0))
+  })
+  it('подложка: левее на 30% и притемнена в начале, на месте и светлая в конце', () => {
+    expect(underlayShift(0, 390)).toBe(-117)
+    expect(underlayShift(195, 390)).toBe(-59)
+    expect(underlayShift(390, 390)).toBe(-0)
+    expect(underlayShift(500, 390)).toBe(-0)
+    expect(underlayShift(10, 0)).toBe(0)
+    expect(underlayDim(0, 390)).toBe(0.3)
+    expect(underlayDim(195, 390)).toBe(0.15)
+    expect(underlayDim(390, 390)).toBe(0)
+    expect(underlayDim(10, 0)).toBe(0)
   })
 })

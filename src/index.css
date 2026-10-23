@@ -636,6 +636,14 @@ select, textarea { font-variant-numeric: inherit; font-feature-settings: inherit
   left: 0; right: 0; min-height: var(--swipe-height, 100%);
   pointer-events: none;
 }
+/* Затемнение подложки на время свайпа (fb_37f0c1a8): светлеет по мере ухода экрана.
+   Сдвиг подложки и время доезда пишет hooks/useEdgeSwipeBack.js. */
+.nav-stack[data-swiping] > .nav-underlay::after {
+  content: ''; position: absolute; inset: 0;
+  background: rgb(0 0 0); opacity: var(--swipe-dim, 0);
+  transition: var(--swipe-dim-tr, none);
+  pointer-events: none;
+}
 .nav-stack[data-swiping] > .nav-current {
   min-height: var(--swipe-height, 100%);
   box-shadow: -12px 0 28px rgb(0 0 0 / .16);

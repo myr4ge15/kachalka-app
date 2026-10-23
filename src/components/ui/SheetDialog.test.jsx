@@ -258,11 +258,12 @@ describe('SheetDialog swipeBack', () => {
     swipeEnv.on = true
     vi.useFakeTimers()
     const onDismiss = sheet()
-    const prevented = drag(screen.getByTestId('text'), [100, 300], [140, 302], [260, 305])
+    // дальше трети ширины: в jsdom у событий одно время, броска (скорости) нет
+    const prevented = drag(screen.getByTestId('text'), [100, 300], [140, 302], [500, 305])
     expect(prevented).toBe(true) // жест наш — страница не прокручивается
     expect(screen.getByRole('dialog').style.transform).toMatch(/translateX/)
     expect(onDismiss).not.toHaveBeenCalled() // сначала доезжает
-    act(() => { vi.advanceTimersByTime(200) })
+    act(() => { vi.advanceTimersByTime(400) })
     expect(onDismiss).toHaveBeenCalledTimes(1)
   })
 
@@ -271,11 +272,11 @@ describe('SheetDialog swipeBack', () => {
     vi.useFakeTimers()
     const onDismiss = sheet()
     drag(screen.getByTestId('text'), [100, 300], [112, 300], [125, 300])
-    act(() => { vi.advanceTimersByTime(200) })
+    act(() => { vi.advanceTimersByTime(400) })
     expect(screen.getByRole('dialog').style.transform).toBe('')
     drag(screen.getByTestId('text'), [100, 300], [110, 360], [200, 500])
     drag(screen.getByRole('textbox', { name: 'поле' }), [100, 300], [160, 300], [300, 300])
-    act(() => { vi.advanceTimersByTime(200) })
+    act(() => { vi.advanceTimersByTime(400) })
     expect(onDismiss).not.toHaveBeenCalled()
   })
 
@@ -283,7 +284,7 @@ describe('SheetDialog swipeBack', () => {
     vi.useFakeTimers()
     const off = sheet() // jsdom: не iOS-PWA
     drag(screen.getByTestId('text'), [100, 300], [140, 300], [300, 300])
-    act(() => { vi.advanceTimersByTime(200) })
+    act(() => { vi.advanceTimersByTime(400) })
     expect(off).not.toHaveBeenCalled()
   })
 
@@ -292,7 +293,7 @@ describe('SheetDialog swipeBack', () => {
     vi.useFakeTimers()
     const onDismiss = sheet({ dismissDisabled: true })
     drag(screen.getByTestId('text'), [100, 300], [140, 300], [300, 300])
-    act(() => { vi.advanceTimersByTime(200) })
+    act(() => { vi.advanceTimersByTime(400) })
     expect(onDismiss).not.toHaveBeenCalled()
   })
 })

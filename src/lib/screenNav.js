@@ -95,6 +95,68 @@ export function swipeCommits(dx, velocity, width) {
   return dx > width / 3 || (velocity > 0.45 && dx > 40)
 }
 
+// ---------------------- Доезд после отпускания (fb_37f0c1a8) ----------------------
+// Раньше экран доезжал всегда за 180 мс по одной кривой: отпустил на трети ширины —
+// оставшиеся ~260 px пролетали рывком, намного быстрее пальца. Теперь время и кривая
+// считаются из остатка пути и скорости пальца, как в iOS: кривая стартует со
+// скоростью пальца и мягко тормозит.
+
+const VELOCITY_WINDOW_MS = 80     // скорость — по последним ~80 мс, а не по одному кадру
+const VELOCITY_STALE_MS = 60      // палец постоял перед отпусканием — броска нет
+const SETTLE_MIN_MS = 140
+const SETTLE_MAX_MS = 320
+const SETTLE_PACE = 2.8           // быстрый бросок: доезд стартует примерно со скоростью пальца
+const MAX_START_SLOPE = 4         // потолок начального наклона кривой (y1 ≤ 1)
+
+// Копит точки касания { x, t } для сглаженной скорости. Мутирует samples.
+export function pushSample(samples, x, t) {
+  samples.push({ x, t })
+  while (samples.length > 2 && t - samples[1].t >= VELOCITY_WINDOW_MS) samples.shift()
+  return samples
+}
+
+// Скорость в момент отпускания, px/мс (> 0 — вправо). endT — время touchend.
+export function releaseVelocity(samples, endT) {
+  if (samples.length < 2) return 0
+  const first = samples[0]
+  const last = samples[samples.length - 1]
+  if (Number.isFinite(endT) && endT - last.t > VELOCITY_STALE_MS) return 0
+  const dt = last.t - first.t
+  return dt > 0 ? (last.x - first.x) / dt : 0
+}
+
+// Время и кривая доезда: distance — сколько осталось проехать (px), velocity — скорость
+// пальца В СТОРОНУ цели (px/мс; от цели или стоит — 0). Кривая — cubic-bezier, у которой
+// начальный наклон совпадает со скоростью пальца: медленно отпустил — плавно разгоняется,
+// бросил — продолжает с той же скоростью; конец у всех мягкий.
+export function settleMotion(distance, velocity) {
+  const d = Math.abs(distance)
+  const v = Math.max(0, velocity || 0)
+  const byDistance = 120 + d * 0.5
+  const byVelocity = v > 0 ? (SETTLE_PACE * d) / v : Infinity
+  const ms = Math.round(Math.min(SETTLE_MAX_MS, Math.max(SETTLE_MIN_MS, Math.min(byDistance, byVelocity))))
+  const slope = d >= 1 ? Math.min(MAX_START_SLOPE, (v * ms) / d) : 0
+  const y1 = Math.round(slope * 0.25 * 1000) / 1000
+  return { ms, easing: `cubic-bezier(0.25, ${y1}, 0.35, 1)` }
+}
+
+// Подложка (предыдущий экран) во время свайпа: стоит левее на треть своей ширины и
+// притемнена, а по мере ухода текущего экрана подъезжает на место и светлеет — как в iOS.
+const UNDERLAY_PARALLAX = 0.3
+const UNDERLAY_DIM = 0.3
+
+export function underlayShift(dx, width) {
+  if (!(width > 0)) return 0
+  const p = Math.min(1, Math.max(0, dx / width))
+  return -Math.round(UNDERLAY_PARALLAX * width * (1 - p))
+}
+
+export function underlayDim(dx, width) {
+  if (!(width > 0)) return 0
+  const p = Math.min(1, Math.max(0, dx / width))
+  return Math.round(UNDERLAY_DIM * (1 - p) * 1000) / 1000
+}
+
 // Свайп включаем только там, где у системы своего жеста нет: iOS «на экране
 // Домой». В Safari-вкладке край забирает браузер (уводит со страницы), на Android
 // край — системная «Назад»; наш жест там спорил бы с ними.

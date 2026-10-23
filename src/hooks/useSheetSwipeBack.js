@@ -10,11 +10,13 @@
 // внутри листа нет position:fixed потомков, а прокручивает его свой .sheet-scroll.
 // Включается только там, где и свайп экранов (iOS «на экране Домой»), — решает
 // SheetDialog по edgeSwipeAvailable().
+// Доезд после отпускания — как у экрана (fb_37f0c1a8): сглаженная скорость пальца,
+// время и кривая из остатка пути (`settleMotion`).
 import { useEffect, useRef } from 'react'
 import { flushSync } from 'react-dom'
-import { EDGE_PX, swipeAxis, swipeBackBlocked, swipeCommits, textSelectionActive } from '../lib/screenNav.js'
-
-const SETTLE_MS = 180
+import {
+  EDGE_PX, pushSample, releaseVelocity, settleMotion, swipeAxis, swipeBackBlocked, swipeCommits, textSelectionActive,
+} from '../lib/screenNav.js'
 
 function reducedMotion() {
   try { return window.matchMedia('(prefers-reduced-motion: reduce)').matches } catch { return false }
@@ -28,15 +30,23 @@ export function useSheetSwipeBack(overlayRef, sheetRef, onDismiss, enabled) {
     const overlay = overlayRef?.current
     if (!enabled || !overlay) return undefined
 
-    let g = null // { x0, y0, edge, axis, dx, lastX, lastT, v }
+    let g = null // { x0, y0, edge, axis, dx, samples }
     let settling = false
     let settleTimer = null
 
-    const shift = (px, animate) => {
+    // motion — { ms, easing } доезда или null (за пальцем).
+    const shift = (px, motion) => {
       const el = sheetRef.current
       if (!el) return
-      el.style.transition = animate && !reducedMotion() ? `transform ${SETTLE_MS}ms var(--ease-out)` : 'none'
+      el.style.transition = motion && !reducedMotion() ? `transform ${motion.ms}ms ${motion.easing}` : 'none'
       el.style.transform = px ? `translateX(${px}px)` : ''
+    }
+    const settle = (from, target, v, after) => {
+      const motion = settleMotion(target - from, target > from ? v : -v)
+      settling = true
+      shift(target, motion)
+      clearTimeout(settleTimer)
+      settleTimer = setTimeout(after, motion.ms)
     }
     const clear = () => {
       const el = sheetRef.current
@@ -56,7 +66,7 @@ export function useSheetSwipeBack(overlayRef, sheetRef, onDismiss, enabled) {
       const edge = t.clientX - left <= EDGE_PX
       if (!edge && swipeBackBlocked(e.target, overlay)) return
       if (textSelectionActive(window.getSelection?.())) return
-      g = { x0: t.clientX, y0: t.clientY, edge, axis: null, dx: 0, lastX: t.clientX, lastT: e.timeStamp, v: 0 }
+      g = { x0: t.clientX, y0: t.clientY, edge, axis: null, dx: 0, samples: pushSample([], t.clientX, e.timeStamp) }
     }
 
     function onMove(e) {
@@ -72,39 +82,31 @@ export function useSheetSwipeBack(overlayRef, sheetRef, onDismiss, enabled) {
         if (!g.axis) return
       }
       e.preventDefault()
-      const dt = Math.max(1, e.timeStamp - g.lastT)
-      g.v = (t.clientX - g.lastX) / dt
-      g.lastX = t.clientX
-      g.lastT = e.timeStamp
+      pushSample(g.samples, t.clientX, e.timeStamp)
       g.dx = Math.max(0, dx)
-      if (!reducedMotion()) shift(g.dx, false)
+      if (!reducedMotion()) shift(g.dx, null)
     }
 
-    function onEnd() {
+    function onEnd(e) {
       if (!g) return
       const done = g
       g = null
       if (done.axis !== 'x') return
       const width = sheetRef.current?.clientWidth || window.innerWidth
-      clearTimeout(settleTimer)
-      settling = true
-      if (swipeCommits(done.dx, done.v, width)) {
-        if (reducedMotion()) { finish(); return }
-        shift(width, true)
-        settleTimer = setTimeout(finish, SETTLE_MS)
+      const v = releaseVelocity(done.samples, e?.timeStamp)
+      if (swipeCommits(done.dx, v, width)) {
+        if (reducedMotion()) { clearTimeout(settleTimer); settling = true; finish(); return }
+        settle(done.dx, width, v, finish)
       } else {
-        shift(0, true)
-        settleTimer = setTimeout(clear, SETTLE_MS)
+        settle(done.dx, 0, v, clear)
       }
     }
 
     function onCancel() {
       if (!g) return
+      const done = g
       g = null
-      settling = true
-      shift(0, true)
-      clearTimeout(settleTimer)
-      settleTimer = setTimeout(clear, SETTLE_MS)
+      settle(done.dx, 0, 0, clear)
     }
 
     overlay.addEventListener('touchstart', onStart, { passive: true })

@@ -21,7 +21,7 @@ function swipe() {
   fireEvent.touchStart(box, { touches: [{ clientX: 10, clientY: 100 }] })
   fireEvent.touchMove(box, { touches: [{ clientX: 500, clientY: 100 }] })
   fireEvent.touchEnd(box, { touches: [] })
-  act(() => vi.advanceTimersByTime(300))
+  act(() => vi.advanceTimersByTime(400))
 }
 afterEach(() => { vi.useRealTimers(); vi.unstubAllGlobals() })
 

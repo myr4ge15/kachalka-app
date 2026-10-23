@@ -98,7 +98,7 @@ describe('HistoryScreen', () => {
       fireEvent.touchMove(box, pt(320))
       expect(container.querySelector('.nav-stack').dataset.swiping).toBe('true')
       fireEvent.touchEnd(box, { touches: [] })
-      act(() => { vi.advanceTimersByTime(300) })
+      act(() => { vi.advanceTimersByTime(400) })
       expect(screen.queryByTestId('workout-screen')).not.toBeInTheDocument()
       expect(screen.getByText('Мои тренировки')).toBeInTheDocument()
     } finally {
