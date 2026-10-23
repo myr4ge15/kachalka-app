@@ -327,7 +327,8 @@ export async function resumableUpload(path, blob, contentType, onBytes, { reques
   } })
   if (created.status === 413) throw new FeedbackError('video_too_big')
   if (created.status !== 201 || !created.header('Location')) throw new FeedbackError('video_failed')
-  const loc = new URL(created.header('Location'), TUS_URL)
+  // Без VITE_SUPABASE_URL (тесты, CI) TUS_URL относительный — new URL без абсолютной базы бросает.
+  const loc = new URL(created.header('Location'), new URL(TUS_URL, globalThis.location?.href ?? 'http://localhost/'))
   if (TUS_URL.startsWith('https:')) loc.protocol = 'https:' // за прокси Storage может вернуть http
   const url = loc.toString()
 
