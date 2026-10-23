@@ -17,6 +17,19 @@ describe('FeedbackPhotos', () => {
     expect(screen.getByRole('dialog', { name: 'Фото' }).querySelector('img')).toHaveAttribute('src', 'blob:0')
   })
 
+  it('indices — только эти номера, подпись и счет по ним (fb_37f0c1a8)', async () => {
+    const load = vi.fn(async (id, kind, n) => `blob:${n}`)
+    render(<FeedbackPhotos id="f1" kind="screenshots" count={5} indices={[1, 3]} load={load} label="Вложение" />)
+    expect(load.mock.calls).toEqual([['f1', 'screenshots', 1], ['f1', 'screenshots', 3]])
+    fireEvent.click(await screen.findByRole('button', { name: 'Вложение 2 из 2' }))
+    expect(screen.getByRole('dialog', { name: 'Вложение' }).querySelector('img')).toHaveAttribute('src', 'blob:3')
+  })
+
+  it('пустой indices — ничего', () => {
+    const { container } = render(<FeedbackPhotos id="f1" count={3} indices={[]} load={vi.fn()} lazy label="Вложение" />)
+    expect(container).toBeEmptyDOMElement()
+  })
+
   it('недоступная картинка (бота пересоздали, нет сети) — честная плашка', async () => {
     render(<FeedbackPhotos id="f1" kind="shot" load={() => Promise.reject(new Error('404'))} label="Скриншот" />)
     expect(await screen.findByRole('img', { name: 'Картинка недоступна' })).toBeInTheDocument()

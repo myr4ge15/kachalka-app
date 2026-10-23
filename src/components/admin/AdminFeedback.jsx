@@ -4,7 +4,7 @@ import { showToast } from '../ui/Toast.jsx'
 import FeedbackPhotos from '../social/FeedbackPhotos.jsx'
 import { useRevealFocus } from '../../hooks/useRevealFocus.js'
 import {
-  contextLine, fmtFeedbackDate, hasReply, isOpenStatus, openCount, FEEDBACK_MAX, FEEDBACK_STATUSES, STATUS_LABEL,
+  contextLine, fmtFeedbackDate, groupAttachments, hasReply, isOpenStatus, openCount, FEEDBACK_MAX, FEEDBACK_STATUSES, STATUS_LABEL,
 } from '../../lib/feedback.js'
 import {
   adminListFeedback, adminUpdateFeedback, feedbackMedia, feedbackShotUrl, FeedbackError,
@@ -90,6 +90,7 @@ function FeedbackCard({ row, online, api, editing, onEdit, onSaved }) {
   const [shotBusy, setShotBusy] = useState(false)
   const version = row.context?.version
   const ctx = contextLine({ ...row.context, version: null })
+  const groups = groupAttachments(row.screenshot_count, row.screenshot_times, row.additions)
 
   async function showShot() {
     if (shotBusy) return
@@ -111,12 +112,21 @@ function FeedbackCard({ row, online, api, editing, onEdit, onSaved }) {
       </div>
       <span className="admin-ex-meta">{fmtFeedbackDate(row.created_at)}</span>
       <p className="fb-body">{row.body}</p>
+      {/* Вложения по месту (fb_37f0c1a8): исходные — у текста обращения, приложенные позже — под дополнением. */}
+      {row.screenshot_count > 0 && <FeedbackPhotos id={row.id} kind="screenshots" indices={groups.base}
+        load={api.media} lazy disabled={!online} label={`Скриншот от ${row.author_name}`} />}
       {row.additions?.map((a) => (
-        <p key={a.n} className="fb-addition">
-          <span aria-hidden="true">➕ </span>{a.body}
-          <span className="admin-ex-meta"> · {fmtFeedbackDate(a.created_at)}</span>
-        </p>
+        <div key={a.n}>
+          <p className="fb-addition">
+            <span aria-hidden="true">➕ </span>{a.body}
+            <span className="admin-ex-meta"> · {fmtFeedbackDate(a.created_at)}</span>
+          </p>
+          {groups.byAddition[a.n] && <FeedbackPhotos id={row.id} kind="screenshots" indices={groups.byAddition[a.n]}
+            load={api.media} lazy disabled={!online} label="Вложение к дополнению" />}
+        </div>
       ))}
+      {groups.later.length > 0 && <FeedbackPhotos id={row.id} kind="screenshots" indices={groups.later}
+        load={api.media} lazy disabled={!online} label="Добавлено позже" />}
       {(version || ctx) && (
         <p className="admin-ex-meta fb-ctx">
           {version && <span className="version-number">v{version}</span>}
@@ -129,8 +139,6 @@ function FeedbackCard({ row, online, api, editing, onEdit, onSaved }) {
         </p>
       )}
       {/* v6.12.0: отправленный в Telegram скриншот живет там (file_id), в Storage — только недошедший. */}
-      {row.screenshot_count > 0 && <FeedbackPhotos id={row.id} kind="screenshots" count={row.screenshot_count}
-        load={api.media} lazy disabled={!online} label={`Скриншот от ${row.author_name}`} />}
       {!row.screenshot_count && !row.screenshot_path && row.has_screenshot_tg && (
         <FeedbackPhotos id={row.id} kind="shot" count={1} load={api.media} lazy disabled={!online}
           label={`Скриншот от ${row.author_name}`} />

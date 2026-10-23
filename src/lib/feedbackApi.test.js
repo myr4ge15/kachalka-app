@@ -115,6 +115,23 @@ describe('свои обращения', () => {
       ? { data: rows } : { error: { code: 'PGRST202', message: 'x' } }))
     await expect(listMyFeedback('me')).resolves.toBe(rows)
   })
+  it('время вложений (fb_37f0c1a8) — полем screenshot_times по номеру; нет функции — без него', async () => {
+    const rows = [{ id: 'f1', body: 'a' }, { id: 'f2', body: 'b' }]
+    mocks.rpc.mockImplementation(async (name) => {
+      if (name === 'my_feedback') return { data: rows }
+      if (name === 'feedback_screenshot_counts') return { data: [{ feedback_id: 'f1', screenshot_count: 2 }] }
+      if (name === 'feedback_screenshot_times') {
+        return { data: [{ feedback_id: 'f1', n: 1, added_at: '2026-10-23T08:18:00Z' }, { feedback_id: 'f1', n: 'x', added_at: 'y' }, null] }
+      }
+      return { data: [] }
+    })
+    const got = await listMyFeedback('me')
+    expect(got[0]).toMatchObject({ screenshot_count: 2, screenshot_times: { 1: '2026-10-23T08:18:00Z' } })
+    expect(got[1].screenshot_times).toBeUndefined()
+    mocks.rpc.mockImplementation(async (name) => (name === 'my_feedback' ? { data: rows }
+      : name === 'feedback_screenshot_times' ? { error: { code: 'PGRST202' } } : { data: [] }))
+    expect((await listMyFeedback('me')).map((r) => r.screenshot_times)).toEqual([undefined, undefined])
+  })
   it('ack не бросает', async () => {
     mocks.rpc.mockRejectedValue(new Error('net'))
     await expect(ackMyFeedback()).resolves.toBeUndefined()

@@ -2,7 +2,7 @@ import { describe, expect, it } from 'vitest'
 import {
   myFeedbackTab, attachmentProblem, attachmentProblemText, fmtFileSize, videoPosterSrc, sniffMediaType, videoExt, bodyProblem, buildContext, cleanBody, contextLine, describeDevice, feedbackErrorText, isWebKit26Plus,
   fmtFeedbackDate, hasUnreadReply, isOpenStatus, openCount, unreadReplies, FEEDBACK_MAX,
-  canReopen, hasReply, isStaleReply, reopenProblem, REOPEN_LIMIT, REOPEN_MAX,
+  canReopen, hasReply, isStaleReply, reopenProblem, REOPEN_LIMIT, REOPEN_MAX, groupAttachments,
 } from './feedback.js'
 
 const IPHONE = 'Mozilla/5.0 (iPhone; CPU iPhone OS 17_5 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/17.5 Mobile/15E148 Safari/604.1'
@@ -211,5 +211,23 @@ describe('видео к обращению (fb_1c5fab9c)', () => {
     expect(sniffMediaType(box('qt  '))).toBe('video/quicktime')
     expect(sniffMediaType(new Uint8Array([0xff, 0xd8, 0xff, 0xe0]))).toBe('image/jpeg')
     expect(sniffMediaType(new Uint8Array([1, 2]))).toBe(null)
+  })
+})
+
+// fb_37f0c1a8: вложение, приложенное с дополнением, показывается под ним, а не общим блоком.
+describe('groupAttachments', () => {
+  const adds = [{ n: 1, created_at: '2026-10-23T08:17:35Z' }, { n: 2, created_at: '2026-10-23T09:00:00Z' }]
+  it('без времени — к обращению; со временем — к своему дополнению', () => {
+    expect(groupAttachments(3, { 1: '2026-10-23T08:18:10Z', 2: '2026-10-23T09:00:20Z' }, adds))
+      .toEqual({ base: [0], byAddition: { 1: [1], 2: [2] }, later: [] })
+  })
+  it('дополнения нет рядом (файлы без текста) — «добавлено позже»; часы чуть впереди — терпим', () => {
+    expect(groupAttachments(3, { 1: '2026-10-23T08:40:00Z', 2: '2026-10-23T08:17:33Z' }, adds))
+      .toEqual({ base: [0], byAddition: { 1: [2] }, later: [1] })
+  })
+  it('нет времени и дополнений — все к обращению; мусор не ломает', () => {
+    expect(groupAttachments(2)).toEqual({ base: [0, 1], byAddition: {}, later: [] })
+    expect(groupAttachments(1, { 0: 'не дата' }, [{ n: 1, created_at: null }])).toEqual({ base: [0], byAddition: {}, later: [] })
+    expect(groupAttachments(undefined, null, null)).toEqual({ base: [], byAddition: {}, later: [] })
   })
 })

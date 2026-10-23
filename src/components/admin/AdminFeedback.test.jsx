@@ -101,4 +101,21 @@ describe('AdminFeedback — Telegram (v6.12.0)', () => {
     await waitFor(() => expect(api.media).toHaveBeenCalledWith('t', 'reply', 1))
     expect(api.shot).not.toHaveBeenCalled()
   })
+
+  // fb_37f0c1a8: вложение, приложенное с дополнением, — под ним, а исходное — у текста обращения.
+  it('вложения по месту: исходное у обращения, позднее — под своим дополнением', async () => {
+    const row = {
+      id: 'v', author_name: 'Андрюшка', body: 'Смягчить свайп', status: 'in_progress', context: {}, created_at: '2026-10-23T07:27:48Z',
+      screenshot_count: 2, screenshot_times: { 1: '2026-10-23T08:17:50Z' },
+      additions: [{ n: 1, body: 'Проверка на бете', created_at: '2026-10-23T08:17:35Z' }],
+    }
+    const api = setup({ list: vi.fn(async () => [row]) })
+    await screen.findByText('Смягчить свайп')
+    await userEvent.click(screen.getByRole('button', { name: '📎 Показать скриншот от Андрюшка' }))
+    await userEvent.click(screen.getByRole('button', { name: '📎 Показать вложение к дополнению' }))
+    await waitFor(() => expect(api.media).toHaveBeenCalledTimes(2))
+    expect(api.media.mock.calls).toEqual([['v', 'screenshots', 0], ['v', 'screenshots', 1]])
+    const addition = screen.getByText('Проверка на бете').closest('div')
+    expect(within(addition).getByRole('button', { name: 'Вложение к дополнению' })).toBeTruthy()
+  })
 })

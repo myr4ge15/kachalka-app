@@ -224,6 +224,30 @@ export function feedbackReplyNotifs(rows) {
     }))
 }
 
+// Вложения по месту (fb_37f0c1a8): у приложенных после отправки есть время (times: { номер: ISO },
+// feedback_screenshot_times). Такое вложение — к последнему дополнению, отправленному не позже него и
+// не раньше чем за ATTACH_WINDOW_MS (форма шлет сначала текст, потом файлы); не нашлось — «добавлено
+// позже» (файлы без текста). Без времени (исходное сообщение, все старые) — к самому обращению.
+const ATTACH_WINDOW_MS = 10 * 60 * 1000
+const CLOCK_SLACK_MS = 5000
+export function groupAttachments(count, times = null, additions = []) {
+  const base = []
+  const later = []
+  const byAddition = {}
+  const adds = (additions ?? [])
+    .map((a) => ({ n: a.n, t: Date.parse(a.created_at) }))
+    .filter((a) => Number.isFinite(a.t))
+    .sort((x, y) => x.t - y.t)
+  for (let i = 0; i < (Number(count) || 0); i++) {
+    const at = Date.parse(times?.[i])
+    if (!Number.isFinite(at)) { base.push(i); continue }
+    const add = adds.filter((a) => a.t <= at + CLOCK_SLACK_MS && at - a.t <= ATTACH_WINDOW_MS).pop()
+    if (add) (byAddition[add.n] ??= []).push(i)
+    else later.push(i)
+  }
+  return { base, byAddition, later }
+}
+
 // Ответ дан ДО последнего переоткрытия — это «прошлый ответ», а не решение.
 export function isStaleReply(row) {
   if (!row?.reopened_at || !row?.replied_at) return false

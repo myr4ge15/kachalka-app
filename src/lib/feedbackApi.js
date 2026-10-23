@@ -364,10 +364,30 @@ export async function attachFeedbackScreenshots(userId, id, files, compress = co
 
 async function withScreenshotCounts(rows) {
   if (!rows.length) return rows
+  let out = rows
   try {
     const { data, error } = await withTimeout(supabase.rpc('feedback_screenshot_counts'))
-    if (error || !Array.isArray(data)) return rows
-    const counts = new Map(data.filter((r) => Number.isInteger(r.screenshot_count)).map((r) => [r.feedback_id, r.screenshot_count]))
-    return counts.size ? rows.map((r) => ({ ...r, screenshot_count: counts.get(r.id) ?? 0 })) : rows
+    if (!error && Array.isArray(data)) {
+      const counts = new Map(data.filter((r) => Number.isInteger(r.screenshot_count)).map((r) => [r.feedback_id, r.screenshot_count]))
+      if (counts.size) out = rows.map((r) => ({ ...r, screenshot_count: counts.get(r.id) ?? 0 }))
+    }
+  } catch { /* без счетчиков */ }
+  return withScreenshotTimes(out)
+}
+
+// Когда приложены вложения после отправки (fb_37f0c1a8) — полем screenshot_times: { номер: ISO };
+// по нему экран кладет вложение под свое дополнение (lib/feedback.js groupAttachments). Нет функции
+// на сервере или сбой — список как есть: вложения общим блоком, как раньше.
+async function withScreenshotTimes(rows) {
+  try {
+    const { data, error } = await withTimeout(supabase.rpc('feedback_screenshot_times'))
+    if (error || !Array.isArray(data) || !data.length) return rows
+    const by = new Map()
+    for (const t of data) {
+      if (!t?.feedback_id || !Number.isInteger(t.n) || !t.added_at) continue
+      if (!by.has(t.feedback_id)) by.set(t.feedback_id, {})
+      by.get(t.feedback_id)[t.n] = t.added_at
+    }
+    return by.size ? rows.map((r) => (by.has(r.id) ? { ...r, screenshot_times: by.get(r.id) } : r)) : rows
   } catch { return rows }
 }

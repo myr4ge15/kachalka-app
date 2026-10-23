@@ -4,7 +4,7 @@ import FeedbackNoteForm from './FeedbackNoteForm.jsx'
 import Chevron from '../ui/Chevron.jsx'
 import { useRevealFocus } from '../../hooks/useRevealFocus.js'
 import {
-  appendProblem, canAppend, canReopen, fmtFeedbackDate, hasReply, isStaleReply, reopenProblem,
+  appendProblem, canAppend, canReopen, fmtFeedbackDate, groupAttachments, hasReply, isStaleReply, reopenProblem,
   APPEND_MAX, FEEDBACK_SHOTS_MAX, REOPEN_MAX, STATUS_LABEL,
 } from '../../lib/feedback.js'
 
@@ -31,6 +31,7 @@ export default function MyFeedbackItem({ row: r, userId, api, online, fresh = fa
   const revealRef = useRevealFocus(rev || null, { block: 'center' })
   const shots = Number(r.screenshot_count) || (r.has_screenshot ? 1 : 0)
   const adds = r.additions?.length ?? 0
+  const groups = groupAttachments(r.screenshot_count, r.screenshot_times, r.additions)
 
   // Сколько еще можно приложить (всего до FEEDBACK_SHOTS_MAX) и как.
   const room = FEEDBACK_SHOTS_MAX - shots
@@ -77,15 +78,22 @@ export default function MyFeedbackItem({ row: r, userId, api, online, fresh = fa
       {open && (
         <>
           <p className="fb-body">{r.body}</p>
-          {r.additions?.map((a) => (
-            <p key={a.n} className="fb-addition">
-              <span aria-hidden="true">➕ </span>{a.body}
-              <span className="admin-ex-meta"> · {fmtFeedbackDate(a.created_at)}</span>
-            </p>
-          ))}
-          {r.screenshot_count > 0 ? <FeedbackPhotos id={r.id} kind="screenshots" count={r.screenshot_count}
+          {/* Вложения по месту (fb_37f0c1a8): приложенное с дополнением — под ним, а не общим блоком. */}
+          {r.screenshot_count > 0 ? <FeedbackPhotos id={r.id} kind="screenshots" indices={groups.base}
             load={api.media} lazy disabled={!online} label="Скриншот к обращению" />
             : r.has_screenshot && <span className="admin-ex-meta">📎 со скриншотом</span>}
+          {r.additions?.map((a) => (
+            <div key={a.n}>
+              <p className="fb-addition">
+                <span aria-hidden="true">➕ </span>{a.body}
+                <span className="admin-ex-meta"> · {fmtFeedbackDate(a.created_at)}</span>
+              </p>
+              {groups.byAddition[a.n] && <FeedbackPhotos id={r.id} kind="screenshots" indices={groups.byAddition[a.n]}
+                load={api.media} lazy disabled={!online} label="Вложение к дополнению" />}
+            </div>
+          ))}
+          {groups.later.length > 0 && <FeedbackPhotos id={r.id} kind="screenshots" indices={groups.later}
+            load={api.media} lazy disabled={!online} label="Добавлено позже" />}
           {r.reopened_at && r.reopen_note && (
             <p className="fb-reopen"><span aria-hidden="true">🔁 </span>Открыто снова: {r.reopen_note}</p>
           )}

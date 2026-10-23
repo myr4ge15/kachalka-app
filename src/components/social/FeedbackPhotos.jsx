@@ -11,30 +11,36 @@ import { isVideoMedia, videoPosterSrc } from '../../lib/feedback.js'
 // lazy — сначала кнопка «Показать», грузим по нажатию (Админка: не тянуть байты
 // всех обращений сразу). label — подпись кнопки и alt. Видео (16.10) — плитка с ▶, на весь
 // экран — плеер; isVideo(url) узнает его по ссылке из load (тип — по байтам, feedbackApi).
+// indices (fb_37f0c1a8) — показать только эти номера вложений (вложения под своим дополнением);
+// без них — все от 0 до count − 1.
 export default function FeedbackPhotos({
-  id, kind = 'reply', count = 1, load, lazy = false, label = 'Скриншот', disabled = false, isVideo = isVideoMedia,
+  id, kind = 'reply', count = 1, indices = null, load, lazy = false, label = 'Скриншот', disabled = false, isVideo = isVideoMedia,
 }) {
+  const nums = indices ?? Array.from({ length: count }, (_, i) => i)
+  const numsKey = nums.join(',')
+  const total = nums.length
   const [on, setOn] = useState(!lazy)
-  const [urls, setUrls] = useState(() => Array(count).fill(null)) // null — грузится, '' — не вышло
+  const [urls, setUrls] = useState(() => Array(total).fill(null)) // null — грузится, '' — не вышло
   const [open, setOpen] = useState(null)
 
   useEffect(() => {
-    if (!on || !count) return undefined
+    const list = numsKey ? numsKey.split(',').map(Number) : []
+    if (!on || !list.length) return undefined
     let alive = true
-    setUrls(Array(count).fill(null))
-    for (let n = 0; n < count; n++) {
+    setUrls(Array(list.length).fill(null))
+    list.forEach((n, pos) => {
       Promise.resolve(load(id, kind, n))
         .then((url) => url, () => '')
-        .then((url) => { if (alive) setUrls((cur) => cur.map((u, i) => (i === n ? url : u))) })
-    }
+        .then((url) => { if (alive) setUrls((cur) => cur.map((u, i) => (i === pos ? url : u))) })
+    })
     return () => { alive = false }
-  }, [on, id, kind, count, load])
+  }, [on, id, kind, numsKey, load])
 
-  if (!count) return null
+  if (!total) return null
   if (!on) {
     return (
       <button type="button" className="btn ghost fb-attach" onClick={() => setOn(true)} disabled={disabled}>
-        📎 Показать {count > 1 ? `${lowerFirst(label)} (${count})` : lowerFirst(label)}
+        📎 Показать {total > 1 ? `${lowerFirst(label)} (${total})` : lowerFirst(label)}
       </button>
     )
   }
@@ -50,7 +56,7 @@ export default function FeedbackPhotos({
               : (
                 <button key={n} type="button" className={'fb-photo' + (isVideo(url) ? ' fb-photo--video' : '')}
                   onClick={() => setOpen(url)}
-                  aria-label={(isVideo(url) ? 'Видео: ' : '') + (count > 1 ? `${label} ${n + 1} из ${count}` : label)}>
+                  aria-label={(isVideo(url) ? 'Видео: ' : '') + (total > 1 ? `${label} ${n + 1} из ${total}` : label)}>
                   {isVideo(url) ? <video src={videoPosterSrc(url)} muted playsInline preload="metadata" /> : <img src={url} alt="" />}
                 </button>
               )
