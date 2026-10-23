@@ -116,7 +116,6 @@ export default function ExerciseCard({
     >
       <div className="exercise-head">
         <span className="exercise-title" tabIndex={0} aria-label={`${entry.exercise.name}. Изменить порядок: Alt и стрелки вверх или вниз`}>
-          <PhaseTag entry={{ phase }} />
           <TitleWithTechnique name={entry.exercise.name} onTechnique={onTechnique} />
         </span>
         <span className="exercise-actions">

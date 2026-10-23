@@ -85,9 +85,10 @@ describe('ExerciseCard — рендер', () => {
     expect(container.querySelector('.ap')).toBeNull()
   })
 
-  it('упражнение разминки помечено и в раскрытой, и в свернутой карточке (23.10)', () => {
+  // Раскрытая — без метки: заголовок блока прямо над ней, а шапка и так тесная (fb_f284d134).
+  it('упражнение разминки помечено в свернутой карточке, раскрытая — без метки (23.10)', () => {
     const { container, unmount } = renderCard(weightEntry(), {}, { phase: 'warmup' })
-    expect(container.querySelector('.exercise-head .ex-phase-tag')).toHaveTextContent('разминка')
+    expect(container.querySelector('.exercise-head .ex-phase-tag')).toBeNull()
     unmount()
     renderCard(weightEntry(), {}, { phase: 'warmup', active: false })
     expect(screen.getByRole('button', { name: /Открыть Жим лежа \(разминка\)/ })).toBeInTheDocument()

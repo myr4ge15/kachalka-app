@@ -33,7 +33,7 @@
 // easyStreak. Смешанная история — основной случай, а не краевой.
 // ============================================================================
 
-import { normMetric, isCountMetric, leadingValue } from './metric.js'
+import { normMetric, isCountMetric, leadingValue, fmtNum } from './metric.js'
 import { normFeel } from './rpe.js'
 import { plural } from './plural.js'
 
@@ -61,7 +61,8 @@ const HARD_FEEL_NEEDED = 2
 // Нормализация веса к шагу приложения (2 знака, как trim_scale/clampWeight).
 const roundW = (v) => Math.round((Number(v) || 0) * 100) / 100
 // Печать шага без хвостовых нулей: 2.5 → «2.5», 2 → «2».
-const fmtStep = (v) => String(Math.round((Number(v) || 0) * 100) / 100)
+// На экране дробь — с запятой (fb_f284d134: «+2.5 кг» в подсказке).
+const fmtStep = (v) => fmtNum(Math.round((Number(v) || 0) * 100) / 100)
 // База повторов после накидывания веса в стратегии '+повт.' (схема 8–12 → 8).
 const repFloor = (ceiling) => Math.max(1, Math.round(Number(ceiling) || 12) - 4)
 

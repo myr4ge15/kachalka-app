@@ -795,7 +795,9 @@ button.link-btn { min-height: 44px; display: inline-flex; align-items: center; j
 }
 .exercise-actions .link-btn.danger { color: var(--red); }
 /* Разминка и заминка (23.10.2026): «⋯» блока у карточки и заголовок блока в списке тренировки. */
-.exercise-actions .exercise-phase-btn { min-width: 44px; font-size: 18px; letter-spacing: .05em; }
+/* «⋯» по центру строки: обертка MoreMenu — блочная, и символ садился выше «заменить» (fb_f284d134). */
+.exercise-actions .more-wrap { display: flex; align-items: center; }
+.exercise-actions .exercise-phase-btn { min-width: 44px; font-size: 18px; line-height: 1; letter-spacing: .05em; }
 .wk-phase-title { margin: 18px 0 8px; }
 .wk-phase-title:first-child { margin-top: 0; }
 .ex-phase-tag {
