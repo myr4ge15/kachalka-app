@@ -347,7 +347,9 @@ export default function WorkoutScreen({ user, workoutId = null, onBack, onSaved 
       .sort((a, b) => (a.position ?? 0) - (b.position ?? 0))
       .filter((item) => (item.exercise?.id ?? item.exercise_id) && !have.has(item.exercise?.id ?? item.exercise_id))
     if (items.length === 0) {
-      setMessage({ type: 'error', text: 'Все упражнения шаблона уже добавлены.' })
+      // Тостом, а не баннером: шаблон выбирают внизу экрана, баннер вверху был не виден и
+      // висел до сохранения, даже после очистки тренировки (проверка на iPhone 23.10).
+      showToast({ emoji: '📋', title: 'Все упражнения шаблона уже добавлены', raised: true })
       return
     }
     const toAdd = []

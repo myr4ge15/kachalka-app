@@ -178,10 +178,12 @@ describe('шаблон', () => {
   it('все упражнения шаблона уже в составе — сообщение, ничего не добавляется', async () => {
     writeDraft(DRAFT, [entry(bench, [{ weight: 60, reps: 8 }])])
     pickTemplate = { exercises: [{ exercise: bench, sets: 3, reps: 8, weight: 60 }] }
-    render(<WorkoutScreen user={user} />)
+    const { container } = render(<><WorkoutScreen user={user} /><Toast /></>)
     fireEvent.click(screen.getByRole('button', { name: 'Выбрать шаблон' }))
     fireEvent.click(screen.getByRole('button', { name: 'выбрать шаблон' }))
-    expect(await screen.findByText('Все упражнения шаблона уже добавлены.')).toBeInTheDocument()
+    // Тост гаснет сам и виден там, где выбирали шаблон, — баннера вверху экрана нет.
+    expect(await screen.findByRole('status')).toHaveTextContent('Все упражнения шаблона уже добавлены')
+    expect(container.querySelector('.banner')).toBeNull()
     expect(readDraft(DRAFT)).toHaveLength(1)
   })
 
