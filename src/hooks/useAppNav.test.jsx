@@ -5,7 +5,8 @@ import { beforeEach, describe, expect, it, vi } from 'vitest'
 import { act, renderHook } from '@testing-library/react'
 
 vi.mock('../lib/appEvents.js', () => ({ emitReselect: vi.fn(), onResume: vi.fn(() => () => {}) }))
-vi.mock('./useEdgeSwipeBack.js', async (orig) => ({ ...(await orig()), useEdgeSwipeBack: vi.fn() }))
+const swipe = vi.hoisted(() => ({ on: false }))
+vi.mock('./useEdgeSwipeBack.js', async (orig) => ({ ...(await orig()), useEdgeSwipeBack: vi.fn(), edgeSwipeAvailable: () => swipe.on }))
 import { useAppNav } from './useAppNav.js'
 import { useEdgeSwipeBack } from './useEdgeSwipeBack.js'
 
@@ -58,5 +59,24 @@ describe('useAppNav: nestedBack', () => {
     expect(from('history').current.tab).toBe('history')
     const calls = vi.mocked(useEdgeSwipeBack).mock.calls
     expect(calls.at(-1)[3]).toBe(false) // edgeSwipeOn в jsdom выключен
+  })
+})
+
+// 23.10.2026: открыт слой внутри экрана (раздел Админки, упражнение) — свайп маршрута молчит, ведет слой.
+describe('свайп маршрута и внутренний слой', () => {
+  it('setInnerNav(true) выключает свайп маршрута; смена вкладки сбрасывает', () => {
+    swipe.on = true
+    try {
+      const { result } = renderHook(() => useAppNav(ME))
+      act(() => result.current.goTab('admin'))
+      const last = () => vi.mocked(useEdgeSwipeBack).mock.calls.at(-1)[3]
+      expect(last()).toBe(true)
+      act(() => result.current.setInnerNav(true))
+      expect(last()).toBe(false)
+      act(() => result.current.goTab('myex'))
+      expect(last()).toBe(true)
+    } finally {
+      swipe.on = false
+    }
   })
 })

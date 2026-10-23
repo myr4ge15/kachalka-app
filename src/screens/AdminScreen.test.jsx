@@ -301,25 +301,20 @@ describe('2FA перед Админкой (v6.14.0)', () => {
   })
 })
 
-describe('AdminScreen — раскрытый раздел встает к верху экрана (v8.0.1)', () => {
-  it('открытие прокручивает к кнопке раздела (block: start), закрытие экран не двигает', async () => {
+// 23.10.2026: разделы — отдельными экранами поверх меню (раньше аккордеон «на полстраницы»).
+describe('AdminScreen — раздел открывается своим экраном', () => {
+  it('заголовок раздела и «назад» в меню; App узнает, что открыт внутренний слой', async () => {
     adminListUsers.mockResolvedValue([])
-    const calls = []
-    const orig = Element.prototype.scrollIntoView
-    Element.prototype.scrollIntoView = function (opts) { calls.push({ el: this, opts }) }
-    try {
-      const user = userEvent.setup()
-      render(<AdminScreen user={ME} onBack={() => {}} />)
-      const btn = await screen.findByRole('button', { name: /Обращения/ })
-      await user.click(btn)
-      await waitFor(() => expect(calls.length).toBe(1))
-      expect(calls[0].el).toBe(btn)
-      expect(calls[0].opts).toMatchObject({ block: 'start' })
-      await user.click(btn)
-      expect(calls.length).toBe(1)
-    } finally {
-      Element.prototype.scrollIntoView = orig
-    }
+    const onInnerNav = vi.fn()
+    const user = userEvent.setup()
+    render(<AdminScreen user={ME} onBack={() => {}} onInnerNav={onInnerNav} />)
+    await user.click(await screen.findByRole('button', { name: /Журнал пушей/ }))
+    expect(screen.getByRole('heading', { name: 'Журнал пушей (это устройство)' })).toBeInTheDocument()
+    expect(screen.queryByRole('heading', { name: 'Админка' })).toBeNull() // меню под разделом — скрыто
+    expect(onInnerNav).toHaveBeenLastCalledWith(true)
+    await user.click(screen.getByRole('button', { name: 'Назад в Админку' }))
+    expect(screen.getByRole('heading', { name: 'Админка' })).toBeInTheDocument()
+    expect(onInnerNav).toHaveBeenLastCalledWith(false)
   })
 })
 

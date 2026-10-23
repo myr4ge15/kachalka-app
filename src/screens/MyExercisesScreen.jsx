@@ -1,4 +1,4 @@
-import { useState, useMemo } from 'react'
+import { useEffect, useMemo, useRef, useState } from 'react'
 import { useLiveQuery } from 'dexie-react-hooks'
 import { getExercises, updateExercise } from '../db/repo.js'
 import { catalogGroups } from '../lib/exerciseCatalog.js'
@@ -6,6 +6,7 @@ import CardsSkeleton from '../components/ui/CardsSkeleton.jsx'
 import BackButton from '../components/ui/BackButton.jsx'
 import ExerciseCatalog from '../components/exercises/ExerciseCatalog.jsx'
 import ExerciseEditForm from '../components/exercises/ExerciseEditForm.jsx'
+import NavLayers from '../components/ui/NavLayers.jsx'
 
 // Экран «Каталог упражнений»: ВЕСЬ справочник тремя разделами — «Добавил я»,
 // «Добавили другие» (кастомные, по owner_id) и «Базовые» (глобальные, is_custom =
@@ -28,8 +29,11 @@ import ExerciseEditForm from '../components/exercises/ExerciseEditForm.jsx'
 // С 23.10.2026 список и форма — общие с Админкой (components/exercises/ExerciseCatalog.jsx и
 // ExerciseEditForm.jsx); здесь — только данные и сохранение своих через очередь синка (repo).
 //
-// Пропсы: user (нужен для owner_id), onBack().
-export default function MyExercisesScreen({ user, onBack }) {
+// Упражнение — отдельным экраном поверх списка (components/ui/NavLayers.jsx, 23.10.2026): «назад» и свайп
+// возвращают к тому же месту списка.
+// Пропсы: user (нужен для owner_id), onBack(), contentRef/edgeSwipeOn (свайп), onInnerNav(bool) — открыто
+// упражнение: свайп ведет оно, а не весь экран (App).
+export default function MyExercisesScreen({ user, onBack, contentRef, edgeSwipeOn = false, onInnerNav }) {
   // Весь справочник без скрытых админкой — тот же источник, что у пикера.
   const list = useLiveQuery(() => getExercises(), [])
   const loading = list === undefined
@@ -37,6 +41,10 @@ export default function MyExercisesScreen({ user, onBack }) {
   const [busy, setBusy] = useState(false)
   const [error, setError] = useState(null)
   const groups = useMemo(() => catalogGroups(list), [list])
+  const innerRef = useRef(onInnerNav)
+  innerRef.current = onInnerNav
+  useEffect(() => { innerRef.current?.(editing !== null) }, [editing])
+  useEffect(() => () => innerRef.current?.(false), [])
 
   function close() { setEditing(null); setError(null) }
   async function save(f) {
@@ -55,19 +63,7 @@ export default function MyExercisesScreen({ user, onBack }) {
     }
   }
 
-  if (editing) {
-    return (
-      <div className="screen">
-        <div className="admin-head">
-          <BackButton onClick={close} />
-          <h2 className="admin-title">Упражнение</h2>
-        </div>
-        <ExerciseEditForm ex={editing} groups={groups} busy={busy} error={error} onCancel={close} onSubmit={save} />
-      </div>
-    )
-  }
-
-  return (
+  const listView = (
     <div className="screen">
       <div className="admin-head">
         <BackButton onClick={onBack} />
@@ -91,5 +87,19 @@ export default function MyExercisesScreen({ user, onBack }) {
         </>
       )}
     </div>
+  )
+
+  return (
+    <NavLayers open={editing !== null} onBack={close} under={listView} contentRef={contentRef} swipe={edgeSwipeOn}>
+      {editing && (
+        <div className="screen">
+          <div className="admin-head">
+            <BackButton onClick={close} />
+            <h2 className="admin-title">Упражнение</h2>
+          </div>
+          <ExerciseEditForm key={editing.id} ex={editing} groups={groups} busy={busy} error={error} onCancel={close} onSubmit={save} />
+        </div>
+      )}
+    </NavLayers>
   )
 }

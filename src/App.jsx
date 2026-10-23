@@ -83,7 +83,7 @@ export default function App() {
   const { user, handleLogin, handleRenamed, handleLogout } = useSession(() => setTab('home'))
   // Навигация (вкладки, стек экранов, интенты, пуш) — hooks/useAppNav.js.
   const {
-    tab, setTab, routeAnim, contentRef, screenRef, edgeSwipeOn,
+    tab, setTab, routeAnim, contentRef, screenRef, edgeSwipeOn, setInnerNav,
     memberId, progressExId, setProgressExId, openNewWorkout, setOpenNewWorkout,
     calendarIntent, setCalendarIntent, feedFlashId, feedThreadId, feedbackFocus, openFeedback, backFromFeedback, lastMainTab,
     focusRhythm, setFocusRhythm, openSettings, setOpenSettings,
@@ -422,7 +422,8 @@ export default function App() {
                 />
               )}
               {route === 'admin' && user.role === 'admin' && (
-                <AdminScreen user={user} onBack={() => goTab('profile')} />
+                <AdminScreen user={user} onBack={() => goTab('profile')} contentRef={contentRef}
+                  edgeSwipeOn={edgeSwipeOn && route === tab} onInnerNav={setInnerNav} />
               )}
               {route === 'freshness' && (
                 <FreshnessScreen user={user} onBack={() => goTab('home')} />
@@ -436,7 +437,8 @@ export default function App() {
                   friendCode={friendCode} onFriendCodeConsumed={() => setFriendCode(null)} />
               )}
               {route === 'myex' && (
-                <MyExercisesScreen user={user} onBack={backToSettings} />
+                <MyExercisesScreen user={user} onBack={backToSettings} contentRef={contentRef}
+                  edgeSwipeOn={edgeSwipeOn && route === tab} onInnerNav={setInnerNav} />
               )}
               {route === 'achievements' && (
                 <AchievementsScreen user={user} onBack={() => goTab('profile')} />

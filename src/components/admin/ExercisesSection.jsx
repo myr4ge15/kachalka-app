@@ -12,15 +12,23 @@ import { showToast } from '../ui/Toast.jsx'
 import ExerciseCatalog from '../exercises/ExerciseCatalog.jsx'
 import ExerciseEditForm from '../exercises/ExerciseEditForm.jsx'
 import { useRevealFocus } from '../../hooks/useRevealFocus.js'
+import NavLayers from '../ui/NavLayers.jsx'
+import BackButton from '../ui/BackButton.jsx'
 
-export default function ExercisesSection({ exercises, userId, online, errMsg }) {
+// Упражнение — отдельным экраном поверх справочника (NavLayers, 23.10.2026, замечание владельца: форма
+// «разворотом на полстраницы»). head — шапка раздела от Админки (назад в меню); onDeepChange(bool) — открыто
+// упражнение: свайп ведет его, а не раздел. contentRef/edgeSwipeOn — для свайпа «назад» к списку.
+export default function ExercisesSection({ exercises, userId, online, errMsg, head = null, contentRef, edgeSwipeOn = false, onDeepChange }) {
   const [editing, setEditing] = useState(null)
   const [busy, setBusy] = useState(false)
+  const deepRef = useRef(onDeepChange)
+  deepRef.current = onDeepChange
+  useEffect(() => { deepRef.current?.(editing !== null) }, [editing])
+  useEffect(() => () => deepRef.current?.(false), [])
 
   // Слияние дублей
   const [mergeOpen, setMergeOpen] = useState(false)
-  // Открытые формы — в видимую область (v8.0.1).
-  const edRevealRef = useRevealFocus(editing?.id ?? null, { block: 'start' })
+  // Форма слияния — в видимую область (v8.0.1).
   const mergeRevealRef = useRevealFocus(mergeOpen ? 'merge' : null)
   const [mFrom, setMFrom] = useState('')
   const [mInto, setMInto] = useState('')
@@ -104,17 +112,10 @@ export default function ExercisesSection({ exercises, userId, online, errMsg }) 
     }
   }
 
-  if (editing) {
-    return (
-      <section className="sec" ref={edRevealRef}>
-        <p className="sec-title catalog-title">Упражнение</p>
-        <ExerciseEditForm ex={editing} groups={groups} admin busy={busy} saveDisabled={!online}
-          onCancel={() => setEditing(null)} onSubmit={save} />
-      </section>
-    )
-  }
-
-  return (
+  const closeEdit = () => setEditing(null)
+  const list = (
+    <div className="screen admin">
+    {head}
     <section className="sec">
       <ExerciseCatalog list={live} userId={userId} admin online={online} onEdit={setEditing} onToggleHidden={toggleHidden} />
 
@@ -169,5 +170,21 @@ export default function ExercisesSection({ exercises, userId, online, errMsg }) 
         <button className="admin-add-link" onClick={() => setMergeOpen(true)}>🔗 Слить дубль упражнений</button>
       )}
     </section>
+    </div>
+  )
+
+  return (
+    <NavLayers open={editing !== null} onBack={closeEdit} under={list} contentRef={contentRef} swipe={edgeSwipeOn}>
+      {editing && (
+        <div className="screen admin">
+          <div className="admin-head">
+            <BackButton onClick={closeEdit} label="Назад к справочнику" />
+            <h2 className="admin-title">Упражнение</h2>
+          </div>
+          <ExerciseEditForm key={editing.id} ex={editing} groups={groups} admin busy={busy} saveDisabled={!online}
+            onCancel={closeEdit} onSubmit={save} />
+        </div>
+      )}
+    </NavLayers>
   )
 }

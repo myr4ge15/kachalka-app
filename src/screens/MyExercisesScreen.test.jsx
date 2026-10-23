@@ -118,4 +118,18 @@ describe('MyExercisesScreen', () => {
     expect(screen.getByText('Каталог упражнений')).toBeInTheDocument()
     expect(updateExercise).not.toHaveBeenCalled()
   })
+
+  // 23.10.2026: упражнение — отдельным экраном поверх списка; свайп ведет оно, а не весь «Каталог».
+  it('открытое упражнение — отдельный экран; App узнает об этом (onInnerNav)', () => {
+    mocks.list = [MINE]
+    const onInnerNav = vi.fn()
+    render(<MyExercisesScreen user={{ id: 'me' }} onBack={vi.fn()} onInnerNav={onInnerNav} />)
+    expect(onInnerNav).toHaveBeenLastCalledWith(false)
+    fireEvent.click(screen.getByRole('button', { name: /Мой жим/ }))
+    expect(onInnerNav).toHaveBeenLastCalledWith(true)
+    expect(screen.getByRole('heading', { name: 'Упражнение' }).closest('.nav-layer')).toHaveClass('screen-anim--push')
+    expect(screen.getByLabelText('Название упражнения')).not.toHaveFocus() // без автофокуса и клавиатуры
+    fireEvent.click(screen.getByRole('button', { name: 'Отмена' }))
+    expect(onInnerNav).toHaveBeenLastCalledWith(false)
+  })
 })

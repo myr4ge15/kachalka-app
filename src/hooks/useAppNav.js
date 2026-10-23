@@ -156,6 +156,11 @@ export function useAppNav(user) {
   if (routeAnim.tab !== tab) setRouteAnim({ tab, kind: routeAnim.stack.includes(tab) ? 'pop' : transitionKind(routeAnim.tab, tab), stack: nextScreenStack(routeAnim.stack, tab) })
   // Свайп назад — только iOS «на экране Домой»: там у системы своего жеста нет.
   const [edgeSwipeOn] = useState(edgeSwipeAvailable)
+  // Внутри вложенного экрана открыт свой слой (раздел Админки, упражнение в каталоге, 23.10.2026):
+  // свайп «назад» ведет его (components/ui/NavLayers.jsx), а не весь маршрут. Смена вкладки сбрасывает.
+  const [innerNav, setInnerNav] = useState(false)
+  const [innerNavTab, setInnerNavTab] = useState(tab)
+  if (innerNavTab !== tab) { setInnerNavTab(tab); if (innerNav) setInnerNav(false) }
   // Сбрасываем позицию ПОСЛЕ React-commit нового экрана. requestAnimationFrame
   // из обработчика мог сработать еще на длинном Профиле до commit вкладки, и
   // «Прогресс» наследовал нижнюю позицию скролла.
@@ -281,7 +286,7 @@ export function useAppNav(user) {
       default: return undefined
     }
   }
-  useEdgeSwipeBack(contentRef, screenRef, nestedBack, edgeSwipeOn && Boolean(user) && isNested(tab))
+  useEdgeSwipeBack(contentRef, screenRef, nestedBack, edgeSwipeOn && Boolean(user) && isNested(tab) && !innerNav)
 
   // Применяем намерение пуша, когда человек вошел: Лента + прокрутка к оцененной
   // тренировке тем же якорем, что «Назад» из профиля друга. Карточки нет (старше
@@ -323,7 +328,7 @@ export function useAppNav(user) {
 
 
   return {
-    tab, setTab, routeAnim, contentRef, screenRef, edgeSwipeOn,
+    tab, setTab, routeAnim, contentRef, screenRef, edgeSwipeOn, setInnerNav,
     memberId, feedRestore, progressExId, setProgressExId, openNewWorkout, setOpenNewWorkout,
     calendarIntent, setCalendarIntent, feedFlashId, feedThreadId, feedbackFocus, openFeedback, backFromFeedback, lastMainTab,
     focusRhythm, setFocusRhythm, openSettings, setOpenSettings,

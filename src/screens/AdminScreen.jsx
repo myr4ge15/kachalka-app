@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from 'react'
+import { useEffect, useMemo, useRef, useState } from 'react'
 import { useLiveQuery } from 'dexie-react-hooks'
 import { getAllExercisesForAdmin } from '../db/repo.js'
 import { useSyncStatus } from '../db/sync.js'
@@ -8,7 +8,7 @@ import { createAdminCache } from '../lib/adminCache.js'
 import InvitesSection from '../components/social/InvitesSection.jsx'
 import BackButton from '../components/ui/BackButton.jsx'
 import Chevron from '../components/ui/Chevron.jsx'
-import { useRevealFocus } from '../hooks/useRevealFocus.js'
+import NavLayers from '../components/ui/NavLayers.jsx'
 import AdminDisciplines from '../components/admin/AdminDisciplines.jsx'
 import AdminFeedback from '../components/admin/AdminFeedback.jsx'
 import { AdminMfaGate, AdminMfaPanel } from '../components/admin/AdminMfa.jsx'
@@ -21,17 +21,31 @@ import UsersSection from '../components/admin/UsersSection.jsx'
 // сервер все равно перепроверяет роль в каждой операции. Все мутации требуют
 // сети — офлайн действия задизейблены с пояснением.
 //
-// Пропсы: user, onBack(). Секции — components/admin/*, 2FA — components/AdminMfa.jsx.
-export default function AdminScreen({ user, onBack }) {
+// Пропсы: user, onBack(), contentRef/edgeSwipeOn (свайп «назад» из раздела), onInnerNav(bool) — открыт
+// раздел: свайп ведет он, а не весь экран (App). Секции — components/admin/*, 2FA — components/AdminMfa.jsx.
+// Разделы — отдельными экранами поверх меню (components/ui/NavLayers.jsx, 23.10.2026; до того аккордеон).
+const SECTIONS = [
+  { key: 'disciplines', title: 'Дисциплины рейтинга' },
+  { key: 'exercises', title: 'Справочник упражнений' },
+  { key: 'users', title: 'Пользователи' },
+  { key: 'invites', title: 'Приглашения' },
+  { key: 'feedback', title: 'Обращения' },
+  // «Доступ к тренировкам» (связи вручную) убран в v9.0.0: связи — это дружбы («Друзья»).
+  { key: 'mfa', title: 'Защита (2FA)' },
+  // Журнал пушей этого устройства (v8.9.6) — отладка перехода по пушу.
+  { key: 'pushlog', title: 'Журнал пушей (это устройство)' },
+]
+
+export default function AdminScreen({ user, onBack, contentRef, edgeSwipeOn = false, onInnerNav }) {
   const { online } = useSyncStatus()
   const exercises = useLiveQuery(() => getAllExercisesForAdmin(), [], [])
 
-  // Разделы свернуты по умолчанию; раскрывается тот, что админ сам открыл (аккордеон).
-  const [open, setOpen] = useState(null) // null | 'disciplines' | 'exercises' | 'users' | 'invites' | 'feedback' | 'mfa' | 'pushlog'
-  const toggle = (key) => setOpen((cur) => (cur === key ? null : key))
-  // Раскрытый раздел — к верху экрана (v8.0.1): содержимое длинное и грузится не сразу,
-  // и при центрировании/без прокрутки оно уходило под нижнее меню. Закрытие экран не двигает.
-  const navRevealRef = useRevealFocus(open, { block: 'start' })
+  const [section, setSection] = useState(null) // открытый раздел — ключ из SECTIONS
+  const [deep, setDeep] = useState(false) // в справочнике открыто упражнение — свайп ведет оно
+  const innerRef = useRef(onInnerNav)
+  innerRef.current = onInnerNav
+  useEffect(() => { innerRef.current?.(section !== null) }, [section])
+  useEffect(() => () => innerRef.current?.(false), [])
 
   const errMsg = (e) => (e instanceof AdminError ? e.message : String(e?.message ?? e))
 
@@ -64,7 +78,41 @@ export default function AdminScreen({ user, onBack }) {
     cache.load('feedback', () => adminListFeedback(false)).catch(quiet)
   }, [cache, online, cleared])
 
-  return (
+  const offlineNote = !online && (
+    <p className="admin-offline" role="status">
+      Нет сети. Админ-операции доступны только онлайн.
+    </p>
+  )
+
+  // Раздел — свой экран поверх меню (23.10.2026, замечание владельца: аккордеон «на полстраницы»).
+  const current = SECTIONS.find((x) => x.key === section) ?? null
+  const close = () => setSection(null)
+  const head = current && (
+    <div className="admin-head">
+      <BackButton onClick={close} label="Назад в Админку" />
+      <h2 className="admin-title">{current.title}</h2>
+    </div>
+  )
+  const plain = (body) => <div className="screen admin">{head}{offlineNote}{body}</div>
+  let sectionView = null
+  if (section === 'disciplines') sectionView = plain(<AdminDisciplines userId={user.id} exercises={exercises ?? []} online={online} />)
+  if (section === 'exercises') {
+    sectionView = (
+      <ExercisesSection exercises={exercises ?? []} userId={user.id} online={online} errMsg={errMsg}
+        head={<>{head}{offlineNote}</>} contentRef={contentRef} edgeSwipeOn={edgeSwipeOn} onDeepChange={setDeep} />
+    )
+  }
+  if (section === 'users') sectionView = plain(<UsersSection meId={user.id} online={online} errMsg={errMsg} cache={cache} />)
+  if (section === 'invites') sectionView = plain(<InvitesSection online={online} errMsg={errMsg} cache={cache} />)
+  if (section === 'feedback') sectionView = plain(<AdminFeedback online={online} cache={cache} />)
+  if (section === 'mfa') {
+    sectionView = plain(mfa
+      ? <AdminMfaPanel state={mfa} online={online} onChange={loadMfa} />
+      : <p className="admin-hint">Не удалось узнать состояние 2FA — проверь сеть и открой раздел заново.</p>)
+  }
+  if (section === 'pushlog') sectionView = plain(<PushLog />)
+
+  const hub = (
     <div className="screen admin">
       <div className="admin-head">
         <BackButton onClick={onBack} label="Назад в профиль" />
@@ -81,120 +129,24 @@ export default function AdminScreen({ user, onBack }) {
       {locked && <AdminMfaGate factorId={mfa.factorId} online={online} onPassed={loadMfa} />}
       {cleared && (<>
 
-      {!online && (
-        <p className="admin-offline" role="status">
-          Нет сети. Админ-операции доступны только онлайн.
-        </p>
-      )}
+      {offlineNote}
 
       <div className="admin-nav">
-        <button ref={open === 'disciplines' ? navRevealRef : null} className={'admin-nav-btn' + (open === 'disciplines' ? ' open' : '')}
-          onClick={() => toggle('disciplines')} aria-expanded={open === 'disciplines'}>
-          <span className="admin-nav-name">Дисциплины рейтинга</span>
-          <Chevron className="admin-nav-chev" open={open === 'disciplines'} />
-        </button>
-        {open === 'disciplines' && <div className="admin-panel"><AdminDisciplines userId={user.id} exercises={exercises ?? []} online={online} /></div>}
-        <button
-          ref={open === 'exercises' ? navRevealRef : null}
-          className={'admin-nav-btn' + (open === 'exercises' ? ' open' : '')}
-          onClick={() => toggle('exercises')}
-          aria-expanded={open === 'exercises'}
-        >
-          <span className="admin-nav-name">Справочник упражнений</span>
-          <Chevron className="admin-nav-chev" open={open === 'exercises'} />
-        </button>
-        {open === 'exercises' && (
-          <div className="admin-panel">
-            <ExercisesSection
-              exercises={exercises ?? []}
-              userId={user.id}
-              online={online}
-              errMsg={errMsg}
-            />
-          </div>
-        )}
-
-        <button
-          ref={open === 'users' ? navRevealRef : null}
-          className={'admin-nav-btn' + (open === 'users' ? ' open' : '')}
-          onClick={() => toggle('users')}
-          aria-expanded={open === 'users'}
-        >
-          <span className="admin-nav-name">Пользователи</span>
-          <Chevron className="admin-nav-chev" open={open === 'users'} />
-        </button>
-        {open === 'users' && (
-          <div className="admin-panel">
-            <UsersSection
-              meId={user.id}
-              online={online}
-              errMsg={errMsg}
-              cache={cache}
-            />
-          </div>
-        )}
-
-        <button
-          ref={open === 'invites' ? navRevealRef : null}
-          className={'admin-nav-btn' + (open === 'invites' ? ' open' : '')}
-          onClick={() => toggle('invites')}
-          aria-expanded={open === 'invites'}
-        >
-          <span className="admin-nav-name">Приглашения</span>
-          <Chevron className="admin-nav-chev" open={open === 'invites'} />
-        </button>
-        {open === 'invites' && (
-          <div className="admin-panel">
-            <InvitesSection online={online} errMsg={errMsg} cache={cache} />
-          </div>
-        )}
-
-        <button
-          ref={open === 'feedback' ? navRevealRef : null}
-          className={'admin-nav-btn' + (open === 'feedback' ? ' open' : '')}
-          onClick={() => toggle('feedback')}
-          aria-expanded={open === 'feedback'}
-        >
-          <span className="admin-nav-name">Обращения</span>
-          <Chevron className="admin-nav-chev" open={open === 'feedback'} />
-        </button>
-        {open === 'feedback' && (
-          <div className="admin-panel">
-            <AdminFeedback online={online} cache={cache} />
-          </div>
-        )}
-
-        {/* «Доступ к тренировкам» (связи вручную) убран в v9.0.0: связи — это дружбы, их
-            заводят сами участники («Друзья»). Серверные admin_*_connection снимет этап 3. */}
-        <button
-          ref={open === 'mfa' ? navRevealRef : null}
-          className={'admin-nav-btn' + (open === 'mfa' ? ' open' : '')}
-          onClick={() => toggle('mfa')}
-          aria-expanded={open === 'mfa'}
-        >
-          <span className="admin-nav-name">Защита (2FA){mfa?.enabled ? ' · вкл' : ''}</span>
-          <Chevron className="admin-nav-chev" open={open === 'mfa'} />
-        </button>
-        {open === 'mfa' && (
-          <div className="admin-panel">
-            {mfa
-              ? <AdminMfaPanel state={mfa} online={online} onChange={loadMfa} />
-              : <p className="admin-hint">Не удалось узнать состояние 2FA — проверь сеть и открой раздел заново.</p>}
-          </div>
-        )}
-        {/* Журнал пушей этого устройства (v8.9.6; был в «Пуш-уведомлениях») — отладка перехода по пушу. */}
-        <button
-          ref={open === 'pushlog' ? navRevealRef : null}
-          className={'admin-nav-btn' + (open === 'pushlog' ? ' open' : '')}
-          onClick={() => toggle('pushlog')}
-          aria-expanded={open === 'pushlog'}
-        >
-          <span className="admin-nav-name">Журнал пушей (это устройство)</span>
-          <Chevron className="admin-nav-chev" open={open === 'pushlog'} />
-        </button>
-        {open === 'pushlog' && <div className="admin-panel"><PushLog /></div>}
+        {SECTIONS.map(({ key, title }) => (
+          <button key={key} type="button" className="admin-nav-btn" onClick={() => setSection(key)}>
+            <span className="admin-nav-name">{key === 'mfa' && mfa?.enabled ? `${title} · вкл` : title}</span>
+            <Chevron className="admin-nav-chev" />
+          </button>
+        ))}
       </div>
       </>)}
     </div>
+  )
+
+  return (
+    <NavLayers open={Boolean(sectionView)} onBack={close} under={hub} contentRef={contentRef}
+      swipe={edgeSwipeOn && !deep}>
+      {sectionView}
+    </NavLayers>
   )
 }
