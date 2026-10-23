@@ -40,6 +40,7 @@ describe('workoutPhases', () => {
     const list = [e('w', 'warmup'), e('a'), e('b'), e('c', 'cooldown')]
     expect(list.map((_, i) => phaseHeading(list, i))).toEqual(['Разминка', 'Основная часть', null, 'Заминка'])
     expect(phaseHeading([e('a'), e('b')], 0)).toBeNull()
+    expect(phaseHeading([e('w', 'warmup')], 0)).toBe('Разминка')
   })
 
   it('статистика — только основная часть', () => {

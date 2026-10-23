@@ -40,12 +40,13 @@ export function setEntryPhase(entries, idx, phase) {
   return [...rest.slice(0, at), moved, ...rest.slice(at)]
 }
 
-// Заголовок блока перед элементом i: только у первого элемента блока и только когда блоков больше одного
-// (тренировка без разминки и заминки выглядит как раньше).
+// Заголовок блока перед элементом i: только у первого элемента блока и только когда есть разминка или заминка
+// (тренировка без них выглядит как раньше). Одна разминка без основной части — тоже с заголовком: иначе после
+// переноса не видно, что упражнение ушло в разминку (владелец 23.10).
 export function phaseHeading(entries, i) {
   const list = entries ?? []
-  const multi = new Set(list.map(phaseOf)).size > 1
-  if (!multi || !list[i]) return null
+  const blocks = list.some((e) => phaseOf(e) !== 'main')
+  if (!blocks || !list[i]) return null
   const p = phaseOf(list[i])
   return i === 0 || phaseOf(list[i - 1]) !== p ? PHASE_LABEL[p] : null
 }

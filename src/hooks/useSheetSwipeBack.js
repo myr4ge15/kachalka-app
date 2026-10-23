@@ -15,7 +15,7 @@
 import { useEffect, useRef } from 'react'
 import { flushSync } from 'react-dom'
 import {
-  EDGE_PX, flickVelocity, gestureNow, pushSample, releaseVelocity, settleMotion, swipeAxis, swipeBackBlocked, swipeCommits, textSelectionActive,
+  EDGE_PX, flickVelocity, gestureNow, pushReleaseSample, pushSample, releaseVelocity, settleMotion, swipeAxis, swipeBackBlocked, swipeCommits, textSelectionActive,
 } from '../lib/screenNav.js'
 
 function reducedMotion() {
@@ -93,8 +93,14 @@ export function useSheetSwipeBack(overlayRef, sheetRef, onDismiss, enabled) {
       g = null
       if (done.axis !== 'x') return
       const width = sheetRef.current?.clientWidth || window.innerWidth
-      const v = releaseVelocity(done.samples, gestureNow(e))
-      if (swipeCommits(done.dx, Math.max(v, flickVelocity(done.samples, gestureNow(e))), width)) {
+      const now = gestureNow(e)
+      const end = e.changedTouches?.[0] // отрыв пальца — как в useEdgeSwipeBack
+      if (end) {
+        pushReleaseSample(done.samples, end.clientX, e.timeStamp, now)
+        done.dx = Math.min(Math.max(0, end.clientX - done.x0), width)
+      }
+      const v = releaseVelocity(done.samples, now)
+      if (swipeCommits(done.dx, Math.max(v, flickVelocity(done.samples, now)), width)) {
         if (reducedMotion()) { clearTimeout(settleTimer); settling = true; finish(); return }
         settle(done.dx, width, v, finish)
       } else {

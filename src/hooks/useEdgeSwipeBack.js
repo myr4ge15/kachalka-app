@@ -19,7 +19,7 @@
 import { useEffect, useRef } from 'react'
 import { flushSync } from 'react-dom'
 import {
-  EDGE_PX, edgeSwipeSupported, flickVelocity, gestureNow, pushSample, releaseVelocity, settleMotion, swipeAxis, swipeBackBlocked, swipeCommits,
+  EDGE_PX, edgeSwipeSupported, flickVelocity, gestureNow, pushReleaseSample, pushSample, releaseVelocity, settleMotion, swipeAxis, swipeBackBlocked, swipeCommits,
   textSelectionActive, underlayDim, underlayShift,
 } from '../lib/screenNav.js'
 import { isIOSDevice } from '../lib/pushSupport.js'
@@ -136,7 +136,7 @@ export function useEdgeSwipeBack(containerRef, screenRef, onBack, enabled) {
       const edge = t.clientX <= EDGE_PX
       if (!edge && swipeBackBlocked(e.target, box)) return
       if (textSelectionActive(window.getSelection?.())) return // тянут ручки выделения
-      g = { x0: t.clientX, y0: t.clientY, edge, axis: null, dx: 0, samples: pushSample([], t.clientX, e.timeStamp, gestureNow(e)) }
+      g = { x0: t.clientX, y0: t.clientY, edge, axis: null, dx: 0, h0: gestureNow(e), samples: pushSample([], t.clientX, e.timeStamp, gestureNow(e)) }
     }
 
     function onMove(e) {
@@ -175,10 +175,19 @@ export function useEdgeSwipeBack(containerRef, screenRef, onBack, enabled) {
       const done = g
       g = null
       if (done.axis !== 'x') return
-      const v = releaseVelocity(done.samples, gestureNow(e))
-      const flick = flickVelocity(done.samples, gestureNow(e))
+      const now = gestureNow(e)
+      const last = done.samples[done.samples.length - 1]
+      // Отрыв пальца — последняя точка жеста (pushReleaseSample): иначе на тяжелом экране бросок терялся.
+      const end = e.changedTouches?.[0]
+      if (end) {
+        pushReleaseSample(done.samples, end.clientX, e.timeStamp, now)
+        done.dx = Math.min(Math.max(0, end.clientX - done.x0), done.width)
+      }
+      const v = releaseVelocity(done.samples, now)
+      const flick = flickVelocity(done.samples, now)
       const commit = swipeCommits(done.dx, Math.max(v, flick), done.width)
       logSwipe({ kind: commit ? 'commit' : 'back', p: done.dx / (done.width || 1), v, flick, moves: done.moves,
+        ms: Math.round(now - done.h0), lag: last ? Math.round(now - last.h) : 0,
         why: done.lost ? `прокрутка забирала ${done.lost}` : null })
       if (commit) {
         if (!done.preview || reducedMotion()) { finishBack(); return }

@@ -1,6 +1,6 @@
 import { describe, it, expect } from 'vitest'
 import { transitionKind, isNested, swipeAxis, swipeBackBlocked, swipeCommits, textSelectionActive, edgeSwipeSupported, nextScreenStack, initialScreenStack,
-  flickVelocity, gestureNow, pushSample, releaseVelocity, settleMotion, underlayShift, underlayDim } from './screenNav.js'
+  flickVelocity, gestureNow, pushReleaseSample, pushSample, releaseVelocity, settleMotion, underlayShift, underlayDim } from './screenNav.js'
 
 describe('стек возврата', () => {
   it('сохраняет предков и убирает закрытые дочерние экраны', () => {
@@ -172,6 +172,28 @@ it('flickVelocity — пик в окне; палец постоял — брос
   expect(flickVelocity(s, 64)).toBeCloseTo(50 / 16)
   expect(flickVelocity(s, 300)).toBe(0)
   expect(flickVelocity([], 0)).toBe(0)
+})
+
+// Журнал 23.10: на тяжелом экране touchend приходит позже последнего touchmove по времени обработки —
+// бросок обнулялся. Отрыв пальца берем со временем события; чужие часы — время обработки.
+it('pushReleaseSample — отрыв по времени события, пауза пальца гасит бросок, кривые часы не ломают', () => {
+  const s = []
+  for (const [x, t] of [[0, 0], [20, 16], [40, 32]]) pushSample(s, x, t, t)
+  pushReleaseSample(s, 70, 48, 400) // обработали через 350 мс, но палец оторвался через 16 мс на 70 px
+  expect(flickVelocity(s, 400)).toBeCloseTo(30 / 16)
+  expect(swipeCommits(70, flickVelocity(s, 400), 390)).toBe(true)
+
+  const p = []
+  for (const [x, t] of [[0, 0], [20, 16], [40, 32]]) pushSample(p, x, t, t)
+  pushReleaseSample(p, 40, 332, 332) // палец постоял 300 мс и отпустил на месте
+  expect(flickVelocity(p, 332)).toBe(0)
+  expect(releaseVelocity(p, 332)).toBe(0)
+
+  const k = []
+  for (const [x, t] of [[0, 0], [20, 16], [40, 32]]) pushSample(k, x, t, t)
+  pushReleaseSample(k, 60, -5000, 48) // timeStamp другими часами — время по обработке
+  expect(k.at(-1).t).toBe(48)
+  expect(pushReleaseSample([], 10, 1, 1)).toEqual([])
 })
 
 // fb_e1583b4f: короткий бросок засчитывается; часы жеста — свои, не timeStamp события.

@@ -126,6 +126,20 @@ export function pushSample(samples, x, t, h = t) {
   return samples
 }
 
+// Точка отрыва пальца (журнал свайпов 23.10: «вернулся · 9% · 0 / 0 px/мс» вне тренировки). На тяжелом экране
+// кадр не успевает, iOS склеивает движения, и touchend приходит позже последнего touchmove на сотни мс по времени
+// ОБРАБОТКИ — палец будто постоял, бросок обнулялся, а сдвиг брался по устаревшей точке. Добавляем сам отрыв
+// (changedTouches) со временем СОБЫТИЯ: скорость и сдвиг — как двигался палец, а не как успевал телефон. Если
+// timeStamp touchend идет другими часами (раньше последней точки или позже на секунды) — время по обработке.
+const END_CLOCK_SKEW_MS = 1000
+export function pushReleaseSample(samples, x, t, h) {
+  const last = samples[samples.length - 1]
+  if (!last || !Number.isFinite(x)) return samples
+  const sane = Number.isFinite(t) && t >= last.t && t - last.t <= END_CLOCK_SKEW_MS
+  const at = sane ? t : last.t + Math.max(0, (h ?? last.h) - (last.h ?? last.t))
+  return pushSample(samples, x, at, h)
+}
+
 // Скорость в момент отпускания, px/мс (> 0 — вправо). endT — время touchend.
 export function releaseVelocity(samples, endT) {
   if (samples.length < 2) return 0

@@ -25,5 +25,6 @@ describe('swipeLog', () => {
     const line = swipeLogLine({ at: '2026-10-23T10:40:00Z', kind: 'back', p: 0.18, v: 0.123, flick: 0.456, moves: 7, why: 'прокрутка забирала 2' })
     expect(line).toMatch(/вернулся · 18% · 0,12 \/ 0,46 px\/мс · 7 точек · прокрутка забирала 2$/)
     expect(swipeLogLine({ at: 'нет', kind: 'cancel' })).toMatch(/^— · прерван · 0%/)
+    expect(swipeLogLine({ at: 'нет', kind: 'back', ms: 180, lag: 240 })).toMatch(/· 180 мс · отрыв \+240 мс$/)
   })
 })

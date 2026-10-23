@@ -32,5 +32,6 @@ export function swipeLogLine(e) {
     : `${String(d.getDate()).padStart(2, '0')}.${String(d.getMonth() + 1).padStart(2, '0')} ${String(d.getHours()).padStart(2, '0')}:${String(d.getMinutes()).padStart(2, '0')}`
   const num = (v) => String(Math.round((Number(v) || 0) * 100) / 100).replace('.', ',')
   return [time, OUTCOME[e.kind] ?? e.kind, `${Math.round((Number(e.p) || 0) * 100)}%`,
-    `${num(e.v)} / ${num(e.flick)} px/мс`, `${e.moves ?? 0} точек`, e.why || null].filter(Boolean).join(' · ')
+    `${num(e.v)} / ${num(e.flick)} px/мс`, `${e.moves ?? 0} точек`,
+    e.ms != null ? `${e.ms} мс` : null, e.lag > 0 ? `отрыв +${e.lag} мс` : null, e.why || null].filter(Boolean).join(' · ')
 }

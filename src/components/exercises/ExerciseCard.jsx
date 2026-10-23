@@ -1,7 +1,8 @@
 import { useState } from 'react'
 import Chevron from '../ui/Chevron.jsx'
 import MoreMenu from '../ui/MoreMenu.jsx'
-import { PHASES, PHASE_MOVE_LABEL } from '../../lib/workoutPhases.js'
+import { PHASES, PHASE_LABEL, PHASE_MOVE_LABEL } from '../../lib/workoutPhases.js'
+import PhaseTag from '../workout/PhaseTag.jsx'
 import HoldButton from '../ui/HoldButton.jsx'
 import TimeInput from '../ui/TimeInput.jsx'
 import { useSelectOnFocus } from '../../hooks/useSelectOnFocus.js'
@@ -91,11 +92,11 @@ export default function ExerciseCard({
           type="button"
           className="exercise-compact-toggle"
           aria-expanded="false"
-          aria-label={`Открыть ${entry.exercise.name}: ${summary.text}`}
+          aria-label={`Открыть ${entry.exercise.name}${phase !== 'main' ? ` (${PHASE_LABEL[phase].toLowerCase()})` : ''}: ${summary.text}`}
           onClick={() => onActivate(entry.exercise.id)}
         >
           <span className="exercise-compact-copy">
-            <strong>{entry.exercise.name}</strong>
+            <strong><PhaseTag entry={{ phase }} />{entry.exercise.name}</strong>
             <span className={`muted${summary.setCount === 0 ? ' warn' : ''}`}>{summary.text}</span>
           </span>
           <Chevron className="exercise-compact-chevron" />
@@ -115,6 +116,7 @@ export default function ExerciseCard({
     >
       <div className="exercise-head">
         <span className="exercise-title" tabIndex={0} aria-label={`${entry.exercise.name}. Изменить порядок: Alt и стрелки вверх или вниз`}>
+          <PhaseTag entry={{ phase }} />
           <TitleWithTechnique name={entry.exercise.name} onTechnique={onTechnique} />
         </span>
         <span className="exercise-actions">
