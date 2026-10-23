@@ -83,7 +83,11 @@ export function useEdgeSwipeBack(containerRef, screenRef, onBack, enabled) {
     }
     const clear = () => {
       const el = draggedScreen
-      if (el) { el.style.transition = ''; el.style.left = ''; el.classList.remove('edge-dragging') }
+      // edge-settled вместо голого снятия edge-dragging: иначе у экрана снова включалась анимация въезда
+      // (.screen-anim--push, left 44px → 0) и после «вернулся» он отскакивал вправо и въезжал заново —
+      // «свайп подпрыгивает» везде, кроме тренировки, у которой этой анимации нет (fb_39b706ad / fb_d5c13f18).
+      // Класс живет до следующей смены className React-ом — то есть до новой навигации.
+      if (el) { el.style.transition = ''; el.style.left = ''; el.classList.remove('edge-dragging'); el.classList.add('edge-settled') }
       draggedScreen = null
       if (underlay) {
         underlay.style.transition = ''
@@ -165,8 +169,13 @@ export function useEdgeSwipeBack(containerRef, screenRef, onBack, enabled) {
       if (e.cancelable === false) g.lost = (g.lost ?? 0) + 1
       e.preventDefault() // наш жест: не прокручиваем и не отдаем странице
       g.moves = (g.moves ?? 0) + 1
+      const prev = g.samples[g.samples.length - 1]
       pushSample(g.samples, t.clientX, e.timeStamp, gestureNow(e))
+      // Для журнала (fb_39b706ad): пик скорости и самый дальний сдвиг за ВЕСЬ жест — окно скорости видит лишь
+      // последние 80 мс, и «вернулся · 17% · 0 / 0» не говорит, был ли палец дальше и быстрее.
+      if (prev && e.timeStamp > prev.t) g.peak = Math.max(g.peak ?? 0, (t.clientX - prev.x) / (e.timeStamp - prev.t))
       g.dx = Math.min(Math.max(0, dx), g.width)
+      g.maxDx = Math.max(g.maxDx ?? 0, g.dx)
       if (g.preview && !reducedMotion()) setLeft(g.dx, null, g.width)
     }
 
@@ -188,6 +197,7 @@ export function useEdgeSwipeBack(containerRef, screenRef, onBack, enabled) {
       const commit = swipeCommits(done.dx, Math.max(v, flick), done.width)
       logSwipe({ kind: commit ? 'commit' : 'back', p: done.dx / (done.width || 1), v, flick, moves: done.moves,
         ms: Math.round(now - done.h0), lag: last ? Math.round(now - last.h) : 0,
+        max: Math.max(done.maxDx ?? 0, done.dx) / (done.width || 1), peak: done.peak ?? 0,
         why: done.lost ? `прокрутка забирала ${done.lost}` : null })
       if (commit) {
         if (!done.preview || reducedMotion()) { finishBack(); return }

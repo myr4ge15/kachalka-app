@@ -638,7 +638,8 @@ select, textarea { font-variant-numeric: inherit; font-feature-settings: inherit
 .screen-anim--pop  { animation: none; }
 @keyframes screen-push { from { left: 44px; } to { left: 0; } }
 /* Свайп назад от края (hooks/useEdgeSwipeBack.js): экран ведет палец, а не анимация. */
-.screen-anim.edge-dragging { animation: none; }
+/* edge-settled — жест закончился возвратом: анимацию въезда не перезапускаем, иначе экран отскакивает (fb_39b706ad). */
+.screen-anim.edge-dragging, .screen-anim.edge-settled { animation: none; }
 /* Родитель остается смонтированным: при возврате нет повторной загрузки данных.
    Подложка недоступна для тапов/фокуса (inert) и показывается только на время жеста.
    Ни один слой не использует transform: fixed-потомки сохраняют привязку к окну. */
@@ -2996,6 +2997,10 @@ label.act.busy { opacity: .55; pointer-events: none; }
 .fb-text { min-height: 112px; resize: vertical; font: inherit; line-height: 1.4; }
 .fb-count { align-self: flex-end; margin-top: -4px; font-size: 12px; color: var(--muted); }
 .fb-count.over { color: var(--red); }
+.fb-logs { display: flex; align-items: center; gap: 10px; min-height: 44px; font-size: 14px; }
+.fb-logs input { width: 20px; height: 20px; accent-color: var(--acc); }
+.fb-logs-view summary { cursor: pointer; min-height: 44px; display: flex; align-items: center; color: var(--acc-2); }
+.fb-logs-view pre { margin: 0; max-height: 320px; overflow: auto; white-space: pre-wrap; font-size: 12px; line-height: 1.45; color: var(--text); }
 .fb-attach { min-height: 46px; }
 .fb-shot { display: flex; flex-direction: column; gap: 8px; }
 .fb-shot img {

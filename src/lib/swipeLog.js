@@ -33,5 +33,8 @@ export function swipeLogLine(e) {
   const num = (v) => String(Math.round((Number(v) || 0) * 100) / 100).replace('.', ',')
   return [time, OUTCOME[e.kind] ?? e.kind, `${Math.round((Number(e.p) || 0) * 100)}%`,
     `${num(e.v)} / ${num(e.flick)} px/мс`, `${e.moves ?? 0} точек`,
+    // max/peak — за весь жест (fb_39b706ad): показываем, только если заметно больше итога.
+    e.max != null && e.max - (Number(e.p) || 0) >= 0.02 ? `доходил до ${Math.round(e.max * 100)}%` : null,
+    e.peak != null ? `пик ${num(e.peak)}` : null,
     e.ms != null ? `${e.ms} мс` : null, e.lag > 0 ? `отрыв +${e.lag} мс` : null, e.why || null].filter(Boolean).join(' · ')
 }

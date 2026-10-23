@@ -9,6 +9,7 @@ import {
 import {
   adminListFeedback, adminUpdateFeedback, feedbackMedia, feedbackShotUrl, FeedbackError,
 } from '../../lib/feedbackApi.js'
+import { logsText } from '../../lib/deviceLogs.js'
 
 const defaultApi = { list: adminListFeedback, update: adminUpdateFeedback, shot: feedbackShotUrl, media: feedbackMedia }
 const errText = (e) => (e instanceof FeedbackError ? e.message : String(e?.message ?? e))
@@ -90,6 +91,7 @@ function FeedbackCard({ row, online, api, editing, onEdit, onSaved }) {
   const [shotBusy, setShotBusy] = useState(false)
   const version = row.context?.version
   const ctx = contextLine({ ...row.context, version: null })
+  const logs = logsText(row.context?.logs)
   const groups = groupAttachments(row.screenshot_count, row.screenshot_times, row.additions, row.created_at)
 
   async function showShot() {
@@ -132,6 +134,12 @@ function FeedbackCard({ row, online, api, editing, onEdit, onSaved }) {
           {version && <span className="version-number">v{version}</span>}
           {version && ctx ? ' · ' : ''}{ctx}
         </p>
+      )}
+      {logs && (
+        <details className="fb-logs-view">
+          <summary>Журналы устройства</summary>
+          <pre>{logs}</pre>
+        </details>
       )}
       {row.reopened_at && row.reopen_note && (
         <p className="fb-reopen">

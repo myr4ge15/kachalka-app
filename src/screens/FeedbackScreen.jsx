@@ -17,11 +17,15 @@ import {
   FeedbackError, attachUploadedScreenshots, discardAttachments, uploadAttachment,
 } from '../lib/feedbackApi.js'
 import { useAttachments, NOT_READY } from '../hooks/useAttachments.js'
+import { withDeviceLogs } from '../lib/deviceLogs.js'
+import { readPushLog } from '../lib/pushIntent.js'
+import { readSwipeLog } from '../lib/swipeLog.js'
 
 // Вложения грузятся сразу после выбора (upload/discard, 20.10.2026); submit и attach получают пути.
 const defaultApi = {
   submit: defaultSubmit, list: listMyFeedback, ack: ackMyFeedback, reopen: reopenFeedback, media: feedbackMedia,
   append: appendFeedback, attach: attachUploadedScreenshots, upload: uploadAttachment, discard: discardAttachments,
+  readLogs: async () => ({ swipes: readSwipeLog(), pushes: await readPushLog() }),
 }
 
 // «Написать разработчику» (v6.11.0, Профиль → Настройки). Обращение уходит
@@ -32,6 +36,8 @@ const defaultApi = {
 export default function FeedbackScreen({ user, onBack, focusId = null, fromScreen = null, viaScreen = null, api = defaultApi }) {
   const { online } = useSyncStatus()
   const [text, setText] = useState('')
+  // Приложить журналы свайпов и пушей этого телефона (23.10.2026, lib/deviceLogs.js).
+  const [withLogs, setWithLogs] = useState(false)
   const att = useAttachments(user.id, api)
   const [busy, setBusy] = useState(false)
   const [list, setList] = useState(null)
@@ -110,7 +116,7 @@ export default function FeedbackScreen({ user, onBack, focusId = null, fromScree
     const my = ++attempt.current
     try {
       const standalone = window.matchMedia?.('(display-mode: standalone)').matches || navigator.standalone === true
-      const context = buildContext({
+      const base = buildContext({
         version: typeof __APP_VERSION__ !== 'undefined' ? __APP_VERSION__ : 'dev',
         userAgent: navigator.userAgent,
         modernWebKit: isWebKit26Plus(),
@@ -120,6 +126,7 @@ export default function FeedbackScreen({ user, onBack, focusId = null, fromScree
         via: viaScreen,
         online: navigator.onLine,
       })
+      const context = withLogs ? withDeviceLogs(base, await api.readLogs().catch(() => ({}))) : base
       setWaiting(true)
       const paths = await att.readyPaths() // ждем догрузки выбранного (кольца на миниатюрах)
       if (alive.current) setWaiting(false)
@@ -127,6 +134,7 @@ export default function FeedbackScreen({ user, onBack, focusId = null, fromScree
       await api.submit(user.id, { body: text, context, paths })
       if (!alive.current) return
       setText('')
+      setWithLogs(false)
       att.commit()
       // Обращение уже в базе — его видят Админка и desk; задержка Telegram (а на бете Telegram нет вовсе) участника
       // не касается, поэтому «доставка задержалась» не пишем (fb_e87fb37b).
@@ -173,8 +181,13 @@ export default function FeedbackScreen({ user, onBack, focusId = null, fromScree
         <FeedbackScreenshotPicker items={att.items} onAdd={att.add} onRemove={att.remove} onRetry={att.retry}
           disabled={(busy && !waiting) || !online} />
 
+        <label className="fb-logs">
+          <input type="checkbox" checked={withLogs} disabled={busy} onChange={(e) => setWithLogs(e.target.checked)} />
+          <span>Приложить журналы свайпов и уведомлений</span>
+        </label>
         <p className="admin-hint">
           К сообщению приложим версию приложения и модель телефона — так быстрее разобраться.
+          {withLogs && ' Журналы — последние свайпы «назад» и шаги уведомлений на этом телефоне, без данных тренировок.'}
         </p>
         {!online && <p className="admin-offline" role="status">Нет связи. Отправить можно будет онлайн.</p>}
         {busy && att.progress && <UploadProgress progress={att.progress} />}

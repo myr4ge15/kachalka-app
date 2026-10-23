@@ -62,6 +62,9 @@ describe('useEdgeSwipeBack', () => {
     vi.advanceTimersByTime(400)
     expect(onBack).not.toHaveBeenCalled()
     expect(getByTestId('screen').style.left).toBe('')
+    // Анимация въезда не включается заново — иначе экран отскакивал на 44 px (fb_39b706ad).
+    expect(getByTestId('screen')).toHaveClass('edge-settled')
+    expect(getByTestId('screen')).not.toHaveClass('edge-dragging')
   })
 
   it('от середины экрана — тоже «Назад» (v7.1.7)', () => {

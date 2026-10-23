@@ -99,6 +99,29 @@ describe('FeedbackScreen', () => {
     expect(api.list).toHaveBeenCalledTimes(2) // при открытии и после отправки
   })
 
+  it('журналы устройства: только с галочкой, в context.logs; без нее не читаются', async () => {
+    const readLogs = vi.fn(async () => ({
+      swipes: [{ at: '2026-10-23T12:24:00Z', kind: 'back', p: 0.17, v: 0, flick: 0, moves: 14 }],
+      pushes: [{ at: Date.parse('2026-10-23T12:20:00Z'), who: 'sw', ev: 'click', detail: '/#feed' }],
+    }))
+    const api = setup({ readLogs })
+    await userEvent.type(screen.getByLabelText('Что случилось?'), 'Свайп')
+    await userEvent.click(screen.getByRole('button', { name: 'Отправить' }))
+    await waitFor(() => expect(api.submit).toHaveBeenCalledTimes(1))
+    expect(api.submit.mock.calls[0][1].context.logs).toBeUndefined()
+    expect(readLogs).not.toHaveBeenCalled()
+
+    await userEvent.type(screen.getByLabelText('Что случилось?'), 'Свайп')
+    await userEvent.click(screen.getByRole('checkbox', { name: /Приложить журналы/ }))
+    await userEvent.click(screen.getByRole('button', { name: 'Отправить' }))
+    await waitFor(() => expect(api.submit).toHaveBeenCalledTimes(2))
+    const { logs } = api.submit.mock.calls[1][1].context
+    expect(logs.swipe).toHaveLength(1)
+    expect(logs.swipe[0]).toMatch(/вернулся · 17%/)
+    expect(logs.push[0]).toMatch(/sw click · \/#feed$/)
+    await waitFor(() => expect(screen.getByRole('checkbox', { name: /Приложить журналы/ })).not.toBeChecked())
+  })
+
   it('скриншот: грузится сразу после выбора, «Убрать» удаляет загруженное, отправка — путями', async () => {
     const api = setup()
     const file = new File(['x'], 'shot.png', { type: 'image/png' })

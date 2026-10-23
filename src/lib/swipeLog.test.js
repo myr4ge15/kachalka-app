@@ -26,5 +26,8 @@ describe('swipeLog', () => {
     expect(line).toMatch(/вернулся · 18% · 0,12 \/ 0,46 px\/мс · 7 точек · прокрутка забирала 2$/)
     expect(swipeLogLine({ at: 'нет', kind: 'cancel' })).toMatch(/^— · прерван · 0%/)
     expect(swipeLogLine({ at: 'нет', kind: 'back', ms: 180, lag: 240 })).toMatch(/· 180 мс · отрыв \+240 мс$/)
+    // fb_39b706ad: дальний сдвиг — только если заметно больше итога, пик — всегда, когда записан.
+    expect(swipeLogLine({ at: 'нет', kind: 'back', p: 0.17, max: 0.41, peak: 0.52 })).toMatch(/· 17% · .* · доходил до 41% · пик 0,52$/)
+    expect(swipeLogLine({ at: 'нет', kind: 'back', p: 0.17, max: 0.18, peak: 0 })).not.toMatch(/доходил/)
   })
 })
