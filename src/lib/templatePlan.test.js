@@ -30,6 +30,9 @@ describe('templatePlan — детальный план или развертка
 })
 
 describe('cleanTemplatePlan', () => {
+  it('«На время» хранит вес снаряда (изометрия; сервер принимает с …_workout_phases.sql)', () => {
+    expect(cleanTemplatePlan([{ weight: 10, reps: 90 }], 'time')).toEqual([{ weight: 10, reps: 90 }])
+  })
   it('пустой или слишком длинный план — ошибка', () => {
     expect(() => cleanTemplatePlan([], 'weight')).toThrow(/от 1 до 1000/)
     expect(() => cleanTemplatePlan(null, 'weight')).toThrow(/от 1 до 1000/)
