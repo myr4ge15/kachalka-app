@@ -209,9 +209,9 @@ export default function ExerciseCard({
                   <div className="ap-step-line">
                     <span className="lbl">Шаг</span>
                     <div className="stepper ap-stepper">
-                      <HoldButton onTrigger={() => onChangeProgSettings(ei, { step: nextProgStep(eff.step, metric, -1) })}>−</HoldButton>
+                      <HoldButton aria-label="Шаг прогрессии меньше" onTrigger={() => onChangeProgSettings(ei, { step: nextProgStep(eff.step, metric, -1) })}>−</HoldButton>
                       <span className="ap-step-val">{fmtProgStep(eff.step, metric)}</span>
-                      <HoldButton onTrigger={() => onChangeProgSettings(ei, { step: nextProgStep(eff.step, metric, +1) })}>+</HoldButton>
+                      <HoldButton aria-label="Шаг прогрессии больше" onTrigger={() => onChangeProgSettings(ei, { step: nextProgStep(eff.step, metric, +1) })}>+</HoldButton>
                     </div>
                   </div>
                 )}
@@ -235,7 +235,7 @@ export default function ExerciseCard({
 
           {!count && (
             <div className="stepper" role="group" aria-label={`Подход ${si + 1}, ${isDistance ? 'дистанция' : extra ? 'доп. вес или помощь' : 'вес'}`}>
-              <HoldButton onTrigger={() => onStep(ei, si, 'weight', isDistance ? -0.5 : extra ? -2.5 : -1.25)}>−</HoldButton>
+              <HoldButton aria-label={isDistance ? 'Меньше дистанция' : 'Меньше вес'} onTrigger={() => onStep(ei, si, 'weight', isDistance ? -0.5 : extra ? -2.5 : -1.25)}>−</HoldButton>
               {/* Ноль доп. веса — пустое поле. Только ЧИСЛОВОЙ ноль: строку ввода
                   («-», «0.») показываем как есть, иначе минус и «0,5» не набрать. */}
               <SetInput
@@ -244,29 +244,29 @@ export default function ExerciseCard({
                 placeholder={isDistance ? 'км' : extra ? '0' : undefined}
                 onChange={(e) => onUpdateSet(ei, si, 'weight', e.target.value.replace(',', '.').replace('−', '-'))}
               />
-              <HoldButton onTrigger={() => onStep(ei, si, 'weight', isDistance ? 0.5 : extra ? 2.5 : 1.25)}>+</HoldButton>
+              <HoldButton aria-label={isDistance ? 'Больше дистанция' : 'Больше вес'} onTrigger={() => onStep(ei, si, 'weight', isDistance ? 0.5 : extra ? 2.5 : 1.25)}>+</HoldButton>
             </div>
           )}
 
           {isTime ? (
             <div className="stepper" role="group" aria-label={`Подход ${si + 1}, время`}>
-              <HoldButton onTrigger={() => onStep(ei, si, 'reps', isDistance ? -30 : -5)}>−</HoldButton>
+              <HoldButton aria-label="Меньше время" onTrigger={() => onStep(ei, si, 'reps', isDistance ? -30 : -5)}>−</HoldButton>
               <TimeInput
                 value={s.reps}
                 aria-label={`Время, подход ${si + 1}`}
                 onChange={(sec) => onUpdateSet(ei, si, 'reps', sec)}
               />
-              <HoldButton onTrigger={() => onStep(ei, si, 'reps', isDistance ? 30 : 5)}>+</HoldButton>
+              <HoldButton aria-label="Больше время" onTrigger={() => onStep(ei, si, 'reps', isDistance ? 30 : 5)}>+</HoldButton>
             </div>
           ) : (
             <div className="stepper" role="group" aria-label={`Подход ${si + 1}, повторения`}>
-              <HoldButton onTrigger={() => onStep(ei, si, 'reps', -1)}>−</HoldButton>
+              <HoldButton aria-label="Меньше повторений" onTrigger={() => onStep(ei, si, 'reps', -1)}>−</HoldButton>
               <SetInput
                 inputMode="numeric" pattern="[0-9]*" value={s.reps}
                 aria-label={`Повторения, подход ${si + 1}`}
                 onChange={(e) => onUpdateSet(ei, si, 'reps', e.target.value.replace(/\D/g, ''))}
               />
-              <HoldButton onTrigger={() => onStep(ei, si, 'reps', 1)}>+</HoldButton>
+              <HoldButton aria-label="Больше повторений" onTrigger={() => onStep(ei, si, 'reps', 1)}>+</HoldButton>
             </div>
           )}
 

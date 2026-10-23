@@ -85,7 +85,7 @@ export default function MuscleMap({ bySub = {}, selected = null, selectedSub = n
     const untrackedId = `mm-untracked-${side}`
     return (
       <div className="mm-col">
-        <svg viewBox={viewBox} role="img" aria-label={`Силуэт ${side === 'front' ? 'спереди' : 'сзади'} — свежесть мышц`}>
+        <svg viewBox={viewBox} role="group" aria-label={`Силуэт ${side === 'front' ? 'спереди' : 'сзади'} — свежесть мышц`}>
           <defs>
             {/* Штриховка «нет данных»: две муарные полосы под 45° — зона без истории
                 выглядит намеренно «не отслеживается», а не как мертвый серый. */}

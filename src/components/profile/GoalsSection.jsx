@@ -1,7 +1,7 @@
 import { useState } from 'react'
 import { readGoals, writeGoals } from '../../db/notifications.js'
 import { syncNow } from '../../db/sync.js'
-import { normMetric, parseTime, fmtTime } from '../../lib/metric.js'
+import { normMetric, parseTime, fmtTime, fmtNum } from '../../lib/metric.js'
 import { showToast } from '../ui/Toast.jsx'
 import HoldButton from '../ui/HoldButton.jsx'
 import GoalsList from '../progress/GoalsList.jsx'
@@ -41,6 +41,9 @@ export default function GoalsSection({ userId, goals, records, workouts }) {
   // цели. 0/'' → требования по повторам нет (старое поведение).
   const [edReps, setEdReps] = useState(0)
   const [edIsNew, setEdIsNew] = useState(false) // добавляем новую (можно выбрать упражнение) или правим цель существующей
+  // UI-ревью 23.10: цель ≤ 0 и сбой базы раньше молчали; «Удалить» — со второго тапа.
+  const [edErr, setEdErr] = useState('')
+  const [armDelete, setArmDelete] = useState(false)
 
   // Редактор рендерится инлайн в секции «Мои цели» (вверху экрана). Если открыть
   // его, проскроллив вниз (кнопка «+ Добавить цель»), форма встает на месте секции
@@ -93,6 +96,7 @@ export default function GoalsSection({ userId, goals, records, workouts }) {
     setEdMetric(m)
     setEdValue(m, goalDefault(m, base?.value ?? 0))
     setEdReps(0) // повторы по умолчанию не требуем
+    setEdErr(''); setArmDelete(false)
     setEditing(true)
   }
   // Смена упражнения в пикере новой цели → подхватываем его метрику и дефолт.
@@ -111,6 +115,7 @@ export default function GoalsSection({ userId, goals, records, workouts }) {
     setEdMetric(m)
     setEdValue(m, g.targetWeight)
     setEdReps(Number(g.targetReps) > 0 ? Math.round(Number(g.targetReps)) : 0)
+    setEdErr(''); setArmDelete(false)
     setEditing(true)
   }
 
@@ -124,10 +129,17 @@ export default function GoalsSection({ userId, goals, records, workouts }) {
     // Защита от «сохранил с непрожатым полем»: на мобильной клавиатуре тап по
     // «Сохранить» без blur оставляет edVal пустой строкой → Number('')→0 молча
     // записал бы бессмысленную цель в 0. Цель ≤ 0 не сохраняем (оставляем диалог).
-    if (!(target > 0)) return
+    if (!(target > 0)) { setEdErr('Цель должна быть больше нуля.'); return }
+    setEdErr('')
     // Повторы при целевом весе — только у весовой цели; 0/'' → нет требования (null).
     const reps = metric === 'weight' && Number(edReps) > 0 ? Math.round(Number(edReps)) : null
-    const list = await readGoals(userId) // свежий массив (вкл. tombstone'ы)
+    let list
+    try {
+      list = await readGoals(userId) // свежий массив (вкл. tombstone'ы)
+    } catch {
+      setEdErr('Не получилось сохранить цель. Попробуй еще раз.')
+      return
+    }
     const idx = list.findIndex((g) => g.exerciseId === edExId)
     let next
     if (idx >= 0) {
@@ -155,7 +167,12 @@ export default function GoalsSection({ userId, goals, records, workouts }) {
         { exerciseId: edExId, exerciseName: ex?.name ?? '—', metric, targetWeight: target, targetReps: reps, achievedAt: null, _dirty: 1 },
       ]
     }
-    await writeGoals(userId, next)
+    try {
+      await writeGoals(userId, next)
+    } catch {
+      if (aliveRef.current) setEdErr('Не получилось сохранить цель. Попробуй еще раз.')
+      return
+    }
     if (aliveRef.current) setEditing(false)
     // Сразу пушим (если онлайн), чтобы бот увидел цель до ближайшей тренировки.
     if (navigator.onLine) syncNow(userId)
@@ -164,11 +181,17 @@ export default function GoalsSection({ userId, goals, records, workouts }) {
   // Удалить цель: tombstone (_deleted+_dirty) — синк отправит delete_my_goal и
   // выкинет ее из массива; из списка пропадает сразу.
   async function deleteGoal(exerciseId) {
-    const list = await readGoals(userId)
-    const next = list.map((g) =>
-      g.exerciseId === exerciseId ? { ...g, _deleted: 1, _dirty: 1 } : g
-    )
-    await writeGoals(userId, next)
+    if (!armDelete) { setArmDelete(true); return }
+    try {
+      const list = await readGoals(userId)
+      const next = list.map((g) =>
+        g.exerciseId === exerciseId ? { ...g, _deleted: 1, _dirty: 1 } : g
+      )
+      await writeGoals(userId, next)
+    } catch {
+      if (aliveRef.current) { setArmDelete(false); setEdErr('Не получилось удалить цель. Попробуй еще раз.') }
+      return
+    }
     if (aliveRef.current) setEditing(false)
     if (navigator.onLine) syncNow(userId)
   }
@@ -216,7 +239,7 @@ export default function GoalsSection({ userId, goals, records, workouts }) {
                     className="val-field"
                     type="text"
                     inputMode="decimal"
-                    value={edVal}
+                    value={fmtNum(edVal)}
                     onChange={(e) =>
                       setEdVal(e.target.value.replace(',', '.').replace(/[^\d.]/g, ''))
                     }
@@ -285,9 +308,10 @@ export default function GoalsSection({ userId, goals, records, workouts }) {
                 </GoalStepper>
               </div>
             )}
+            {edErr && <p className="error" role="alert">{edErr}</p>}
             <div className="goal-editor-actions">
               {!edIsNew && (
-                <button className="btn danger-ghost" onClick={() => deleteGoal(edExId)}>Удалить</button>
+                <button className="btn danger-ghost" onClick={() => deleteGoal(edExId)}>{armDelete ? 'Точно удалить?' : 'Удалить'}</button>
               )}
               <button className="btn ghost" onClick={() => setEditing(false)}>Отмена</button>
               <button className="btn primary" onClick={saveGoal} disabled={!edExId}>Сохранить</button>

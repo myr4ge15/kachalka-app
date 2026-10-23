@@ -1,6 +1,7 @@
 import Chevron from '../ui/Chevron.jsx'
 import { useState } from 'react'
 import { fmtMetricValue, fmtPace } from '../../lib/metric.js'
+import { pluralize } from '../../lib/plural.js'
 
 // Список личных рекордов профиля (тап по строке → «Прогресс»). Презентационный:
 // records + onOpenProgress(exId) приходят от ProfileScreen. По умолчанию видны
@@ -19,7 +20,7 @@ export default function PersonalRecords({ records, onOpenProgress }) {
     <section className="sec">
       <div className="pr-head">
         <p className="sec-title">Личные рекорды</p>
-        <span className="pr-count" aria-label={`${records.length} рекордов`}>
+        <span className="pr-count" aria-label={pluralize(records.length, 'рекорд', 'рекорда', 'рекордов')}>
           {records.length}
         </span>
       </div>

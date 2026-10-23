@@ -241,9 +241,10 @@ describe('AdminScreen: приглашения', () => {
     await openInvites(user)
     expect(screen.getByText(/ждет/)).toBeInTheDocument()
     expect(screen.getByText(/Маша/)).toBeInTheDocument()
-    const revoke = screen.getAllByRole('button', { name: 'Отозвать ссылку' })
+    const revoke = screen.getAllByRole('button', { name: /^Отозвать ссылку/ })
     expect(revoke).toHaveLength(1)
     await user.click(revoke[0])
+    await user.click(screen.getByRole('button', { name: /^Точно отозвать ссылку/ }))
     await waitFor(() => expect(adminRevokeInvite).toHaveBeenCalledWith('i1'))
   })
 

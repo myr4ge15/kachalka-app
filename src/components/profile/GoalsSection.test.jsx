@@ -108,6 +108,8 @@ describe('GoalsSection', () => {
     renderGoals([BENCH_GOAL])
     fireEvent.click(screen.getByRole('button', { name: /Изменить цель/ }))
     fireEvent.click(screen.getByRole('button', { name: 'Удалить' }))
+    expect(writeGoals).not.toHaveBeenCalled() // UI-ревью 23.10: с одного тапа цель не удаляется
+    fireEvent.click(screen.getByRole('button', { name: 'Точно удалить?' }))
     await waitFor(() => expect(writeGoals).toHaveBeenCalled())
     expect(lastWrite()).toEqual([expect.objectContaining({ exerciseId: 'bench', _deleted: 1, _dirty: 1 })])
   })
@@ -129,5 +131,19 @@ describe('GoalsSection', () => {
     fireEvent.click(screen.getByRole('button', { name: '+ Добавить цель' }))
     expect(showToast).toHaveBeenCalledWith(expect.objectContaining({ title: 'Цели уже на всех упражнениях' }))
     expect(screen.queryByRole('button', { name: 'Сохранить' })).toBeNull()
+  })
+
+  it('цель 0 — подсказка вместо тихого отказа; сбой записи — текст ошибки (UI-ревью 23.10)', async () => {
+    stored = [BENCH_GOAL]
+    renderGoals([BENCH_GOAL])
+    fireEvent.click(screen.getByRole('button', { name: /Изменить цель/ }))
+    fireEvent.change(screen.getByLabelText('Целевой вес в килограммах'), { target: { value: '' } })
+    fireEvent.click(screen.getByRole('button', { name: 'Сохранить' }))
+    expect(await screen.findByRole('alert')).toHaveTextContent('Цель должна быть больше нуля.')
+    fireEvent.change(screen.getByLabelText('Целевой вес в килограммах'), { target: { value: '102,5' } })
+    expect(screen.getByLabelText('Целевой вес в килограммах')).toHaveValue('102,5')
+    writeGoals.mockRejectedValueOnce(new Error('db'))
+    fireEvent.click(screen.getByRole('button', { name: 'Сохранить' }))
+    expect(await screen.findByText('Не получилось сохранить цель. Попробуй еще раз.')).toBeInTheDocument()
   })
 })

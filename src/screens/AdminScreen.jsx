@@ -7,6 +7,7 @@ import { adminListFeedback } from '../lib/feedbackApi.js'
 import { createAdminCache } from '../lib/adminCache.js'
 import InvitesSection from '../components/social/InvitesSection.jsx'
 import BackButton from '../components/ui/BackButton.jsx'
+import Chevron from '../components/ui/Chevron.jsx'
 import { useRevealFocus } from '../hooks/useRevealFocus.js'
 import AdminDisciplines from '../components/admin/AdminDisciplines.jsx'
 import AdminFeedback from '../components/admin/AdminFeedback.jsx'
@@ -90,7 +91,7 @@ export default function AdminScreen({ user, onBack }) {
         <button ref={open === 'disciplines' ? navRevealRef : null} className={'admin-nav-btn' + (open === 'disciplines' ? ' open' : '')}
           onClick={() => toggle('disciplines')} aria-expanded={open === 'disciplines'}>
           <span className="admin-nav-name">Дисциплины рейтинга</span>
-          <span className="admin-nav-chev" aria-hidden="true" />
+          <Chevron className="admin-nav-chev" open={open === 'disciplines'} />
         </button>
         {open === 'disciplines' && <div className="admin-panel"><AdminDisciplines userId={user.id} exercises={exercises ?? []} online={online} /></div>}
         <button
@@ -100,7 +101,7 @@ export default function AdminScreen({ user, onBack }) {
           aria-expanded={open === 'exercises'}
         >
           <span className="admin-nav-name">Справочник упражнений</span>
-          <span className="admin-nav-chev" aria-hidden="true" />
+          <Chevron className="admin-nav-chev" open={open === 'exercises'} />
         </button>
         {open === 'exercises' && (
           <div className="admin-panel">
@@ -120,7 +121,7 @@ export default function AdminScreen({ user, onBack }) {
           aria-expanded={open === 'users'}
         >
           <span className="admin-nav-name">Пользователи</span>
-          <span className="admin-nav-chev" aria-hidden="true" />
+          <Chevron className="admin-nav-chev" open={open === 'users'} />
         </button>
         {open === 'users' && (
           <div className="admin-panel">
@@ -140,7 +141,7 @@ export default function AdminScreen({ user, onBack }) {
           aria-expanded={open === 'invites'}
         >
           <span className="admin-nav-name">Приглашения</span>
-          <span className="admin-nav-chev" aria-hidden="true" />
+          <Chevron className="admin-nav-chev" open={open === 'invites'} />
         </button>
         {open === 'invites' && (
           <div className="admin-panel">
@@ -155,7 +156,7 @@ export default function AdminScreen({ user, onBack }) {
           aria-expanded={open === 'feedback'}
         >
           <span className="admin-nav-name">Обращения</span>
-          <span className="admin-nav-chev" aria-hidden="true" />
+          <Chevron className="admin-nav-chev" open={open === 'feedback'} />
         </button>
         {open === 'feedback' && (
           <div className="admin-panel">
@@ -172,7 +173,7 @@ export default function AdminScreen({ user, onBack }) {
           aria-expanded={open === 'mfa'}
         >
           <span className="admin-nav-name">Защита (2FA){mfa?.enabled ? ' · вкл' : ''}</span>
-          <span className="admin-nav-chev" aria-hidden="true" />
+          <Chevron className="admin-nav-chev" open={open === 'mfa'} />
         </button>
         {open === 'mfa' && (
           <div className="admin-panel">
@@ -189,7 +190,7 @@ export default function AdminScreen({ user, onBack }) {
           aria-expanded={open === 'pushlog'}
         >
           <span className="admin-nav-name">Журнал пушей (это устройство)</span>
-          <span className="admin-nav-chev" aria-hidden="true" />
+          <Chevron className="admin-nav-chev" open={open === 'pushlog'} />
         </button>
         {open === 'pushlog' && <div className="admin-panel"><PushLog /></div>}
       </div>

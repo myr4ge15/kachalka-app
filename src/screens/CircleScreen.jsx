@@ -1,3 +1,4 @@
+import { plural as pluralWord } from '../lib/plural.js'
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { circleApi, joinStatusText } from '../lib/friendCircles.js'
 import { showToast } from '../components/ui/Toast.jsx'
@@ -104,6 +105,7 @@ export default function CircleScreen({ user, onBack, onOpenMember, joinCode = nu
 
 function CirclePanel({ api, circle, me, onChanged, onGone, onOpenMember }) {
   const [armLeave, setArmLeave] = useState(false)
+  const [leaving, setLeaving] = useState(false) // двойной тап не шлет выход дважды (UI-ревью 23.10)
   const [err, setErr] = useState('')
   if (circle.my_status === 'pending') {
     return (
@@ -114,12 +116,15 @@ function CirclePanel({ api, circle, me, onChanged, onGone, onOpenMember }) {
     )
   }
   async function leave() {
+    if (leaving) return
+    setLeaving(true)
     try {
       const r = await api.leave(circle.circle_id)
-      if (r === 'owner') { setErr('Владелец не может выйти — передай круг или удали его.'); return }
+      if (r === 'owner') { setErr('Владелец не может выйти — передай круг или удали его.'); setLeaving(false); return }
       onGone()
     } catch (e) {
       setErr(e.message)
+      setLeaving(false)
     }
   }
   return (
@@ -139,7 +144,7 @@ function CirclePanel({ api, circle, me, onChanged, onGone, onOpenMember }) {
               <p className="danger-text">Выйти из «{circle.name}»? Участники перестанут видеть твои тренировки (если вас не связывает что-то еще), твой код сгорит.</p>
               <div className="danger-actions">
                 <button type="button" className="btn ghost" onClick={() => setArmLeave(false)}>Отмена</button>
-                <button type="button" className="btn danger" onClick={leave}>Выйти</button>
+                <button type="button" className="btn danger" onClick={leave} disabled={leaving}>{leaving ? 'Выхожу…' : 'Выйти'}</button>
               </div>
             </div>
           ) : (
@@ -152,12 +157,8 @@ function CirclePanel({ api, circle, me, onChanged, onGone, onOpenMember }) {
   )
 }
 
-function plural(n) {
-  const a = n % 10, b = n % 100
-  if (a === 1 && b !== 11) return 'участник'
-  if (a >= 2 && a <= 4 && (b < 12 || b > 14)) return 'участника'
-  return 'участников'
-}
+// Склонение — общее lib/plural.js (UI-ревью 23.10: была своя копия).
+const plural = (n) => pluralWord(n, 'участник', 'участника', 'участников')
 
 function CreateCircle({ api, onCreated }) {
   const [open, setOpen] = useState(false)

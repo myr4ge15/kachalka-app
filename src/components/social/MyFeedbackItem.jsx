@@ -4,7 +4,7 @@ import FeedbackNoteForm from './FeedbackNoteForm.jsx'
 import Chevron from '../ui/Chevron.jsx'
 import { useRevealFocus } from '../../hooks/useRevealFocus.js'
 import {
-  appendProblem, canAppend, canReopen, fmtFeedbackDate, groupAttachments, hasReply, isStaleReply, reopenProblem,
+  appendProblem, canAppend, canReopen, fmtFeedbackDate, groupAttachments, laterLabel, hasReply, isStaleReply, reopenProblem,
   APPEND_MAX, FEEDBACK_SHOTS_MAX, REOPEN_MAX, STATUS_LABEL,
 } from '../../lib/feedback.js'
 
@@ -31,7 +31,7 @@ export default function MyFeedbackItem({ row: r, userId, api, online, fresh = fa
   const revealRef = useRevealFocus(rev || null, { block: 'center' })
   const shots = Number(r.screenshot_count) || (r.has_screenshot ? 1 : 0)
   const adds = r.additions?.length ?? 0
-  const groups = groupAttachments(r.screenshot_count, r.screenshot_times, r.additions)
+  const groups = groupAttachments(r.screenshot_count, r.screenshot_times, r.additions, r.created_at)
 
   // Сколько еще можно приложить (всего до FEEDBACK_SHOTS_MAX) и как.
   const room = FEEDBACK_SHOTS_MAX - shots
@@ -93,7 +93,7 @@ export default function MyFeedbackItem({ row: r, userId, api, online, fresh = fa
             </div>
           ))}
           {groups.later.length > 0 && <FeedbackPhotos id={r.id} kind="screenshots" indices={groups.later}
-            load={api.media} lazy disabled={!online} label="Добавлено позже" />}
+            load={api.media} lazy disabled={!online} label={laterLabel(r.screenshot_times, groups.later)} />}
           {r.reopened_at && r.reopen_note && (
             <p className="fb-reopen"><span aria-hidden="true">🔁 </span>Открыто снова: {r.reopen_note}</p>
           )}

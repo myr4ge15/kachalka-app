@@ -234,7 +234,13 @@ export default function FeedScreen({ user, onOpenMember, flashId = null, threadI
             className="ptr-ico"
             style={!ptrBusy && pull ? { transform: `rotate(${ptrProgress * 180}deg)` } : undefined}
           >
-            {ptrBusy ? '↻' : '↓'}
+            {/* SVG, а не текстовые ↻/↓: у глифов своя базовая линия, при вращении они «гуляли» (UI-ревью 23.10). */}
+            <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" strokeWidth="2.4"
+              strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+              {ptrBusy
+                ? <><path d="M20 12a8 8 0 1 1-2.34-5.66" /><path d="M20 4v5h-5" /></>
+                : <><path d="M12 5v14" /><path d="m6 13 6 6 6-6" /></>}
+            </svg>
           </span>
         </div>
       )}
@@ -246,7 +252,7 @@ export default function FeedScreen({ user, onOpenMember, flashId = null, threadI
             «обновляется…» ↔ «обновлено только что» текст подзаголовка перескакивал.
             Здесь он прижат вправо к кнопке и меняется на месте. */}
         {(refreshing || updatedAt) && (
-          <span className="feed-fresh" aria-live="polite">
+          <span className="feed-fresh">
             {refreshing ? 'обновляется…' : `обновлено ${fmtAgo(updatedAt, nowTick)}`}
           </span>
         )}
@@ -314,10 +320,7 @@ export default function FeedScreen({ user, onOpenMember, flashId = null, threadI
               </div>
               {/* Шеврон — подсказка, что шапка ведет в профиль (v6.7.1). */}
               {onOpenMember && (
-                <svg className="go-chev" viewBox="0 0 24 24" width="20" height="20" fill="none"
-                  stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
-                  <path d="M9 6l6 6-6 6" />
-                </svg>
+                <Chevron className="go-chev" />
               )}
             </button>
 

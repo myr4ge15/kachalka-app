@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useRef, useState } from 'react'
 import { exportAllMyData, importAllMyData } from '../../db/backup.js'
 import { describeImport, BackupError } from '../../lib/backup.js'
 import { syncNow } from '../../db/sync.js'
@@ -12,6 +12,7 @@ import { useAliveRef } from '../../hooks/useAliveRef.js'
 // Восстановление намеренно ТОЛЬКО ДОБАВЛЯЕТ недостающее: затереть свежие данные старым
 // файлом невозможно (см. lib/backup.js planImport). Два пункта списка .actions — фрагмент.
 export default function BackupActions({ userId }) {
+  const backupInput = useRef(null)
   const aliveRef = useAliveRef()
   const [bkBusy, setBkBusy] = useState(false)
 
@@ -57,21 +58,23 @@ export default function BackupActions({ userId }) {
           <span className="act-sub">один JSON: тренировки, цели, достижения, настройки</span>
         </span>
       </button>
-      {/* Восстановление — <label> вместо <button>: нативный выбор файла, как
-          у смены аватара. Стиль .act работает и на label. */}
-      <label className={'act' + (bkBusy ? ' busy' : '')}>
+      {/* Восстановление — кнопка, которая открывает скрытый выбор файла (UI-ревью 23.10: <label>
+          скринридер не читал как кнопку, с клавиатуры не нажимался). */}
+      <button type="button" className={'act' + (bkBusy ? ' busy' : '')} disabled={bkBusy}
+        onClick={() => backupInput.current?.click()}>
         <span className="act-txt">
           📥 Восстановить из файла
           <span className="act-sub">добавит только то, чего сейчас нет</span>
         </span>
-        <input
-          type="file"
-          accept="application/json,.json"
-          onChange={onPickBackup}
-          disabled={bkBusy}
-          hidden
-        />
-      </label>
+      </button>
+      <input
+        ref={backupInput}
+        type="file"
+        accept="application/json,.json"
+        onChange={onPickBackup}
+        disabled={bkBusy}
+        hidden
+      />
     </>
   )
 }

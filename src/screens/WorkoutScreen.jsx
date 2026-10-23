@@ -611,7 +611,7 @@ export default function WorkoutScreen({ user, workoutId = null, onBack, onSaved 
       </div>
 
       {message && (
-        <div className={message.type === 'error' ? 'banner error' : 'banner ok'}>
+        <div className={message.type === 'error' ? 'banner error' : 'banner ok'} role={message.type === 'error' ? 'alert' : 'status'}>
           {message.text}
         </div>
       )}

@@ -82,7 +82,7 @@ describe('WorkoutFinishSheet', () => {
         templateMessage="Шаблон «Тренировка 30.07» создан"
       />
     )
-    expect(screen.getByRole('button', { name: '✓ Шаблон создан' })).toBeDisabled()
+    expect(screen.getByRole('button', { name: 'Шаблон создан' })).toBeDisabled()
     expect(screen.getByRole('status')).toHaveTextContent('Шаблон «Тренировка 30.07» создан')
   })
 })

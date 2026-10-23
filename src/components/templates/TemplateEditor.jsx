@@ -13,6 +13,7 @@ import ScrollTopButton from '../ui/ScrollTopButton.jsx'
 import TemplateSets from './TemplateSets.jsx'
 import { templatePlan } from '../../lib/templatePlan.js'
 import { sk } from '../../lib/progressionCard.js'
+import { showToast, hideToast } from '../ui/Toast.jsx'
 
 // Редактор шаблона: состав, построчные подходы (TemplateSets), перестановка, общий/личный,
 // удаление (вынесено из screens/TemplatesScreen.jsx, аудит 14.10). Чужой общий — только чтение.
@@ -133,8 +134,20 @@ export default function TemplateEditor({ user, templateId, onBack, backGuardRef 
     setItems((prev) => [...prev, ...fresh.filter((ex) => !prev.some((it) => it.exercise.id === ex.id)).map(newItem)])
   }
 
+  // «Убрать» стирает и построчный план упражнения — даем окно отмены, как в тренировке (UI-ревью 23.10).
+  // Тост привязан к редактору (kind:'undo'): уход из редактора его гасит.
+  useEffect(() => () => hideToast('undo'), [])
   function removeExercise(idx) {
+    const removed = items[idx]
     setItems(items.filter((_, i) => i !== idx))
+    if (!removed) return
+    showToast({
+      emoji: '🗑', kind: 'undo', title: 'Упражнение убрано', sub: removed.exercise?.name,
+      actionLabel: 'Отменить', duration: 4000,
+      onAction: () => setItems((prev) => (prev.some((it) => it.exercise.id === removed.exercise.id)
+        ? prev
+        : [...prev.slice(0, idx), removed, ...prev.slice(idx)])),
+    })
   }
 
   // Правка целевого плана упражнения (подходы/повторы/вес). Значения хранятся
@@ -226,7 +239,7 @@ export default function TemplateEditor({ user, templateId, onBack, backGuardRef 
       )}
 
       {message && (
-        <div className={message.type === 'error' ? 'banner error' : 'banner ok'}>
+        <div className={message.type === 'error' ? 'banner error' : 'banner ok'} role={message.type === 'error' ? 'alert' : 'status'}>
           {message.text}
         </div>
       )}

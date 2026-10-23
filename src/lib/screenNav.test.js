@@ -1,6 +1,6 @@
 import { describe, it, expect } from 'vitest'
 import { transitionKind, isNested, swipeAxis, swipeBackBlocked, swipeCommits, textSelectionActive, edgeSwipeSupported, nextScreenStack, initialScreenStack,
-  pushSample, releaseVelocity, settleMotion, underlayShift, underlayDim } from './screenNav.js'
+  flickVelocity, pushSample, releaseVelocity, settleMotion, underlayShift, underlayDim } from './screenNav.js'
 
 describe('стек возврата', () => {
   it('сохраняет предков и убирает закрытые дочерние экраны', () => {
@@ -162,4 +162,14 @@ describe('мягкий доезд свайпа', () => {
     expect(underlayDim(390, 390)).toBe(0)
     expect(underlayDim(10, 0)).toBe(0)
   })
+})
+
+// Видео владельца 23.10: короткий бросок с притормозившим концом возвращал экран — решаем по пику.
+it('flickVelocity — пик в окне; палец постоял — броска нет', () => {
+  const s = []
+  for (const [x, t] of [[0, 0], [40, 16], [90, 32], [100, 48], [104, 64]]) pushSample(s, x, t)
+  expect(releaseVelocity(s, 64)).toBeLessThan(flickVelocity(s, 64))
+  expect(flickVelocity(s, 64)).toBeCloseTo(50 / 16)
+  expect(flickVelocity(s, 300)).toBe(0)
+  expect(flickVelocity([], 0)).toBe(0)
 })

@@ -57,6 +57,10 @@ export function hideToast(kind) {
 
 export default function Toast() {
   const [toast, setToast] = useState(null)
+  // Вход с анимацией (UI-ревью 23.10): раньше класс show стоял сразу, и transition не играл —
+  // тост появлялся рывком. Теперь кадр без show, следующий — с ним; новый тост — новый ключ.
+  const [visible, setVisible] = useState(false)
+  const seq = useRef(0)
   const timer = useRef(null)               // авто-скрытие по duration
   // Актуальный тост для hide/замены. Обновляется синхронно в show/close, а не
   // при рендере: два showToast подряд до перерисовки должны видеть друг друга,
@@ -79,7 +83,11 @@ export default function Toast() {
       toastRef.current = payload
       // Прежний тост вытеснен — сообщаем владельцу ДО показа нового.
       try { prev?.onClose?.() } catch { /* ignore */ }
-      setToast(payload)
+      seq.current += 1
+      setToast({ ...payload, _id: seq.current })
+      setVisible(false)
+      if (typeof requestAnimationFrame === 'function') requestAnimationFrame(() => requestAnimationFrame(() => setVisible(true)))
+      else setVisible(true)
       // 3 c: тост нельзя закрыть касанием (тело pointer-transparent, см. ниже), а
       // прежние 4.5 c на телефоне читались как «висит и мешает». Тостам с окном
       // отмены экран передает duration подольше — но тоже не «навсегда».
@@ -100,28 +108,32 @@ export default function Toast() {
     }
   }, [])
 
-  if (!toast) return null
-
   const dismiss = () => closeRef.current?.()
-  const hasAction = toast.actionLabel && toast.onAction
+  const hasAction = toast?.actionLabel && toast?.onAction
 
   // Портал в body + data-sheet-pass (UI-ревью 23.10): внутри .app тост лежал под листами
   // (.overlay z-index 100) и вместе с .app становился inert — «Комментарий не отправлен»
   // в листе комментариев никто не видел. SheetDialog такой узел не замораживает.
+  // Живой регион есть всегда, текст появляется В НЕМ (UI-ревью 23.10): регион, вставленный вместе с
+  // текстом, iOS VoiceOver может не озвучить.
   return createPortal(
-    <div className={`toast show${toast.raised ? ' raised' : ''}`} role="status" data-sheet-pass="">
-      <span className="toast-emoji" aria-hidden="true">{toast.emoji ?? '🏆'}</span>
-      <div className="toast-body">
-        <div className="toast-title">{toast.title}</div>
-        {toast.sub && <div className="toast-sub">{toast.sub}</div>}
-      </div>
-      {hasAction && (
-        <button
-          className="toast-action"
-          onClick={() => { toast.onAction(); dismiss() }}
-        >
-          {toast.actionLabel}
-        </button>
+    <div className="toast-live" role="status" data-sheet-pass="">
+      {toast && (
+        <div key={toast._id} className={`toast${visible ? ' show' : ''}${toast.raised ? ' raised' : ''}`}>
+          <span className="toast-emoji" aria-hidden="true">{toast.emoji ?? '🏆'}</span>
+          <div className="toast-body">
+            <div className="toast-title">{toast.title}</div>
+            {toast.sub && <div className="toast-sub">{toast.sub}</div>}
+          </div>
+          {hasAction && (
+            <button
+              className="toast-action"
+              onClick={() => { toast.onAction(); dismiss() }}
+            >
+              {toast.actionLabel}
+            </button>
+          )}
+        </div>
       )}
     </div>,
     document.body,

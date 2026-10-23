@@ -40,7 +40,7 @@ describe('ExerciseCatalog', () => {
     render(<ExerciseCatalog list={LIST} userId="adm" admin onEdit={onEdit} onToggleHidden={onToggleHidden} />)
     fireEvent.click(screen.getByRole('button', { name: /^Чужая тяга/ }))
     expect(onEdit).toHaveBeenCalledWith(LIST[1])
-    expect(screen.getByRole('button', { name: /^Планка/ })).toHaveTextContent('на время · скрыто')
+    expect(screen.getByRole('button', { name: /^Планка/ })).toHaveTextContent('на время · пресс · скрыто')
     fireEvent.click(screen.getByRole('button', { name: 'Показать «Планка» в пикере' }))
     expect(onToggleHidden).toHaveBeenCalledWith(LIST[2])
   })

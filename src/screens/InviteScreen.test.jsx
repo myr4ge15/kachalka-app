@@ -97,7 +97,7 @@ describe('InviteScreen', () => {
     expect(await screen.findByText('Этот логин занят — придумай другой.', {}, { timeout: 2000 })).toBeInTheDocument()
     expect(checkLoginForInvite).toHaveBeenCalledWith(TOKEN, 'sega')
     fireEvent.change(login, { target: { value: 'sega77' } })
-    expect(await screen.findByText('Свободен ✓', {}, { timeout: 2000 })).toBeInTheDocument()
+    expect(await screen.findByText('Свободен', {}, { timeout: 2000 })).toBeInTheDocument()
   })
 
   it('без логина — на сервер не идем', async () => {

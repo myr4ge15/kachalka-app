@@ -1,5 +1,6 @@
 import { useMemo, useRef, useState } from 'react'
 import SheetDialog from '../ui/SheetDialog.jsx'
+import { useRevealFocus } from '../../hooks/useRevealFocus.js'
 import {
   monthGrid, monthOf, shiftMonth, workoutsByDay, countInMonth, monthTitle, localYmd, WEEKDAYS_SHORT,
 } from '../../lib/calendar.js'
@@ -54,6 +55,8 @@ export default function WorkoutCalendar({ workouts, filter = null, initialDate =
   }
 
   const dayWorkouts = picked ? byDay.get(picked) ?? [] : []
+  // Сводка дня появляется под сеткой — доводим ее до экрана при выборе дня (UI-ревью 23.10).
+  const summaryRef = useRevealFocus(picked, { block: 'nearest' })
   const pickedDate = picked ? new Date(`${picked}T12:00:00`) : null
 
   return (
@@ -113,7 +116,7 @@ export default function WorkoutCalendar({ workouts, filter = null, initialDate =
           ))}
         </div>
 
-        <div className="cal-summary">
+        <div className="cal-summary" ref={summaryRef}>
           {!picked && (
             <p className="muted cal-hint">
               {count > 0 ? 'Нажми на выделенный день — покажу мышцы и упражнения.' : 'В этом месяце тренировок нет.'}

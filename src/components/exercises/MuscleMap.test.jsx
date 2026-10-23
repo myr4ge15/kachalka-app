@@ -40,8 +40,8 @@ describe('MuscleMap', () => {
 
   it('две фигуры (спереди/сзади) с подписями', () => {
     render(<MuscleMap />)
-    expect(screen.getByRole('img', { name: /спереди/ })).toBeInTheDocument()
-    expect(screen.getByRole('img', { name: /сзади/ })).toBeInTheDocument()
+    expect(screen.getByRole('group', { name: /спереди/ })).toBeInTheDocument()
+    expect(screen.getByRole('group', { name: /сзади/ })).toBeInTheDocument()
   })
 
   it('выбор зоны кликом и с клавиатуры (Enter/пробел); выбранная — aria-pressed', () => {

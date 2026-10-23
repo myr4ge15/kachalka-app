@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useRef, useState } from 'react'
 import { setCachedAvatar, setCachedName } from '../../db/repo.js'
 import { syncNow } from '../../db/sync.js'
 import { setName, LoginError } from '../../lib/auth.js'
@@ -13,6 +13,7 @@ import { useAliveRef } from '../../hooks/useAliveRef.js'
 // (фаза 2c; вынесено из ProfileScreen в v6.14.1).
 // Пропсы: user {id,name,role}, avatarUrl, onRenamed(name).
 export default function ProfileHeader({ user, avatarUrl, onRenamed }) {
+  const avatarInput = useRef(null)
   const aliveRef = useAliveRef()
 
   // ── Аватар ──
@@ -81,11 +82,13 @@ export default function ProfileHeader({ user, avatarUrl, onRenamed }) {
 
   return (
     <div className="prof-head">
-      <label className={'avatar-edit' + (avBusy ? ' busy' : '')} title="Сменить аватар">
+      {/* Кнопка, а не <label> со скрытым полем (UI-ревью 23.10): так ее видит скринридер и клавиатура. */}
+      <button type="button" className={'avatar-edit' + (avBusy ? ' busy' : '')} aria-label="Сменить аватар"
+        disabled={avBusy} onClick={() => avatarInput.current?.click()}>
         <Avatar name={user.name} url={avatarUrl} className="avatar-lg" />
         <span className="avatar-cam" aria-hidden="true">{avBusy ? '…' : '📷'}</span>
-        <input type="file" accept="image/*" onChange={onPickAvatar} disabled={avBusy} hidden />
-      </label>
+      </button>
+      <input ref={avatarInput} type="file" accept="image/*" onChange={onPickAvatar} disabled={avBusy} hidden />
       {cropFile && (
         <AvatarCropper file={cropFile} busy={avBusy} onCancel={() => setCropFile(null)} onDone={onCropped} />
       )}

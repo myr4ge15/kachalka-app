@@ -40,7 +40,7 @@ export default function PushAskSheet({ onEnable, onClose }) {
       <button type="button" className="link-btn push-ask-later" onClick={() => onClose?.(false)} disabled={busy}>
         Не сейчас
       </button>
-      <p className="push-ask-hint">Что именно присылать — в Профиль → Настройки.</p>
+      <p className="push-ask-hint">Что именно присылать — в Профиле → Настройки.</p>
     </SheetDialog>
   )
 }

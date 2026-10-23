@@ -49,7 +49,8 @@ export default function PinChangeForm({ userId }) {
     return <button className="act" onClick={() => setPinOpen(true)}>🔑 Сменить PIN</button>
   }
   return (
-    <div className="pin-form" ref={pinFormRef}>
+    // <form>: Enter отправляет; поля заперты, пока идет сохранение (UI-ревью 23.10).
+    <form className="pin-form" ref={pinFormRef} onSubmit={(e) => { e.preventDefault(); if (!pinBusy) submitPin() }}>
       <p className="pin-form-title">Смена PIN</p>
       <label className="field">
         <span className="field-lab">Текущий PIN</span>
@@ -57,7 +58,7 @@ export default function PinChangeForm({ userId }) {
           className="pin-input" type="password" inputMode="numeric"
           autoComplete="off" name="cur-code" data-lpignore="true" data-1p-ignore
           placeholder="••••"
-          value={curPin} onChange={(e) => setCurPin(onlyDigits(e.target.value))}
+          value={curPin} onChange={(e) => setCurPin(onlyDigits(e.target.value))} disabled={pinBusy}
         />
       </label>
       <label className="field">
@@ -66,7 +67,7 @@ export default function PinChangeForm({ userId }) {
           className="pin-input" type="password" inputMode="numeric"
           autoComplete="off" name="new-code" data-lpignore="true" data-1p-ignore
           placeholder="4 цифры"
-          value={newPin} onChange={(e) => setNewPin(onlyDigits(e.target.value))}
+          value={newPin} onChange={(e) => setNewPin(onlyDigits(e.target.value))} disabled={pinBusy}
         />
       </label>
       <label className="field">
@@ -75,16 +76,16 @@ export default function PinChangeForm({ userId }) {
           className="pin-input" type="password" inputMode="numeric"
           autoComplete="off" name="rpt-code" data-lpignore="true" data-1p-ignore
           placeholder="еще раз"
-          value={rptPin} onChange={(e) => setRptPin(onlyDigits(e.target.value))}
+          value={rptPin} onChange={(e) => setRptPin(onlyDigits(e.target.value))} disabled={pinBusy}
         />
       </label>
       {pinErr && <p className="pin-err" role="alert">{pinErr}</p>}
       <div className="pin-form-actions">
-        <button className="btn ghost" onClick={closePinForm} disabled={pinBusy}>Отмена</button>
-        <button className="btn primary" onClick={submitPin} disabled={pinBusy}>
+        <button type="button" className="btn ghost" onClick={closePinForm} disabled={pinBusy}>Отмена</button>
+        <button type="submit" className="btn primary" disabled={pinBusy}>
           {pinBusy ? 'Сохраняю…' : 'Сменить PIN'}
         </button>
       </div>
-    </div>
+    </form>
   )
 }

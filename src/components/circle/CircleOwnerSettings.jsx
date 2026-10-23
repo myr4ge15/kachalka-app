@@ -12,6 +12,7 @@ export default function CircleOwnerSettings({ api, circle, onChanged, onDeleted 
   const [busy, setBusy] = useState('')
   const [codes, setCodes] = useState(null)
   const [armDelete, setArmDelete] = useState(false)
+  const [armRevoke, setArmRevoke] = useState(null) // код, который отзываем — со второго тапа (UI-ревью 23.10)
   const alive = useRef(true)
   useEffect(() => { alive.current = true; return () => { alive.current = false } }, [])
   useEffect(() => { setName(circle.name) }, [circle.name])
@@ -62,7 +63,12 @@ export default function CircleOwnerSettings({ api, circle, onChanged, onDeleted 
               <span className="fc-who"><span className="fc-name">{c.holder_name}</span>
                 <span className="muted fc-by">вступили {c.uses} из {c.max_uses} · до {fmtDate(c.expires_at)}</span></span>
               <button type="button" className="link-btn danger" disabled={!!busy}
-                onClick={() => act(`rv-${c.code_id}`, () => api.revokeCode(c.code_id), loadCodes)}>Отозвать</button>
+                aria-label={armRevoke === c.code_id ? `Точно отозвать код ${c.holder_name}?` : `Отозвать код ${c.holder_name}`}
+                onClick={() => {
+                  if (armRevoke !== c.code_id) { setArmRevoke(c.code_id); return }
+                  setArmRevoke(null)
+                  act(`rv-${c.code_id}`, () => api.revokeCode(c.code_id), loadCodes)
+                }}>{armRevoke === c.code_id ? 'Точно отозвать?' : 'Отозвать'}</button>
             </li>
           ))}
         </ul>

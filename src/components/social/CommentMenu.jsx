@@ -55,11 +55,22 @@ export default function CommentMenu({ anchor, itemClass = '', align = 'left', ac
   }, [pos])
 
   useEffect(() => {
+    // Esc закрывает; стрелки — по пунктам по кругу; Tab уводит фокус — меню закрывается (UI-ревью 23.10).
     const key = (e) => {
-      if (e.key !== 'Escape') return
+      if (e.key === 'Escape') {
+        e.preventDefault()
+        e.stopPropagation()
+        closeRef.current?.()
+        return
+      }
+      if (e.key === 'Tab') { closeRef.current?.(); return }
+      if (e.key !== 'ArrowDown' && e.key !== 'ArrowUp') return
+      const items = [...(menuRef.current?.querySelectorAll('[role="menuitem"]:not(:disabled)') ?? [])]
+      if (!items.length) return
       e.preventDefault()
-      e.stopPropagation()
-      closeRef.current?.()
+      const i = items.indexOf(document.activeElement)
+      const next = e.key === 'ArrowDown' ? (i + 1) % items.length : (i - 1 + items.length) % items.length
+      items[next].focus({ preventScroll: true })
     }
     window.addEventListener('keydown', key, true)
     return () => {

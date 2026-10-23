@@ -9,7 +9,6 @@ import { findNearestRival } from '../lib/rivalry.js'
 import { fmtWhen } from '../lib/dates.js'
 import Avatar from '../components/ui/Avatar.jsx'
 import RivalryCard from '../components/progress/RivalryCard.jsx'
-import LegacyLeaderboard from './LegacyLeaderboard.jsx'
 
 const GROUPS = [['m', 'Мужчины'], ['f', 'Женщины'], ['u', 'Пол не указан']]
 
@@ -55,7 +54,7 @@ export default function DisciplineLeaderboard({ user, onOpenMember, onOpenCircle
         aria-pressed={b.key === current.key} onClick={() => setBoard(b.key)}>{b.label}</button>)}
     </div>}
     <ScopeLeaderboard key={current.key} user={user} onOpenMember={onOpenMember}
-      circle={current.key === 'global' ? null : current.key} />
+      circle={current.key} />
   </>
 }
 
@@ -74,8 +73,6 @@ function ScopeLeaderboard({ user, onOpenMember, circle }) {
     const off1 = onOnline(refresh), off2 = onResume(refresh)
     return () => { alive = false; off1(); off2() }
   }, [user.id, circle])
-  // Старый сервер: привычный рейтинг остается до наката SQL.
-  if (!catalog && !circle) return <LegacyLeaderboard user={user} onOpenMember={onOpenMember} />
   return <section aria-label="Рейтинг по дисциплинам">
     {/* Пустой ряд дисциплин с полями 12px раздувал отступ над карточкой «нет дисциплин» (fb_c0b7096d). */}
     {items.length > 0 && <div className="discipline-tabs" role="group" aria-label="Дисциплина">
@@ -128,7 +125,7 @@ function DisciplineBoard({ discipline, user, onOpenMember, circle = null }) {
         : 'Пока нет результатов. Запиши подход в этом упражнении.'}</p>}
       <ol className="lb-list">
         {rows.map((row, i) => <li key={row.user_id} className={'lb-row lb-row-link' + (row.user_id === user.id ? ' me' : '')} data-anchor={`lb-${row.user_id}`}>
-          <button type="button" className="lb-row-hit" onClick={() => onOpenMember?.(row.user_id, `lb-${row.user_id}`)} aria-label={`Открыть профиль: ${row.user_name}`}>
+          <button type="button" className="lb-row-hit" onClick={() => onOpenMember?.(row.user_id, `lb-${row.user_id}`)} aria-label={`${i + 1} место: ${row.user_name}, ${disciplineResult(metric, row.value)}. Открыть профиль`}>
             <span className={'lb-place' + (i < 3 ? ` lb-place--${['gold', 'silver', 'bronze'][i]}` : '')}>{i + 1}</span>
             <Avatar name={row.user_name} url={avatars.get(row.user_id)} className="avatar-sm" />
             <span className="lb-who"><span className="lb-name">{row.user_name}</span>{row.user_id === user.id && <span className="feed-me">я</span>}</span>

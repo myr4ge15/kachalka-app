@@ -4,6 +4,7 @@ import { getFreshness } from '../db/insights.js'
 import { getWorkouts } from '../db/repo.js'
 import { groupVolumeTrend, trendLabel, WEEKS } from '../lib/groupVolume.js'
 import { plural } from '../lib/plural.js'
+import { fmtNum } from '../lib/metric.js'
 import { readinessView, recoveryLead, fmtHoursLeft, regionTarget } from '../lib/freshness.js'
 import { fmtDaysAgo } from '../lib/homeSummary.js'
 import { LEAD_TARGET, leadSince, cardioLine } from '../lib/recoveryText.js'
@@ -90,7 +91,8 @@ function GroupVolume({ rows }) {
               ))}
             </span>
             <span className="gv-num">
-              <b>{String(r.perWeek).replace('.', ',')}</b> {plural(Math.ceil(r.perWeek), 'подход', 'подхода', 'подходов')}/нед.
+              {/* Дробь — «0,5 подхода» (род. падеж ед. ч.), целое — по числу (UI-ревью 23.10). */}
+              <b>{fmtNum(r.perWeek)}</b> {Number.isInteger(r.perWeek) ? plural(r.perWeek, 'подход', 'подхода', 'подходов') : 'подхода'}/нед.
             </span>
             <span className={`gv-trend gv-trend--${r.trend}`}>{trendLabel(r)}</span>
           </li>
@@ -167,13 +169,12 @@ export default function FreshnessScreen({ user, onBack }) {
             </div>
           </div>
 
-          <div className="fr-tabs" role="tablist" aria-label="Готовность">
+          <div className="fr-tabs" role="group" aria-label="Готовность">
             {TABS.map((t) => (
               <button
                 key={t.id}
                 type="button"
-                role="tab"
-                aria-selected={tab === t.id}
+                aria-pressed={tab === t.id}
                 className={`fr-tab fr-tab--${t.id}${tab === t.id ? ' on' : ''}`}
                 onClick={() => pickTab(t.id)}
               >

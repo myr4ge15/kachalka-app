@@ -12,7 +12,7 @@ import { isOnline, presenceLabel } from '../lib/presence.js'
 import { usePresence } from '../hooks/usePresence.js'
 import { fmtMetricValue } from '../lib/metric.js'
 import SetsCells from '../components/workout/SetsCells.jsx'
-import { plural } from '../lib/plural.js'
+import { plural, pluralize } from '../lib/plural.js'
 import AvatarZoom from '../components/ui/AvatarZoom.jsx'
 import BackButton from '../components/ui/BackButton.jsx'
 import CardsSkeleton from '../components/ui/CardsSkeleton.jsx'
@@ -27,11 +27,11 @@ import ScrollTopButton from '../components/ui/ScrollTopButton.jsx'
 // db/memberProfile.js (read-only запрос под RLS + кэш в meta), расчеты — те же
 // функции, что у своего Профиля (lib/memberProfile.js → lib/profileStats.js).
 //
-// Пропсы: user (кто смотрит), memberId, onBack().
+// Пропсы: user (кто смотрит), memberId, onBack(), onOpenMember(id) — профиль автора комментария (UI-ревью 23.10).
 const REC_PREVIEW = 5
 const RECENT_STEP = 5
 
-export default function MemberScreen({ user, memberId, onBack }) {
+export default function MemberScreen({ user, memberId, onBack, onOpenMember }) {
   const snap = useLiveQuery(
     () => getCachedMember(memberId, { id: user.id, name: user.name }),
     [memberId, user.id, user.name],
@@ -176,7 +176,7 @@ export default function MemberScreen({ user, memberId, onBack }) {
             <section className="sec">
               <div className="pr-head">
                 <p className="sec-title">Рекорды</p>
-                <span className="pr-count" aria-label={`${view.records.length} рекордов`}>
+                <span className="pr-count" aria-label={pluralize(view.records.length, 'рекорд', 'рекорда', 'рекордов')}>
                   {view.records.length}
                 </span>
               </div>
@@ -251,7 +251,9 @@ export default function MemberScreen({ user, memberId, onBack }) {
                     workout={w}
                     me={me}
                     isMe={w.user_id === user.id}
+                    authorAvatar={roster?.avatar_url ?? null}
                     onReact={(kind, mine) => onReact(w.id, kind, mine)}
+                    onOpenMember={onOpenMember}
                   />
                 </article>
               ))}

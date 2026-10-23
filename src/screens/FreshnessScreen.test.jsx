@@ -51,7 +51,7 @@ describe('FreshnessScreen «Восстановление» (v6.3.5)', () => {
 
   it('у мышцы с другой группой группа в деталях остается', () => {
     render(<FreshnessScreen user={{ id: 'u1' }} onBack={() => {}} />)
-    fireEvent.click(screen.getByRole('tab', { name: /отдыхают/ }))
+    fireEvent.click(screen.getByRole('button', { name: /отдыхают/ }))
     fireEvent.click([...document.querySelectorAll('.fr-chip')].find((el) => /широчайшие/.test(el.textContent)))
     expect(document.querySelector('.fr-detail')).toHaveTextContent(/Широчайшие · спина · /)
   })
@@ -60,9 +60,9 @@ describe('FreshnessScreen «Восстановление» (v6.3.5)', () => {
   // подсвечивалась на карте, но в списке и деталях ее не было.
   it('нажатие на мышцу рисунка открывает ее корзину и показывает детали', () => {
     render(<FreshnessScreen user={{ id: 'u1' }} onBack={() => {}} />)
-    expect(screen.getByRole('tab', { name: /можно/ })).toHaveAttribute('aria-selected', 'true')
+    expect(screen.getByRole('button', { name: /можно/ })).toHaveAttribute('aria-pressed', 'true')
     fireEvent.click(screen.getAllByRole('button', { name: 'широчайшие' })[0])
-    expect(screen.getByRole('tab', { name: /отдыхают/ })).toHaveAttribute('aria-selected', 'true')
+    expect(screen.getByRole('button', { name: /отдыхают/ })).toHaveAttribute('aria-pressed', 'true')
     expect(document.querySelector('.fr-chip.on')).toHaveTextContent('широчайшие')
     expect(document.querySelector('.fr-detail')).toHaveTextContent(/^Широчайшие · спина · /)
     // повторное нажатие снимает выбор

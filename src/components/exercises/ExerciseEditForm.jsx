@@ -47,7 +47,6 @@ export default function ExerciseEditForm({
         maxLength={60}
         value={name}
         onChange={(e) => setName(e.target.value)}
-        autoFocus
       />
 
       <div className="create-label">Тип</div>
@@ -107,15 +106,15 @@ export default function ExerciseEditForm({
 
       {admin && (
         <>
-          <p className="muted catalog-hint">Участие в рейтинге настраивается в разделе «Дисциплины рейтинга».</p>
-          <label className="admin-check">
+          <label className="admin-check catalog-hide-check">
             <input type="checkbox" checked={hidden} onChange={(e) => setHidden(e.target.checked)} />
             <span>Скрыть из пикера</span>
           </label>
+          <p className="muted catalog-hint">Участие в рейтинге настраивается в разделе «Дисциплины рейтинга».</p>
         </>
       )}
 
-      {shown && <p className="error create-error">{shown}</p>}
+      {shown && <p className="error create-error" role="alert">{shown}</p>}
 
       <div className="btn-row catalog-actions">
         <button type="button" className="btn ghost" onClick={onCancel} disabled={busy}>Отмена</button>

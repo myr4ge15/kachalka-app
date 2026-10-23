@@ -23,7 +23,23 @@ export default function MoreMenu({ label, open, onToggle, onClose, className = '
     if (!open) return
     const close = () => closeRef.current?.()
     const outside = (e) => { if (!wrapRef.current?.contains(e.target)) close() }
-    const key = (e) => { if (e.key === 'Escape') { close(); btnRef.current?.focus({ preventScroll: true }) } }
+    // Клавиатура (UI-ревью 23.10): Esc закрывает и не уходит дальше (лист под меню не закрывается),
+    // стрелки ходят по пунктам по кругу, Tab уводит фокус из меню — меню закрывается, а не висит.
+    const key = (e) => {
+      if (e.key === 'Escape') {
+        e.preventDefault(); e.stopPropagation()
+        close(); btnRef.current?.focus({ preventScroll: true })
+        return
+      }
+      if (e.key === 'Tab') { close(); return }
+      if (e.key !== 'ArrowDown' && e.key !== 'ArrowUp') return
+      const items = [...(wrapRef.current?.querySelectorAll('[role="menuitem"]:not(:disabled)') ?? [])]
+      if (!items.length) return
+      e.preventDefault()
+      const i = items.indexOf(document.activeElement)
+      const next = e.key === 'ArrowDown' ? (i + 1) % items.length : (i - 1 + items.length) % items.length
+      items[next].focus({ preventScroll: true })
+    }
     document.addEventListener('pointerdown', outside, true)
     document.addEventListener('keydown', key)
     document.addEventListener('scroll', outside, true)

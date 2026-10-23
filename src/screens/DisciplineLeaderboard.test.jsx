@@ -10,7 +10,6 @@ vi.mock('../db/disciplines.js',()=>({
 }))
 vi.mock('../db/circles.js',()=>({ getMyCircles:()=>data.circles, refreshMyCircles:vi.fn() }))
 vi.mock('../db/repo.js',()=>({ getCachedUser:()=>({sex:data.sex}), getUsers:()=>[] }))
-vi.mock('./LegacyLeaderboard.jsx',()=>({default:()=> <p>Старый рейтинг</p>}))
 import DisciplineLeaderboard from './DisciplineLeaderboard.jsx'
 import { fetchRatingBoard } from '../db/disciplines.js'
 const weight={id:'w',name:'Жим',metric:'weight',split_by_sex:true}
@@ -33,7 +32,7 @@ describe('дисциплины в Ленте',()=>{
     expect(screen.queryByText('100 кг')).toBeNull()
     await user.click(screen.getByRole('button',{name:'Мужчины'}))
     expect(screen.getByText('100 кг')).toBeInTheDocument()
-    await user.click(screen.getByRole('button',{name:'Открыть профиль: Борис'}))
+    await user.click(screen.getByRole('button',{name:/Борис.*Открыть профиль/}))
     expect(open).toHaveBeenCalledWith('man','lb-man')
     await user.click(screen.getByRole('button',{name:'Планка'}))
     expect(screen.getByText('1:30')).toBeInTheDocument()
@@ -78,7 +77,6 @@ describe('дисциплины в Ленте',()=>{
     data.circleCatalog={items:[]}
     render(<DisciplineLeaderboard user={{id:'woman'}} />)
     expect(screen.getByText(/В круге пока нет дисциплин/)).toBeInTheDocument()
-    expect(screen.queryByText('Старый рейтинг')).toBeNull()
     // Пустой ряд дисциплин не рисуем — он добавлял отступ над карточкой (fb_c0b7096d).
     expect(screen.queryByRole('group',{name:'Дисциплина'})).toBeNull()
   })

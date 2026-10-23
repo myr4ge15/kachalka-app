@@ -125,6 +125,22 @@ export function releaseVelocity(samples, endT) {
   return dt > 0 ? (last.x - first.x) / dt : 0
 }
 
+// Был ли бросок (для «довел ли до Назад»): самая быстрая пара соседних точек в окне. Средняя скорость
+// занижала короткий бросок, в конце которого палец чуть притормозил, — экран возвращался на место
+// (видео владельца 23.10, справочник в Админке). Палец стоял дольше FLICK_STALE_MS — броска нет.
+const FLICK_STALE_MS = 120
+export function flickVelocity(samples, endT) {
+  if (samples.length < 2) return 0
+  const last = samples[samples.length - 1]
+  if (Number.isFinite(endT) && endT - last.t > FLICK_STALE_MS) return 0
+  let best = 0
+  for (let i = 1; i < samples.length; i++) {
+    const dt = samples[i].t - samples[i - 1].t
+    if (dt > 0) best = Math.max(best, (samples[i].x - samples[i - 1].x) / dt)
+  }
+  return best
+}
+
 // Время и кривая доезда: distance — сколько осталось проехать (px), velocity — скорость
 // пальца В СТОРОНУ цели (px/мс; от цели или стоит — 0). Кривая — cubic-bezier, у которой
 // начальный наклон совпадает со скоростью пальца: медленно отпустил — плавно разгоняется,

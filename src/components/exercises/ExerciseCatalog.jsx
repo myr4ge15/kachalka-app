@@ -1,6 +1,6 @@
 import { useMemo, useState } from 'react'
 import { splitCatalog, canEditExercise, METRIC_LABEL } from '../../lib/exerciseCatalog.js'
-import PencilIcon from '../ui/PencilIcon.jsx'
+import Chevron from '../ui/Chevron.jsx'
 
 // Каталог упражнений — ОДИН для участника и Админки (23.10.2026, решение владельца: раньше это были
 // два разных модуля). Поиск без учета «ё» и три раздела (lib/exerciseCatalog.js splitCatalog).
@@ -63,15 +63,18 @@ function Section({ title, list, empty, hideEmpty, ...row }) {
 // упирается в ошибку сохранения, хуже честно неактивной строки.
 function Row({ ex, admin, online, onEdit, onToggleHidden, canEdit }) {
   const editable = canEdit(ex)
+  // Группа — в подписи, а не справа с карандашом: карандаш у группы читался как «правка только группы»
+  // (замечание владельца 23.10). Открывается упражнение целиком — стрелка у строки.
   const body = (
     <span>
       {ex.name}
       <span className="picker-group catalog-meta">
-        {METRIC_LABEL[ex.metric] ?? METRIC_LABEL.weight}{admin && ex.is_hidden ? ' · скрыто' : ''}
+        {[METRIC_LABEL[ex.metric] ?? METRIC_LABEL.weight, ex.muscle_group || null, admin && ex.is_hidden ? 'скрыто' : null]
+          .filter(Boolean).join(' · ')}
       </span>
     </span>
   )
-  const side = <span className="picker-group">{ex.muscle_group ?? '—'}{editable && <> <PencilIcon size={13} /></>}</span>
+  const side = editable ? <Chevron className="catalog-chev" size={18} /> : null
   const item = editable
     ? <button type="button" className="picker-item" onClick={() => onEdit(ex)}>{body}{side}</button>
     : <div className="picker-item is-static">{body}{side}</div>

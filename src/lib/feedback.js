@@ -227,10 +227,12 @@ export function feedbackReplyNotifs(rows) {
 // Вложения по месту (fb_37f0c1a8): у приложенных после отправки есть время (times: { номер: ISO },
 // feedback_screenshot_times). Такое вложение — к последнему дополнению, отправленному не позже него и
 // не раньше чем за ATTACH_WINDOW_MS (форма шлет сначала текст, потом файлы); не нашлось — «добавлено
-// позже» (файлы без текста). Без времени (исходное сообщение, все старые) — к самому обращению.
+// позже» (файлы без текста). Без времени (все старые) — к самому обращению; приложенные вместе с
+// исходным сообщением (форма шлет его, потом файлы: время ≈ createdAt) — тоже к нему (fb_d4103a75).
 const ATTACH_WINDOW_MS = 10 * 60 * 1000
 const CLOCK_SLACK_MS = 5000
-export function groupAttachments(count, times = null, additions = []) {
+export function groupAttachments(count, times = null, additions = [], createdAt = null) {
+  const created = Date.parse(createdAt)
   const base = []
   const later = []
   const byAddition = {}
@@ -243,9 +245,17 @@ export function groupAttachments(count, times = null, additions = []) {
     if (!Number.isFinite(at)) { base.push(i); continue }
     const add = adds.filter((a) => a.t <= at + CLOCK_SLACK_MS && at - a.t <= ATTACH_WINDOW_MS).pop()
     if (add) (byAddition[add.n] ??= []).push(i)
+    else if (Number.isFinite(created) && at - created <= ATTACH_WINDOW_MS) base.push(i)
     else later.push(i)
   }
   return { base, byAddition, later }
+}
+
+// Подпись вложений без своего дополнения (fb_9acbbfc6: «Добавлено позже» было непонятно) — когда
+// приложены: «Приложенное 23.10, 12:02» (по первому из них).
+export function laterLabel(times, later) {
+  const at = later?.length ? times?.[later[0]] : null
+  return at ? `Приложенное ${fmtFeedbackDate(at)}` : 'Приложенное отдельно'
 }
 
 // Ответ дан ДО последнего переоткрытия — это «прошлый ответ», а не решение.

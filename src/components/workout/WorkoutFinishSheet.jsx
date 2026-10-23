@@ -35,10 +35,13 @@ export default function WorkoutFinishSheet({
             <dt>Подходы</dt>
             <dd>{summary.setCount}</dd>
           </div>
-          <div>
-            <dt>Тоннаж</dt>
-            <dd>{tonnage.value} <span>{tonnage.unit}</span></dd>
-          </div>
+          {/* Без веса (свой вес, время, дистанция) «Тоннаж 0 кг» ничего не говорит — плитку прячем (UI-ревью 23.10). */}
+          {summary.tonnage > 0 && (
+            <div>
+              <dt>Тоннаж</dt>
+              <dd>{tonnage.value} <span>{tonnage.unit}</span></dd>
+            </div>
+          )}
           {duration && (
             <div>
               <dt>Время</dt>
@@ -84,7 +87,9 @@ export default function WorkoutFinishSheet({
             disabled={templateBusy || templateDone}
             onClick={onCreateTemplate}
           >
-            {templateDone ? '✓ Шаблон создан' : templateBusy ? 'Создаем шаблон…' : '📋 Сохранить как шаблон'}
+            {templateDone
+              ? <><CheckIcon size={16} strokeWidth={3} /> Шаблон создан</>
+              : templateBusy ? 'Создаем шаблон…' : '📋 Сохранить как шаблон'}
           </button>
         )}
 

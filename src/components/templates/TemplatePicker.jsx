@@ -20,7 +20,7 @@ function PickItem({ t, mine, onPick }) {
       <span className="tpl-pick-name">
         {t.name}
         {mine && Boolean(t.is_public) && (
-          <span className="tpl-badge" title="Виден всем">🌐 общий</span>
+          <span className="tpl-badge" title="Виден всем">🌐 виден всем</span>
         )}
         {!mine && t.author_name && <span className="tpl-author"> · от {t.author_name}</span>}
       </span>
@@ -45,7 +45,7 @@ export default function TemplatePicker({ user, onPick, onClose }) {
           {loading && <p className="muted">Загрузка…</p>}
 
           {!loading && list.length === 0 && (
-            <p className="muted">Шаблонов пока нет. Создай в разделе «Шаблоны».</p>
+            <p className="muted">Шаблонов пока нет. Создай в «Тренировки → Шаблоны».</p>
           )}
 
           {!loading && mine.length > 0 && (

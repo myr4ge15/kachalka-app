@@ -106,7 +106,7 @@ export default function TgLinkSheet({ kind, userId, onClose }) {
         {!laterReady && <span className="later-bar" aria-hidden="true" />}
       </button>
       <p className="push-ask-hint">
-        {kind === 'relink' ? 'Напомню при следующем запуске.' : 'Напомню через 3 дня.'} Привязать можно и в Профиль → Настройки → «Восстановление доступа».
+        {kind === 'relink' ? 'Напомню при следующем запуске.' : 'Напомню через 3 дня.'} Привязать можно и в Профиле → Настройки → «Восстановление доступа».
       </p>
     </SheetDialog>
   )

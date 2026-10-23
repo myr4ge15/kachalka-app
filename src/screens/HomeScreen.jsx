@@ -1,3 +1,4 @@
+import { settleScroll } from '../lib/scrollBox.js'
 import Chevron from '../components/ui/Chevron.jsx'
 import { useEffect, useRef, useState } from 'react'
 import { fmtHomeTitle } from '../lib/dates.js'
@@ -79,7 +80,12 @@ export default function HomeScreen({ user, onNavigate, onNewWorkout, onOpenProgr
   const rhythmRef = useRef(null)
   useEffect(() => {
     if (!focusRhythm || loading) return
-    rhythmRef.current?.scrollIntoView?.({ block: 'start' })
+    // Через settleScroll, а не scrollIntoView (UI-ревью 23.10): на iPhone голая прокрутка во время
+    // инерции игнорируется — Главная открывалась не у Ритма.
+    const el = rhythmRef.current
+    const box = el?.closest?.('.content')
+    if (el && box) settleScroll(box, el.getBoundingClientRect().top - box.getBoundingClientRect().top + box.scrollTop)
+    else el?.scrollIntoView?.({ block: 'start' })
     onFocusRhythmConsumed?.()
   }, [focusRhythm, loading, onFocusRhythmConsumed])
 

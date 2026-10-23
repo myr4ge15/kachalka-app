@@ -21,7 +21,9 @@ function renderCard(e, propOver = {}) {
   render(<ExerciseCard entry={e} ei={0} prog={{ enabled: true, byExercise: {} }} active {...cbs} {...propOver} />)
   return cbs
 }
-const step = (group, sign) => fireEvent.click(within(screen.getByRole('group', { name: group })).getByRole('button', { name: sign }))
+// «−/+» подписаны (UI-ревью 23.10): «Меньше …»/«Больше …» — ищем по началу подписи.
+const step = (group, sign) => fireEvent.click(within(screen.getByRole('group', { name: group }))
+  .getByRole('button', { name: sign === '+' ? /^Больше/ : /^Меньше/ }))
 
 describe('ExerciseCard — степперы', () => {
   it('вес ±1,25 и повторы ±1; ввод запятой — точкой', () => {
@@ -84,8 +86,8 @@ describe('ExerciseCard — настройки прогрессии', () => {
       expect(cb.onChangeProgSettings).toHaveBeenLastCalledWith(0, { strategy })
     }
     const stepper = screen.getByText('Шаг').parentElement
-    fireEvent.click(within(stepper).getByRole('button', { name: '+' }))
-    fireEvent.click(within(stepper).getByRole('button', { name: '−' }))
+    fireEvent.click(within(stepper).getByRole('button', { name: 'Шаг прогрессии больше' }))
+    fireEvent.click(within(stepper).getByRole('button', { name: 'Шаг прогрессии меньше' }))
     const steps = cb.onChangeProgSettings.mock.calls.slice(-2).map((c) => c[1].step)
     expect(steps[0]).toBeGreaterThan(steps[1])
   })

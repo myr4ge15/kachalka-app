@@ -31,7 +31,7 @@ export default function RecoverySection({ userId }) {
   const [relink, setRelink] = useState(false)
 
   const refresh = useCallback(async () => {
-    if (!navigator.onLine) { setErr('Виден онлайн.'); return }
+    if (!navigator.onLine) { setErr('Статус виден только с интернетом.'); return }
     try {
       const s = await getRecoveryStatus(userId)
       // К старому боту — узнать, переехал ли сброс (иначе перепривязывать некуда).

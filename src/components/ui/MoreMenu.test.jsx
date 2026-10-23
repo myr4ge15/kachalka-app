@@ -5,10 +5,11 @@ import { useState } from 'react'
 import { fireEvent, render, screen } from '@testing-library/react'
 import MoreMenu from './MoreMenu.jsx'
 
-function WithButton() {
+function WithButton({ two = false }) {
   const [open, setOpen] = useState(false)
   return (
     <MoreMenu label="Действия" open={open} onToggle={() => setOpen((v) => !v)} onClose={() => setOpen(false)}>
+      {two && <button type="button" role="menuitem">Изменить</button>}
       <button type="button" role="menuitem">Удалить</button>
     </MoreMenu>
   )
@@ -32,5 +33,19 @@ describe('MoreMenu', () => {
     fireEvent.keyDown(document, { key: 'Escape' })
     expect(screen.queryByRole('menu')).toBeNull()
     expect(btn).toHaveFocus()
+  })
+
+  it('стрелки ходят по пунктам по кругу, Tab закрывает (UI-ревью 23.10)', () => {
+    render(<WithButton two />)
+    fireEvent.click(screen.getByRole('button', { name: 'Действия' }))
+    expect(screen.getByRole('menuitem', { name: 'Изменить' })).toHaveFocus()
+    fireEvent.keyDown(document, { key: 'ArrowDown' })
+    expect(screen.getByRole('menuitem', { name: 'Удалить' })).toHaveFocus()
+    fireEvent.keyDown(document, { key: 'ArrowDown' })
+    expect(screen.getByRole('menuitem', { name: 'Изменить' })).toHaveFocus()
+    fireEvent.keyDown(document, { key: 'ArrowUp' })
+    expect(screen.getByRole('menuitem', { name: 'Удалить' })).toHaveFocus()
+    fireEvent.keyDown(document, { key: 'Tab' })
+    expect(screen.queryByRole('menu')).toBeNull()
   })
 })

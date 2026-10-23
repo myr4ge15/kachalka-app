@@ -1,5 +1,6 @@
 import { useEffect, useId, useRef, useState } from 'react'
 import { loginProblem, loginStatusText, normalizeLogin } from '../../lib/login.js'
+import CheckIcon from '../ui/CheckIcon.jsx'
 
 // Поле «Логин (для входа)» (П4 «Мой круг», 07.10.2026). Одна разметка для регистрации,
 // шага «Придумай логин», Настроек и Админки.
@@ -40,7 +41,7 @@ export default function LoginField({ value, onChange, check, disabled = false, a
   }, [value, check])
 
   const hint = state.kind === 'checking' ? 'Проверяю…'
-    : state.kind === 'ok' ? 'Свободен ✓'
+    : state.kind === 'ok' ? <>Свободен <CheckIcon size={13} strokeWidth={3} /></>
       : state.kind === 'bad' ? state.text
         : NOTE
   // Подсказка — ВНЕ <label>: иначе ее текст входит в доступное имя поля.

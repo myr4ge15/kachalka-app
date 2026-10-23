@@ -4,7 +4,7 @@ import { showToast } from '../ui/Toast.jsx'
 import FeedbackPhotos from '../social/FeedbackPhotos.jsx'
 import { useRevealFocus } from '../../hooks/useRevealFocus.js'
 import {
-  contextLine, fmtFeedbackDate, groupAttachments, hasReply, isOpenStatus, openCount, FEEDBACK_MAX, FEEDBACK_STATUSES, STATUS_LABEL,
+  contextLine, fmtFeedbackDate, groupAttachments, laterLabel, hasReply, isOpenStatus, openCount, FEEDBACK_MAX, FEEDBACK_STATUSES, STATUS_LABEL,
 } from '../../lib/feedback.js'
 import {
   adminListFeedback, adminUpdateFeedback, feedbackMedia, feedbackShotUrl, FeedbackError,
@@ -90,7 +90,7 @@ function FeedbackCard({ row, online, api, editing, onEdit, onSaved }) {
   const [shotBusy, setShotBusy] = useState(false)
   const version = row.context?.version
   const ctx = contextLine({ ...row.context, version: null })
-  const groups = groupAttachments(row.screenshot_count, row.screenshot_times, row.additions)
+  const groups = groupAttachments(row.screenshot_count, row.screenshot_times, row.additions, row.created_at)
 
   async function showShot() {
     if (shotBusy) return
@@ -126,7 +126,7 @@ function FeedbackCard({ row, online, api, editing, onEdit, onSaved }) {
         </div>
       ))}
       {groups.later.length > 0 && <FeedbackPhotos id={row.id} kind="screenshots" indices={groups.later}
-        load={api.media} lazy disabled={!online} label="Добавлено позже" />}
+        load={api.media} lazy disabled={!online} label={laterLabel(row.screenshot_times, groups.later)} />}
       {(version || ctx) && (
         <p className="admin-ex-meta fb-ctx">
           {version && <span className="version-number">v{version}</span>}

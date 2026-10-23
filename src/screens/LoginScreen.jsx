@@ -150,10 +150,16 @@ export default function LoginScreen({ onLogin, onInvite }) {
 
   async function forget() {
     if (!confirmForget) { setConfirmForget(true); return }
-    await forgetAccount(selected.id)
-    const list = await reloadKnown()
-    setSelected(null); setPin(''); setError(''); setConfirmForget(false)
-    setMode(list.length ? 'pick' : 'name')
+    try {
+      await forgetAccount(selected.id)
+      const list = await reloadKnown()
+      setSelected(null); setPin(''); setError(''); setConfirmForget(false)
+      setMode(list.length ? 'pick' : 'name')
+    } catch {
+      // Сбой локальной базы (UI-ревью 23.10): без catch ошибка уходила в никуда, кнопка «молчала».
+      setConfirmForget(false)
+      setError('Не получилось убрать учетку с устройства. Попробуй еще раз.')
+    }
   }
 
   const mark = <AppMark />

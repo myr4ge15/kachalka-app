@@ -235,9 +235,19 @@ export default function HistoryScreen({
   // при смене под-вида внутри хаба ее позиция не сбрасывалась — после «Сохранить»
   // (кнопка внизу редактора) пользователь возвращался к списку, прокрученному вниз.
   // На десктопе (master-detail) список остается на месте — прыжок к верху не нужен.
+  // Возврат к списку — на то место, где его оставили (UI-ревью 23.10, как в Шаблонах): позицию
+  // списка запоминаем по прокрутке, пока он открыт, — после смены вида .content уже другой высоты.
+  const listTop = useRef(0)
   useEffect(() => {
-    if (!isDesktop) return settleScroll(document.querySelector('.content'), 0)
-  }, [selected, isDesktop])
+    const box = contentRef?.current ?? document.querySelector('.content')
+    if (isDesktop || selected !== null || !box) return undefined
+    const keep = () => { listTop.current = box.scrollTop }
+    box.addEventListener('scroll', keep, { passive: true })
+    return () => box.removeEventListener('scroll', keep)
+  }, [selected, isDesktop, contentRef])
+  useEffect(() => {
+    if (!isDesktop) return settleScroll(contentRef?.current ?? document.querySelector('.content'), selected === null ? listTop.current : 0)
+  }, [selected, isDesktop, contentRef])
 
   // Свайп назад из открытой тренировки (v8.4.0) — как у вложенных экранов и Настроек
   // профиля: карточка едет за пальцем, под ней виден список (подложка .nav-underlay),
@@ -301,8 +311,7 @@ export default function HistoryScreen({
             <rect x="5" y="4" width="14" height="17" rx="2.5" /><path d="M9 4V3h6v1M9 10h6M9 14h6" />
           </svg>
           <span className="tpl-link-txt">Шаблоны</span>
-          <svg className="tpl-link-chev" viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor"
-            strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true"><path d="M9 6l6 6-6 6" /></svg>
+          <Chevron className="tpl-link-chev" size={18} />
         </button>
 
         {loading && <CardsSkeleton cards={4} />}
@@ -324,7 +333,7 @@ export default function HistoryScreen({
         {groups.length > 0 && (
           <div className="chips tag-filter">
             <button
-              className={filter === null ? 'chip active' : 'chip'}
+              className={filter === null ? 'chip active' : 'chip'} aria-pressed={filter === null}
               onClick={() => setFilter(null)}
             >
               все
@@ -332,7 +341,7 @@ export default function HistoryScreen({
             {groups.map((g) => (
               <button
                 key={g}
-                className={filter === g ? 'chip active' : 'chip'}
+                className={filter === g ? 'chip active' : 'chip'} aria-pressed={filter === g}
                 onClick={() => setFilter(filter === g ? null : g)}
               >
                 {g}
@@ -359,6 +368,7 @@ export default function HistoryScreen({
                 + (isOpen ? ' open' : '')
               }
               onClick={() => (selectMode ? togglePick(w.id) : setSelected(w.id))}
+              aria-pressed={selectMode ? picked.has(w.id) : undefined} /* отметка «выбрано» озвучивается (UI-ревью 23.10) */
             >
               <div className="history-head">
                 <div>
@@ -445,7 +455,7 @@ export default function HistoryScreen({
       return (
         <div className="nav-stack">
           {swipeOn && (
-            <div key="underlay" className="nav-layer nav-underlay" inert aria-hidden="true">
+            <div key="underlay" className="nav-layer nav-underlay" inert aria-hidden="true" data-scroll-top={listTop.current}>
               <div className="screen">
                 {renderHead()}
                 {renderList()}

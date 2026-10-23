@@ -2,6 +2,7 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { act, fireEvent, render, screen, waitFor, within } from '@testing-library/react'
 import TemplatesScreen from './TemplatesScreen.jsx'
+import Toast from '../components/ui/Toast.jsx'
 import { deleteTemplate, getTemplate, saveTemplate } from '../db/repo.js'
 import { syncNow } from '../db/sync.js'
 import { exportTemplates } from '../lib/exportTemplate.js'
@@ -265,6 +266,23 @@ describe('TemplatesScreen — редактор', () => {
     expect(doc.id).toBe('t1')
     expect(doc.exercises.map((e) => e.exercise.id)).toEqual(['pull'])
     expect(syncNow).not.toHaveBeenCalled()
+  })
+
+  // UI-ревью 23.10: «убрать» стирает построчный план — есть «Отменить», как в тренировке.
+  it('«убрать» упражнение — тост «Отменить» возвращает его на место', async () => {
+    online = false
+    render(<Toast />)
+    renderScreen()
+    fireEvent.click(screen.getByText('Грудь').closest('button'))
+    expect(await screen.findByDisplayValue('Грудь')).toBeInTheDocument()
+    const before = screen.getAllByRole('button', { name: 'убрать' }).length
+    fireEvent.click(screen.getAllByRole('button', { name: 'убрать' })[0])
+    expect(screen.queryAllByRole('button', { name: 'убрать' })).toHaveLength(before - 1)
+    fireEvent.click(await screen.findByRole('button', { name: 'Отменить' }))
+    expect(screen.getAllByRole('button', { name: 'убрать' })).toHaveLength(before)
+    save()
+    await waitFor(() => expect(saveTemplate).toHaveBeenCalled())
+    expect(vi.mocked(saveTemplate).mock.calls[0][0].exercises).toHaveLength(before)
   })
 
   // fb_150a4d25: внутри был тот же состав только для чтения — теперь он весь в карточке.

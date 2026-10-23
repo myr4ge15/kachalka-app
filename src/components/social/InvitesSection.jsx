@@ -67,7 +67,11 @@ export default function InvitesSection({ online, errMsg, api = adminApi, limit =
     } catch { /* закрыли меню «Поделиться» — ничего не делаем */ }
   }
 
+  // Отзыв — со второго тапа (UI-ревью 23.10): ссылку не вернуть, а ⛔ легко задеть.
+  const [armId, setArmId] = useState(null)
   async function revoke(inv) {
+    if (armId !== inv.id) { setArmId(inv.id); return }
+    setArmId(null)
     if (operation.current) return
     operation.current = true
     setRevId(inv.id)
@@ -98,8 +102,11 @@ export default function InvitesSection({ online, errMsg, api = adminApi, limit =
         </div>
         {inv.status === 'ok' && (
           <div className="admin-ex-btns">
-            <button className="admin-mini" onClick={() => revoke(inv)}
-              disabled={!online || busy || revId !== null} aria-label="Отозвать ссылку">⛔</button>
+            <button className={'admin-mini' + (armId === inv.id ? ' armed' : '')} onClick={() => revoke(inv)}
+              disabled={!online || busy || revId !== null}
+              aria-label={`${armId === inv.id ? 'Точно отозвать' : 'Отозвать'} ссылку «${inv.note || 'Без пометки'}»`}>
+              {armId === inv.id ? 'Точно?' : '⛔'}
+            </button>
           </div>
         )}
       </div>

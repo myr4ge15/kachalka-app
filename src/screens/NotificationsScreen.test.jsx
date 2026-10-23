@@ -1,6 +1,6 @@
 // @vitest-environment jsdom
 import { beforeEach, describe, expect, it, vi } from 'vitest'
-import { fireEvent, render, screen, waitFor } from '@testing-library/react'
+import { fireEvent, render, screen, waitFor, within } from '@testing-library/react'
 import NotificationsScreen from './NotificationsScreen.jsx'
 import { getSeenAt, markAllSeen } from '../db/notifications.js'
 
@@ -74,10 +74,10 @@ describe('NotificationsScreen', () => {
     mocks.list = [N.mine, N.react, N.beaten]
     const { container } = renderScreen()
     await waitFor(() => expect(screen.getByText('2 новых')).toBeInTheDocument())
-    const tabs = screen.getAllByRole('tab').map((t) => t.textContent)
+    const tabs = within(screen.getByRole('group', { name: 'Фильтр уведомлений' })).getAllByRole('button').map((t) => t.textContent)
     expect(tabs).toEqual(['все', 'рекорды', 'побитые', 'реакции'])
-    fireEvent.click(screen.getByRole('tab', { name: 'реакции' }))
-    expect(screen.getByRole('tab', { name: 'реакции' })).toHaveAttribute('aria-selected', 'true')
+    fireEvent.click(screen.getByRole('button', { name: 'реакции' }))
+    expect(screen.getByRole('button', { name: 'реакции' })).toHaveAttribute('aria-pressed', 'true')
     expect(container.querySelectorAll('.notif')).toHaveLength(1)
     expect(screen.getByText('2 новых')).toBeInTheDocument()
   })
@@ -88,7 +88,7 @@ describe('NotificationsScreen', () => {
     render(<NotificationsScreen user={ME} onBack={vi.fn()} onOpenFeedback={onOpenFeedback} />)
     expect(await screen.findByText('Ответ разработчика · решено')).toBeInTheDocument()
     expect(screen.getByText('📎 Ответ со скриншотом')).toBeInTheDocument()
-    expect(screen.getAllByRole('tab').map((t) => t.textContent)).toEqual(['все', 'рекорды', 'ответы'])
+    expect(within(screen.getByRole('group', { name: 'Фильтр уведомлений' })).getAllByRole('button').map((t) => t.textContent)).toEqual(['все', 'рекорды', 'ответы'])
     fireEvent.click(screen.getByRole('button', { name: 'Открыть обращение' }))
     expect(onOpenFeedback).toHaveBeenCalledWith('f1')
   })

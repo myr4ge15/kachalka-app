@@ -48,7 +48,8 @@ export default function NotificationsScreen({ user, onBack, onOpenFeedback }) {
   useEffect(() => {
     if (!ready || loading || marked.current) return
     marked.current = true
-    markAllSeen(user.id, items)
+    // Отметка «прочитано» — не критична: сбой базы не должен всплывать необработанным (UI-ревью 23.10).
+    Promise.resolve(markAllSeen(user.id, items)).catch(() => {})
   }, [ready, loading, items, user.id])
 
   // Непрочитанные и «прочитано» считаем по ПОЛНОМУ списку — фильтр-чипы влияют
@@ -84,13 +85,12 @@ export default function NotificationsScreen({ user, onBack, onOpenFeedback }) {
 
       {/* Переносом, а не прокруткой: последний чип у края читался обрезанным (fb_3289040f). */}
       {!loading && cats.length > 2 && (
-        <div className="chips wrap" role="tablist" aria-label="Фильтр уведомлений">
+        <div className="chips wrap" role="group" aria-label="Фильтр уведомлений">
           {cats.map((c) => (
             <button
               key={c.key}
               type="button"
-              role="tab"
-              aria-selected={activeFilter === c.key}
+              aria-pressed={activeFilter === c.key}
               className={'chip' + (activeFilter === c.key ? ' active' : '')}
               onClick={() => setFilter(c.key)}
             >

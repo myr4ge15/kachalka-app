@@ -15,7 +15,7 @@ describe('RecoveryCodeView', () => {
     render(<RecoveryCodeView code="ABCD-EFGH-JKMN-PQRS" onDone={onDone} />)
     expect(screen.getByTestId('recovery-code')).toHaveTextContent('ABCD-EFGH-JKMN-PQRS')
     fireEvent.click(screen.getByRole('button', { name: 'Скопировать' }))
-    await waitFor(() => expect(screen.getByRole('button', { name: 'Скопировано ✓' })).toBeInTheDocument())
+    await waitFor(() => expect(screen.getByRole('button', { name: 'Скопировано' })).toBeInTheDocument())
     expect(writeText).toHaveBeenCalledWith('ABCD-EFGH-JKMN-PQRS')
     fireEvent.click(screen.getByRole('button', { name: 'Я сохранил код' }))
     expect(onDone).toHaveBeenCalledTimes(1)

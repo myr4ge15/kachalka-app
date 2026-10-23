@@ -274,6 +274,7 @@ export default function ExercisePicker({
             className="search"
             data-autofocus
             placeholder="Название упражнения"
+            aria-label="Название своего упражнения"
             value={newName}
             onChange={(e) => setNewName(e.target.value)}
             autoFocus
@@ -294,26 +295,26 @@ export default function ExercisePicker({
           <div className="create-label">Тип</div>
           <div className="chips">
             <button
-              className={newMetric === 'weight' ? 'chip active' : 'chip'}
+              className={newMetric === 'weight' ? 'chip active' : 'chip'} aria-pressed={newMetric === 'weight'}
               onClick={() => setNewMetric('weight')}
             >
               Вес и повторения
             </button>
             <button
-              className={newMetric === 'reps' ? 'chip active' : 'chip'}
+              className={newMetric === 'reps' ? 'chip active' : 'chip'} aria-pressed={newMetric === 'reps'}
               onClick={() => setNewMetric('reps')}
             >
               Только повторения
             </button>
             <button
-              className={newMetric === 'time' ? 'chip active' : 'chip'}
+              className={newMetric === 'time' ? 'chip active' : 'chip'} aria-pressed={newMetric === 'time'}
               onClick={() => setNewMetric('time')}
             >
               На время
             </button>
             {/* v6.12.0: бег, ходьба, эллипс, велотренажер — км и время, темп считается. */}
             <button
-              className={newMetric === 'distance' ? 'chip active' : 'chip'}
+              className={newMetric === 'distance' ? 'chip active' : 'chip'} aria-pressed={newMetric === 'distance'}
               onClick={() => setNewMetric('distance')}
             >
               Дистанция и время
@@ -325,7 +326,7 @@ export default function ExercisePicker({
             {createGroups.map((g) => (
               <button
                 key={g}
-                className={g === newGroup ? 'chip active' : 'chip'}
+                className={g === newGroup ? 'chip active' : 'chip'} aria-pressed={g === newGroup}
                 onClick={() => pickNewGroup(g)}
               >
                 {g}
@@ -340,7 +341,7 @@ export default function ExercisePicker({
                 {submusclesOf(newGroup).map((s) => (
                   <button
                     key={s}
-                    className={s === newSub ? 'chip active' : 'chip'}
+                    className={s === newSub ? 'chip active' : 'chip'} aria-pressed={s === newSub}
                     onClick={() => {
                       setNewSub(s)
                       setNewSecondary((sec) => sec.filter((x) => x !== s))
@@ -362,7 +363,7 @@ export default function ExercisePicker({
                   return (
                     <button
                       key={s}
-                      className={on ? 'chip active' : 'chip'}
+                      className={on ? 'chip active' : 'chip'} aria-pressed={on}
                       onClick={() =>
                         setNewSecondary((sec) => (on ? sec.filter((x) => x !== s) : [...sec, s]))
                       }
@@ -375,7 +376,7 @@ export default function ExercisePicker({
             </>
           )}
 
-          {error && <p className="error create-error">{error}</p>}
+          {error && <p className="error create-error" role="alert">{error}</p>}
 
           <button
             className="btn primary full create-save"
@@ -401,6 +402,7 @@ export default function ExercisePicker({
             ref={searchRef}
             className="search"
             placeholder="Поиск по названию…"
+            aria-label="Поиск упражнения"
             value={query}
             onChange={(e) => changeQuery(e.target.value)}
           />
@@ -422,7 +424,7 @@ export default function ExercisePicker({
           {groups.map((g) => (
             <button
               key={g}
-              className={g === group ? 'chip active' : 'chip'}
+              className={g === group ? 'chip active' : 'chip'} aria-pressed={g === group}
               onClick={() => changeGroup(g)}
             >
               {g}

@@ -43,7 +43,7 @@ describe('TemplatePicker', () => {
     expect(titles).toEqual(['Мои', 'Общие'])
     const items = screen.getAllByRole('button', { name: /упр\./ })
     expect(items[0]).toHaveTextContent('Грудь')
-    expect(items[0]).toHaveTextContent('🌐 общий')
+    expect(items[0]).toHaveTextContent('🌐 виден всем')
     expect(items[0]).toHaveTextContent('2 упр.')
     expect(items[0].querySelector('.tpl-pick-sub').textContent).toMatch(/^Жим лежа /) // пустое упражнение пропущено
     expect(items[1]).toHaveTextContent('· от Петя')

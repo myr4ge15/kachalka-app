@@ -66,7 +66,7 @@ export default function FeedbackNoteForm({
         <textarea className="admin-input fb-text" rows={3} maxLength={max + 100} value={note} disabled={busy}
           placeholder={placeholder} autoFocus onChange={(e) => setNote(e.target.value)} />
       </label>
-      <div className={'fb-count' + (len > max ? ' over' : '')} aria-live="polite">{len} / {max}</div>
+      <div className={'fb-count' + (len > max ? ' over' : '')}>{len} / {max}</div>
       {attach && attach.max > 0 && (
         <FeedbackScreenshotPicker items={att.items} onAdd={att.add} onRemove={att.remove} onRetry={att.retry}
           disabled={busy || !online} max={attach.max} testId={attach.testId} />

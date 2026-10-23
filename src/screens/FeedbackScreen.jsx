@@ -155,7 +155,7 @@ export default function FeedbackScreen({ user, onBack, focusId = null, fromScree
             disabled={busy}
           />
         </label>
-        <div className={'fb-count' + (len > FEEDBACK_MAX ? ' over' : '')} aria-live="polite">
+        <div className={'fb-count' + (len > FEEDBACK_MAX ? ' over' : '')}>
           {len} / {FEEDBACK_MAX}
         </div>
 

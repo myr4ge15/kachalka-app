@@ -92,7 +92,7 @@ describe('FriendButton — подпись и меню', () => {
     await waitFor(() => expect(api.respond).toHaveBeenCalledWith('u2', true))
     live.rows = rows('friend')
     rerender(<FriendButton me="me" memberId="u2" compact />)
-    expect(screen.getByText('✓ Уже друзья')).toBeInTheDocument()
+    expect(screen.getByText('Уже друзья')).toBeInTheDocument()
     live.rows = rows('blocked')
     rerender(<FriendButton me="me" memberId="u2" compact />)
     expect(screen.queryByRole('menuitem')).toBeNull()

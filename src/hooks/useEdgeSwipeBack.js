@@ -19,7 +19,7 @@
 import { useEffect, useRef } from 'react'
 import { flushSync } from 'react-dom'
 import {
-  EDGE_PX, edgeSwipeSupported, pushSample, releaseVelocity, settleMotion, swipeAxis, swipeBackBlocked, swipeCommits,
+  EDGE_PX, edgeSwipeSupported, flickVelocity, pushSample, releaseVelocity, settleMotion, swipeAxis, swipeBackBlocked, swipeCommits,
   textSelectionActive, underlayDim, underlayShift,
 } from '../lib/screenNav.js'
 import { isIOSDevice } from '../lib/pushSupport.js'
@@ -172,7 +172,7 @@ export function useEdgeSwipeBack(containerRef, screenRef, onBack, enabled) {
       g = null
       if (done.axis !== 'x') return
       const v = releaseVelocity(done.samples, e?.timeStamp)
-      if (swipeCommits(done.dx, v, done.width)) {
+      if (swipeCommits(done.dx, Math.max(v, flickVelocity(done.samples, e?.timeStamp)), done.width)) {
         if (!done.preview || reducedMotion()) { finishBack(); return }
         // Экран уехал — дальше обычная «Назад»: смена tab размонтирует этот экран.
         settle(done.dx, done.width, v, done.width, finishBack)

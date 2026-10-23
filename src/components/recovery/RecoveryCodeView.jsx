@@ -1,4 +1,5 @@
 import { useState } from 'react'
+import CheckIcon from '../ui/CheckIcon.jsx'
 
 // Код восстановления (П1, 07.10.2026) — показывается ОДИН раз: на сервере хранится
 // только хэш, второй раз его не узнать (можно лишь выпустить новый, старый сгорит).
@@ -19,7 +20,7 @@ export default function RecoveryCodeView({ code, onDone, doneLabel = 'Я сох�
         менеджере паролей: больше он не покажется. Код одноразовый.
       </p>
       <div className="invite-actions">
-        <button type="button" className="btn ghost" onClick={copy}>{copied ? 'Скопировано ✓' : 'Скопировать'}</button>
+        <button type="button" className="btn ghost" onClick={copy}>{copied ? <><CheckIcon size={15} strokeWidth={3} /> Скопировано</> : 'Скопировать'}</button>
         <button type="button" className="btn primary" onClick={onDone}>{doneLabel}</button>
       </div>
     </div>

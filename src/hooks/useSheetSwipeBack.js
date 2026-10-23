@@ -15,7 +15,7 @@
 import { useEffect, useRef } from 'react'
 import { flushSync } from 'react-dom'
 import {
-  EDGE_PX, pushSample, releaseVelocity, settleMotion, swipeAxis, swipeBackBlocked, swipeCommits, textSelectionActive,
+  EDGE_PX, flickVelocity, pushSample, releaseVelocity, settleMotion, swipeAxis, swipeBackBlocked, swipeCommits, textSelectionActive,
 } from '../lib/screenNav.js'
 
 function reducedMotion() {
@@ -94,7 +94,7 @@ export function useSheetSwipeBack(overlayRef, sheetRef, onDismiss, enabled) {
       if (done.axis !== 'x') return
       const width = sheetRef.current?.clientWidth || window.innerWidth
       const v = releaseVelocity(done.samples, e?.timeStamp)
-      if (swipeCommits(done.dx, v, width)) {
+      if (swipeCommits(done.dx, Math.max(v, flickVelocity(done.samples, e?.timeStamp)), width)) {
         if (reducedMotion()) { clearTimeout(settleTimer); settling = true; finish(); return }
         settle(done.dx, width, v, finish)
       } else {

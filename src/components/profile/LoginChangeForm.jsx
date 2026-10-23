@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react'
 import { getMyLogin, setMyLogin, LoginError } from '../../lib/auth.js'
-import { normalizeLogin } from '../../lib/login.js'
+import { loginProblem, normalizeLogin } from '../../lib/login.js'
 import LoginField from '../auth/LoginField.jsx'
 import { showToast } from '../ui/Toast.jsx'
 import { useRevealFocus } from '../../hooks/useRevealFocus.js'
@@ -19,18 +19,31 @@ export default function LoginChangeForm({ userId }) {
   const [err, setErr] = useState('')
   const [busy, setBusy] = useState(false)
 
+  // Вошли офлайн — логин дочитываем, когда сеть вернется (UI-ревью 23.10: «виден онлайн» висел до
+  // переоткрытия экрана); раскрытие формы тоже переспрашивает, если логин еще не знаем.
+  const [retry, setRetry] = useState(0)
   useEffect(() => {
     let alive = true
-    if (!navigator.onLine) return undefined
-    getMyLogin(userId).then((l) => { if (alive) setCurrent(l) }, () => {})
-    return () => { alive = false }
-  }, [userId])
+    const load = () => {
+      if (!navigator.onLine) return
+      getMyLogin(userId).then((l) => { if (alive) setCurrent(l) }, () => {})
+    }
+    load()
+    window.addEventListener('online', load)
+    return () => { alive = false; window.removeEventListener('online', load) }
+  }, [userId, retry])
 
-  function openForm() { setValue(current ?? ''); setErr(''); setOpen(true) }
+  function openForm() {
+    setValue(current ?? ''); setErr(''); setOpen(true)
+    if (current === undefined) setRetry((n) => n + 1)
+  }
   function close() { setOpen(false); setErr(''); setBusy(false) }
 
   async function submit() {
     if (normalizeLogin(value) === current) { close(); return }
+    // Формат — до сервера, тем же правилом, что подсказка под полем (UI-ревью 23.10).
+    const problem = loginProblem(value)
+    if (problem) { setErr(problem); return }
     setBusy(true)
     setErr('')
     try {

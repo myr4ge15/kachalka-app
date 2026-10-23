@@ -64,6 +64,20 @@
   /* Подложка кадров подсказки по технике (v8.0.0): рисунки Everkinetic — черные
      штрихи на белом, файлы не меняем (CC BY-SA), поэтому кладем их на светлое. */
   --media-paper: #ffffff;
+  /* Смысловые цвета, что жили хардкодом по файлу (UI-ревью 23.10) — теперь токены. */
+  --on-media: #ffffff;                 /* значок/подпись поверх фото и видео, ручка тумблера и ползунка */
+  --warn-text: #fcd34d; --warn-bg: rgba(202, 138, 4, .14); --warn-line: #ca8a04;     /* «ждет»: синк идет, почти готово */
+  --alert-text: #fdba74; --alert-bg: rgba(234, 88, 12, .14); --alert-line: #ea580c;  /* «нужно действие»: застрявший синк */
+  --ready-text: #5eead4; --ready-bg: rgba(20, 184, 166, .14);                          /* мышца готова к нагрузке */
+  --note-text: #FDE68A; --note-bg: rgba(251, 191, 36, .12);                            /* предупреждение в «Оформлении» */
+  /* Метки групп мышц в Истории (.day-tag.tag-*): фон / рамка / текст. */
+  --tag-chest-bg: rgba(250, 204, 21, .14);  --tag-chest-line: var(--yellow); --tag-chest-text: #facc15;
+  --tag-back-bg: rgba(125, 119, 221, .16);  --tag-back-line: #534ab7;        --tag-back-text: #afa9ec;
+  --tag-legs-bg: rgba(56, 138, 221, .16);   --tag-legs-line: #185fa5;        --tag-legs-text: #85b7eb;
+  --tag-shoulders-bg: rgba(216, 90, 48, .16); --tag-shoulders-line: #993c1d; --tag-shoulders-text: #f0997b;
+  --tag-biceps-bg: rgba(22, 163, 74, .16);  --tag-biceps-line: var(--green); --tag-biceps-text: #86efac;
+  --tag-triceps-bg: rgba(29, 158, 117, .16); --tag-triceps-line: #0f6e56;    --tag-triceps-text: #5dcaa5;
+  --tag-abs-bg: rgba(212, 83, 126, .16);    --tag-abs-line: #993556;         --tag-abs-text: #ed93b1;
   /* ── Типографика (v6.3.1, макет prototypes/typography.html, вариант A) ──
      Две жирности обычного шрифта: 600 — у всего, что НАЗЫВАЕТ (заголовок раздела и
      карточки, подпись поля, ссылка, кнопка), 400 — у содержимого. Крупный сжатый
@@ -244,10 +258,11 @@ select, textarea { font-variant-numeric: inherit; font-feature-settings: inherit
   background: none; border: none; color: var(--text);
   padding: 8px 6px 8px 0; min-height: 44px; cursor: pointer;
 }
-.topbar-user .chev { font-size: 11px; opacity: .85; }
 .topbar-user.active { color: var(--acc); }
-.topbar-user .chev { color: var(--muted); }
 .topbar-user:active { opacity: .7; }
+/* Длинное имя (до 30 знаков) + «БЕТА» + бейдж синка не выталкивают колокольчик: имя обрезается (UI-ревью 23.10). */
+.topbar-user { min-width: 0; flex: 0 1 auto; }
+.topbar-name { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 /* Пометка бета-стенда (VITE_BETA=1, lib/appVersion.js IS_BETA): в шапке и в сайдбаре десктопа.
    Желтый — смысловой «внимание», не акцент: бету не спутать с приложением друзей. */
 .beta-badge {
@@ -275,16 +290,16 @@ select, textarea { font-variant-numeric: inherit; font-feature-settings: inherit
 .sync-badge .sync-ico { width: 15px; height: 15px; display: block; flex-shrink: 0; }
 .sync-badge-txt { font-weight: 600; }
 .sync-badge.ok      { color: var(--green); background: color-mix(in srgb, var(--green) 12%, transparent); border-color: var(--green); }
-.sync-badge.busy    { color: #fcd34d; background: rgba(202,138,4,.14); border-color: #ca8a04; }
+.sync-badge.busy    { color: var(--warn-text); background: var(--warn-bg); border-color: var(--warn-line); }
 .sync-badge.offline { color: var(--red-text); background: color-mix(in srgb, var(--red) 10%, transparent); border-color: var(--red); }
 /* Застрявшие изменения (dead-letter): отличаем от busy — «нужно действие» */
-.sync-badge.warn    { color: #fdba74; background: rgba(234,88,12,.14); border-color: #ea580c; }
+.sync-badge.warn    { color: var(--alert-text); background: var(--alert-bg); border-color: var(--alert-line); }
 /* Крутящийся кружок на время синхронизации */
 @keyframes sync-spin { to { transform: rotate(360deg); } }
 .sync-ico.spin { transform-origin: center; animation: sync-spin var(--spin-dur) linear infinite; animation-delay: var(--spin-phase, 0s); }
 
 /* Метка несинхронизированной тренировки в Истории */
-.dot-unsynced { color: #fcd34d; font-size: 10px; margin-left: 6px; vertical-align: middle; }
+.dot-unsynced { color: var(--warn-text); font-size: 10px; margin-left: 6px; vertical-align: middle; }
 
 /* Колокольчик уведомлений в шапке + счетчик непрочитанных (ТЗ §4.5).
    Центрируем эмодзи flex'ом и гасим дефолтный padding кнопки: iOS Safari (UA-стили
@@ -295,7 +310,6 @@ select, textarea { font-variant-numeric: inherit; font-feature-settings: inherit
   display: inline-flex; align-items: center; justify-content: center; padding: 0;
   border-radius: 12px; border: 1px solid var(--stroke);
   background: var(--surface); color: var(--text); line-height: 1;
-  backdrop-filter: blur(20px); -webkit-backdrop-filter: blur(20px);
 }
 .bell-ico { width: 22px; height: 22px; display: block; }
 .bell:active { background: var(--surface-2); color: var(--text); }
@@ -450,8 +464,8 @@ select, textarea { font-variant-numeric: inherit; font-feature-settings: inherit
 .card {
   background: var(--glass); border: 1px solid var(--stroke);
   border-radius: 20px; padding: 16px; margin-bottom: 14px; width: 100%;
-  /* «Стекло»: размытие подложки + светлый inset-хайлайт по верхней кромке. */
-  backdrop-filter: blur(20px); -webkit-backdrop-filter: blur(20px);
+  /* Светлый inset-хайлайт по верхней кромке. Размытия нет (UI-ревью 23.10): --glass непрозрачный,
+     blur ничего не давал, а на длинных списках стоил кадров. */
   box-shadow: inset 0 1px 0 rgba(255, 255, 255, .14);
 }
 .card.warn { max-width: 420px; }
@@ -676,13 +690,12 @@ a.btn { display: flex; text-decoration: none; }
    --btn-g1/--btn-g2 темнее акцентных --g1/--g3, а тень вдвое слабее прежней
    (было 0 10px 30px / .45) — кнопка по-прежнему «приподнята», но не светит. */
 .btn.primary { background: linear-gradient(135deg, var(--btn-g1), var(--btn-g2)); color: var(--on-acc); box-shadow: 0 6px 16px color-mix(in srgb, var(--acc) 22%, transparent); }
-.btn.primary:disabled { background: var(--surface-2); color: var(--muted); box-shadow: none; }
-/* outline — пунктирная стеклянная рамка */
-.btn.outline { background: none; border: 1px dashed var(--stroke); color: var(--muted); margin-bottom: 12px; }
-/* ghost — стекло с размытием */
+.btn.primary:disabled { background: var(--surface); color: var(--muted); border-color: var(--stroke); box-shadow: none; }
+/* outline — тонкая обводка на темной подложке («Добавить»), без пунктира */
+.btn.outline { background: var(--surface); border: 1px solid var(--stroke); color: var(--text); margin-bottom: 12px; }
+/* ghost — плотная подложка (размытие снято вместе с .card, UI-ревью 23.10) */
 .btn.ghost {
   background: var(--glass); color: var(--text); border: 1px solid var(--stroke); margin-top: 6px;
-  backdrop-filter: blur(20px); -webkit-backdrop-filter: blur(20px);
 }
 .save-btn { margin-top: 4px; }
 
@@ -710,16 +723,12 @@ a.btn { display: flex; text-decoration: none; }
 /* Резерв, чтобы последний контент прокручивался выше плавающей кнопки. */
 .wk-save-spacer { height: 76px; }
 
-.link-btn { background: none; border: none; color: var(--acc-2); font-size: 14px; padding: 4px; }
+.link-btn { background: none; border: none; color: var(--acc-2); font-size: 14px; font-weight: var(--fw-strong); padding: 4px; }
+/* Зона тапа ≥ 44px у ссылок-кнопок («Отвязать», «Новый код», «Отозвать», «Экспорт»; UI-ревью 23.10). */
+button.link-btn { min-height: 44px; display: inline-flex; align-items: center; justify-content: center; }
 .link-btn.danger { color: var(--red); }
 .link-btn.small { font-size: 16px; }
-/* «Удалить тренировку» — уводим от кнопки «Сохранить» отступом и разделителем. */
-.full-link.danger {
-  margin-top: 24px; padding-top: 14px;
-  border-top: 1px solid var(--border);
-  color: var(--muted); font-size: 13px;
-}
-.full-link.danger:active { color: var(--red); }
+
 /* ---------- workout (редизайн «Спорт-блоки», этап 4, v6.1.0) ----------
    Макет — prototypes/workout-card.html. Отметок «подход выполнен» нет: что в
    строках, то и записывается; слева в строке — просто номер. */
@@ -921,7 +930,7 @@ a.btn { display: flex; text-decoration: none; }
 .ap-fold .ap-when { display: inline-flex; align-items: center; gap: 4px; }
 .ap-compact .ap-prev { flex: 1; min-width: 0; margin: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .ap-actions { display: flex; align-items: center; gap: 8px; margin-top: 8px; }
-.ap-actions .ap-revert { flex: 1; text-align: left; font-size: 13px; font-weight: 600; color: var(--acc-2); padding: 10px 0; }
+.ap-actions .ap-revert { flex: 1; text-align: left; font-size: 13px; font-weight: 600; color: var(--acc-2); padding: 10px 0; min-height: 44px; justify-content: flex-start; }
 .btn-apply {
   flex: 1; min-height: 42px; border: 0; border-radius: 11px;
   background: var(--acc-soft); color: var(--acc-2); font-weight: 600; font-size: 13px; cursor: pointer;
@@ -938,7 +947,7 @@ a.btn { display: flex; text-decoration: none; }
 .ap-settings { margin-top: 10px; padding-top: 10px; border-top: 1px solid var(--border); }
 .seg { display: grid; grid-auto-flow: column; grid-auto-columns: 1fr; gap: 5px; }
 .seg-item {
-  min-height: 40px; border: 0; border-radius: 10px; background: var(--surface-2);
+  min-height: 44px; border: 0; border-radius: 10px; background: var(--surface-2);
   color: var(--muted); font-size: 13px; font-weight: 600; cursor: pointer;
 }
 .seg-item.on { background: var(--acc); color: var(--on-acc); }
@@ -1006,7 +1015,7 @@ a.btn { display: flex; text-decoration: none; }
 .toggle-pill.on { background: linear-gradient(135deg, var(--g1), var(--g2)); border-color: transparent; }
 .toggle-knob {
   position: absolute; top: 2px; left: 2px; width: 22px; height: 22px; border-radius: 50%;
-  background: #fff; transition: transform .15s;
+  background: var(--on-media); transition: transform .15s;
 }
 .toggle-pill.on .toggle-knob { transform: translateX(18px); }
 
@@ -1015,13 +1024,14 @@ a.btn { display: flex; text-decoration: none; }
    поэтому position:fixed точно относительно вьюпорта. z-index выше шапки (5),
    таббара и баннера обновления (30) — модалка перекрывает все чрезмерное. */
 .overlay {
-  position: fixed; inset: 0; background: rgba(0,0,0,.55);
+  position: fixed; inset: 0; background: var(--scrim);
   display: flex; align-items: stretch; z-index: 100;
 }
 /* Мобайл: пикер на весь экран. Шапка/поиск/чипы зафиксированы сверху
    (flex-shrink:0), под ними скроллится только .picker-list. */
 .sheet {
   background: var(--bg); width: 100%;
+  height: 100vh; max-height: 100vh; /* фолбэк для браузеров без dvh (UI-ревью 23.10) */
   height: 100dvh; max-height: 100dvh;
   min-height: 0; overflow: hidden;
   border-radius: 0;
@@ -1042,9 +1052,11 @@ a.btn { display: flex; text-decoration: none; }
 /* Шапка, поиск и чипы зафиксированы сверху и не сжимаются списком.
    Заголовок листа — display-шрифтом, как заголовки экранов (v6.1.0). */
 .sheet-head {
-  display: flex; justify-content: space-between; align-items: center;
+  display: flex; justify-content: space-between; align-items: center; gap: 12px;
   margin-bottom: 12px; flex-shrink: 0;
 }
+/* Длинный заголовок переносится, а не упирается в «закрыть» (UI-ревью 23.10). */
+.sheet-head > strong { min-width: 0; overflow-wrap: anywhere; }
 .sheet-head > strong {
   font-family: var(--font-display); font-weight: 900; font-size: 24px;
   text-transform: uppercase; letter-spacing: .01em; line-height: 1;
@@ -1298,6 +1310,8 @@ a.btn { display: flex; text-decoration: none; }
 .catalog-row.is-hidden > .picker-item { opacity: .55; }
 .catalog-row > .catalog-hide { flex: none; min-width: 44px; min-height: 44px; background: none; color: var(--muted); }
 .catalog-hint { margin: 8px 0 0; font-size: 13px; line-height: 1.35; }
+.catalog-hide-check { margin-top: 18px; min-height: 44px; }
+.catalog-chev { flex: none; color: var(--muted); }
 .catalog-actions { margin-top: 18px; }
 /* Предложение создать упражнение по введенному названию (нет в справочнике) */
 .create-suggest { color: var(--acc-2); font-weight: 600; }
@@ -1343,24 +1357,6 @@ a.btn { display: flex; text-decoration: none; }
 /* Поле даты в детали */
 .date-field { display: flex; flex-direction: column; gap: 6px; margin-bottom: 14px; }
 .date-field > .muted { font-size: 13px; }
-/* Явно интерактивный пикер: рамка-акцент, иконка, стрелка.
-   Нативный input лежит прозрачным слоем поверх — тап в любую точку открывает выбор даты. */
-.date-picker {
-  position: relative; display: flex; align-items: center; gap: 10px;
-  min-height: 48px; padding: 12px 14px;
-  border-radius: 10px; border: 1px solid var(--acc);
-  background: var(--surface-2); color: var(--text); cursor: pointer;
-}
-.date-picker:active { background: var(--surface); }
-.date-picker:focus-within { box-shadow: 0 0 0 2px color-mix(in srgb, var(--acc) 35%, transparent); }
-.date-picker__icon { font-size: 18px; line-height: 1; }
-.date-picker__value { flex: 1; font-size: 16px; font-weight: 600; }
-.date-picker__chevron { color: var(--acc); font-size: 14px; line-height: 1; }
-.date-picker input {
-  position: absolute; inset: 0; width: 100%; height: 100%;
-  margin: 0; padding: 0; border: 0; opacity: 0; cursor: pointer;
-  -webkit-appearance: none; appearance: none;
-}
 
 /* ---------- history ---------- */
 .history-card { padding: 14px; border-radius: 16px; }
@@ -1389,7 +1385,6 @@ a.btn { display: flex; text-decoration: none; }
 .export-toggle--top { margin: -4px 0 14px; text-align: center; }
 /* Группы шаблонов — заголовками разделов, а не мелкой серой подписью (fb_1099223c). */
 .group-toggle.tpl-group { font-size: var(--fs-title); font-weight: 600; color: var(--text); }
-.group-toggle.tpl-group .group-caret { width: 20px; color: var(--muted); }
 .export-bar--fixed {
   position: fixed; left: 50%; transform: translateX(-50%); z-index: 6;
   width: calc(100% - 24px); max-width: 536px; margin: 0;
@@ -1415,7 +1410,6 @@ a.btn { display: flex; text-decoration: none; }
 }
 .history-date { font-weight: 600; font-size: 16px; }
 .history-sub { font-size: 13px; margin-top: 2px; font-weight: 600; }
-.history-actions { display: flex; gap: 4px; flex-shrink: 0; }
 
 .history-list { list-style: none; margin: 10px 0 0; padding: 0; }
 .history-ex {
@@ -1446,24 +1440,17 @@ a.btn { display: flex; text-decoration: none; }
   border: 1px solid var(--border); background: var(--surface-2); color: var(--muted);
 }
 /* Цвет на группу мышц (темная тема: мягкий фон-тинт + рамка + светлый текст). */
-.day-tag.tag-chest     { background: rgba(250,204,21,.14); border-color: var(--yellow); color: #facc15; }
-.day-tag.tag-back      { background: rgba(125,119,221,.16); border-color: #534ab7; color: #afa9ec; }
-.day-tag.tag-legs      { background: rgba(56,138,221,.16); border-color: #185fa5; color: #85b7eb; }
-.day-tag.tag-shoulders { background: rgba(216,90,48,.16); border-color: #993c1d; color: #f0997b; }
-.day-tag.tag-biceps    { background: rgba(22,163,74,.16); border-color: var(--green); color: #86efac; }
-.day-tag.tag-triceps   { background: rgba(29,158,117,.16); border-color: #0f6e56; color: #5dcaa5; }
-.day-tag.tag-abs       { background: rgba(212,83,126,.16); border-color: #993556; color: #ed93b1; }
+.day-tag.tag-chest     { background: var(--tag-chest-bg); border-color: var(--tag-chest-line); color: var(--tag-chest-text); }
+.day-tag.tag-back      { background: var(--tag-back-bg); border-color: var(--tag-back-line); color: var(--tag-back-text); }
+.day-tag.tag-legs      { background: var(--tag-legs-bg); border-color: var(--tag-legs-line); color: var(--tag-legs-text); }
+.day-tag.tag-shoulders { background: var(--tag-shoulders-bg); border-color: var(--tag-shoulders-line); color: var(--tag-shoulders-text); }
+.day-tag.tag-biceps    { background: var(--tag-biceps-bg); border-color: var(--tag-biceps-line); color: var(--tag-biceps-text); }
+.day-tag.tag-triceps   { background: var(--tag-triceps-bg); border-color: var(--tag-triceps-line); color: var(--tag-triceps-text); }
+.day-tag.tag-abs       { background: var(--tag-abs-bg); border-color: var(--tag-abs-line); color: var(--tag-abs-text); }
 .day-tag.tag-other     { background: var(--surface-2); border-color: var(--border); color: var(--muted); }
 
 /* Строка фильтра по группам над списком тренировок/ленты. */
 .tag-filter { padding-top: 0; margin-bottom: 4px; }
-
-.history-edit { margin-top: 10px; }
-.edit-ex {
-  background: var(--surface-2); border: 1px solid var(--border);
-  border-radius: 12px; padding: 12px; margin-bottom: 12px;
-}
-.full-link { display: block; width: 100%; text-align: center; margin-top: 10px; }
 
 /* ---------- шаблоны ---------- */
 /* Вторичная кнопка «Шаблоны» под «+ Добавить тренировку» */
@@ -1498,24 +1485,8 @@ a.btn { display: flex; text-decoration: none; }
   cursor: grab; touch-action: none;
 }
 .tpl-handle:active { cursor: grabbing; }
-.tpl-main { flex: 1; min-width: 0; }
 .tpl-name-line { display: flex; align-items: center; gap: 10px; min-height: 44px; }
 .tpl-name { flex: 1; min-width: 0; font-size: 15px; }
-
-/* Целевые подходы/повторы/вес упражнения в шаблоне (вторая строка под названием). */
-.tpl-targets {
-  display: flex; align-items: center; flex-wrap: wrap; gap: 6px 10px;
-  margin-top: 4px; padding-bottom: 4px;
-}
-.tpl-target { display: flex; align-items: center; gap: 4px; }
-.tpl-target-lab { font-size: 12px; color: var(--muted); }
-.tpl-target input {
-  width: 56px; padding: 6px 8px; text-align: center;
-  background: var(--bg); color: var(--text);
-  border: 1px solid var(--border); border-radius: 8px; font-size: 15px;
-}
-.tpl-target-x { color: var(--muted); }
-.tpl-pick-target { color: var(--acc-2); }
 
 /* Карточка шаблона в пикере: имя + «N упр.» + краткий состав */
 .tpl-pick { flex-wrap: wrap; }
@@ -1534,7 +1505,7 @@ a.btn { display: flex; text-decoration: none; }
   background: none; border: 0; padding: 12px 2px; cursor: pointer;
   text-align: left; min-height: 44px;
 }
-.group-toggle .group-caret { font-size: 11px; color: var(--muted); width: 12px; }
+.group-toggle .group-caret { color: var(--muted); width: 20px; }
 .group-toggle .group-toggle-title { flex: 0 1 auto; }
 .group-toggle .group-count {
   font-size: 12px; font-weight: 400; letter-spacing: 0; text-transform: none;
@@ -1736,7 +1707,7 @@ html[data-update]:not([data-composer]) .content { padding-top: 64px; }
   will-change: transform, opacity;
 }
 .ptr.ready { color: var(--acc); border-color: var(--acc); }
-.ptr-ico { display: inline-block; }
+.ptr-ico { display: inline-flex; }
 .ptr.loading .ptr-ico { animation: spin .8s linear infinite; }
 @media (prefers-reduced-motion: reduce) {
   .ptr.loading .ptr-ico { animation-duration: 2.4s; }
@@ -1821,7 +1792,7 @@ img.avatar-sm.has-img,
 img.avatar-lg.has-img {
   object-fit: cover; padding: 0;
 }
-.feed-who { display: flex; flex-direction: column; }
+.feed-who { display: flex; flex-direction: column; min-width: 0; } /* длинное имя не распирает шапку карточки */
 .feed-name { font-weight: 600; font-size: 16px; display: flex; align-items: center; min-width: 0; }
 .feed-me {
   margin-left: 6px; font-size: 10px; font-weight: 600; color: var(--muted);
@@ -2002,7 +1973,8 @@ img.avatar-lg.has-img {
   display: block; max-width: 100%; margin-bottom: 1px; font-size: 13px; font-weight: 600; white-space: nowrap; overflow: hidden;
   text-overflow: ellipsis; background: none; border: none; padding: 0; text-align: left; color: var(--acc-2);
 }
-button.cm-name { cursor: pointer; }
+/* Имя автора — кнопка: зона тапа шире строки за счет отступов, раскладка та же (UI-ревью 23.10). */
+button.cm-name { cursor: pointer; padding: 12px 0; margin: -12px 0 -11px; }
 .cm-name.plain { color: var(--muted); }
 .cm-name.t1 { color: var(--cm-n1); } .cm-name.t2 { color: var(--cm-n2); } .cm-name.t3 { color: var(--cm-n3); }
 .cm-name.t4 { color: var(--cm-n4); } .cm-name.t5 { color: var(--cm-n5); } .cm-name.t6 { color: var(--cm-n6); }
@@ -2124,7 +2096,7 @@ button.cm-name { cursor: pointer; }
 }
 .cm-editing span { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .cm-editing button {
-  width: 44px; height: 36px; flex: none; background: none; border: none; color: var(--muted); font-size: 18px; cursor: pointer;
+  width: 44px; height: 44px; flex: none; background: none; border: none; color: var(--muted); font-size: 18px; cursor: pointer;
 }
 .cm-all {
   display: flex; align-items: center; min-height: 44px; padding: 0; background: none; border: none;
@@ -2258,8 +2230,9 @@ button.cm-name { cursor: pointer; }
   display: flex; flex-direction: column; gap: 3px;
 }
 .rival-copy strong {
-  overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
-  font-size: 15px; font-weight: 600;
+  /* Две строки вместо обрезки в одну: обрезалась разница в конце, а не имя (UI-ревью 23.10). */
+  display: -webkit-box; -webkit-box-orient: vertical; -webkit-line-clamp: 2; overflow: hidden;
+  overflow-wrap: anywhere; font-size: 15px; font-weight: 600;
 }
 .rival-kicker { font-size: 12px; font-weight: 600; }
 .rival-track {
@@ -2297,7 +2270,8 @@ button.cm-name { cursor: pointer; }
 
 /* Сноска с формулой под графиком прогресса */
 .orm-info-link {
-  background: none; border: 0; padding: 2px 0; color: inherit; font: inherit;
+  /* Ссылка в строке: зона тапа шире за счет отступов, строка не растет (UI-ревью 23.10). */
+  background: none; border: 0; padding: 12px 0; margin: -10px 0; color: inherit; font: inherit;
   text-decoration: underline dotted; text-underline-offset: 3px; cursor: pointer;
 }
 .orm-info-ico { color: var(--acc-2); text-decoration: none; display: inline-block; margin-left: 2px; }
@@ -2385,6 +2359,7 @@ button.cm-name { cursor: pointer; }
    (.wk-save-bar на bottom:72px), иначе он перекрывает кнопку на 6 c окна отмены. */
 .toast.raised { bottom: calc(140px + env(safe-area-inset-bottom)); }
 .toast.show { transform: translateX(-50%) translateY(0); }
+@media (prefers-reduced-motion: reduce) { .toast { transition: none; } }
 .toast-emoji { font-size: 24px; flex-shrink: 0; }
 .toast-title { font-weight: 600; font-size: 15px; }
 .toast-sub { font-size: 13px; color: var(--muted); margin-top: 1px; }
@@ -2736,7 +2711,7 @@ label.act.busy { opacity: .55; pointer-events: none; }
 .btn.danger:disabled { background: var(--surface-2); color: var(--muted); }
 
 /* редактор аватара в шапке профиля (ЛК 2c) */
-.avatar-edit { position: relative; display: inline-flex; flex-shrink: 0; cursor: pointer; }
+.avatar-edit { position: relative; display: inline-flex; flex-shrink: 0; cursor: pointer; padding: 0; border: 0; background: none; color: inherit; border-radius: 50%; }
 .avatar-edit.busy { opacity: .6; pointer-events: none; }
 .avatar-edit .avatar-cam {
   position: absolute; right: -2px; bottom: -2px;
@@ -3004,17 +2979,9 @@ label.act.busy { opacity: .55; pointer-events: none; }
 .admin-nav-btn:active { background: var(--surface-2); }
 .admin-nav-btn { scroll-margin-top: 12px; } /* раскрытый раздел встает к верху с зазором (v8.0.1) */
 .admin-nav-btn.open { border-color: color-mix(in srgb, var(--acc) 55%, transparent); background: var(--acc-soft); }
-/* Шеврон рисуем рамкой, а не глифом: у «⌄»/«›» своя базовая линия, и в раскрытом
-   состоянии стрелка проседала ниже центра строки. Квадрат 8×8 поворачивается вокруг
-   своего центра: -45° — «вправо», 45° — «вниз»; translate компенсирует сдвиг
-   оптического центра уголка. */
-.admin-nav-chev {
-  flex: 0 0 auto; width: 8px; height: 8px; margin-right: 4px; box-sizing: border-box;
-  border-right: 2px solid var(--muted); border-bottom: 2px solid var(--muted);
-  transform: translateX(-2px) rotate(-45deg); transition: transform .18s ease;
-}
-.admin-nav-btn.open .admin-nav-chev { border-color: var(--acc-2); transform: translateY(-2px) rotate(45deg); }
-@media (prefers-reduced-motion: reduce) { .admin-nav-chev { transition: none; } }
+/* Шеврон раздела — общий components/ui/Chevron.jsx (UI-ревью 23.10; был свой уголок рамкой). */
+.admin-nav-chev { flex: none; color: var(--muted); }
+.admin-nav-btn.open .admin-nav-chev { color: var(--acc-2); }
 .admin-panel { padding: 2px 0 4px; }
 
 /* «Написать разработчику» (v6.11.0): экран участника и раздел «Обращения» в админке. */
@@ -3083,7 +3050,7 @@ label.act.busy { opacity: .55; pointer-events: none; }
 .fb-photo--video { position: relative; }
 .fb-photo--video::after {
   content: "▶"; position: absolute; inset: 0; display: grid; place-items: center;
-  color: #fff; font-size: 20px; text-shadow: 0 1px 4px rgba(0, 0, 0, .6);
+  color: var(--on-media); font-size: 20px; text-shadow: 0 1px 4px rgba(0, 0, 0, .6);
 }
 .fb-viewer-body video { max-width: 100%; max-height: 100%; border-radius: 12px; background: #000; }
 .fb-picker .fb-shot video { height: 120px; object-fit: contain; background: var(--bg); border-radius: 12px; }
@@ -3122,7 +3089,6 @@ label.act.busy { opacity: .55; pointer-events: none; }
   display: flex; align-items: center; gap: 6px; min-width: 0;
 }
 .admin-ex-name > :last-child { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-.admin-star { flex: 0 0 auto; }
 .admin-ex-meta { font-size: 12px; color: var(--muted); }
 /* Глифы ♀/♂ рендерятся как эмодзи со своей базовой линией и «проседают» под строку.
    Форсируем текстовое представление (VS15 в разметке + font-variant-emoji) и
@@ -3226,14 +3192,6 @@ label.act.busy { opacity: .55; pointer-events: none; }
 
 /* Порядок учеток на входе (drag-and-drop) */
 .admin-list.reorder { margin-top: 8px; gap: 10px; }
-.reorder-row { display: flex; align-items: center; gap: 12px; padding: 6px 13px; }
-.user-drag-handle {
-  display: inline-flex; align-items: center; justify-content: center;
-  min-width: 44px; min-height: 44px; flex: 0 0 auto;
-  color: var(--muted); font-size: 20px; cursor: grab; user-select: none;
-  touch-action: none; /* не скроллить экран при перетаскивании пальцем */
-}
-.user-drag-handle:active { cursor: grabbing; }
 
 /* ======================= Главная (Домашняя сводка + Инсайты) ======================= */
 /* Класс-имена sec/sec-title/stat-grid/goal/bar в index.css заскоуплены под .profile,
@@ -3458,8 +3416,8 @@ label.act.busy { opacity: .55; pointer-events: none; }
 .fr-row-name { font-weight: 600; font-size: 15px; }
 .fr-row-sub { color: var(--muted); font-size: 12px; margin-top: 2px; }
 .fr-badge { flex: 0 0 auto; font-size: 12px; font-weight: 600; border-radius: 999px; padding: 5px 11px; }
-.fr-badge.st-ready   { color: #5eead4; background: rgba(20,184,166,.14); }
-.fr-badge.st-almost  { color: #fcd34d; background: rgba(245,158,11,.14); }
+.fr-badge.st-ready   { color: var(--ready-text); background: var(--ready-bg); }
+.fr-badge.st-almost  { color: var(--warn-text); background: var(--warn-bg); }
 .fr-badge.st-resting { color: var(--red-text); background: color-mix(in srgb, var(--red) 14%, transparent); }
 
 /* Детальный экран: дисбаланс. */
@@ -3529,7 +3487,7 @@ label.act.busy { opacity: .55; pointer-events: none; }
 .fr-tip b { color: var(--acc-2); }
 /* Группа-цель в подсказке — кнопка-ссылка: подсвечивает свои мышцы (v6.3.5). */
 .fr-tip-target {
-  background: none; border: none; padding: 0; font: inherit; font-weight: var(--fw-strong);
+  background: none; border: none; padding: 12px 0; margin: -12px 0; font: inherit; font-weight: var(--fw-strong);
   color: var(--acc-2); text-decoration: underline dotted; text-underline-offset: 3px; cursor: pointer;
 }
 .fr-chip.hl { animation: fr-pulse 1.6s var(--ease-out) 2; }
@@ -3657,32 +3615,11 @@ label.act.busy { opacity: .55; pointer-events: none; }
 .ach-pb { height: 5px; background: var(--surface-2); border-radius: 4px; overflow: hidden; }
 .ach-pb > i { display: block; height: 100%; background: var(--acc); border-radius: 4px; }
 .ach-pt { font-size: 10px; color: var(--muted); margin-top: 4px; }
+.ach-desc { font-size: 11px; line-height: 1.3; color: var(--muted); margin-top: 4px; }
 
 /* ============================================================================
    Слайс 4 — полировка редизайна Aurora Glass (перф / фоллбэки / доступность).
 ============================================================================ */
-
-/* Перф: у карточек ДЛИННЫХ списков (лента, история, шаблоны) снимаем
-   backdrop-filter. Десятки размытых подложек одновременно дорого компоновать —
-   на скролле это главная просадка. Заливка `.card` (--glass) и inset-хайлайт
-   остаются, вид почти не меняется, а прокрутка становится глаже. Размытие
-   держим только на одиночных/липких слоях (шапка, таббар, сайдбар) и на
-   одиночных карточках (цель, график, лидерборд), где слой один. */
-.feed-card, .history-card {
-  backdrop-filter: none; -webkit-backdrop-filter: none;
-}
-
-/* Фоллбэк для браузеров без backdrop-filter (старый Firefox без флага и пр.):
-   без размытия полупрозрачные стеклянные поверхности почти сливаются с aurora-
-   фоном и текст теряет контраст. Делаем их заметно плотнее — стекло превращается
-   в «матовую» непрозрачную поверхность, читаемость сохраняется. Блок в самом
-   конце файла, чтобы перекрывать в т.ч. десктопный `.tabbar` из медиазапроса. */
-@supports not ((backdrop-filter: blur(2px)) or (-webkit-backdrop-filter: blur(2px))) {
-  .card                 { background: rgba(17, 24, 39, .82); }
-  .btn.ghost            { background: rgba(17, 24, 39, .82); }
-  .topbar               { background: var(--surface-solid); }
-  .tabbar               { background: var(--surface-solid); }
-}
 
 /* Контраст: секц-заголовки и подзаголовки лежат ПРЯМО на aurora-градиенте (не в
    карточке). На светлом пятне градиента `--muted` мог тускнеть — добавляем едва
@@ -3827,17 +3764,17 @@ label.act.busy { opacity: .55; pointer-events: none; }
 }
 .hue-range::-webkit-slider-thumb {
   -webkit-appearance: none; width: 26px; height: 46px; border-radius: 10px;
-  background: #fff; border: 3px solid var(--bg); box-shadow: 0 2px 10px rgba(0, 0, 0, .55);
+  background: var(--on-media); border: 3px solid var(--bg); box-shadow: 0 2px 10px rgba(0, 0, 0, .55);
 }
 .hue-range::-moz-range-thumb {
   width: 22px; height: 40px; border-radius: 10px;
-  background: #fff; border: 3px solid var(--bg); box-shadow: 0 2px 10px rgba(0, 0, 0, .55);
+  background: var(--on-media); border: 3px solid var(--bg); box-shadow: 0 2px 10px rgba(0, 0, 0, .55);
 }
 .hue-row { display: flex; align-items: center; gap: 10px; margin-top: 10px; font-size: 13px; line-height: 1.4; }
 .hue-row .accent-sw { width: 34px; height: 34px; border-radius: 10px; }
 .hue-warn {
   margin: 10px 0 0; padding: 8px 10px; border-radius: 10px; font-size: 13px; font-weight: 600;
-  color: #FDE68A; background: rgba(251, 191, 36, .12);
+  color: var(--note-text); background: var(--note-bg);
 }
 .appearance-preview { display: grid; gap: 10px; padding: 12px; border-radius: 16px; background: var(--surface); border: 1px solid var(--border); }
 .appearance-preview .btn.primary { width: 100%; }
@@ -3916,19 +3853,11 @@ label > span.muted:first-child, .date-field > .muted, .create-label, .field-lab,
 .home-block-k, .stat-cell-label, .goals-group-title, .group-title, .rival-kicker { font-size: var(--fs-meta); font-weight: var(--fw-strong); color: var(--muted); }
 /* Переходы на другой экран — 600 · 15 · акцент, с большой буквы. */
 .rhythm-history, .home-row .go, .leader-link .go { font-size: var(--fs-body); font-weight: var(--fw-strong); color: var(--acc-2); }
-/* Короткие действия внутри карточек — 600 · 14, с маленькой буквы. */
-.link-btn { font-weight: var(--fw-strong); }
 /* «Подробнее ›» в шапке карточки «Готовность мышц» — 14: рядом с заголовком 16 крупнее
    выглядело слишком громко (отзыв, v6.3.2). */
 .fr-teaser .go { font-size: var(--fs-label); font-weight: var(--fw-strong); color: var(--acc-2); }
 .pencil-ico { vertical-align: -2px; flex: none; }
 .goal-edit { display: inline-flex; align-items: center; gap: 6px; }
-/* Кнопки: залита только доступная главная. Выключенная — как поле/колокольчик:
-   темная подложка и тонкая обводка. «Добавить» — обводка без пунктира. */
-.btn.primary:disabled {
-  background: var(--surface); color: var(--muted); border-color: var(--stroke); box-shadow: none;
-}
-.btn.outline { border-style: solid; background: var(--surface); color: var(--text); }
 
 /* ================= «Что нового» (v6.4.0, prototypes/whats-new.html) ================= */
 /* Лист A — компактный нижний лист по высоте содержимого (а не весь экран, как пикер). */
@@ -4261,7 +4190,7 @@ html[data-sheet-open] .content { overflow-y: hidden; }
 }
 .avatar-lightbox-name {
   font-family: var(--font-display); font-weight: 900; font-size: 22px; letter-spacing: .02em;
-  text-transform: uppercase; color: #fff; text-shadow: 0 2px 12px rgba(0, 0, 0, .6);
+  text-transform: uppercase; color: var(--on-media); text-shadow: 0 2px 12px rgba(0, 0, 0, .6);
 }
 @keyframes avatar-lb-fade { from { opacity: 0; } to { opacity: 1; } }
 @keyframes avatar-lb-pop { from { transform: scale(.6); opacity: 0; } to { transform: scale(1); opacity: 1; } }
@@ -4303,11 +4232,9 @@ html[data-sheet-open] .content { overflow-y: hidden; }
 .fc-name { font-weight: 600; display: flex; align-items: center; gap: 6px; min-width: 0; overflow-wrap: anywhere; }
 .member-seen { color: var(--green); }
 .fc-by { font-size: 12px; }
-.fc-badge { font-size: 11px; font-weight: 600; padding: 1px 7px; border-radius: 999px; background: color-mix(in srgb, var(--acc) 20%, transparent); color: var(--acc); }
 .fc-row-acts { display: flex; flex-wrap: wrap; justify-content: flex-end; gap: 4px 10px; }
 .fc-row-acts .link-btn { font-size: 13px; }
 .fc-list .fc-row { flex-wrap: wrap; }
-.fc-row-acts.fc-under { flex-basis: 100%; justify-content: flex-start; gap: 4px 18px; padding-left: 46px; margin-top: -4px; }
 .fc-mini { margin-top: 0; padding: 0; min-height: 0; height: 36px; width: 92px; font-size: 13px; display: inline-flex; align-items: center; justify-content: center; box-sizing: border-box; }
 /* «Принять» и «Нет» — одного размера: выбор равноправный, акцент только цветом. */
 .btn.primary.fc-mini { box-shadow: none; }
@@ -4319,14 +4246,13 @@ html[data-sheet-open] .content { overflow-y: hidden; }
    только спрашивает подтверждение. */
 .fc-new-code { display: block; margin: 18px auto 0; }
 .fc-pending { margin-bottom: 8px; }
-.fc-toggle { display: flex; align-items: center; gap: 10px; padding: 8px 0; cursor: pointer; }
+.fc-toggle { display: flex; align-items: center; gap: 10px; padding: 8px 0; min-height: 44px; cursor: pointer; }
 .fc-toggle input { width: 20px; height: 20px; accent-color: var(--acc); flex: none; }
 .fc-grow { flex: 1; min-width: 0; }
 .fc-small { font-size: 13px; color: var(--muted); }
 .fc-disc .fc-join-row { margin-top: 8px; }
 .fc-danger { margin: 16px 0 12px; }
 .fc-create-btn { width: 100%; margin-bottom: 12px; }
-.fc-feed-cta { display: block; margin: 12px auto 0; }
 .lb-boards { margin-bottom: 10px; }
 .fc-empty .btn { margin-top: 10px; }
 /* «Друзья» (15.10.2026, вариант A — «как контакты»). Имя — обычный текст строки, не ссылка. */

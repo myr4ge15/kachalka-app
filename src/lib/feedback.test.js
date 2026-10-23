@@ -2,7 +2,7 @@ import { describe, expect, it } from 'vitest'
 import {
   myFeedbackTab, attachmentProblem, attachmentProblemText, fmtFileSize, videoPosterSrc, sniffMediaType, videoExt, bodyProblem, buildContext, cleanBody, contextLine, describeDevice, feedbackErrorText, isWebKit26Plus,
   fmtFeedbackDate, hasUnreadReply, isOpenStatus, openCount, unreadReplies, FEEDBACK_MAX,
-  canReopen, hasReply, isStaleReply, reopenProblem, REOPEN_LIMIT, REOPEN_MAX, groupAttachments,
+  canReopen, hasReply, isStaleReply, reopenProblem, REOPEN_LIMIT, REOPEN_MAX, groupAttachments, laterLabel,
 } from './feedback.js'
 
 const IPHONE = 'Mozilla/5.0 (iPhone; CPU iPhone OS 17_5 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/17.5 Mobile/15E148 Safari/604.1'
@@ -230,4 +230,15 @@ describe('groupAttachments', () => {
     expect(groupAttachments(1, { 0: 'не дата' }, [{ n: 1, created_at: null }])).toEqual({ base: [0], byAddition: {}, later: [] })
     expect(groupAttachments(undefined, null, null)).toEqual({ base: [], byAddition: {}, later: [] })
   })
+})
+
+it('laterLabel — когда приложены, без даты — «отдельно» (fb_9acbbfc6)', () => {
+  expect(laterLabel({ 2: '2026-10-23T09:02:00Z' }, [2])).toMatch(/^Приложенное 23\.10/)
+  expect(laterLabel(null, [])).toBe('Приложенное отдельно')
+})
+
+it('groupAttachments: приложенное вместе с исходным сообщением — к обращению (fb_d4103a75)', () => {
+  const created = '2026-10-23T09:04:47Z'
+  expect(groupAttachments(2, { 0: '2026-10-23T09:04:48Z', 1: '2026-10-23T10:30:00Z' }, [], created))
+    .toEqual({ base: [0], byAddition: {}, later: [1] })
 })

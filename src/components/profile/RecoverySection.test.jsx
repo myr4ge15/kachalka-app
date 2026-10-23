@@ -90,11 +90,11 @@ describe('RecoverySection', () => {
     expect(screen.queryByTestId('recovery-code')).toBeNull()
   })
 
-  it('офлайн — «виден онлайн», без запроса', async () => {
+  it('офлайн — «только с интернетом», без запроса', async () => {
     Object.defineProperty(navigator, 'onLine', { value: false, configurable: true })
     render(<RecoverySection userId="u1" />)
     openIt()
-    expect(await screen.findByRole('alert')).toHaveTextContent('онлайн')
+    expect(await screen.findByRole('alert')).toHaveTextContent('Статус виден только с интернетом.')
     expect(auth.getRecoveryStatus).not.toHaveBeenCalled()
   })
 })

@@ -339,7 +339,7 @@ export default function App() {
           aria-label="Открыть профиль"
         >
           <Avatar name={user.name} url={myCached?.avatar_url} className="avatar-sm" />
-          {user.name}
+          <span className="topbar-name">{user.name}</span>
         </button>
         {IS_BETA && <span className="beta-badge">БЕТА</span>}
         <SyncTools unread={unread} onOpenNotif={openNotif} userId={user.id} onOpenProfile={() => goTab('profile')} />
@@ -383,7 +383,7 @@ export default function App() {
               )}
               {route === 'feed' && <FeedScreen user={user} onOpenMember={openMember} flashId={feedFlashId} threadId={feedThreadId} onOpenCircle={() => goTab('circle')} onOpenFriends={() => goTab('friends')} />}
               {route === 'member' && memberId && (
-                <MemberScreen user={user} memberId={memberId} onBack={backFromMember} />
+                <MemberScreen user={user} memberId={memberId} onBack={backFromMember} onOpenMember={openMember} />
               )}
               {route === 'progress' && (
                 <ProgressScreen
@@ -491,6 +491,7 @@ export default function App() {
         </button>
         <button
           className={tab === 'home' ? 'tab active' : 'tab'}
+          aria-current={tab === 'home' ? 'page' : undefined}
           onClick={() => goTab('home')}
         >
           <TabIcon name="home" />
@@ -498,6 +499,7 @@ export default function App() {
         </button>
         <button
           className={tab === 'history' ? 'tab active' : 'tab'}
+          aria-current={tab === 'history' ? 'page' : undefined}
           onClick={() => goTab('history')}
         >
           <TabIcon name="history" />
@@ -510,6 +512,7 @@ export default function App() {
           calm={fabState({ busy: historyBusy, calm: isNested(tab) || historyCalm }) === 'calm'} />
         <button
           className={tab === 'feed' || tab === 'member' ? 'tab active' : 'tab'}
+          aria-current={tab === 'feed' || tab === 'member' ? 'page' : undefined}
           onClick={() => goTab('feed')}
         >
           <TabIcon name="feed" />
@@ -517,6 +520,7 @@ export default function App() {
         </button>
         <button
           className={tab === 'progress' ? 'tab active' : 'tab'}
+          aria-current={tab === 'progress' ? 'page' : undefined}
           onClick={() => goTab('progress')}
         >
           <TabIcon name="progress" />

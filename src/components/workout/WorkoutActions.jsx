@@ -47,7 +47,9 @@ export default function WorkoutActions({
       </button>
 
       {tplArm ? (
-        <div className="tpl-from-wk" ref={armedRef}>
+        // <form>: Enter («Готово») на клавиатуре iPhone создает шаблон (UI-ревью 23.10).
+        <form className="tpl-from-wk" ref={armedRef}
+          onSubmit={(e) => { e.preventDefault(); if (!tplBusy && tplName.trim()) onMakeTemplate() }}>
           <label className="tpl-name-field">
             <span className="muted">Название шаблона</span>
             <input
@@ -59,12 +61,12 @@ export default function WorkoutActions({
             />
           </label>
           <div className="danger-actions">
-            <button className="btn ghost" onClick={onCancelTpl} disabled={tplBusy}>Отмена</button>
-            <button className="btn primary" onClick={onMakeTemplate} disabled={tplBusy || !tplName.trim()}>
+            <button type="button" className="btn ghost" onClick={onCancelTpl} disabled={tplBusy}>Отмена</button>
+            <button type="submit" className="btn primary" disabled={tplBusy || !tplName.trim()}>
               {tplBusy ? 'Создаю…' : 'Создать шаблон'}
             </button>
           </div>
-        </div>
+        </form>
       ) : (
         <button className="wk-act" disabled={saving} onClick={onOpenTpl}>
           <ActIcon name="template" />Сделать шаблон из тренировки

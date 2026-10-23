@@ -123,7 +123,8 @@ export default function AppearanceScreen({ onBack, user, storage, root }) {
 
       <section className="sec">
         <p className="sec-title">Как это выглядит</p>
-        <div className="appearance-preview">
+        {/* Превью — картинка, а не кнопки: скринридер не должен читать «Начать тренировку» (UI-ревью 23.10). */}
+        <div className="appearance-preview" inert="" aria-hidden="true">
           <button type="button" className="btn primary" tabIndex={-1}>Начать тренировку</button>
           <div className="appearance-preview-row">
             <span className="chip active">все</span>

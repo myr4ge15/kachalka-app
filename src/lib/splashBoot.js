@@ -60,16 +60,25 @@ export function startSplash({
 // Полоска догоняет загрузку плавно (20.10.2026, fb_afd6d919): файлы приходят пачками, и переход CSS
 // к каждой новой точке шел рывками. Каждый кадр показанное значение подтягивается к цели: быстро, когда
 // отстает сильно, и не медленнее BAR_MIN_SPEED (%/с), чтобы не замирать у самой цели. Цель не обгоняет.
+// fb_d4103a75 (23.10.2026): все равно «рвано» — полоска догоняла каждый файл за доли секунды и стояла
+// до следующего. Когда темп загрузки известен (pace, %/с — средний с первого файла), полоска идет ровно
+// чуть медленнее него и ускоряется, только если отстала больше чем на BAR_LAG_OK.
 export const BAR_RATE = 4 // доля отставания в секунду
 export const BAR_MIN_SPEED = 15
-export function barStep(shown, target, dtMs) {
+export const BAR_PACE_SHARE = 0.9
+export const BAR_LAG_OK = 8
+export function barStep(shown, target, dtMs, pace = 0) {
   if (!(target > shown)) return target
   const dt = Math.max(0, Math.min(dtMs, 100)) / 1000
-  return Math.min(target, shown + Math.max((target - shown) * BAR_RATE, BAR_MIN_SPEED) * dt)
+  const lag = target - shown
+  const speed = pace > 0
+    ? Math.max(pace * BAR_PACE_SHARE, (lag - BAR_LAG_OK) * BAR_RATE)
+    : Math.max(lag * BAR_RATE, BAR_MIN_SPEED)
+  return Math.min(target, shown + speed * dt)
 }
 
-// reduce — «уменьшить движение»: полоска сразу на месте. raf — кадры (тест подставляет свои).
-export function splashUpdateUi(doc, root, { reduce = false, raf } = {}) {
+// reduce — «уменьшить движение»: полоска сразу на месте. raf — кадры, now — часы (тест подставляет свои).
+export function splashUpdateUi(doc, root, { reduce = false, raf, now = () => performance.now() } = {}) {
   const box = doc?.getElementById('splash-upd')
   const title = doc?.getElementById('splash-upd-title')
   const bar = doc?.getElementById('splash-upd-bar')
@@ -81,9 +90,11 @@ export function splashUpdateUi(doc, root, { reduce = false, raf } = {}) {
   let target = 0
   let ticking = false
   let last = 0
+  let pace = 0 // %/с — средний темп с первого файла (см. barStep)
+  let first = null
   const paint = () => { fill.style.width = `${Math.round(shown * 10) / 10}%` }
   const tick = (t) => {
-    shown = barStep(shown, target, last ? t - last : 16)
+    shown = barStep(shown, target, last ? t - last : 16, pace)
     last = t
     paint()
     if (shown < target) frame(tick)
@@ -108,6 +119,9 @@ export function splashUpdateUi(doc, root, { reduce = false, raf } = {}) {
     progress(p) {
       if (!p) return
       bar.classList.remove('splash-upd-bar--busy')
+      const t = now()
+      if (!first) first = { t, pct: p.pct }
+      else if (t - first.t >= 500 && p.pct > first.pct) pace = ((p.pct - first.pct) / (t - first.t)) * 1000
       moveTo(p.pct)
       bar.setAttribute('aria-valuenow', String(p.pct))
       // Подпись по центру не дергается при «3» → «13» (20.10.2026) и не стоит с дырой «Загружено   8»

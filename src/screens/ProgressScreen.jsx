@@ -67,6 +67,8 @@ function inRange(day, range) {
   return true
 }
 
+const reducedMotion = () => { try { return window.matchMedia('(prefers-reduced-motion: reduce)').matches } catch { return false } }
+
 export default function ProgressScreen({
   user,
   initialExerciseId = null,
@@ -268,7 +270,7 @@ export default function ProgressScreen({
             {PERIODS.map((p) => (
               <button
                 key={p.id}
-                className={`prog-chip${period === p.id ? ' active' : ''}`}
+                className={`prog-chip${period === p.id ? ' active' : ''}`} aria-pressed={period === p.id}
                 onClick={() => setPeriod(p.id)}
               >
                 {p.label}
@@ -415,6 +417,7 @@ export default function ProgressScreen({
                     />
                     <Line
                       type="monotone" dataKey="value" stroke={lineStroke} strokeWidth={2}
+                      isAnimationActive={!reducedMotion()} /* уважаем «уменьшить движение» (UI-ревью 23.10) */
                       dot={(props) => {
                         const { cx, cy, payload, index } = props
                         return (

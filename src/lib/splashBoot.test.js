@@ -1,7 +1,7 @@
 // @vitest-environment jsdom
 // Сплэш холодного старта и блок «Обновляем до v…» (lib/splashBoot.js, вынесено из main.jsx).
 import { beforeEach, describe, expect, it } from 'vitest'
-import { barStep, splashUpdateUi, startSplash, BAR_MIN_SPEED, SPLASH_HARD_MS } from './splashBoot.js'
+import { barStep, splashUpdateUi, startSplash, BAR_MIN_SPEED, BAR_PACE_SHARE, BAR_LAG_OK, SPLASH_HARD_MS } from './splashBoot.js'
 import { SPLASH_FADE_MS, SPLASH_MAX_MS } from './splash.js'
 
 // Та же разметка, что в index.html.
@@ -89,6 +89,32 @@ describe('splashUpdateUi', () => {
     expect(barStep(90, 91, 16)).toBeCloseTo(90 + BAR_MIN_SPEED * 0.016)
     expect(barStep(50, 40, 16)).toBe(40)
     expect(barStep(0, 100, 5000)).toBeCloseTo(40) // долгий кадр (вкладка спала) — без прыжка
+  })
+
+  // fb_d4103a75: при известном темпе полоска идет ровно, а не «догнала — стоит».
+  it('barStep с темпом: чуть медленнее загрузки, ускоряется только при большом отставании', () => {
+    expect(barStep(50, 52, 100, 3)).toBeCloseTo(50 + 3 * BAR_PACE_SHARE * 0.1)
+    expect(barStep(50, 70, 100, 3)).toBeCloseTo(50 + (20 - BAR_LAG_OK) * 4 * 0.1)
+    expect(barStep(50, 50, 100, 3)).toBe(50)
+  })
+
+  it('темп загрузки (fb_d4103a75): после второго файла полоска идет ровно, а не скачком к цели', () => {
+    const frames = []
+    const raf = (fn) => frames.push(fn)
+    let t = 0
+    let clock = 0
+    const run = (n) => { for (let i = 0; i < n && frames.length; i++) frames.shift()((t += 16)) }
+    const w = () => parseFloat($('splash-upd-fill').style.width)
+    const ui = splashUpdateUi(document, $('splash'), { raf, now: () => clock })
+    ui.start('1.2.0')
+    ui.progress({ done: 1, total: 10, pct: 10 })
+    run(300)
+    clock = 2000 // 10 % за 2 с → темп 5 %/с
+    ui.progress({ done: 2, total: 10, pct: 20 })
+    const from = w()
+    run(62) // ~1 с
+    expect(w() - from).toBeGreaterThan(3)
+    expect(w() - from).toBeLessThan(6) // не догнала 20 % рывком — идет темпом загрузки
   })
 
   it('installing — 100% и «Устанавливаем…»; fallback — «Связь слабая»', () => {

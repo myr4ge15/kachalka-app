@@ -60,7 +60,8 @@ export default function ResetPinScreen({ token, signedInAs = null, onDone, onCan
         <p className="muted invite-note">Если ссылка для другой учетки — сначала выйди из этой.</p>
         <div className="invite-actions">
           <button className="btn ghost" onClick={onCancel}>Остаться</button>
-          <button className="btn primary" onClick={() => onSignOut?.()}>Выйти и продолжить</button>
+          <button className="btn primary" disabled={busy}
+            onClick={() => { setBusy(true); onSignOut?.() }}>{busy ? 'Выхожу…' : 'Выйти и продолжить'}</button>
         </div>
       </>
     )
