@@ -166,7 +166,9 @@ export default function TemplateList({ user, onBack, onOpen, onSelectModeChange 
         <>
           <GroupHeader title="Мои шаблоны" count={mine.length} open={mineOpen} onToggle={toggleMine}
             btnRef={revealGroup?.key === 'mine' ? groupRevealRef : null} />
-          {mineOpen && mine.map((t) => renderCard(t, true))}
+          {/* В режиме «Скачать» карточки видны и в свернутой группе: иначе выбирать не из чего
+              (UI-ревью 23.10). */}
+          {(mineOpen || selectMode) && mine.map((t) => renderCard(t, true))}
         </>
       )}
 
@@ -174,7 +176,7 @@ export default function TemplateList({ user, onBack, onOpen, onSelectModeChange 
         <>
           <GroupHeader title="Общие шаблоны" count={shared.length} open={sharedOpen} onToggle={toggleShared}
             btnRef={revealGroup?.key === 'shared' ? groupRevealRef : null} />
-          {sharedOpen && shared.map((t) => renderCard(t, false))}
+          {(sharedOpen || selectMode) && shared.map((t) => renderCard(t, false))}
         </>
       )}
 

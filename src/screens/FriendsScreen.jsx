@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { useLiveQuery } from 'dexie-react-hooks'
-import { friendsApi } from '../lib/friends.js'
+import { friendsApi, codeStatusText } from '../lib/friends.js'
+import { showToast } from '../components/ui/Toast.jsx'
 import { getFriends, refreshFriends } from '../db/friends.js'
 import { syncNow, useSyncStatus } from '../db/sync.js'
 import { invalidateRatingCache } from '../db/disciplines.js'
@@ -62,7 +63,11 @@ export default function FriendsScreen({ user, onBack, onOpenMember, friendCode =
       {err && <div className="banner error" role="alert">{err}</div>}
 
       {friendCode && online && (
-        <FriendByCode api={api} initialCode={friendCode} onAdded={() => { onFriendCodeConsumed?.(); changed() }} />
+        // Карточка кода из ссылки уходит в том же тике — итог показываем тостом (UI-ревью 23.10).
+        <FriendByCode api={api} initialCode={friendCode} onAdded={(r) => {
+          showToast({ emoji: '🤝', title: codeStatusText(r?.status) })
+          onFriendCodeConsumed?.(); changed()
+        }} />
       )}
 
       {rows === undefined && <p className="muted" role="status">Загружаю…</p>}

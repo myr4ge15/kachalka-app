@@ -439,16 +439,20 @@ export default function HistoryScreen({
           onSaved={handleSaved}
         />
       )
-      if (!swipeOn) return detail
+      // Обертка одна и та же при любом swipeOn: он гаснет, пока сверху открыт вложенный
+      // роут (колокольчик), и смена родителя размонтировала бы WorkoutScreen — терялись
+      // раскрытая карточка, undo, лист отдыха (UI-ревью 23.10). Подложка — только при жесте.
       return (
         <div className="nav-stack">
-          <div className="nav-layer nav-underlay" inert aria-hidden="true">
-            <div className="screen">
-              {renderHead()}
-              {renderList()}
+          {swipeOn && (
+            <div key="underlay" className="nav-layer nav-underlay" inert aria-hidden="true">
+              <div className="screen">
+                {renderHead()}
+                {renderList()}
+              </div>
             </div>
-          </div>
-          <div className="nav-layer nav-current" ref={detailRef}>{detail}</div>
+          )}
+          <div key="detail" className="nav-layer nav-current" ref={detailRef}>{detail}</div>
         </div>
       )
     }

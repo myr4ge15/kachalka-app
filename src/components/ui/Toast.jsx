@@ -31,6 +31,7 @@
 // осознанно (тост и так авто-скрывается, а у undo есть явная «Отменить»).
 // ============================================================================
 import { useEffect, useRef, useState } from 'react'
+import { createPortal } from 'react-dom'
 
 const subs = new Set()
 const hideSubs = new Set()
@@ -104,8 +105,11 @@ export default function Toast() {
   const dismiss = () => closeRef.current?.()
   const hasAction = toast.actionLabel && toast.onAction
 
-  return (
-    <div className={`toast show${toast.raised ? ' raised' : ''}`} role="status">
+  // Портал в body + data-sheet-pass (UI-ревью 23.10): внутри .app тост лежал под листами
+  // (.overlay z-index 100) и вместе с .app становился inert — «Комментарий не отправлен»
+  // в листе комментариев никто не видел. SheetDialog такой узел не замораживает.
+  return createPortal(
+    <div className={`toast show${toast.raised ? ' raised' : ''}`} role="status" data-sheet-pass="">
       <span className="toast-emoji" aria-hidden="true">{toast.emoji ?? '🏆'}</span>
       <div className="toast-body">
         <div className="toast-title">{toast.title}</div>
@@ -119,6 +123,7 @@ export default function Toast() {
           {toast.actionLabel}
         </button>
       )}
-    </div>
+    </div>,
+    document.body,
   )
 }

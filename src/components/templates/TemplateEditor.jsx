@@ -1,4 +1,5 @@
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useRef } from 'react'
+import { useRevealFocus } from '../../hooks/useRevealFocus.js'
 import { useSortable } from '../../hooks/useSortable.js'
 import { reorderById } from '../../lib/reorderById.js'
 import { useLiveQuery } from 'dexie-react-hooks'
@@ -24,8 +25,17 @@ function toItems(tpl) {
   })
 }
 
+// Снимок формы для «есть несохраненные правки»: без служебных ключей строк (_k).
+function formSnapshot(name, items, isPublic) {
+  return JSON.stringify([name.trim(), isPublic, items.map((it) => [it.exercise.id, it.metric,
+    (it.set_plan ?? []).map(({ _k, ...s }) => s)])])
+}
+
 // ----------------------------- редактор ------------------------------------
-export default function TemplateEditor({ user, templateId, onBack }) {
+// backGuardRef (UI-ревью 23.10): «назад» и свайп назад (TemplatesScreen) сначала спрашивают
+// редактор — при несохраненных правках он показывает «Выйти без сохранения?» и отвечает true
+// (уход отменен). Сохранение и удаление уходят напрямую через onBack.
+export default function TemplateEditor({ user, templateId, onBack, backGuardRef = null }) {
   const isNew = templateId == null
   const exercises = useLiveQuery(() => getExercises(), [], [])
   const favorites = useLiveQuery(() => getFavorites(user.id), [user.id], [])
@@ -47,6 +57,26 @@ export default function TemplateEditor({ user, templateId, onBack }) {
     return () => clearTimeout(t)
   }, [message])
   const [delArm, setDelArm] = useState(false) // in-app подтверждение удаления (единый паттерн)
+  const [leaveAsk, setLeaveAsk] = useState(null) // { at } — «Выйти без сохранения?»
+  const leaveRef = useRevealFocus(leaveAsk)
+  // Исходное состояние формы: пустое для нового, загруженное — для существующего.
+  const baseRef = useRef(formSnapshot('', [], false))
+  const dirty = !readOnly && !loading && formSnapshot(name, items, isPublic) !== baseRef.current
+  const dirtyRef = useRef(false)
+  dirtyRef.current = dirty && !saving
+  useEffect(() => {
+    if (!backGuardRef) return undefined
+    backGuardRef.current = () => {
+      if (!dirtyRef.current) return false
+      setLeaveAsk({ at: Date.now() })
+      return true
+    }
+    return () => { backGuardRef.current = null }
+  }, [backGuardRef])
+  function tryBack() {
+    if (dirtyRef.current) setLeaveAsk({ at: Date.now() })
+    else onBack?.()
+  }
 
   // Загрузка существующего шаблона на маунте.
   useEffect(() => {
@@ -56,9 +86,11 @@ export default function TemplateEditor({ user, templateId, onBack }) {
     getTemplate(templateId).then((t) => {
       if (!alive) return
       if (t) {
+        const loaded = toItems(t)
         setName(t.name ?? '')
-        setItems(toItems(t))
+        setItems(loaded)
         setIsPublic(Boolean(t.is_public))
+        baseRef.current = formSnapshot(t.name ?? '', loaded, Boolean(t.is_public))
         setReadOnly(t.user_id !== user.id)
         setAuthorName(t.author_name ?? null)
       } else {
@@ -159,7 +191,7 @@ export default function TemplateEditor({ user, templateId, onBack }) {
   return (
     <div className="screen">
       <div className="detail-head">
-        <BackButton onClick={() => onBack?.()} />
+        <BackButton onClick={tryBack} />
         <h2 className="screen-title detail-title">
           {isNew ? 'Новый шаблон' : 'Шаблон'}
         </h2>
@@ -179,6 +211,16 @@ export default function TemplateEditor({ user, templateId, onBack }) {
             <button className="btn danger" onClick={remove} disabled={saving}>
               {saving ? 'Удаление…' : 'Да, удалить'}
             </button>
+          </div>
+        </div>
+      )}
+
+      {leaveAsk && (
+        <div className="danger-confirm tpl-leave-confirm" ref={leaveRef} role="alert">
+          <p className="danger-text">Выйти без сохранения? Правки шаблона пропадут.</p>
+          <div className="danger-actions">
+            <button type="button" className="btn ghost" onClick={() => setLeaveAsk(null)}>Остаться</button>
+            <button type="button" className="btn danger" onClick={() => onBack?.()}>Выйти</button>
           </div>
         </div>
       )}

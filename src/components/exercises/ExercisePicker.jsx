@@ -38,6 +38,7 @@ export default function ExercisePicker({
   onClose,
   onCreate,
   title = 'Упражнение',
+  replacing = false, // замена упражнения: подписи «Заменить», а не «добавить» (UI-ревью 23.10)
 }) {
   const [technique, setTechnique] = useState(null) // { slug, name } открытой подсказки
   const [query, setQuery] = useState('')
@@ -249,7 +250,7 @@ export default function ExercisePicker({
   // Пикер рендерим порталом в <body>: оверлей position:fixed гарантированно
   // относительно вьюпорта (а не застревает внутри прокручиваемой .content под
   // шапкой/таббаром). Это и есть фикс «модалка не на весь экран».
-  if (scanning) return <ExerciseScanner exercises={exercises} onPick={onPick} onPickMany={onPickMany}
+  if (scanning) return <ExerciseScanner exercises={exercises} onPick={onPick} onPickMany={onPickMany} replacing={replacing}
     onClose={() => setScanning(false)} onManual={(text) => {
       changeQuery(text); changeGroup('все'); setScanning(false)
     }} />
@@ -381,7 +382,7 @@ export default function ExercisePicker({
             disabled={busy}
             onClick={submitCreate}
           >
-            {busy ? 'Сохранение…' : 'Сохранить и добавить'}
+            {busy ? 'Сохранение…' : replacing ? 'Сохранить и заменить' : 'Сохранить и добавить'}
           </button>
           </div>
       </SheetDialog>

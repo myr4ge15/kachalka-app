@@ -45,7 +45,7 @@ function TrayItem({ exercise, off, onToggle }) {
   </label>
 }
 
-export default function ExerciseScanner({ exercises, onPick, onPickMany, onClose, onManual }) {
+export default function ExerciseScanner({ exercises, onPick, onPickMany, onClose, onManual, replacing = false }) {
   const trayMode = typeof onPickMany === 'function'
   const [tray, setTray] = useState([]) // все найденное, в порядке сканирования
   const [off, setOff] = useState(() => new Set()) // снятые галочки: строка остается, ее можно вернуть
@@ -386,7 +386,7 @@ export default function ExerciseScanner({ exercises, onPick, onPickMany, onClose
         <h2 className="scanner-name">{main.exercise.name}</h2>
         {main.exercise.muscle_group && <div className="scanner-tags">
           <span className="chip scanner-tag">{main.exercise.muscle_group}</span></div>}
-        <button type="button" className="btn primary full" onClick={() => onPick(main.exercise)}>Добавить в тренировку</button>
+        <button type="button" className="btn primary full" onClick={() => onPick(main.exercise)}>{replacing ? 'Заменить' : 'Добавить в тренировку'}</button>
         {alts.length > 0 && <div className="scanner-alts">
           <p className="muted">Еще на табличке</p>
           {alts.map(({ exercise: e }) => <button type="button" key={e.id} className="scanner-alt" onClick={() => onPick(e)}>

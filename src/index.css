@@ -323,7 +323,9 @@ select, textarea { font-variant-numeric: inherit; font-feature-settings: inherit
 }
 
 .tabbar {
-  position: fixed; bottom: 0; left: 0; right: 0;
+  /* z-index выше карточки с открытым «⋯» (5) и поднятой при сортировке (6): без него
+     они рисовались поверх нижнего меню (UI-ревью 23.10); ниже баннера и листов. */
+  position: fixed; bottom: 0; left: 0; right: 0; z-index: 10;
   display: flex; align-items: stretch; border-top: 1px solid var(--stroke);
   /* Плотный ночной слой (редизайн v6): без aurora-фона просвечивать нечему,
      размытие оставлено только чтобы контент под панелью не «резал» глаз. */
@@ -2343,7 +2345,8 @@ button.cm-name { cursor: pointer; }
 
 /* Тост «Новый рекорд!» — всплывает над таббаром (см. components/Toast.jsx). */
 .toast {
-  position: fixed; z-index: 40; left: 50%; transform: translateX(-50%) translateY(160%);
+  /* выше листов (.overlay 100) и меню комментария (140), ниже лайтбокса (200) */
+  position: fixed; z-index: 150; left: 50%; transform: translateX(-50%) translateY(160%);
   width: calc(100% - 24px); max-width: 536px;
   bottom: calc(84px + env(safe-area-inset-bottom));
   display: flex; align-items: center; gap: 12px; padding: 13px 14px; border-radius: 14px;
@@ -2697,7 +2700,7 @@ label.act.busy { opacity: .55; pointer-events: none; }
 .danger-actions .btn { flex: 1; margin-top: 0; }
 /* Удаление шаблона — у заголовка (fb_ff55a5d2), подтверждение — сразу под ним. */
 .detail-head .tpl-del { margin-left: auto; min-height: 44px; padding: 0 4px; }
-.tpl-del-confirm { margin-bottom: 14px; }
+.tpl-del-confirm, .tpl-leave-confirm { margin-bottom: 14px; }
 /* Карточка упражнения шаблона — как в тренировке; ☰ слева от названия. */
 .tpl-ex .exercise-head { min-height: 44px; }
 .tpl-ex-title { display: flex; align-items: center; gap: 4px; min-width: 0; }

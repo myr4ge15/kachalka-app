@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
-import { circleApi } from '../lib/friendCircles.js'
+import { circleApi, joinStatusText } from '../lib/friendCircles.js'
+import { showToast } from '../components/ui/Toast.jsx'
 import { getMyCircles, refreshMyCircles } from '../db/circles.js'
 import { syncNow, useSyncStatus } from '../db/sync.js'
 import { invalidateRatingCache } from '../db/disciplines.js'
@@ -63,7 +64,11 @@ export default function CircleScreen({ user, onBack, onOpenMember, joinCode = nu
       {err && <div className="banner error" role="alert">{err}</div>}
 
       {joinCode && online && (
-        <JoinByCode api={api} initialCode={joinCode} memberOf={circles?.map((c) => c.circle_id) ?? null} onJoined={(r) => { onJoinCodeConsumed?.(); setSelected(r?.circle_id ?? null); changed() }} />
+        <JoinByCode api={api} initialCode={joinCode} memberOf={circles?.map((c) => c.circle_id) ?? null} onJoined={(r) => {
+          // Карточка кода из ссылки уходит в том же тике — итог показываем тостом (UI-ревью 23.10).
+          showToast({ emoji: '👥', title: joinStatusText(r?.status) })
+          onJoinCodeConsumed?.(); setSelected(r?.circle_id ?? null); changed()
+        }} />
       )}
 
       {circles === null && online && !err && <p className="muted" role="status">Загружаю…</p>}

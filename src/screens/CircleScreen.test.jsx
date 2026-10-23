@@ -4,6 +4,7 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { fireEvent, render, screen, waitFor } from '@testing-library/react'
 import CircleScreen from './CircleScreen.jsx'
+import { showToast } from '../components/ui/Toast.jsx'
 
 const api = vi.hoisted(() => ({}))
 vi.mock('../lib/friendCircles.js', async (orig) => ({ ...(await orig()), circleApi: () => api }))
@@ -109,5 +110,13 @@ describe('CircleScreen', () => {
     render(<CircleScreen user={ME} onBack={vi.fn()} joinCode="7F3Q9XWD" onJoinCodeConsumed={vi.fn()} />)
     expect(await screen.findByText(/зовет в круг/)).toBeInTheDocument()
     expect(api.preview).toHaveBeenCalledWith('7F3Q9XWD')
+  })
+
+  it('ссылка #join=… — после «Вступить» код погашен, итог показан тостом (UI-ревью 23.10)', async () => {
+    const onJoinCodeConsumed = vi.fn()
+    render(<CircleScreen user={ME} onBack={vi.fn()} joinCode="7F3Q9XWD" onJoinCodeConsumed={onJoinCodeConsumed} />)
+    fireEvent.click(await screen.findByRole('button', { name: 'Вступить' }))
+    await waitFor(() => expect(onJoinCodeConsumed).toHaveBeenCalled())
+    expect(showToast).toHaveBeenCalledWith(expect.objectContaining({ title: 'Ты в круге 🎉' }))
   })
 })

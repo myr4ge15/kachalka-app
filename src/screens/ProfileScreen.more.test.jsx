@@ -78,6 +78,17 @@ describe('Профиль — переходы и метки', () => {
     expect(on.onOpenFeedback).toHaveBeenCalled()
   })
 
+  it('метка «ответ» перечитывается при возврате Профиля наверх стека (UI-ревью 23.10)', async () => {
+    vi.mocked(myUnreadReplies).mockResolvedValue(1)
+    const { rerender } = render(<Harness active />)
+    const fb = await screen.findByRole('button', { name: /Написать разработчику/ })
+    await waitFor(() => expect(fb).toHaveTextContent('ответ'))
+    rerender(<Harness active={false} />)
+    vi.mocked(myUnreadReplies).mockResolvedValue(0)
+    rerender(<Harness active />)
+    await waitFor(() => expect(screen.getByRole('button', { name: /Написать разработчику/ })).not.toHaveTextContent('ответ'))
+  })
+
   it('с тренировками: Достижения и место в своем борде ведут дальше', async () => {
     vi.mocked(repo.getWorkouts).mockResolvedValue([WORKOUT])
     vi.mocked(getCachedLeaderboard).mockResolvedValue({ male: [{ user_id: 'x' }, { user_id: 'me' }], female: [] })

@@ -106,6 +106,22 @@ describe('HistoryScreen', () => {
     }
   })
 
+  it('композер не пересоздается, когда жест гаснет (сверху открыли «Уведомления», UI-ревью 23.10)', () => {
+    const contentRef = { current: null }
+    const ui = (swipe) => (
+      <main className="content" ref={(el) => { contentRef.current = el }}>
+        <HistoryScreen user={user} contentRef={contentRef} edgeSwipeOn={swipe} />
+      </main>
+    )
+    const { rerender } = render(ui(true))
+    fireEvent.click(screen.getByText('Жим лежа').closest('button'))
+    const composer = screen.getByTestId('workout-screen')
+    rerender(ui(false))
+    expect(screen.getByTestId('workout-screen')).toBe(composer)
+    rerender(ui(true))
+    expect(screen.getByTestId('workout-screen')).toBe(composer)
+  })
+
   it('без свайпа (не iOS-PWA) подложки со списком нет', () => {
     const { container } = render(<HistoryScreen user={user} contentRef={{ current: null }} />)
     fireEvent.click(screen.getByText('Жим лежа').closest('button'))

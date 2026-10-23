@@ -40,8 +40,14 @@ describe('дисциплины в Ленте',()=>{
     expect(screen.queryByText(/кг/)).toBeNull()
     expect(screen.queryByRole('group',{name:'Участники рейтинга'})).toBeNull()
   })
-  it('без круга — рейтинга нет, подсказка «Мой круг»',async()=>{
+  it('снимка кругов нет — сначала «Загружаю», «Создай круг» только после ответа сервера (UI-ревью 23.10)',async()=>{
     data.circles=null
+    render(<DisciplineLeaderboard user={{id:'woman'}} onOpenCircle={vi.fn()} />)
+    expect(screen.getByRole('status')).toHaveTextContent('Загружаю рейтинг')
+    expect(await screen.findByText(/Создай круг/)).toBeInTheDocument()
+  })
+  it('без круга — рейтинга нет, подсказка «Мой круг»',async()=>{
+    data.circles=[]
     const user=userEvent.setup();const openCircle=vi.fn()
     render(<DisciplineLeaderboard user={{id:'woman'}} onOpenCircle={openCircle} />)
     expect(screen.queryByText('80 кг')).toBeNull()

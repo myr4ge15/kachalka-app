@@ -195,4 +195,17 @@ describe('FeedScreen', () => {
     expect(fetchFeed).toHaveBeenCalledTimes(2)
     expect(vibrate).toHaveBeenCalled()
   })
+
+  it('pull-to-refresh молчит, пока Лента скрыта под вложенным экраном (inert, UI-ревью 23.10)', async () => {
+    mocks.feed = [post()]
+    const { container } = render(
+      <div className="content"><div inert><FeedScreen user={ME} onOpenMember={vi.fn()} /></div></div>)
+    await waitFor(() => expect(fetchFeed).toHaveBeenCalledTimes(1))
+    const sc = container.querySelector('.content')
+    fireEvent.touchStart(sc, { touches: [{ clientY: 100 }] })
+    fireEvent.touchMove(sc, { touches: [{ clientY: 500 }] })
+    await act(async () => { fireEvent.touchEnd(sc) })
+    expect(fetchFeed).toHaveBeenCalledTimes(1)
+    expect(vibrate).not.toHaveBeenCalled()
+  })
 })

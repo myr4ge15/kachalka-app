@@ -31,7 +31,12 @@ export default function TemplatesScreen({ user, onBack, contentRef = null, swipe
     listTop.current = contentRef?.current?.scrollTop ?? 0
     setEditing(id)
   }
-  const back = editing !== null ? () => setEditing(null) : () => onBack?.()
+  // Редактор может отменить уход: несохраненные правки → «Выйти без сохранения?» (UI-ревью 23.10).
+  // Свайп при отказе просто возвращает экран на место (useEdgeSwipeBack).
+  const backGuardRef = useRef(null)
+  const back = editing !== null
+    ? () => { if (!backGuardRef.current?.()) setEditing(null) }
+    : () => onBack?.()
 
   // Редактор — с верха; список после редактора — на сохраненное место (settleScroll: на iPhone
   // голый scrollTo во время инерции игнорируется).
@@ -63,6 +68,7 @@ export default function TemplatesScreen({ user, onBack, contentRef = null, swipe
             user={user}
             templateId={editing === 'new' ? null : editing}
             onBack={() => setEditing(null)}
+            backGuardRef={backGuardRef}
           />
         </div>
       )}

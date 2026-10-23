@@ -34,6 +34,12 @@ const openCreate = (text) => {
 const chip = (name) => screen.getByRole('button', { name })
 
 describe('ExercisePicker — свое упражнение', () => {
+  it('при замене упражнения кнопка формы — «Сохранить и заменить» (UI-ревью 23.10)', () => {
+    renderPicker({ replacing: true })
+    openCreate('Жим Арнольда')
+    expect(screen.getByRole('button', { name: 'Сохранить и заменить' })).toBeInTheDocument()
+    expect(screen.queryByRole('button', { name: 'Сохранить и добавить' })).toBeNull()
+  })
   it('название из поиска; тип, группа, основная по умолчанию, вторичные → onCreate и сразу в тренировку', async () => {
     const created = { id: 'new', name: 'Жим Арнольда' }
     const p = renderPicker({ onCreate: vi.fn(async () => created) })

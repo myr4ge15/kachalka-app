@@ -159,6 +159,9 @@ export default function FeedScreen({ user, onOpenMember, flashId = null, threadI
     const setPx = (v) => { pullRef.current = v; setPull(v) }
 
     const onStart = (e) => {
+      // .content общий: под вложенным экраном (профиль участника, «Мой круг», «Друзья») слой
+      // Ленты жив, но inert — жест там не наш (UI-ревью 23.10).
+      if (root.closest('[inert]')) { startY = null; return }
       // Начинаем следить за жестом только у самого верха и не во время обновления.
       startY = (!refreshingRef.current && sc.scrollTop <= 0) ? e.touches[0].clientY : null
       startX = e.touches[0].clientX ?? 0

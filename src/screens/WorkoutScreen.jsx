@@ -701,6 +701,7 @@ export default function WorkoutScreen({ user, workoutId = null, onBack, onSaved 
           title={replaceIdx != null ? 'Заменить упражнение' : 'Упражнение'}
           onPick={handlePick}
           onPickMany={replaceIdx == null ? addExercises : undefined}
+          replacing={replaceIdx != null}
           onCreate={(p) => createExercise({ ...p, owner_id: user.id })}
           onClose={closePicker}
         />

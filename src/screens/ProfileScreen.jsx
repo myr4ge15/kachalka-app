@@ -36,6 +36,7 @@ import DeleteMyData from '../components/profile/DeleteMyData.jsx'
 import AppVersionLink from '../components/profile/AppVersionLink.jsx'
 import RestTimerToggle from '../components/profile/RestTimerToggle.jsx'
 import { settleScroll } from '../lib/scrollBox.js'
+import { onResume } from '../lib/appEvents.js'
 
 // Экран «Профиль» (ЛК). Все про самого пользователя; пер-упражненческую
 // аналитику не дублируем — рекорды уводят в «Прогресс». Считаем на клиенте из
@@ -46,7 +47,7 @@ import { settleScroll } from '../lib/scrollBox.js'
 // components/profile/* (v6.14.1); здесь — сводка, навигация и слой Настроек.
 //
 // Пропсы: user, onLogout, onOpenProgress(exerciseId), onOpenFeed().
-export default function ProfileScreen({ user, onLogout, onAccountDeleted, onOpenCircle, onOpenFriends, onOpenProgress, onOpenFeed, onRenamed, onOpenAdmin, onOpenMyExercises, onOpenAchievements, onOpenAppearance, onOpenPushSettings, onOpenWhatsNew, onOpenFeedback, startInSettings = false, onStartInSettingsConsumed, contentRef, edgeSwipeOn = false }) {
+export default function ProfileScreen({ user, onLogout, onAccountDeleted, onOpenCircle, onOpenFriends, onOpenProgress, onOpenFeed, onRenamed, onOpenAdmin, onOpenMyExercises, onOpenAchievements, onOpenAppearance, onOpenPushSettings, onOpenWhatsNew, onOpenFeedback, startInSettings = false, onStartInSettingsConsumed, contentRef, edgeSwipeOn = false, active = true }) {
   const workouts = useLiveQuery(() => getWorkouts(user.id), [user.id])
   const goals = useLiveQuery(() => readGoals(user.id), [user.id])
   const myCached = useLiveQuery(() => getCachedUser(user.id), [user.id])
@@ -96,13 +97,18 @@ export default function ProfileScreen({ user, onLogout, onAccountDeleted, onOpen
   const wnUnopened = hasUnopened(WHATS_NEW, readMark(OPENED_KEY))
   // Непрочитанный ответ разработчика на обращение (v6.11.0) — метка «ответ» у пункта
   // «Написать разработчику». С v6.12.0 пункт в корне Профиля (а не в Настройках) —
-  // тянем при входе в Профиль; любая ошибка — просто без метки.
+  // тянем при входе в Профиль; любая ошибка — просто без метки. Профиль остается в стеке
+  // под «Обратной связью», поэтому перечитываем и при возврате наверх (active), и при
+  // возврате в приложение — иначе прочитанный ответ висел меткой до перезапуска (UI-ревью 23.10).
   const [fbUnread, setFbUnread] = useState(0)
   useEffect(() => {
+    if (!active) return undefined
     let live = true
-    myUnreadReplies(user.id).then((n) => { if (live) setFbUnread(n) })
-    return () => { live = false }
-  }, [user.id])
+    const load = () => { myUnreadReplies(user.id).then((n) => { if (live) setFbUnread(n) }) }
+    load()
+    const off = onResume(load)
+    return () => { live = false; off() }
+  }, [user.id, active])
   useEffect(() => {
     if (startInSettings) onStartInSettingsConsumed?.()
   }, [startInSettings, onStartInSettingsConsumed])

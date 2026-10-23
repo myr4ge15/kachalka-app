@@ -37,7 +37,8 @@ function syncInert() {
   const top = openStack[openStack.length - 1]?.overlay
   if (!top?.parentNode) return
   for (const el of top.parentNode.children) {
-    if (el === top || el.hasAttribute('inert')) continue
+    // data-sheet-pass — слой поверх листов (тост): остается живым.
+    if (el === top || el.hasAttribute('inert') || el.hasAttribute('data-sheet-pass')) continue
     el.setAttribute('inert', '')
     frozenByUs.add(el)
   }

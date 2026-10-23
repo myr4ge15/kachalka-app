@@ -16,16 +16,32 @@ const GROUPS = [['m', 'Мужчины'], ['f', 'Женщины'], ['u', 'Пол 
 // Доски (07.10.2026, «Мой круг»): доска каждого круга, где я active. «Общий» убран в v9.1.0 —
 // основатели соревнуются в круге «Основатели». Без круга — подсказка «создай круг или вступи».
 export default function DisciplineLeaderboard({ user, onOpenMember, onOpenCircle }) {
-  const circles = useLiveQuery(getMyCircles, [], null)
+  // undefined — снимок еще читается; null — снимка нет (первый вход на устройстве). Пока
+  // не ответил первый refresh, «Создай круг» не показываем: участник круга видел его
+  // миганием, а офлайн — постоянно (UI-ревью 23.10).
+  const circles = useLiveQuery(getMyCircles, [], undefined)
   const [board, setBoard] = useState(null)
+  const [refreshed, setRefreshed] = useState(false)
   useEffect(() => {
-    const refresh = () => { refreshMyCircles(user.id) }
+    let live = true
+    const refresh = () => {
+      Promise.resolve(refreshMyCircles(user.id)).finally(() => { if (live) setRefreshed(true) })
+    }
     refresh()
     const off1 = onOnline(refresh), off2 = onResume(refresh)
-    return () => { off1(); off2() }
+    return () => { live = false; off1(); off2() }
   }, [user.id])
   const boards = (circles ?? []).filter(c => c.my_status === 'active').map(c => ({ key: c.circle_id, label: c.name }))
   const current = boards.find(b => b.key === board) ?? boards[0]
+  const unknown = circles === undefined || (circles === null && !refreshed)
+  if (!current && (unknown || (circles === null && !navigator.onLine))) {
+    return <div className="card lb-card fc-empty">
+      <h3 className="lb-title lb-empty-title">Рейтинг</h3>
+      <p className="muted lb-empty" role="status">
+        {unknown ? 'Загружаю рейтинг…' : 'Рейтинг появится, когда будет интернет.'}
+      </p>
+    </div>
+  }
   if (!current) {
     return <div className="card lb-card fc-empty">
       <h3 className="lb-title lb-empty-title">Рейтинг</h3>

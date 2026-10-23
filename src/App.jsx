@@ -416,6 +416,7 @@ export default function App() {
                   onOpenFeedback={() => openFeedback(null)}
                   contentRef={contentRef}
                   edgeSwipeOn={edgeSwipeOn && route === tab}
+                  active={route === tab}
                   startInSettings={openSettings}
                   onStartInSettingsConsumed={() => setOpenSettings(false)}
                 />

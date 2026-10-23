@@ -121,6 +121,15 @@ describe('TemplatesScreen — список', () => {
     expect(screen.getByRole('button', { name: '+ Новый шаблон' })).toBeInTheDocument()
     expect(onSelectModeChange).toHaveBeenLastCalledWith(false)
   })
+
+  it('«Скачать» при свернутых группах показывает карточки — есть что выбирать (UI-ревью 23.10)', () => {
+    mocks.templates = [MY_TPL, THEIR_TPL]
+    renderScreen()
+    expect(screen.queryByText('Спина')).toBeNull()
+    fireEvent.click(screen.getByRole('button', { name: /Скачать шаблоны/ }))
+    expect(screen.getByText('Грудь')).toBeInTheDocument()
+    expect(screen.getByText('Спина')).toBeInTheDocument()
+  })
 })
 
 describe('TemplatesScreen — редактор', () => {
@@ -279,6 +288,26 @@ describe('TemplatesScreen — редактор', () => {
     fireEvent.click(screen.getAllByRole('button', { name: /Назад/ })[0])
     expect(screen.getByText('Грудь').closest('.nav-layer')).toBe(listLayer)
     expect(listLayer).toHaveClass('nav-current')
+  })
+
+  it('«назад» с несохраненной правкой спрашивает; «Остаться» держит редактор, «Выйти» уходит', async () => {
+    renderScreen()
+    fireEvent.click(screen.getByText('Грудь').closest('button'))
+    await screen.findByDisplayValue('Грудь')
+    const back = () => fireEvent.click(screen.getAllByRole('button', { name: /Назад/ })[0])
+    // Без правок — уходит сразу.
+    back()
+    expect(screen.queryByDisplayValue('Грудь')).toBeNull()
+    fireEvent.click(screen.getByText('Грудь').closest('button'))
+    fireEvent.change(await screen.findByDisplayValue('Грудь'), { target: { value: 'Грудь 2' } })
+    back()
+    expect(screen.getByText(/Выйти без сохранения/)).toBeInTheDocument()
+    fireEvent.click(screen.getByRole('button', { name: 'Остаться' }))
+    expect(screen.getByDisplayValue('Грудь 2')).toBeInTheDocument()
+    back()
+    fireEvent.click(screen.getByRole('button', { name: 'Выйти' }))
+    expect(screen.queryByDisplayValue('Грудь 2')).toBeNull()
+    expect(saveTemplate).not.toHaveBeenCalled()
   })
 
   it('шаблон не найден / сбой чтения — сообщение вместо вечного каркаса', async () => {

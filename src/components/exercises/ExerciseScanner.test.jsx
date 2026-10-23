@@ -30,6 +30,13 @@ it('never picks automatically; stops camera on stable result and offers the best
   fireEvent.click(screen.getByRole('button', { name: 'Добавить в тренировку' }))
   expect(onPick).toHaveBeenCalledWith(exercises[0])
 })
+it('замена упражнения: главная кнопка — «Заменить» (UI-ревью 23.10)', async () => {
+  const onPick = vi.fn()
+  render(<ExerciseScanner exercises={exercises} onPick={onPick} onClose={vi.fn()} onManual={vi.fn()} replacing />)
+  fireEvent.click(await screen.findByRole('button', { name: 'Заменить' }, { timeout: 4000 }))
+  expect(onPick).toHaveBeenCalledWith(exercises[0])
+  expect(screen.queryByRole('button', { name: 'Добавить в тренировку' })).toBeNull()
+})
 it('lists other movements from the same plate; one tap picks', async () => {
   const calf = [{ id: 'stand', name: 'Подъем на носки стоя', muscle_group: 'ноги' }, { id: 'sit', name: 'Подъем на носки сидя', muscle_group: 'ноги' }]
   worker.recognize.mockResolvedValue({ data: { text: 'CALF RAISE', confidence: 90 } })

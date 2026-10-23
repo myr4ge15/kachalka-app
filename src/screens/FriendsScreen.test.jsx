@@ -4,6 +4,7 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { fireEvent, render, screen, waitFor, within } from '@testing-library/react'
 import FriendsScreen from './FriendsScreen.jsx'
+import { showToast } from '../components/ui/Toast.jsx'
 
 const api = vi.hoisted(() => ({}))
 const live = vi.hoisted(() => ({ rows: [] }))
@@ -184,5 +185,7 @@ describe('FriendsScreen — коды дружбы', () => {
     fireEvent.click(within(invite.parentElement).getByRole('button', { name: 'Принять' }))
     await waitFor(() => expect(api.acceptCode).toHaveBeenCalledWith('7F3Q-9XWD'))
     await waitFor(() => expect(onFriendCodeConsumed).toHaveBeenCalled())
+    // Карточка уходит вместе с кодом — итог виден тостом (UI-ревью 23.10).
+    expect(showToast).toHaveBeenCalledWith(expect.objectContaining({ title: 'Теперь вы друзья 🎉' }))
   })
 })

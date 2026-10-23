@@ -3,6 +3,7 @@ import { useState } from 'react'
 import { afterEach, describe, expect, it, vi } from 'vitest'
 import { act, fireEvent, render, screen } from '@testing-library/react'
 import SheetDialog from './SheetDialog.jsx'
+import Toast, { showToast } from './Toast.jsx'
 
 // Свайп листа включается только на iOS «на экране Домой» — в jsdom подменяем проверку.
 const swipeEnv = vi.hoisted(() => ({ on: false }))
@@ -174,6 +175,16 @@ describe('SheetDialog', () => {
     fireEvent.keyDown(document, { key: 'Escape' })
     expect(container).not.toHaveAttribute('inert')
     expect(opener).toHaveFocus()
+  })
+  it('тост остается живым поверх листа: в body, не inert (UI-ревью 23.10)', () => {
+    const { container } = render(<><Toast /><button>Фон</button></>)
+    act(() => showToast({ title: 'Комментарий не отправлен', actionLabel: 'Повторить', onAction: vi.fn() }))
+    render(<SheetDialog title="Комментарии" onDismiss={vi.fn()}><button>Внутри</button></SheetDialog>)
+    const toast = screen.getByRole('status')
+    expect(container.contains(toast)).toBe(false)
+    expect(container).toHaveAttribute('inert')
+    expect(toast.closest('[inert]')).toBeNull()
+    expect(screen.getByRole('button', { name: 'Повторить' }).closest('[inert]')).toBeNull()
   })
   it('пока открыт хоть один лист, фон не прокручивается (data-sheet-open)', () => {
     const root = document.documentElement
