@@ -2,7 +2,7 @@
 // Предзагрузка вложений (20.10.2026): загрузка сразу после выбора, прогресс, ошибка и повтор,
 // убрали во время загрузки — путь удаляется, когда загрузка закончится; ушли с экрана или
 // «Отмена» — загруженное удаляется; отправленное (commit) — нет.
-import { describe, expect, it, vi } from 'vitest'
+import { afterEach, describe, expect, it, vi } from 'vitest'
 import { act, renderHook, waitFor } from '@testing-library/react'
 import { useAttachments, AUTO_RETRIES, NOT_READY } from './useAttachments.js'
 
@@ -155,6 +155,58 @@ describe('useAttachments', () => {
     act(() => result.current.remove(result.current.items[1].key))
     await act(async () => d.ok('me/a.png'))
     await waitFor(() => expect(result.current.items[0].status).toBe('done'))
+    expect(api.upload).toHaveBeenCalledTimes(1)
+  })
+})
+
+// fb_37f0c1a8: свернули приложение — iOS рвет загрузку; это не попытка, после возврата — заново сам.
+describe('useAttachments: сворачивание приложения', () => {
+  const setVisibility = (state) => {
+    Object.defineProperty(document, 'visibilityState', { configurable: true, get: () => state })
+    act(() => { document.dispatchEvent(new Event('visibilitychange')) })
+  }
+  afterEach(() => { delete document.visibilityState })
+
+  it('обрыв в фоне ждет возврата и не съедает автоповторы', async () => {
+    const d = deferred()
+    const { api, result } = setup()
+    api.upload.mockImplementationOnce(() => d.p)
+    wait.mockClear()
+    act(() => result.current.add([mp4()]))
+    await waitFor(() => expect(api.upload).toHaveBeenCalledTimes(1))
+    setVisibility('hidden')
+    await act(async () => d.fail(coded('network')))
+    expect(api.upload).toHaveBeenCalledTimes(1) // пока свернуто — не грузим
+    expect(result.current.items[0].status).toBe('uploading')
+    setVisibility('visible')
+    await waitFor(() => expect(result.current.items[0]).toMatchObject({ status: 'done', path: 'me/v.mp4' }))
+    expect(api.upload).toHaveBeenCalledTimes(2)
+    expect(wait).not.toHaveBeenCalled() // без паузы автоповтора
+  })
+
+  it('обрыв пришел уже после возврата — тоже заново, даже «нет сети»', async () => {
+    const d = deferred()
+    const { api, result } = setup()
+    api.upload.mockImplementationOnce(() => d.p)
+    act(() => result.current.add([png('a.png')]))
+    await waitFor(() => expect(api.upload).toHaveBeenCalledTimes(1))
+    setVisibility('hidden')
+    setVisibility('visible')
+    await act(async () => d.fail(coded('offline')))
+    await waitFor(() => expect(result.current.items[0].status).toBe('done'))
+    expect(api.upload).toHaveBeenCalledTimes(2)
+  })
+
+  it('ошибка данных после сворачивания — сразу «Повторить»', async () => {
+    const d = deferred()
+    const { api, result } = setup()
+    api.upload.mockImplementationOnce(() => d.p)
+    act(() => result.current.add([png('a.png')]))
+    await waitFor(() => expect(api.upload).toHaveBeenCalledTimes(1))
+    setVisibility('hidden')
+    setVisibility('visible')
+    await act(async () => d.fail(coded('video_too_big')))
+    await waitFor(() => expect(result.current.items[0].status).toBe('error'))
     expect(api.upload).toHaveBeenCalledTimes(1)
   })
 })

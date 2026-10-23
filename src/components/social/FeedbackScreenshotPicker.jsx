@@ -69,6 +69,10 @@ export default function FeedbackScreenshotPicker({ items, onAdd, onRemove, onRet
     <button type="button" className="btn ghost fb-attach" disabled={disabled || items.length >= max}
       onClick={() => input.current?.click()}>📎 {items.length ? 'Добавить еще' : 'Приложить скриншоты или видео'}</button>
     <input ref={input} type="file" accept="image/*,video/mp4,video/quicktime" multiple hidden disabled={disabled} onChange={pick} data-testid={testId} />
+    {/* fb_37f0c1a8: свернутое приложение iPhone замораживает — файл начнет грузиться заново после возврата. */}
+    {items.some((it) => it.status === 'uploading') && (
+      <p className="muted fb-upload-hint">Не сворачивай приложение, пока идет загрузка, — иначе файл начнет грузиться заново.</p>
+    )}
     {error && <p role="alert" className="pin-err">{error}</p>}
   </>
 }

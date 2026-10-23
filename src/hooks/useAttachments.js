@@ -12,6 +12,9 @@ import { videoPoster as defaultPoster } from '../lib/videoPoster.js'
 // «Повторить» и начинали с нуля. Теперь файлы грузятся по одному (остальные ждут с 0%), а обрыв сети,
 // зависание и сбой сервера повторяются сами до AUTO_RETRIES раз с паузой; «Повторить» — когда не вышло.
 //
+// Свернули приложение во время загрузки (fb_37f0c1a8): iOS замораживает PWA, и загрузка рвется. Такой
+// обрыв — не попытка: файл ждет возврата в приложение и грузится заново сам, уже загруженные остаются.
+//
 // api — { upload(userId, file, { onBytes }) → path, discard(paths) }; может пересоздаваться на каждом
 // рендере — держим в ref. poster(file) → dataURL|null — кадр видео для миниатюры. wait(ms) — пауза
 // перед автоповтором (тест подставляет мгновенную).
@@ -19,7 +22,19 @@ import { videoPoster as defaultPoster } from '../lib/videoPoster.js'
 export const AUTO_RETRIES = 2
 export const RETRY_PAUSE_MS = 2000
 const RETRYABLE = new Set(['network', 'upload_stalled', 'video_failed', 'shot_failed'])
+// После сворачивания вдобавок: пока приложение спало, браузер мог считать себя офлайн, а сессия —
+// не успеть продлиться.
+const RESUMABLE = new Set([...RETRYABLE, 'offline', 'no_session'])
 const sleep = (ms) => new Promise((r) => setTimeout(r, ms))
+const isHidden = () => typeof document !== 'undefined' && document.visibilityState === 'hidden'
+// Дождаться, когда приложение снова на экране.
+function untilVisible() {
+  if (!isHidden()) return Promise.resolve()
+  return new Promise((resolve) => {
+    const on = () => { if (!isHidden()) { document.removeEventListener('visibilitychange', on); resolve() } }
+    document.addEventListener('visibilitychange', on)
+  })
+}
 
 export function useAttachments(userId, api, { poster = defaultPoster, wait = sleep } = {}) {
   const [items, setItems] = useState([])
@@ -35,6 +50,13 @@ export function useAttachments(userId, api, { poster = defaultPoster, wait = sle
   // Статус и путь каждого элемента — еще и здесь, синхронно: readyPaths не ждет, пока React
   // применит последние setItems. Порядок вставки = порядок миниатюр.
   const live = useRef(new Map())
+  const hides = useRef(0) // сколько раз приложение уходило в фон — обрыв «из-за сворачивания»
+
+  useEffect(() => {
+    const on = () => { if (isHidden()) hides.current += 1 }
+    document.addEventListener('visibilitychange', on)
+    return () => document.removeEventListener('visibilitychange', on)
+  }, [])
 
   const patch = useCallback((key, p) => {
     const cur = live.current.get(key)
@@ -46,9 +68,17 @@ export function useAttachments(userId, api, { poster = defaultPoster, wait = sle
   const start = useCallback((item) => {
     const gone = () => dropped.current.has(item.key) || !alive.current
     const attempt = async (n) => {
+      const hidesAtStart = hides.current
       try {
         return await apiRef.current.upload(userId, item.file, { onBytes: (b) => patch(item.key, { loaded: b }) })
       } catch (e) {
+        // Оборвалось из-за сворачивания — ждем возврата и грузим заново, попытку не считаем.
+        if ((hides.current !== hidesAtStart || isHidden()) && RESUMABLE.has(e?.code) && !gone()) {
+          await untilVisible()
+          if (gone()) throw e
+          patch(item.key, { loaded: 0 })
+          return attempt(n)
+        }
         if (n >= AUTO_RETRIES || !RETRYABLE.has(e?.code) || gone()) throw e
         await wait(RETRY_PAUSE_MS * (n + 1))
         if (gone()) throw e

@@ -99,6 +99,14 @@ describe('FeedbackScreenshotPicker', () => {
     expect(screen.getByRole('button', { name: 'Убрать скриншот 1' })).toBeEnabled()
   })
 
+  it('пока грузится — подсказка не сворачивать приложение; загрузилось — подсказки нет (fb_37f0c1a8)', () => {
+    const v = mp4()
+    const { rerender } = render(<FeedbackScreenshotPicker {...props({ items: [item(v, { status: 'uploading', loaded: 0 })] })} />)
+    expect(screen.getByText(/Не сворачивай приложение/)).toBeInTheDocument()
+    rerender(<FeedbackScreenshotPicker {...props({ items: [item(v)] })} />)
+    expect(screen.queryByText(/Не сворачивай приложение/)).toBeNull()
+  })
+
   it('ошибка загрузки — «Повторить» зовет onRetry с ключом', () => {
     const e = item(png(), { status: 'error', error: 'Не загрузилось' })
     const p = props({ items: [e] })

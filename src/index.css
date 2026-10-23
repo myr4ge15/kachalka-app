@@ -4781,6 +4781,7 @@ img.has-img, .avatar-lightbox-img { -webkit-touch-callout: none; -webkit-user-dr
 
 .fb-picker { display: flex; flex-wrap: wrap; gap: 8px; margin: 8px 0; }
 .fb-picker:empty { display: none; }
+.fb-upload-hint { margin: 0 0 8px; font-size: 13px; line-height: 1.35; }
 /* «Мои обращения» (fb_ffef26a9): кнопки карточки — одной ширины и высоты, без своих отступов
    (были во всю ширину / по тексту / прижатая влево — три разных правила рядом).
    16.10 (fb_bd776cf0): width:auto — 100% плюс боковые отступы раскрытой карточки (13px)

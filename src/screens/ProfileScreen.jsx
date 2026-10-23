@@ -335,7 +335,8 @@ export default function ProfileScreen({ user, onLogout, onAccountDeleted, onOpen
       <AppVersionLink />
     </div>
     </div>
-    {settingsOpen && <div className="nav-layer nav-current" ref={settingsSurfaceRef}>{settingsView}</div>}
+    {/* Въезжает сдвигом, как вложенные экраны (fb_37f0c1a8: открывались «перескоком»). */}
+    {settingsOpen && <div className="nav-layer nav-current screen-anim screen-anim--push" ref={settingsSurfaceRef}>{settingsView}</div>}
     </div>
   )
 }

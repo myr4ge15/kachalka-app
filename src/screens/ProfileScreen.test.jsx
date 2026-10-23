@@ -40,6 +40,13 @@ describe('навигация профиля', () => {
     swipe()
     expect(screen.queryByRole('heading', { name: 'Настройки' })).toBeNull()
   })
+  it('настройки въезжают сдвигом, как вложенный экран (fb_37f0c1a8)', () => {
+    Element.prototype.scrollTo = vi.fn()
+    render(<Harness />)
+    fireEvent.click(screen.getByRole('button', { name: 'Настройки' }))
+    const layer = screen.getByRole('heading', { name: 'Настройки' }).closest('.nav-layer')
+    expect(layer).toHaveClass('nav-current', 'screen-anim', 'screen-anim--push')
+  })
   it('на неподдерживаемой платформе свайп не закрывает настройки, стрелка работает', () => {
     vi.useFakeTimers()
     Element.prototype.scrollTo = vi.fn()
