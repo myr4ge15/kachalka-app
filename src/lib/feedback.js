@@ -51,8 +51,10 @@ export function attachmentProblemText(file) {
     + ' и она выходит больше, чем в «Фото». Обрежь ее или запиши покороче.'
 }
 // «2,3 МБ» — подпись видео в форме.
+// Мегабайты — десятичные, как в «Фото» и «Файлах» iPhone (23.10.2026, владелец: видео 13,8 МБ на телефоне
+// в приложении показывалось как 13,2 — делили на 1024²).
 export function fmtFileSize(bytes) {
-  const mb = Number(bytes) / (1024 * 1024)
+  const mb = Number(bytes) / 1e6
   if (!(mb > 0)) return ''
   return mb < 0.1 ? '0,1 МБ' : fmtNum(Math.round(mb * 10) / 10) + ' МБ'
 }

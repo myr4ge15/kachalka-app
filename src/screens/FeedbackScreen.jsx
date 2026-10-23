@@ -99,9 +99,15 @@ export default function FeedbackScreen({ user, onBack, focusId = null, fromScree
   const problem = bodyProblem(text)
   const len = text.trim().length
 
+  // Пока вложения догружаются перед отправкой, отправку можно отменить и лишний файл убрать (23.10, баг
+  // владельца: отмены не было вовсе — оставалось ждать или уходить с экрана). Текст и файлы остаются в форме.
+  const [waiting, setWaiting] = useState(false)
+  // Номер попытки: отмена или новая отправка делают прежнюю «устаревшей» — она не уйдет, когда догрузится.
+  const attempt = useRef(0)
   async function send() {
     if (busy || problem || !online) return
     setBusy(true)
+    const my = ++attempt.current
     try {
       const standalone = window.matchMedia?.('(display-mode: standalone)').matches || navigator.standalone === true
       const context = buildContext({
@@ -114,7 +120,10 @@ export default function FeedbackScreen({ user, onBack, focusId = null, fromScree
         via: viaScreen,
         online: navigator.onLine,
       })
+      setWaiting(true)
       const paths = await att.readyPaths() // ждем догрузки выбранного (кольца на миниатюрах)
+      if (alive.current) setWaiting(false)
+      if (my !== attempt.current) return // «Отменить отправку», пока догружалось
       await api.submit(user.id, { body: text, context, paths })
       if (!alive.current) return
       setText('')
@@ -124,9 +133,11 @@ export default function FeedbackScreen({ user, onBack, focusId = null, fromScree
       showToast({ emoji: '📨', title: 'Отправлено', sub: 'Спасибо! Ответ появится здесь.' })
       reload()
     } catch (e) {
+      if (alive.current) setWaiting(false)
+      if (my !== attempt.current) return
       showToast({ emoji: '⚠️', title: 'Не отправилось', sub: e instanceof FeedbackError || e?.message === NOT_READY ? e.message : 'Попробуй еще раз.' })
     } finally {
-      if (alive.current) setBusy(false)
+      if (alive.current && my === attempt.current) setBusy(false) // устаревшая попытка не снимает «занято» с новой
     }
   }
 
@@ -160,7 +171,7 @@ export default function FeedbackScreen({ user, onBack, focusId = null, fromScree
         </div>
 
         <FeedbackScreenshotPicker items={att.items} onAdd={att.add} onRemove={att.remove} onRetry={att.retry}
-          disabled={busy || !online} />
+          disabled={(busy && !waiting) || !online} />
 
         <p className="admin-hint">
           К сообщению приложим версию приложения и модель телефона — так быстрее разобраться.
@@ -170,6 +181,11 @@ export default function FeedbackScreen({ user, onBack, focusId = null, fromScree
         <button className="btn primary" onClick={send} disabled={busy || !!problem || !online}>
           {busy ? <BusyText>{att.uploading ? 'Догружаю' : 'Отправляю'}</BusyText> : 'Отправить'}
         </button>
+        {busy && waiting && (
+          <button type="button" className="btn ghost" onClick={() => { attempt.current += 1; setWaiting(false); setBusy(false) }}>
+            Отменить отправку
+          </button>
+        )}
       </section>
 
       <div className="fb-list-head">

@@ -1,3 +1,4 @@
+import PhaseTag from './PhaseTag.jsx'
 import { useMemo, useRef, useState } from 'react'
 import SheetDialog from '../ui/SheetDialog.jsx'
 import { useRevealFocus } from '../../hooks/useRevealFocus.js'
@@ -140,7 +141,7 @@ export default function WorkoutCalendar({ workouts, filter = null, initialDate =
                     <ul className="history-list">
                       {(w.entries ?? []).map((e, i) => (
                         <li key={e.exercise_id ?? e.exercise?.id ?? i} className="history-ex">
-                          <span className="history-ex-name">{e.exercise?.name ?? '—'}</span>
+                          <span className="history-ex-name"><PhaseTag entry={e} />{e.exercise?.name ?? '—'}</span>
                           <span className="history-ex-sets">
                             <SetsCells metric={exerciseMetric(e.exercise)} sets={e.sets} />
                           </span>

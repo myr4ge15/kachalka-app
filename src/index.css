@@ -794,6 +794,14 @@ button.link-btn { min-height: 44px; display: inline-flex; align-items: center; j
   min-height: 44px; margin-block: -4px; padding: 0 4px;
 }
 .exercise-actions .link-btn.danger { color: var(--red); }
+/* Разминка и заминка (23.10.2026): «⋯» блока у карточки и заголовок блока в списке тренировки. */
+.exercise-actions .exercise-phase-btn { min-width: 44px; font-size: 18px; letter-spacing: .05em; }
+.wk-phase-title { margin: 18px 0 8px; }
+.wk-phase-title:first-child { margin-top: 0; }
+.ex-phase-tag {
+  display: inline-block; margin-right: 6px; padding: 1px 7px; border-radius: 999px; vertical-align: 1px;
+  font-size: 11px; font-weight: 600; color: var(--muted); background: var(--surface-2); border: 1px solid var(--border);
+}
 
 /* Свернутое упражнение — одна строка-кнопка. */
 .exercise-card--compact { padding: 0; overflow: hidden; border-radius: 14px; }
@@ -2979,6 +2987,7 @@ label.act.busy { opacity: .55; pointer-events: none; }
 .admin-nav-btn:active { background: var(--surface-2); }
 /* Шеврон раздела — общий components/ui/Chevron.jsx (UI-ревью 23.10; был свой уголок рамкой). */
 .admin-nav-chev { flex: none; color: var(--muted); }
+.swipe-log { margin: 0 0 12px; padding-left: 22px; font-size: 13px; line-height: 1.5; color: var(--text); }
 
 /* «Написать разработчику» (v6.11.0): экран участника и раздел «Обращения» в админке. */
 .fb-intro { margin: 0 2px 12px; line-height: 1.45; }

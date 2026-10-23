@@ -1,3 +1,4 @@
+import PhaseTag from '../components/workout/PhaseTag.jsx'
 import Chevron from '../components/ui/Chevron.jsx'
 import { useState, useMemo, useEffect, useRef } from 'react'
 import { useLiveQuery } from 'dexie-react-hooks'
@@ -400,7 +401,7 @@ export default function HistoryScreen({
               <ul className="history-list">
                 {(w.entries ?? []).map((e, i) => (
                   <li key={e.exercise_id ?? e.exercise?.id ?? i} className="history-ex">
-                    <span className="history-ex-name">{e.exercise?.name ?? '—'}</span>
+                    <span className="history-ex-name"><PhaseTag entry={e} />{e.exercise?.name ?? '—'}</span>
                     <span className="history-ex-sets">
                       <SetsCells metric={exerciseMetric(e.exercise)} sets={e.sets} />
                     </span>

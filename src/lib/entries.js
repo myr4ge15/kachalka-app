@@ -13,6 +13,12 @@
 import { normMetric } from './metric.js'
 import { cmpIsoDesc } from './cmp.js'
 
+// Разминка и заминка (23.10.2026, отзыв Ильи fb_c2774110): упражнение тренировки с phase 'warmup' |
+// 'cooldown' — отдельный блок. В рекорды, тоннаж, восстановление, дисбаланс, достижения и графики не идет —
+// статистика берет только основную часть. Пустой phase — основная (все старые тренировки).
+export const isMainEntry = (e) => !e?.phase
+export const mainEntries = (w) => (w?.entries ?? []).filter(isMainEntry)
+
 // id упражнения записи: у элементов ленты лежит плоско (e.exercise_id), у
 // документов тренировки — во вложенном e.exercise.id.
 export const entryExId = (e) => e.exercise_id ?? e.exercise?.id ?? null

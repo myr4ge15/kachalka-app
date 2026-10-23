@@ -1,3 +1,4 @@
+import PhaseTag from '../workout/PhaseTag.jsx'
 import { useEffect, useState } from 'react'
 import { useRevealFocus } from '../../hooks/useRevealFocus.js'
 import { useLiveQuery } from 'dexie-react-hooks'
@@ -60,7 +61,7 @@ function TemplateCard({ t, mine, onOpen, selectMode = false, picked = false, onP
           const target = fmtTemplateTarget(exerciseMetric(e.exercise), e)
           return (
             <li key={i} className="history-ex">
-              <span className="history-ex-name">{e.exercise?.name ?? '—'}</span>
+              <span className="history-ex-name"><PhaseTag entry={e} />{e.exercise?.name ?? '—'}</span>
               {target && <span className="history-ex-sets">{target}</span>}
             </li>
           )

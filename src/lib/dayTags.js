@@ -9,6 +9,7 @@
 // Чистый модуль (без Dexie/React) — тестируется юнит-прогоном.
 // ============================================================================
 
+import { mainEntries } from './entries.js'
 import { SUBMUSCLE_SLUGS, defaultSubmuscleFor } from './muscles.js'
 
 // Канонический порядок групп — как в пикере (ExercisePicker BASE_GROUPS).
@@ -111,7 +112,7 @@ export function matchesGroup(entries, group) {
 export function availableGroups(workouts) {
   const set = new Set()
   for (const w of workouts ?? []) {
-    for (const g of dayTags(w.entries)) set.add(g)
+    for (const g of dayTags(mainEntries(w))) set.add(g)
   }
   return Array.from(set).sort(byCanonical)
 }

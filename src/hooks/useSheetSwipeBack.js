@@ -66,7 +66,7 @@ export function useSheetSwipeBack(overlayRef, sheetRef, onDismiss, enabled) {
       const edge = t.clientX - left <= EDGE_PX
       if (!edge && swipeBackBlocked(e.target, overlay)) return
       if (textSelectionActive(window.getSelection?.())) return
-      g = { x0: t.clientX, y0: t.clientY, edge, axis: null, dx: 0, samples: pushSample([], t.clientX, gestureNow(e)) }
+      g = { x0: t.clientX, y0: t.clientY, edge, axis: null, dx: 0, samples: pushSample([], t.clientX, e.timeStamp, gestureNow(e)) }
     }
 
     function onMove(e) {
@@ -82,7 +82,7 @@ export function useSheetSwipeBack(overlayRef, sheetRef, onDismiss, enabled) {
         if (!g.axis) return
       }
       e.preventDefault()
-      pushSample(g.samples, t.clientX, gestureNow(e))
+      pushSample(g.samples, t.clientX, e.timeStamp, gestureNow(e))
       g.dx = Math.max(0, dx)
       if (!reducedMotion()) shift(g.dx, null)
     }

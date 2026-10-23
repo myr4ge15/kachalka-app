@@ -16,7 +16,7 @@
 // веса тела. Нижняя граница веса зависит от метрики (см. weightMin).
 // ============================================================================
 
-import { normMetric, isCountMetric, hasExtraWeight } from './metric.js'
+import { normMetric, isCountMetric, hasExtraWeight, hasLoadWeight } from './metric.js'
 
 // Верхние границы. Подобраны с большим запасом над человеческими рекордами,
 // чтобы не резать реальные данные, но отсекать явный мусор/переполнение.
@@ -44,12 +44,14 @@ export function repsMax(metric) {
 // Возвращает число в [weightMin(metric), WEIGHT_MAX] (2 знака — шаг 1.25 кг) либо
 // null, если значение нечисловое (подход невалиден, отбрасываем).
 export function clampWeight(weight, metric = 'weight') {
-  // У «своего веса» weight — необязательный доп. вес (v6.16.0); у «на время» — всегда 0.
-  if (isCountMetric(metric) && !hasExtraWeight(metric)) return 0
+  // У «своего веса» weight — необязательный доп. вес (v6.16.0); у «на время» — необязательный вес
+  // снаряда (изометрия, 23.10.2026), не меньше 0.
+  const optional = hasExtraWeight(metric) || hasLoadWeight(metric)
+  if (isCountMetric(metric) && !optional) return 0
   const n = Number(weight)
   // Доп. вес необязателен: недописанный ввод («-», «.») — без отягощения, а не
   // повод молча выбросить подход с повторами.
-  if (!Number.isFinite(n)) return hasExtraWeight(metric) ? 0 : null
+  if (!Number.isFinite(n) || (optional && weight === '')) return optional ? 0 : null
   const c = Math.min(WEIGHT_MAX, Math.max(weightMin(metric), n))
   return Math.round(c * 100) / 100 || 0 // || 0: без «−0»
 }

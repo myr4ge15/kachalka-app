@@ -19,8 +19,12 @@ describe('clampWeight', () => {
     expect(clampWeight(NaN, 'weight')).toBe(null)
     expect(clampWeight('abc', 'weight')).toBe(null)
   })
-  it('«на время» — вес всегда 0; «свой вес» — доп. вес сохраняется (v6.16.0)', () => {
-    expect(clampWeight(50, 'time')).toBe(0)
+  it('«на время» — вес снаряда не меньше 0 (изометрия, 23.10); «свой вес» — доп. вес сохраняется (v6.16.0)', () => {
+    expect(clampWeight(50, 'time')).toBe(50)
+    expect(clampWeight(-5, 'time')).toBe(0)
+    expect(clampWeight('', 'time')).toBe(0)
+    expect(savableSet({ weight: '', reps: 90 }, 'time')).toEqual({ weight: 0, reps: 90 })
+    expect(savableSet({ weight: '10', reps: 90 }, 'time')).toEqual({ weight: 10, reps: 90 })
     expect(clampWeight(10, 'reps')).toBe(10)
     expect(clampWeight('', 'reps')).toBe(0)
     expect(savableSet({ weight: '', reps: 12 }, 'reps')).toEqual({ weight: 0, reps: 12 })

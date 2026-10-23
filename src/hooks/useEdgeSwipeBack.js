@@ -23,6 +23,7 @@ import {
   textSelectionActive, underlayDim, underlayShift,
 } from '../lib/screenNav.js'
 import { isIOSDevice } from '../lib/pushSupport.js'
+import { logSwipe } from '../lib/swipeLog.js'
 
 function reducedMotion() {
   try { return window.matchMedia('(prefers-reduced-motion: reduce)').matches } catch { return false }
@@ -135,12 +136,12 @@ export function useEdgeSwipeBack(containerRef, screenRef, onBack, enabled) {
       const edge = t.clientX <= EDGE_PX
       if (!edge && swipeBackBlocked(e.target, box)) return
       if (textSelectionActive(window.getSelection?.())) return // тянут ручки выделения
-      g = { x0: t.clientX, y0: t.clientY, edge, axis: null, dx: 0, samples: pushSample([], t.clientX, gestureNow(e)) }
+      g = { x0: t.clientX, y0: t.clientY, edge, axis: null, dx: 0, samples: pushSample([], t.clientX, e.timeStamp, gestureNow(e)) }
     }
 
     function onMove(e) {
       if (!g) return
-      if (e.touches.length !== 1) { onCancel(); return }
+      if (e.touches.length !== 1) { onCancel(e); return }
       const t = e.touches[0]
       const dx = t.clientX - g.x0
       const dy = t.clientY - g.y0
@@ -160,8 +161,11 @@ export function useEdgeSwipeBack(containerRef, screenRef, onBack, enabled) {
         g.preview = revealParent()
         screen()?.classList.add('edge-dragging')
       }
+      // e.cancelable === false — iOS уже отдала палец прокрутке: жест прервут (видно в журнале свайпов).
+      if (e.cancelable === false) g.lost = (g.lost ?? 0) + 1
       e.preventDefault() // наш жест: не прокручиваем и не отдаем странице
-      pushSample(g.samples, t.clientX, gestureNow(e))
+      g.moves = (g.moves ?? 0) + 1
+      pushSample(g.samples, t.clientX, e.timeStamp, gestureNow(e))
       g.dx = Math.min(Math.max(0, dx), g.width)
       if (g.preview && !reducedMotion()) setLeft(g.dx, null, g.width)
     }
@@ -172,7 +176,11 @@ export function useEdgeSwipeBack(containerRef, screenRef, onBack, enabled) {
       g = null
       if (done.axis !== 'x') return
       const v = releaseVelocity(done.samples, gestureNow(e))
-      if (swipeCommits(done.dx, Math.max(v, flickVelocity(done.samples, gestureNow(e))), done.width)) {
+      const flick = flickVelocity(done.samples, gestureNow(e))
+      const commit = swipeCommits(done.dx, Math.max(v, flick), done.width)
+      logSwipe({ kind: commit ? 'commit' : 'back', p: done.dx / (done.width || 1), v, flick, moves: done.moves,
+        why: done.lost ? `прокрутка забирала ${done.lost}` : null })
+      if (commit) {
         if (!done.preview || reducedMotion()) { finishBack(); return }
         // Экран уехал — дальше обычная «Назад»: смена tab размонтирует этот экран.
         settle(done.dx, done.width, v, done.width, finishBack)
@@ -181,11 +189,13 @@ export function useEdgeSwipeBack(containerRef, screenRef, onBack, enabled) {
       }
     }
 
-    function onCancel() {
+    function onCancel(e) {
       if (!g) return
       const done = g
       g = null
       if (done.axis !== 'x') return
+      logSwipe({ kind: 'cancel', p: done.dx / (done.width || 1), v: 0, flick: 0, moves: done.moves,
+        why: e?.type === 'touchcancel' ? 'touchcancel от системы' : e?.touches?.length > 1 ? 'второй палец' : 'новое касание' })
       settle(done.dx, 0, 0, done.width, clear)
     }
 

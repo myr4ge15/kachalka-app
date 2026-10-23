@@ -1,7 +1,8 @@
-import { useState, useEffect, useRef } from 'react'
+import { Fragment, useState, useEffect, useRef } from 'react'
 import { useRevealFocus } from '../../hooks/useRevealFocus.js'
 import { useSortable } from '../../hooks/useSortable.js'
-import { reorderById } from '../../lib/reorderById.js'
+import { PHASES, PHASE_MOVE_LABEL, phaseHeading, phaseOf, phaseValue, reorderWithPhase, setEntryPhase } from '../../lib/workoutPhases.js'
+import MoreMenu from '../ui/MoreMenu.jsx'
 import { useLiveQuery } from 'dexie-react-hooks'
 import { getExercises, getTemplate, saveTemplate, deleteTemplate, createExercise, getFavorites, toggleFavorite } from '../../db/repo.js'
 import { syncNow } from '../../db/sync.js'
@@ -22,13 +23,14 @@ import { showToast, hideToast } from '../ui/Toast.jsx'
 function toItems(tpl) {
   return [...(tpl?.exercises ?? [])].sort((a, b) => (a.position ?? 0) - (b.position ?? 0)).map((e) => {
     const exercise = { ...(e.exercise ?? { id: e.exercise_id, name: '—' }), ...(e.metric ? { metric: e.metric } : {}) }
-    return { exercise, metric: exerciseMetric(exercise), set_plan: templatePlan(exercise, e).map((s) => ({ ...s, _k: sk() })) }
+    const item = { exercise, metric: exerciseMetric(exercise), set_plan: templatePlan(exercise, e).map((s) => ({ ...s, _k: sk() })) }
+    return phaseValue(e.phase) ? { ...item, phase: phaseValue(e.phase) } : item // разминка/заминка
   })
 }
 
 // Снимок формы для «есть несохраненные правки»: без служебных ключей строк (_k).
 function formSnapshot(name, items, isPublic) {
-  return JSON.stringify([name.trim(), isPublic, items.map((it) => [it.exercise.id, it.metric,
+  return JSON.stringify([name.trim(), isPublic, items.map((it) => [it.exercise.id, it.metric, it.phase ?? null,
     (it.set_plan ?? []).map(({ _k, ...s }) => s)])])
 }
 
@@ -43,6 +45,7 @@ export default function TemplateEditor({ user, templateId, onBack, backGuardRef 
 
   const [name, setName] = useState('')
   const [items, setItems] = useState([])
+  const [phaseMenu, setPhaseMenu] = useState(null) // id упражнения с открытым меню блока
   const [isPublic, setIsPublic] = useState(false)
   // Чужой общий шаблон открывается в режиме просмотра (read-only): править
   // может только автор. Для нового и своих — false.
@@ -160,7 +163,7 @@ export default function TemplateEditor({ user, templateId, onBack, backGuardRef 
   // Общая механика hooks/useSortable (v7.1.2): за ☰ строка поднимается и едет за
   // пальцем, соседи расступаются, порядок применяется на отпускании. Alt+↑/↓ на ☰.
   const sortRef = useSortable((id, beforeId) => {
-    setItems((prev) => reorderById(prev, id, beforeId, (it) => it.exercise.id))
+    setItems((prev) => reorderWithPhase(prev, id, beforeId)) // блок — по соседу (разминка/заминка)
   }, { attr: 'data-tpl-id', handle: '.tpl-handle' })
 
   const canSave = name.trim().length > 0 && items.length > 0 && !saving
@@ -303,8 +306,9 @@ export default function TemplateEditor({ user, templateId, onBack, backGuardRef 
             // Карточка — как упражнение в тренировке (fb_58cbb46a): заголовок + «убрать»,
             // под ним подходы со степперами. ☰ — ручка перестановки упражнений.
             return (
+            <Fragment key={it.exercise.id}>
+            {phaseHeading(items, idx) && <p className="sec-title wk-phase-title">{phaseHeading(items, idx)}</p>}
             <div
-              key={it.exercise.id}
               data-tpl-id={it.exercise.id}
               className={'card exercise-card tpl-ex' + (metric === 'time' ? ' count' : '')}
             >
@@ -321,6 +325,17 @@ export default function TemplateEditor({ user, templateId, onBack, backGuardRef 
                   <span className="exercise-title tpl-name">{it.exercise.name}</span>
                 </span>
                 <span className="exercise-actions">
+                  {/* Блок: разминка / основная часть / заминка (23.10.2026, fb_c2774110) — переносится в тренировку. */}
+                  <MoreMenu label={`Блок «${it.exercise.name}»`} open={phaseMenu === it.exercise.id}
+                    onToggle={() => setPhaseMenu((v) => (v === it.exercise.id ? null : it.exercise.id))}
+                    onClose={() => setPhaseMenu(null)} btnClassName="link-btn exercise-phase-btn">
+                    {PHASES.filter((p) => p !== phaseOf(it)).map((p) => (
+                      <button key={p} type="button" role="menuitem"
+                        onClick={() => { setPhaseMenu(null); setItems((prev) => setEntryPhase(prev, prev.indexOf(it), p)) }}>
+                        {PHASE_MOVE_LABEL[p]}
+                      </button>
+                    ))}
+                  </MoreMenu>
                   <button className="link-btn danger" onClick={() => removeExercise(idx)}>
                     убрать
                   </button>
@@ -329,6 +344,7 @@ export default function TemplateEditor({ user, templateId, onBack, backGuardRef 
               <TemplateSets metric={metric} sets={it.set_plan}
                 onChange={(plan) => updateTarget(idx, 'set_plan', plan)} />
             </div>
+            </Fragment>
             )
           })}
           </div>

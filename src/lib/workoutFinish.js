@@ -1,5 +1,5 @@
 import { totalTonnage } from './profileStats.js'
-import { fmtMetricValue, normMetric } from './metric.js'
+import { fmtMetricValue, normMetric, setTimeUnderLoad } from './metric.js'
 
 function explicitDurationSeconds(workout) {
   const raw = workout?.duration_seconds ?? workout?.durationSeconds
@@ -16,6 +16,9 @@ export function workoutFinishSummary(workout) {
     exerciseCount: entries.length,
     setCount: entries.reduce((sum, entry) => sum + entry.sets.length, 0),
     tonnage: totalTonnage([{ entries }]),
+    // Время под нагрузкой (изометрия, fb_c2774110): сумма секунд подходов «На время» — их «объем».
+    timeUnderLoad: entries.reduce((sum, e) => sum + e.sets.reduce(
+      (t, s) => t + setTimeUnderLoad(e.metric ?? e.exercise?.metric, s), 0), 0),
     durationSeconds: explicitDurationSeconds(workout),
   }
 }

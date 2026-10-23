@@ -15,7 +15,7 @@
 // ============================================================================
 import { myBestByExercise, bestWeight } from './records.js'
 import { isCountMetric, leadingValue, normMetric, setTonnage, bestPace, fmtNum } from './metric.js'
-import { entryExId, currentExerciseShapes, entryUnitMetric } from './entries.js'
+import { entryExId, currentExerciseShapes, entryUnitMetric, mainEntries } from './entries.js'
 
 // Число тренировок в текущем КАЛЕНДАРНОМ месяце (по дате тренировки).
 // TZ — намеренно ЛОКАЛЬНАЯ: дата выбирается пользователем как локальный день
@@ -43,7 +43,7 @@ export function personalRecords(workouts) {
   const best = myBestByExercise(workouts) // Map(exId → { value, metric, name })
   const bench = new Set()
   for (const w of workouts ?? []) {
-    for (const e of w.entries ?? []) {
+    for (const e of mainEntries(w)) {
       const exId = entryExId(e)
       if (exId && e.exercise?.is_bench_lift) bench.add(exId)
     }
@@ -51,7 +51,7 @@ export function personalRecords(workouts) {
   // Дистанция (v6.12.0): рекорд — самая длинная дистанция, лучший темп (от 1 км) — сноской.
   const paceSets = new Map()
   for (const w of workouts ?? []) {
-    for (const e of w.entries ?? []) {
+    for (const e of mainEntries(w)) {
       const exId = entryExId(e)
       if (!exId || best.get(exId)?.metric !== 'distance') continue
       if (normMetric(e.metric ?? e.exercise?.metric) !== 'distance') continue
@@ -120,7 +120,7 @@ export function currentStreak(workouts, now = new Date()) {
 export function totalTonnage(workouts) {
   let kg = 0
   for (const w of workouts ?? []) {
-    for (const e of w.entries ?? []) {
+    for (const e of mainEntries(w)) {
       for (const s of e.sets ?? []) {
         kg += setTonnage(normMetric(e.metric ?? e.exercise?.metric), s) // км дистанции — не кг
       }
@@ -146,7 +146,7 @@ export function favExercise(workouts) {
   const shapes = currentExerciseShapes(workouts)
   const byId = new Map() // exId → { exId, name, sets }
   for (const w of workouts ?? []) {
-    for (const e of w.entries ?? []) {
+    for (const e of mainEntries(w)) {
       const exId = entryExId(e)
       if (!exId) continue
       const cnt = (e.sets ?? []).length
@@ -184,7 +184,7 @@ export function currentBest(workouts, exerciseId) {
   if (!exerciseId) return 0
   let best = 0
   for (const w of workouts ?? []) {
-    for (const e of w.entries ?? []) {
+    for (const e of mainEntries(w)) {
       if (entryExId(e) !== exerciseId) continue
       // Подходы, записанные, когда упражнение было на повторы/время, — не кг.
       if (entryUnitMetric(e, 'weight') !== 'weight') continue
@@ -205,7 +205,7 @@ export function currentBestValue(workouts, exerciseId, metric) {
   const m = normMetric(metric)
   let best = 0
   for (const w of workouts ?? []) {
-    for (const e of w.entries ?? []) {
+    for (const e of mainEntries(w)) {
       if (entryExId(e) !== exerciseId) continue
       if (entryUnitMetric(e, m) !== m) continue
       best = Math.max(best, leadingValue(m, e.sets))

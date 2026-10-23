@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useRef, useState } from 'react'
 import { showToast } from '../ui/Toast.jsx'
 import BusyText from '../ui/BusyText.jsx'
 import UploadProgress from './UploadProgress.jsx'
@@ -23,32 +23,46 @@ export default function FeedbackNoteForm({
   const [note, setNote] = useState('')
   const att = useAttachments(attach?.userId, attach?.api)
   const [busy, setBusy] = useState(false)
+  // Ждем догрузки вложений (23.10, баг владельца: «Отмена» не работала, пока грузится медиа): в это время
+  // отправку можно отменить и лишний файл убрать — заперты только сама отправка текста и файлов.
+  const [waiting, setWaiting] = useState(false)
+  const attempt = useRef(0) // отмена/новая отправка делают прежнюю попытку устаревшей
   const len = cleanBody(note).length
   const filesOnly = !!attach?.textOptional && att.items.length > 0 && len === 0
   const problem = filesOnly ? null : problemOf(note)
 
   // Отмена — загруженное удаляется; после отправки (commit) файлы уже принадлежат обращению.
-  function close({ sent = false } = {}) { setOpen(false); setNote(''); if (sent) att.commit(); else att.clear() }
+  function close({ sent = false } = {}) {
+    if (!sent) { attempt.current += 1; setBusy(false) }
+    setOpen(false); setNote(''); setWaiting(false)
+    if (sent) att.commit(); else att.clear()
+  }
 
   async function submit() {
     if (busy || problem || !online) return
     setBusy(true)
+    const my = ++attempt.current
     let textSent = false
     try {
       // Сначала догрузка вложений: не загрузилось — не шлем и текст, чтобы не было «половины».
+      setWaiting(true)
       const paths = att.items.length ? await att.readyPaths() : null
+      setWaiting(false)
+      if (my !== attempt.current) return // отменили, пока догружалось
       if (!filesOnly) { await send(note); textSent = true; setNote('') }
       if (paths) await attach.send(paths)
       showToast(done)
       close({ sent: true })
       onDone?.()
     } catch (e) {
+      setWaiting(false)
+      if (my !== attempt.current) return
       // Текст уже ушел, файлы — нет: выбор файлов остается, повторно уйдут только они.
       showToast({ emoji: '⚠️', title: textSent ? 'Текст отправлен, файлы — нет' : 'Не отправилось',
         sub: e instanceof FeedbackError ? e.message : e?.message || 'Попробуй еще раз.' })
       if (textSent) onDone?.()
     } finally {
-      setBusy(false)
+      if (my === attempt.current) setBusy(false)
     }
   }
 
@@ -69,13 +83,13 @@ export default function FeedbackNoteForm({
       <div className={'fb-count' + (len > max ? ' over' : '')}>{len} / {max}</div>
       {attach && attach.max > 0 && (
         <FeedbackScreenshotPicker items={att.items} onAdd={att.add} onRemove={att.remove} onRetry={att.retry}
-          disabled={busy || !online} max={attach.max} testId={attach.testId} />
+          disabled={(busy && !waiting) || !online} max={attach.max} testId={attach.testId} />
       )}
       {busy && att.progress && <UploadProgress progress={att.progress} />}
       {/* Одним рядом, «Отмена» слева (fb_e87fb37b): столбик из трех кнопок во всю ширину с «Добавить еще» сверху
           читался как три равных действия. */}
       <div className="btn-row">
-        <button className="btn ghost" onClick={() => close()} disabled={busy}>Отмена</button>
+        <button className="btn ghost" onClick={() => close()} disabled={busy && !waiting}>Отмена</button>
         <button className="btn primary" onClick={submit} disabled={busy || !!problem || !online}>
           {busy ? <BusyText>{att.uploading ? 'Догружаю' : 'Отправляю'}</BusyText> : sendLabel}
         </button>

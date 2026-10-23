@@ -1,6 +1,6 @@
 // Детальный план хранится отдельно от старых скалярных целей.
 // Порядок массива — порядок подходов; metric — снимок единиц измерения.
-import { exerciseMetric, isCountMetric } from './metric.js'
+import { exerciseMetric, isCountMetric, normMetric } from './metric.js'
 import { savableSet } from './setLimits.js'
 
 export function templatePlan(exercise, item) {
@@ -21,6 +21,8 @@ export function cleanTemplatePlan(plan, metric) {
   return plan.map((s) => {
     const clean = savableSet(s, metric)
     if (!clean) throw new Error('Заполни вес и повторы или время каждого подхода.')
-    return clean
+    // Вес снаряда «На время» (изометрия, 23.10.2026) в план шаблона пока не берем: upsert_template_v2 на сервере
+    // отклоняет вес у time — шаблон ушел бы в dead-letter. Снимем вместе с SQL (задача в BACKLOG).
+    return normMetric(metric) === 'time' ? { ...clean, weight: 0 } : clean
   })
 }

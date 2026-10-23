@@ -30,6 +30,7 @@ import { canEditExercise } from '../lib/exerciseCatalog.js'
 import { isReactionKind } from '../lib/reactions.js'
 import { defaultSubmuscleFor, cleanSecondary } from '../lib/muscles.js'
 import { pickExerciseShape, entryUnitMetric } from '../lib/entries.js'
+import { orderByPhase, phaseValue } from '../lib/workoutPhases.js'
 import { putWorkoutFeels, pruneRpe, withFeels, feelsForWorkout } from '../lib/rpe.js'
 import { planRosterWrite, pickRosterShape } from '../lib/roster.js'
 
@@ -478,18 +479,21 @@ export async function getTemplate(id) {
 // бьются о серверные CHECK (push тихо падает). Метрика упражнения определяет
 // границу «повторного» поля (у time там секунды) и обнуляет вес у не-весовых.
 function cleanEntries(entries) {
-  return (entries ?? [])
+  // Блок разминки/заминки (23.10.2026) — полем phase; основная часть — без поля. Порядок — по блокам.
+  return orderByPhase((entries ?? [])
     .map((e) => {
       const metric = normMetric(e.exercise?.metric)
+      const phase = phaseValue(e.phase)
       return {
         exercise_id: e.exercise?.id ?? e.exercise_id,
         exercise: e.exercise ? pickExerciseShape(e.exercise) : undefined,
         sets: (e.sets ?? [])
           .map((s) => savableSet(s, metric))
           .filter(Boolean),
+        ...(phase ? { phase } : {}),
       }
     })
-    .filter((e) => e.exercise_id && e.sets.length > 0)
+    .filter((e) => e.exercise_id && e.sets.length > 0))
 }
 
 // Создать новую или переписать существующую тренировку.
@@ -688,11 +692,13 @@ function cleanTemplateExercises(exercises) {
   return (exercises ?? [])
     .map((e, i) => {
       const metric = normMetric(e.exercise?.metric)
+      const phase = phaseValue(e.phase)
       return {
         exercise_id: e.exercise?.id ?? e.exercise_id,
         exercise: e.exercise ? pickExerciseShape(e.exercise) : undefined,
         position: i,
         ...cleanTargets(e, metric),
+        ...(phase ? { phase } : {}), // разминка/заминка (23.10.2026)
       }
     })
     .filter((e) => e.exercise_id)

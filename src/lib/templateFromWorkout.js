@@ -1,13 +1,15 @@
 // Точный снимок всех подходов завершённой тренировки, без UI-ключей.
 import { exerciseMetric } from './metric.js'
 import { cleanTemplatePlan } from './templatePlan.js'
+import { phaseValue } from './workoutPhases.js'
 
 export function templateExercisesFromWorkout(entries) {
   return (entries ?? []).flatMap((e) => {
     const exercise = e.exercise ?? (e.exercise_id ? { id: e.exercise_id } : null)
     if (!exercise?.id || !e.sets?.length) return []
     const metric = exerciseMetric(exercise)
-    return [{ exercise, metric, set_plan: cleanTemplatePlan(e.sets, metric) }]
+    const phase = phaseValue(e.phase)
+    return [{ exercise, metric, set_plan: cleanTemplatePlan(e.sets, metric), ...(phase ? { phase } : {}) }]
   })
 }
 

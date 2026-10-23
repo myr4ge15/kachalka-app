@@ -13,6 +13,7 @@
 // Офлайн-first: экран читает из локального кэша `leaderboard` (мгновенно и
 // работает без сети), а `fetchLeaderboard()` в фоне обновляет снимок с сервера.
 // ============================================================================
+import { mainEntries } from '../lib/entries.js'
 import { supabase, isConfigured, hasSession } from './supabase.js'
 import { withTimeout } from '../lib/withTimeout.js'
 import { db, loginDb, getMeta, setMeta } from './local.js'
@@ -122,7 +123,7 @@ export function computeBoardFromFeed(feedItems, sexById) {
   const byUser = new Map() // user_id → лучшая строка рейтинга
   for (const w of feedItems ?? []) {
     const board = sex.get(w.user_id) === 'f' ? 'f' : 'm'
-    for (const e of w.entries ?? []) {
+    for (const e of mainEntries(w)) {
       // Каждый борд считает по своему ведущему упражнению.
       const lead = board === 'f' ? e.is_female_lift : e.is_bench_lift
       if (!lead || !e.sets?.length) continue

@@ -1,12 +1,14 @@
 import { useState } from 'react'
 import Chevron from '../ui/Chevron.jsx'
+import MoreMenu from '../ui/MoreMenu.jsx'
+import { PHASES, PHASE_MOVE_LABEL } from '../../lib/workoutPhases.js'
 import HoldButton from '../ui/HoldButton.jsx'
 import TimeInput from '../ui/TimeInput.jsx'
 import { useSelectOnFocus } from '../../hooks/useSelectOnFocus.js'
 import SetsCells from '../workout/SetsCells.jsx'
 import SetVoice from '../workout/SetVoice.jsx'
 import { VOICE_ENABLED } from '../../lib/features.js'
-import { exerciseMetric, isCountMetric, hasExtraWeight, bestPace, fmtNum, fmtPace, paceSecPerKm } from '../../lib/metric.js'
+import { exerciseMetric, isCountMetric, hasExtraWeight, hasLoadWeight, bestPace, fmtNum, fmtPace, paceSecPerKm } from '../../lib/metric.js'
 import { resolveProgSettings } from '../../lib/progression.js'
 import {
   daysAgoLabel, progArrow, progTone, nextProgStep, fmtProgStep,
@@ -42,16 +44,19 @@ export default function ExerciseCard({
   feel = null, onSetFeel = () => {},
   onTechnique = null,
   onReplace, onRemove,
+  phase = 'main', onPhase = null,
   onRevertProg, onApplyProg, onToggleProgSettings, onChangeProgSettings,
   onUpdateSet, onStep, onAddSet, onRemoveSet,
   onVoiceSet = null, voiceCursor = 0,
   restSlot = null,
 }) {
   const metric = exerciseMetric(entry.exercise)
-  // «На время» — без столбца веса; у «своего веса» (v6.16.0) — столбец «±кг»: плюс —
-  // доп. вес (пояс), минус — помощь гравитрона/резины (v7.2.0; «−» степпера уходит ниже 0).
+  const [phaseMenu, setPhaseMenu] = useState(false)
+  // У «своего веса» (v6.16.0) — столбец «±кг»: плюс — доп. вес (пояс), минус — помощь гравитрона/резины
+  // (v7.2.0; «−» степпера уходит ниже 0). У «На время» (23.10.2026, изометрия) — необязательный «кг» снаряда.
   const extra = hasExtraWeight(metric)
-  const count = isCountMetric(metric) && !extra
+  const load = hasLoadWeight(metric)
+  const count = isCountMetric(metric) && !extra && !load
   // Дистанция (v6.12.0): столбцы «км» и «мин:сек»; темп считаем по ходу ввода.
   const isDistance = metric === 'distance'
   const isTime = metric === 'time' || isDistance
@@ -113,6 +118,17 @@ export default function ExerciseCard({
           <TitleWithTechnique name={entry.exercise.name} onTechnique={onTechnique} />
         </span>
         <span className="exercise-actions">
+          {/* Блок: разминка / основная часть / заминка (23.10.2026, fb_c2774110). */}
+          {onPhase && (
+            <MoreMenu label={`Блок «${entry.exercise.name}»`} open={phaseMenu} onToggle={() => setPhaseMenu((v) => !v)}
+              onClose={() => setPhaseMenu(false)} btnClassName="link-btn exercise-phase-btn">
+              {PHASES.filter((p) => p !== phase).map((p) => (
+                <button key={p} type="button" role="menuitem" onClick={() => { setPhaseMenu(false); onPhase(p) }}>
+                  {PHASE_MOVE_LABEL[p]}
+                </button>
+              ))}
+            </MoreMenu>
+          )}
           <button className="link-btn" onClick={() => onReplace(ei)}>заменить</button>
           <button className="link-btn danger" onClick={() => onRemove(ei)}>убрать</button>
         </span>
@@ -224,7 +240,7 @@ export default function ExerciseCard({
       <div className="sets-head">
         {count
           ? <><span>#</span><span>{valLabel}</span><span></span></>
-          : <><span>#</span><span>{isDistance ? 'км' : extra ? '±кг' : 'кг'}</span><span>{isDistance ? 'мин:сек' : 'повт.'}</span><span></span></>}
+          : <><span>#</span><span>{isDistance ? 'км' : extra ? '±кг' : 'кг'}</span><span>{isDistance || load ? 'мин:сек' : 'повт.'}</span><span></span></>}
       </div>
 
       {entry.sets.map((s, si) => (
@@ -234,14 +250,14 @@ export default function ExerciseCard({
           <span className="set-no" aria-hidden="true">{si + 1}</span>
 
           {!count && (
-            <div className="stepper" role="group" aria-label={`Подход ${si + 1}, ${isDistance ? 'дистанция' : extra ? 'доп. вес или помощь' : 'вес'}`}>
+            <div className="stepper" role="group" aria-label={`Подход ${si + 1}, ${isDistance ? 'дистанция' : extra ? 'доп. вес или помощь' : load ? 'вес снаряда' : 'вес'}`}>
               <HoldButton aria-label={isDistance ? 'Меньше дистанция' : 'Меньше вес'} onTrigger={() => onStep(ei, si, 'weight', isDistance ? -0.5 : extra ? -2.5 : -1.25)}>−</HoldButton>
               {/* Ноль доп. веса — пустое поле. Только ЧИСЛОВОЙ ноль: строку ввода
                   («-», «0.») показываем как есть, иначе минус и «0,5» не набрать. */}
               <SetInput
-                inputMode="decimal" value={extra && s.weight === 0 ? '' : fmtNum(s.weight ?? '')}
-                aria-label={`${isDistance ? 'Дистанция, км' : extra ? 'Доп. вес' : 'Вес'}, подход ${si + 1}`}
-                placeholder={isDistance ? 'км' : extra ? '0' : undefined}
+                inputMode="decimal" value={(extra || load) && s.weight === 0 ? '' : fmtNum(s.weight ?? '')}
+                aria-label={`${isDistance ? 'Дистанция, км' : extra ? 'Доп. вес' : load ? 'Вес снаряда' : 'Вес'}, подход ${si + 1}`}
+                placeholder={isDistance ? 'км' : (extra || load) ? '0' : undefined}
                 onChange={(e) => onUpdateSet(ei, si, 'weight', e.target.value.replace(',', '.').replace('−', '-'))}
               />
               <HoldButton aria-label={isDistance ? 'Больше дистанция' : 'Больше вес'} onTrigger={() => onStep(ei, si, 'weight', isDistance ? 0.5 : extra ? 2.5 : 1.25)}>+</HoldButton>

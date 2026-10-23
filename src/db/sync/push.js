@@ -12,6 +12,7 @@
 // уходят РАНЬШЕ тренировок (outbox, FK на exercise_id), реакции — ПОСЛЕ (FK на
 // workout). Оркеструет порядок syncNow (../sync.js), здесь — только сами прогоны.
 // ============================================================================
+import { phaseValue } from '../../lib/workoutPhases.js'
 import { templatePlan } from '../../lib/templatePlan.js'
 import { exerciseMetric } from '../../lib/metric.js'
 import { supabase } from '../supabase.js'
@@ -154,6 +155,7 @@ export async function pushTemplates(d = db) {
           sets: e.sets ?? null,
           reps: e.reps ?? null,
           weight: e.weight ?? null,
+          ...(phaseValue(e.phase) ? { phase: phaseValue(e.phase) } : {}),
         }))
       const { error } = await withTimeout(
         supabase.rpc(detailed ? 'upsert_template_v2' : 'upsert_template', {
@@ -207,9 +209,11 @@ export async function push(d = db) {
         await d.outbox.delete(op.seq)
         return
       }
+      // phase — блок разминки/заминки (23.10.2026); старый сервер лишнее поле просто не читает.
       const payload = doc.entries.map((e) => ({
         exercise_id: e.exercise_id,
         sets: e.sets.map((s) => ({ weight: Number(s.weight), reps: Number(s.reps) })),
+        ...(phaseValue(e.phase) ? { phase: phaseValue(e.phase) } : {}),
       }))
       const { error } = await withTimeout(
         supabase.rpc('upsert_workout', {

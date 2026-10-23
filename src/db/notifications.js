@@ -10,6 +10,7 @@
 // «Прочитано» — водяной знак времени в meta (notif_seen_at): непрочитано =
 // событие новее метки. Открытие экрана двигает метку на самое свежее событие.
 // ============================================================================
+import { mainEntries } from '../lib/entries.js'
 import { db, getMeta, setMeta, nowIso } from './local.js'
 import { writeSyncedMeta } from './userMeta.js'
 import { cmpIsoAsc, cmpIsoDesc } from '../lib/cmp.js'
@@ -171,7 +172,7 @@ export async function detectNewPrsOnSave(userId, workoutId) {
   const saved = all.find((w) => w.id === workoutId)
   if (!saved) return []
   const othersBest = myBestByExercise(all.filter((w) => w.id !== workoutId))
-  return computeNewPrs(saved.entries, othersBest)
+  return computeNewPrs(mainEntries(saved), othersBest)
 }
 
 // Какие личные цели достигнуты ВПЕРВЫЕ именно этой тренировкой. Идем по ВСЕМ

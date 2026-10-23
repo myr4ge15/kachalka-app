@@ -19,6 +19,7 @@
 import { supabase, isConfigured, hasSession } from './supabase.js'
 import { withTimeout } from '../lib/withTimeout.js'
 import { db, getMeta, setMeta } from './local.js'
+import { withPhase } from './phaseColumn.js'
 import { SELECT_FEED, rowToItem, computePrs, attachReactions, attachComments, carryComments, fetchPrBaseline, readReactionOps, overlayReactionOps } from './feed.js'
 import { toggleReaction } from './repo.js'
 import { applyReactionQueue } from '../lib/reactions.js'
@@ -65,14 +66,12 @@ export async function fetchMember(viewerId, memberId, d = db) {
   if (!(await hasSession(viewerId))) return false
 
   const [list, count] = await Promise.all([
-    withTimeout(
-      supabase
-        .from('workouts')
-        .select(SELECT_FEED)
-        .eq('user_id', memberId)
-        .order('performed_at', { ascending: false })
-        .limit(MEMBER_LIMIT)
-    ),
+    withPhase(SELECT_FEED, (sel) => supabase
+      .from('workouts')
+      .select(sel)
+      .eq('user_id', memberId)
+      .order('performed_at', { ascending: false })
+      .limit(MEMBER_LIMIT)),
     withTimeout(
       supabase
         .from('workouts')

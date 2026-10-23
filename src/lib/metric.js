@@ -47,6 +47,11 @@ export function isCountMetric(metric) {
 // С v7.2.0 бывает отрицательным — помощь гравитрона/резины.
 export const hasExtraWeight = (metric) => normMetric(metric) === 'reps'
 
+// Вес снаряда у «На время» (изометрия, 23.10.2026, ответы Ильи fb_c2774110): планка с блином, удержание
+// в разгибателе. Необязательный, не меньше 0; рекорд — по времени (вес — условие подхода, на время не
+// умножаем, сервер new_prs_for_workout так и считает); вместо тоннажа — время под нагрузкой.
+export const hasLoadWeight = (metric) => normMetric(metric) === 'time'
+
 // Число для показа по-русски — с десятичной запятой: 62.5 → «62,5» (аудит 16.10). Только
 // отображение: в базе и в расчетах числа прежние, ввод понимает и точку, и запятую
 // (setLimits.toNum). Минус — как пришел (знак рисуют вызывающие).
@@ -70,6 +75,14 @@ export function setTonnage(metric, s) {
   const wt = Number(s?.weight) || 0
   const reps = Number(s?.reps) || 0
   return wt > 0 && reps > 0 ? wt * reps : 0
+}
+
+// Время под нагрузкой (изометрия): секунды подхода «На время». Объем таких упражнений — сумма секунд,
+// а не вес × время (fb_c2774110). У остальных метрик — 0.
+export function setTimeUnderLoad(metric, s) {
+  if (normMetric(metric) !== 'time') return 0
+  const sec = Number(s?.reps) || 0
+  return sec > 0 ? sec : 0
 }
 
 // Ведущий показатель ПОДХОДА — то, по чему считается рекорд (лучший подход):
@@ -190,7 +203,7 @@ export function fmtSet(metric, s) {
     if (weight > 0 && reps > 0) return `${fmtKm(weight)} км · ${fmtTime(reps)}`
     return weight > 0 ? `${fmtKm(weight)} км` : fmtTime(reps)
   }
-  if (m === 'time') return fmtTime(reps)
+  if (m === 'time') return weight > 0 ? `${fmtNum(weight)} кг · ${fmtTime(reps)}` : fmtTime(reps)
   if (m === 'reps') {
     const w = Math.round(weight * 100) / 100
     return w ? `${w > 0 ? '+' : '−'}${fmtNum(Math.abs(w))}×${reps}` : String(reps)

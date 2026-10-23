@@ -25,6 +25,7 @@ describe('workoutFinishSummary', () => {
       exerciseCount: 2,
       setCount: 3,
       tonnage: 720,
+      timeUnderLoad: 0,
       durationSeconds: null,
     })
   })
@@ -41,6 +42,7 @@ describe('workoutFinishSummary', () => {
       exerciseCount: 0,
       setCount: 0,
       tonnage: 0,
+      timeUnderLoad: 0,
       durationSeconds: 3670,
     })
   })

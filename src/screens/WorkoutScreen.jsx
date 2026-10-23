@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef, useMemo } from 'react'
+import { Fragment, useState, useEffect, useRef, useMemo } from 'react'
 import { useLiveQuery } from 'dexie-react-hooks'
 import { getExercises, getWorkout, getWorkouts, saveWorkout, createExercise, deleteWorkout as repoDelete, getRecentSessionsForExercise, getProgSettings, setProgForExercise, saveTemplate, setWorkoutFeels, getFavorites, toggleFavorite } from '../db/repo.js'
 import { detectNewPrsOnSave, detectGoalReachedOnSave } from '../db/notifications.js'
@@ -22,7 +22,7 @@ import { useWorkoutDraft } from '../hooks/useWorkoutDraft.js'
 import { useRestTimer } from '../hooks/useRestTimer.js'
 import { localYmd } from '../lib/calendar.js'
 import { useSortable } from '../hooks/useSortable.js'
-import { reorderExercises } from '../lib/reorderExercises.js'
+import { reorderWithPhase, setEntryPhase, phaseHeading, phaseOf, phaseValue, orderByPhase } from '../lib/workoutPhases.js'
 import CardsSkeleton from '../components/ui/CardsSkeleton.jsx'
 import ExercisePicker from '../components/exercises/ExercisePicker.jsx'
 import TechniqueSheet from '../components/exercises/TechniqueSheet.jsx'
@@ -88,7 +88,7 @@ export default function WorkoutScreen({ user, workoutId = null, onBack, onSaved 
   const [dragFolded, setDragFolded] = useState(null)
   const reorderRef = useSortable((id, beforeId) => {
     activateExercise(activeExerciseId)
-    setEntries(prev => reorderExercises(prev, id, beforeId))
+    setEntries(prev => reorderWithPhase(prev, id, beforeId)) // блок — по соседу (разминка/заминка, 23.10.2026)
   }, {
     attr: 'data-exercise-id',
     handle: '.exercise-compact-toggle, .exercise-title',
@@ -364,13 +364,13 @@ export default function WorkoutScreen({ user, workoutId = null, onBack, onSaved 
         const built = buildRecommendation(ex, sessions, prog)
         meta = built.meta ? { ...built.meta, applied: built.meta.muted ? undefined : false } : null
       } catch { /* рекомендация необязательна */ }
-      toAdd.push({ exercise: ex, sets, prog: meta, fromTemplate: true })
+      toAdd.push({ exercise: ex, sets, prog: meta, fromTemplate: true, ...(phaseValue(item.phase) ? { phase: phaseValue(item.phase) } : {}) })
     }
     // Пока читали историю, состав мог измениться — анти-дубль на свежем состоянии.
     setEntries((prev) => {
       const cur = new Set(prev.map((e) => e.exercise.id))
       const fresh = toAdd.filter((e) => !cur.has(e.exercise.id))
-      return fresh.length ? [...prev, ...fresh] : prev
+      return fresh.length ? orderByPhase([...prev, ...fresh]) : prev // разминка шаблона — наверх
     })
     activateExercise(toAdd[0]?.exercise?.id)
   }
@@ -641,8 +641,9 @@ export default function WorkoutScreen({ user, workoutId = null, onBack, onSaved 
 
           {entries.length > 1 && <p className="muted exercise-reorder-hint">Зажми название упражнения и перетащи, чтобы изменить порядок.</p>}
           {entries.map((entry, ei) => (
+            <Fragment key={entry.exercise.id}>
+            {phaseHeading(entries, ei) && <p className="sec-title wk-phase-title">{phaseHeading(entries, ei)}</p>}
             <ExerciseCard
-              key={entry.exercise.id}
               entry={entry}
               ei={ei}
               prog={prog}
@@ -669,7 +670,10 @@ export default function WorkoutScreen({ user, workoutId = null, onBack, onSaved 
               restSlot={restVisible && entry.exercise.id === activeExerciseId
                 ? <RestPill state={rest.state} idleSec={rest.idleSec} onTap={tapRest} />
                 : null}
+              phase={phaseOf(entry)}
+              onPhase={(phase) => setEntries((prev) => setEntryPhase(prev, prev.indexOf(entry), phase))}
             />
+            </Fragment>
           ))}
 
           <div className={`wk-adds${isNew ? '' : ' one'}`}>

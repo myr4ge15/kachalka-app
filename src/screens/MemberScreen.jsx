@@ -1,3 +1,4 @@
+import PhaseTag from '../components/workout/PhaseTag.jsx'
 import Chevron from '../components/ui/Chevron.jsx'
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { useLiveQuery } from 'dexie-react-hooks'
@@ -237,7 +238,7 @@ export default function MemberScreen({ user, memberId, onBack, onOpenMember }) {
                   <ul className="history-list">
                     {w.entries.map((e, i) => (
                       <li key={e.exercise_id ?? e.name ?? i} className="history-ex">
-                        <span className="history-ex-name">{e.name}{prForEntry(w, e) && <> <FeedPrBadge pr={prForEntry(w, e)} /></>}</span>
+                        <span className="history-ex-name"><PhaseTag entry={e} />{e.name}{prForEntry(w, e) && <> <FeedPrBadge pr={prForEntry(w, e)} /></>}</span>
                         <span className="history-ex-sets">
                           <SetsCells metric={e.metric} sets={e.sets} />
                         </span>

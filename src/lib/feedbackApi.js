@@ -123,7 +123,7 @@ function newId() {
 // paths (20.10.2026) — вложения, уже загруженные uploadAttachment (предзагрузка в форме): тогда здесь
 // только текст и пути, без загрузки.
 export async function submitFeedback(userId, {
-  body, context, file = null, files = null, paths = null, compress = compressToJpeg, onProgress = null, uploadVideo = xhrUpload,
+  body, context, file = null, files = null, paths = null, compress = compressToJpeg, onProgress = null, uploadVideo = videoUpload,
 } = {}) {
   const problem = bodyProblem(body)
   if (problem) throw new FeedbackError(problem)
@@ -279,10 +279,103 @@ function xhrUpload(path, blob, contentType, onBytes) {
   }))
 }
 
+// Докачка больших видео (23.10.2026, баг владельца: «медиа начинает грузиться заново посреди процесса»).
+// Одним запросом любой обрыв — свернул приложение, iOS скрыла страницу на время выбора еще одного файла,
+// 30 с без прогресса на слабом LTE — начинал видео с нуля. Протокол докачки Supabase Storage (TUS 1.0.0):
+// создаем загрузку, шлем куски по 6 МБ (так требует Storage), после обрыва спрашиваем у сервера, сколько
+// дошло (HEAD → Upload-Offset), и продолжаем с этого места; свернутое приложение ждет возврата. Сдаемся
+// после TUS_MAX_FAILS обрывов подряд. request — HTTP-запрос (тест подменяет); остальное — как у xhrUpload.
+export const TUS_CHUNK = 6 * 1024 * 1024
+const TUS_MAX_FAILS = 6
+const TUS_URL = (import.meta.env.VITE_SUPABASE_URL ?? '') + '/storage/v1/upload/resumable'
+const b64 = (s) => btoa(String.fromCharCode(...new TextEncoder().encode(String(s))))
+const pageHidden = () => typeof document !== 'undefined' && document.visibilityState === 'hidden'
+function untilVisible() {
+  if (!pageHidden()) return Promise.resolve()
+  return new Promise((resolve) => {
+    const on = () => { if (!pageHidden()) { document.removeEventListener('visibilitychange', on); resolve() } }
+    document.addEventListener('visibilitychange', on)
+  })
+}
+
+// Один HTTP-запрос через XHR: { status, header(name) } или FeedbackError('network' | 'upload_stalled').
+function xhrRequest(method, url, { headers = {}, body = null, onProgress = null } = {}) {
+  return new Promise((resolve, reject) => {
+    const xhr = new XMLHttpRequest()
+    let stall = 0
+    const fail = (code) => { clearTimeout(stall); reject(new FeedbackError(code)) }
+    const arm = () => { clearTimeout(stall); stall = setTimeout(() => { xhr.abort(); fail('upload_stalled') }, UPLOAD_STALL_MS) }
+    xhr.open(method, url)
+    for (const [k, v] of Object.entries(headers)) xhr.setRequestHeader(k, v)
+    if (xhr.upload) xhr.upload.onprogress = (e) => { arm(); onProgress?.(e.loaded) }
+    xhr.onload = () => { clearTimeout(stall); resolve({ status: xhr.status, header: (n) => xhr.getResponseHeader?.(n) ?? null }) }
+    xhr.onerror = () => fail('network')
+    arm()
+    xhr.send(body)
+  })
+}
+
+export async function resumableUpload(path, blob, contentType, onBytes, { request = xhrRequest, wait = (ms) => new Promise((r) => setTimeout(r, ms)) } = {}) {
+  const auth = async () => {
+    const token = await accessToken()
+    if (!token) throw new FeedbackError('no_session')
+    return { authorization: `Bearer ${token}`, apikey: ANON, 'Tus-Resumable': '1.0.0' }
+  }
+  const created = await request('POST', TUS_URL, { headers: {
+    ...(await auth()), 'x-upsert': 'false', 'Upload-Length': String(blob.size),
+    'Upload-Metadata': `bucketName ${b64('feedback')},objectName ${b64(path)},contentType ${b64(contentType)},cacheControl ${b64('3600')}`,
+  } })
+  if (created.status === 413) throw new FeedbackError('video_too_big')
+  if (created.status !== 201 || !created.header('Location')) throw new FeedbackError('video_failed')
+  const loc = new URL(created.header('Location'), TUS_URL)
+  if (TUS_URL.startsWith('https:')) loc.protocol = 'https:' // за прокси Storage может вернуть http
+  const url = loc.toString()
+
+  let offset = 0
+  let fails = 0
+  onBytes?.(0)
+  while (offset < blob.size) {
+    try {
+      const chunk = blob.slice(offset, offset + TUS_CHUNK)
+      const from = offset
+      const res = await request('PATCH', url, {
+        headers: { ...(await auth()), 'Content-Type': 'application/offset+octet-stream', 'Upload-Offset': String(offset) },
+        body: chunk, onProgress: (n) => onBytes?.(from + n),
+      })
+      if (res.status === 204) {
+        offset = Number(res.header('Upload-Offset')) || offset + chunk.size
+        fails = 0
+        onBytes?.(offset)
+        continue
+      }
+      if (res.status === 413) throw new FeedbackError('video_too_big')
+      if (res.status === 401 || res.status === 403) throw new FeedbackError('no_session')
+      if (res.status !== 409 && res.status < 500) throw new FeedbackError('video_failed')
+      throw new FeedbackError('network') // 409 (сервер ждет другой кусок) и 5xx — сверимся и повторим
+    } catch (e) {
+      if (!['network', 'upload_stalled'].includes(e?.code)) throw e
+      fails += 1
+      if (fails > TUS_MAX_FAILS) throw e
+      if (pageHidden()) await untilVisible()
+      else await wait(Math.min(8000, 1000 * fails))
+      try {
+        const head = await request('HEAD', url, { headers: await auth() })
+        const at = Number(head.header('Upload-Offset'))
+        if (head.status === 200 && Number.isFinite(at)) offset = at
+      } catch { /* сверимся на следующей попытке */ }
+    }
+  }
+}
+
+// Видео до куска — одним запросом (как раньше), больше — с докачкой.
+function videoUpload(path, blob, contentType, onBytes) {
+  return blob.size > TUS_CHUNK ? resumableUpload(path, blob, contentType, onBytes) : xhrUpload(path, blob, contentType, onBytes)
+}
+
 // Одно вложение в Storage сразу после выбора (20.10.2026, предзагрузка): картинка — сжатием в JPEG,
 // видео — как есть через XHR с прогрессом (onBytes). Возвращает путь `<userId>/<uuid>.<ext>` —
 // его потом получат submit/attach. Ошибка — FeedbackError с понятным кодом.
-export async function uploadAttachment(userId, file, { compress = compressToJpeg, onBytes = null, uploadVideo = xhrUpload } = {}) {
+export async function uploadAttachment(userId, file, { compress = compressToJpeg, onBytes = null, uploadVideo = videoUpload } = {}) {
   if (isOffline()) throw new FeedbackError('offline')
   if (!await hasSession(userId)) throw new FeedbackError('no_session')
   const problem = isVideoFile(file) ? attachmentProblem(file) : null // картинки решает сжатие
@@ -319,7 +412,7 @@ export async function attachUploadedScreenshots(userId, id, paths) {
   return callFn({ action: 'attach', id, screenshots: paths })
 }
 
-async function uploadScreenshots(userId, files, { compress = compressToJpeg, onProgress = null, uploadVideo = xhrUpload } = {}) {
+async function uploadScreenshots(userId, files, { compress = compressToJpeg, onProgress = null, uploadVideo = videoUpload } = {}) {
   if (!Array.isArray(files) || files.length > FEEDBACK_SHOTS_MAX) throw new FeedbackError('shot_limit')
   const paths = []
   const total = files.reduce((s, f) => s + (Number(f?.size) || 0), 0)
@@ -354,7 +447,7 @@ async function uploadScreenshots(userId, files, { compress = compressToJpeg, onP
   return paths
 }
 
-export async function attachFeedbackScreenshots(userId, id, files, compress = compressToJpeg, { onProgress = null, uploadVideo = xhrUpload } = {}) {
+export async function attachFeedbackScreenshots(userId, id, files, compress = compressToJpeg, { onProgress = null, uploadVideo = videoUpload } = {}) {
   if (isOffline()) throw new FeedbackError('offline')
   if (!await hasSession(userId)) throw new FeedbackError('no_session')
   if (!files?.length) throw new FeedbackError('shot_failed')

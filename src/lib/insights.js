@@ -24,7 +24,7 @@ import { myBestByExercise } from './records.js'
 import { sinceRecord } from './progression.js'
 import { currentStreak } from './profileStats.js'
 import { cmpIsoDesc } from './cmp.js'
-import { entryExId, entryMetric, sortDesc, entryUnitMetric } from './entries.js'
+import { entryExId, entryMetric, sortDesc, entryUnitMetric, mainEntries } from './entries.js'
 import { plural } from './plural.js'
 import { byGender } from './gender.js'
 
@@ -42,7 +42,7 @@ export function dayIndex(date) {
 // Тоннаж (Σ вес×повторы) по подходам с реальной внешней нагрузкой (weight>0).
 export function workoutTonnage(w) {
   let t = 0
-  for (const e of w.entries ?? []) {
+  for (const e of mainEntries(w)) {
     for (const s of e.sets ?? []) {
       t += setTonnage(entryMetric(e), s) // дистанция (км) в тоннаж не идет
     }
@@ -53,7 +53,7 @@ export function workoutTonnage(w) {
 // Тоннаж тренировки только по одной группе мышц.
 function groupTonnage(w, group) {
   let t = 0
-  for (const e of w.entries ?? []) {
+  for (const e of mainEntries(w)) {
     if (groupOf(e) !== group) continue
     for (const s of e.sets ?? []) {
       t += setTonnage(entryMetric(e), s) // дистанция (км) в тоннаж не идет
@@ -89,7 +89,7 @@ const PAST_PERIODS = [
 // Последнее ведущее упражнение жима (is_bench_lift) в истории: id, имя, метрика.
 function findBench(sorted) {
   for (const w of sorted) {
-    for (const e of w.entries ?? []) {
+    for (const e of mainEntries(w)) {
       if (isBenchEntry(e)) {
         return { exId: entryExId(e), name: entryName(e), metric: entryMetric(e) }
       }
@@ -108,7 +108,7 @@ function rNewPr(sorted, ctx) {
   if (!ctx) return null
   const others = myBestByExercise(sorted.filter((w) => w.id !== ctx.id))
   let top = null
-  for (const e of ctx.entries ?? []) {
+  for (const e of mainEntries(ctx)) {
     const exId = entryExId(e)
     if (!exId) continue
     const m = entryMetric(e)
@@ -146,7 +146,7 @@ function rOvertook(sorted, ctx, leaderboard, userId, sex = null) {
   const others = myBestByExercise(sorted.filter((w) => w.id !== ctx.id))
   let benchExId = null
   let newV = 0
-  for (const e of ctx.entries ?? []) {
+  for (const e of mainEntries(ctx)) {
     if (isBenchEntry(e)) {
       benchExId = entryExId(e)
       newV = leadingValue('weight', e.sets)
@@ -179,7 +179,7 @@ function rOvertook(sorted, ctx, leaderboard, userId, sex = null) {
 // вес×повт.) на какой-то из своих групп за всю историю (побит прежний максимум).
 function rBiggestSession(sorted, ctx) {
   if (!ctx) return null
-  const groups = [...new Set((ctx.entries ?? []).map(groupOf).filter(Boolean))]
+  const groups = [...new Set(mainEntries(ctx).map(groupOf).filter(Boolean))]
   let best = null
   for (const g of groups) {
     const cur = groupTonnage(ctx, g)
@@ -216,7 +216,7 @@ function rPlateau(sorted, anchor) {
   if (!bench?.exId) return null
   const recent = []
   for (const w of sorted) {
-    const e = (w.entries ?? []).find((x) => entryExId(x) === bench.exId)
+    const e = mainEntries(w).find((x) => entryExId(x) === bench.exId)
     // Сессии в другой единице (до смены типа) в окно плато не берем: их
     // leadingValue несравним с текущим (РЕВЬЮ-КОДА-2026-10-02, п. 17).
     if (e && entryUnitMetric(e, bench.metric) === bench.metric) recent.push({ sets: e.sets ?? [], id: w.id, at: w.performed_at })
@@ -318,7 +318,7 @@ export function pastSelfInsight(sorted, ctx, { minGainPct = 5 } = {}) {
   const ctxDay = dayIndex(new Date(ctx.performed_at))
   let best = null
 
-  for (const currentEntry of ctx.entries ?? []) {
+  for (const currentEntry of mainEntries(ctx)) {
     const exId = entryExId(currentEntry)
     if (!exId) continue
     const metric = entryMetric(currentEntry)
@@ -330,7 +330,7 @@ export function pastSelfInsight(sorted, ctx, { minGainPct = 5 } = {}) {
           const elapsed = ctxDay - dayIndex(new Date(w.performed_at))
           // Запись в другой единице (тип упражнения сменили) несравнима:
           // «10 кг → 12 повт.» не прогресс (РЕВЬЮ-КОДА-2026-10-02, п. 17).
-          const found = (w.entries ?? []).find((e) => entryExId(e) === exId)
+          const found = mainEntries(w).find((e) => entryExId(e) === exId)
           const entry = found && entryUnitMetric(found, metric) === metric ? found : null
           return { w, entry, distance: Math.abs(elapsed - period.days), elapsed }
         })

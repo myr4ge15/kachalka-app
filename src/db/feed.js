@@ -9,6 +9,9 @@
 // сети), а `fetchFeed()` в фоне обновляет снимок с сервера. Отметки рекордов
 // считаются на клиенте по загруженному окну ленты.
 // ============================================================================
+import { phaseValue } from '../lib/workoutPhases.js'
+import { withPhase } from './phaseColumn.js'
+import { mainEntries } from '../lib/entries.js'
 import { supabase, isConfigured, hasSession } from './supabase.js'
 import { withTimeout } from '../lib/withTimeout.js'
 import { db, getMeta, setMeta } from './local.js'
@@ -41,7 +44,7 @@ const EXERCISES_SIG = 'sig_exercises'
 export const SELECT_FEED =
   'id, performed_at, user_id, ' +
   'user:users!workouts_user_id_fkey(id, name), ' +
-  'workout_exercises(id, position, exercise_id, ' +
+  'workout_exercises(id, position, exercise_id, phase, ' +
   'exercise:exercises(id, name, muscle_group, is_bench_lift, is_female_lift, metric), ' +
   'sets(id, set_number, weight, reps))'
 
@@ -62,6 +65,7 @@ export function rowToItem(w) {
         is_female_lift: Boolean(we.exercise?.is_female_lift),
         metric: normMetric(we.exercise?.metric),
         sets,
+        ...(phaseValue(we.phase) ? { phase: phaseValue(we.phase) } : {}), // разминка/заминка (23.10.2026)
       }
     })
 
@@ -185,7 +189,7 @@ export function computePrs(items, baseline = null) {
       best = new Map()
       byUser.set(item.user_id, best)
     }
-    for (const e of item.entries) {
+    for (const e of mainEntries(item)) {
       if (e.sets.length === 0) continue
       const value = leadingValue(e.metric, e.sets)
       if (value <= 0) continue
@@ -262,13 +266,11 @@ export async function fetchFeed(userId, d = db) {
 
   let items
   if (changed) {
-    const res = await withTimeout(
-      supabase
-        .from('workouts')
-        .select(SELECT_FEED)
-        .order('performed_at', { ascending: false })
-        .limit(FEED_LIMIT)
-    )
+    const res = await withPhase(SELECT_FEED, (sel) => supabase
+      .from('workouts')
+      .select(sel)
+      .order('performed_at', { ascending: false })
+      .limit(FEED_LIMIT))
     if (res.error) throw res.error
     items = (res.data ?? []).map(rowToItem)
     computePrs(items, await fetchPrBaseline(items))

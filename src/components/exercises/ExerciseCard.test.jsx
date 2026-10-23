@@ -71,9 +71,10 @@ describe('ExerciseCard — рендер', () => {
     expect(container.querySelectorAll('.set-row')).toHaveLength(2)
   })
 
-  it('«на время» — без столбца веса; «свой вес» — со столбцом «±кг» (v7.2.0)', () => {
+  it('«на время» — столбец «кг» снаряда, пустой при нуле (изометрия, 23.10); «свой вес» — «±кг» (v7.2.0)', () => {
     const { container, unmount } = renderCard({ exercise: { id: 'e3', name: 'Планка', metric: 'time' }, sets: [{ weight: 0, reps: 60, _k: 'a' }] })
-    expect(container.querySelector('.sets-head').textContent).not.toMatch(/кг/)
+    expect(container.querySelector('.sets-head').textContent).toBe('#кгмин:сек')
+    expect(screen.getByLabelText('Вес снаряда, подход 1')).toHaveValue('')
     unmount()
     const r = renderCard(countEntry())
     expect(r.container.querySelector('.sets-head').textContent).toBe('#±кгповт.')

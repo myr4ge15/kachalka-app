@@ -12,7 +12,7 @@ import { dayIndex, tonnageInWindow } from './insights.js'
 import { mostNeglectedGroup } from './freshness.js'
 import { daySubTags } from './dayTags.js'
 import { normMetric, leadingValue } from './metric.js'
-import { entryExId, sortDesc, currentExerciseShapes, entryUnitMetric } from './entries.js'
+import { entryExId, sortDesc, currentExerciseShapes, entryUnitMetric, mainEntries } from './entries.js'
 import { plural } from './plural.js'
 
 function localDayKey(value) {
@@ -44,7 +44,7 @@ export function buildTrainingRhythm(workouts, { now = new Date(), weeks = 8 } = 
     if (!day) continue
     const rec = byDay.get(day) ?? { workouts: [], entries: [] }
     rec.workouts.push(w)
-    rec.entries.push(...(w.entries ?? []))
+    rec.entries.push(...mainEntries(w))
     byDay.set(day, rec)
   }
 
@@ -100,7 +100,7 @@ function latestPr(sorted) {
   const best = new Map()
   let last = null
   for (const w of chron) {
-    for (const e of w.entries ?? []) {
+    for (const e of mainEntries(w)) {
       const exId = entryExId(e)
       if (!exId) continue
       const shape = shapes.get(exId)
@@ -169,7 +169,7 @@ export function buildHomeSummary({ workouts, goals, now = new Date() } = {}) {
   const lastWorkout = {
     at: last.performed_at,
     daysAgo: today - dayIndex(new Date(last.performed_at)),
-    tags: daySubTags(last.entries),
+    tags: daySubTags(mainEntries(last)),
   }
 
   const month = tonnageInWindow(sorted, now, 30, 0)

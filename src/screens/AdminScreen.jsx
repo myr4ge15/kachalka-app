@@ -13,6 +13,7 @@ import AdminDisciplines from '../components/admin/AdminDisciplines.jsx'
 import AdminFeedback from '../components/admin/AdminFeedback.jsx'
 import { AdminMfaGate, AdminMfaPanel } from '../components/admin/AdminMfa.jsx'
 import PushLog from '../components/notifications/PushLog.jsx'
+import SwipeLog from '../components/admin/SwipeLog.jsx'
 import { mfaState, needsCode } from '../lib/adminMfa.js'
 import ExercisesSection from '../components/admin/ExercisesSection.jsx'
 import UsersSection from '../components/admin/UsersSection.jsx'
@@ -34,6 +35,8 @@ const SECTIONS = [
   { key: 'mfa', title: 'Защита (2FA)' },
   // Журнал пушей этого устройства (v8.9.6) — отладка перехода по пушу.
   { key: 'pushlog', title: 'Журнал пушей (это устройство)' },
+  // Журнал свайпов «назад» (23.10.2026) — отладка «свайп прыгает»: что видел жест на этом телефоне.
+  { key: 'swipelog', title: 'Журнал свайпов (это устройство)' },
 ]
 
 export default function AdminScreen({ user, onBack, contentRef, edgeSwipeOn = false, onInnerNav }) {
@@ -111,6 +114,7 @@ export default function AdminScreen({ user, onBack, contentRef, edgeSwipeOn = fa
       : <p className="admin-hint">Не удалось узнать состояние 2FA — проверь сеть и открой раздел заново.</p>)
   }
   if (section === 'pushlog') sectionView = plain(<PushLog />)
+  if (section === 'swipelog') sectionView = plain(<SwipeLog />)
 
   const hub = (
     <div className="screen admin">

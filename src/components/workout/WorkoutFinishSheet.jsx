@@ -1,6 +1,7 @@
 import SheetDialog from '../ui/SheetDialog.jsx'
 import CheckIcon from '../ui/CheckIcon.jsx'
 import { fmtTonnage } from '../../lib/profileStats.js'
+import { fmtTime } from '../../lib/metric.js'
 import { formatWorkoutDuration, workoutFinishSummary } from '../../lib/workoutFinish.js'
 
 export default function WorkoutFinishSheet({
@@ -40,6 +41,12 @@ export default function WorkoutFinishSheet({
             <div>
               <dt>Тоннаж</dt>
               <dd>{tonnage.value} <span>{tonnage.unit}</span></dd>
+            </div>
+          )}
+          {summary.timeUnderLoad > 0 && (
+            <div>
+              <dt>Под нагрузкой</dt>
+              <dd>{fmtTime(summary.timeUnderLoad)}</dd>
             </div>
           )}
           {duration && (

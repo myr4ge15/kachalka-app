@@ -11,6 +11,7 @@
 // Серии засчитываем по МАКСИМАЛЬНОЙ за историю (прерванная серия не закрывает
 // высокие вехи навсегда) — для этого локальный maxStreakWeeks.
 // ============================================================================
+import { mainEntries } from './entries.js'
 import { currentStreak, totalTonnage, fmtTonnage } from './profileStats.js'
 import { minePrs } from './records.js'
 import { cmpIsoAsc } from './cmp.js'
@@ -165,7 +166,7 @@ export function badgeEarnedDates(workouts) {
   const volPending = new Set(volDefs.map((d) => d.id))
   let cum = 0
   for (const w of chron) {
-    for (const e of w.entries ?? []) {
+    for (const e of mainEntries(w)) {
       for (const s of e.sets ?? []) {
         cum += setTonnage(normMetric(e.metric ?? e.exercise?.metric), s) // км дистанции — не кг
       }

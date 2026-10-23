@@ -14,6 +14,7 @@
 // наоборот, зависят от него (переехали на `lastTrainedByGroup`). Поэтому `dayIndex`
 // и `groupOf` здесь — свои маленькие копии (паритет с insights.js), а не импорт.
 // ============================================================================
+import { mainEntries } from './entries.js'
 import { GROUP_ORDER } from './dayTags.js'
 import {
   recoveryHoursFor as subRecoveryHoursFor,
@@ -65,7 +66,7 @@ export function lastTrainedByGroup(workouts) {
     const t = new Date(w.performed_at).getTime()
     if (Number.isNaN(t)) continue
     const day = dayIndex(new Date(w.performed_at))
-    for (const g of new Set((w.entries ?? []).map(groupOf).filter(Boolean))) {
+    for (const g of new Set(mainEntries(w).map(groupOf).filter(Boolean))) {
       const cur = map.get(g)
       if (!cur || t > cur.t) map.set(g, { day, at: w.performed_at, t })
     }
@@ -262,7 +263,7 @@ export function lastTrainedBySubmuscle(workouts) {
     const t = new Date(w.performed_at).getTime()
     if (Number.isNaN(t)) continue
     const day = dayIndex(new Date(w.performed_at))
-    for (const s of new Set((w.entries ?? []).map(subOf).filter(Boolean))) {
+    for (const s of new Set(mainEntries(w).map(subOf).filter(Boolean))) {
       const cur = map.get(s)
       if (!cur || t > cur.t) map.set(s, { day, at: w.performed_at, t })
     }
@@ -280,7 +281,7 @@ export function lastWorkedBySubmuscle(workouts) {
     if (Number.isNaN(t)) continue
     const day = dayIndex(new Date(w.performed_at))
     const subs = new Set()
-    for (const e of w.entries ?? []) {
+    for (const e of mainEntries(w)) {
       const p = subOf(e)
       if (p) subs.add(p)
       for (const s of secOf(e)) subs.add(s)

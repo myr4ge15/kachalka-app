@@ -116,8 +116,12 @@ const SETTLE_PACE = 2.8           // быстрый бросок: доезд с�
 const MAX_START_SLOPE = 4         // потолок начального наклона кривой (y1 ≤ 1)
 
 // Копит точки касания { x, t } для сглаженной скорости. Мутирует samples.
-export function pushSample(samples, x, t) {
-  samples.push({ x, t })
+// t — время СОБЫТИЯ (e.timeStamp): по нему скорость; iOS отдает движения пачками, и время обработки у
+// нескольких точек совпадает — скорость по нему занижалась (fb_d5c13f18). h — время обработки
+// (gestureNow), по нему только «палец постоял перед отпусканием»: так не важно, теми ли часами у
+// touchend идет timeStamp. Без h — как раньше, по t.
+export function pushSample(samples, x, t, h = t) {
+  samples.push({ x, t, h })
   while (samples.length > 2 && t - samples[1].t >= VELOCITY_WINDOW_MS) samples.shift()
   return samples
 }
@@ -127,7 +131,7 @@ export function releaseVelocity(samples, endT) {
   if (samples.length < 2) return 0
   const first = samples[0]
   const last = samples[samples.length - 1]
-  if (Number.isFinite(endT) && endT - last.t > VELOCITY_STALE_MS) return 0
+  if (Number.isFinite(endT) && endT - (last.h ?? last.t) > VELOCITY_STALE_MS) return 0
   const dt = last.t - first.t
   return dt > 0 ? (last.x - first.x) / dt : 0
 }
@@ -139,7 +143,7 @@ const FLICK_STALE_MS = 120
 export function flickVelocity(samples, endT) {
   if (samples.length < 2) return 0
   const last = samples[samples.length - 1]
-  if (Number.isFinite(endT) && endT - last.t > FLICK_STALE_MS) return 0
+  if (Number.isFinite(endT) && endT - (last.h ?? last.t) > FLICK_STALE_MS) return 0
   let best = 0
   for (let i = 1; i < samples.length; i++) {
     const dt = samples[i].t - samples[i - 1].t

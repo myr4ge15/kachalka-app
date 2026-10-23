@@ -24,6 +24,8 @@ import { mergeDecision } from '../../lib/mergeClock.js'
 import { reconcileStaleWorkouts } from '../../lib/pullReconcile.js'
 import { maxUpdatedAt, changedSince, rosterSignature } from '../../lib/pullWatermark.js'
 import { pickExerciseShape } from '../../lib/entries.js'
+import { phaseValue } from '../../lib/workoutPhases.js'
+import { withPhase } from '../phaseColumn.js'
 
 // Инкрементальный pull (BACKLOG-техдолг): вместо полного снапшота всей базы каждые
 // 20 c тянем ТОЛЬКО дельту по серверному watermark updated_at. Тренировки —
@@ -50,14 +52,15 @@ const SIG_TEMPLATES = 'sig_templates_v2' // сигнатура окна шабл
 // только со второго подряд отсутствия — страховка от лага read-replica (см.
 // lib/pullReconcile.js reconcileStaleWorkouts).
 const PENDING_DELETES = 'pending_workout_deletes'
+// phase — блок разминки/заминки (23.10.2026); сервер без колонки — выборка без нее (db/phaseColumn.js).
 const SELECT_WORKOUT =
   'id, performed_at, created_at, updated_at, user_id, ' +
-  'workout_exercises(id, position, exercise_id, ' +
+  'workout_exercises(id, position, exercise_id, phase, ' +
   'exercise:exercises(id, name, muscle_group, submuscle, secondary, is_bench_lift, metric), ' +
   'sets(id, set_number, weight, reps))'
 const SELECT_TEMPLATE =
   'id, name, user_id, is_public, created_at, updated_at, author:users(name), ' +
-  'template_exercises(position, exercise_id, target_sets, target_reps, target_weight, target_plan, ' +
+  'template_exercises(position, exercise_id, phase, target_sets, target_reps, target_weight, target_plan, ' +
   'exercise:exercises(id, name, muscle_group, submuscle, secondary, is_bench_lift, metric))'
 
 // server row → локальный денормализованный документ
@@ -74,6 +77,7 @@ function rowToDoc(w) {
       sets: [...(we.sets ?? [])]
         .sort((a, b) => (a.set_number ?? 0) - (b.set_number ?? 0))
         .map((s) => ({ weight: Number(s.weight), reps: Number(s.reps) })),
+      ...(phaseValue(we.phase) ? { phase: phaseValue(we.phase) } : {}),
     }))
   return {
     id: w.id,
@@ -103,6 +107,7 @@ function templateRowToDoc(t) {
         ? pickExerciseShape(te.exercise)
         : { id: te.exercise_id, name: '—' },
       position: i,
+      ...(phaseValue(te.phase) ? { phase: phaseValue(te.phase) } : {}),
       ...(te.target_plan ? { metric: te.target_plan.metric, set_plan: te.target_plan.sets } : {}),
       // Целевой план (подходы × повторы × вес). Легаси-строки без целей → null;
       // редактор/применение подставят дефолты.
@@ -200,9 +205,7 @@ async function refreshWorkoutsForExercises(userId, exerciseIds, d = db) {
   const ids = [...seen.keys()]
   for (let i = 0; i < ids.length; i += HEAL_CHUNK) {
     const chunk = ids.slice(i, i + HEAL_CHUNK)
-    const res = await withTimeout(
-      supabase.from('workouts').select(SELECT_WORKOUT).eq('user_id', userId).in('id', chunk)
-    )
+    const res = await withPhase(SELECT_WORKOUT, (sel) => supabase.from('workouts').select(sel).eq('user_id', userId).in('id', chunk))
     if (res.error) {
       warnings.push('история не обновлена после правки упражнения: ' + (res.error.message ?? res.error))
       break
@@ -347,9 +350,11 @@ async function pullWorkouts(userId, justPushed = new Set(), d = db, { identityVe
   // Порядок по updated_at asc, чтобы watermark двигался монотонно. Лимита нет:
   // ограничивать нельзя (отсеченные старше wm строки иначе не доедут никогда).
   const wmWorkouts = await getMeta(WM_WORKOUTS, d)
-  let wkQuery = supabase.from('workouts').select(SELECT_WORKOUT).eq('user_id', userId)
-  if (wmWorkouts) wkQuery = wkQuery.gt('updated_at', wmWorkouts)
-  wkQuery = wkQuery.order('updated_at', { ascending: true })
+  const wkQuery = (sel) => {
+    let q = supabase.from('workouts').select(sel).eq('user_id', userId)
+    if (wmWorkouts) q = q.gt('updated_at', wmWorkouts)
+    return q.order('updated_at', { ascending: true })
+  }
   // Оконный запрос дельты (тяжелый join) и ПОЛНЫЙ набор серверных id (без join'ов —
   // дешево, лишь UUID'ы для НАДЕЖНОЙ реконсиляции удалений: контент тянем по
   // watermark, но удаления так не увидеть — строка исчезает, updated_at не растет)
@@ -358,7 +363,7 @@ async function pullWorkouts(userId, justPushed = new Set(), d = db, { identityVe
   // цикле просто пропускаем (не удаляем вслепую), поэтому приводим к форме { error }
   // как у PostgREST, а не даем Promise.all зареджектиться.
   const [wk, idsRes] = await Promise.all([
-    withTimeout(wkQuery),
+    withPhase(SELECT_WORKOUT, wkQuery),
     withTimeout(supabase.from('workouts').select('id').eq('user_id', userId))
       .catch((e) => ({ error: e })),
   ])
@@ -471,9 +476,7 @@ async function pullWorkouts(userId, justPushed = new Set(), d = db, { identityVe
       const chunk = missing.slice(i, i + HEAL_CHUNK)
       let res
       try {
-        res = await withTimeout(
-          supabase.from('workouts').select(SELECT_WORKOUT).eq('user_id', userId).in('id', chunk)
-        )
+        res = await withPhase(SELECT_WORKOUT, (sel) => supabase.from('workouts').select(sel).eq('user_id', userId).in('id', chunk))
       } catch (e) { res = { error: e } }
       if (res.error) {
         warnings.push('история не дотянута: ' + (res.error.message ?? res.error))
@@ -530,18 +533,10 @@ async function pullTemplates(userId, d = db, { identityVerified = false } = {}) 
   const tplChanged = tplProbe.error ? true : tplSig !== (await getMeta(SIG_TEMPLATES, d))
   if (tplChanged) {
     // Не затираем локальные несинхронизированные изменения.
-    let tpl = await withTimeout(
-      supabase
-        .from('workout_templates')
-        .select(SELECT_TEMPLATE)
-        .or(`user_id.eq.${userId},is_public.eq.true`)
-    )
+    const tplQuery = (sel) => supabase.from('workout_templates').select(sel).or(`user_id.eq.${userId},is_public.eq.true`)
+    let tpl = await withPhase(SELECT_TEMPLATE, tplQuery)
     const legacyServer = tpl.error?.code === '42703' && /target_plan/.test(tpl.error.message ?? '')
-    if (legacyServer) {
-      tpl = await withTimeout(supabase.from('workout_templates')
-        .select(SELECT_TEMPLATE.replace('target_plan, ', ''))
-        .or(`user_id.eq.${userId},is_public.eq.true`))
-    }
+    if (legacyServer) tpl = await withPhase(SELECT_TEMPLATE.replace('target_plan, ', ''), tplQuery)
     if (tpl.error) warnings.push('шаблоны: ' + (tpl.error.message ?? tpl.error))
     // Пустое окно шаблонов без подтвержденной личности — не повод удалять чистые
     // локальные (см. pullExercises и pullWorkouts).

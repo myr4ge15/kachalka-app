@@ -11,7 +11,7 @@
 import { bestOneRepMax } from './oneRepMax.js'
 import { cmpIsoAsc } from './cmp.js'
 import { localYmd } from './calendar.js'
-import { currentExerciseShapes, isCurrentUnit } from './entries.js'
+import { currentExerciseShapes, isCurrentUnit, mainEntries } from './entries.js'
 
 // Собрать упражнения, встречавшиеся в истории (только с непустыми подходами).
 // Возвращает отсортированный массив { id, name, is_bench_lift, hasWeight, metric }:
@@ -26,7 +26,7 @@ export function collectExercises(workouts) {
   const shapes = currentExerciseShapes(workouts)
   const map = new Map()
   for (const w of workouts ?? []) {
-    for (const e of w.entries ?? []) {
+    for (const e of mainEntries(w)) {
       const id = e.exercise?.id ?? e.exercise_id
       if (!id) continue
       const sets = e.sets ?? []
@@ -74,7 +74,7 @@ export function buildSeries(workouts, exerciseId, weighted, { distance = false }
     // вчерашней в одну точку.
     const day = localYmd(w.performed_at)
     if (!day) continue
-    for (const e of w.entries ?? []) {
+    for (const e of mainEntries(w)) {
       const id = e.exercise?.id ?? e.exercise_id
       if (id !== exerciseId) continue
       if (!isCurrentUnit(e, shape)) continue

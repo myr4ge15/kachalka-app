@@ -11,7 +11,7 @@
 // остаются в WorkoutScreen. `sk()` — модульный счетчик стабильных ключей строк
 // подхода (общий с progressionCard), поэтому новые подходы получают уникальный _k.
 // ============================================================================
-import { exerciseMetric, isCountMetric, hasExtraWeight } from './metric.js'
+import { exerciseMetric, isCountMetric, hasExtraWeight, hasLoadWeight } from './metric.js'
 import { WEIGHT_MAX, repsMax, weightMin, savableSet } from './setLimits.js'
 import { templatePlan } from './templatePlan.js'
 import { defaultSet, sk } from './progressionCard.js'
@@ -51,7 +51,8 @@ export function replaceExerciseIn(entries, idx, ex) {
     const unitChanged = prev !== next && (prev === 'distance' || next === 'distance')
     // Доп. вес «своего веса» переживает замену только на такое же упражнение
     // (брусья → подтягивания); 60 кг жима не должны стать «+60 кг» на брусьях.
-    const keepExtra = hasExtraWeight(next) && hasExtraWeight(prev)
+    // Вес снаряда «На время» — так же: планка с блином → боковая планка.
+    const keepExtra = (hasExtraWeight(next) && hasExtraWeight(prev)) || (hasLoadWeight(next) && hasLoadWeight(prev))
     const zero = count && !keepExtra
     const sets = zero || unitChanged ? e.sets.map((s) => ({ ...s, weight: zero ? 0 : '' })) : e.sets
     return { exercise: ex, sets }

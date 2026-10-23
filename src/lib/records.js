@@ -13,7 +13,7 @@
 // ============================================================================
 import { cmpIsoAsc } from './cmp.js'
 import { leadingValue, normMetric } from './metric.js'
-import { entryExId, entryMetric, currentExerciseShapes, entryUnitMetric, isCurrentUnit } from './entries.js'
+import { entryExId, entryMetric, currentExerciseShapes, entryUnitMetric, isCurrentUnit, mainEntries } from './entries.js'
 
 // Максимальный фактический вес среди подходов [{weight, reps}]. Оставлен для
 // весо-специфичных мест (цели в кг — profileStats.currentBest).
@@ -33,7 +33,7 @@ export function myBestByExercise(workouts) {
   const shapes = currentExerciseShapes(workouts)
   const best = new Map()
   for (const w of workouts ?? []) {
-    for (const e of w.entries ?? []) {
+    for (const e of mainEntries(w)) {
       const exId = entryExId(e)
       if (!exId) continue
       const shape = shapes.get(exId)
@@ -71,7 +71,7 @@ export function minePrs(workouts) {
       cmpIsoAsc(String(a.id), String(b.id))
   )
   for (const w of chron) {
-    for (const e of w.entries ?? []) {
+    for (const e of mainEntries(w)) {
       const exId = entryExId(e)
       if (!exId) continue
       const shape = shapes.get(exId)
@@ -133,7 +133,7 @@ export function computeBeaten(feedItems, userId, myBest) {
   const seen = new Map() // `${friend}:${exId}` → его максимум в окне (undefined — еще не видели)
   const out = []
   for (const it of chron) {
-    for (const e of it.entries ?? []) {
+    for (const e of mainEntries(it)) {
       const exId = entryExId(e)
       if (!exId) continue
       const mine = myBest.get(exId)
@@ -201,7 +201,7 @@ export function hasSetMeetingGoal(sets, targetWeight, targetReps) {
 // по весу), потому что условие двойное и должно выполняться в одном подходе.
 export function goalMetByExercise(workouts, exerciseId, targetWeight, targetReps) {
   for (const w of workouts ?? []) {
-    for (const e of w.entries ?? []) {
+    for (const e of mainEntries(w)) {
       if (entryExId(e) !== exerciseId) continue
       if (hasSetMeetingGoal(e.sets, targetWeight, targetReps)) return true
     }
