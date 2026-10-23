@@ -2,7 +2,7 @@ import { test, expect } from '@playwright/test'
 
 test.use({ hasTouch: true, viewport: { width: 390, height: 500 } })
 
-test('чипы листаются пальцем в пикере и во вложенной форме', async ({ page, context }) => {
+test('чипы фильтра листаются пальцем, во вложенной форме — переносом', async ({ page, context }) => {
   await context.route(/supabase\.co/, (route) => route.abort())
   await page.goto('/kachalka-app/')
   await page.evaluate(async () => {
@@ -41,7 +41,11 @@ test('чипы листаются пальцем в пикере и во вло�
   await checkRow(dialog.locator('.chips').first())
   await dialog.getByRole('button', { name: 'Добавить свое упражнение' }).click()
   await dialog.getByRole('button', { name: 'грудь', exact: true }).click()
-  await checkRow(dialog.locator('.chips').first())
+  // Во вложенной форме ряды — переносом, а не лентой вбок (fb_c2afcbd9, отзыв Ильи): ничего не прячется за краем.
+  for (const row of await dialog.locator('.chips.wrap').all()) {
+    await expect(row).toBeVisible()
+    expect(await row.evaluate((el) => el.scrollWidth - el.clientWidth)).toBeLessThanOrEqual(1)
+  }
   // Вертикальный скролл формы после горизонтального жеста по-прежнему доступен.
   const body = dialog.locator('.sheet-scroll')
   await expect.poll(() => body.evaluate(el => el.scrollHeight - el.clientHeight)).toBeGreaterThan(0)
