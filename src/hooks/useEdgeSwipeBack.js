@@ -19,7 +19,7 @@
 import { useEffect, useRef } from 'react'
 import { flushSync } from 'react-dom'
 import {
-  EDGE_PX, edgeSwipeSupported, flickVelocity, pushSample, releaseVelocity, settleMotion, swipeAxis, swipeBackBlocked, swipeCommits,
+  EDGE_PX, edgeSwipeSupported, flickVelocity, gestureNow, pushSample, releaseVelocity, settleMotion, swipeAxis, swipeBackBlocked, swipeCommits,
   textSelectionActive, underlayDim, underlayShift,
 } from '../lib/screenNav.js'
 import { isIOSDevice } from '../lib/pushSupport.js'
@@ -135,7 +135,7 @@ export function useEdgeSwipeBack(containerRef, screenRef, onBack, enabled) {
       const edge = t.clientX <= EDGE_PX
       if (!edge && swipeBackBlocked(e.target, box)) return
       if (textSelectionActive(window.getSelection?.())) return // тянут ручки выделения
-      g = { x0: t.clientX, y0: t.clientY, edge, axis: null, dx: 0, samples: pushSample([], t.clientX, e.timeStamp) }
+      g = { x0: t.clientX, y0: t.clientY, edge, axis: null, dx: 0, samples: pushSample([], t.clientX, gestureNow(e)) }
     }
 
     function onMove(e) {
@@ -161,7 +161,7 @@ export function useEdgeSwipeBack(containerRef, screenRef, onBack, enabled) {
         screen()?.classList.add('edge-dragging')
       }
       e.preventDefault() // наш жест: не прокручиваем и не отдаем странице
-      pushSample(g.samples, t.clientX, e.timeStamp)
+      pushSample(g.samples, t.clientX, gestureNow(e))
       g.dx = Math.min(Math.max(0, dx), g.width)
       if (g.preview && !reducedMotion()) setLeft(g.dx, null, g.width)
     }
@@ -171,8 +171,8 @@ export function useEdgeSwipeBack(containerRef, screenRef, onBack, enabled) {
       const done = g
       g = null
       if (done.axis !== 'x') return
-      const v = releaseVelocity(done.samples, e?.timeStamp)
-      if (swipeCommits(done.dx, Math.max(v, flickVelocity(done.samples, e?.timeStamp)), done.width)) {
+      const v = releaseVelocity(done.samples, gestureNow(e))
+      if (swipeCommits(done.dx, Math.max(v, flickVelocity(done.samples, gestureNow(e))), done.width)) {
         if (!done.preview || reducedMotion()) { finishBack(); return }
         // Экран уехал — дальше обычная «Назад»: смена tab размонтирует этот экран.
         settle(done.dx, done.width, v, done.width, finishBack)

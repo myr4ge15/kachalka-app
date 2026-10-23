@@ -293,7 +293,7 @@ export default function ExercisePicker({
           )}
 
           <div className="create-label">Тип</div>
-          <div className="chips">
+          <div className="chips wrap">
             <button
               className={newMetric === 'weight' ? 'chip active' : 'chip'} aria-pressed={newMetric === 'weight'}
               onClick={() => setNewMetric('weight')}
@@ -322,7 +322,8 @@ export default function ExercisePicker({
           </div>
 
           <div className="create-label">Группа мышц</div>
-          <div className="chips">
+          {/* Переносом, а не прокруткой вбок (fb_c2afcbd9, отзыв Ильи: «группы приходится листать»). */}
+          <div className="chips wrap">
             {createGroups.map((g) => (
               <button
                 key={g}
@@ -337,7 +338,7 @@ export default function ExercisePicker({
           {submusclesOf(newGroup).length > 0 && (
             <>
               <div className="create-label">Основная мышца</div>
-              <div className="chips">
+              <div className="chips wrap">
                 {submusclesOf(newGroup).map((s) => (
                   <button
                     key={s}

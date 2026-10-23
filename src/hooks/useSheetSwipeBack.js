@@ -15,7 +15,7 @@
 import { useEffect, useRef } from 'react'
 import { flushSync } from 'react-dom'
 import {
-  EDGE_PX, flickVelocity, pushSample, releaseVelocity, settleMotion, swipeAxis, swipeBackBlocked, swipeCommits, textSelectionActive,
+  EDGE_PX, flickVelocity, gestureNow, pushSample, releaseVelocity, settleMotion, swipeAxis, swipeBackBlocked, swipeCommits, textSelectionActive,
 } from '../lib/screenNav.js'
 
 function reducedMotion() {
@@ -66,7 +66,7 @@ export function useSheetSwipeBack(overlayRef, sheetRef, onDismiss, enabled) {
       const edge = t.clientX - left <= EDGE_PX
       if (!edge && swipeBackBlocked(e.target, overlay)) return
       if (textSelectionActive(window.getSelection?.())) return
-      g = { x0: t.clientX, y0: t.clientY, edge, axis: null, dx: 0, samples: pushSample([], t.clientX, e.timeStamp) }
+      g = { x0: t.clientX, y0: t.clientY, edge, axis: null, dx: 0, samples: pushSample([], t.clientX, gestureNow(e)) }
     }
 
     function onMove(e) {
@@ -82,7 +82,7 @@ export function useSheetSwipeBack(overlayRef, sheetRef, onDismiss, enabled) {
         if (!g.axis) return
       }
       e.preventDefault()
-      pushSample(g.samples, t.clientX, e.timeStamp)
+      pushSample(g.samples, t.clientX, gestureNow(e))
       g.dx = Math.max(0, dx)
       if (!reducedMotion()) shift(g.dx, null)
     }
@@ -93,8 +93,8 @@ export function useSheetSwipeBack(overlayRef, sheetRef, onDismiss, enabled) {
       g = null
       if (done.axis !== 'x') return
       const width = sheetRef.current?.clientWidth || window.innerWidth
-      const v = releaseVelocity(done.samples, e?.timeStamp)
-      if (swipeCommits(done.dx, Math.max(v, flickVelocity(done.samples, e?.timeStamp)), width)) {
+      const v = releaseVelocity(done.samples, gestureNow(e))
+      if (swipeCommits(done.dx, Math.max(v, flickVelocity(done.samples, gestureNow(e))), width)) {
         if (reducedMotion()) { clearTimeout(settleTimer); settling = true; finish(); return }
         settle(done.dx, width, v, finish)
       } else {

@@ -1,6 +1,6 @@
 import { describe, it, expect } from 'vitest'
 import { transitionKind, isNested, swipeAxis, swipeBackBlocked, swipeCommits, textSelectionActive, edgeSwipeSupported, nextScreenStack, initialScreenStack,
-  flickVelocity, pushSample, releaseVelocity, settleMotion, underlayShift, underlayDim } from './screenNav.js'
+  flickVelocity, gestureNow, pushSample, releaseVelocity, settleMotion, underlayShift, underlayDim } from './screenNav.js'
 
 describe('стек возврата', () => {
   it('сохраняет предков и убирает закрытые дочерние экраны', () => {
@@ -140,15 +140,15 @@ describe('мягкий доезд свайпа', () => {
     expect(slow.easing).toBe('cubic-bezier(0.25, 0, 0.35, 1)')
     const fast = settleMotion(260, 3)
     expect(fast.ms).toBeLessThan(slow.ms)
-    expect(fast.ms).toBeGreaterThanOrEqual(140)
+    expect(fast.ms).toBeGreaterThanOrEqual(180)
     // начальный наклон кривой (y1/x1) ≈ скорость пальца × время / путь
     const y1 = Number(fast.easing.match(/0\.25, ([\d.]+),/)[1])
     expect(y1 / 0.25).toBeCloseTo(Math.min(4, (3 * fast.ms) / 260), 1)
   })
   it('время в пределах, скорость от цели не ускоряет', () => {
     expect(settleMotion(2000, 0).ms).toBe(320)
-    expect(settleMotion(10, 50).ms).toBe(140)
-    expect(settleMotion(0, 1)).toEqual({ ms: 140, easing: 'cubic-bezier(0.25, 0, 0.35, 1)' })
+    expect(settleMotion(10, 50).ms).toBe(180)
+    expect(settleMotion(0, 1)).toEqual({ ms: 180, easing: 'cubic-bezier(0.25, 0, 0.35, 1)' })
     expect(settleMotion(-200, -2)).toEqual(settleMotion(200, 0))
   })
   it('подложка: левее на 30% и притемнена в начале, на месте и светлая в конце', () => {
@@ -172,4 +172,12 @@ it('flickVelocity — пик в окне; палец постоял — брос
   expect(flickVelocity(s, 64)).toBeCloseTo(50 / 16)
   expect(flickVelocity(s, 300)).toBe(0)
   expect(flickVelocity([], 0)).toBe(0)
+})
+
+// fb_e1583b4f: короткий бросок засчитывается; часы жеста — свои, не timeStamp события.
+it('swipeCommits — бросок от 0,3 px/мс на 30 px; gestureNow — performance.now', () => {
+  expect(swipeCommits(50, 0.35, 390)).toBe(true)
+  expect(swipeCommits(25, 2, 390)).toBe(false)
+  expect(swipeCommits(50, 0.2, 390)).toBe(false)
+  expect(typeof gestureNow({ timeStamp: 5 })).toBe('number')
 })

@@ -89,10 +89,17 @@ export function textSelectionActive(sel) {
   return Boolean(sel && !sel.isCollapsed && String(sel).trim())
 }
 
-// Довели ли жест до «Назад»: треть ширины или быстрый бросок (px/мс).
+// Довели ли жест до «Назад»: треть ширины или бросок (px/мс). fb_e1583b4f (23.10): короткий бросок на ~50 px
+// возвращал экран — порог броска снижен до 0,3 px/мс на 30 px (у iOS бросок «назад» еще мягче).
 export function swipeCommits(dx, velocity, width) {
   if (dx <= 0) return false
-  return dx > width / 3 || (velocity > 0.45 && dx > 40)
+  return dx > width / 3 || (velocity > 0.3 && dx > 30)
+}
+
+// Часы жеста (fb_e1583b4f): у touchend на iOS timeStamp может идти не теми же часами, что у touchmove, —
+// тогда «палец постоял» и бросок не засчитывался. Время меряем сами, одними часами на весь жест.
+export function gestureNow(e) {
+  try { return performance.now() } catch { return e?.timeStamp ?? Date.now() }
 }
 
 // ---------------------- Доезд после отпускания (fb_37f0c1a8) ----------------------
@@ -103,7 +110,7 @@ export function swipeCommits(dx, velocity, width) {
 
 const VELOCITY_WINDOW_MS = 80     // скорость — по последним ~80 мс, а не по одному кадру
 const VELOCITY_STALE_MS = 60      // палец постоял перед отпусканием — броска нет
-const SETTLE_MIN_MS = 140
+const SETTLE_MIN_MS = 180          // короче — возврат на место читался «прыжком» (fb_e1583b4f)
 const SETTLE_MAX_MS = 320
 const SETTLE_PACE = 2.8           // быстрый бросок: доезд стартует примерно со скоростью пальца
 const MAX_START_SLOPE = 4         // потолок начального наклона кривой (y1 ≤ 1)

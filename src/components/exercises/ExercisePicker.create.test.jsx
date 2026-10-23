@@ -111,4 +111,13 @@ describe('ExercisePicker — сканер', () => {
     fireEvent.click(screen.getByRole('button', { name: 'Закрыть сканер' }))
     expect(search()).toBeInTheDocument()
   })
+
+  // fb_c2afcbd9 (отзыв Ильи): ряды выбора — переносом, без прокрутки вбок.
+  it('тип, группа и основная мышца — переносом, а не лентой вбок', () => {
+    renderPicker()
+    openCreate('Новое')
+    for (const label of ['Тип', 'Группа мышц']) {
+      expect(screen.getByText(label, { selector: '.create-label' }).nextElementSibling).toHaveClass('chips', 'wrap')
+    }
+  })
 })
