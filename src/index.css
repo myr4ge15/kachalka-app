@@ -4323,7 +4323,14 @@ html[data-sheet-open] .content { overflow-y: hidden; }
 .fc-toggle input { width: 20px; height: 20px; accent-color: var(--acc); flex: none; }
 .fc-grow { flex: 1; min-width: 0; }
 .fc-small { font-size: var(--fs-meta); color: var(--muted); }
-.fc-disc .fc-join-row { margin-top: 8px; }
+/* Полная ширина выбора: длинная подпись не конкурирует с кнопкой на телефоне. */
+.fc-disc-add { display: flex; flex-direction: column; gap: 8px; margin-top: 8px; }
+.fc-disc-add .btn { align-self: flex-end; margin: 0; min-height: 44px; padding: 8px 12px; font-size: var(--fs-label); }
+.fc-disc .fc-row { padding: 4px 0; gap: 8px; }
+.fc-disc .fc-toggle { padding: 0; gap: 8px; font-size: var(--fs-label); }
+.fc-disc .fc-small { font-size: var(--fs-meta); white-space: nowrap; }
+.fc-disc .fc-grow > span { overflow-wrap: anywhere; }
+.fc-owner .fc-join-row .btn { min-height: 44px; padding: 8px 12px; font-size: var(--fs-label); }
 .fc-danger { margin: 16px 0 12px; }
 .fc-create-btn { width: 100%; margin-bottom: 12px; }
 .lb-boards { margin-bottom: 10px; }

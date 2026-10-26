@@ -151,7 +151,7 @@ function CircleDisciplines({ api, circle }) {
           ))}
         </ul>
       )}
-      <div className="fc-join-row">
+      <div className="fc-disc-add">
         <select className="admin-input" aria-label="Добавить дисциплину" value={adding} disabled={busy}
           onChange={(e) => setAdding(e.target.value)}>
           <option value="">Добавить упражнение…</option>

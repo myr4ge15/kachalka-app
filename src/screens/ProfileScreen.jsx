@@ -1,3 +1,4 @@
+import Icon from '../components/ui/Icon.jsx'
 import MenuRow from '../components/ui/MenuRow.jsx'
 import { plural } from '../lib/plural.js'
 import { useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react'
@@ -237,7 +238,7 @@ export default function ProfileScreen({ user, onLogout, onAccountDeleted, onOpen
             <section className="sec">
               <p className="sec-title">Любимое</p>
               <div className="info-row">
-                <span className="em" aria-hidden="true">🔁</span>
+                <Icon name="repeat" size={22} />
                 <div>
                   <div className="v">{summary.favExercise.name}</div>
                   <div className="k">чаще всего · {summary.favExercise.sets} {plural(summary.favExercise.sets, 'подход', 'подхода', 'подходов')}</div>

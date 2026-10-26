@@ -1,3 +1,4 @@
+import Icon from '../components/ui/Icon.jsx'
 import PhaseTag from '../components/workout/PhaseTag.jsx'
 import Chevron from '../components/ui/Chevron.jsx'
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
@@ -220,7 +221,7 @@ export default function MemberScreen({ user, memberId, onBack, onOpenMember }) {
             <section className="sec">
               <p className="sec-title">Любимое</p>
               <div className="info-row">
-                <span className="em" aria-hidden="true">🔁</span>
+                <Icon name="repeat" size={22} />
                 <div>
                   <div className="v">{view.fav.name}</div>
                   <div className="k">чаще всего · {view.fav.sets} {plural(view.fav.sets, 'подход', 'подхода', 'подходов')}</div>
