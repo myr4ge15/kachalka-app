@@ -6,6 +6,7 @@ import { WHATS_NEW } from './src/content/whatsNew.js'
 import { versionJson as versionInfo } from './src/lib/whatsNew.js'
 import { avatarCachePattern, withBackendCsp } from './src/lib/backendOrigin.js'
 import { ocrAssets } from './scripts/ocrAssets.mjs'
+import { pureLibTests } from './src/test/pureTests.js'
 
 // Версия приложения — единый источник правды package.json; показывается внизу
 // «Профиля» (см. ProfileScreen). Подставляется на сборке в __APP_VERSION__,
@@ -64,6 +65,14 @@ const betaHtml = (on) => ({
     .replace('<title>Журнал тренировок</title>', '<title>Журнал тренировок · бета</title>')),
 })
 
+// include — только у проектов, не у корня: с `extends: true` списки include складываются, и корневой
+// 'src/**' затягивал в lib-pure весь набор (без изоляции и почти дважды, 26.10.2026).
+const ALL_TESTS = ['src/**/*.test.{js,jsx}']
+const testProjects = (pure) => [
+  { extends: true, test: { name: 'lib-pure', include: pure, isolate: false } },
+  { extends: true, test: { name: 'isolated', include: ALL_TESTS, exclude: pure } },
+]
+
 // VITE_APP_BASE=/ for the custom domain; keep the existing Pages path by default.
 export default defineConfig(({ mode }) => ({
   base: loadEnv(mode, process.cwd(), 'VITE_').VITE_APP_BASE || '/kachalka-app/',
@@ -79,8 +88,11 @@ export default defineConfig(({ mode }) => ({
   // См. docs/plans/PLAN-tests.md.
   test: {
     environment: 'node',
-    include: ['src/**/*.test.{js,jsx}'],
     setupFiles: ['./src/test/setup.js'],
+    // Два проекта (26.10.2026): чистые тесты src/lib — без изоляции, одним процессом на поток
+    // (старт процесса ~0,6 с был дороже самих тестов); остальное — как раньше, процесс на файл.
+    // Кто чистый, решает содержимое файла — src/test/pureTests.js.
+    projects: mode === 'test' ? testProjects(pureLibTests(process.cwd())) : undefined,
     // Покрытие (19.10.2026) — только по флагу --coverage: в CI его снимает одна нога
     // задачи unit (Москва), отчет — артефакт `coverage`, итог — аннотацией прогона.
     // main.jsx — только склейка запуска (логика сплэша — lib/splashBoot.js), его грузит

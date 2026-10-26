@@ -28,7 +28,11 @@ export default defineConfig({
   fullyParallel: false,
   forbidOnly: Boolean(process.env.CI),
   retries: process.env.CI ? 1 : 0,
-  workers: 1,
+  // Два потока в CI (26.10.2026): спеков стало 22, по одному шли 2 мин 40 с — самая долгая задача
+  // Tests. Друг другу они не мешают: у каждого теста свой контекст браузера (своя IndexedDB и
+  // localStorage) и свой сид; общий только dev-сервер. Файлы раздаются потокам целиком
+  // (fullyParallel: false), порядок внутри файла прежний. Локально — один поток, машину не грузим.
+  workers: process.env.CI ? 2 : 1,
   // github — падения аннотациями на прогоне (видны в сводке Actions без скачивания отчета).
   reporter: process.env.CI ? [['list'], ['github'], ['html', { open: 'never' }]] : [['list']],
 
