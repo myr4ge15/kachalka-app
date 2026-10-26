@@ -3754,7 +3754,8 @@ label.act.busy { opacity: .55; pointer-events: none; }
 /* Пока качается обновление (v1.4.3), штанга прыгает с «приседом» при приземлении, под ней
    дышит тень. Своя группа .splash-loop внутри .splash-lift — не спорит с жимом из сборки;
    задержку (--splash-loop-delay) ставит splashBoot.js, чтобы прыжки начались после сборки. */
-.splash-loop { transform-box: view-box; transform-origin: 100px 120px; }
+/* Присед — от низа блинов (y 131.25), а не от середины: иначе штанга сжимается в воздухе. */
+.splash-loop { transform-box: view-box; transform-origin: 100px 131.25px; }
 /* Тень — темная, а не в цвет акцента (fb_7f0c37b5: цветное пятно под штангой выглядело странно). */
 .splash-shadow { fill: rgb(0 0 0); opacity: 0; transform-box: fill-box; transform-origin: center; }
 .splash--updating .splash-loop { animation: splash-bounce 1s var(--splash-loop-delay, 0ms) infinite both; }
@@ -3766,9 +3767,15 @@ label.act.busy { opacity: .55; pointer-events: none; }
   88% { transform: none; }
   100% { transform: scale(1.08, .92); }
 }
+/* Тень повторяет splash-bounce: те же опорные точки и те же кривые на отрезках, размер — от высоты
+   (12% — подъем на 3 из 22), в приседе тень шире вместе со штангой. С кривой по умолчанию тень
+   на падении «обгоняла» штангу: восстанавливалась на 80%, пока та прошла лишь пятую часть пути. */
 @keyframes splash-shadow {
-  0%, 88%, 100% { opacity: .55; transform: none; }
-  48% { opacity: .2; transform: scaleX(.55); }
+  0% { opacity: .6; transform: scaleX(1.08); animation-timing-function: cubic-bezier(.2, .7, .4, 1); }
+  12% { opacity: .5; transform: scaleX(.94); animation-timing-function: cubic-bezier(.3, .6, .5, 1); }
+  48% { opacity: .2; transform: scaleX(.55); animation-timing-function: cubic-bezier(.5, 0, .8, .4); }
+  88% { opacity: .55; transform: none; }
+  100% { opacity: .6; transform: scaleX(1.08); }
 }
 /* Обновление при запуске (v6.13.0): «Обновляем до v…» + прогресс под знаком.
    Абсолютно — чтобы знак не прыгал, когда блок появляется. */
