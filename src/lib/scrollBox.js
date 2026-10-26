@@ -24,6 +24,14 @@ export function settleScroll(box, top = 0, raf = defaultRaf) {
   return () => { raf.cancel(id); finish() }
 }
 
+// Позиция скроллера, при которой el стоит по центру видимой части (выше видимой — по верху).
+// Для settleScroll: мгновенно и наверняка, в отличие от scrollIntoView на iPhone.
+export function centerTop(box, el) {
+  const b = box.getBoundingClientRect(), r = el.getBoundingClientRect()
+  const top = r.top - b.top + box.scrollTop
+  return Math.max(0, r.height >= b.height ? top : top - (b.height - r.height) / 2)
+}
+
 const defaultRaf = {
   request: (fn) => (typeof requestAnimationFrame === 'function' ? requestAnimationFrame(fn) : setTimeout(fn, 16)),
   cancel: (id) => (typeof cancelAnimationFrame === 'function' ? cancelAnimationFrame(id) : clearTimeout(id)),

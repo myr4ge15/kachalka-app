@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useRef, useState } from 'react'
 import { readDraft, writeDraft } from '../lib/draftStore.js'
+import { centerTop, settleScroll } from '../lib/scrollBox.js'
 import { nextFocusRequest, pickActiveExerciseId } from '../lib/workoutFocus.js'
 import { useRevealFocus } from './useRevealFocus.js'
 
@@ -9,6 +10,9 @@ import { useRevealFocus } from './useRevealFocus.js'
 // storeKey (fb_0f3069ec): выбранное упражнение новой тренировки живет рядом с черновиком
 // (lib/draftStore) — уход на другую вкладку размонтирует композер, и без этого по
 // возвращении раскрывалось первое упражнение, а не то, на котором остановились.
+// Восстановленную карточку один раз ставим по центру — мгновенно, через settleScroll. Через
+// два кадра: HistoryScreen при открытии сам ставит .content наверх (его эффект идет ПОСЛЕ
+// нашего, а settleScroll повторяет позицию еще через кадр) — раньше он бы нас перебил.
 export function useWorkoutFocus(entries, { preferIncomplete = false, startCollapsed = false, storeKey = null } = {}) {
   const [request, setRequest] = useState(() => ({ id: (storeKey && readDraft(storeKey)) || null, revision: 0 }))
   useEffect(() => {
@@ -30,6 +34,19 @@ export function useWorkoutFocus(entries, { preferIncomplete = false, startCollap
     ? `${request.revision}:${activeExerciseId}`
     : null
   const activeCardRef = useRevealFocus(revealKey)
+
+  const [restoredId] = useState(() => (request.id && entries?.some((e) => e?.exercise?.id === request.id) ? request.id : null))
+  useEffect(() => {
+    if (!restoredId) return undefined
+    let inner = null, undo = null
+    const outer = requestAnimationFrame(() => {
+      inner = requestAnimationFrame(() => {
+        const el = activeCardRef.current, box = el?.closest?.('.content')
+        if (el && box) undo = settleScroll(box, centerTop(box, el))
+      })
+    })
+    return () => { cancelAnimationFrame(outer); cancelAnimationFrame(inner); undo?.() }
+  }, [restoredId, activeCardRef])
 
   return { activeExerciseId, activeCardRef, activateExercise }
 }

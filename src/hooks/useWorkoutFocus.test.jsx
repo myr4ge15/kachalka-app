@@ -75,7 +75,45 @@ describe('useWorkoutFocus', () => {
     scroll.mockClear()
     render(<Probe entries={entries} storeKey="focus_t" />)
     expect(api.activeExerciseId).toBe('c')
-    expect(scroll).not.toHaveBeenCalled() // возврат — не переход, экран не уезжает
+    expect(scroll).not.toHaveBeenCalled() // возврат — не переход, плавного reveal нет
+  })
+
+  it('storeKey: восстановленная карточка через два кадра встает по центру .content', () => {
+    const frames = []
+    vi.stubGlobal('requestAnimationFrame', (fn) => frames.push(fn))
+    vi.stubGlobal('cancelAnimationFrame', () => {})
+    try {
+      const entries = [entry('a'), entry('b'), entry('c')]
+      const first = render(<Probe entries={entries} storeKey="focus_t" />)
+      act(() => api.activateExercise('c'))
+      first.unmount()
+      frames.length = 0
+      const box = document.createElement('div')
+      box.className = 'content'
+      document.body.appendChild(box)
+      render(<Probe entries={entries} storeKey="focus_t" />, { container: box })
+      box.getBoundingClientRect = () => ({ top: 0, height: 600 })
+      box.firstChild.getBoundingClientRect = () => ({ top: 900, height: 200 })
+      expect(frames).toHaveLength(1)
+      frames.shift()() // кадр 1: HistoryScreen еще ставит позицию наверх
+      expect(box.scrollTop).toBe(0)
+      frames.shift()() // кадр 2: центр карточки — по центру экрана
+      expect(box.scrollTop).toBe(700)
+      box.remove()
+    } finally {
+      vi.unstubAllGlobals()
+    }
+  })
+
+  it('без восстановления (первое открытие) экран не трогаем', () => {
+    const frames = []
+    vi.stubGlobal('requestAnimationFrame', (fn) => frames.push(fn))
+    try {
+      render(<Probe entries={[entry('a'), entry('b')]} storeKey="focus_t" />)
+      expect(frames).toHaveLength(0)
+    } finally {
+      vi.unstubAllGlobals()
+    }
   })
 
   it('storeKey: сохраненного упражнения уже нет в составе — первое', () => {

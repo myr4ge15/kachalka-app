@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { scrollToTop, settleScroll } from './scrollBox.js'
+import { centerTop, scrollToTop, settleScroll } from './scrollBox.js'
 
 function fakeRaf() {
   const q = new Map(); let n = 0
@@ -104,5 +104,17 @@ describe('scrollToTop', () => {
     expect(instant.scrollTop).toBe(0)
     expect(instant.calls).toEqual([])
     expect(() => scrollToTop(null)()).not.toThrow()
+  })
+})
+
+describe('centerTop', () => {
+  const rect = (top, height) => ({ getBoundingClientRect: () => ({ top, height }) })
+  it('карточка ниже экрана — по центру видимой части', () => {
+    const box = { ...rect(50, 600), scrollTop: 100 }
+    expect(centerTop(box, rect(950, 200))).toBe(100 + 900 - 200) // 1000 − (600 − 200) / 2
+  })
+  it('выше видимой части — по верху; у самого начала — не меньше 0', () => {
+    expect(centerTop({ ...rect(0, 600), scrollTop: 0 }, rect(300, 800))).toBe(300)
+    expect(centerTop({ ...rect(0, 600), scrollTop: 0 }, rect(40, 100))).toBe(0)
   })
 })
