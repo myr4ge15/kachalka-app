@@ -127,16 +127,17 @@ export function splashUpdateUi(doc, root, { reduce = false, raf, now = () => per
       else if (t - first.t >= 500 && p.pct > first.pct) pace = ((p.pct - first.pct) / (t - first.t)) * 1000
       moveTo(p.pct)
       bar.setAttribute('aria-valuenow', String(p.pct))
-      // Подпись по центру не дергается при «3» → «13» (20.10.2026) и не стоит с дырой «Загружено   8»
-      // (fb_afd6d919: рамка в ch была шире цифры): ширину держит невидимая копия финальной строки
-      // «Загружено M из M», живая строка — от ее левого края.
+      // Подпись — проценты (26.10.2026): «30 из 32» — число файлов, человеку оно ничего не говорит.
+      // По центру не дергается при «3%» → «13%» (20.10.2026) и не стоит с дырой (fb_afd6d919: рамка в ch
+      // была шире цифры): ширину держит невидимая копия финальной строки «Загружено 100%», живая — от ее
+      // левого края.
       const ghost = doc.createElement('span')
       ghost.className = 'splash-upd-ghost'
       ghost.setAttribute('aria-hidden', 'true')
-      ghost.textContent = `Загружено ${p.total} из ${p.total}`
+      ghost.textContent = 'Загружено 100%'
       const live = doc.createElement('span')
       live.className = 'splash-upd-live'
-      live.textContent = `Загружено ${p.done} из ${p.total}`
+      live.textContent = `Загружено ${p.pct}%`
       const capBox = doc.createElement('span')
       capBox.className = 'splash-upd-capbox'
       capBox.append(ghost, live)

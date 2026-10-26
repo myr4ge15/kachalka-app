@@ -25,6 +25,9 @@ describe('чистые части', () => {
 
   it('прогресс — доля скачанных из нужных', () => {
     expect(downloadProgress(['a', 'b', 'c', 'd'], new Set(['a', 'c', 'z']))).toEqual({ done: 2, total: 4, pct: 50 })
+    // вниз: 199 из 200 — еще не 100% (на сплэше проценты, 26.10.2026)
+    const keys = Array.from({ length: 200 }, (_, i) => String(i))
+    expect(downloadProgress(keys, new Set(keys.slice(1))).pct).toBe(99)
     expect(downloadProgress([], new Set())).toBeNull()
   })
 })

@@ -52,12 +52,13 @@ export function precacheKey(entry, baseUrl) {
   return u.href
 }
 
-// Прогресс по списку нужных ключей и тому, что сейчас в кэше.
+// Прогресс по списку нужных ключей и тому, что сейчас в кэше. pct — вниз (26.10.2026): на сплэше
+// теперь проценты, и «100%» должно значить «скачано все», а не 199 из 200.
 export function downloadProgress(needed, haveSet) {
   if (!needed.length) return null
   let done = 0
   for (const k of needed) if (haveSet.has(k)) done++
-  return { done, total: needed.length, pct: Math.round((done / needed.length) * 100) }
+  return { done, total: needed.length, pct: Math.floor((done / needed.length) * 100) }
 }
 
 const realSleep = (ms) => new Promise((r) => setTimeout(r, ms))

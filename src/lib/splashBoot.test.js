@@ -54,7 +54,7 @@ describe('splashUpdateUi', () => {
     expect($('splash').style.getPropertyValue('--splash-loop-delay')).toBe('0ms')
   })
 
-  it('progress — проценты и «Загружено N из M», пустой прогресс ничего не меняет', () => {
+  it('progress — проценты и «Загружено N%», пустой прогресс ничего не меняет', () => {
     const ui = splashUpdateUi(document, $('splash'), { reduce: true })
     ui.start('1.2.0')
     ui.progress(null)
@@ -63,10 +63,10 @@ describe('splashUpdateUi', () => {
     expect($('splash-upd-bar').classList.contains('splash-upd-bar--busy')).toBe(false)
     expect($('splash-upd-fill').style.width).toBe('30%')
     expect($('splash-upd-bar').getAttribute('aria-valuenow')).toBe('30')
-    expect($('splash-upd-cap').querySelector('.splash-upd-live').textContent).toBe('Загружено 3 из 10')
+    expect($('splash-upd-cap').querySelector('.splash-upd-live').textContent).toBe('Загружено 30%')
     // ширину держит невидимая финальная строка: подпись не дергается и без дыры у цифры (fb_afd6d919)
     const ghost = $('splash-upd-cap').querySelector('.splash-upd-ghost')
-    expect(ghost.textContent).toBe('Загружено 10 из 10')
+    expect(ghost.textContent).toBe('Загружено 100%')
     expect(ghost.getAttribute('aria-hidden')).toBe('true')
   })
 
