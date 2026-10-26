@@ -1,4 +1,5 @@
 import { useRevealFocus } from '../../hooks/useRevealFocus.js'
+import MenuRow from '../ui/MenuRow.jsx'
 
 // Блок действий композера тренировки: подтверждение «очистить черновик» (только
 // новая; сама кнопка «Очистить» с v6.1.0 — в шапке экрана, здесь только раскрытое
@@ -41,20 +42,20 @@ export default function WorkoutActions({
       : null
   }
 
+  // Действия — одной сгруппированной плашкой под заголовком (26.10.2026): отдельными карточками
+  // они сливались с карточками упражнений над ними.
   return (
-    <div className="wk-acts">
+    <section className="wk-acts" aria-labelledby="wk-acts-title">
+      <p className="sec-title wk-acts-title" id="wk-acts-title">Действия с тренировкой</p>
+      <div className="menu-group">
       {/* «Копировать тренировку» (26.10.2026) — первой: тот же состав новой тренировкой на сегодня. */}
       {canCopy && (copyArm
         ? confirm('В новой тренировке уже есть упражнения. Заменить их этой тренировкой?', onCancelCopy, onConfirmCopy,
           'Да, заменить', saving, 'primary')
         : (
-          <button className="wk-act" disabled={saving} onClick={onCopy}>
-            <ActIcon name="copy" />Копировать тренировку
-          </button>
+          <MenuRow kind="action" icon="copy" title="Копировать тренировку" disabled={saving} onClick={onCopy} />
         ))}
-      <button className="wk-act" disabled={saving} onClick={onExport}>
-        <ActIcon name="export" />Экспорт в JSON
-      </button>
+      <MenuRow kind="action" icon="download" title="Экспорт в JSON" disabled={saving} onClick={onExport} />
 
       {tplArm ? (
         // <form>: Enter («Готово») на клавиатуре iPhone создает шаблон (UI-ревью 23.10).
@@ -78,30 +79,15 @@ export default function WorkoutActions({
           </div>
         </form>
       ) : (
-        <button className="wk-act" disabled={saving} onClick={onOpenTpl}>
-          <ActIcon name="template" />Сделать шаблон из тренировки
-        </button>
+        <MenuRow kind="action" icon="template" title="Сделать шаблон из тренировки" disabled={saving} onClick={onOpenTpl} />
       )}
 
       {delArm
         ? confirm('Удалить эту тренировку? Действие необратимо.', onCancelDel, onDelete, saving ? 'Удаляю…' : 'Да, удалить', saving)
         : (
-          <button className="wk-act danger" disabled={saving} onClick={onArmDel}>
-            <ActIcon name="trash" />Удалить тренировку
-          </button>
+          <MenuRow kind="action" tone="danger" icon="trash" title="Удалить тренировку" disabled={saving} onClick={onArmDel} />
         )}
-    </div>
+      </div>
+    </section>
   )
-}
-
-// Иконки строк действий — инлайн-SVG (как TabIcon), красятся currentColor.
-function ActIcon({ name }) {
-  const p = {
-    className: 'wk-act-ico', viewBox: '0 0 24 24', width: 19, height: 19, fill: 'none',
-    stroke: 'currentColor', strokeWidth: 2, strokeLinecap: 'round', strokeLinejoin: 'round', 'aria-hidden': true,
-  }
-  if (name === 'export') return <svg {...p}><path d="M12 3v12M7 8l5-5 5 5M5 21h14" /></svg>
-  if (name === 'copy') return <svg {...p}><rect x="8" y="8" width="12" height="13" rx="2.5" /><path d="M16 8V5.5A2.5 2.5 0 0 0 13.5 3h-7A2.5 2.5 0 0 0 4 5.5v9A2.5 2.5 0 0 0 6.5 17H8" /></svg>
-  if (name === 'template') return <svg {...p}><rect x="5" y="4" width="14" height="17" rx="2.5" /><path d="M9 4V3h6v1M9 10h6M9 14h6" /></svg>
-  return <svg {...p}><path d="M4 7h16M9 7V4h6v3M6 7l1 14h10l1-14" /></svg>
 }

@@ -13,6 +13,7 @@ import BackButton from '../ui/BackButton.jsx'
 import Chevron from '../ui/Chevron.jsx'
 import CheckIcon from '../ui/CheckIcon.jsx'
 import ScrollTopButton from '../ui/ScrollTopButton.jsx'
+import Icon from '../ui/Icon.jsx'
 
 // Список шаблонов: «Мои» и «Общие» сворачиваемыми группами, экспорт выбранных в JSON
 // (вынесено из screens/TemplatesScreen.jsx, аудит 14.10). Открытие — onOpen(id | 'new').
@@ -37,7 +38,7 @@ function TemplateCard({ t, mine, onOpen, selectMode = false, picked = false, onP
           <div className="history-date">
             {t.name}
             {mine && Boolean(t.is_public) && (
-              <span className="tpl-badge" title="Виден всем">🌐 виден всем</span>
+              <span className="tpl-badge" title="Виден всем"><Icon name="globe" size={12} /> виден всем</span>
             )}
             {Boolean(t._dirty) && (
               <span className="dot-unsynced" title="Ждет синхронизации">●</span>

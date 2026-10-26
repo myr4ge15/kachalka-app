@@ -70,7 +70,7 @@ describe('WorkoutFinishSheet', () => {
 
     expect(screen.getByRole('list', { name: 'Другие результаты' })).toHaveTextContent('Новый рекорд!')
     expect(screen.getByRole('list', { name: 'Другие результаты' })).toHaveTextContent('Новое достижение!')
-    fireEvent.click(screen.getByRole('button', { name: '📋 Сохранить как шаблон' }))
+    fireEvent.click(screen.getByRole('button', { name: 'Сохранить как шаблон' }))
     expect(onCreateTemplate).toHaveBeenCalledOnce()
 
     rerender(

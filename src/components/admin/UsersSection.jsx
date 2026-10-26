@@ -8,6 +8,7 @@ import { showToast } from '../ui/Toast.jsx'
 import CardsSkeleton from '../ui/CardsSkeleton.jsx'
 import PencilIcon from '../ui/PencilIcon.jsx'
 import { useRevealFocus } from '../../hooks/useRevealFocus.js'
+import Icon from '../ui/Icon.jsx'
 
 // ─────────────────────────── Пользователи ─────────────────────────────────
 // cache (v8.0.1) — кэш визита Админки (lib/adminCache.js): готовый список рисуется сразу.
@@ -233,15 +234,15 @@ export default function UsersSection({ meId, online, errMsg, cache = null }) {
                 <div className="admin-ex-btns">
                   <button className="admin-mini" onClick={() => openEdit(u)} disabled={!online} aria-label="Изменить"><PencilIcon size={16} /></button>
                   <button className="admin-mini" onClick={() => resetPin(u)}
-                    disabled={!online || (pinBusy && pinForId === u.id)} aria-label="Сбросить PIN">🔑</button>
-                  {u.id !== meId && u.role !== 'admin' && <button className="admin-mini" onClick={() => { setDeleteUser(u); setDeleteConfirm('') }} disabled={!online} aria-label={`Удалить ${u.name}`} title="Удалить участника">🗑️</button>}
+                    disabled={!online || (pinBusy && pinForId === u.id)} aria-label="Сбросить PIN"><Icon name="key" size={18} /></button>
+                  {u.id !== meId && u.role !== 'admin' && <button className="admin-mini" onClick={() => { setDeleteUser(u); setDeleteConfirm('') }} disabled={!online} aria-label={`Удалить ${u.name}`} title="Удалить участника"><Icon name="trash" size={18} /></button>}
                 </div>
               </div>
             )}
             {shownPin?.id === u.id && (
               <div className="admin-pin-shown">
                 Новый PIN: <b>{shownPin.pin}</b>
-                <button className="admin-mini" onClick={() => setShownPin(null)} aria-label="Скрыть">✕</button>
+                <button className="admin-mini" onClick={() => setShownPin(null)} aria-label="Скрыть"><Icon name="close" size={14} strokeWidth={2.4} /></button>
               </div>
             )}
           </li>

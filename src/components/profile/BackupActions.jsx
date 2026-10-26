@@ -1,3 +1,4 @@
+import MenuRow from '../ui/MenuRow.jsx'
 import { useRef, useState } from 'react'
 import { exportAllMyData, importAllMyData } from '../../db/backup.js'
 import { describeImport, BackupError } from '../../lib/backup.js'
@@ -52,21 +53,12 @@ export default function BackupActions({ userId }) {
 
   return (
     <>
-      <button className="act" onClick={doExportAll} disabled={bkBusy}>
-        <span className="act-txt">
-          💾 Скачать все мои данные
-          <span className="act-sub">один JSON: тренировки, цели, достижения, настройки</span>
-        </span>
-      </button>
+      <MenuRow kind="action" icon="download" title="Скачать все мои данные"
+        sub="один JSON: тренировки, цели, достижения, настройки" onClick={doExportAll} disabled={bkBusy} />
       {/* Восстановление — кнопка, которая открывает скрытый выбор файла (UI-ревью 23.10: <label>
           скринридер не читал как кнопку, с клавиатуры не нажимался). */}
-      <button type="button" className={'act' + (bkBusy ? ' busy' : '')} disabled={bkBusy}
-        onClick={() => backupInput.current?.click()}>
-        <span className="act-txt">
-          📥 Восстановить из файла
-          <span className="act-sub">добавит только то, чего сейчас нет</span>
-        </span>
-      </button>
+      <MenuRow kind="action" icon="upload" title="Восстановить из файла" sub="добавит только то, чего сейчас нет"
+        className={bkBusy ? 'busy' : ''} disabled={bkBusy} onClick={() => backupInput.current?.click()} />
       <input
         ref={backupInput}
         type="file"

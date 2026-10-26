@@ -101,7 +101,7 @@ describe('Профиль: смена PIN', () => {
   it('проверки формы и успешная смена', async () => {
     render(<Harness />)
     await openSettings()
-    fireEvent.click(screen.getByRole('button', { name: '🔑 Сменить PIN' }))
+    fireEvent.click(screen.getByRole('button', { name: 'Сменить PIN' }))
     const cur = screen.getByLabelText('Текущий PIN')
     const next = screen.getByLabelText('Новый PIN')
     const rpt = screen.getByLabelText('Повтор нового PIN')
@@ -129,7 +129,7 @@ describe('Профиль: застрявшие изменения', () => {
     vi.mocked(repo.deadLetterCount).mockResolvedValue(2)
     render(<Harness />)
     expect(await screen.findByText(/Не удалось отправить изменений: 2/)).toBeInTheDocument()
-    fireEvent.click(screen.getByRole('button', { name: '🔄 Повторить отправку' }))
+    fireEvent.click(screen.getByRole('button', { name: 'Повторить отправку' }))
     await waitFor(() => expect(repo.retryDeadLetter).toHaveBeenCalled())
 
     await openSettings()
@@ -147,7 +147,7 @@ describe('Профиль: данные', () => {
     await openSettings()
     fireEvent.click(screen.getByRole('button', { name: /Скачать все мои данные/ }))
     await waitFor(() => expect(backup.exportAllMyData).toHaveBeenCalledWith('me', expect.any(String)))
-    fireEvent.click(screen.getByRole('button', { name: '🗑 Удалить мои данные' }))
+    fireEvent.click(screen.getByRole('button', { name: 'Удалить мои данные' }))
     fireEvent.click(screen.getByRole('button', { name: 'Да, удалить' }))
     await waitFor(() => expect(repo.softDeleteMyWorkouts).toHaveBeenCalledWith('me'))
   })

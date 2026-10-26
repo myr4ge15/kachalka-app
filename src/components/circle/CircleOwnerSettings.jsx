@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
+import MenuRow from '../ui/MenuRow.jsx'
 import { useLiveQuery } from 'dexie-react-hooks'
 import { getExercises } from '../../db/repo.js'
 import { invalidateRatingCache } from '../../db/disciplines.js'
@@ -87,7 +88,7 @@ export default function CircleOwnerSettings({ api, circle, onChanged, onDeleted 
             </div>
           </div>
         ) : (
-          <button type="button" className="act danger" onClick={() => setArmDelete(true)}>Удалить круг</button>
+          <MenuRow kind="action" tone="danger" icon="trash" title="Удалить круг" onClick={() => setArmDelete(true)} />
         )}
       </div>
       {err && <p className="pin-err" role="alert">{err}</p>}

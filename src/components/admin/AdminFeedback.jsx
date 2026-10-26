@@ -10,6 +10,7 @@ import {
   adminListFeedback, adminUpdateFeedback, feedbackMedia, feedbackShotUrl, FeedbackError,
 } from '../../lib/feedbackApi.js'
 import { logsText } from '../../lib/deviceLogs.js'
+import Icon from '../ui/Icon.jsx'
 
 const defaultApi = { list: adminListFeedback, update: adminUpdateFeedback, shot: feedbackShotUrl, media: feedbackMedia }
 const errText = (e) => (e instanceof FeedbackError ? e.message : String(e?.message ?? e))
@@ -157,7 +158,7 @@ function FeedbackCard({ row, online, api, editing, onEdit, onSaved }) {
         </a>
       ) : (
         <button className="btn ghost fb-attach" onClick={showShot} disabled={!online || shotBusy}>
-          {shotBusy ? 'Открываю…' : '📎 Показать скриншот'}
+          {shotBusy ? 'Открываю…' : <><Icon name="clip" size={17} /> Показать скриншот</>}
         </button>
       ))}
       {hasReply(row) && !editing && (

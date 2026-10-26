@@ -1,3 +1,4 @@
+import MenuRow from '../ui/MenuRow.jsx'
 import { useState } from 'react'
 import { deleteMyAccount, LoginError } from '../../lib/auth.js'
 import { exportAllMyData } from '../../db/backup.js'
@@ -6,6 +7,7 @@ import { onlyDigits } from '../../lib/text.js'
 import { showToast } from '../ui/Toast.jsx'
 import { useRevealFocus } from '../../hooks/useRevealFocus.js'
 import { useAliveRef } from '../../hooks/useAliveRef.js'
+import Icon from '../ui/Icon.jsx'
 
 // «Удалить аккаунт» в Настройках (П7 «Мой круг», 07.10.2026; сервер — Edge account-delete,
 // supabase/account-delete.sql). Решение владельца: сразу и насовсем, с PIN; перед этим —
@@ -56,7 +58,7 @@ export default function DeleteAccount({ user, onDeleted }) {
   }
 
   if (!open) {
-    return <button className="act danger" onClick={() => setOpen(true)}>⛔ Удалить аккаунт</button>
+    return <MenuRow kind="action" tone="danger" icon="userx" title="Удалить аккаунт" onClick={() => setOpen(true)} />
   }
   return (
     <div className="danger-confirm" ref={boxRef}>
@@ -69,7 +71,7 @@ export default function DeleteAccount({ user, onDeleted }) {
         сохранятся без имени.
       </p>
       <button className="btn ghost" type="button" onClick={doExport} disabled={!!busy}>
-        {busy === 'export' ? 'Готовлю файл…' : '💾 Сначала скачать мои данные'}
+        {busy === 'export' ? 'Готовлю файл…' : <><Icon name="download" size={17} /> Сначала скачать мои данные</>}
       </button>
       <label className="field">
         <span className="field-lab">PIN для подтверждения</span>

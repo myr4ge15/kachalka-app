@@ -2,6 +2,7 @@ import { useEffect, useRef, useState } from 'react'
 import SheetDialog from '../ui/SheetDialog.jsx'
 import { dragOpacity, shouldDismiss } from '../../lib/swipeDismiss.js'
 import { isVideoMedia, videoPosterSrc } from '../../lib/feedback.js'
+import Icon from '../ui/Icon.jsx'
 
 // Картинки обращения из Telegram (v6.12.0): фото ответа разработчика или скриншот
 // участника. Хранятся в Telegram, байты отдает Edge `feedback` — load(id, kind, n)
@@ -40,7 +41,7 @@ export default function FeedbackPhotos({
   if (!on) {
     return (
       <button type="button" className="btn ghost fb-attach" onClick={() => setOn(true)} disabled={disabled}>
-        📎 Показать {total > 1 ? `${lowerFirst(label)} (${total})` : lowerFirst(label)}
+        <Icon name="clip" size={17} /> Показать {total > 1 ? `${lowerFirst(label)} (${total})` : lowerFirst(label)}
       </button>
     )
   }
@@ -50,7 +51,7 @@ export default function FeedbackPhotos({
       <div className="fb-photos">
         {urls.map((url, n) => (
           url === ''
-            ? <span key={n} className="fb-photo fb-photo--gone" role="img" aria-label="Картинка недоступна">🖼️</span>
+            ? <span key={n} className="fb-photo fb-photo--gone" role="img" aria-label="Картинка недоступна"><Icon name="image" size={22} /></span>
             : url === null
               ? <span key={n} className="fb-photo skel" aria-label="Загрузка" />
               : (

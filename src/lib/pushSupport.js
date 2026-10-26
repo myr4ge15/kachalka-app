@@ -130,15 +130,16 @@ export function shouldAskPush({ availability, permission, enabled, asked }) {
 
 // Типы пуш-уведомлений (v6.7.0) — ключи настроек на сервере (push_prefs,
 // supabase/push-types.sql) и тип в Edge Functions (_shared/webpush.ts PushType).
-// Порядок = порядок тумблеров в Настройках.
+// Порядок = порядок тумблеров в Настройках. icon — имя из components/ui/Icon.jsx (26.10.2026,
+// вместо эмодзи в строке); emoji остается для текстов.
 export const PUSH_TYPES = [
-  { type: 'reaction', emoji: '💪', label: 'Реакции на мои тренировки' },
+  { type: 'reaction', emoji: '💪', icon: 'heart', label: 'Реакции на мои тренировки' },
   // 19.10.2026: 💬 — комментариям (до этого стоял у реакций).
-  { type: 'comment', emoji: '💬', label: 'Комментарии', sub: 'под моими тренировками, ответы и реакции мне' },
-  { type: 'record', emoji: '🏆', label: 'Побили мой рекорд' },
-  { type: 'overtake', emoji: '🥇', label: 'Обогнали в рейтинге' },
-  { type: 'reminder', emoji: '⏰', label: 'Напоминание о тренировке', sub: 'если 3 дня без зала — в 18:00' },
-  { type: 'update', emoji: '📲', label: 'Новая версия приложения' },
+  { type: 'comment', emoji: '💬', icon: 'message', label: 'Комментарии', sub: 'под моими тренировками, ответы и реакции мне' },
+  { type: 'record', emoji: '🏆', icon: 'trophy', label: 'Побили мой рекорд' },
+  { type: 'overtake', emoji: '🥇', icon: 'podium', label: 'Обогнали в рейтинге' },
+  { type: 'reminder', emoji: '⏰', icon: 'alarm', label: 'Напоминание о тренировке', sub: 'если 3 дня без зала — в 18:00' },
+  { type: 'update', emoji: '📲', icon: 'phone', label: 'Новая версия приложения' },
 ]
 
 // Включен ли тип. На сервере хранятся только явно заданные значения: нет ключа —

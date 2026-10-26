@@ -4,6 +4,7 @@
 // одной карточкой со строками через разделитель — без аккордеона и «дерева»
 // с отступом, как было в Настройках (v6.12.0–7.1.3).
 import { PUSH_TYPES, isPushTypeOn } from '../../lib/pushSupport.js'
+import Icon from '../ui/Icon.jsx'
 
 export default function PushTypes({ prefs = null, busyType = null, error = '', onChange }) {
   const loading = prefs === null
@@ -24,7 +25,7 @@ export default function PushTypes({ prefs = null, busyType = null, error = '', o
               disabled={loading || busyType === t.type}
               onClick={() => onChange?.(t.type, !on)}
             >
-              <span aria-hidden="true">{t.emoji}</span>
+              <span className="act-ico"><Icon name={t.icon} size={19} /></span>
               <span className="toggle-act-txt">
                 {t.label}
                 {t.sub && <span className="toggle-act-sub">{t.sub}</span>}

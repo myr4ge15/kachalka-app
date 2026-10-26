@@ -14,6 +14,7 @@ import ExerciseEditForm from '../exercises/ExerciseEditForm.jsx'
 import { useRevealFocus } from '../../hooks/useRevealFocus.js'
 import NavLayers from '../ui/NavLayers.jsx'
 import BackButton from '../ui/BackButton.jsx'
+import Icon from '../ui/Icon.jsx'
 
 // Упражнение — отдельным экраном поверх справочника (NavLayers, 23.10.2026, замечание владельца: форма
 // «разворотом на полстраницы»). head — шапка раздела от Админки (назад в меню); onDeepChange(bool) — открыто
@@ -167,7 +168,7 @@ export default function ExercisesSection({ exercises, userId, online, errMsg, he
           </div>
         </div>
       ) : (
-        <button className="admin-add-link" onClick={() => setMergeOpen(true)}>🔗 Слить дубль упражнений</button>
+        <button className="admin-add-link" onClick={() => setMergeOpen(true)}><Icon name="link" size={17} /> Слить дубль упражнений</button>
       )}
     </section>
     </div>

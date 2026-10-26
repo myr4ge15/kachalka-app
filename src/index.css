@@ -1063,8 +1063,10 @@ button.link-btn { min-height: 44px; display: inline-flex; align-items: center; j
 .wk-add:active { background: var(--surface-2); }
 .wk-add-ico { color: var(--acc); }
 
-/* Действия сохраненной тренировки — строками MenuRow (26.10.2026; до того — голые строки без фона). */
-.wk-acts { margin-top: 18px; display: flex; flex-direction: column; gap: 10px; }
+/* Действия сохраненной тренировки (26.10.2026): заголовок и одна плашка .menu-group — чтобы не
+   сливаться с карточками упражнений выше (до того — голые строки без фона). */
+.wk-acts { margin-top: 26px; }
+.wk-acts-title { margin: 0 2px 8px; }
 
 /* Тумблер-строка в настройках Профиля (напр. «Рекомендации прогрессии») */
 .toggle-act { display: flex; align-items: center; justify-content: space-between; gap: 12px; text-align: left; }
@@ -2478,6 +2480,13 @@ button.cm-name { cursor: pointer; padding: 12px 0; margin: -12px 0 -11px; }
 .ui-chevron.is-open { transform: rotate(90deg); }
 .ui-chevron--toggle { transform: rotate(90deg); }
 .ui-chevron--toggle.is-open { transform: rotate(-90deg); }
+.ui-chevron--back { transform: rotate(180deg); }
+/* Иконки components/ui/Icon.jsx (26.10.2026): во flex-кнопках не сжимаются, в строке текста —
+   на средней линии букв (вместо эмодзи и символов шрифта). */
+.ui-icon { flex: none; }
+.tpl-badge .ui-icon, .fb-shot-tag .ui-icon, .admin-ex-meta .ui-icon, .fb-item-marks .ui-icon { vertical-align: -2px; }
+.fb-item-marks > span { display: inline-flex; align-items: center; gap: 3px; }
+.tpl-handle, .update-banner-close, .cm-editing button { display: inline-grid; place-items: center; }
 /* В ссылке-тексте («Подробнее ›»): цвет текста, по центру строки, без своей высоты строки. */
 .ui-chevron--inline { color: inherit; vertical-align: -0.2em; margin-left: 1px; }
 @media (prefers-reduced-motion: reduce) { .ui-chevron { transition: none; } }
@@ -2692,6 +2701,20 @@ label.act.busy { opacity: .55; pointer-events: none; }
 .menu-row.is-open { border-color: color-mix(in srgb, var(--acc) 45%, var(--border)); }
 .menu-row:disabled { opacity: .55; cursor: default; }
 .menu-row.danger .act-ico { background: color-mix(in srgb, var(--red) 14%, transparent); color: var(--red-text); }
+/* «Выйти» — красный текст на обычной плашке: выход не удаление, заливка как у «Удалить» пугала. */
+.act.danger.logout { background: var(--surface); border-color: var(--border); }
+/* Группа строк меню одной плашкой: строки без своих рамок, через разделитель (как .push-group).
+   Раскрытое подтверждение внутри группы — с полями, а не встык. */
+.menu-group {
+  display: flex; flex-direction: column; overflow: hidden;
+  background: var(--surface); border: 1px solid var(--border); border-radius: 14px;
+}
+.menu-group > .menu-row { border: 0; border-radius: 0; background: none; }
+.menu-group > .menu-row + .menu-row { border-top: 1px solid var(--border); }
+.menu-group > .menu-row:active:not(:disabled) { background: var(--surface-2); }
+.menu-group > .menu-row.danger { background: none; }
+.menu-group > .danger-confirm, .menu-group > .tpl-from-wk { margin: 10px; }
+.act.danger.logout:active { background: var(--surface-2); }
 /* Идет выход (до ~7 с) — видно, что нажатие принято (РЕВЬЮ-КОДА-2026-10-02). */
 .act.logout:disabled { opacity: .6; cursor: progress; }
 
@@ -3049,6 +3072,9 @@ label.act.busy { opacity: .55; pointer-events: none; }
 
 /* «Написать разработчику» (v6.11.0): экран участника и раздел «Обращения» в админке. */
 .fb-intro { margin: 0 2px 12px; line-height: 1.45; }
+/* Строка «Отправить обращение» над формой (26.10.2026): раскрытая — форма сразу под ней. */
+.fb-form-toggle { margin-bottom: 12px; }
+.fb-form-toggle.is-open { margin-bottom: 8px; }
 .fb-text { min-height: 112px; resize: vertical; font: inherit; line-height: 1.4; }
 .fb-count { align-self: flex-end; margin-top: -4px; font-size: 12px; color: var(--muted); }
 .fb-count.over { color: var(--red); }

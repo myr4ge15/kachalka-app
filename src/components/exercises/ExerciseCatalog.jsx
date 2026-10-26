@@ -1,6 +1,7 @@
 import { useMemo, useState } from 'react'
 import { splitCatalog, canEditExercise, METRIC_LABEL } from '../../lib/exerciseCatalog.js'
 import Chevron from '../ui/Chevron.jsx'
+import Icon from '../ui/Icon.jsx'
 
 // Каталог упражнений — ОДИН для участника и Админки (23.10.2026, решение владельца: раньше это были
 // два разных модуля). Поиск без учета «ё» и три раздела (lib/exerciseCatalog.js splitCatalog).
@@ -86,7 +87,7 @@ function Row({ ex, admin, online, onEdit, onToggleHidden, canEdit }) {
         type="button" className="admin-mini catalog-hide" disabled={!online} onClick={() => onToggleHidden(ex)}
         aria-label={ex.is_hidden ? `Показать «${ex.name}» в пикере` : `Скрыть «${ex.name}» из пикера`}
       >
-        {ex.is_hidden ? '👁' : '🙈'}
+        <Icon name={ex.is_hidden ? 'eye' : 'eyeoff'} size={20} />
       </button>
     </div>
   )

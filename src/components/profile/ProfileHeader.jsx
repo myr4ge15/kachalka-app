@@ -8,6 +8,7 @@ import { showToast } from '../ui/Toast.jsx'
 import Avatar from '../ui/Avatar.jsx'
 import PencilIcon from '../ui/PencilIcon.jsx'
 import { useAliveRef } from '../../hooks/useAliveRef.js'
+import Icon from '../ui/Icon.jsx'
 
 // Шапка Профиля: аватар (смена по тапу) + имя (инлайн-редактор) + метка «админ»
 // (фаза 2c; вынесено из ProfileScreen в v6.14.1).
@@ -86,7 +87,7 @@ export default function ProfileHeader({ user, avatarUrl, onRenamed }) {
       <button type="button" className={'avatar-edit' + (avBusy ? ' busy' : '')} aria-label="Сменить аватар"
         disabled={avBusy} onClick={() => avatarInput.current?.click()}>
         <Avatar name={user.name} url={avatarUrl} className="avatar-lg" />
-        <span className="avatar-cam" aria-hidden="true">{avBusy ? '…' : '📷'}</span>
+        <span className="avatar-cam" aria-hidden="true">{avBusy ? '…' : <Icon name="camera" size={13} strokeWidth={2.2} />}</span>
       </button>
       <input ref={avatarInput} type="file" accept="image/*" onChange={onPickAvatar} disabled={avBusy} hidden />
       {cropFile && (

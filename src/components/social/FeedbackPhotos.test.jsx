@@ -38,10 +38,10 @@ describe('FeedbackPhotos', () => {
   it('lazy: до нажатия ничего не качает; disabled офлайн', async () => {
     const load = vi.fn(async () => 'blob:s')
     const { rerender } = render(<FeedbackPhotos id="f1" kind="shot" load={load} lazy disabled label="Скриншот" />)
-    expect(screen.getByRole('button', { name: '📎 Показать скриншот' })).toBeDisabled()
+    expect(screen.getByRole('button', { name: 'Показать скриншот' })).toBeDisabled()
     rerender(<FeedbackPhotos id="f1" kind="shot" load={load} lazy label="Скриншот" />)
     expect(load).not.toHaveBeenCalled()
-    fireEvent.click(screen.getByRole('button', { name: '📎 Показать скриншот' }))
+    fireEvent.click(screen.getByRole('button', { name: 'Показать скриншот' }))
     await waitFor(() => expect(load).toHaveBeenCalledWith('f1', 'shot', 0))
     expect(await screen.findByRole('button', { name: 'Скриншот' })).toBeInTheDocument()
   })

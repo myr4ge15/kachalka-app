@@ -47,7 +47,7 @@ describe('AdminFeedback', () => {
 
   it('скриншот грузится по нажатию (signed URL)', async () => {
     const api = setup()
-    await userEvent.click(await screen.findByRole('button', { name: '📎 Показать скриншот' }))
+    await userEvent.click(await screen.findByRole('button', { name: 'Показать скриншот' }))
     expect(api.shot).toHaveBeenCalledWith('u/a.jpg')
     expect(await screen.findByAltText('Скриншот от Маша')).toHaveAttribute('src', 'https://x.supabase.co/signed/a.jpg')
   })
@@ -95,9 +95,9 @@ describe('AdminFeedback — Telegram (v6.12.0)', () => {
     const api = setup({ list: vi.fn(async () => [TG]) })
     expect(await screen.findByText('Открыто снова (2-й раз): Все еще не грузится')).toBeTruthy()
     expect(api.media).not.toHaveBeenCalled() // байты не тянем, пока не попросили
-    await userEvent.click(screen.getByRole('button', { name: '📎 Показать вложение от Оля' }))
+    await userEvent.click(screen.getByRole('button', { name: 'Показать вложение от Оля' }))
     await waitFor(() => expect(api.media).toHaveBeenCalledWith('t', 'shot', 0))
-    await userEvent.click(screen.getByRole('button', { name: '📎 Показать фото ответа (2)' }))
+    await userEvent.click(screen.getByRole('button', { name: 'Показать фото ответа (2)' }))
     await waitFor(() => expect(api.media).toHaveBeenCalledWith('t', 'reply', 1))
     expect(api.shot).not.toHaveBeenCalled()
   })
@@ -111,8 +111,8 @@ describe('AdminFeedback — Telegram (v6.12.0)', () => {
     }
     const api = setup({ list: vi.fn(async () => [row]) })
     await screen.findByText('Смягчить свайп')
-    await userEvent.click(screen.getByRole('button', { name: '📎 Показать вложение от Андрюшка' }))
-    await userEvent.click(screen.getByRole('button', { name: '📎 Показать вложение к дополнению' }))
+    await userEvent.click(screen.getByRole('button', { name: 'Показать вложение от Андрюшка' }))
+    await userEvent.click(screen.getByRole('button', { name: 'Показать вложение к дополнению' }))
     await waitFor(() => expect(api.media).toHaveBeenCalledTimes(2))
     expect(api.media.mock.calls).toEqual([['v', 'screenshots', 0], ['v', 'screenshots', 1]])
     const addition = screen.getByText('Проверка на бете').closest('div')

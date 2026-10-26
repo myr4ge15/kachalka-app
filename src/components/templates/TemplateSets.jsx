@@ -4,6 +4,7 @@ import { fmtNum } from '../../lib/metric.js'
 import TimeInput from '../ui/TimeInput.jsx'
 import { useSelectOnFocus } from '../../hooks/useSelectOnFocus.js'
 import './TemplateSets.css'
+import Icon from '../ui/Icon.jsx'
 
 // Подходы шаблона — как карточка упражнения в тренировке (16.10, обращение fb_58cbb46a):
 // строка «№ − вес + − повторы + ✕», под ними «+ подход». Те же классы (.sets-head, .set-row,
@@ -50,8 +51,7 @@ export default function TemplateSets({ metric, sets, onChange }) {
       </div>
       <button type="button" className="set-rm" disabled={sets.length === 1} aria-label={`Удалить подход ${i + 1}`}
         onClick={() => onChange(sets.filter((_, j) => i !== j))}>
-        <svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor"
-          strokeWidth="2.4" strokeLinecap="round" aria-hidden="true"><path d="M6 6l12 12M18 6L6 18" /></svg>
+        <Icon name="close" size={15} strokeWidth={2.4} />
       </button>
     </div>)}
     <button type="button" className="set-add" disabled={sets.length >= 1000}

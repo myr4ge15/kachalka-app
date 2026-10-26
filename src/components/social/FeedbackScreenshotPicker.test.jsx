@@ -69,7 +69,7 @@ describe('FeedbackScreenshotPicker', () => {
     const p = props({ items: [a, v], max: 2 })
     render(<FeedbackScreenshotPicker {...p} />)
     expect(screen.getByLabelText('Видео к обращению 2')).toBeInTheDocument()
-    expect(screen.getByText(/▶ Видео · 3/)).toBeInTheDocument()
+    expect(screen.getByText(/Видео · 3/)).toBeInTheDocument()
     expect(screen.getByRole('button', { name: /Добавить еще/ })).toBeDisabled()
     fireEvent.click(screen.getByRole('button', { name: 'Убрать скриншот 1' }))
     expect(p.onRemove).toHaveBeenCalledWith(a.key)

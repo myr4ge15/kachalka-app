@@ -15,6 +15,7 @@ import TemplateSets from './TemplateSets.jsx'
 import { templatePlan } from '../../lib/templatePlan.js'
 import { sk } from '../../lib/progressionCard.js'
 import { showToast, hideToast } from '../ui/Toast.jsx'
+import Icon from '../ui/Icon.jsx'
 
 // Редактор шаблона: состав, построчные подходы (TemplateSets), перестановка, общий/личный,
 // удаление (вынесено из screens/TemplatesScreen.jsx, аудит 14.10). Чужой общий — только чтение.
@@ -320,7 +321,7 @@ export default function TemplateEditor({ user, templateId, onBack, backGuardRef 
                     aria-label="Перетащить"
                     title="Перетащить (или Alt + ↑/↓)"
                   >
-                    ☰
+                    <Icon name="grip" size={20} />
                   </button>
                   <span className="exercise-title tpl-name">{it.exercise.name}</span>
                 </span>

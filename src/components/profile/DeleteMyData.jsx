@@ -1,3 +1,4 @@
+import MenuRow from '../ui/MenuRow.jsx'
 import { useState } from 'react'
 import { softDeleteMyWorkouts } from '../../db/repo.js'
 import { syncNow } from '../../db/sync.js'
@@ -30,7 +31,7 @@ export default function DeleteMyData({ userId }) {
   }
 
   if (!delArm) {
-    return <button className="act danger" onClick={() => setDelArm(true)}>🗑 Удалить мои данные</button>
+    return <MenuRow kind="action" tone="danger" icon="trash" title="Удалить мои данные" onClick={() => setDelArm(true)} />
   }
   return (
     <div className="danger-confirm">

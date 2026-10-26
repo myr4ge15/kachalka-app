@@ -7,6 +7,7 @@ import {
   appendProblem, canAppend, canReopen, fmtFeedbackDate, groupAttachments, laterLabel, hasReply, isStaleReply, reopenProblem,
   APPEND_MAX, FEEDBACK_SHOTS_MAX, REOPEN_MAX, STATUS_LABEL,
 } from '../../lib/feedback.js'
+import Icon from '../ui/Icon.jsx'
 
 // Одно обращение в «Моих обращениях» (16.10: список был громоздким — каждое обращение во всю
 // высоту со всеми фото и кнопками). Свернутое — строка: дата, статус, начало текста, начало
@@ -68,8 +69,8 @@ export default function MyFeedbackItem({ row: r, userId, api, online, fresh = fa
             )}
             {(shots > 0 || adds > 0) && (
               <span className="fb-item-marks admin-ex-meta">
-                {shots > 0 && <span>📎 {shots}</span>}
-                {adds > 0 && <span>➕ {adds}</span>}
+                {shots > 0 && <span aria-label={`Вложений: ${shots}`}><Icon name="clip" size={13} /> {shots}</span>}
+                {adds > 0 && <span aria-label={`Дополнений: ${adds}`}><Icon name="plus" size={13} /> {adds}</span>}
               </span>
             )}
           </>
@@ -81,7 +82,7 @@ export default function MyFeedbackItem({ row: r, userId, api, online, fresh = fa
           {/* Вложения по месту (fb_37f0c1a8): приложенное с дополнением — под ним, а не общим блоком. */}
           {r.screenshot_count > 0 ? <FeedbackPhotos id={r.id} kind="screenshots" indices={groups.base}
             load={api.media} lazy disabled={!online} label="Вложение к обращению" />
-            : r.has_screenshot && <span className="admin-ex-meta">📎 со скриншотом</span>}
+            : r.has_screenshot && <span className="admin-ex-meta"><Icon name="clip" size={13} /> со скриншотом</span>}
           {r.additions?.map((a) => (
             <div key={a.n}>
               <p className="fb-addition">

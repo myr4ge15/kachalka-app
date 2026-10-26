@@ -4,6 +4,7 @@ import { getRatingCatalog, fetchRatingCatalog } from '../../db/disciplines.js'
 import { adminSaveDiscipline } from '../../lib/adminDisciplines.js'
 import { DISCIPLINE_UNITS } from '../../lib/disciplines.js'
 import CheckIcon from '../ui/CheckIcon.jsx'
+import Icon from '../ui/Icon.jsx'
 
 export default function AdminDisciplines({ userId, exercises, online }) {
   const catalog = useLiveQuery(getRatingCatalog, [], null)
@@ -66,8 +67,7 @@ export default function AdminDisciplines({ userId, exercises, online }) {
         <SexChip checked={d.split_by_sex} disabled={off} dim={!online} onChange={v => save({ ...d, split_by_sex: v })} />
         <button type="button" className={'disc-rm' + (online ? '' : ' off')} disabled={off} onClick={() => save({ ...d, enabled: false })}
           aria-label={`Убрать из рейтинга: ${d.name}`} title="Убрать из рейтинга">
-          <svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor"
-            strokeWidth="2.4" strokeLinecap="round" aria-hidden="true"><path d="M6 6l12 12M18 6L6 18" /></svg>
+          <Icon name="close" size={15} strokeWidth={2.4} />
         </button>
       </li>)}
     </ul>}

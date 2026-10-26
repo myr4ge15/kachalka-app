@@ -2,6 +2,7 @@ import FeedbackScreenshotPicker from '../components/social/FeedbackScreenshotPic
 import MyFeedbackItem from '../components/social/MyFeedbackItem.jsx'
 import { useEffect, useRef, useState } from 'react'
 import BackButton from '../components/ui/BackButton.jsx'
+import MenuRow from '../components/ui/MenuRow.jsx'
 import BusyText from '../components/ui/BusyText.jsx'
 import UploadProgress from '../components/social/UploadProgress.jsx'
 import CardsSkeleton from '../components/ui/CardsSkeleton.jsx'
@@ -105,6 +106,13 @@ export default function FeedbackScreen({ user, onBack, focusId = null, fromScree
   const problem = bodyProblem(text)
   const len = text.trim().length
 
+  // Форма — под строкой «Отправить обращение» (26.10.2026, просьба владельца): главное на экране — «Мои
+  // обращения». Сама раскрыта, пока обращений нет или в форме черновик (текст, вложения); тап — решение
+  // человека (null — еще не решал). Список грузится — свернута, чтобы не прыгала.
+  const [formOpen, setFormOpen] = useState(null)
+  const hasDraft = len > 0 || att.items.length > 0
+  const showForm = formOpen ?? (hasDraft || list?.length === 0)
+
   // Пока вложения догружаются перед отправкой, отправку можно отменить и лишний файл убрать (23.10, баг
   // владельца: отмены не было вовсе — оставалось ждать или уходить с экрана). Текст и файлы остаются в форме.
   const [waiting, setWaiting] = useState(false)
@@ -136,6 +144,7 @@ export default function FeedbackScreen({ user, onBack, focusId = null, fromScree
       setText('')
       setWithLogs(false)
       att.commit()
+      setFormOpen(false) // ушло — снова на виду список, там и новое обращение
       // Обращение уже в базе — его видят Админка и desk; задержка Telegram (а на бете Telegram нет вовсе) участника
       // не касается, поэтому «доставка задержалась» не пишем (fb_e87fb37b).
       showToast({ emoji: '📨', title: 'Отправлено', sub: 'Спасибо! Ответ появится здесь.' })
@@ -161,7 +170,11 @@ export default function FeedbackScreen({ user, onBack, focusId = null, fromScree
         Ответ появится здесь и придет уведомлением.
       </p>
 
-      <section className="admin-add fb-form">
+      <MenuRow kind="expand" icon="message" title="Отправить обращение" open={showForm}
+        sub={!showForm && hasDraft ? 'есть черновик' : null}
+        className="fb-form-toggle" aria-controls="fb-form" onClick={() => setFormOpen(!showForm)} />
+
+      {showForm && <section className="admin-add fb-form" id="fb-form">
         <label className="field">
           <span className="field-lab">Что случилось?</span>
           <textarea
@@ -199,7 +212,7 @@ export default function FeedbackScreen({ user, onBack, focusId = null, fromScree
             Отменить отправку
           </button>
         )}
-      </section>
+      </section>}
 
       <div className="fb-list-head">
         <h3 className="sec-title fb-list-title">Мои обращения</h3>

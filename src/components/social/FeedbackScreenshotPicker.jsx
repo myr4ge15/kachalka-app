@@ -2,6 +2,7 @@ import { useEffect, useRef, useState } from 'react'
 import CheckIcon from '../ui/CheckIcon.jsx'
 import { plural } from '../../lib/plural.js'
 import { FEEDBACK_SHOTS_MAX, attachmentProblemText, fmtFileSize } from '../../lib/feedback.js'
+import Icon from '../ui/Icon.jsx'
 
 // Вложения обращения: скриншоты и (16.10, fb_1c5fab9c) видео MP4/MOV до 50 МБ — всего до max.
 // Предзагрузка (20.10.2026): файл грузится сразу после выбора (hooks/useAttachments.js), на
@@ -39,8 +40,8 @@ export default function FeedbackScreenshotPicker({ items, onAdd, onRemove, onRet
             ? <div className="fb-shot-video">
               {it.poster
                 ? <img src={it.poster} alt={'Видео к обращению' + name} />
-                : <div className="fb-shot-plate" role="img" aria-label={'Видео к обращению' + name}>▶</div>}
-              <span className="fb-shot-tag">▶ Видео{it.file?.size ? ' · ' + fmtFileSize(it.file.size) : ''}</span>
+                : <div className="fb-shot-plate" role="img" aria-label={'Видео к обращению' + name}><Icon name="play" size={26} /></div>}
+              <span className="fb-shot-tag"><Icon name="play" size={11} strokeWidth={2.4} /> Видео{it.file?.size ? ' · ' + fmtFileSize(it.file.size) : ''}</span>
             </div>
             : <img src={urls[it.key]} alt={'Скриншот к обращению' + name} />}
           {it.status === 'uploading' && (
@@ -53,21 +54,20 @@ export default function FeedbackScreenshotPicker({ items, onAdd, onRemove, onRet
           {it.status === 'error' && (
             <button type="button" className="fb-shot-state fb-shot-retry" onClick={() => onRetry(it.key)} disabled={disabled}
               aria-label={'Повторить загрузку' + name} title={it.error}>
-              ↻<span>Повторить</span>
+              <Icon name="refresh" size={22} /><span>Повторить</span>
             </button>
           )}
           {/* Крестик в углу миниатюры (fb_7e661cff): убрать, а идущую загрузку — отменить. */}
           <button type="button" className="fb-shot-rm" disabled={disabled}
             onClick={() => { setError(''); onRemove(it.key) }}
             aria-label={'Убрать скриншот' + name}>
-            <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" strokeWidth="2.6"
-              strokeLinecap="round" aria-hidden="true"><path d="M6 6l12 12M18 6L6 18" /></svg>
+            <Icon name="close" size={14} strokeWidth={2.6} />
           </button>
         </div>
       })}
     </div>
     <button type="button" className="btn ghost fb-attach" disabled={disabled || items.length >= max}
-      onClick={() => input.current?.click()}>📎 {items.length ? 'Добавить еще' : 'Приложить скриншоты или видео'}</button>
+      onClick={() => input.current?.click()}><Icon name="clip" size={17} /> {items.length ? 'Добавить еще' : 'Приложить скриншоты или видео'}</button>
     <input ref={input} type="file" accept="image/*,video/mp4,video/quicktime" multiple hidden disabled={disabled} onChange={pick} data-testid={testId} />
     {/* fb_37f0c1a8: свернутое приложение iPhone замораживает — файл начнет грузиться заново после возврата. */}
     {items.some((it) => it.status === 'uploading') && (

@@ -1,3 +1,4 @@
+import MenuRow from '../ui/MenuRow.jsx'
 import { useEffect, useRef, useState } from 'react'
 
 // Кнопка «Выйти» профиля с состоянием занятости (РЕВЬЮ-КОДА-2026-10-02).
@@ -29,8 +30,7 @@ export default function LogoutButton({ onLogout }) {
   }
 
   return (
-    <button className="act logout" onClick={click} disabled={busy} aria-busy={busy || undefined}>
-      {busy ? 'Выхожу…' : 'Выйти'}
-    </button>
+    <MenuRow kind="action" tone="danger" icon="logout" className="logout" title={busy ? 'Выхожу…' : 'Выйти'}
+      onClick={click} disabled={busy} aria-busy={busy || undefined} />
   )
 }

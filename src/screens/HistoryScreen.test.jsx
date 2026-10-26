@@ -237,7 +237,7 @@ describe('HistoryScreen', () => {
     render(<HistoryScreen user={user} openNew />)
     fireEvent.click(screen.getByRole('button', { name: 'Сохранить тестовую' }))
 
-    fireEvent.click(screen.getByRole('button', { name: '📋 Сохранить как шаблон' }))
+    fireEvent.click(screen.getByRole('button', { name: 'Сохранить как шаблон' }))
 
     await waitFor(() => expect(saveTemplate).toHaveBeenCalledWith({
       user_id: user.id,

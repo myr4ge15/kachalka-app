@@ -1,5 +1,5 @@
 // @vitest-environment jsdom
-// «🔐 Восстановление доступа» в Настройках (П1, v6.18.0).
+// «Восстановление доступа» в Настройках (П1, v6.18.0).
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { fireEvent, render, screen } from '@testing-library/react'
 import RecoverySection from './RecoverySection.jsx'

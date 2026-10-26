@@ -4,6 +4,7 @@ import { adminCreateInvite, adminListInvites, adminRevokeInvite } from '../../li
 import { inviteUrl, inviteListLabel, inviteCreatorLabel, inviteMessage, splitInvites } from '../../lib/invite.js'
 import { showToast } from '../ui/Toast.jsx'
 import CardsSkeleton from '../ui/CardsSkeleton.jsx'
+import Icon from '../ui/Icon.jsx'
 const adminApi = { create: adminCreateInvite, list: adminListInvites, revoke: adminRevokeInvite }
 
 // cache (v8.0.1) — кэш визита Админки (lib/adminCache.js), только для админских приглашений.
@@ -105,7 +106,7 @@ export default function InvitesSection({ online, errMsg, api = adminApi, limit =
             <button className={'admin-mini' + (armId === inv.id ? ' armed' : '')} onClick={() => revoke(inv)}
               disabled={!online || busy || revId !== null}
               aria-label={`${armId === inv.id ? 'Точно отозвать' : 'Отозвать'} ссылку «${inv.note || 'Без пометки'}»`}>
-              {armId === inv.id ? 'Точно?' : '⛔'}
+              {armId === inv.id ? 'Точно?' : <Icon name="block" size={18} />}
             </button>
           </div>
         )}

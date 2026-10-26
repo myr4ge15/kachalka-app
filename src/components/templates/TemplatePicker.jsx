@@ -2,6 +2,7 @@ import { useLiveQuery } from 'dexie-react-hooks'
 import { getTemplates } from '../../db/repo.js'
 import { exerciseMetric, fmtTemplateTarget } from '../../lib/metric.js'
 import SheetDialog from '../ui/SheetDialog.jsx'
+import Icon from '../ui/Icon.jsx'
 
 // Шит выбора шаблона при создании новой тренировки. onPick(template) →
 // родитель (WorkoutScreen) применяет состав к entries. Стиль — как ExercisePicker.
@@ -18,7 +19,7 @@ function PickItem({ t, mine, onPick }) {
       <span className="tpl-pick-name">
         {t.name}
         {mine && Boolean(t.is_public) && (
-          <span className="tpl-badge" title="Виден всем">🌐 виден всем</span>
+          <span className="tpl-badge" title="Виден всем"><Icon name="globe" size={12} /> виден всем</span>
         )}
         {!mine && t.author_name && <span className="tpl-author"> · от {t.author_name}</span>}
       </span>

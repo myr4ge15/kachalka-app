@@ -1,4 +1,4 @@
-import Chevron from '../ui/Chevron.jsx'
+import MenuRow from '../ui/MenuRow.jsx'
 import { useEffect, useMemo, useState } from 'react'
 import { useSyncStatus } from '../../db/sync.js'
 import { memberInviteApi } from '../../lib/memberInvites.js'
@@ -22,10 +22,7 @@ export default function MemberInvites({ userId }) {
     if (typeof navigator !== 'undefined' && navigator.onLine) cache.load('invites', () => api.list()).catch(() => {})
   }, [api, cache])
   return <div className="member-invites" ref={revealRef}>
-    <button className="settings-toggle" aria-expanded={open} onClick={() => setOpen(v => !v)}>
-      <span className="settings-title"><span aria-hidden="true">✉️</span> Пригласить участника</span>
-      <Chevron className="settings-chev" open={open} />
-    </button>
+    <MenuRow kind="expand" icon="invite" title="Пригласить участника" open={open} onClick={() => setOpen(v => !v)} />
     {open && <Panel key={userId} api={api} cache={cache} />}
   </div>
 }

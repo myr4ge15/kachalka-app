@@ -43,14 +43,14 @@ describe('TemplatePicker', () => {
     expect(titles).toEqual(['Мои', 'Общие'])
     const items = screen.getAllByRole('button', { name: /упр\./ })
     expect(items[0]).toHaveTextContent('Грудь')
-    expect(items[0]).toHaveTextContent('🌐 виден всем')
+    expect(items[0]).toHaveTextContent('виден всем')
     expect(items[0]).toHaveTextContent('2 упр.')
     expect(items[0].querySelector('.tpl-pick-sub').textContent).toMatch(/^Жим лежа /) // пустое упражнение пропущено
     // fb_966c7e2b: по строке на упражнение, а не одним абзацем через запятую
     expect([...items[0].querySelectorAll('.tpl-pick-line')].map((n) => n.textContent)).toEqual(['Жим лежа 3×8×60 кг'])
     expect(items[1].querySelectorAll('.tpl-pick-line')).toHaveLength(1)
     expect(items[1]).toHaveTextContent('· от Петя')
-    expect(items[1]).not.toHaveTextContent('🌐')
+    expect(items[1]).not.toHaveTextContent('виден всем')
     fireEvent.click(items[1])
     expect(onPick).toHaveBeenCalledWith(theirs)
   })

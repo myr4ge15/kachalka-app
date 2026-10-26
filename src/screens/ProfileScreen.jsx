@@ -1,4 +1,4 @@
-import Chevron from '../components/ui/Chevron.jsx'
+import MenuRow from '../components/ui/MenuRow.jsx'
 import { plural } from '../lib/plural.js'
 import { useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react'
 import { useLiveQuery } from 'dexie-react-hooks'
@@ -152,16 +152,11 @@ export default function ProfileScreen({ user, onLogout, onAccountDeleted, onOpen
 
   useEdgeSwipeBack(contentRef, settingsSurfaceRef, closeSettings, edgeSwipeOn && settingsOpen)
 
-  // Вход на экран достижений/бейджей.
+  // Вход на экран достижений/бейджей. Строки меню — общая MenuRow (26.10.2026, аудит оформления).
   const achievementsLink = (
     <section className="sec">
-      <button className="leader-link" onClick={() => onOpenAchievements?.()}>
-        <div>
-          <div className="v">🏆 Достижения</div>
-          <div className="k">получено {badgesEarned} из {BADGES.length} бейджей</div>
-        </div>
-        <span className="go">Открыть <Chevron inline size={16} /></span>
-      </button>
+      <MenuRow icon="trophy" title="Достижения" sub={`получено ${badgesEarned} из ${BADGES.length} бейджей`}
+        onClick={() => onOpenAchievements?.()} />
     </section>
   )
 
@@ -176,50 +171,25 @@ export default function ProfileScreen({ user, onLogout, onAccountDeleted, onOpen
 
           <div className="actions">
             {/* «Что нового» (v6.4.0) — история обновлений; «новое», пока свежая запись не открыта. */}
-            <button className={'act' + (wnUnopened ? ' act-new' : '')} onClick={() => onOpenWhatsNew?.()}>
-              <span className="act-txt">
-                🆕 Что нового
-                <span className="act-sub"><span className="version-number">v{WHATS_NEW[0]?.version}</span> · {fmtWhatsNewDate(WHATS_NEW[0]?.date)}</span>
-              </span>
-              {wnUnopened && <span className="act-badge">новое</span>}
-            </button>
-            <button className="act" onClick={() => onOpenAppearance?.()}>
-              <span className="act-txt">
-                🎨 Оформление
-                <span className="act-sub">акцентный цвет приложения</span>
-              </span>
-            </button>
+            <MenuRow icon="sparkles" title="Что нового" highlight={wnUnopened} badge={wnUnopened ? 'новое' : null}
+              sub={<><span className="version-number">v{WHATS_NEW[0]?.version}</span> · {fmtWhatsNewDate(WHATS_NEW[0]?.date)}</>}
+              onClick={() => onOpenWhatsNew?.()} />
+            <MenuRow icon="palette" title="Оформление" sub="акцентный цвет приложения" onClick={() => onOpenAppearance?.()} />
             <SexPicker value={sexValue} busy={sexPending !== undefined} error={sexErr} onChange={changeSex} />
-            <button
-              className="act toggle-act"
-              role="switch"
-              aria-checked={progEnabled}
-              onClick={() => setProgEnabled(user.id, !progEnabled)}
-            >
-              <span className="toggle-act-txt">
-                📈 Рекомендации прогрессии
-                <span className="toggle-act-sub">подсказка веса/повторений при добавлении упражнения</span>
-              </span>
-              <span className={'toggle-pill' + (progEnabled ? ' on' : '')} aria-hidden="true">
-                <span className="toggle-knob" />
-              </span>
-            </button>
+            <MenuRow kind="switch" icon="trend" title="Рекомендации прогрессии" checked={progEnabled}
+              sub="подсказка веса/повторений при добавлении упражнения"
+              onClick={() => setProgEnabled(user.id, !progEnabled)} />
             <RestTimerToggle userId={user.id} />
             {/* v7.1.4: тумблеры пушей — на своем экране; здесь строка со статусом.
                 'off' — функции нет или это компьютер (lib/pushSupport.js desktopAvailability). */}
             {push.availability && push.availability !== 'off' && (
-              <button className="act" onClick={() => onOpenPushSettings?.()}>
-                <span className="act-txt">
-                  🔔 Пуш-уведомления
-                  <span className="act-sub">{pushRowSubtitle(push)}</span>
-                </span>
-              </button>
+              <MenuRow icon="bell" title="Пуш-уведомления" sub={pushRowSubtitle(push)} onClick={() => onOpenPushSettings?.()} />
             )}
             <LoginChangeForm userId={user.id} />
             <PinChangeForm userId={user.id} />
             <RecoverySection userId={user.id} />
             {user.role !== 'admin' && (
-              <button className="act" onClick={() => onOpenMyExercises?.()}>🏋 Каталог упражнений</button>
+              <MenuRow icon="book" title="Каталог упражнений" onClick={() => onOpenMyExercises?.()} />
             )}
             <BackupActions userId={user.id} />
             <DeleteMyData userId={user.id} />
@@ -280,13 +250,8 @@ export default function ProfileScreen({ user, onLogout, onAccountDeleted, onOpen
           {place != null && (
             <section className="sec">
               <p className="sec-title">А на фоне друзей</p>
-              <button className="leader-link" onClick={() => onOpenFeed?.()}>
-                <div>
-                  <div className="v">{place.n}-е место {place.board === 'f' ? 'по ягодичному мостику' : 'по жиму'}</div>
-                  <div className="k">лидерборд живет в Ленте</div>
-                </div>
-                <span className="go">Лента <Chevron inline size={16} /></span>
-              </button>
+              <MenuRow icon="podium" title={`${place.n}-е место ${place.board === 'f' ? 'по ягодичному мостику' : 'по жиму'}`}
+                sub="лидерборд живет в Ленте" onClick={() => onOpenFeed?.()} />
             </section>
           )}
         </>
@@ -300,32 +265,17 @@ export default function ProfileScreen({ user, onLogout, onAccountDeleted, onOpen
         <DeadLetterAlert userId={user.id} />
 
         {/* «Друзья» (15.10.2026): свой код, заявки, удалить/заблокировать. */}
-        <button className={'settings-toggle' + (friendRequests ? ' act-new' : '')} onClick={() => onOpenFriends?.()}>
-          <span className="settings-title"><span aria-hidden="true">👥</span> Друзья</span>
-          {friendRequests > 0 ? <span className="act-badge">{friendRequests}</span> : <Chevron className="settings-chev" />}
-        </button>
+        <MenuRow icon="users" title="Друзья" highlight={friendRequests > 0} badge={friendRequests > 0 ? friendRequests : null}
+          onClick={() => onOpenFriends?.()} />
         {/* «Мой круг» (07.10.2026): свой круг, личный код, участники, рейтинг круга. */}
-        <button className="settings-toggle" onClick={() => onOpenCircle?.()}>
-          <span className="settings-title"><span aria-hidden="true">⭕</span> Мой круг</span>
-          <Chevron className="settings-chev" />
-        </button>
+        <MenuRow icon="circle" title="Мой круг" onClick={() => onOpenCircle?.()} />
         <MemberInvites key={user.id} userId={user.id} />
         {/* «Написать разработчику» (v6.11.0; в корне Профиля с v6.12.0 — в Настройках
             его не находили): ошибка, идея, вопрос — сразу разработчику. */}
-        <button className={'settings-toggle fb-entry' + (fbUnread ? ' act-new' : '')} onClick={() => onOpenFeedback?.()}>
-          <span className="settings-title"><span aria-hidden="true">💬</span> Написать разработчику</span>
-          {fbUnread > 0 ? <span className="act-badge">ответ</span> : <Chevron className="settings-chev" />}
-        </button>
-        {user.role === 'admin' && (
-          <button className="settings-toggle" onClick={() => onOpenAdmin?.()}>
-            <span className="settings-title"><span aria-hidden="true">🛠</span> Админка</span>
-            <Chevron className="settings-chev" />
-          </button>
-        )}
-        <button className="settings-toggle" onClick={openSettings}>
-          <span className="settings-title"><span aria-hidden="true">⚙️</span> Настройки</span>
-          <Chevron className="settings-chev" />
-        </button>
+        <MenuRow icon="message" title="Написать разработчику" className="fb-entry" highlight={fbUnread > 0}
+          badge={fbUnread > 0 ? 'ответ' : null} onClick={() => onOpenFeedback?.()} />
+        {user.role === 'admin' && <MenuRow icon="shield" title="Админка" onClick={() => onOpenAdmin?.()} />}
+        <MenuRow icon="sliders" title="Настройки" onClick={openSettings} />
         <div className="actions">
           {/* Занятость и защита от двойного тапа — в LogoutButton (РЕВЬЮ-КОДА-2026-10-02). */}
           <LogoutButton onLogout={onLogout} />

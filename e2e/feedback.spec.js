@@ -15,7 +15,7 @@ test('участник открывает «Написать разработч�
   await expect(page.getByRole('heading', { name: 'Обратная связь' })).toBeVisible()
   await page.getByLabel('Что случилось?').fill('Не открывается прогресс')
   await expect(page.getByText('Нет связи. Отправить можно будет онлайн.')).toBeVisible()
-  await expect(page.getByRole('button', { name: 'Отправить' })).toBeDisabled()
+  await expect(page.getByRole('button', { name: 'Отправить', exact: true })).toBeDisabled()
   await page.setViewportSize({ width: 320, height: 740 })
   await expect.poll(() => page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth)).toBe(true)
   // «Назад» возвращает в Профиль, откуда открывали.

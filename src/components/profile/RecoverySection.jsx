@@ -1,3 +1,4 @@
+import MenuRow from '../ui/MenuRow.jsx'
 import { useCallback, useEffect, useState } from 'react'
 import {
   getRecoveryStatus, createRecoveryCode, createTgLinkToken, unlinkTg, getBotUsername, getBotInfo, LoginError,
@@ -10,7 +11,7 @@ import { showToast } from '../ui/Toast.jsx'
 import { useRevealFocus } from '../../hooks/useRevealFocus.js'
 import { useAliveRef } from '../../hooks/useAliveRef.js'
 
-// «🔐 Восстановление доступа» в Настройках (П1 «Мой круг», 07.10.2026): как вернуть
+// «Восстановление доступа» в Настройках (П1 «Мой круг», 07.10.2026): как вернуть
 // вход, если забыл PIN, без админа. Только онлайн (статус — на сервере).
 //   • Telegram: «Привязать» → одноразовая ссылка t.me/<бот>?start=… (10 мин) → в боте
 //     «Старт». «Отвязать» — здесь или /stop в боте.
@@ -96,12 +97,7 @@ export default function RecoverySection({ userId }) {
 
   if (!open) {
     return (
-      <button className="act" onClick={() => setOpen(true)}>
-        <span className="act-txt">
-          🔐 Восстановление доступа
-          <span className="act-sub">если забудешь PIN</span>
-        </span>
-      </button>
+      <MenuRow kind="expand" icon="lifebuoy" title="Восстановление доступа" sub="если забудешь PIN" onClick={() => setOpen(true)} />
     )
   }
 

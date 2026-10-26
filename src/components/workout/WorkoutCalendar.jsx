@@ -10,6 +10,7 @@ import { labelOf, majorOf } from '../../lib/muscles.js'
 import { exerciseMetric } from '../../lib/metric.js'
 import SetsCells from './SetsCells.jsx'
 import { plural } from '../../lib/plural.js'
+import Chevron from '../ui/Chevron.jsx'
 
 const DAY_TITLE = new Intl.DateTimeFormat('ru-RU', { weekday: 'long', day: 'numeric', month: 'long' })
 
@@ -65,8 +66,7 @@ export default function WorkoutCalendar({ workouts, filter = null, initialDate =
       <div className="sheet-scroll cal">
         <div className="cal-nav">
           <button type="button" className="back-btn" onClick={() => go(-1)} aria-label="Предыдущий месяц">
-            <svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" strokeWidth="2.2"
-              strokeLinecap="round" strokeLinejoin="round" aria-hidden="true"><path d="M15 6l-6 6 6 6" /></svg>
+            <Chevron back size={20} />
           </button>
           <div className="cal-title" aria-live="polite">
             <strong>{monthTitle(month)}</strong>
@@ -77,8 +77,7 @@ export default function WorkoutCalendar({ workouts, filter = null, initialDate =
           </div>
           <button type="button" className="back-btn" onClick={() => go(1)} disabled={atCurrent}
             aria-label="Следующий месяц">
-            <svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" strokeWidth="2.2"
-              strokeLinecap="round" strokeLinejoin="round" aria-hidden="true"><path d="M9 6l6 6-6 6" /></svg>
+            <Chevron size={20} />
           </button>
         </div>
 

@@ -1,3 +1,4 @@
+import MenuRow from '../ui/MenuRow.jsx'
 import { useEffect, useState } from 'react'
 import { getMyLogin, setMyLogin, LoginError } from '../../lib/auth.js'
 import { loginProblem, normalizeLogin } from '../../lib/login.js'
@@ -9,7 +10,7 @@ import { useAliveRef } from '../../hooks/useAliveRef.js'
 // Логин для входа в Настройках (П4 «Мой круг», 07.10.2026; решение владельца — виден
 // и меняется здесь). Логин знает только сам человек: сервер отдает его лишь владельцу
 // (my_login), поэтому показываем онлайн; офлайн — «виден онлайн».
-// Свернуто — пункт «🔤 Логин для входа · sega», раскрыто — форма как у смены PIN.
+// Свернуто — пункт «Логин для входа · sega», раскрыто — форма как у смены PIN.
 export default function LoginChangeForm({ userId }) {
   const aliveRef = useAliveRef()
   const [current, setCurrent] = useState(undefined) // undefined — еще не знаем, null — нет
@@ -62,12 +63,7 @@ export default function LoginChangeForm({ userId }) {
   if (!open) {
     const sub = current === undefined ? 'виден онлайн' : current === null ? 'еще не задан' : current
     return (
-      <button className="act" onClick={openForm}>
-        <span className="act-txt">
-          🔤 Сменить логин для входа
-          <span className="act-sub">Текущий логин: {sub}</span>
-        </span>
-      </button>
+      <MenuRow kind="expand" icon="idcard" title="Сменить логин для входа" sub={`Текущий логин: ${sub}`} onClick={openForm} />
     )
   }
   return (

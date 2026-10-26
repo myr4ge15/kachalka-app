@@ -17,6 +17,7 @@ import {
 import { exerciseFocusSummary } from '../../lib/workoutFocus.js'
 import { FEELS, FEEL_LABELS } from '../../lib/rpe.js'
 import { TechniqueButton } from './TechniqueSheet.jsx'
+import Icon from '../ui/Icon.jsx'
 
 // Карточка одного упражнения в композере тренировки (шапка, панель автопрогрессии
 // .ap, таблица подходов, «+ подход»). Чисто презентационная: весь стейт и его
@@ -288,8 +289,7 @@ export default function ExerciseCard({
           )}
 
           <button className="set-rm" onClick={() => onRemoveSet(ei, si)} aria-label={`Удалить подход ${si + 1}`}>
-            <svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor"
-              strokeWidth="2.4" strokeLinecap="round" aria-hidden="true"><path d="M6 6l12 12M18 6L6 18" /></svg>
+            <Icon name="close" size={15} strokeWidth={2.4} />
           </button>
         </div>
       ))}

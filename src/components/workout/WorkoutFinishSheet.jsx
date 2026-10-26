@@ -1,5 +1,6 @@
 import SheetDialog from '../ui/SheetDialog.jsx'
 import CheckIcon from '../ui/CheckIcon.jsx'
+import Icon from '../ui/Icon.jsx'
 import { fmtTonnage } from '../../lib/profileStats.js'
 import { fmtTime } from '../../lib/metric.js'
 import { formatWorkoutDuration, workoutFinishSummary } from '../../lib/workoutFinish.js'
@@ -96,7 +97,7 @@ export default function WorkoutFinishSheet({
           >
             {templateDone
               ? <><CheckIcon size={16} strokeWidth={3} /> Шаблон создан</>
-              : templateBusy ? 'Создаем шаблон…' : '📋 Сохранить как шаблон'}
+              : templateBusy ? 'Создаем шаблон…' : <><Icon name="template" size={18} /> Сохранить как шаблон</>}
           </button>
         )}
 

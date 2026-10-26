@@ -25,6 +25,8 @@ const ROW = {
 
 // Строка «Моих обращений» свернута — раскрыть тапом по шапке (9.3.3: новый ответ не раскрывает сам).
 const expand = async (name = /Пропал подход/) => userEvent.click(await screen.findByRole('button', { name }))
+// Форма под «Отправить обращение» (26.10.2026): раскрывается сама, когда список пуст — после загрузки.
+const formReady = () => screen.findByLabelText('Что случилось?')
 
 function setup(over = {}, props = {}) {
   const api = {
@@ -74,6 +76,7 @@ describe('FeedbackScreen', () => {
 
   it('контекст: вкладка, с которой пришли в Настройки, а не всегда «Профиль»', async () => {
     const api = setup({}, { fromScreen: 'feed' })
+    await formReady() // пустой список обращений — форма раскрыта сама
     await userEvent.type(screen.getByLabelText('Что случилось?'), 'Не грузится')
     await userEvent.click(screen.getByRole('button', { name: 'Отправить' }))
     await waitFor(() => expect(api.submit).toHaveBeenCalledTimes(1))
@@ -82,6 +85,7 @@ describe('FeedbackScreen', () => {
 
   it('отправка: текст + контекст (версия, устройство, экран), форма очищается', async () => {
     const api = setup()
+    await formReady() // пустой список обращений — форма раскрыта сама
     const send = screen.getByRole('button', { name: 'Отправить' })
     expect(send).toBeDisabled() // пусто — нечего отправлять
     await userEvent.type(screen.getByLabelText('Что случилось?'), 'Пропал подход')
@@ -94,7 +98,9 @@ describe('FeedbackScreen', () => {
     expect(payload.context).toMatchObject({ screen: 'Профиль', standalone: false })
     expect(payload.context.version).toBeTruthy()
     expect(payload.context.device).toBeTruthy()
-    await waitFor(() => expect(screen.getByLabelText('Что случилось?')).toHaveValue(''))
+    // Ушло — форма свернута под «Отправить обращение», раскрытая — пустая.
+    await userEvent.click(await screen.findByRole('button', { name: /Отправить обращение/, expanded: false }))
+    expect(screen.getByLabelText('Что случилось?')).toHaveValue('')
     expect(showToast).toHaveBeenCalledWith(expect.objectContaining({ title: 'Отправлено' }))
     expect(api.list).toHaveBeenCalledTimes(2) // при открытии и после отправки
   })
@@ -105,12 +111,14 @@ describe('FeedbackScreen', () => {
       pushes: [{ at: Date.parse('2026-10-23T12:20:00Z'), who: 'sw', ev: 'click', detail: '/#feed' }],
     }))
     const api = setup({ readLogs })
+    await formReady() // пустой список обращений — форма раскрыта сама
     await userEvent.type(screen.getByLabelText('Что случилось?'), 'Свайп')
     await userEvent.click(screen.getByRole('button', { name: 'Отправить' }))
     await waitFor(() => expect(api.submit).toHaveBeenCalledTimes(1))
     expect(api.submit.mock.calls[0][1].context.logs).toBeUndefined()
     expect(readLogs).not.toHaveBeenCalled()
 
+    await userEvent.click(await screen.findByRole('button', { name: /Отправить обращение/, expanded: false }))
     await userEvent.type(screen.getByLabelText('Что случилось?'), 'Свайп')
     await userEvent.click(screen.getByRole('checkbox', { name: /Приложить журналы/ }))
     await userEvent.click(screen.getByRole('button', { name: 'Отправить' }))
@@ -119,11 +127,13 @@ describe('FeedbackScreen', () => {
     expect(logs.swipe).toHaveLength(1)
     expect(logs.swipe[0]).toMatch(/вернулся · 17%/)
     expect(logs.push[0]).toMatch(/sw click · \/#feed$/)
-    await waitFor(() => expect(screen.getByRole('checkbox', { name: /Приложить журналы/ })).not.toBeChecked())
+    await userEvent.click(await screen.findByRole('button', { name: /Отправить обращение/, expanded: false }))
+    expect(screen.getByRole('checkbox', { name: /Приложить журналы/ })).not.toBeChecked()
   })
 
   it('скриншот: грузится сразу после выбора, «Убрать» удаляет загруженное, отправка — путями', async () => {
     const api = setup()
+    await formReady() // пустой список обращений — форма раскрыта сама
     const file = new File(['x'], 'shot.png', { type: 'image/png' })
     await userEvent.upload(screen.getByTestId('fb-file'), file)
     expect(await screen.findByAltText('Скриншот к обращению')).toHaveAttribute('src', 'blob:preview')
@@ -146,6 +156,7 @@ describe('FeedbackScreen', () => {
       .mockRejectedValueOnce(new Error('сеть'))
       .mockResolvedValue('me/b.png')
     const api = setup({ upload })
+    await formReady() // пустой список обращений — форма раскрыта сама
     await userEvent.upload(screen.getByTestId('fb-file'), [new File(['a'], 'a.png', { type: 'image/png' }), new File(['b'], 'b.png', { type: 'image/png' })])
     await userEvent.type(screen.getByLabelText('Что случилось?'), 'ошибка')
     await userEvent.click(screen.getByRole('button', { name: 'Отправить' }))
@@ -159,8 +170,31 @@ describe('FeedbackScreen', () => {
     await waitFor(() => expect(api.submit.mock.calls[0][1].paths).toEqual(['me/a.png', 'me/b.png']))
   })
 
+  it('есть обращения — форма свернута под «Отправить обращение», тап раскрывает и сворачивает', async () => {
+    setup({ list: vi.fn(async () => [ROW]) })
+    const row = screen.getByRole('button', { name: /Отправить обращение/ })
+    expect(row).toHaveAttribute('aria-expanded', 'false') // список грузится — свернута, не прыгает
+    await screen.findByRole('button', { name: /Пропал подход/ })
+    expect(screen.queryByLabelText('Что случилось?')).toBeNull()
+    await userEvent.click(row)
+    expect(row).toHaveAttribute('aria-expanded', 'true')
+    await userEvent.type(screen.getByLabelText('Что случилось?'), 'идея')
+    await userEvent.click(row)
+    expect(screen.queryByLabelText('Что случилось?')).toBeNull()
+    expect(row).toHaveTextContent('есть черновик') // набранное не пропало
+    await userEvent.click(row)
+    expect(screen.getByLabelText('Что случилось?')).toHaveValue('идея')
+  })
+
+  it('обращений нет — форма раскрыта сама', async () => {
+    setup()
+    expect(await screen.findByLabelText('Что случилось?')).toBeInTheDocument()
+    expect(screen.getByRole('button', { name: /Отправить обращение/ })).toHaveAttribute('aria-expanded', 'true')
+  })
+
   it('ошибка сервера — тост с текстом, введенное не теряется', async () => {
     const api = setup({ submit: vi.fn(async () => { throw new FeedbackError('Много обращений подряд.') }) })
+    await formReady() // пустой список обращений — форма раскрыта сама
     await userEvent.type(screen.getByLabelText('Что случилось?'), 'идея')
     await userEvent.click(screen.getByRole('button', { name: 'Отправить' }))
     await waitFor(() => expect(showToast).toHaveBeenCalledWith(expect.objectContaining({ sub: 'Много обращений подряд.' })))
@@ -185,7 +219,7 @@ describe('FeedbackScreen', () => {
     expect(screen.getByText('Исправлено в 6.11.1')).toBeTruthy()
     expect(screen.getByText('Решено')).toBeTruthy()
     expect(screen.queryByText('новый')).toBeNull() // раскрыли — прочитано, метка гаснет
-    expect(screen.getByText('📎 со скриншотом')).toBeTruthy()
+    expect(screen.getByText('со скриншотом')).toBeTruthy()
     expect(api.ack).toHaveBeenCalledTimes(1)
   })
 
@@ -288,8 +322,8 @@ describe('FeedbackScreen — компактный список (16.10)', () => {
     setup({ list: vi.fn(async () => rows) })
     const toggle = await screen.findByRole('button', { name: /Открытое без ответа/ })
     expect(toggle).toHaveAttribute('aria-expanded', 'false')
-    expect(screen.getByText('📎 2')).toBeTruthy()
-    expect(screen.getByText('➕ 1')).toBeTruthy()
+    expect(screen.getByLabelText('Вложений: 2')).toBeTruthy()
+    expect(screen.getByLabelText('Дополнений: 1')).toBeTruthy()
     expect(screen.queryByRole('button', { name: 'Дополнить' })).toBeNull()
     expect(screen.queryByText('Закрытое')).toBeNull() // другая вкладка
     await userEvent.click(toggle)
@@ -324,6 +358,7 @@ describe('FeedbackScreen — компактный список (16.10)', () => {
 
 it('несколько файлов: повторный выбор добавляет, удаление убирает только выбранный', async () => {
   const api = setup()
+  await formReady() // пустой список обращений — форма раскрыта сама
   const a = new File(['a'], 'a.png', { type: 'image/png' })
   const b = new File(['b'], 'b.png', { type: 'image/png' })
   const c = new File(['c'], 'c.png', { type: 'image/png' })

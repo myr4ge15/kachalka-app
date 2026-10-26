@@ -1,5 +1,6 @@
 import { plural as pluralWord } from '../lib/plural.js'
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
+import MenuRow from '../components/ui/MenuRow.jsx'
 import { circleApi, joinStatusText } from '../lib/friendCircles.js'
 import { showToast } from '../components/ui/Toast.jsx'
 import { getMyCircles, refreshMyCircles } from '../db/circles.js'
@@ -148,7 +149,7 @@ function CirclePanel({ api, circle, me, onChanged, onGone, onOpenMember }) {
               </div>
             </div>
           ) : (
-            <button type="button" className="act danger" onClick={() => setArmLeave(true)}>Выйти из круга</button>
+            <MenuRow kind="action" tone="danger" icon="logout" title="Выйти из круга" onClick={() => setArmLeave(true)} />
           )}
         </div>
       )}

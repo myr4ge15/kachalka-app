@@ -1,3 +1,4 @@
+import MenuRow from '../ui/MenuRow.jsx'
 import { useState } from 'react'
 import { readRestSettings, writeRestSettings } from '../../hooks/useRestTimer.js'
 import { cancelRestPush } from '../../db/restPush.js'
@@ -14,14 +15,7 @@ export default function RestTimerToggle({ userId }) {
     setOn(next)
   }
   return (
-    <button className="act toggle-act" role="switch" aria-checked={on} onClick={toggle}>
-      <span className="toggle-act-txt">
-        ⏱ Таймер отдыха
-        <span className="toggle-act-sub">кнопка ⏱ в упражнении новой тренировки за сегодня</span>
-      </span>
-      <span className={'toggle-pill' + (on ? ' on' : '')} aria-hidden="true">
-        <span className="toggle-knob" />
-      </span>
-    </button>
+    <MenuRow kind="switch" icon="timer" title="Таймер отдыха" checked={on} onClick={toggle}
+      sub="кнопка таймера в упражнении новой тренировки за сегодня" />
   )
 }

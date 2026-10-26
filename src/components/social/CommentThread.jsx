@@ -18,6 +18,7 @@ import {
   reactionPills, replyQuote,
 } from '../../lib/comments.js'
 import { postComment, removeComment, setCommentReaction, updateComment } from '../../db/comments.js'
+import Icon from '../ui/Icon.jsx'
 
 // Ветка комментариев под тренировкой (19.10.2026, PLAN-comments.md; мокап prototypes/comments).
 // Свернута — два последних и «Все комментарии (N)»; раскрыта — все по времени и поле внизу.
@@ -282,13 +283,13 @@ export default function CommentThread({ workoutId, ownerId, comments, me, open, 
       {editing && (
         <div className="cm-editing">
           <span>Изменяешь комментарий</span>
-          <button type="button" onClick={cancelEdit} aria-label="Отменить правку">✕</button>
+          <button type="button" onClick={cancelEdit} aria-label="Отменить правку"><Icon name="close" size={16} /></button>
         </div>
       )}
       {replying && (
         <div className="cm-editing">
           <span>Ответ: {replying.name}</span>
-          <button type="button" onClick={() => setReplying(null)} aria-label="Отменить ответ">✕</button>
+          <button type="button" onClick={() => setReplying(null)} aria-label="Отменить ответ"><Icon name="close" size={16} /></button>
         </div>
       )}
       <div className="cm-form" ref={formRef}>

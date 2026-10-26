@@ -1,3 +1,4 @@
+import MenuRow from '../ui/MenuRow.jsx'
 import { useState } from 'react'
 import { setPin, LoginError } from '../../lib/auth.js'
 import { onlyDigits } from '../../lib/text.js'
@@ -7,7 +8,7 @@ import { useRevealFocus } from '../../hooks/useRevealFocus.js'
 import { useAliveRef } from '../../hooks/useAliveRef.js'
 
 // Смена PIN в Настройках (фаза 2c; вынесено из ProfileScreen в v6.14.1). Свернуто —
-// пункт «🔑 Сменить PIN», раскрыто — форма. Закрытие Настроек размонтирует форму,
+// пункт «Сменить PIN», раскрыто — форма. Закрытие Настроек размонтирует форму,
 // поэтому отдельно сбрасывать ее при выходе не нужно.
 export default function PinChangeForm({ userId }) {
   const aliveRef = useAliveRef()
@@ -46,7 +47,7 @@ export default function PinChangeForm({ userId }) {
   }
 
   if (!pinOpen) {
-    return <button className="act" onClick={() => setPinOpen(true)}>🔑 Сменить PIN</button>
+    return <MenuRow kind="expand" icon="key" title="Сменить PIN" onClick={() => setPinOpen(true)} />
   }
   return (
     // <form>: Enter отправляет; поля заперты, пока идет сохранение (UI-ревью 23.10).

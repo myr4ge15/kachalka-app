@@ -23,7 +23,7 @@ export default function PushSettingsScreen({ user, onBack }) {
 
       <section className="sec">
         <PushToggle
-          label="🔔 Присылать на это устройство"
+          label="Присылать на это устройство"
           availability={push.availability}
           enabled={push.enabled}
           busy={push.busy}

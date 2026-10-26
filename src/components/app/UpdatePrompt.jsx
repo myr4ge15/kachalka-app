@@ -4,6 +4,7 @@ import { onOnline, onResume } from '../../lib/appEvents.js'
 import { shouldReshowUpdate, makeReloadOnce, isRealUpdate, shouldAutoApply, shouldSurfaceWaiting } from '../../lib/pwaUpdate.js'
 import { pushIntentFromUrl } from '../../lib/pushIntent.js'
 import { reloadForUpdatePush } from '../../lib/launchUpdate.js'
+import Icon from '../ui/Icon.jsx'
 
 // Открыли нажатием на пуш «вышла новая версия»? Читаем адрес в момент монтирования:
 // App убирает `?push=` из адреса только в эффекте, позже первого рендера.
@@ -288,7 +289,7 @@ export default function UpdatePrompt() {
         Обновить
       </button>
       <button className="update-banner-close" onClick={snooze} aria-label="Позже">
-        &times;
+        <Icon name="close" size={18} />
       </button>
     </div>
   )

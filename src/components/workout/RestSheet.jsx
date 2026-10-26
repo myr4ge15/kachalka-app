@@ -1,6 +1,7 @@
 import { useRef } from 'react'
 import SheetDialog from '../ui/SheetDialog.jsx'
 import Chevron from '../ui/Chevron.jsx'
+import MenuRow from '../ui/MenuRow.jsx'
 import { fmtRest, REST_PRESETS, REST_STEP_SEC } from '../../lib/restTimer.js'
 import { isIOSDevice } from '../../lib/pushSupport.js'
 
@@ -106,12 +107,6 @@ export default function RestSheet({ state, run, idleSec, settings, exerciseName,
 
 function Toggle({ label, sub, on, onToggle }) {
   return (
-    <button type="button" className="act toggle-act rest-toggle" role="switch" aria-checked={on} onClick={onToggle}>
-      <span className="toggle-act-txt">
-        {label}
-        {sub && <span className="toggle-act-sub">{sub}</span>}
-      </span>
-      <span className={'toggle-pill' + (on ? ' on' : '')} aria-hidden="true"><span className="toggle-knob" /></span>
-    </button>
+    <MenuRow kind="switch" className="rest-toggle" title={label} sub={sub} checked={on} onClick={onToggle} />
   )
 }

@@ -2,6 +2,7 @@ import { useMemo } from 'react'
 import { useSpeech } from '../../hooks/useSpeech.js'
 import { bestVoicePhrase } from '../../lib/voiceExercises.js'
 import { parseVoiceCommand } from '../../lib/voiceCommand.js'
+import Icon from '../ui/Icon.jsx'
 
 // Сколько вариантов показывать: на «жим» справочник отдает десятки строк, а это
 // подсказка, а не второй список пикера — дальше человек уточнит поиском.
@@ -78,5 +79,5 @@ export function MicIcon({ size = 20 }) {
 }
 
 export function CloseIcon() {
-  return <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" aria-hidden="true"><path d="m6 6 12 12M18 6 6 18" /></svg>
+  return <Icon name="close" size={20} />
 }

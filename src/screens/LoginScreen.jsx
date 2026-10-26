@@ -13,6 +13,7 @@ import JoinStatusCard from '../components/auth/JoinStatusCard.jsx'
 import NameLoginForm from '../components/auth/NameLoginForm.jsx'
 import PinPad from '../components/auth/PinPad.jsx'
 import ForgotPin from '../components/recovery/ForgotPin.jsx'
+import Chevron from '../components/ui/Chevron.jsx'
 
 // Экран входа (v6.12.0).
 //   • Пикер показывает ТОЛЬКО учетки, уже входившие на этом устройстве (есть
@@ -239,9 +240,7 @@ export default function LoginScreen({ onLogin, onInvite }) {
             {known.map((u) => (
               <button key={u.id} className="user-btn" onClick={() => pickUser(u)}>
                 <span className="user-btn-name">{u.name}</span>
-                <svg className="user-btn-chev" viewBox="0 0 24 24" width="18" height="18" fill="none"
-                  stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round"
-                  aria-hidden="true"><path d="M9 6l6 6-6 6" /></svg>
+                <Chevron className="user-btn-chev" size={18} />
               </button>
             ))}
           </div>

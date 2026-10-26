@@ -1,5 +1,6 @@
 import PhaseTag from '../components/workout/PhaseTag.jsx'
 import Chevron from '../components/ui/Chevron.jsx'
+import MenuRow from '../components/ui/MenuRow.jsx'
 import { useState, useMemo, useEffect, useRef } from 'react'
 import { useLiveQuery } from 'dexie-react-hooks'
 import { getWorkouts, saveTemplate } from '../db/repo.js'
@@ -314,14 +315,7 @@ export default function HistoryScreen({
             «+ Новая тренировка» в боковой колонке (App.jsx). Своя кнопка хаба убрана,
             чтобы не дублировать. */}
 
-        <button className="tpl-link" onClick={() => setSelected('templates')}>
-          <svg className="tpl-link-ico" viewBox="0 0 24 24" width="19" height="19" fill="none" stroke="currentColor"
-            strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
-            <rect x="5" y="4" width="14" height="17" rx="2.5" /><path d="M9 4V3h6v1M9 10h6M9 14h6" />
-          </svg>
-          <span className="tpl-link-txt">Шаблоны</span>
-          <Chevron className="tpl-link-chev" size={18} />
-        </button>
+        <MenuRow icon="template" title="Шаблоны" className="tpl-link" onClick={() => setSelected('templates')} />
 
         {loading && <CardsSkeleton cards={4} />}
 

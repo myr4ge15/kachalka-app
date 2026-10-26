@@ -96,7 +96,7 @@ describe('TemplatesScreen — список', () => {
     expand = true
     renderScreen()
     const mine = screen.getByText('Грудь').closest('button')
-    expect(mine).toHaveTextContent('🌐 виден всем')
+    expect(mine).toHaveTextContent('виден всем')
     expect(within(mine).getByTitle('Ждет синхронизации')).toBeInTheDocument()
     // Состав таблетками (fb_966c7e2b): число подходов отдельно, одинаковые подходы — одной таблеткой.
     expect(within(mine).getByText('4 подхода')).toBeInTheDocument()
@@ -105,7 +105,7 @@ describe('TemplatesScreen — список', () => {
     const theirs = screen.getByText('Спина').closest('.tpl-card')
     expect(theirs.tagName).toBe('DIV')
     expect(theirs).toHaveTextContent('· от Петя')
-    expect(theirs).not.toHaveTextContent('🌐')
+    expect(theirs).not.toHaveTextContent('виден всем')
   })
 
   it('экспорт: выбор карточек вместо открытия, «Скачать» отдает выбранные', () => {

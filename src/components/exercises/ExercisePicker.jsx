@@ -8,6 +8,7 @@ import ExerciseScanner from './ExerciseScanner.jsx'
 import ExerciseVoice from './ExerciseVoice.jsx'
 import { VOICE_ENABLED } from '../../lib/features.js'
 import TechniqueSheet, { TechniqueButton } from './TechniqueSheet.jsx'
+import Icon from '../ui/Icon.jsx'
 
 // Канонические группы мышц из ТЗ (Приложение A / п. 3.2). К ним добавляем
 // все группы, реально встретившиеся в справочнике, чтобы ничего не потерять.
@@ -411,8 +412,7 @@ export default function ExercisePicker({
           {query && (
             <button type="button" className="search-clear" aria-label="Очистить поиск" title="Очистить поиск"
               onClick={() => { changeQuery(''); searchRef.current?.focus() }}>
-              <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" strokeWidth="2.4"
-                strokeLinecap="round" aria-hidden="true"><path d="M6 6l12 12M18 6L6 18" /></svg>
+              <Icon name="close" size={18} strokeWidth={2.4} />
             </button>
           )}
 
