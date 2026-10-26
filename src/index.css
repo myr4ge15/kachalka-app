@@ -1424,8 +1424,8 @@ button.link-btn { min-height: 44px; display: inline-flex; align-items: center; j
    при прокрутке длинного списка. */
 .export-toggle--bottom { margin: 20px 0 4px; text-align: center; }
 .export-toggle--top { margin: -4px 0 14px; text-align: center; }
-/* Группы шаблонов — заголовками разделов, а не мелкой серой подписью (fb_1099223c). */
-.group-toggle.tpl-group { font-size: var(--fs-title); font-weight: 600; color: var(--text); }
+/* Иконка «Скачать» (DownloadIcon) — на линии текста ссылки и кнопки. */
+.export-ico { vertical-align: -3px; margin-right: 2px; }
 .export-bar--fixed {
   position: fixed; left: 50%; transform: translateX(-50%); z-index: 6;
   width: calc(100% - 24px); max-width: 536px; margin: 0;
@@ -1543,17 +1543,17 @@ button.link-btn { min-height: 44px; display: inline-flex; align-items: center; j
   font-size: 13px; font-weight: 600; color: var(--muted);
   margin: 18px 0 8px;
 }
-/* Сворачиваемый заголовок группы (шаблоны): вся строка — зона тапа ≥44px. */
-.group-toggle {
-  display: flex; align-items: center; gap: 8px; width: 100%;
-  background: none; border: 0; padding: 12px 2px; cursor: pointer;
-  text-align: left; min-height: 44px;
+/* Группа шаблонов «Мои» / «Общие» — строкой-карточкой .act (fb_3830b581): название,
+   счетчик таблеткой и шеврон раскрытия справа; раскрытая — с акцентной обводкой. */
+.act.tpl-group { margin: 0 0 10px; font-size: 16px; }
+.act.tpl-group.is-open { border-color: color-mix(in srgb, var(--acc) 45%, var(--border)); }
+.tpl-group-title { flex: 1 1 auto; min-width: 0; }
+.tpl-group-count {
+  flex: none; min-width: 26px; padding: 2px 9px; border-radius: 999px; text-align: center;
+  background: var(--surface-2); color: var(--muted); font-size: 12px; font-weight: 600;
 }
-.group-toggle .group-caret { color: var(--muted); width: 20px; }
-.group-toggle .group-toggle-title { flex: 0 1 auto; }
-.group-toggle .group-count {
-  font-size: 12px; font-weight: 400; letter-spacing: 0; text-transform: none;
-}
+.act.tpl-group.is-open .tpl-group-count { background: var(--acc-soft); color: var(--acc-2); }
+.tpl-group-caret { flex: none; color: var(--muted); }
 /* Бейдж «общий» (🌐) у своих публичных шаблонов */
 .tpl-badge {
   font-size: 12px; font-weight: 400; color: var(--acc-2);

@@ -119,7 +119,7 @@ describe('TemplatesScreen — список', () => {
     expect(screen.queryByRole('button', { name: '+ Новый шаблон' })).toBeNull()
     fireEvent.click(screen.getByText('Спина').closest('button'))
     expect(screen.getByText('Спина').closest('button')).toHaveClass('picked')
-    fireEvent.click(screen.getByRole('button', { name: '⬇ Скачать (1)' }))
+    fireEvent.click(screen.getByRole('button', { name: 'Скачать (1)' }))
     expect(exportTemplates).toHaveBeenCalledWith([THEIR_TPL], expect.any(String))
     expect(screen.getByRole('button', { name: '+ Новый шаблон' })).toBeInTheDocument()
     expect(onSelectModeChange).toHaveBeenLastCalledWith(false)

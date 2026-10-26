@@ -81,14 +81,15 @@ function TemplateCard({ t, mine, onOpen, selectMode = false, picked = false, onP
   )
 }
 
-// Заголовок сворачиваемой группы: тап переключает раскрытие, шеврон + счетчик.
-// Шрифт — как у заголовков разделов (16 · 600), шеврон — общий (fb_1099223c).
+// Заголовок сворачиваемой группы: тап переключает раскрытие. Строка-карточка, как пункты
+// Настроек (.act): название, счетчик таблеткой, шеврон раскрытия справа. Голые строки с
+// шевроном слева выбивались из «Спорт-блоков» (26.10.2026, fb_3830b581).
 function GroupHeader({ title, count, open, onToggle, btnRef = null }) {
   return (
-    <button ref={btnRef} className="group-title group-toggle tpl-group" onClick={onToggle} aria-expanded={open}>
-      <Chevron open={open} className="group-caret" />
-      <span className="group-toggle-title">{title}</span>
-      <span className="group-count muted">{count}</span>
+    <button ref={btnRef} className={'act tpl-group' + (open ? ' is-open' : '')} onClick={onToggle} aria-expanded={open}>
+      <span className="tpl-group-title">{title}</span>
+      <span className="tpl-group-count">{count}</span>
+      <Chevron toggle open={open} className="tpl-group-caret" />
     </button>
   )
 }
@@ -154,7 +155,7 @@ export default function TemplateList({ user, onBack, onOpen, onSelectModeChange 
         </button>
       )}
 
-      {/* Скачивание — наверху, под «+ Новый шаблон» (fb_95f78b7a); ⬇ — это и есть
+      {/* Скачивание — наверху, под «+ Новый шаблон» (fb_95f78b7a); стрелка вниз — это и есть
           «скачать файл», поэтому и подпись «Скачать» вместо «Экспорт» (fb_4b633dfb). */}
       <ExportBar
         selectMode={selectMode}

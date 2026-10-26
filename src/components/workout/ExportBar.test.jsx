@@ -23,7 +23,7 @@ describe('ExportBar', () => {
     const h = handlers()
     render(<ExportBar selectMode count={0} label="x" {...h} />)
     expect(screen.getByText('Выбрано: 0')).toBeInTheDocument()
-    expect(screen.getByRole('button', { name: '⬇ Скачать' })).toBeDisabled()
+    expect(screen.getByRole('button', { name: 'Скачать' })).toBeDisabled()
     fireEvent.click(screen.getByRole('button', { name: 'Все' }))
     fireEvent.click(screen.getByRole('button', { name: 'Отмена' }))
     expect(h.onPickAll).toHaveBeenCalledTimes(1)
@@ -33,7 +33,7 @@ describe('ExportBar', () => {
   it('с отметками — счетчик на кнопке, нажатие экспортирует', () => {
     const h = handlers()
     render(<ExportBar selectMode count={3} label="x" {...h} />)
-    fireEvent.click(screen.getByRole('button', { name: '⬇ Скачать (3)' }))
+    fireEvent.click(screen.getByRole('button', { name: 'Скачать (3)' }))
     expect(h.onExport).toHaveBeenCalledTimes(1)
   })
 
