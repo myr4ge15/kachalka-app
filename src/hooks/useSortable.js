@@ -154,7 +154,8 @@ export function useSortable(onMove, { attr, handle, holdMs = 0, onLift, onDrop }
       let y = 0
       if (t > d) y = rects[t].top + rects[t].h - (rects[d].top + rects[d].h)
       else if (t < d) y = rects[t].top - rects[d].top
-      y -= scrollTop() - g.startScroll // строка уехала вместе с прокруткой
+      // Прокрутку не вычитаем (fb_6c3de081): вместе с ней едет и строка, и ее новое место.
+      // Вычет уводил строку на высоту автопрокрутки ниже места — она «улетала» и прыгала назад.
       const others = list.filter((_, i) => i !== d)
       const beforeId = t === d ? undefined : (others[t] ? idOf(others[t]) : null)
       g.dropping = true

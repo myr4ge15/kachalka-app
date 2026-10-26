@@ -45,13 +45,15 @@
             <stop offset="1" class="splash-stop-2" />
           </linearGradient>
         </defs>
-        <g class="splash-lift">
+        <!-- Тень и петля «прыжка» (v1.4.3): видны только при обновлении (.splash--updating). -->
+        <ellipse class="splash-shadow" cx="100" cy="146" rx="46" ry="4" />
+        <g class="splash-lift"><g class="splash-loop">
           <rect class="splash-bar" x="37.5" y="93.75" width="125" height="12.5" rx="6.25" />
           <rect class="splash-plate splash-plate--l splash-plate--big" x="59.4" y="68.75" width="13.3" height="62.5" rx="4.7" />
           <rect class="splash-plate splash-plate--r splash-plate--big" x="127.3" y="68.75" width="13.3" height="62.5" rx="4.7" />
           <rect class="splash-plate splash-plate--l splash-plate--small" x="43.75" y="76.6" width="13.3" height="46.9" rx="4.7" />
           <rect class="splash-plate splash-plate--r splash-plate--small" x="143" y="76.6" width="13.3" height="46.9" rx="4.7" />
-        </g>
+        </g></g>
       </svg>
       <p class="splash-title">kachalka-app</p>
       <!-- Обновление при запуске (v6.13.0, lib/launchUpdate.js): показывает main.jsx. -->

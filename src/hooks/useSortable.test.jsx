@@ -160,6 +160,25 @@ describe('useSortable — удержание (тренировка)', () => {
     expect(onMove).toHaveBeenCalledWith('c', 'b')
   })
 
+  it('список прокрутился во время жеста — строка доезжает ровно на свое место (fb_6c3de081)', () => {
+    const { grip, row, container } = setup()
+    // Корень — внутри скроллера .content; прокрутка 300 при подъеме.
+    const box = document.createElement('div')
+    box.className = 'content'
+    let top = 300
+    Object.defineProperty(box, 'scrollTop', { get: () => top, set: v => { top = v }, configurable: true })
+    container.parentNode.insertBefore(box, container)
+    box.append(container)
+    fireEvent.touchStart(grip('c'), touch(20, 245))
+    act(() => vi.advanceTimersByTime(350))
+    top = 200 // автопрокрутка вверх на 100: строки и их места на экране съехали вниз вместе
+    fireEvent.touchMove(grip('c'), touch(20, 25))
+    fireEvent.touchEnd(grip('c'))
+    // Место «a» — на 200 выше «c» в той же прокрутке; без поправки на прокрутку.
+    expect(row('c').style.transform).toBe('translate3d(0, -200px, 0)')
+    box.remove()
+  })
+
   it('клик сразу после перетаскивания гасится (не раскрывает карточку)', () => {
     const { grip } = setup()
     const onClick = vi.fn()

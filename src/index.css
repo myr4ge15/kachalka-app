@@ -3691,6 +3691,24 @@ label.act.busy { opacity: .55; pointer-events: none; }
   100% { transform: none; }
 }
 @keyframes splash-rise { from { opacity: 0; transform: translateY(8px); } to { opacity: 1; transform: none; } }
+/* Пока качается обновление (v1.4.3), штанга прыгает с «приседом» при приземлении, под ней
+   дышит тень. Своя группа .splash-loop внутри .splash-lift — не спорит с жимом из сборки;
+   задержку (--splash-loop-delay) ставит splashBoot.js, чтобы прыжки начались после сборки. */
+.splash-loop { transform-box: view-box; transform-origin: 100px 120px; }
+.splash-shadow { fill: var(--acc); opacity: 0; transform-box: fill-box; transform-origin: center; }
+.splash--updating .splash-loop { animation: splash-bounce 1s var(--splash-loop-delay, 0ms) infinite both; }
+.splash--updating .splash-shadow { animation: splash-shadow 1s var(--splash-loop-delay, 0ms) infinite both; }
+@keyframes splash-bounce {
+  0% { transform: scale(1.08, .92); animation-timing-function: cubic-bezier(.2, .7, .4, 1); }
+  12% { transform: translateY(-3px) scale(.96, 1.04); animation-timing-function: cubic-bezier(.3, .6, .5, 1); }
+  48% { transform: translateY(-22px); animation-timing-function: cubic-bezier(.5, 0, .8, .4); }
+  88% { transform: none; }
+  100% { transform: scale(1.08, .92); }
+}
+@keyframes splash-shadow {
+  0%, 88%, 100% { opacity: .22; transform: none; }
+  48% { opacity: .07; transform: scaleX(.55); }
+}
 /* Обновление при запуске (v6.13.0): «Обновляем до v…» + прогресс под знаком.
    Абсолютно — чтобы знак не прыгал, когда блок появляется. */
 .splash-upd {
@@ -3733,7 +3751,8 @@ label.act.busy { opacity: .55; pointer-events: none; }
 }
 @media (prefers-reduced-motion: reduce) {
   .splash, .splash--out .splash-logo { transition: none; }
-  .splash-bar, .splash-plate, .splash-lift, .splash-title { animation: none; }
+  .splash-bar, .splash-plate, .splash-lift, .splash-title,
+  .splash--updating .splash-loop, .splash--updating .splash-shadow { animation: none; }
 }
 
 /* ============================================================================

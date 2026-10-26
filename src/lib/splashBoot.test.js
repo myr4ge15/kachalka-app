@@ -44,6 +44,16 @@ describe('splashUpdateUi', () => {
     expect($('splash-upd-bar').classList.contains('splash-upd-bar--busy')).toBe(true)
   })
 
+  it('start — штанга прыгает, но только после сборки (задержка от начала загрузки)', () => {
+    const ui = splashUpdateUi(document, $('splash'), { now: () => 400 })
+    ui.start('1.2.0')
+    expect($('splash').classList.contains('splash--updating')).toBe(true)
+    expect($('splash').style.getPropertyValue('--splash-loop-delay')).toBe('850ms')
+    document.body.innerHTML = MARKUP
+    splashUpdateUi(document, $('splash'), { now: () => 400, reduce: true }).start('1.2.0')
+    expect($('splash').style.getPropertyValue('--splash-loop-delay')).toBe('0ms')
+  })
+
   it('progress — проценты и «Загружено N из M», пустой прогресс ничего не меняет', () => {
     const ui = splashUpdateUi(document, $('splash'), { reduce: true })
     ui.start('1.2.0')

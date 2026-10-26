@@ -108,6 +108,9 @@ export function splashUpdateUi(doc, root, { reduce = false, raf, now = () => per
   return {
     start(version) {
       root.removeAttribute('aria-hidden') // статус должен услышать и скринридер
+      // Штанга прыгает, пока качаем (v1.4.3, index.css .splash--updating) — но только после сборки.
+      root.style.setProperty('--splash-loop-delay', `${splashDelay(now(), reduce)}ms`)
+      root.classList.add('splash--updating')
       const versionLabel = doc.createElement('span')
       versionLabel.className = 'version-number'
       versionLabel.textContent = `v${version}`
