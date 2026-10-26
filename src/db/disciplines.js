@@ -92,11 +92,13 @@ export async function fetchRatingBoard(userId, discipline, { force = false, circ
   })
 }
 
-export async function invalidateRatingCache(d = db) {
+// keepCatalog (26.10.2026, fb_c6b5ce77): общий список дисциплин остается до свежего ответа — Админка
+// сразу перечитывает его сама, а без снимка экран на время запроса показывал «дисциплин нет».
+export async function invalidateRatingCache(d = db, { keepCatalog = false } = {}) {
   if (!d) return
   revisions.set(d, (revisions.get(d) || 0) + 1)
   pending.delete(d)
   await d.transaction('rw', d.meta, async () => {
-    await d.meta.where('key').startsWith('rating_').delete()
+    await d.meta.where('key').startsWith('rating_').and(m => !(keepCatalog && m.key === CATALOG)).delete()
   })
 }

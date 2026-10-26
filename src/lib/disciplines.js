@@ -21,4 +21,5 @@ export function disciplineResult(metric, value) {
   return normMetric(metric) === 'reps' ? `${value} повт.` : fmtMetricValue(metric, value)
 }
 
-export const DISCIPLINE_UNITS = { weight: 'Вес, кг', reps: 'Повторы', time: 'Время, мин:сек', distance: 'Дистанция, км' }
+// Подпись единицы рядом с названием — со строчной (26.10.2026, fb_c6b5ce77).
+export const DISCIPLINE_UNITS = { weight: 'вес, кг', reps: 'повторы', time: 'время, мин:сек', distance: 'дистанция, км' }

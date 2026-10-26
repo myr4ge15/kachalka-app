@@ -7,7 +7,11 @@ import CheckIcon from '../ui/CheckIcon.jsx'
 
 export default function AdminDisciplines({ userId, exercises, online }) {
   const catalog = useLiveQuery(getRatingCatalog, [], null)
-  const items = catalog?.items ?? []
+  // Оптимистично (fb_c6b5ce77): «по полу» и ✕ видны сразу, до ответа сервера; ошибка — откат.
+  const [draft, setDraft] = useState(null) // { exercise_id, split_by_sex?, enabled? }
+  const items = (catalog?.items ?? [])
+    .map(d => (draft && d.exercise_id === draft.exercise_id ? { ...d, ...draft } : d))
+    .filter(d => d.enabled !== false)
   const [exercise, setExercise] = useState('')
   const [split, setSplit] = useState(true)
   const [busy, setBusy] = useState(false)
@@ -27,6 +31,7 @@ export default function AdminDisciplines({ userId, exercises, online }) {
   async function save(value) {
     if (busy || !online) return
     setBusy(true); setError('')
+    if (value.id) setDraft({ exercise_id: value.exercise_id, split_by_sex: value.split_by_sex, enabled: value.enabled })
     try {
       const result = await adminSaveDiscipline(userId, value)
       if (alive.current) {
@@ -34,7 +39,7 @@ export default function AdminDisciplines({ userId, exercises, online }) {
         if (result?.refreshed === false) setError('Сохранено, но список не обновился. Нажми «Обновить список».')
       }
     } catch (err) { if (alive.current) setError(err.message || 'Не удалось сохранить') }
-    finally { if (alive.current) setBusy(false) }
+    finally { if (alive.current) { setBusy(false); setDraft(null) } }
   }
   async function refresh() {
     setBusy(true); setError('')
@@ -55,8 +60,8 @@ export default function AdminDisciplines({ userId, exercises, online }) {
     {items.length > 0 && <ul className="disc-list">
       {items.map(d => <li key={d.id} className="disc-row">
         <span className="disc-name">{d.name}<span className="disc-unit">{DISCIPLINE_UNITS[d.metric]}</span></span>
-        <SexChip checked={d.split_by_sex} disabled={off} onChange={v => save({ ...d, split_by_sex: v })} />
-        <button type="button" className="disc-rm" disabled={off} onClick={() => save({ ...d, enabled: false })}
+        <SexChip checked={d.split_by_sex} disabled={off} dim={!online} onChange={v => save({ ...d, split_by_sex: v })} />
+        <button type="button" className={'disc-rm' + (online ? '' : ' off')} disabled={off} onClick={() => save({ ...d, enabled: false })}
           aria-label={`Убрать из рейтинга: ${d.name}`} title="Убрать из рейтинга">
           <svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor"
             strokeWidth="2.4" strokeLinecap="round" aria-hidden="true"><path d="M6 6l12 12M18 6L6 18" /></svg>
@@ -70,9 +75,9 @@ export default function AdminDisciplines({ userId, exercises, online }) {
         {available.map(e => <option key={e.id} value={e.id}>{e.name}</option>)}
       </select>
       <div className="disc-add-row">
-        <SexChip checked={split} disabled={off} onChange={setSplit} />
+        <SexChip checked={split} disabled={off} dim={!online} onChange={setSplit} />
         <button className="btn primary btn--sm" aria-label="Добавить дисциплину"
-          disabled={!exercise || off || !catalog}>{busy ? 'Сохраняю…' : 'Добавить'}</button>
+          disabled={!exercise || off || !catalog}>{busy && exercise && !draft ? 'Сохраняю…' : 'Добавить'}</button>
       </div>
     </form>
     <p className="muted disc-note">«По полу» — отдельные таблицы для мужчин и женщин, без пола — своя группа. Убрать дисциплину не значит удалить тренировки.</p>
@@ -80,8 +85,9 @@ export default function AdminDisciplines({ userId, exercises, online }) {
 }
 
 // Переключатель «раздельно по полу» чипом: настоящий чекбокс (скрыт визуально), подпись — коротко.
-function SexChip({ checked, disabled, onChange }) {
-  return <label className={'disc-sex' + (checked ? ' on' : '') + (disabled ? ' off' : '')}>
+// dim — бледный только офлайн: пока идет сохранение, список не тускнеет (fb_c6b5ce77).
+function SexChip({ checked, disabled, dim, onChange }) {
+  return <label className={'disc-sex' + (checked ? ' on' : '') + (dim ? ' off' : '')}>
     <input type="checkbox" className="sr-only" aria-label="Раздельно по полу" checked={checked} disabled={disabled}
       onChange={e => onChange(e.target.checked)} />
     {checked && <CheckIcon size={14} />}по полу

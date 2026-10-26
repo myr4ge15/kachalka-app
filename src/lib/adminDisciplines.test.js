@@ -37,7 +37,7 @@ describe('adminSaveDiscipline', () => {
     expect(mocks.rpc).toHaveBeenCalledWith('admin_save_discipline', {
       p_exercise_id: 'ex1', p_split_by_sex: true, p_enabled: true,
     })
-    expect(mocks.invalidateRatingCache).toHaveBeenCalledWith(d)
+    expect(mocks.invalidateRatingCache).toHaveBeenCalledWith(d, { keepCatalog: true }) // список не мигает (fb_c6b5ce77)
     expect(mocks.fetchRatingCatalog).toHaveBeenCalledWith('me', { force: true })
   })
 

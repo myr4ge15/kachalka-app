@@ -13,7 +13,7 @@ export async function adminSaveDiscipline(userId, { exercise_id, split_by_sex, e
   if (error) throw new AdminError(error.message || 'Не удалось сохранить дисциплину')
   // Не переносим результат запоздавшего запроса в базу другой учетной записи.
   if (db !== d) return
-  await invalidateRatingCache(d)
+  await invalidateRatingCache(d, { keepCatalog: true })
   // Сохранение уже принято сервером. Ошибка обновления не превращает его в отказ.
   try { await fetchRatingCatalog(userId, { force: true }); return { refreshed: true } }
   catch { return { refreshed: false } }

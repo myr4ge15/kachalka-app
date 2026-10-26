@@ -647,7 +647,9 @@ select, textarea { font-variant-numeric: inherit; font-feature-settings: inherit
   display: grid; place-items: center; cursor: pointer; border-radius: 12px;
 }
 .disc-rm:active:not(:disabled) { color: var(--red); background: var(--surface-2); }
-.disc-rm:disabled { opacity: .4; cursor: default; }
+/* Тускнеют только офлайн: пока идет сохранение, список не мигает (fb_c6b5ce77). */
+.disc-rm.off { opacity: .4; }
+.disc-rm:disabled, .disc-sex:has(:disabled) { cursor: default; }
 .disc-add { display: grid; gap: 10px; }
 .disc-add-row { display: flex; align-items: center; justify-content: space-between; gap: 10px; }
 .disc-add-row .btn { width: auto; margin: 0; }

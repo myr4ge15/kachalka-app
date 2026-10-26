@@ -59,6 +59,14 @@ describe('витрина дисциплин', () => {
     await invalidateRatingCache(); finish({ data:[d],error:null }); await request
     expect(await getRatingCatalog()).toBeNull()
   })
+  it('keepCatalog: общий список остается, доски и каталоги кругов сносятся (fb_c6b5ce77)', async () => {
+    await setMeta('rating_catalog', { items: [d] }); await setMeta('rating_fc_c1', { items: [d] })
+    await setMeta('rating_board_d1', { rows: [] })
+    await invalidateRatingCache(undefined, { keepCatalog: true })
+    expect((await getRatingCatalog()).items).toEqual([d])
+    expect(await getMeta('rating_fc_c1')).toBeUndefined()
+    expect(await getMeta('rating_board_d1')).toBeUndefined()
+  })
   it('смена метрики не показывает секунды как килограммы', async () => {
     await setMeta('rating_catalog',{ items:[d] })
     const changed = { ...d, metric:'time' }
