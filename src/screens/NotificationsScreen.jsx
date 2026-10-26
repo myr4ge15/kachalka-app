@@ -69,7 +69,7 @@ export default function NotificationsScreen({ user, onBack, onOpenFeedback }) {
         <BackButton onClick={onBack} />
         <h2 className="admin-title">Уведомления</h2>
       </div>
-      <p className="muted sub">Рекорды, реакции друзей, обгоны в круге и ответы на обращения</p>
+      <p className="muted sub">Рекорды, реакции и комментарии друзей, обгоны в круге и ответы на обращения</p>
 
       {loading && <CardsSkeleton cards={4} />}
 
@@ -106,6 +106,8 @@ export default function NotificationsScreen({ user, onBack, onOpenFeedback }) {
           n.type === 'mine' ? '🏆'
           : n.type === 'goal' ? '🎯'
           : n.type === 'reaction' ? (n.emojis?.[0] ?? '👏')
+          : n.type === 'comment_react' ? (n.emoji ?? '❤️')
+          : n.type === 'comment' ? (n.mode === 'reply' ? '↩️' : '💬')
           : n.type === 'insight' ? (n.emoji ?? '💡')
           : n.type === 'badge' ? (n.emoji ?? '🏅')
           : n.type === 'feedback' ? '💬'
@@ -144,6 +146,25 @@ export default function NotificationsScreen({ user, onBack, onOpenFeedback }) {
                   <div className="n-text">
                     {byGender(sexOf(n.whoId), 'Оценил', 'Оценила')} твою тренировку: <b>{(n.emojis ?? []).join(' ')}</b>
                   </div>
+                </>
+              )}
+              {n.type === 'comment_react' && (
+                <>
+                  <div className="n-title">
+                    Реакция на комментарий · <span className="hl">{n.who}</span>
+                  </div>
+                  <div className="n-text">
+                    {byGender(sexOf(n.whoId), 'Оценил', 'Оценила')} твой комментарий: <b>{n.emoji}</b>
+                    {n.text && <span className="n-quote"> «{n.text}»</span>}
+                  </div>
+                </>
+              )}
+              {n.type === 'comment' && (
+                <>
+                  <div className="n-title">
+                    {n.mode === 'reply' ? 'Ответ на комментарий' : 'Комментарий к тренировке'} · <span className="hl">{n.who}</span>
+                  </div>
+                  <div className="n-text n-quote">«{n.text}»</div>
                 </>
               )}
               {n.type === 'insight' && (

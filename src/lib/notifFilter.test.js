@@ -33,6 +33,9 @@ describe('filterNotifs', () => {
     expect(filterNotifs(list, 'reactions').map((x) => x.type)).toEqual(['reaction'])
     expect(filterNotifs(list, 'insights').map((x) => x.type)).toEqual(['insight'])
     expect(filterNotifs([...list, { type: 'feedback' }], 'feedback').map((x) => x.type)).toEqual(['feedback'])
+    // 26.10.2026: реакция на комментарий — к реакциям, комментарии и ответы — своя категория
+    expect(filterNotifs([...list, { type: 'comment_react' }], 'reactions').map((x) => x.type)).toEqual(['reaction', 'comment_react'])
+    expect(filterNotifs([...list, { type: 'comment' }], 'comments').map((x) => x.type)).toEqual(['comment'])
   })
   it('пустой/undefined список не падает', () => {
     expect(filterNotifs(null, 'records')).toEqual([])
@@ -50,7 +53,7 @@ describe('activeCategories', () => {
     expect(activeCategories(null).map((c) => c.key)).toEqual(['all'])
   })
   it('полный набор → все чипы в каноничном порядке', () => {
-    const cats = activeCategories([n('mine'), n('beaten'), n('reaction'), n('insight'), n('feedback')])
+    const cats = activeCategories([n('mine'), n('beaten'), n('reaction'), n('comment'), n('insight'), n('feedback')])
     expect(cats.map((c) => c.key)).toEqual(NOTIF_CATEGORIES.map((c) => c.key))
   })
 })

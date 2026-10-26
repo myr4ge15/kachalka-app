@@ -22,6 +22,7 @@ import { applyReactionQueue } from '../lib/reactions.js'
 import { rosterSignature } from '../lib/pullWatermark.js'
 import { groupComments } from '../lib/comments.js'
 import { overlayRecentComments } from './comments.js'
+import { refreshCommentReactions } from './commentReactions.js'
 
 // Сколько последних тренировок показываем в ленте.
 const FEED_LIMIT = 50
@@ -286,7 +287,8 @@ export async function fetchFeed(userId, d = db) {
   // неизменном окне по нему решаем, есть ли что писать вообще.
   const reactionsBefore = changed ? null : reactionsKey(items)
   const opsBefore = await readReactionOps(d)
-  await Promise.all([attachReactions(items), attachComments(items)])
+  // Реакции на МОИ комментарии (для «Уведомлений», 26.10.2026) — тем же заходом, свой кэш в meta.
+  await Promise.all([attachReactions(items), attachComments(items), refreshCommentReactions(userId, d)])
 
   // Оптимистичная очередь реакций поверх серверного снимка: еще не отправленные
   // (или отправляемые прямо сейчас) МОИ тапы не должны пропадать при перезаписи кэша.

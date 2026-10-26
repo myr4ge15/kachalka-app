@@ -4,7 +4,8 @@
 // Пять типов уведомлений (getNotifications) сводим к четырем смысловым группам:
 //   mine + goal + badge → 'records' (свои достижения: рекорды, цели, бейджи)
 //   beaten          → 'beaten'    (кто побил мой рекорд)
-//   reaction        → 'reactions' (реакции друзей на мою тренировку)
+//   reaction + comment_react → 'reactions' (реакции на мою тренировку и на мои комментарии)
+//   comment         → 'comments'  (комментарии под моими тренировками и ответы мне, 26.10.2026)
 //   insight         → 'insights'  (авто-выводы движка правил)
 //
 // Чистые функции без Dexie — фильтрация делается над уже готовым списком, модель
@@ -19,6 +20,7 @@ export const NOTIF_CATEGORIES = [
   { key: 'records', label: 'рекорды' },
   { key: 'beaten', label: 'побитые' },
   { key: 'reactions', label: 'реакции' },
+  { key: 'comments', label: 'комментарии' },
   { key: 'insights', label: 'наблюдения' },
   { key: 'feedback', label: 'ответы' },
 ]
@@ -34,7 +36,10 @@ export function notifCategory(type) {
     case 'beaten':
       return 'beaten'
     case 'reaction':
+    case 'comment_react': // реакция на мой комментарий — тоже реакция (26.10.2026)
       return 'reactions'
+    case 'comment':
+      return 'comments'
     case 'insight':
       return 'insights'
     case 'feedback':

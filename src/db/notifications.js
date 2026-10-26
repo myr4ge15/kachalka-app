@@ -19,6 +19,8 @@ import { computeReactionNotifs } from '../lib/reactions.js'
 import { buildInsights } from '../lib/insights.js'
 import { BADGES } from '../lib/badges.js'
 import { getCachedFeedbackReplies } from './feedbackReplies.js'
+import { getCachedCommentReactions } from './commentReactions.js'
+import { commentNotifs } from '../lib/commentNotifs.js'
 import { getBadges, getCachedUser } from './repo.js'
 import { getCachedLeaderboard } from './leaderboard.js'
 import { normMetric } from '../lib/metric.js'
@@ -130,7 +132,11 @@ export async function getNotifications(userId) {
   const badges = await badgeNotifs(userId)
   // Ответы разработчика на мои обращения (v6.12.0) — кэш с сервера, см. db/feedbackReplies.js.
   const replies = await getCachedFeedbackReplies(userId)
-  const all = [...mine, ...beaten, ...goal, ...reactions, ...insights, ...badges, ...replies]
+  // Комментарии к моим тренировкам и ответы мне — из окна ленты; реакции на мои комментарии — кэш
+  // my_comment_reactions (26.10.2026, fb_76d747a2: пуши приходили, а здесь их не было).
+  const comments = commentNotifs(feedItems, userId)
+  const commentReacts = await getCachedCommentReactions(userId)
+  const all = [...mine, ...beaten, ...goal, ...reactions, ...insights, ...badges, ...replies, ...comments, ...commentReacts]
     .sort((a, b) => cmpIsoDesc(a.at, b.at))
   return capPerCategory(all, LIMIT)
 }

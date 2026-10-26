@@ -26,6 +26,11 @@ const N = {
   insight: { id: 'n5', type: 'insight', at: '2026-08-01T10:00:00Z', text: 'Ты стабилен', emoji: '📈' },
   badge: { id: 'n6', type: 'badge', at: '2026-08-01T09:00:00Z', name: '10 тренировок', emoji: '🏅' },
 }
+const CM = [
+  { id: 'comment:c1', type: 'comment', mode: 'comment', at: '2026-10-05T10:00:00Z', who: 'Оля', whoId: 'olya', text: 'мощно' },
+  { id: 'comment:c2', type: 'comment', mode: 'reply', at: '2026-10-05T09:00:00Z', who: 'Петя', whoId: 'petya', text: 'спасибо' },
+  { id: 'creact:c3:petya', type: 'comment_react', at: '2026-10-05T08:00:00Z', who: 'Петя', whoId: 'petya', emoji: '🔥', text: 'сотка' },
+]
 const FB = { id: 'feedback:f1', type: 'feedback', feedbackId: 'f1', at: '2026-10-04T10:00:00Z', status: 'resolved', text: '', photos: 1 }
 
 const renderScreen = () => render(<NotificationsScreen user={ME} onBack={vi.fn()} />)
@@ -43,6 +48,16 @@ describe('NotificationsScreen', () => {
     expect(screen.getByLabelText('Загрузка')).toBeInTheDocument()
     await waitFor(() => expect(getSeenAt).toHaveBeenCalled())
     expect(markAllSeen).not.toHaveBeenCalled()
+  })
+
+  it('комментарии, ответы и реакции на комментарии (26.10.2026, fb_76d747a2)', async () => {
+    mocks.list = CM
+    renderScreen()
+    expect(await screen.findByText(/Комментарий к тренировке/)).toHaveTextContent('Комментарий к тренировке · Оля')
+    expect(screen.getByText('«мощно»')).toBeInTheDocument()
+    expect(screen.getByText(/Ответ на комментарий/)).toHaveTextContent('Ответ на комментарий · Петя')
+    expect(screen.getByText(/твой комментарий/)).toHaveTextContent('Оценил твой комментарий: 🔥 «сотка»')
+    expect(screen.getByRole('button', { name: 'комментарии' })).toBeInTheDocument()
   })
 
   it('пусто — «Пока тихо»', async () => {
