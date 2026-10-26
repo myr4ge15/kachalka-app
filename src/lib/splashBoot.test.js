@@ -1,7 +1,7 @@
 // @vitest-environment jsdom
 // Сплэш холодного старта и блок «Обновляем до v…» (lib/splashBoot.js, вынесено из main.jsx).
 import { beforeEach, describe, expect, it } from 'vitest'
-import { barStep, splashUpdateUi, startSplash, BAR_MIN_SPEED, BAR_PACE_SHARE, BAR_LAG_OK, SPLASH_HARD_MS } from './splashBoot.js'
+import { barStep, splashUpdateUi, startSplash, BAR_MIN_SPEED, BAR_PACE_SHARE, BAR_LAG_OK, BAR_HOLD_MS, SPLASH_HARD_MS } from './splashBoot.js'
 import { SPLASH_FADE_MS, SPLASH_MAX_MS } from './splash.js'
 
 // Та же разметка, что в index.html.
@@ -91,6 +91,34 @@ describe('splashUpdateUi', () => {
     ui.installing()
     run(300)
     expect(w()).toBe(100)
+  })
+
+  it('installing — обещание «на 100% и постояла»: не раньше, чем полоска дошла, и после паузы', async () => {
+    const frames = []
+    let t = 0
+    const raf = (fn) => frames.push(fn)
+    const run = (n) => { for (let i = 0; i < n && frames.length; i++) frames.shift()((t += 16)) }
+    const tm = timers()
+    let clock = 0
+    const ui = splashUpdateUi(document, $('splash'), { raf, setTimer: tm.setTimer, now: () => clock })
+    ui.start('1.2.0')
+    ui.progress({ done: 1, total: 10, pct: 10 })
+    clock = 10000 // медленная сеть: темп 0,5 %/с — хвост все равно не тянется секундами
+    ui.progress({ done: 6, total: 10, pct: 60 })
+    run(300)
+    let done = false
+    ui.installing().then(() => { done = true })
+    run(1)
+    expect(parseFloat($('splash-upd-fill').style.width)).toBeLessThan(100)
+    expect(tm.list).toHaveLength(0) // не дошла — паузу не ставим
+    run(60) // ~1 с: хвост 60 → 100% — меньше секунды
+    expect($('splash-upd-fill').style.width).toBe('100%')
+    expect(tm.list.map((x) => x.ms)).toEqual([BAR_HOLD_MS])
+    await flush()
+    expect(done).toBe(false)
+    tm.run(BAR_HOLD_MS)
+    await flush()
+    expect(done).toBe(true)
   })
 
   it('barStep: быстро при большом отставании, не медленнее минимума у цели, без обгона', () => {

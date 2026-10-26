@@ -30,6 +30,7 @@ export const MAX_WAIT_MS = 30000      // …и до скольких продл�
 export const STALL_MS = 3000          // «идет» = прогресс двигался за последние STALL_MS
 export const FALLBACK_SHOW_MS = 1800  // сколько висит «Связь слабая…»
 export const APPLY_TIMEOUT_MS = 4000  // ждем смену контроллера, потом перезагружаем сами
+export const BAR_DONE_MAX_MS = 2500   // дольше полоску «100%» перед перезагрузкой не ждем
 export const POLL_MS = 250
 export const TRIED_KEY = 'gym_app_update_tried'
 
@@ -156,7 +157,10 @@ export async function runLaunchUpdate({
     return 'fallback'
   }
 
-  ui.installing?.()
+  // installing() сплэша обещает «полоска на 100% и постояла» (splashBoot.js BAR_HOLD_MS) — перезагружаем
+  // после него, иначе приложение открывалось с недобежавшей полоской (26.10.2026).
+  let barDone
+  try { barDone = Promise.resolve(ui.installing?.()).catch(() => {}) } catch { barDone = Promise.resolve() }
   try { storage?.setItem(TRIED_KEY, String(server)) } catch { /* приватный режим */ }
   await new Promise((resolve) => {
     let done = false
@@ -165,6 +169,7 @@ export async function runLaunchUpdate({
     try { worker.postMessage({ type: 'SKIP_WAITING' }) } catch { finish() }
     sleep(APPLY_TIMEOUT_MS).then(finish)
   })
+  await Promise.race([barDone, sleep(BAR_DONE_MAX_MS)])
   reload()
   return 'applied'
 }

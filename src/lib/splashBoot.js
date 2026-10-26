@@ -77,8 +77,14 @@ export function barStep(shown, target, dtMs, pace = 0) {
   return Math.min(target, shown + speed * dt)
 }
 
+// Полоска дошла до 100% — постоять перед перезагрузкой (26.10.2026): раньше страница уходила, пока полоска
+// еще догоняла, и «100%» никто не видел. installing() возвращает обещание «дошла и постояла».
+export const BAR_HOLD_MS = 500
+
 // reduce — «уменьшить движение»: полоска сразу на месте. raf — кадры, now — часы (тест подставляет свои).
-export function splashUpdateUi(doc, root, { reduce = false, raf, now = () => performance.now() } = {}) {
+export function splashUpdateUi(doc, root, {
+  reduce = false, raf, now = () => performance.now(), setTimer = (fn, ms) => setTimeout(fn, ms),
+} = {}) {
   const box = doc?.getElementById('splash-upd')
   const title = doc?.getElementById('splash-upd-title')
   const bar = doc?.getElementById('splash-upd-bar')
@@ -92,7 +98,11 @@ export function splashUpdateUi(doc, root, { reduce = false, raf, now = () => per
   let last = 0
   let pace = 0 // %/с — средний темп с первого файла (см. barStep)
   let first = null
-  const paint = () => { fill.style.width = `${Math.round(shown * 10) / 10}%` }
+  let onFull = null // ждет installing(): полоска на 100%
+  const paint = () => {
+    fill.style.width = `${Math.round(shown * 10) / 10}%`
+    if (onFull && shown >= 100) { const done = onFull; onFull = null; setTimer(done, BAR_HOLD_MS) }
+  }
   const tick = (t) => {
     shown = barStep(shown, target, last ? t - last : 16, pace)
     last = t
@@ -145,9 +155,14 @@ export function splashUpdateUi(doc, root, { reduce = false, raf, now = () => per
     },
     installing() {
       bar.classList.remove('splash-upd-bar--busy')
-      moveTo(100)
       bar.setAttribute('aria-valuenow', '100')
       cap.textContent = 'Устанавливаем…'
+      // Хвост — без темпа загрузки: при медленной сети последние проценты шли бы секундами.
+      pace = 0
+      return new Promise((resolve) => {
+        onFull = resolve
+        moveTo(100)
+      })
     },
     fallback() {
       box.classList.add('splash-upd--note')

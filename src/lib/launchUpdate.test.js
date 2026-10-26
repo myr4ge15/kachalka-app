@@ -1,6 +1,6 @@
 import { describe, expect, it, vi } from 'vitest'
 import {
-  RESUME_KEY, TRIED_KEY, downloadProgress, parsePrecacheManifest, precacheKey, reloadForUpdatePush, runLaunchUpdate,
+  BAR_DONE_MAX_MS, RESUME_KEY, TRIED_KEY, downloadProgress, parsePrecacheManifest, precacheKey, reloadForUpdatePush, runLaunchUpdate,
 } from './launchUpdate.js'
 
 const SW_TEXT = 'e.precacheAndRoute([{url:"index.html",revision:"abc"},{url:"assets/app-1.js",revision:null},{url:"assets/app-1.css",revision:null}],{})'
@@ -77,7 +77,7 @@ function setup({ server = '6.13.0', current = '6.12.1', waiting = null, active =
     sw, online, fetchFn, cachesApi, storage, ui, sleep, reload,
     versionUrl: '/app/version.json', currentVersion: current, now: () => t, ...extra,
   })
-  return { reg, sw, ui, reload, run, storage, fetchFn }
+  return { reg, sw, ui, reload, run, storage, fetchFn, sleep }
 }
 
 describe('runLaunchUpdate', () => {
@@ -92,6 +92,31 @@ describe('runLaunchUpdate', () => {
     expect(s.reg.waiting.postMessage).toHaveBeenCalledWith({ type: 'SKIP_WAITING' })
     expect(s.reload).toHaveBeenCalledTimes(1)
     expect(s.storage.getItem(TRIED_KEY)).toBe('6.13.0')
+  })
+
+  it('перезагрузка — только когда полоска сплэша дошла до 100% и постояла', async () => {
+    const s = setup()
+    let barFull
+    s.ui.installing.mockReturnValue(new Promise((r) => { barFull = r }))
+    // потолок ожидания полоски не наступает — ждем только ее
+    const sleep = (ms) => (ms === BAR_DONE_MAX_MS ? new Promise(() => {}) : s.sleep(ms))
+    let result = null
+    const run = s.run({ sleep }).then((r) => { result = r })
+    await new Promise((r) => setTimeout(r, 0))
+    expect(s.reg.waiting.postMessage).toHaveBeenCalled() // применяется параллельно с полоской
+    expect(s.reload).not.toHaveBeenCalled()
+    barFull()
+    await run
+    expect(result).toBe('applied')
+    expect(s.reload).toHaveBeenCalledTimes(1)
+  })
+
+  it('полоска не отчиталась — перезагрузка все равно по потолку', async () => {
+    const s = setup()
+    s.ui.installing.mockReturnValue(new Promise(() => {}))
+    expect(await s.run()).toBe('applied')
+    expect(s.sleep).toHaveBeenCalledWith(BAR_DONE_MAX_MS)
+    expect(s.reload).toHaveBeenCalledTimes(1)
   })
 
   it('уже скачанная версия применяется сразу, без ожидания', async () => {
