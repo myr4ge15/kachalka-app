@@ -266,11 +266,11 @@ export default function ProgressScreen({
             </select>
           </label>
 
-          <div className="prog-periods">
+          <div className="seg prog-periods" role="group" aria-label="Период">
             {PERIODS.map((p) => (
               <button
                 key={p.id}
-                className={`prog-chip${period === p.id ? ' active' : ''}`} aria-pressed={period === p.id}
+                className={`seg-item${period === p.id ? ' on' : ''}`} aria-pressed={period === p.id}
                 onClick={() => setPeriod(p.id)}
               >
                 {p.label}

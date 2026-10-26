@@ -169,7 +169,7 @@ describe('Профиль: цели', () => {
   it('новая цель — дефолт «чуть выше рекорда», уходит в writeGoals', async () => {
     vi.mocked(repo.getWorkouts).mockResolvedValue([WORKOUT])
     render(<Harness />)
-    fireEvent.click(await screen.findByRole('button', { name: '+ Поставить цель' }))
+    fireEvent.click(await screen.findByRole('button', { name: 'Добавить цель' }))
     expect(screen.getByLabelText('Целевой вес в килограммах')).toHaveValue('85')
     fireEvent.click(screen.getByRole('button', { name: 'Сохранить' }))
     await waitFor(() => expect(notifications.writeGoals).toHaveBeenCalled())

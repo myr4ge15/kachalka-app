@@ -169,13 +169,13 @@ export default function FreshnessScreen({ user, onBack }) {
             </div>
           </div>
 
-          <div className="fr-tabs" role="group" aria-label="Готовность">
+          <div className="seg fr-tabs" role="group" aria-label="Готовность">
             {TABS.map((t) => (
               <button
                 key={t.id}
                 type="button"
                 aria-pressed={tab === t.id}
-                className={`fr-tab fr-tab--${t.id}${tab === t.id ? ' on' : ''}`}
+                className={`seg-item fr-tab fr-tab--${t.id}${tab === t.id ? ' on' : ''}`}
                 onClick={() => pickTab(t.id)}
               >
                 <b>{view[t.id].length}</b>{t.label}

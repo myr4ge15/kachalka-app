@@ -4,6 +4,7 @@ import { normMetric, fmtMetricValue } from '../../lib/metric.js'
 import { currentBestValue, goalProgress } from '../../lib/profileStats.js'
 import { useRevealFocus } from '../../hooks/useRevealFocus.js'
 import PencilIcon from '../ui/PencilIcon.jsx'
+import Icon from '../ui/Icon.jsx'
 
 // Read-only список личных целей с прогресс-баром (сам редактор цели остается в
 // ProfileScreen). Презентационный: goalList + workouts (для текущего рекорда) +
@@ -109,7 +110,7 @@ export default function GoalsList({ goalList, workouts, onEdit, onAdd }) {
           </span>
         </button>
       )}
-      <button className="goal-add" onClick={onAdd}>+ Добавить цель</button>
+      <button className="goal-add" onClick={onAdd}><Icon name="plus" size={17} strokeWidth={2.4} />Добавить цель</button>
     </div>
   )
 }

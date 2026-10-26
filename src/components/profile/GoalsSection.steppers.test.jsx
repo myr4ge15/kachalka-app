@@ -21,7 +21,7 @@ afterEach(() => vi.clearAllMocks())
 
 const open = (goals = []) => {
   render(<GoalsSection userId="me" goals={goals} records={RECORDS} workouts={[]} />)
-  fireEvent.click(screen.getByRole('button', { name: goals.length ? /Изменить цель/ : '+ Поставить цель' }))
+  fireEvent.click(screen.getByRole('button', { name: goals.length ? /Изменить цель/ : 'Добавить цель' }))
 }
 const minus = () => screen.getAllByRole('button', { name: '−' })
 const plus = () => screen.getAllByRole('button', { name: '+' })
@@ -94,7 +94,7 @@ describe('GoalsSection — степперы', () => {
     open()
     fireEvent.click(screen.getByRole('button', { name: 'Отмена' }))
     expect(writeGoals).not.toHaveBeenCalled()
-    expect(screen.getByRole('button', { name: '+ Поставить цель' })).toBeInTheDocument()
+    expect(screen.getByRole('button', { name: 'Добавить цель' })).toBeInTheDocument()
   })
 
   it('правка цели с повторами: повторы подставлены; сменили — достижение сброшено', async () => {

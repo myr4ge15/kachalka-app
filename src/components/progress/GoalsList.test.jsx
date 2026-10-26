@@ -24,7 +24,7 @@ describe('GoalsList', () => {
     expect(screen.getByText('0%')).toBeInTheDocument()
     fireEvent.click(screen.getByRole('button', { name: 'Изменить цель' }))
     expect(onEdit).toHaveBeenCalledWith(g)
-    fireEvent.click(screen.getByText('+ Добавить цель'))
+    fireEvent.click(screen.getByText('Добавить цель'))
     expect(onAdd).toHaveBeenCalled()
   })
 

@@ -350,8 +350,8 @@ export default function TemplateEditor({ user, templateId, onBack, backGuardRef 
           })}
           </div>
 
-          <button className="btn outline full" onClick={() => setPickerOpen(true)}>
-            + Добавить упражнение
+          <button className="add-btn tpl-add-ex" onClick={() => setPickerOpen(true)}>
+            <Icon name="plus" size={17} strokeWidth={2.4} />Добавить упражнение
           </button>
 
           <button className="btn primary full save-btn" disabled={!canSave} onClick={save}>

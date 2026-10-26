@@ -39,7 +39,7 @@ const lastWrite = () => vi.mocked(writeGoals).mock.calls.at(-1)[1]
 describe('GoalsSection', () => {
   it('новая цель: первым — жим (🏅), дистанции в списке нет; сохранение пушит синк', async () => {
     renderGoals()
-    fireEvent.click(screen.getByRole('button', { name: '+ Поставить цель' }))
+    fireEvent.click(screen.getByRole('button', { name: 'Добавить цель' }))
     const select = screen.getByLabelText('Упражнение')
     expect(select).toHaveValue('bench')
     expect([...select.options].map((o) => o.value)).toEqual(['pull', 'bench', 'plank'])
@@ -52,7 +52,7 @@ describe('GoalsSection', () => {
 
   it('смена упражнения подхватывает его метрику и дефолт: повторы +2, время +15 с', async () => {
     renderGoals()
-    fireEvent.click(screen.getByRole('button', { name: '+ Поставить цель' }))
+    fireEvent.click(screen.getByRole('button', { name: 'Добавить цель' }))
     fireEvent.change(screen.getByLabelText('Упражнение'), { target: { value: 'pull' } })
     expect(screen.getByLabelText('Целевое число повторений')).toHaveValue('14')
     expect(screen.queryByLabelText(/Повторения при целевом весе/)).toBeNull()
@@ -67,7 +67,7 @@ describe('GoalsSection', () => {
 
   it('весовая цель с повторами при этом весе', async () => {
     renderGoals()
-    fireEvent.click(screen.getByRole('button', { name: '+ Поставить цель' }))
+    fireEvent.click(screen.getByRole('button', { name: 'Добавить цель' }))
     fireEvent.change(screen.getByLabelText('Целевой вес в килограммах'), { target: { value: '92,5' } })
     fireEvent.change(screen.getByLabelText('Повторения при целевом весе (необязательно)'), { target: { value: '3' } })
     fireEvent.click(screen.getByRole('button', { name: 'Сохранить' }))
@@ -77,7 +77,7 @@ describe('GoalsSection', () => {
 
   it('пустое значение (тап по «Сохранить» без blur) — цель в 0 не пишется, редактор остается', async () => {
     renderGoals()
-    fireEvent.click(screen.getByRole('button', { name: '+ Поставить цель' }))
+    fireEvent.click(screen.getByRole('button', { name: 'Добавить цель' }))
     fireEvent.change(screen.getByLabelText('Целевой вес в килограммах'), { target: { value: '' } })
     fireEvent.click(screen.getByRole('button', { name: 'Сохранить' }))
     await Promise.resolve()
@@ -117,7 +117,7 @@ describe('GoalsSection', () => {
   it('офлайн — цель пишется локально, синк не зовется', async () => {
     Object.defineProperty(navigator, 'onLine', { value: false, configurable: true })
     renderGoals()
-    fireEvent.click(screen.getByRole('button', { name: '+ Поставить цель' }))
+    fireEvent.click(screen.getByRole('button', { name: 'Добавить цель' }))
     fireEvent.click(screen.getByRole('button', { name: 'Сохранить' }))
     await waitFor(() => expect(writeGoals).toHaveBeenCalled())
     expect(syncNow).not.toHaveBeenCalled()
@@ -128,7 +128,7 @@ describe('GoalsSection', () => {
     goals.push({ exerciseId: 'gone', exerciseName: 'Старое', targetWeight: 1, _deleted: 1 })
     renderGoals(goals)
     expect(screen.queryByText('Старое')).toBeNull()
-    fireEvent.click(screen.getByRole('button', { name: '+ Добавить цель' }))
+    fireEvent.click(screen.getByRole('button', { name: 'Добавить цель' }))
     expect(showToast).toHaveBeenCalledWith(expect.objectContaining({ title: 'Цели уже на всех упражнениях' }))
     expect(screen.queryByRole('button', { name: 'Сохранить' })).toBeNull()
   })

@@ -372,7 +372,7 @@ async function main() {
 
     if (want('achievements')) {
       await page.getByRole('button', { name: 'Открыть профиль' }).click()
-      await page.locator('.leader-link').filter({ hasText: 'Достижения' }).click()
+      await page.getByRole('button', { name: /Достижения/ }).click()
       await shot('achievements')
     }
 

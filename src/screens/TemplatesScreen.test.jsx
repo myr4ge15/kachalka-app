@@ -157,7 +157,7 @@ describe('TemplatesScreen — редактор', () => {
     expect(screen.getByRole('heading', { name: 'Новый шаблон' })).toBeInTheDocument()
     expect(screen.getByText('В шаблоне пока нет упражнений')).toBeInTheDocument()
     expect(screen.getByRole('button', { name: 'Сохранить' })).toBeDisabled()
-    fireEvent.click(screen.getByRole('button', { name: '+ Добавить упражнение' }))
+    fireEvent.click(screen.getByRole('button', { name: 'Добавить упражнение' }))
     fireEvent.click(screen.getByRole('button', { name: 'выбрать Жим лежа' }))
     expect(screen.queryByTestId('picker')).toBeNull()
     expect(screen.getByText('Без названия шаблон не сохранится')).toBeInTheDocument()
@@ -169,7 +169,7 @@ describe('TemplatesScreen — редактор', () => {
     fireEvent.click(screen.getByRole('button', { name: '+ Новый шаблон' }))
     fireEvent.change(screen.getByPlaceholderText(/Понедельник/), { target: { value: 'Фулбоди' } })
     for (const n of ['Жим лежа', 'Подтягивания', 'Планка']) {
-      fireEvent.click(screen.getByRole('button', { name: '+ Добавить упражнение' }))
+      fireEvent.click(screen.getByRole('button', { name: 'Добавить упражнение' }))
       fireEvent.click(screen.getByRole('button', { name: `выбрать ${n}` }))
     }
     // подписи столбцов — один раз на упражнение, как в тренировке; у времени нет «кг»
@@ -228,7 +228,7 @@ describe('TemplatesScreen — редактор', () => {
       renderScreen()
       fireEvent.click(screen.getByRole('button', { name: '+ Новый шаблон' }))
       for (let i = 0; i < 2; i++) {
-        fireEvent.click(screen.getByRole('button', { name: '+ Добавить упражнение' }))
+        fireEvent.click(screen.getByRole('button', { name: 'Добавить упражнение' }))
         fireEvent.click(screen.getByRole('button', { name: 'выбрать Жим лежа' }))
       }
       expect(screen.getByText('Это упражнение уже в шаблоне')).toBeInTheDocument()
@@ -243,9 +243,9 @@ describe('TemplatesScreen — редактор', () => {
   it('набор сканером: все разом в порядке сканирования, уже стоящие пропускаются', () => {
     renderScreen()
     fireEvent.click(screen.getByRole('button', { name: '+ Новый шаблон' }))
-    fireEvent.click(screen.getByRole('button', { name: '+ Добавить упражнение' }))
+    fireEvent.click(screen.getByRole('button', { name: 'Добавить упражнение' }))
     fireEvent.click(screen.getByRole('button', { name: 'выбрать Жим лежа' }))
-    fireEvent.click(screen.getByRole('button', { name: '+ Добавить упражнение' }))
+    fireEvent.click(screen.getByRole('button', { name: 'Добавить упражнение' }))
     fireEvent.click(screen.getByRole('button', { name: 'набор сканером' }))
     expect(screen.queryByTestId('picker')).toBeNull()
     expect(screen.getAllByRole('button', { name: 'Перетащить' })).toHaveLength(3)
@@ -259,7 +259,7 @@ describe('TemplatesScreen — редактор', () => {
     expect(await screen.findByDisplayValue('Грудь')).toBeInTheDocument()
     expect(screen.getByRole('checkbox', { name: 'Виден всем' })).toBeChecked()
     expect(screen.getAllByDisplayValue('60')).toHaveLength(4)
-    fireEvent.click(screen.getByRole('button', { name: '+ Добавить упражнение' }))
+    fireEvent.click(screen.getByRole('button', { name: 'Добавить упражнение' }))
     fireEvent.click(screen.getByRole('button', { name: 'выбрать Подтягивания' }))
     fireEvent.click(screen.getAllByRole('button', { name: 'убрать' })[0])
     save()
@@ -373,7 +373,7 @@ describe('TemplatesScreen — редактор', () => {
     fireEvent.click(screen.getByRole('button', { name: '+ Новый шаблон' }))
     fireEvent.change(screen.getByPlaceholderText(/Понедельник/), { target: { value: 'X' } })
     for (const n of ['Жим лежа', 'Подтягивания']) {
-      fireEvent.click(screen.getByRole('button', { name: '+ Добавить упражнение' }))
+      fireEvent.click(screen.getByRole('button', { name: 'Добавить упражнение' }))
       fireEvent.click(screen.getByRole('button', { name: `выбрать ${n}` }))
     }
     window.matchMedia = vi.fn(() => ({ matches: true })) // без анимации приземления

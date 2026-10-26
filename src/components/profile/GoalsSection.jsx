@@ -7,6 +7,7 @@ import HoldButton from '../ui/HoldButton.jsx'
 import GoalsList from '../progress/GoalsList.jsx'
 import { useAliveRef } from '../../hooks/useAliveRef.js'
 import { useRevealFocus } from '../../hooks/useRevealFocus.js'
+import Icon from '../ui/Icon.jsx'
 
 // «Мои цели» в Профиле: список + инлайн-редактор (мульти-цели, фаза 2c; вынесено из
 // ProfileScreen в v6.14.1). Цель любой метрики (вес/повторы/время); при сохранении
@@ -319,9 +320,7 @@ export default function GoalsSection({ userId, goals, records, workouts }) {
           </div>
         </div>
       ) : goalList.length === 0 ? (
-        <div className="goal">
-          <button className="goal-edit set" onClick={openAddGoal}>+ Поставить цель</button>
-        </div>
+        <button className="goal-add" onClick={openAddGoal}><Icon name="plus" size={17} strokeWidth={2.4} />Добавить цель</button>
       ) : (
         <GoalsList goalList={goalList} workouts={workouts} onEdit={openEditGoal} onAdd={openAddGoal} />
       )}
