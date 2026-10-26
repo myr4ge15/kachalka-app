@@ -1974,7 +1974,9 @@ img.avatar-lg.has-img {
 .cm-strip-avs .avatar-sm + .avatar-sm { margin-left: -8px; }
 .cm-strip-txt { flex: 1; min-width: 0; }
 .cm-strip-chev { flex: none; color: var(--muted); }
-/* Ветка во весь экран: блок ввода прижат к низу и при коротком списке (fb_7b5cda99), при длинном — прилипает. */
+/* Ветка во весь экран: листается только переписка, блок ввода — в подвале листа .cm-foot, вне прокрутки
+   (26.10.2026, fb_ad51c03b, fb_fbbf5381; до этого — липкий внутри прокрутки, fb_7b5cda99): «пружина» у края
+   уводила его вместе с перепиской, а на фокус iOS докручивала прокрутку к нему — переписка уезжала за экран. */
 .cm-sheet .sheet-scroll { display: flex; flex-direction: column; }
 /* Ветка пружинит у обоих краев, как список пикера (v7.1.10, data-sheet-bounce): SheetDialog жест у края не
    гасит, а прокрутка есть всегда — пусть на 2 px. Раньше жест, начатый у края (ветка короткая — это почти
@@ -1984,8 +1986,9 @@ img.avatar-lg.has-img {
   content: ''; position: absolute; top: 0; left: 0; width: 1px; height: calc(100% + 2px); pointer-events: none;
 }
 .cm-sheet .cm { flex: 1 0 auto; display: flex; flex-direction: column; margin-top: 0; padding-top: 0; border-top: 0; }
-.cm-sheet .cm-compose { margin-top: auto; position: sticky; bottom: 0; padding: 8px 0 6px; background: var(--cm-wall); }
-.cm-sheet .cm-offline { margin-top: auto; }
+.cm-sheet .cm-foot { flex: none; }
+.cm-sheet .cm-compose { padding-top: 8px; }
+.cm-sheet .cm-offline { margin-top: 8px; }
 /* Клавиатура открыта (useKeyboardLift holdSheetAboveKeyboard): низ листа — над клавиатурой. */
 .sheet.kb-fit { padding-bottom: calc(var(--kb, 0px) + 8px); }
 /* Фокус при открытии — на самом листе (SheetDialog), рамка ему не нужна. */

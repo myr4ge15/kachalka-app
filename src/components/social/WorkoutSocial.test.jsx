@@ -51,14 +51,29 @@ describe('WorkoutSocial — строка комментариев', () => {
     expect(screen.queryByRole('dialog', { name: 'Комментарии' })).toBeNull()
   })
 
-  it('в листе блок ввода — одним узлом внизу ветки (его прижимает CSS), без подписи «Видят все…»', () => {
+  // fb_ad51c03b, fb_fbbf5381 (26.10.2026): поле внутри прокрутки ездило с перепиской («пружина» у края) и
+  // на фокус iOS уводила переписку за экран. Теперь листается только .sheet-scroll, поле — в подвале под ней.
+  it('в листе блок ввода — одним узлом в подвале листа, вне прокрутки переписки; без подписи «Видят все…»', () => {
     renderSocial()
     fireEvent.click(screen.getByRole('button', { name: '4 комментария' }))
     const sheet = screen.getByRole('dialog', { name: 'Комментарии' })
     const compose = sheet.querySelector('.cm-compose')
+    const scroll = sheet.querySelector('.sheet-scroll')
     expect(compose).toContainElement(within(sheet).getByLabelText('Комментарий'))
-    expect(compose.parentElement.lastElementChild).toBe(compose) // после всех комментариев
+    expect(scroll).not.toContainElement(compose)
+    expect(compose.parentElement).toHaveClass('cm-foot')
+    expect(scroll.nextElementSibling).toBe(compose.parentElement) // подвал — сразу под перепиской
+    expect(within(scroll).getByText('последний')).toBeInTheDocument()
     expect(within(sheet).queryByText(/Видят все/)).toBeNull()
+  })
+
+  it('без сети плашка «только читать» — тоже в подвале, а не в прокрутке', () => {
+    Object.defineProperty(navigator, 'onLine', { value: false, configurable: true })
+    renderSocial()
+    fireEvent.click(screen.getByRole('button', { name: '4 комментария' }))
+    const sheet = screen.getByRole('dialog', { name: 'Комментарии' })
+    expect(within(sheet).queryByLabelText('Комментарий')).toBeNull()
+    expect(sheet.querySelector('.cm-foot')).toHaveTextContent('Нет сети — комментарии только читать')
   })
 
   it('комментариев нет — «Оставить комментарий», лист сразу с курсором в поле', () => {

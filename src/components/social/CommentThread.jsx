@@ -1,4 +1,5 @@
 import { Fragment, useEffect, useLayoutEffect, useRef, useState } from 'react'
+import { createPortal } from 'react-dom'
 import Avatar from '../ui/Avatar.jsx'
 import CheckIcon from '../ui/CheckIcon.jsx'
 import { useSwipeReply } from '../../hooks/useSwipeReply.js'
@@ -34,8 +35,11 @@ import { postComment, removeComment, setCommentReaction, updateComment } from '.
 // убраны: удержание пузыря — меню (CommentMenu: размытый фон, пузырь поверх, Ответить / ❤️ /
 // Скопировать / Изменить / Удалить; правый клик и Enter на пузыре — тоже), свайп влево — ответ, как раньше.
 // Пропсы: workoutId, ownerId, comments, me {id, name}, open, onOpen(), focusTick (растет —
-// поставить курсор в поле), onOpenMember(userId).
-export default function CommentThread({ workoutId, ownerId, comments, me, open, onOpen, focusTick = 0, onOpenMember }) {
+// поставить курсор в поле), onOpenMember(userId), composeHost — узел вне прокрутки, куда встает поле ввода.
+// 26.10.2026 (fb_ad51c03b, fb_fbbf5381): в листе ветки поле — в подвале листа (WorkoutSocial), а не липким
+// внутри .sheet-scroll: «пружина» у края уводила его вместе с перепиской, а на фокус iOS докручивала
+// прокрутку к месту поля без липкости — переписка уезжала за экран. Портал: состояние и обработчики здесь же.
+export default function CommentThread({ workoutId, ownerId, comments, me, open, onOpen, focusTick = 0, onOpenMember, composeHost = null }) {
   const online = useOnline()
   const aliveRef = useAliveRef()
   const [text, setText] = useState('')
@@ -256,6 +260,56 @@ export default function CommentThread({ workoutId, ownerId, comments, me, open, 
     }
     return out
   }
+  const compose = open && (online ? (
+    // Блок ввода — одним узлом: в листе ветки (WorkoutSocial) он в подвале листа, под перепиской.
+    <div className="cm-compose">
+      {editing && (
+        <div className="cm-editing">
+          <span>Изменяешь комментарий</span>
+          <button type="button" onClick={cancelEdit} aria-label="Отменить правку">✕</button>
+        </div>
+      )}
+      {replying && (
+        <div className="cm-editing">
+          <span>Ответ: {replying.name}</span>
+          <button type="button" onClick={() => setReplying(null)} aria-label="Отменить ответ">✕</button>
+        </div>
+      )}
+      <div className="cm-form" ref={formRef}>
+        {/* key по подсказке: iOS не перерисовывает ширину смененного placeholder — после ответа
+            оставалось «Написать комм» (fb_244e1492). Текст в состоянии, фокус вернет эффект ответа. */}
+        <textarea
+          key={replying ? 'reply' : 'comment'}
+          ref={inputRef}
+          className="cm-input"
+          rows={1}
+          value={text}
+          maxLength={COMMENT_MAX + 50}
+          placeholder={replying ? 'Написать ответ' : 'Написать комментарий'}
+          aria-label="Комментарий"
+          onChange={(e) => setText(e.target.value)}
+          onFocus={liftAboveKeyboard}
+        />
+        <button type="button" className={`cm-send${canSend ? '' : ' off'}`} onClick={send} disabled={!canSend}
+          aria-label={editing ? 'Сохранить' : 'Отправить'}>
+          {editing
+            ? <CheckIcon size={20} />
+            : <svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" strokeWidth="2.4"
+                strokeLinecap="round" strokeLinejoin="round" aria-hidden="true"><path d="M12 19V5" /><path d="M6 11l6-6 6 6" /></svg>}
+        </button>
+      </div>
+      {/* Подпись «Видят все, кто видит эту тренировку» убрана (20.10.2026, просьба владельца) —
+          строка только со счетчиком знаков, когда до предела близко. */}
+      {body.length >= COMMENT_COUNTER_FROM && (
+        <div className="cm-hint">
+          <span className={`cm-count${body.length > COMMENT_MAX ? ' over' : ''}`}>{body.length} / {COMMENT_MAX}</span>
+        </div>
+      )}
+    </div>
+  ) : (
+    <div className="cm-offline" role="status">📡 Нет сети — комментарии только читать</div>
+  ))
+
   return (
     <div className="cm" ref={boxRef}>
       {shown.map((c, i) => {
@@ -332,55 +386,7 @@ export default function CommentThread({ workoutId, ownerId, comments, me, open, 
         </button>
       )}
 
-      {open && (online ? (
-        // Блок ввода — одним узлом: в листе ветки (WorkoutSocial) он прижат к низу экрана (fb_7b5cda99).
-        <div className="cm-compose">
-          {editing && (
-            <div className="cm-editing">
-              <span>Изменяешь комментарий</span>
-              <button type="button" onClick={cancelEdit} aria-label="Отменить правку">✕</button>
-            </div>
-          )}
-          {replying && (
-            <div className="cm-editing">
-              <span>Ответ: {replying.name}</span>
-              <button type="button" onClick={() => setReplying(null)} aria-label="Отменить ответ">✕</button>
-            </div>
-          )}
-          <div className="cm-form" ref={formRef}>
-            {/* key по подсказке: iOS не перерисовывает ширину смененного placeholder — после ответа
-                оставалось «Написать комм» (fb_244e1492). Текст в состоянии, фокус вернет эффект ответа. */}
-            <textarea
-              key={replying ? 'reply' : 'comment'}
-              ref={inputRef}
-              className="cm-input"
-              rows={1}
-              value={text}
-              maxLength={COMMENT_MAX + 50}
-              placeholder={replying ? 'Написать ответ' : 'Написать комментарий'}
-              aria-label="Комментарий"
-              onChange={(e) => setText(e.target.value)}
-              onFocus={liftAboveKeyboard}
-            />
-            <button type="button" className={`cm-send${canSend ? '' : ' off'}`} onClick={send} disabled={!canSend}
-              aria-label={editing ? 'Сохранить' : 'Отправить'}>
-              {editing
-                ? <CheckIcon size={20} />
-                : <svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" strokeWidth="2.4"
-                    strokeLinecap="round" strokeLinejoin="round" aria-hidden="true"><path d="M12 19V5" /><path d="M6 11l6-6 6 6" /></svg>}
-            </button>
-          </div>
-          {/* Подпись «Видят все, кто видит эту тренировку» убрана (20.10.2026, просьба владельца) —
-              строка только со счетчиком знаков, когда до предела близко. */}
-          {body.length >= COMMENT_COUNTER_FROM && (
-            <div className="cm-hint">
-              <span className={`cm-count${body.length > COMMENT_MAX ? ' over' : ''}`}>{body.length} / {COMMENT_MAX}</span>
-            </div>
-          )}
-        </div>
-      ) : (
-        <div className="cm-offline" role="status">📡 Нет сети — комментарии только читать</div>
-      ))}
+      {composeHost ? compose && createPortal(compose, composeHost) : compose}
 
       {menu && (
         <CommentMenu anchor={menu.el} itemClass={menuItemClass(menu.c)} align={menu.c.user_id === me.id ? 'right' : 'left'}

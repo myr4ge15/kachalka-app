@@ -17,6 +17,7 @@ import { summarizeReactions } from '../../lib/reactions.js'
 export default function WorkoutSocial({ workout, me, isMe, onReact, onOpenMember, openThread = false, authorAvatar = null }) {
   const [open, setOpen] = useState(openThread)
   const [focusTick, setFocusTick] = useState(0)
+  const [composeHost, setComposeHost] = useState(null) // подвал листа под полем ввода
   const wantFocus = useRef(false)
   const comments = workout.comments ?? []
   function openSheet() {
@@ -47,8 +48,11 @@ export default function WorkoutSocial({ workout, me, isMe, onReact, onOpenMember
               open
               focusTick={focusTick}
               onOpenMember={onOpenMember ? (id) => { setOpen(false); onOpenMember(id) } : undefined}
+              composeHost={composeHost}
             />
           </div>
+          {/* Поле ввода — вне прокрутки, как в мессенджерах: листается только переписка (fb_ad51c03b, fb_fbbf5381). */}
+          <div className="cm-foot" ref={setComposeHost} />
         </SheetDialog>
       )}
     </>
