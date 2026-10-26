@@ -116,7 +116,7 @@ function FeedbackCard({ row, online, api, editing, onEdit, onSaved }) {
       <p className="fb-body">{row.body}</p>
       {/* Вложения по месту (fb_37f0c1a8): исходные — у текста обращения, приложенные позже — под дополнением. */}
       {row.screenshot_count > 0 && <FeedbackPhotos id={row.id} kind="screenshots" indices={groups.base}
-        load={api.media} lazy disabled={!online} label={`Скриншот от ${row.author_name}`} />}
+        load={api.media} lazy disabled={!online} label={`Вложение от ${row.author_name}`} />}
       {row.additions?.map((a) => (
         <div key={a.n}>
           <p className="fb-addition">
@@ -149,7 +149,7 @@ function FeedbackCard({ row, online, api, editing, onEdit, onSaved }) {
       {/* v6.12.0: отправленный в Telegram скриншот живет там (file_id), в Storage — только недошедший. */}
       {!row.screenshot_count && !row.screenshot_path && row.has_screenshot_tg && (
         <FeedbackPhotos id={row.id} kind="shot" count={1} load={api.media} lazy disabled={!online}
-          label={`Скриншот от ${row.author_name}`} />
+          label={`Вложение от ${row.author_name}`} />
       )}
       {!row.screenshot_count && row.screenshot_path && (shotUrl ? (
         <a className="fb-shot" href={shotUrl} target="_blank" rel="noreferrer">

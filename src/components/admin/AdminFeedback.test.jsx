@@ -95,7 +95,7 @@ describe('AdminFeedback — Telegram (v6.12.0)', () => {
     const api = setup({ list: vi.fn(async () => [TG]) })
     expect(await screen.findByText('Открыто снова (2-й раз): Все еще не грузится')).toBeTruthy()
     expect(api.media).not.toHaveBeenCalled() // байты не тянем, пока не попросили
-    await userEvent.click(screen.getByRole('button', { name: '📎 Показать скриншот от Оля' }))
+    await userEvent.click(screen.getByRole('button', { name: '📎 Показать вложение от Оля' }))
     await waitFor(() => expect(api.media).toHaveBeenCalledWith('t', 'shot', 0))
     await userEvent.click(screen.getByRole('button', { name: '📎 Показать фото ответа (2)' }))
     await waitFor(() => expect(api.media).toHaveBeenCalledWith('t', 'reply', 1))
@@ -111,7 +111,7 @@ describe('AdminFeedback — Telegram (v6.12.0)', () => {
     }
     const api = setup({ list: vi.fn(async () => [row]) })
     await screen.findByText('Смягчить свайп')
-    await userEvent.click(screen.getByRole('button', { name: '📎 Показать скриншот от Андрюшка' }))
+    await userEvent.click(screen.getByRole('button', { name: '📎 Показать вложение от Андрюшка' }))
     await userEvent.click(screen.getByRole('button', { name: '📎 Показать вложение к дополнению' }))
     await waitFor(() => expect(api.media).toHaveBeenCalledTimes(2))
     expect(api.media.mock.calls).toEqual([['v', 'screenshots', 0], ['v', 'screenshots', 1]])

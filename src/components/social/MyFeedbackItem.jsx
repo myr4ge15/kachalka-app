@@ -80,7 +80,7 @@ export default function MyFeedbackItem({ row: r, userId, api, online, fresh = fa
           <p className="fb-body">{r.body}</p>
           {/* Вложения по месту (fb_37f0c1a8): приложенное с дополнением — под ним, а не общим блоком. */}
           {r.screenshot_count > 0 ? <FeedbackPhotos id={r.id} kind="screenshots" indices={groups.base}
-            load={api.media} lazy disabled={!online} label="Скриншот к обращению" />
+            load={api.media} lazy disabled={!online} label="Вложение к обращению" />
             : r.has_screenshot && <span className="admin-ex-meta">📎 со скриншотом</span>}
           {r.additions?.map((a) => (
             <div key={a.n}>

@@ -1528,7 +1528,10 @@ button.link-btn { min-height: 44px; display: inline-flex; align-items: center; j
 /* Карточка шаблона в пикере: имя + «N упр.» + краткий состав */
 .tpl-pick { flex-wrap: wrap; }
 .tpl-pick-name { font-weight: 600; }
-.tpl-pick-sub { flex-basis: 100%; font-size: 12px; font-weight: 400; line-height: 1.4; margin-top: 4px; text-align: left; }
+.tpl-pick-sub { flex-basis: 100%; display: flex; flex-direction: column; gap: 3px; font-size: 13px; font-weight: 400; line-height: 1.35; margin-top: 6px; text-align: left; }
+/* Строка состава в «Выбрать шаблон» (fb_966c7e2b): название — текстом, подходы — серым после него. */
+.tpl-pick-line { color: var(--text); overflow-wrap: anywhere; }
+.tpl-pick-sets { color: var(--muted); }
 
 /* ---------- публичные/приватные шаблоны ---------- */
 /* Заголовок группы «Мои» / «Общие в круге» */
@@ -3735,7 +3738,8 @@ label.act.busy { opacity: .55; pointer-events: none; }
    дышит тень. Своя группа .splash-loop внутри .splash-lift — не спорит с жимом из сборки;
    задержку (--splash-loop-delay) ставит splashBoot.js, чтобы прыжки начались после сборки. */
 .splash-loop { transform-box: view-box; transform-origin: 100px 120px; }
-.splash-shadow { fill: var(--acc); opacity: 0; transform-box: fill-box; transform-origin: center; }
+/* Тень — темная, а не в цвет акцента (fb_7f0c37b5: цветное пятно под штангой выглядело странно). */
+.splash-shadow { fill: rgb(0 0 0); opacity: 0; transform-box: fill-box; transform-origin: center; }
 .splash--updating .splash-loop { animation: splash-bounce 1s var(--splash-loop-delay, 0ms) infinite both; }
 .splash--updating .splash-shadow { animation: splash-shadow 1s var(--splash-loop-delay, 0ms) infinite both; }
 @keyframes splash-bounce {
@@ -3746,8 +3750,8 @@ label.act.busy { opacity: .55; pointer-events: none; }
   100% { transform: scale(1.08, .92); }
 }
 @keyframes splash-shadow {
-  0%, 88%, 100% { opacity: .22; transform: none; }
-  48% { opacity: .07; transform: scaleX(.55); }
+  0%, 88%, 100% { opacity: .55; transform: none; }
+  48% { opacity: .2; transform: scaleX(.55); }
 }
 /* Обновление при запуске (v6.13.0): «Обновляем до v…» + прогресс под знаком.
    Абсолютно — чтобы знак не прыгал, когда блок появляется. */

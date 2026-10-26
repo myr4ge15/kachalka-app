@@ -8,13 +8,11 @@ import SheetDialog from '../ui/SheetDialog.jsx'
 // Карточка шаблона в пикере. mine → бейдж 🌐 у общих; чужой → пометка автора.
 function PickItem({ t, mine, onPick }) {
   const exs = t.exercises ?? []
-  const summary = exs
+  // Состав — по строке на упражнение (v1.4.4 э2, fb_966c7e2b): одним абзацем через запятую
+  // названия и подходы сливались, и было не понять, где кончается одно упражнение.
+  const lines = exs
     .filter((e) => e.exercise?.name)
-    .map((e) => {
-      const tg = fmtTemplateTarget(exerciseMetric(e.exercise), e)
-      return tg ? `${e.exercise.name} ${tg}` : e.exercise.name
-    })
-    .join(', ')
+    .map((e) => ({ name: e.exercise.name, target: fmtTemplateTarget(exerciseMetric(e.exercise), e) }))
   return (
     <button className="picker-item tpl-pick" onClick={() => onPick(t)}>
       <span className="tpl-pick-name">
@@ -25,7 +23,16 @@ function PickItem({ t, mine, onPick }) {
         {!mine && t.author_name && <span className="tpl-author"> · от {t.author_name}</span>}
       </span>
       <span className="picker-group">{exs.length} упр.</span>
-      {summary && <span className="tpl-pick-sub muted">{summary}</span>}
+      {lines.length > 0 && (
+        <span className="tpl-pick-sub">
+          {lines.map((l, i) => (
+            <span key={i} className="tpl-pick-line">
+              {l.name}
+              {l.target && <span className="tpl-pick-sets"> {l.target}</span>}
+            </span>
+          ))}
+        </span>
+      )}
     </button>
   )
 }

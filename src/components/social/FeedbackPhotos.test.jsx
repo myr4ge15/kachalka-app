@@ -70,10 +70,10 @@ describe('FeedbackPhotos', () => {
 it('видео (fb_1c5fab9c): плитка с ▶, на весь экран — плеер с управлением', async () => {
   const load = vi.fn(async (id, kind, n) => `blob:${n}`)
   render(<FeedbackPhotos id="f1" kind="screenshots" count={2} load={load} label="Скриншот" isVideo={(u) => u === 'blob:1'} />)
-  const tile = await screen.findByRole('button', { name: 'Видео: Скриншот 2 из 2' })
+  const tile = await screen.findByRole('button', { name: 'Видео 2 из 2' }) // у видео — «Видео», а не «Скриншот» (26.10)
   expect(tile.querySelector('video')).toHaveAttribute('src', 'blob:1#t=0.1') // кадр на iPhone (fb_59c95046)
   fireEvent.click(tile)
-  const player = screen.getByRole('dialog', { name: 'Скриншот' }).querySelector('video')
+  const player = screen.getByRole('dialog', { name: 'Видео' }).querySelector('video')
   expect(player).toHaveAttribute('controls')
   expect(screen.getByRole('button', { name: 'Скриншот 1 из 2' }).querySelector('img')).toBeTruthy()
 })

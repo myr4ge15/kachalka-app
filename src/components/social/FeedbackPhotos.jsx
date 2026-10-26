@@ -56,23 +56,29 @@ export default function FeedbackPhotos({
               : (
                 <button key={n} type="button" className={'fb-photo' + (isVideo(url) ? ' fb-photo--video' : '')}
                   onClick={() => setOpen(url)}
-                  aria-label={(isVideo(url) ? 'Видео: ' : '') + (total > 1 ? `${label} ${n + 1} из ${total}` : label)}>
+                  aria-label={(total > 1 ? `${mediaLabel(label, isVideo(url))} ${n + 1} из ${total}` : mediaLabel(label, isVideo(url)))}>
                   {isVideo(url) ? <video src={videoPosterSrc(url)} muted playsInline preload="metadata" /> : <img src={url} alt="" />}
                 </button>
               )
         ))}
       </div>
       {open && (
-        <SheetDialog title={label} onDismiss={() => setOpen(null)} className="fb-viewer">
+        <SheetDialog title={mediaLabel(label, isVideo(open))} onDismiss={() => setOpen(null)} className="fb-viewer">
           <SwipeToClose onClose={() => setOpen(null)}>
             {isVideo(open)
-              ? <video src={open} controls autoPlay playsInline aria-label={label} />
+              ? <video src={open} controls autoPlay playsInline aria-label={mediaLabel(label, true)} />
               : <img src={open} alt={label} />}
           </SwipeToClose>
         </SheetDialog>
       )}
     </>
   )
+}
+
+// Подпись по тому, что открыто (26.10.2026): у видео «Скриншот…»/«Вложение…» → «Видео…»; до загрузки
+// тип не известен — там общая подпись.
+function mediaLabel(label, video) {
+  return video ? label.replace(/^(Скриншот|Вложение|Картинка)/, 'Видео') : label
 }
 
 // Картинка тянется за пальцем по вертикали; отпустили далеко или резко — закрыть,
