@@ -60,14 +60,14 @@ describe('NotificationsScreen', () => {
     expect(screen.getByRole('button', { name: 'комментарии' })).toBeInTheDocument()
   })
 
-  it('тап по комментарию и реакции ведет в Ленту к тренировке; рекорд — не ссылка (fb_9c8b8517)', async () => {
-    mocks.list = [{ ...CM[0], workoutId: 'w1' }, { ...CM[2], workoutId: 'w3' }, { ...N.react, workoutId: 'w2' }, N.mine]
+  it('тап по комментарию и реакции ведет в Ленту к тренировке; рекорд — не ссылка (fb_9c8b8517, fb_2277554b)', async () => {
+    mocks.list = [{ ...CM[0], workoutId: 'w1' }, { ...CM[2], workoutId: 'w3', commentId: 'c3' }, { ...N.react, workoutId: 'w2' }, N.mine]
     const onOpenWorkout = vi.fn()
     render(<NotificationsScreen user={ME} onBack={vi.fn()} onOpenWorkout={onOpenWorkout} />)
     fireEvent.click(await screen.findByRole('button', { name: /Комментарий к тренировке/ }))
     expect(onOpenWorkout).toHaveBeenLastCalledWith('w1', true)
     fireEvent.click(screen.getByRole('button', { name: /Реакция на комментарий/ }))
-    expect(onOpenWorkout).toHaveBeenLastCalledWith('w3', true)
+    expect(onOpenWorkout).toHaveBeenLastCalledWith('w3', 'c3') // ветка — на этом комментарии
     fireEvent.click(screen.getByRole('button', { name: /Реакция на тренировку/ }))
     expect(onOpenWorkout).toHaveBeenLastCalledWith('w2', false)
     expect(screen.queryByRole('button', { name: /Личный рекорд/ })).toBeNull()

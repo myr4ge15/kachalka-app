@@ -359,7 +359,7 @@ describe('App: пуш при холодном старте', () => {
     expect(current()).toBe('feed')
     await settle()
     expect(seen.feed.flashId).toBe('11111111-2222-4333-8444-555555555555')
-    expect(seen.feed.threadId).toBe('11111111-2222-4333-8444-555555555555')
+    expect(seen.feed.thread).toMatchObject({ workoutId: '11111111-2222-4333-8444-555555555555', commentId: null })
   })
 
   it('пуш «Друзей» («N теперь в друзьях») — экран «Друзья»', async () => {

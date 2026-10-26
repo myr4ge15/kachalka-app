@@ -217,6 +217,36 @@ button { font-family: inherit; font-variant-numeric: inherit; font-feature-setti
 input { font-family: inherit; font-variant-numeric: inherit; font-feature-settings: inherit; }
 select, textarea { font-variant-numeric: inherit; font-feature-settings: inherit; }
 
+/* Галочки и выпадающие списки — свои, а не системные (26.10.2026, аудит оформления): системные
+   рисовались голубым квадратом браузера и стрелкой ОС. Галочка — как в сканере (.scanner-check):
+   плашка 22px, отмечено — заливка акцентом, знак — цветом поверх акцента. Чекбоксы с собственной
+   отрисовкой (.sr-only, .scanner-item-input) не трогаем. */
+input[type="checkbox"]:not(.sr-only):not(.scanner-item-input) {
+  -webkit-appearance: none; appearance: none; flex: none; display: inline-grid; place-items: center;
+  width: 22px; height: 22px; margin: 0; border-radius: 7px; cursor: pointer;
+  border: 1.5px solid color-mix(in srgb, var(--text) 28%, transparent); background: var(--surface-2);
+}
+input[type="checkbox"]:not(.sr-only):not(.scanner-item-input)::before {
+  content: ''; width: 14px; height: 14px; background: var(--on-acc); transform: scale(0);
+  transition: transform var(--dur-fast) var(--ease-out);
+  -webkit-mask: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='black' stroke-width='3.2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M5 12.5l4.5 4.5L19 7.5'/%3E%3C/svg%3E") center / contain no-repeat;
+  mask: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='black' stroke-width='3.2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M5 12.5l4.5 4.5L19 7.5'/%3E%3C/svg%3E") center / contain no-repeat;
+}
+input[type="checkbox"]:not(.sr-only):not(.scanner-item-input):checked { background: var(--acc-fill); border-color: transparent; }
+input[type="checkbox"]:not(.sr-only):not(.scanner-item-input):checked::before { transform: scale(1); }
+input[type="checkbox"]:not(.sr-only):not(.scanner-item-input):disabled { opacity: .5; cursor: default; }
+input[type="checkbox"]:not(.sr-only):not(.scanner-item-input):focus-visible { outline: 3px solid var(--acc-2); outline-offset: 2px; }
+@media (prefers-reduced-motion: reduce) {
+  input[type="checkbox"]:not(.sr-only):not(.scanner-item-input)::before { transition: none; }
+}
+/* Стрелка списка — уголок из двух градиентов цветом --muted (без картинки с зашитым цветом). */
+select.prog-select, select.admin-input {
+  -webkit-appearance: none; appearance: none; padding-right: 40px; text-overflow: ellipsis;
+  background-image: linear-gradient(45deg, transparent 50%, var(--muted) 50%), linear-gradient(135deg, var(--muted) 50%, transparent 50%);
+  background-position: calc(100% - 21px) 52%, calc(100% - 16px) 52%;
+  background-size: 5px 5px; background-repeat: no-repeat;
+}
+
 /* Номера версий: общий стиль, только для числового фрагмента. */
 .version-number {
   font-family: system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
@@ -1033,17 +1063,8 @@ button.link-btn { min-height: 44px; display: inline-flex; align-items: center; j
 .wk-add:active { background: var(--surface-2); }
 .wk-add-ico { color: var(--acc); }
 
-/* Действия сохраненной тренировки — список строк внизу, отделен линией. */
-.wk-acts { margin-top: 18px; padding-top: 6px; border-top: 1px solid var(--border); }
-.wk-act {
-  width: 100%; min-height: 50px; display: flex; align-items: center; gap: 12px;
-  padding: 0 2px; border: 0; background: none; color: var(--text);
-  font-size: 15px; font-weight: 600; text-align: left; cursor: pointer;
-}
-.wk-act-ico { color: var(--muted); flex: none; }
-.wk-act.danger, .wk-act.danger .wk-act-ico { color: var(--red); }
-.wk-act:disabled { opacity: .5; }
-.wk-acts .danger-confirm, .wk-acts .tpl-from-wk { margin: 6px 0; }
+/* Действия сохраненной тренировки — строками MenuRow (26.10.2026; до того — голые строки без фона). */
+.wk-acts { margin-top: 18px; display: flex; flex-direction: column; gap: 10px; }
 
 /* Тумблер-строка в настройках Профиля (напр. «Рекомендации прогрессии») */
 .toggle-act { display: flex; align-items: center; justify-content: space-between; gap: 12px; text-align: left; }
@@ -1495,17 +1516,8 @@ button.link-btn { min-height: 44px; display: inline-flex; align-items: center; j
 
 /* ---------- шаблоны ---------- */
 /* Вторичная кнопка «Шаблоны» под «+ Добавить тренировку» */
-/* v6.2.0: строка-кнопка «Шаблоны» (иконка · текст · шеврон), как пункты списка. */
-.tpl-link {
-  width: 100%; min-height: 52px; display: flex; align-items: center; gap: 12px;
-  margin-top: -8px; margin-bottom: 14px; padding: 0 14px; border-radius: 14px;
-  border: 0; background: var(--surface); color: var(--text); cursor: pointer;
-  font-size: 15px; font-weight: 600; text-align: left;
-}
-.tpl-link:active { background: var(--surface-2); }
-.tpl-link-ico { color: var(--acc); flex: none; }
-.tpl-link-txt { flex: 1; }
-.tpl-link-chev { color: var(--muted); flex: none; }
+/* v6.2.0: строка «Шаблоны» — с 26.10.2026 общая MenuRow, здесь только отступы. */
+.act.tpl-link { margin-top: -8px; margin-bottom: 14px; }
 /* На мобиле «+ Добавить тренировку» скрыта (ее роль у плавающей «+», v5.4.1), и
    «Шаблоны» оказываются первыми под заголовком — отрицательный отступ, который
    поджимал их к кнопке, тут прилепил бы их к самому заголовку. */
@@ -2002,6 +2014,9 @@ img.avatar-lg.has-img {
 .cm-item .avatar-sm { width: 28px; height: 28px; }
 .cm-av-gap { width: 28px; flex: none; }
 .cm-item.pending { opacity: .55; }
+/* Комментарий, к которому привело уведомление (fb_2277554b): пузырь вспыхивает акцентом и гаснет,
+   как карточка Ленты (.feed-card--flash). Только тень — без движения и сдвига раскладки. */
+.cm-item--focus .cm-bub { animation: feed-flash 2.4s ease-out both; }
 /* Ответ свайпом влево (hooks/useSwipeReply.js): строка едет за пальцем, справа проявляется стрелка. */
 .cm-item { position: relative; touch-action: pan-y; transition: transform .18s ease; }
 .cm-item.swiping { transition: none; }
@@ -2452,22 +2467,10 @@ button.cm-name { cursor: pointer; padding: 12px 0; margin: -12px 0 -11px; }
    font-size: 16px; font-weight: 600; color: var(--text);
     margin: 0 0 8px 2px;
 }
-/* «Настройки» — раскрывающийся заголовок-кнопка (сворачивает длинный хвост
-   профиля: смена PIN, админка, danger-zone). Оформлена как явная кнопка-строка
-   (surface + рамка), чтобы ее было легко заметить внизу длинного профиля. */
-.settings-toggle {
-  display: flex; align-items: center; justify-content: space-between; width: 100%;
-  background: var(--surface); border: 1px solid var(--border); border-radius: 14px;
-  padding: 14px; cursor: pointer; text-align: left; min-height: 52px;
-}
-.settings-toggle:active { background: var(--surface-2); }
-.settings-toggle + .settings-toggle { margin-top: 12px; }
-.member-invites { margin-block: 12px; }
+/* Хвост Профиля (Друзья, Мой круг, Пригласить, Написать, Настройки, Выйти) — строки MenuRow
+   столбиком с общим шагом; до 26.10.2026 — .settings-toggle с отступами «+ сосед». */
+.settings-sec { display: flex; flex-direction: column; gap: 10px; }
 .member-invites > .invite-sec { margin-top: 12px; }
-.settings-title {
-  display: inline-flex; align-items: center; gap: 9px;
-  font-size: 15px; font-weight: 600; color: var(--text);
-}
 .ui-chevron {
   display: inline-block; flex: none; vertical-align: middle; color: var(--muted);
   transition: transform var(--dur-fast) var(--ease-out);
@@ -2478,7 +2481,6 @@ button.cm-name { cursor: pointer; padding: 12px 0; margin: -12px 0 -11px; }
 /* В ссылке-тексте («Подробнее ›»): цвет текста, по центру строки, без своей высоты строки. */
 .ui-chevron--inline { color: inherit; vertical-align: -0.2em; margin-left: 1px; }
 @media (prefers-reduced-motion: reduce) { .ui-chevron { transition: none; } }
-.settings-chev { align-self: center; }
 
 /* шапка профиля */
 .prof-head { display: flex; align-items: center; gap: 14px; margin-bottom: 16px; }
@@ -2622,17 +2624,6 @@ button.cm-name { cursor: pointer; padding: 12px 0; margin: -12px 0 -11px; }
 .info-row .v { font-weight: 600; font-size: 15px; }
 .info-row .k { color: var(--muted); font-size: 12px; margin-top: 2px; }
 
-/* мостик к лидерборду */
-.leader-link {
-  display: flex; align-items: center; justify-content: space-between; gap: 10px; width: 100%;
-  background: var(--acc-soft); border: 1px solid color-mix(in srgb, var(--acc) 40%, transparent); border-radius: 16px;
-  padding: 14px; color: var(--text); text-align: left;
-}
-.leader-link:active { background: color-mix(in srgb, var(--acc) 25%, transparent); }
-.leader-link .v { font-weight: 600; font-size: 15px; }
-.leader-link .k { color: var(--muted); font-size: 12px; margin-top: 3px; }
-.leader-link .go { color: var(--acc-2); font-weight: 600; font-size: 14px; flex-shrink: 0; }
-
 /* настройки / выход */
 .profile .actions { display: flex; flex-direction: column; gap: 10px; }
 /* Выбор своего пола (components/SexPicker.jsx, v6.2.0). */
@@ -2671,12 +2662,6 @@ button.cm-name { cursor: pointer; padding: 12px 0; margin: -12px 0 -11px; }
 .push-screen .push-err + .push-note, .push-screen .push-note { margin: 8px 4px 0; line-height: 1.35; }
 .push-type { min-height: 48px; padding: 10px 12px; font-size: 14px; }
 .push-type:disabled { opacity: .6; }
-/* блоки .actions/danger-confirm под тогглом «Настройки» идут встык — разводим
-   их вертикально, чтобы «Удалить мои данные» не наплывало на «Выйти». */
-.settings-toggle + .danger-confirm,
-.settings-toggle + .actions,
-.settings-sec .actions + .actions,
-.settings-sec .danger-confirm + .actions { margin-top: 10px; }
 .act {
   display: flex; align-items: center; gap: 11px; width: 100%; text-align: left;
   background: var(--surface); border: 1px solid var(--border); border-radius: 14px;
@@ -2691,12 +2676,22 @@ button.cm-name { cursor: pointer; padding: 12px 0; margin: -12px 0 -11px; }
 /* Восстановление из файла — <label>, ему нужны курсор и блокировка вручную. */
 label.act { cursor: pointer; }
 label.act.busy { opacity: .55; pointer-events: none; }
+.act.busy { opacity: .55; pointer-events: none; }
 .act .tag { margin-left: auto; font-size: 12px; color: var(--muted); font-weight: 600; }
-.act.logout {
-  color: var(--red); border-color: color-mix(in srgb, var(--red) 35%, transparent); background: transparent;
-  justify-content: center; font-weight: 600;
+/* Строка меню (components/ui/MenuRow.jsx, 26.10.2026, аудит оформления): иконка в плашке,
+   заголовок + пояснение, справа бейдж и «›» (переход) / «⌄» (раскрытие) / тумблер. Один
+   рецепт для Профиля, Настроек, действий тренировки, Ленты и листов. */
+.menu-row .act-txt { flex: 1 1 auto; min-width: 0; }
+.act-title { overflow-wrap: anywhere; }
+.act-ico {
+  flex: none; display: grid; place-items: center; width: 34px; height: 34px; border-radius: 10px;
+  background: var(--acc-soft); color: var(--acc-2);
 }
-.act.logout:active { background: color-mix(in srgb, var(--red) 12%, transparent); }
+.menu-row-chev { flex: none; color: var(--muted); }
+.menu-row .act-badge { margin-left: 0; }
+.menu-row.is-open { border-color: color-mix(in srgb, var(--acc) 45%, var(--border)); }
+.menu-row:disabled { opacity: .55; cursor: default; }
+.menu-row.danger .act-ico { background: color-mix(in srgb, var(--red) 14%, transparent); color: var(--red-text); }
 /* Идет выход (до ~7 с) — видно, что нажатие принято (РЕВЬЮ-КОДА-2026-10-02). */
 .act.logout:disabled { opacity: .6; cursor: progress; }
 
@@ -3931,7 +3926,7 @@ label.act.busy { opacity: .55; pointer-events: none; }
 b, strong { font-weight: var(--fw-strong); }
 /* Заголовок раздела = заголовок карточки: 600 · 16 · белый, обычный регистр. */
 .sec-title, .prog-table-title, .lb-title, .ach-sec-title, .admin-merge-title,
-.history-date, .feed-name, .tpl-name, .settings-title, .n-title, .fr-teaser-lab {
+.history-date, .feed-name, .tpl-name, .n-title, .fr-teaser-lab {
   font-size: var(--fs-title); font-weight: var(--fw-strong); color: var(--text); letter-spacing: 0;
 }
 .sec-title { margin: 0 0 10px 2px; }
@@ -3950,7 +3945,7 @@ label > span.muted:first-child, .date-field > .muted, .create-label, .field-lab,
 /* Подписи-«ярлыки» у крупных цифр и групп — называют: 600 · 13 · серый, без капса. */
 .home-block-k, .stat-cell-label, .goals-group-title, .group-title, .rival-kicker { font-size: var(--fs-meta); font-weight: var(--fw-strong); color: var(--muted); }
 /* Переходы на другой экран — 600 · 15 · акцент, с большой буквы. */
-.rhythm-history, .home-row .go, .leader-link .go { font-size: var(--fs-body); font-weight: var(--fw-strong); color: var(--acc-2); }
+.rhythm-history, .home-row .go { font-size: var(--fs-body); font-weight: var(--fw-strong); color: var(--acc-2); }
 /* «Подробнее ›» в шапке карточки «Готовность мышц» — 14: рядом с заголовком 16 крупнее
    выглядело слишком громко (отзыв, v6.3.2). */
 .fr-teaser .go { font-size: var(--fs-label); font-weight: var(--fw-strong); color: var(--acc-2); }

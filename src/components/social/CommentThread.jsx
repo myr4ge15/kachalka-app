@@ -11,6 +11,7 @@ import { showToast } from '../ui/Toast.jsx'
 import { useAliveRef } from '../../hooks/useAliveRef.js'
 import { useRevealFocus } from '../../hooks/useRevealFocus.js'
 import { useKeyboardLift } from '../../hooks/useKeyboardLift.js'
+import { centerTop, settleScroll } from '../../lib/scrollBox.js'
 import {
   COMMENT_COUNTER_FROM, COMMENT_MAX, applyReaction, canDeleteComment, canEditComment, canReactComment, canReplyComment,
   cleanBody, commentClock, commentDayBreaks, commentSeries, isDoubleTap, nameTone, nextReaction, previewComments,
@@ -39,7 +40,9 @@ import { postComment, removeComment, setCommentReaction, updateComment } from '.
 // 26.10.2026 (fb_ad51c03b, fb_fbbf5381): в листе ветки поле — в подвале листа (WorkoutSocial), а не липким
 // внутри .sheet-scroll: «пружина» у края уводила его вместе с перепиской, а на фокус iOS докручивала
 // прокрутку к месту поля без липкости — переписка уезжала за экран. Портал: состояние и обработчики здесь же.
-export default function CommentThread({ workoutId, ownerId, comments, me, open, onOpen, focusTick = 0, onOpenMember, composeHost = null }) {
+// focusCommentId — к этому комментарию привело уведомление (fb_2277554b): при открытии он по центру листа и
+// коротко подсвечен.
+export default function CommentThread({ workoutId, ownerId, comments, me, open, onOpen, focusTick = 0, onOpenMember, composeHost = null, focusCommentId = null }) {
   const online = useOnline()
   const aliveRef = useAliveRef()
   const [text, setText] = useState('')
@@ -98,6 +101,19 @@ export default function CommentThread({ workoutId, ownerId, comments, me, open, 
     if (opened) setReveal({})
     inputRef.current?.focus({ preventScroll: true })
   }, [focusTick, open])
+
+  // Привело уведомление — комментарий по центру прокрутки листа. Один раз на монтирование ветки (новый переход
+  // перемонтирует ее, FeedScreen key); settleScroll, а не scrollIntoView: на iPhone тот пропускается.
+  const focusedOnce = useRef(false)
+  const hasFocusComment = (comments ?? []).some((c) => c.id === focusCommentId)
+  useEffect(() => {
+    if (!open || !hasFocusComment || focusedOnce.current) return
+    const el = boxRef.current?.querySelector(`[data-cm="${CSS.escape(String(focusCommentId))}"]`)
+    const sc = el?.closest('.sheet-scroll')
+    if (!sc) return
+    focusedOnce.current = true
+    return settleScroll(sc, centerTop(sc, el))
+  }, [open, hasFocusComment, focusCommentId, boxRef])
 
   // Начали править — поле уже с текстом (ветка раскрылась), курсор в конец.
   useEffect(() => {
@@ -342,8 +358,8 @@ export default function CommentThread({ workoutId, ownerId, comments, me, open, 
         return (
           <Fragment key={c.id}>
           {days[i] && <div className="cm-day"><span>{days[i]}</span></div>}
-          <div className={`cm-item${own ? ' own' : ''}${first ? ' first' : ''}${last ? ' last' : ''}${c.pending ? ' pending' : ''}`}
-            {...swipe(c, canReply)}>
+          <div className={`cm-item${own ? ' own' : ''}${first ? ' first' : ''}${last ? ' last' : ''}${c.pending ? ' pending' : ''}${c.id === focusCommentId ? ' cm-item--focus' : ''}`}
+            data-cm={c.id} {...swipe(c, canReply)}>
             {canReply && (
               <span className="cm-swipe-ico" aria-hidden="true">
                 <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" strokeWidth="2.2"

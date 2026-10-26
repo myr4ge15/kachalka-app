@@ -22,6 +22,8 @@ const FEED_FLASH_MS = 2400
 // дольше обычного возврата — при холодном старте Лента еще грузит экран и кэш.
 // center (v8.9.8): карточка серединой в середину экрана — видны и тренировка, и реакции под ней.
 const pushAnchor = (workoutId) => ({ anchor: `feed-${workoutId}`, offset: 12, scrollTop: 0, ms: 2500, center: true })
+// Запрос «открой ветку комментариев» для Ленты: новый seq на каждый переход (fb_2277554b).
+const nextThread = (prev, workoutId, commentId = null) => ({ workoutId, commentId, seq: (prev?.seq ?? 0) + 1 })
 const TAB_KEY = 'gym_app_tab'
 
 // Пуш «вышла новая версия» нажали у уже запущенного приложения (19.10.2026): любым путем —
@@ -84,8 +86,11 @@ export function useAppNav(user) {
   // тренировки на пару секунд, потом гаснет сама.
   const [feedFlashId, setFeedFlashId] = useState(null)
   // Пуш о комментарии (19.10.2026): у этой карточки ветка раскрыта. Не гасим: сброс
-  // перемонтировал бы ветку свернутой; следующий пуш просто заменит id.
-  const [feedThreadId, setFeedThreadId] = useState(null)
+  // перемонтировал бы ветку свернутой; следующий переход просто заменит запрос.
+  // { workoutId, commentId, seq } (fb_2277554b): commentId — на каком комментарии открыть ветку,
+  // seq — каждый переход открывает ветку заново (Лента в стеке не перемонтируется, а лист
+  // с прошлого раза мог быть закрыт). Переход без ветки (реакция) запрос снимает.
+  const [feedThread, setFeedThread] = useState(null)
   // Обращение, к которому привел пуш с ответом разработчика (v6.11.0).
   const [feedbackFocus, setFeedbackFocus] = useState(null)
   useEffect(() => {
@@ -298,7 +303,8 @@ export function useAppNav(user) {
     if (pushIntent.type === 'reaction' || pushIntent.type === 'comment') {
       setFeedRestore(pushAnchor(pushIntent.workoutId))
       setFeedFlashId(pushIntent.workoutId)
-      if (pushIntent.type === 'comment') setFeedThreadId(pushIntent.workoutId)
+      if (pushIntent.type === 'comment') setFeedThread((t) => nextThread(t, pushIntent.workoutId))
+      else setFeedThread(null)
       setTab('feed')
     }
     // Ответ на обращение (v6.11.0) — экран обратной связи с подсветкой этого обращения.
@@ -318,12 +324,13 @@ export function useAppNav(user) {
   }, [user?.id, pushIntent])
 
   // Тап по уведомлению о реакции / комментарии (26.10.2026, fb_9c8b8517) — как пуш: Лента у этой тренировки,
-  // thread — ветка комментариев раскрыта.
+  // thread — ветка комментариев раскрыта; строка — id комментария, на котором ее открыть (fb_2277554b).
   function openFeedWorkout(workoutId, thread = false) {
     if (!workoutId) return
     setFeedRestore(pushAnchor(workoutId))
     setFeedFlashId(workoutId)
-    if (thread) setFeedThreadId(workoutId)
+    if (thread) setFeedThread((t) => nextThread(t, workoutId, typeof thread === 'string' ? thread : null))
+    else setFeedThread(null)
     setTab('feed')
   }
 
@@ -340,7 +347,7 @@ export function useAppNav(user) {
   return {
     tab, setTab, routeAnim, contentRef, screenRef, edgeSwipeOn, setInnerNav,
     memberId, feedRestore, progressExId, setProgressExId, openNewWorkout, setOpenNewWorkout,
-    calendarIntent, setCalendarIntent, feedFlashId, feedThreadId, feedbackFocus, openFeedback, backFromFeedback, lastMainTab,
+    calendarIntent, setCalendarIntent, feedFlashId, feedThread, feedbackFocus, openFeedback, backFromFeedback, lastMainTab,
     focusRhythm, setFocusRhythm, openSettings, setOpenSettings,
     goTab, openNotif, backFromNotif, openProgressFor, openCalendarAt, openMember, backFromMember,
     backToRhythm, backToSettings, nestedBack, startNewWorkout, setPushIntent, openFeedWorkout

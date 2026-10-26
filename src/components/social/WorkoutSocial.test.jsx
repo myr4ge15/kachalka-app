@@ -87,6 +87,27 @@ describe('WorkoutSocial — строка комментариев', () => {
     expect(screen.getByRole('dialog', { name: 'Комментарии' })).toBeInTheDocument()
   })
 
+  it('уведомление о комментарии — лист открыт на нем: подсвечен и по центру прокрутки (fb_2277554b)', () => {
+    const rects = new Map()
+    const orig = Element.prototype.getBoundingClientRect
+    Element.prototype.getBoundingClientRect = function () {
+      return rects.get(this.className.split(' ')[0]) ?? rects.get(this.dataset?.cm) ?? orig.call(this)
+    }
+    rects.set('sheet-scroll', { top: 100, height: 400 })
+    rects.set('c2', { top: 900, height: 60 })
+    try {
+      renderSocial({ openThread: true, focusCommentId: 'c2' })
+      const sheet = screen.getByRole('dialog', { name: 'Комментарии' })
+      const item = sheet.querySelector('[data-cm="c2"]')
+      expect(item).toHaveClass('cm-item--focus')
+      expect(sheet.querySelectorAll('.cm-item--focus')).toHaveLength(1)
+      // 900 − 100 = 800 от верха прокрутки, минус (400 − 60) / 2 — пузырь по центру.
+      expect(item.closest('.sheet-scroll').scrollTop).toBe(630)
+    } finally {
+      Element.prototype.getBoundingClientRect = orig
+    }
+  })
+
   it('имя комментатора в листе — профиль, лист закрывается', () => {
     const onOpenMember = vi.fn()
     renderSocial({ onOpenMember })

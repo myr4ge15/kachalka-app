@@ -12,8 +12,8 @@ describe('commentNotifs', () => {
       { id: 'w2', user_id: 'petya', comments: [c({ id: 'c4', reply_to_user: ME }), c({ id: 'c5', reply_to_user: 'petya' })] },
     ]
     expect(commentNotifs(items, ME)).toEqual([
-      { id: 'comment:c1', type: 'comment', mode: 'comment', workoutId: 'w1', who: 'Оля', whoId: 'olya', text: 'мощно', at: '2026-10-26T10:00:00Z' },
-      { id: 'comment:c4', type: 'comment', mode: 'reply', workoutId: 'w2', who: 'Оля', whoId: 'olya', text: 'мощно', at: '2026-10-26T10:00:00Z' },
+      { id: 'comment:c1', type: 'comment', mode: 'comment', workoutId: 'w1', commentId: 'c1', who: 'Оля', whoId: 'olya', text: 'мощно', at: '2026-10-26T10:00:00Z' },
+      { id: 'comment:c4', type: 'comment', mode: 'reply', workoutId: 'w2', commentId: 'c4', who: 'Оля', whoId: 'olya', text: 'мощно', at: '2026-10-26T10:00:00Z' },
     ])
   })
   it('ответ мне под моей тренировкой — «ответ», не «комментарий»; пусто и мусор — []', () => {
@@ -32,8 +32,8 @@ describe('commentReactionNotifs', () => {
       { comment_id: 'c3', user_id: 'olya', kind: 'like' },
     ]
     expect(commentReactionNotifs(rows)).toEqual([
-      { id: 'creact:c1:olya', type: 'comment_react', workoutId: 'w1', who: 'Оля', whoId: 'olya', emoji: '🔥', text: 'сотка', at: '2026-10-26T10:00:00Z' },
-      { id: 'creact:c1:x', type: 'comment_react', workoutId: 'w1', who: 'Кто-то', whoId: 'x', emoji: '❤️', text: 'сотка', at: '2026-10-26T09:00:00Z' },
+      { id: 'creact:c1:olya', type: 'comment_react', workoutId: 'w1', commentId: 'c1', who: 'Оля', whoId: 'olya', emoji: '🔥', text: 'сотка', at: '2026-10-26T10:00:00Z' },
+      { id: 'creact:c1:x', type: 'comment_react', workoutId: 'w1', commentId: 'c1', who: 'Кто-то', whoId: 'x', emoji: '❤️', text: 'сотка', at: '2026-10-26T09:00:00Z' },
     ])
     expect(commentReactionNotifs(undefined)).toEqual([])
   })

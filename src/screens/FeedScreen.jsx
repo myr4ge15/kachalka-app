@@ -1,5 +1,6 @@
 import PhaseTag from '../components/workout/PhaseTag.jsx'
 import Chevron from '../components/ui/Chevron.jsx'
+import MenuRow from '../components/ui/MenuRow.jsx'
 import { useEffect, useRef, useState, useCallback, useMemo } from 'react'
 import { useRevealFocus } from '../hooks/useRevealFocus.js'
 import { useLiveQuery } from 'dexie-react-hooks'
@@ -36,8 +37,9 @@ function writeRailOpen(userId, open) {
 // коротко подсвечивается акцентом, чтобы было видно, какую оценили.
 const OFFLINE_EMPTY = 'Лента недоступна офлайн. Подключись к сети.'
 
-// threadId — тренировка, к которой привел пуш о комментарии (19.10.2026): ее ветка раскрыта.
-export default function FeedScreen({ user, onOpenMember, flashId = null, threadId = null, onOpenCircle, onOpenFriends }) {
+// thread — { workoutId, commentId, seq }: пуш или уведомление о комментарии (19.10.2026) — у этой тренировки
+// ветка открыта, на комментарии commentId (fb_2277554b); новый seq — открыть заново.
+export default function FeedScreen({ user, onOpenMember, flashId = null, thread = null, onOpenCircle, onOpenFriends }) {
   // Кэш ленты (офлайн-доступен, обновляется мгновенно при фоновой подтяжке).
   const feed = useLiveQuery(() => getCachedFeed(), [], undefined)
 
@@ -301,7 +303,7 @@ export default function FeedScreen({ user, onOpenMember, flashId = null, threadI
           {list.map((w) => {
         const isMe = w.user_id === user.id
         return (
-          <div key={w.id} className={`card feed-card${w.id === flashId ? ' feed-card--flash' : ''}`}>
+          <div key={w.id} className={`card feed-card${w.id === flashId ? ' feed-card--flash' : ''}`} data-anchor-box="">
             {/* Тап по автору — его профиль (v6.7.0; свой — обычный Профиль). */}
             <button
               type="button"
@@ -343,14 +345,15 @@ export default function FeedScreen({ user, onOpenMember, flashId = null, threadI
             </div>
 
             <WorkoutSocial
-              key={w.id === threadId ? `${w.id}-thread` : w.id}
+              key={w.id === thread?.workoutId ? `${w.id}-thread-${thread.seq}` : w.id}
               workout={w}
               me={me}
               isMe={isMe}
               authorAvatar={avatarById.get(w.user_id) ?? null}
               onReact={(kind, mine) => onReact(w.id, kind, mine)}
               onOpenMember={onOpenMember ? (uid) => onOpenMember(uid, `feed-${w.id}`) : undefined}
-              openThread={w.id === threadId}
+              openThread={w.id === thread?.workoutId}
+              focusCommentId={w.id === thread?.workoutId ? thread.commentId : null}
             />
           </div>
         )
@@ -362,11 +365,8 @@ export default function FeedScreen({ user, onOpenMember, flashId = null, threadI
         <aside ref={railRef} className="feed-rail" data-open={railOpen ? '1' : '0'}>
             {/* v6.12.0: строка-кнопка как «Настройки»/«Пригласить» в Профиле — мелкий
                 серый заголовок с треугольником было еле видно. */}
-            <button type="button" className="settings-toggle feed-rail-toggle" aria-expanded={railOpen}
-              onClick={toggleRail}>
-              <span className="settings-title"><span aria-hidden="true">🏆</span> Рейтинг</span>
-              <Chevron className="settings-chev" open={railOpen} />
-            </button>
+            <MenuRow kind="expand" icon="trophy" title="Рейтинг" className="feed-rail-toggle" open={railOpen}
+              onClick={toggleRail} />
             {/* Свернутый рейтинг не размонтируем: данные уже подгружены, раскрытие
                 мгновенное, а на десктопе он виден всегда. */}
             <div className="feed-rail-body">

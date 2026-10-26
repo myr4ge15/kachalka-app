@@ -15,6 +15,16 @@ export function captureAnchor(container, key) {
 // останавливают подгонку — с ним не спорим.
 const RESTORE_MS = 1000
 
+// Видимая высота скроллера: низ .content уходит под плавающее нижнее меню (.tabbar, position: fixed),
+// и середина «под меню» — ниже середины того, что видно. Меню нет или оно скрыто (десктоп) — вся высота.
+export function visibleHeight(sc, scBox = sc.getBoundingClientRect()) {
+  const bar = sc.ownerDocument?.querySelector('.tabbar')
+  const b = bar?.getBoundingClientRect()
+  if (!b || !(b.height > 0)) return sc.clientHeight
+  const covered = Math.max(0, Math.min(scBox.bottom, scBox.top + sc.clientHeight) - b.top)
+  return Math.max(0, sc.clientHeight - covered)
+}
+
 export function useScrollAnchorRestore(containerRef, snap, onDone) {
   useEffect(() => {
     const sc = containerRef.current
@@ -33,14 +43,18 @@ export function useScrollAnchorRestore(containerRef, snap, onDone) {
     const tick = () => {
       if (stopped) return
       const el = snap.anchor ? sc.querySelector(`[data-anchor="${CSS.escape(snap.anchor)}"]`) : null
-      const box = el ? el.getBoundingClientRect() : null
+      // Центрируем весь блок якоря ([data-anchor-box] — карточка Ленты), а не сам якорь: им служит
+      // шапка карточки, и по ее высоте карточка вставала верхом в середину экрана, свисая вниз (fb_654fe23d).
+      const target = el && snap.center ? (el.closest('[data-anchor-box]') ?? el) : el
+      const box = target ? target.getBoundingClientRect() : null
+      const scBox = sc.getBoundingClientRect()
       const top = anchorTarget(snap, {
         scrollTop: sc.scrollTop,
         elTop: box ? box.top : null,
-        containerTop: sc.getBoundingClientRect().top,
+        containerTop: scBox.top,
         maxScroll: sc.scrollHeight - sc.clientHeight,
         elHeight: box ? box.height : 0,
-        viewHeight: sc.clientHeight,
+        viewHeight: snap.center ? visibleHeight(sc, scBox) : sc.clientHeight,
       })
       if (Math.abs(top - sc.scrollTop) > 1) sc.scrollTop = top
       if (performance.now() - started > (snap.ms ?? RESTORE_MS)) stop()

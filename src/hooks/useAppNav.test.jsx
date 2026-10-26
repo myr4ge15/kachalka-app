@@ -52,12 +52,25 @@ describe('useAppNav: nestedBack', () => {
     act(() => result.current.openFeedWorkout('w1', true))
     expect(result.current.tab).toBe('feed')
     expect(result.current.feedFlashId).toBe('w1')
-    expect(result.current.feedThreadId).toBe('w1')
+    expect(result.current.feedThread).toMatchObject({ workoutId: 'w1', commentId: null })
     act(() => result.current.openFeedWorkout('w2'))
     expect(result.current.feedFlashId).toBe('w2')
-    expect(result.current.feedThreadId).toBe('w1') // ветку другой тренировки не трогаем
+    expect(result.current.feedThread).toBeNull() // реакция — только карточка, прошлая ветка не открывается
     act(() => result.current.openFeedWorkout(null))
     expect(result.current.feedFlashId).toBe('w2')
+  })
+
+  it('уведомление о комментарии ведет на сам комментарий, повторный переход открывает ветку заново (fb_2277554b)', () => {
+    const { result } = renderHook(() => useAppNav(ME))
+    act(() => result.current.openNotif())
+    act(() => result.current.openFeedWorkout('w1', 'c7'))
+    const first = result.current.feedThread
+    expect(first).toMatchObject({ workoutId: 'w1', commentId: 'c7' })
+    // Лист закрыли, снова тап по тому же уведомлению: Лента в стеке не перемонтируется — нужен новый запрос.
+    act(() => result.current.openNotif())
+    act(() => result.current.openFeedWorkout('w1', 'c7'))
+    expect(result.current.feedThread).toMatchObject({ workoutId: 'w1', commentId: 'c7' })
+    expect(result.current.feedThread.seq).not.toBe(first.seq)
   })
 
   it('профиль участника → Лента', () => {

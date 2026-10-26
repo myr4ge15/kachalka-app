@@ -12,9 +12,10 @@ import { summarizeReactions } from '../../lib/reactions.js'
 // 20.10.2026 (fb_152f36fc): вместо двух последних комментариев в карточке —
 // одна строка «аватарки комментаторов · N комментариев ›»; тап открывает ветку листом во
 // весь экран (все комментарии и поле внизу), закрытие — свайпом назад, как у других листов.
-// openThread — открыть ветку сразу (пуш о комментарии привел к этой карточке).
+// openThread — открыть ветку сразу (пуш о комментарии привел к этой карточке); focusCommentId — на этом
+// комментарии (уведомление о комментарии, ответе или реакции на него, fb_2277554b).
 // me — { id, name, avatar }; authorAvatar — фото автора тренировки для «поста» над веткой.
-export default function WorkoutSocial({ workout, me, isMe, onReact, onOpenMember, openThread = false, authorAvatar = null }) {
+export default function WorkoutSocial({ workout, me, isMe, onReact, onOpenMember, openThread = false, focusCommentId = null, authorAvatar = null }) {
   const [open, setOpen] = useState(openThread)
   const [focusTick, setFocusTick] = useState(0)
   const [composeHost, setComposeHost] = useState(null) // подвал листа под полем ввода
@@ -49,6 +50,7 @@ export default function WorkoutSocial({ workout, me, isMe, onReact, onOpenMember
               focusTick={focusTick}
               onOpenMember={onOpenMember ? (id) => { setOpen(false); onOpenMember(id) } : undefined}
               composeHost={composeHost}
+              focusCommentId={focusCommentId}
             />
           </div>
           {/* Поле ввода — вне прокрутки, как в мессенджерах: листается только переписка (fb_ad51c03b, fb_fbbf5381). */}

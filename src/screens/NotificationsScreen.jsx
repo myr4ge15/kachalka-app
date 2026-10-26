@@ -17,7 +17,8 @@ import { plural } from '../lib/plural.js'
 // экранов (РЕВЬЮ-КОДА-2026-10-02). onBack — вернуться туда, откуда открыли.
 // onOpenFeedback(id) — ответ разработчика ведет на свое обращение (v6.12.0).
 // onOpenWorkout(workoutId, thread) — реакция и комментарий ведут в Ленту к тренировке, комментарий — с раскрытой
-// веткой (26.10.2026, fb_9c8b8517: тапом нельзя было перейти к сообщению).
+// веткой (26.10.2026, fb_9c8b8517: тапом нельзя было перейти к сообщению). thread — id комментария (ветка
+// открыта на нем, fb_2277554b), true — просто открыть ветку, false — только карточка.
 const OPENS_WORKOUT = new Set(['reaction', 'comment', 'comment_react'])
 export default function NotificationsScreen({ user, onBack, onOpenFeedback, onOpenWorkout }) {
   const list = useLiveQuery(() => getNotifications(user.id), [user.id], undefined)
@@ -120,7 +121,7 @@ export default function NotificationsScreen({ user, onBack, onOpenFeedback, onOp
         const Tag = opens ? 'button' : 'div'
         return (
           <Tag key={n.id} className={cls} {...(opens ? {
-            type: 'button', onClick: () => onOpenWorkout(n.workoutId, n.type !== 'reaction'),
+            type: 'button', onClick: () => onOpenWorkout(n.workoutId, n.type === 'reaction' ? false : (n.commentId ?? true)),
           } : {})}>
             <div className="n-icon" aria-hidden="true">{icon}</div>
             <div className="n-body">
