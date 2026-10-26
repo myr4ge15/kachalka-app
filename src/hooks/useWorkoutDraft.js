@@ -57,6 +57,7 @@ export function useWorkoutDraft({ userId, workoutId = null, onLoadError }) {
   const FEEL_KEY = `workout_feel_new_${userId}`
   const DATE_KEY = `workout_date_new_${userId}`
   const START_KEY = `workout_start_new_${userId}`
+  const FOCUS_KEY = isNew ? `workout_focus_new_${userId}` : null // раскрытое упражнение (useWorkoutFocus)
   const EDIT_KEY = isNew ? null : `workout_edit_${userId}_${workoutId}`
 
   const [entries, setEntries] = useState(() => (isNew ? readDraft(DRAFT_KEY) ?? [] : []))
@@ -169,6 +170,7 @@ export function useWorkoutDraft({ userId, workoutId = null, onLoadError }) {
     dropDraft(FEEL_KEY)
     dropDraft(DATE_KEY)
     dropDraft(START_KEY)
+    dropDraft(FOCUS_KEY)
     setEntries([])
     setFeels({}) // и оценок: отказ от черновика отменяет занятие целиком
   }
@@ -181,6 +183,7 @@ export function useWorkoutDraft({ userId, workoutId = null, onLoadError }) {
       dropDraft(FEEL_KEY)
       dropDraft(DATE_KEY)
       dropDraft(START_KEY)
+      dropDraft(FOCUS_KEY)
     } else {
       dropDraft(EDIT_KEY)
     }
@@ -188,6 +191,6 @@ export function useWorkoutDraft({ userId, workoutId = null, onLoadError }) {
 
   return {
     entries, setEntries, feels, setFeels, performedAt, setPerformedAt,
-    loading, editRestored, revertEdits, clearDraft, dropSaved,
+    loading, editRestored, revertEdits, clearDraft, dropSaved, focusKey: FOCUS_KEY,
   }
 }

@@ -45,6 +45,7 @@ export function useSortable(onMove, { attr, handle, holdMs = 0, onLift, onDrop }
 
     function lift() {
       g.active = true
+      const before = rows().find(el => idOf(el) === g.id)?.getBoundingClientRect()
       if (cb.current.onLift) flushSync(() => cb.current.onLift(g.id))
       const list = rows()
       const d = list.findIndex(el => idOf(el) === g.id)
@@ -57,6 +58,12 @@ export function useSortable(onMove, { attr, handle, holdMs = 0, onLift, onDrop }
       g.rects = list.map(el => { const r = el.getBoundingClientRect(); return { top: r.top + g.startScroll, h: r.height } })
       const gaps = g.rects.slice(1).map((r, i) => r.top - (g.rects[i].top + g.rects[i].h)).filter(x => x >= 0)
       g.gap = gaps.length ? gaps.sort((a, b) => a - b)[gaps.length >> 1] : 0
+      // Строка остается под пальцем, даже если onLift поменял раскладку (fb_856a3a4e): свернутая
+      // внизу карточка укорачивала список, скроллер упирался в новый низ, и строка уезжала вниз
+      // от пальца. Держим ее за то же место, за которое взяли (не влезает — за середину).
+      const me = g.rects[d], grab = before ? g.startY - before.top : 0
+      const hold = grab >= 0 && grab <= me.h ? grab : me.h / 2
+      g.offset = before ? g.startY - hold - (me.top - g.startScroll) : 0
       g.t = d
       root.classList.add('sort-active')
       list.forEach((el, i) => el.classList.add(i === d ? 'sort-lifted' : 'sort-shift'))
@@ -68,7 +75,7 @@ export function useSortable(onMove, { attr, handle, holdMs = 0, onLift, onDrop }
     function apply() {
       const { rects, d, list } = g
       const first = rects[0], last = rects.at(-1), me = rects[d]
-      let dy = (g.y - g.startY) + (scrollTop() - g.startScroll)
+      let dy = g.offset + (g.y - g.startY) + (scrollTop() - g.startScroll)
       // Не выпускаем строку за края списка.
       dy = Math.max(first.top - me.top, Math.min(last.top + last.h - me.top - me.h, dy))
       list[d].style.transform = `translate3d(0, ${dy}px, 0)`

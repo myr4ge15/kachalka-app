@@ -139,6 +139,27 @@ describe('useSortable — удержание (тренировка)', () => {
     fireEvent.touchEnd(grip('c'))
   })
 
+  it('onLift поменял раскладку — строка остается под пальцем (fb_856a3a4e)', () => {
+    // Тренировка сворачивает раскрытую нижнюю карточку: список короче, скроллер уперся
+    // в новый низ — все строки на экране сдвинулись на 100px вниз, взятая стала 40px.
+    const { grip, row, onMove } = setup({
+      onLift: () => {
+        row('a').getBoundingClientRect = () => ({ top: 100, height: 90, bottom: 190 })
+        row('b').getBoundingClientRect = () => ({ top: 200, height: 90, bottom: 290 })
+        row('c').getBoundingClientRect = () => ({ top: 300, height: 40, bottom: 340 })
+      },
+    })
+    fireEvent.touchStart(grip('c'), touch(20, 245)) // взяли на 45px от верха — ниже новой высоты
+    act(() => vi.advanceTimersByTime(350))
+    // Сразу после подъема: середина строки (300 − 75 + 20 = 245) — под пальцем.
+    expect(row('c').style.transform).toBe('translate3d(0, -75px, 0)')
+    fireEvent.touchMove(grip('c'), touch(20, 225))
+    expect(row('c').style.transform).toBe('translate3d(0, -95px, 0)')
+    fireEvent.touchEnd(grip('c'))
+    act(() => vi.advanceTimersByTime(180))
+    expect(onMove).toHaveBeenCalledWith('c', 'b')
+  })
+
   it('клик сразу после перетаскивания гасится (не раскрывает карточку)', () => {
     const { grip } = setup()
     const onClick = vi.fn()

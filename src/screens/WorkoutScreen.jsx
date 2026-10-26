@@ -100,6 +100,7 @@ export default function WorkoutScreen({ user, workoutId = null, onBack, onSaved 
   const { activeExerciseId, activeCardRef, activateExercise } = useWorkoutFocus(entries, {
     preferIncomplete: !isNew,
     startCollapsed: !isNew,
+    storeKey: draft.focusKey,
   })
   const [pickerOpen, setPickerOpen] = useState(false)
   // null → пикер в режиме «добавить»; число → индекс entry, который заменяем.

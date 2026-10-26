@@ -2,14 +2,15 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { act, render } from '@testing-library/react'
 import { useWorkoutFocus } from './useWorkoutFocus.js'
+import { readDraft, resetDraftMemory } from '../lib/draftStore.js'
 
 // Склейка lib/workoutFocus (выбор/заявка) + useRevealFocus. Логика заявок покрыта
 // в lib; здесь — что хук отдает согласованный id и прокручивает ТОЛЬКО на переход.
 const entry = (id, sets = [{ weight: 50, reps: 10 }]) => ({ exercise: { id, metric: 'weight' }, sets })
 
 let api
-function Probe({ entries, preferIncomplete }) {
-  api = useWorkoutFocus(entries, { preferIncomplete })
+function Probe({ entries, preferIncomplete, storeKey }) {
+  api = useWorkoutFocus(entries, { preferIncomplete, storeKey })
   return <div ref={api.activeCardRef} />
 }
 
@@ -23,6 +24,8 @@ describe('useWorkoutFocus', () => {
   afterEach(() => {
     delete Element.prototype.scrollIntoView
     delete window.matchMedia
+    localStorage.clear()
+    resetDraftMemory()
   })
 
   it('стартовый фокус — первое упражнение, без прокрутки', () => {
@@ -61,5 +64,25 @@ describe('useWorkoutFocus', () => {
     const first = api.activateExercise
     rerender(<Probe entries={[entry('a'), entry('b')]} />)
     expect(api.activateExercise).toBe(first)
+  })
+
+  it('storeKey: выбранное упражнение переживает размонтирование (уход на другую вкладку, fb_0f3069ec)', () => {
+    const entries = [entry('a'), entry('b'), entry('c')]
+    const { unmount } = render(<Probe entries={entries} storeKey="focus_t" />)
+    act(() => api.activateExercise('c'))
+    expect(readDraft('focus_t')).toBe('c')
+    unmount()
+    scroll.mockClear()
+    render(<Probe entries={entries} storeKey="focus_t" />)
+    expect(api.activeExerciseId).toBe('c')
+    expect(scroll).not.toHaveBeenCalled() // возврат — не переход, экран не уезжает
+  })
+
+  it('storeKey: сохраненного упражнения уже нет в составе — первое', () => {
+    const { unmount } = render(<Probe entries={[entry('a'), entry('b')]} storeKey="focus_t" />)
+    act(() => api.activateExercise('b'))
+    unmount()
+    render(<Probe entries={[entry('a')]} storeKey="focus_t" />)
+    expect(api.activeExerciseId).toBe('a')
   })
 })
