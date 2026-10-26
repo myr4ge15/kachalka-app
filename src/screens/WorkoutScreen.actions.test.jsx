@@ -365,3 +365,46 @@ describe('действия существующей тренировки', () =>
     expect(syncNow).not.toHaveBeenCalled()
   })
 })
+
+describe('«Копировать тренировку» (26.10.2026)', () => {
+  const doc = {
+    id: 'w1', performed_at: '2026-10-05T10:00:00.000Z',
+    entries: [
+      { exercise: squat, sets: [{ weight: 40, reps: 10 }], phase: 'warmup' },
+      { exercise: bench, sets: [{ weight: 60, reps: 8 }, { weight: 70, reps: 6 }] },
+    ],
+  }
+  beforeEach(() => { vi.mocked(getWorkout).mockResolvedValue(doc) })
+
+  it('черновик пуст — состав с подходами и разминкой уходит в новую, тост, onCopy', async () => {
+    const onCopy = vi.fn()
+    render(<><WorkoutScreen user={user} workoutId="w1" onCopy={onCopy} /><Toast /></>)
+    fireEvent.click(await screen.findByRole('button', { name: 'Копировать тренировку' }))
+    expect(onCopy).toHaveBeenCalledOnce()
+    const d = readDraft(DRAFT)
+    expect(d.map((e) => [e.exercise.id, e.phase ?? null, e.sets.map((x) => [x.weight, x.reps])])).toEqual([
+      ['squat', 'warmup', [[40, 10]]], ['bench', null, [[60, 8], [70, 6]]],
+    ])
+    expect(await screen.findByText('Тренировка скопирована')).toBeInTheDocument()
+  })
+
+  it('в новой уже что-то есть — сначала спросить; «Отмена» ничего не трогает, «Да, заменить» — заменяет', async () => {
+    writeDraft(DRAFT, [entry(pullup, [{ weight: 0, reps: 10 }])])
+    const onCopy = vi.fn()
+    render(<WorkoutScreen user={user} workoutId="w1" onCopy={onCopy} />)
+    fireEvent.click(await screen.findByRole('button', { name: 'Копировать тренировку' }))
+    expect(onCopy).not.toHaveBeenCalled()
+    fireEvent.click(screen.getByRole('button', { name: 'Отмена' }))
+    expect(readDraft(DRAFT)[0].exercise.id).toBe('pullup')
+    fireEvent.click(screen.getByRole('button', { name: 'Копировать тренировку' }))
+    fireEvent.click(screen.getByRole('button', { name: 'Да, заменить' }))
+    expect(onCopy).toHaveBeenCalledOnce()
+    expect(readDraft(DRAFT).map((e) => e.exercise.id)).toEqual(['squat', 'bench'])
+  })
+
+  it('без onCopy (не из «Тренировок») кнопки нет', async () => {
+    render(<WorkoutScreen user={user} workoutId="w1" />)
+    await screen.findByRole('button', { name: /Экспорт в JSON/ })
+    expect(screen.queryByRole('button', { name: 'Копировать тренировку' })).toBeNull()
+  })
+})

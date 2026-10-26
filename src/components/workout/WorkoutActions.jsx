@@ -12,6 +12,7 @@ export default function WorkoutActions({
   isNew, hasEntries, saving, tplBusy,
   clearArm, onCancelClear, onClearDraft,
   onExport,
+  canCopy = false, copyArm = false, onCopy, onConfirmCopy, onCancelCopy,
   tplArm, onOpenTpl, onCancelTpl, tplName, onTplName, onMakeTemplate,
   delArm, onArmDel, onCancelDel, onDelete,
 }) {
@@ -21,15 +22,15 @@ export default function WorkoutActions({
   // bottom:72px): резерва .wk-save-spacer в 76px на это не хватает. Для «очистить
   // черновик» экран решает ту же задачу композицией (блок стоит сверху), но у
   // «удалить тренировку» и «сделать шаблон» такого обхода нет.
-  const armed = delArm ? 'del' : tplArm ? 'tpl' : clearArm ? 'clear' : null
+  const armed = delArm ? 'del' : tplArm ? 'tpl' : clearArm ? 'clear' : copyArm ? 'copy' : null
   const armedRef = useRevealFocus(armed)
 
-  const confirm = (text, onCancel, onOk, okLabel, busy) => (
+  const confirm = (text, onCancel, onOk, okLabel, busy, okClass = 'danger') => (
     <div className="danger-confirm" ref={armedRef}>
       <p className="danger-text">{text}</p>
       <div className="danger-actions">
         <button className="btn ghost" onClick={onCancel} disabled={busy}>Отмена</button>
-        <button className="btn danger" onClick={onOk} disabled={busy}>{okLabel}</button>
+        <button className={`btn ${okClass}`} onClick={onOk} disabled={busy}>{okLabel}</button>
       </div>
     </div>
   )
@@ -42,6 +43,15 @@ export default function WorkoutActions({
 
   return (
     <div className="wk-acts">
+      {/* «Копировать тренировку» (26.10.2026) — первой: тот же состав новой тренировкой на сегодня. */}
+      {canCopy && (copyArm
+        ? confirm('В новой тренировке уже есть упражнения. Заменить их этой тренировкой?', onCancelCopy, onConfirmCopy,
+          'Да, заменить', saving, 'primary')
+        : (
+          <button className="wk-act" disabled={saving} onClick={onCopy}>
+            <ActIcon name="copy" />Копировать тренировку
+          </button>
+        ))}
       <button className="wk-act" disabled={saving} onClick={onExport}>
         <ActIcon name="export" />Экспорт в JSON
       </button>
@@ -91,6 +101,7 @@ function ActIcon({ name }) {
     stroke: 'currentColor', strokeWidth: 2, strokeLinecap: 'round', strokeLinejoin: 'round', 'aria-hidden': true,
   }
   if (name === 'export') return <svg {...p}><path d="M12 3v12M7 8l5-5 5 5M5 21h14" /></svg>
+  if (name === 'copy') return <svg {...p}><rect x="8" y="8" width="12" height="13" rx="2.5" /><path d="M16 8V5.5A2.5 2.5 0 0 0 13.5 3h-7A2.5 2.5 0 0 0 4 5.5v9A2.5 2.5 0 0 0 6.5 17H8" /></svg>
   if (name === 'template') return <svg {...p}><rect x="5" y="4" width="14" height="17" rx="2.5" /><path d="M9 4V3h6v1M9 10h6M9 14h6" /></svg>
   return <svg {...p}><path d="M4 7h16M9 7V4h6v3M6 7l1 14h10l1-14" /></svg>
 }

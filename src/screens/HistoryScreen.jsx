@@ -149,6 +149,14 @@ export default function HistoryScreen({
     backFromRhythmOr(() => setSelected(null))
   }
 
+  // «Копировать тренировку» (26.10.2026): черновик уже собран WorkoutScreen — открываем новую.
+  // «Назад» из нее — к списку, а не в календарь/Ритм, откуда открывали копируемую.
+  function openCopied() {
+    setSelected('new')
+    setFromRhythm(false)
+    setCalendarReturn(null)
+  }
+
   // Интент «сразу новая тренировка» из App (плавающая «+» / кнопки Главной).
   // Считываем и тут же гасим у родителя: иначе повторный рендер снова уводил бы
   // в композер после возврата к списку.
@@ -448,6 +456,7 @@ export default function HistoryScreen({
           workoutId={selected === 'new' ? null : selected}
           onBack={closeSelected}
           onSaved={handleSaved}
+          onCopy={openCopied}
         />
       )
       // Обертка одна и та же при любом swipeOn: он гаснет, пока сверху открыт вложенный
@@ -516,6 +525,7 @@ export default function HistoryScreen({
               workoutId={selected === 'new' ? null : selected}
               onBack={closeSelected}
               onSaved={handleSaved}
+              onCopy={openCopied}
             />
           )}
         </div>

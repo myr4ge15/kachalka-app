@@ -2,6 +2,7 @@ import { useEffect, useRef, useState } from 'react'
 import { getWorkout, getWorkoutFeels } from '../db/repo.js'
 import { readDraft, writeDraft, clearDraft as dropDraft } from '../lib/draftStore.js'
 import { sk } from '../lib/progressionCard.js'
+import { phaseValue } from '../lib/workoutPhases.js'
 
 // Состав тренировки в форме и его черновик (вынесено из WorkoutScreen, аудит 14.10).
 //
@@ -27,11 +28,43 @@ import { sk } from '../lib/progressionCard.js'
 // локальный документ → редактируемая форма [{ exercise, sets:[{weight,reps}] }].
 // sk() — стабильный ключ строки подхода для React (единый модульный счетчик в
 // lib/progressionCard.js).
+// phase (разминка/заминка) — тоже: без него правка тренировки снимала пометку при сохранении.
 export function toEntries(workout) {
   return (workout?.entries ?? []).map((e) => ({
     exercise: e.exercise ?? { id: e.exercise_id, name: '—' },
     sets: (e.sets ?? []).map((s) => ({ weight: s.weight, reps: s.reps, _k: sk() })),
+    ...(phaseValue(e.phase) ? { phase: phaseValue(e.phase) } : {}),
   }))
+}
+
+// Ключи черновика НОВОЙ тренировки — одни для хука и для «Копировать тренировку».
+const newKeys = (userId) => ({
+  draft: `workout_draft_new_${userId}`,
+  feel: `workout_feel_new_${userId}`,
+  date: `workout_date_new_${userId}`,
+  start: `workout_start_new_${userId}`,
+  focus: `workout_focus_new_${userId}`,
+})
+
+// В черновике новой тренировки уже что-то набрано — «Копировать тренировку» спросит, заменять ли.
+export function hasNewDraft(userId) {
+  const d = readDraft(newKeys(userId).draft)
+  return Array.isArray(d) && d.length > 0
+}
+
+// «Копировать тренировку» (26.10.2026): состав открытой тренировки — подходы с весом и повторами,
+// разминка/заминка — становится черновиком новой. Дата не переносится (новая — на сегодня),
+// оценки RPE — тоже: они про то, как прошло то занятие. Пустые упражнения не берем.
+export function startNewDraftFrom(userId, entries) {
+  const k = newKeys(userId)
+  for (const key of [k.feel, k.date, k.start, k.focus]) dropDraft(key)
+  const copy = (entries ?? []).filter((e) => e.sets?.length > 0).map((e) => ({
+    exercise: e.exercise,
+    sets: e.sets.map((s) => ({ weight: s.weight, reps: s.reps, _k: sk() })),
+    ...(phaseValue(e.phase) ? { phase: phaseValue(e.phase) } : {}),
+  }))
+  writeDraft(k.draft, copy)
+  return copy.length
 }
 
 // Отпечаток формы для сравнения с документом: id упражнений, подходы строками, дата, оценки.
@@ -53,11 +86,12 @@ export function freshStart(iso, now = Date.now()) {
 
 export function useWorkoutDraft({ userId, workoutId = null, onLoadError }) {
   const isNew = workoutId == null
-  const DRAFT_KEY = `workout_draft_new_${userId}`
-  const FEEL_KEY = `workout_feel_new_${userId}`
-  const DATE_KEY = `workout_date_new_${userId}`
-  const START_KEY = `workout_start_new_${userId}`
-  const FOCUS_KEY = isNew ? `workout_focus_new_${userId}` : null // раскрытое упражнение (useWorkoutFocus)
+  const k = newKeys(userId)
+  const DRAFT_KEY = k.draft
+  const FEEL_KEY = k.feel
+  const DATE_KEY = k.date
+  const START_KEY = k.start
+  const FOCUS_KEY = isNew ? k.focus : null // раскрытое упражнение (useWorkoutFocus)
   const EDIT_KEY = isNew ? null : `workout_edit_${userId}_${workoutId}`
 
   const [entries, setEntries] = useState(() => (isNew ? readDraft(DRAFT_KEY) ?? [] : []))

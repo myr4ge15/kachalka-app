@@ -10,10 +10,11 @@ vi.mock('dexie-react-hooks', () => ({ useLiveQuery: vi.fn() }))
 vi.mock('../db/repo.js', () => ({ getWorkouts: vi.fn(), saveTemplate: vi.fn() }))
 vi.mock('../db/sync.js', () => ({ syncNow: vi.fn() }))
 vi.mock('./WorkoutScreen.jsx', () => ({
-  default: ({ workoutId, onSaved, onBack }) => (
+  default: ({ workoutId, onSaved, onBack, onCopy }) => (
     <div data-testid="workout-screen">
       {workoutId ?? 'new'}
       <button onClick={() => onBack?.()}>Назад из тренировки</button>
+      {onCopy && <button onClick={() => onCopy()}>Копировать тестовую</button>}
       <button onClick={() => onSaved?.({ workout, events: [] })}>Сохранить тестовую</button>
       <button onClick={() => onSaved?.({
         workout,
@@ -66,6 +67,15 @@ describe('HistoryScreen', () => {
       addEventListener: vi.fn(),
       removeEventListener: vi.fn(),
     })
+  })
+
+  it('«Копировать тренировку» открывает новую; «Назад» из нее — к списку (26.10.2026)', () => {
+    render(<HistoryScreen user={user} />)
+    fireEvent.click(screen.getByText('Жим лежа').closest('button'))
+    fireEvent.click(screen.getByRole('button', { name: 'Копировать тестовую' }))
+    expect(screen.getByTestId('workout-screen')).toHaveTextContent('new')
+    fireEvent.click(screen.getByRole('button', { name: 'Назад из тренировки' }))
+    expect(screen.getByText('Мои тренировки')).toBeInTheDocument()
   })
 
   it('на мобильном открывает выбранную тренировку вместо списка', () => {

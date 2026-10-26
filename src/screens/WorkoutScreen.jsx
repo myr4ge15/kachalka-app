@@ -18,7 +18,7 @@ import { templateExercisesFromWorkout, defaultTemplateName } from '../lib/templa
 import { vibrate, HAPTIC } from '../lib/haptics.js'
 import { exerciseUsageSections } from '../lib/exerciseUsage.js'
 import { useWorkoutFocus } from '../hooks/useWorkoutFocus.js'
-import { useWorkoutDraft } from '../hooks/useWorkoutDraft.js'
+import { useWorkoutDraft, hasNewDraft, startNewDraftFrom } from '../hooks/useWorkoutDraft.js'
 import { useRestTimer } from '../hooks/useRestTimer.js'
 import { localYmd } from '../lib/calendar.js'
 import { useSortable } from '../hooks/useSortable.js'
@@ -40,7 +40,8 @@ import BackButton from '../components/ui/BackButton.jsx'
 // Экран-композер (новая тренировка) и экран-деталь (правка существующей).
 //   workoutId == null → новая (черновик в кэше переживает уход с экрана)
 //   workoutId != null → существующая (читаем из документа, кэш не трогаем)
-export default function WorkoutScreen({ user, workoutId = null, onBack, onSaved }) {
+// onCopy — открыть новую тренировку после «Копировать тренировку» (родитель — HistoryScreen).
+export default function WorkoutScreen({ user, workoutId = null, onBack, onSaved, onCopy }) {
   const isNew = workoutId == null
   // Справочник — из локальной базы (офлайн-доступен).
   const exercises = useLiveQuery(() => getExercises(), [], [])
@@ -115,6 +116,7 @@ export default function WorkoutScreen({ user, workoutId = null, onBack, onSaved 
   const [clearArm, setClearArm] = useState(false) // подтверждение отказа от черновика новой
   // «Сделать шаблон из тренировки»: раскрытая форма с именем + занятость.
   const [tplArm, setTplArm] = useState(false)
+  const [copyArm, setCopyArm] = useState(false) // в новой тренировке уже есть состав — спросить, заменять ли
   const [tplName, setTplName] = useState('')
   const [tplBusy, setTplBusy] = useState(false)
   // Таймер отдыха (v8.8.0): только у НОВОЙ тренировки за сегодня — запись задним
@@ -553,6 +555,18 @@ export default function WorkoutScreen({ user, workoutId = null, onBack, onSaved 
     }
   }
 
+  // «Копировать тренировку» (26.10.2026): тот же состав с подходами — новой тренировкой на сегодня,
+  // без шаблона. Черновик новой не пустой — сначала спросить (copyArm), молча не затирать.
+  function copyWorkout(confirmed = false) {
+    if (!confirmed && hasNewDraft(user.id)) { setCopyArm(true); return }
+    const n = startNewDraftFrom(user.id, entriesToSave)
+    setCopyArm(false)
+    if (!n) { setMessage({ type: 'error', text: 'В тренировке нет упражнений с подходами.' }); return }
+    vibrate(HAPTIC.success)
+    showToast({ emoji: '📋', title: 'Тренировка скопирована', sub: 'Новая — на сегодня', raised: true })
+    onCopy?.()
+  }
+
   // Удаление тренировки. Подтверждение — in-app arm/confirm (как «удалить мои
   // данные»/dead-letter), а не нативный window.confirm — единый паттерн по всему
   // приложению.
@@ -580,6 +594,11 @@ export default function WorkoutScreen({ user, workoutId = null, onBack, onSaved 
       onCancelClear={() => setClearArm(false)}
       onClearDraft={clearDraft}
       onExport={exportOne}
+      canCopy={Boolean(onCopy) && entriesToSave.length > 0}
+      copyArm={copyArm}
+      onCopy={() => copyWorkout()}
+      onConfirmCopy={() => copyWorkout(true)}
+      onCancelCopy={() => setCopyArm(false)}
       tplArm={tplArm}
       onOpenTpl={openTplArm}
       onCancelTpl={() => setTplArm(false)}

@@ -60,3 +60,25 @@ describe('WorkoutActions — новая тренировка', () => {
     expect(props.onCancelClear).toHaveBeenCalled()
   })
 })
+
+describe('WorkoutActions — «Копировать тренировку» (26.10.2026)', () => {
+  it('кнопка только при canCopy; тап зовет onCopy', () => {
+    const { props, rerender } = renderA({ canCopy: false, onCopy: vi.fn() })
+    expect(screen.queryByRole('button', { name: 'Копировать тренировку' })).toBeNull()
+    rerender(<WorkoutActions {...props} canCopy />)
+    fireEvent.click(screen.getByRole('button', { name: 'Копировать тренировку' }))
+    expect(props.onCopy).toHaveBeenCalled()
+  })
+  it('copyArm — спрашивает про замену черновика', () => {
+    const { props } = renderA({ canCopy: true, copyArm: true, onConfirmCopy: vi.fn(), onCancelCopy: vi.fn() })
+    expect(screen.getByText(/Заменить их этой тренировкой/)).toBeInTheDocument()
+    fireEvent.click(screen.getByRole('button', { name: 'Да, заменить' }))
+    expect(props.onConfirmCopy).toHaveBeenCalled()
+    fireEvent.click(screen.getByRole('button', { name: 'Отмена' }))
+    expect(props.onCancelCopy).toHaveBeenCalled()
+  })
+  it('у новой тренировки копирования нет', () => {
+    renderA({ isNew: true, canCopy: true })
+    expect(screen.queryByRole('button', { name: 'Копировать тренировку' })).toBeNull()
+  })
+})

@@ -5,7 +5,8 @@
 import { afterEach, describe, expect, it, vi } from 'vitest'
 import { renderHook, act, waitFor } from '@testing-library/react'
 import { readDraft, clearDraft } from '../lib/draftStore.js'
-import { freshStart, useWorkoutDraft } from './useWorkoutDraft.js'
+import { freshStart, useWorkoutDraft, toEntries, hasNewDraft, startNewDraftFrom } from './useWorkoutDraft.js'
+import { writeDraft } from '../lib/draftStore.js'
 
 vi.mock('../db/repo.js', () => ({
   getWorkout: vi.fn(),
@@ -15,7 +16,7 @@ const { getWorkout } = await import('../db/repo.js')
 
 const U = 'u1'
 const BENCH = { id: 'ex1', name: 'Жим' }
-const KEYS = ['workout_draft_new_u1', 'workout_feel_new_u1', 'workout_date_new_u1', 'workout_start_new_u1', 'workout_edit_u1_w1']
+const KEYS = ['workout_focus_new_u1', 'workout_draft_new_u1', 'workout_feel_new_u1', 'workout_date_new_u1', 'workout_start_new_u1', 'workout_edit_u1_w1']
 afterEach(() => { for (const k of KEYS) clearDraft(k); vi.mocked(getWorkout).mockReset(); vi.useRealTimers() })
 
 describe('useWorkoutDraft — новая тренировка', () => {
@@ -151,5 +152,34 @@ describe('useWorkoutDraft — правка существующей', () => {
     const { result } = renderHook(() => useWorkoutDraft({ userId: U, workoutId: 'w1', onLoadError }))
     await waitFor(() => expect(result.current.loading).toBe(false))
     expect(onLoadError).toHaveBeenCalledWith('Тренировка не найдена.')
+  })
+})
+
+describe('«Копировать тренировку» (26.10.2026)', () => {
+  it('состав с подходами и разминкой — в черновик новой; дата, оценки и раскрытое — сброшены', () => {
+    writeDraft('workout_date_new_u1', '2026-10-01T08:00:00.000Z')
+    writeDraft('workout_feel_new_u1', { ex1: 'hard' })
+    writeDraft('workout_focus_new_u1', 'ex1')
+    expect(hasNewDraft(U)).toBe(false)
+    const n = startNewDraftFrom(U, [
+      { exercise: BENCH, sets: [{ weight: 50, reps: 5, _k: 'old' }], phase: 'warmup' },
+      { exercise: { id: 'ex2', name: 'Пусто' }, sets: [] },
+    ])
+    expect(n).toBe(1)
+    expect(hasNewDraft(U)).toBe(true)
+    const d = readDraft('workout_draft_new_u1')
+    expect(d).toHaveLength(1)
+    expect(d[0]).toMatchObject({ exercise: BENCH, phase: 'warmup', sets: [{ weight: 50, reps: 5 }] })
+    expect(d[0].sets[0]._k).not.toBe('old')
+    for (const k of ['workout_date_new_u1', 'workout_feel_new_u1', 'workout_focus_new_u1']) expect(readDraft(k)).toBeUndefined()
+    // новая тренировка поднимает скопированный состав на сегодня
+    const { result } = renderHook(() => useWorkoutDraft({ userId: U }))
+    expect(result.current.entries).toHaveLength(1)
+    expect(Date.now() - Date.parse(result.current.performedAt)).toBeLessThan(60_000)
+  })
+  it('toEntries сохраняет разминку/заминку — правка тренировки не снимает пометку', () => {
+    const e = toEntries({ entries: [{ exercise: BENCH, sets: [{ weight: 1, reps: 2 }], phase: 'cooldown' }, { exercise: BENCH, sets: [], phase: 'x' }] })
+    expect(e[0].phase).toBe('cooldown')
+    expect('phase' in e[1]).toBe(false)
   })
 })
