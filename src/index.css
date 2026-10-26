@@ -1552,6 +1552,20 @@ button.link-btn { min-height: 44px; display: inline-flex; align-items: center; j
   font-size: 12px; font-weight: 400; color: var(--acc-2);
   margin-left: 8px; vertical-align: middle; white-space: nowrap;
 }
+/* Состав шаблона в списке (v1.4.4 э2, fb_966c7e2b): строка упражнения — название и число подходов,
+   под ними подходы таблетками (одинаковые — одной). */
+.tpl-li { padding: 9px 0; border-top: 1px solid var(--border); }
+.tpl-li:first-child { border-top: none; padding-top: 4px; }
+.tpl-li:last-child { padding-bottom: 0; }
+.tpl-li-head { display: flex; align-items: baseline; justify-content: space-between; gap: 12px; }
+.tpl-li-name { flex: 1; min-width: 0; font-size: var(--fs-body); line-height: 1.35; overflow-wrap: anywhere; }
+.tpl-li-count { flex-shrink: 0; color: var(--muted); font-size: var(--fs-meta); white-space: nowrap; }
+.tpl-li-sets { display: flex; flex-wrap: wrap; gap: 5px; margin-top: 6px; }
+.tpl-set {
+  padding: 2px 9px; border-radius: 8px; white-space: nowrap;
+  background: var(--surface-2); border: 1px solid var(--border);
+  font-size: 13px; font-weight: 600; line-height: 1.4; color: var(--text);
+}
 /* Пометка автора «от {Имя}» у чужих общих */
 .tpl-author { color: var(--muted); }
 

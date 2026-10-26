@@ -189,6 +189,24 @@ export function fmtTemplateTarget(metric, t) {
   return s
 }
 
+// Состав шаблона в списке «Шаблоны» (v1.4.4 э2, fb_966c7e2b): число подходов и «таблетки».
+// Одинаковые подходы — одна таблетка (число подходов и так рядом), разные — по таблетке на
+// подход: строка «60×10 · 70×8 · 80×6» в узкой правой половине читалась с трудом.
+export function templateSetChips(metric, t) {
+  const m = t?.metric ?? metric
+  let sets
+  if (Array.isArray(t?.set_plan)) sets = t.set_plan
+  else {
+    const n = Math.max(0, Math.round(Number(t?.sets) || 0))
+    const reps = Math.max(0, Math.round(Number(t?.reps) || 0))
+    const weight = normMetric(m) === 'weight' || normMetric(m) === 'distance' ? Number(t?.weight) || 0 : 0
+    sets = Array.from({ length: Math.min(n, 1000) }, () => ({ weight, reps }))
+  }
+  const chips = sets.map((s) => fmtSet(m, s))
+  const same = chips.length > 1 && chips.every((c) => c === chips[0])
+  return { count: sets.length, chips: same ? [chips[0]] : chips }
+}
+
 // Короткая запись ОДНОГО подхода для списков (история/лента/прогресс):
 //   weight → '80×8' (или просто '8', если веса нет);
 //   reps   → '12', '+10×8' (доп. вес, v6.16.0) или '−20×8' (помощь, v7.2.0) —

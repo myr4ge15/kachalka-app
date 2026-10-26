@@ -98,7 +98,9 @@ describe('TemplatesScreen — список', () => {
     const mine = screen.getByText('Грудь').closest('button')
     expect(mine).toHaveTextContent('🌐 виден всем')
     expect(within(mine).getByTitle('Ждет синхронизации')).toBeInTheDocument()
-    expect(mine).toHaveTextContent('4×8×60 кг')
+    // Состав таблетками (fb_966c7e2b): число подходов отдельно, одинаковые подходы — одной таблеткой.
+    expect(within(mine).getByText('4 подхода')).toBeInTheDocument()
+    expect(within(mine).getAllByText('60×8')).toHaveLength(1)
     // Чужой шаблон не открывается (fb_150a4d25): карточка — не кнопка, весь состав виден в ней.
     const theirs = screen.getByText('Спина').closest('.tpl-card')
     expect(theirs.tagName).toBe('DIV')
@@ -289,7 +291,7 @@ describe('TemplatesScreen — редактор', () => {
   it('чужой общий шаблон не открывается: состав виден в карточке', async () => {
     renderScreen()
     fireEvent.click(screen.getByText('Спина').closest('.tpl-card'))
-    expect(within(screen.getByText('Спина').closest('.tpl-card')).getByText('3×10')).toBeInTheDocument()
+    expect(within(screen.getByText('Спина').closest('.tpl-card')).getByText('3 подхода')).toBeInTheDocument()
     expect(screen.queryByRole('heading', { name: 'Шаблон' })).toBeNull()
     expect(getTemplate).not.toHaveBeenCalled()
   })

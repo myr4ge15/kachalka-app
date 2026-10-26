@@ -3,7 +3,8 @@ import { useEffect, useState } from 'react'
 import { useRevealFocus } from '../../hooks/useRevealFocus.js'
 import { useLiveQuery } from 'dexie-react-hooks'
 import { getTemplates } from '../../db/repo.js'
-import { exerciseMetric, fmtTemplateTarget } from '../../lib/metric.js'
+import { exerciseMetric, templateSetChips } from '../../lib/metric.js'
+import { pluralize } from '../../lib/plural.js'
 import { exportTemplates } from '../../lib/exportTemplate.js'
 import { useExportSelection } from '../../hooks/useExportSelection.js'
 import CardsSkeleton from '../ui/CardsSkeleton.jsx'
@@ -56,13 +57,22 @@ function TemplateCard({ t, mine, onOpen, selectMode = false, picked = false, onP
         ) : null}
       </div>
 
+      {/* Состав (v1.4.4 э2, fb_966c7e2b): название на всю ширину, справа число подходов, под ним
+          подходы таблетками — вместо серой строки «60×10 · 70×8 · …» в правой половине. */}
       <ul className="history-list">
         {exs.map((e, i) => {
-          const target = fmtTemplateTarget(exerciseMetric(e.exercise), e)
+          const { count, chips } = templateSetChips(exerciseMetric(e.exercise), e)
           return (
-            <li key={i} className="history-ex">
-              <span className="history-ex-name"><PhaseTag entry={e} />{e.exercise?.name ?? '—'}</span>
-              {target && <span className="history-ex-sets">{target}</span>}
+            <li key={i} className="tpl-li">
+              <div className="tpl-li-head">
+                <span className="tpl-li-name"><PhaseTag entry={e} />{e.exercise?.name ?? '—'}</span>
+                {count > 0 && <span className="tpl-li-count">{pluralize(count, 'подход', 'подхода', 'подходов')}</span>}
+              </div>
+              {chips.length > 0 && (
+                <div className="tpl-li-sets">
+                  {chips.map((c, k) => <span key={k} className="tpl-set">{c}</span>)}
+                </div>
+              )}
             </li>
           )
         })}

@@ -11,6 +11,7 @@ import {
   parseTime,
   fmtMetricValue,
   fmtTemplateTarget,
+  templateSetChips,
   fmtSet,
 } from './metric.js'
 
@@ -143,6 +144,26 @@ describe('fmtTemplateTarget', () => {
   it('нет подходов → пусто', () => {
     expect(fmtTemplateTarget('weight', { sets: 0, reps: 10 })).toBe('')
     expect(fmtTemplateTarget('weight', {})).toBe('')
+  })
+})
+
+describe('templateSetChips', () => {
+  it('разные подходы — по таблетке на подход', () => {
+    const t = { set_plan: [{ weight: 60, reps: 10 }, { weight: 70, reps: 8 }, { weight: 80, reps: 6 }] }
+    expect(templateSetChips('weight', t)).toEqual({ count: 3, chips: ['60×10', '70×8', '80×6'] })
+  })
+  it('одинаковые подходы — одна таблетка', () => {
+    const t = { set_plan: [{ weight: 60, reps: 10 }, { weight: 60, reps: 10 }, { weight: 60, reps: 10 }] }
+    expect(templateSetChips('weight', t)).toEqual({ count: 3, chips: ['60×10'] })
+  })
+  it('старые цели без плана: подходы × повторы × вес', () => {
+    expect(templateSetChips('weight', { sets: 4, reps: 8, weight: 50 })).toEqual({ count: 4, chips: ['50×8'] })
+    expect(templateSetChips('reps', { sets: 3, reps: 12, weight: 10 })).toEqual({ count: 3, chips: ['12'] })
+    expect(templateSetChips('time', { sets: 2, reps: 90 })).toEqual({ count: 2, chips: ['1:30'] })
+  })
+  it('метрика плана важнее метрики упражнения; пусто — без таблеток', () => {
+    expect(templateSetChips('weight', { metric: 'time', set_plan: [{ weight: 0, reps: 60 }] }).chips).toEqual(['1:00'])
+    expect(templateSetChips('weight', {})).toEqual({ count: 0, chips: [] })
   })
 })
 
