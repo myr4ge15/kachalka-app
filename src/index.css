@@ -620,12 +620,38 @@ select, textarea { font-variant-numeric: inherit; font-feature-settings: inherit
 .discipline-tabs button { min-height: 44px; white-space: normal; text-align: left; }
 .discipline-groups { margin: 12px 0; flex-wrap: wrap; }
 .discipline-groups button { min-height: 44px; }
-.discipline-admin-list { list-style: none; padding: 0; display: grid; gap: 12px; }
-.discipline-admin-list li { padding: 14px; border: 1px solid var(--border); border-radius: 12px; }
-.discipline-admin-list li > div { display: grid; gap: 4px; margin-bottom: 8px; }
-.discipline-check { display: flex; align-items: center; gap: 10px; min-height: 44px; }
-.discipline-add { display: grid; gap: 12px; }
-.discipline-add select { display: block; width: 100%; min-width: 0; min-height: 44px; margin-top: 8px; padding: 10px; border-radius: 10px; border: 1px solid var(--border); background: var(--surface); color: var(--text); font: inherit; }
+/* Админка → «Дисциплины рейтинга» (v1.4.4 э2): одна карточка, строки через разделитель,
+   как .push-group; «по полу» — чип с настоящим чекбоксом внутри, «убрать» — крестик. */
+.disc-head { display: flex; align-items: center; justify-content: space-between; gap: 10px; margin-bottom: 12px; }
+.disc-head p { margin: 0; font-size: 13px; line-height: 1.35; }
+.disc-head .btn { width: auto; margin: 0; flex-shrink: 0; }
+.disc-list {
+  list-style: none; margin: 0 0 14px; padding: 0; overflow: hidden;
+  background: var(--surface); border: 1px solid var(--border); border-radius: 14px;
+}
+.disc-row { display: flex; align-items: center; gap: 8px; min-height: 52px; padding: 4px 4px 4px 14px; }
+.disc-row + .disc-row { border-top: 1px solid var(--border); }
+.disc-name { flex: 1; min-width: 0; font-size: 15px; font-weight: 600; line-height: 1.3; overflow-wrap: anywhere; }
+.disc-unit { margin-left: 6px; color: var(--muted); font-size: 12px; font-weight: 400; white-space: nowrap; }
+.disc-sex {
+  position: relative; display: inline-flex; align-items: center; gap: 4px; flex-shrink: 0;
+  min-height: 32px; padding: 5px 11px; border-radius: 999px; cursor: pointer; white-space: nowrap;
+  border: 1px solid var(--border); background: none; color: var(--muted); font-size: 13px; font-weight: 600;
+}
+.disc-sex::before { content: ''; position: absolute; inset: -6px -2px; }
+.disc-sex.on { background: var(--acc-soft); color: var(--acc-2); border-color: color-mix(in srgb, var(--acc) 45%, transparent); }
+.disc-sex.off { opacity: .5; cursor: default; }
+.disc-sex:has(:focus-visible) { outline: 3px solid var(--acc-2); outline-offset: 2px; }
+.disc-rm {
+  width: 44px; height: 44px; flex-shrink: 0; border: 0; background: none; color: var(--muted);
+  display: grid; place-items: center; cursor: pointer; border-radius: 12px;
+}
+.disc-rm:active:not(:disabled) { color: var(--red); background: var(--surface-2); }
+.disc-rm:disabled { opacity: .4; cursor: default; }
+.disc-add { display: grid; gap: 10px; }
+.disc-add-row { display: flex; align-items: center; justify-content: space-between; gap: 10px; }
+.disc-add-row .btn { width: auto; margin: 0; }
+.disc-note { margin: 14px 2px 0; font-size: 12px; line-height: 1.4; }
 .screen-anim { position: relative; animation: screen-enter var(--dur-base) var(--ease-out); }
 @keyframes screen-enter {
   from { opacity: 0; }
