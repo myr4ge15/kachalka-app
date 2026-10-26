@@ -639,6 +639,8 @@ select, textarea { font-variant-numeric: inherit; font-feature-settings: inherit
   border: 1px solid var(--border); background: none; color: var(--muted); font-size: 13px; font-weight: 600;
 }
 .disc-sex::before { content: ''; position: absolute; inset: -6px -2px; }
+.disc-sex .disc-sex-ico { flex-shrink: 0; }
+.disc-sex:not(.on) .disc-sex-ico { visibility: hidden; }
 .disc-sex.on { background: var(--acc-soft); color: var(--acc-2); border-color: color-mix(in srgb, var(--acc) 45%, transparent); }
 .disc-sex.off { opacity: .5; cursor: default; }
 .disc-sex:has(:focus-visible) { outline: 3px solid var(--acc-2); outline-offset: 2px; }

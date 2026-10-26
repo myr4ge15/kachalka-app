@@ -31,11 +31,19 @@ describe('управление дисциплинами',()=>{
     expect(within(screen.getByRole('list')).getByRole('checkbox',{name:'Раздельно по полу'})).not.toBeChecked()
     expect(screen.getByRole('button',{name:'Добавить дисциплину'})).toHaveTextContent('Добавить') // не «Сохраняю…»
     done({refreshed:true})
-    await waitFor(()=>expect(within(screen.getByRole('list')).getByRole('checkbox',{name:'Раздельно по полу'})).toBeChecked()) // снимок каталога не менялся
+    await waitFor(()=>expect(screen.getByRole('button',{name:'Убрать из рейтинга: Жим'})).not.toBeDisabled())
+    // после успеха чип не прыгает обратно к старому снимку, пока тот не обновился
+    expect(within(screen.getByRole('list')).getByRole('checkbox',{name:'Раздельно по полу'})).not.toBeChecked()
     mocks.save.mockRejectedValueOnce(new Error('нет'))
     await user.click(screen.getByRole('button',{name:'Убрать из рейтинга: Жим'}))
     expect(await screen.findByRole('alert')).toHaveTextContent('нет')
     expect(screen.getByRole('button',{name:'Убрать из рейтинга: Жим'})).toBeInTheDocument()
+    // откат — к снимку каталога
+    expect(within(screen.getByRole('list')).getByRole('checkbox',{name:'Раздельно по полу'})).toBeChecked()
+  })
+  it('ширина чипа «по полу» не меняется: галочка в разметке всегда (fb_c6b5ce77)',()=>{
+    render(<AdminDisciplines userId="admin" exercises={exercises} online />)
+    for (const chip of document.querySelectorAll('.disc-sex')) expect(chip.querySelector('.disc-sex-ico')).not.toBeNull()
   })
   it('офлайн нельзя менять конфигурацию',()=>{
     render(<AdminDisciplines userId="admin" exercises={exercises} online={false} />)

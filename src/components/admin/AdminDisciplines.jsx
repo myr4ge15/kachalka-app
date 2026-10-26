@@ -7,7 +7,10 @@ import CheckIcon from '../ui/CheckIcon.jsx'
 
 export default function AdminDisciplines({ userId, exercises, online }) {
   const catalog = useLiveQuery(getRatingCatalog, [], null)
-  // Оптимистично (fb_c6b5ce77): «по полу» и ✕ видны сразу, до ответа сервера; ошибка — откат.
+  // Оптимистично (fb_c6b5ce77): «по полу» и ✕ видны сразу, до ответа сервера; ошибка — откат. После успеха
+  // черновик остается поверх каталога (совпадает с ним) — снять его в finally значило на кадр показать старый
+  // снимок, пока useLiveQuery не принес свежий: чип мигал назад. Снимают его ошибка, «Обновить список» и
+  // следующее сохранение.
   const [draft, setDraft] = useState(null) // { exercise_id, split_by_sex?, enabled? }
   const items = (catalog?.items ?? [])
     .map(d => (draft && d.exercise_id === draft.exercise_id ? { ...d, ...draft } : d))
@@ -38,11 +41,11 @@ export default function AdminDisciplines({ userId, exercises, online }) {
         setExercise('')
         if (result?.refreshed === false) setError('Сохранено, но список не обновился. Нажми «Обновить список».')
       }
-    } catch (err) { if (alive.current) setError(err.message || 'Не удалось сохранить') }
-    finally { if (alive.current) { setBusy(false); setDraft(null) } }
+    } catch (err) { if (alive.current) { setError(err.message || 'Не удалось сохранить'); setDraft(null) } }
+    finally { if (alive.current) setBusy(false) }
   }
   async function refresh() {
-    setBusy(true); setError('')
+    setBusy(true); setError(''); setDraft(null)
     try { await fetchRatingCatalog(userId, { force: true }) }
     catch { if (alive.current) setError('Не удалось обновить список.') }
     finally { if (alive.current) setBusy(false) }
@@ -90,6 +93,7 @@ function SexChip({ checked, disabled, dim, onChange }) {
   return <label className={'disc-sex' + (checked ? ' on' : '') + (dim ? ' off' : '')}>
     <input type="checkbox" className="sr-only" aria-label="Раздельно по полу" checked={checked} disabled={disabled}
       onChange={e => onChange(e.target.checked)} />
-    {checked && <CheckIcon size={14} />}по полу
+    {/* Галочка всегда в разметке (скрыта без отметки): ширина чипа не меняется и строка не дергается (fb_c6b5ce77). */}
+    <CheckIcon size={14} className="disc-sex-ico" />по полу
   </label>
 }
