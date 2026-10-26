@@ -2353,6 +2353,11 @@ button.cm-name { cursor: pointer; padding: 12px 0; margin: -12px 0 -11px; }
   background: var(--surface); border: 1px solid var(--border); border-radius: 16px;
   padding: 13px 14px; margin-bottom: 10px;
 }
+/* Уведомление-ссылка (26.10.2026, fb_9c8b8517): реакция/комментарий ведут в Ленту к тренировке. */
+.notif.notif-tap { width: 100%; text-align: left; font: inherit; color: inherit; cursor: pointer; }
+.notif.notif-tap:active { background: var(--surface-2); }
+.notif.notif-tap:focus-visible { outline: 3px solid var(--acc-2); outline-offset: 2px; }
+.notif .n-chev { flex-shrink: 0; align-self: center; color: var(--muted); }
 /* Непрочитанные подсвечиваем цветной полосой слева (v6.2.1 — по смыслу цвета):
    свой рекорд — золото рекордов (--g4), друг побил твой — желтый, цель — зеленый
    (успех), реакция друга — акцент. Рамка — приглушенный тот же цвет. */

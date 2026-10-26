@@ -317,6 +317,16 @@ export function useAppNav(user) {
     setPushIntent(null)
   }, [user?.id, pushIntent])
 
+  // Тап по уведомлению о реакции / комментарии (26.10.2026, fb_9c8b8517) — как пуш: Лента у этой тренировки,
+  // thread — ветка комментариев раскрыта.
+  function openFeedWorkout(workoutId, thread = false) {
+    if (!workoutId) return
+    setFeedRestore(pushAnchor(workoutId))
+    setFeedFlashId(workoutId)
+    if (thread) setFeedThreadId(workoutId)
+    setTab('feed')
+  }
+
   function startNewWorkout() {
     setOpenNewWorkout(true)
     if (tab === 'history') {
@@ -333,6 +343,6 @@ export function useAppNav(user) {
     calendarIntent, setCalendarIntent, feedFlashId, feedThreadId, feedbackFocus, openFeedback, backFromFeedback, lastMainTab,
     focusRhythm, setFocusRhythm, openSettings, setOpenSettings,
     goTab, openNotif, backFromNotif, openProgressFor, openCalendarAt, openMember, backFromMember,
-    backToRhythm, backToSettings, nestedBack, startNewWorkout, setPushIntent
+    backToRhythm, backToSettings, nestedBack, startNewWorkout, setPushIntent, openFeedWorkout
   }
 }

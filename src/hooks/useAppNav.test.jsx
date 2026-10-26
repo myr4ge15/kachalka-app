@@ -46,6 +46,20 @@ describe('useAppNav: nestedBack', () => {
     expect(result.current.tab).toBe('home')
   })
 
+  it('уведомление о комментарии → Лента у тренировки с раскрытой веткой; о реакции — без ветки (fb_9c8b8517)', () => {
+    const { result } = renderHook(() => useAppNav(ME))
+    act(() => result.current.openNotif())
+    act(() => result.current.openFeedWorkout('w1', true))
+    expect(result.current.tab).toBe('feed')
+    expect(result.current.feedFlashId).toBe('w1')
+    expect(result.current.feedThreadId).toBe('w1')
+    act(() => result.current.openFeedWorkout('w2'))
+    expect(result.current.feedFlashId).toBe('w2')
+    expect(result.current.feedThreadId).toBe('w1') // ветку другой тренировки не трогаем
+    act(() => result.current.openFeedWorkout(null))
+    expect(result.current.feedFlashId).toBe('w2')
+  })
+
   it('профиль участника → Лента', () => {
     const { result } = renderHook(() => useAppNav(ME))
     act(() => result.current.goTab('feed'))

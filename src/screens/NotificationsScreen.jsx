@@ -16,7 +16,10 @@ import { plural } from '../lib/plural.js'
 // Вложенный роут — шапка с общей круглой BackButton, как у остальных вложенных
 // экранов (РЕВЬЮ-КОДА-2026-10-02). onBack — вернуться туда, откуда открыли.
 // onOpenFeedback(id) — ответ разработчика ведет на свое обращение (v6.12.0).
-export default function NotificationsScreen({ user, onBack, onOpenFeedback }) {
+// onOpenWorkout(workoutId, thread) — реакция и комментарий ведут в Ленту к тренировке, комментарий — с раскрытой
+// веткой (26.10.2026, fb_9c8b8517: тапом нельзя было перейти к сообщению).
+const OPENS_WORKOUT = new Set(['reaction', 'comment', 'comment_react'])
+export default function NotificationsScreen({ user, onBack, onOpenFeedback, onOpenWorkout }) {
   const list = useLiveQuery(() => getNotifications(user.id), [user.id], undefined)
   // Пол участников из ростера — род глаголов («оценила», «обошла», «дотянула»), v6.2.5.
   const roster = useLiveQuery(() => getUsers(), [], [])
@@ -112,9 +115,13 @@ export default function NotificationsScreen({ user, onBack, onOpenFeedback }) {
           : n.type === 'badge' ? (n.emoji ?? '🏅')
           : n.type === 'feedback' ? '💬'
           : '🔥'
-        const cls = 'notif ' + n.type + (unread ? ' unread' : ' read')
+        const opens = Boolean(onOpenWorkout && n.workoutId && OPENS_WORKOUT.has(n.type))
+        const cls = 'notif ' + n.type + (unread ? ' unread' : ' read') + (opens ? ' notif-tap' : '')
+        const Tag = opens ? 'button' : 'div'
         return (
-          <div key={n.id} className={cls}>
+          <Tag key={n.id} className={cls} {...(opens ? {
+            type: 'button', onClick: () => onOpenWorkout(n.workoutId, n.type !== 'reaction'),
+          } : {})}>
             <div className="n-icon" aria-hidden="true">{icon}</div>
             <div className="n-body">
               {n.type === 'mine' && (
@@ -207,8 +214,9 @@ export default function NotificationsScreen({ user, onBack, onOpenFeedback }) {
               )}
               <div className="n-time">{fmtWhen(n.at)}</div>
             </div>
+            {opens && <Chevron className="n-chev" />}
             {unread && <span className="n-dot" aria-hidden="true" />}
-          </div>
+          </Tag>
         )
       })}
     </div>

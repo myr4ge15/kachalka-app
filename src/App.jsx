@@ -88,7 +88,7 @@ export default function App() {
     calendarIntent, setCalendarIntent, feedFlashId, feedThreadId, feedbackFocus, openFeedback, backFromFeedback, lastMainTab,
     focusRhythm, setFocusRhythm, openSettings, setOpenSettings,
     goTab, openNotif, backFromNotif, openProgressFor, openCalendarAt, openMember, backFromMember,
-    backToRhythm, backToSettings, startNewWorkout,
+    backToRhythm, backToSettings, startNewWorkout, openFeedWorkout,
   } = useAppNav(user)
   // Ссылка-приглашение (v6.8.0): токен из #invite=… живет только в памяти —
   // из адреса стираем сразу (эффект ниже), чтобы он не остался в истории и закладках.
@@ -395,7 +395,7 @@ export default function App() {
               )}
               {route === 'notif' && (
                 <NotificationsScreen user={user} onBack={backFromNotif}
-                  onOpenFeedback={openFeedback} />
+                  onOpenFeedback={openFeedback} onOpenWorkout={openFeedWorkout} />
               )}
               {route === 'profile' && (
                 <ProfileScreen
