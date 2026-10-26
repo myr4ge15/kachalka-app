@@ -77,14 +77,17 @@ export function versionJson(entries, version, epoch = VERSION_EPOCH) {
   return { version, epoch, headline: updateHeadline(latest), ...(latest?.push === false ? { silent: true } : {}) }
 }
 
-// Заголовок для строки новой версии и пуша «Вышла версия» (version.json): headline + « — и еще N улучшений».
-// Через тире (fb_f8deafbe): «Комментарии пузырями и реакции и еще 8» — два «и» подряд, и непонятно, чего 8.
+// Заголовок для строки новой версии и пуша «Вышла версия» (version.json): headline + «. И еще N улучшений».
+// Отдельным предложением (fb_f8deafbe): «Комментарии пузырями и реакции и еще 8» — два «и» подряд, и непонятно,
+// чего 8. Тире (до 26.10.2026) на экране блокировки iPhone переносилось в начало строки (fb_2e35a5f0).
 export function updateHeadline(entry) {
   if (!entry) return null
   const n = (entry.main?.length ?? 0) + (entry.minor?.length ?? 0)
   const base = entry.headline ?? entry.main?.[0]?.t ?? ''
   const rest = n - 2
-  return rest > 0 ? `${base} — и еще ${rest} ${plural(rest, 'улучшение', 'улучшения', 'улучшений')}` : base
+  if (rest <= 0) return base
+  const end = /[.!?…]$/.test(base.trim()) ? base.trim() : `${base.trim()}.`
+  return `${end} И еще ${rest} ${plural(rest, 'улучшение', 'улучшения', 'улучшений')}`
 }
 
 const MONTHS = ['января', 'февраля', 'марта', 'апреля', 'мая', 'июня', 'июля',

@@ -64,8 +64,10 @@ describe('hasUnopened / updateHeadline / дата', () => {
     expect(hasUnopened(E, '6.5.0')).toBe(false)
   })
   it('заголовок строки обновления', () => {
-    expect(updateHeadline({ headline: 'Новое', main: [1, 2, 3], minor: [4] })).toBe('Новое — и еще 2 улучшения')
-    expect(updateHeadline({ headline: 'Новое', main: [1, 2, 3], minor: [4, 5, 6, 7, 8, 9, 10] })).toBe('Новое — и еще 8 улучшений')
+    // отдельным предложением, без тире: оно переносилось в начало строки на экране блокировки (fb_2e35a5f0)
+    expect(updateHeadline({ headline: 'Новое', main: [1, 2, 3], minor: [4] })).toBe('Новое. И еще 2 улучшения')
+    expect(updateHeadline({ headline: 'Новое', main: [1, 2, 3], minor: [4, 5, 6, 7, 8, 9, 10] })).toBe('Новое. И еще 8 улучшений')
+    expect(updateHeadline({ headline: 'Готово!', main: [1, 2, 3] })).toBe('Готово! И еще 1 улучшение')
     expect(updateHeadline({ headline: 'Новое', main: [1, 2], minor: [] })).toBe('Новое')
     expect(updateHeadline(null)).toBeNull()
   })
