@@ -65,8 +65,10 @@ export default function AchievementsScreen({ user, onBack }) {
                     {!b.done && <span className="ach-lock" aria-hidden="true">🔒</span>}
                     <div className="ach-ico">{b.def.icon}</div>
                     <div className="ach-nm">{b.def.name}</div>
-                    {/* Условие — текстом, а не только в title: на телефоне подсказки нет (UI-ревью 23.10). */}
-                    {!b.done && b.def.desc && <div className="ach-desc">{b.def.desc}</div>}
+                    {/* Условие — текстом, а не только в title: на телефоне подсказки нет (UI-ревью 23.10).
+                        У полученных тоже (fb_8b4685cc): ряд тянется по самой высокой плитке, и без
+                        описания полученная оставалась пустой наполовину. */}
+                    {b.def.desc && <div className="ach-desc">{b.def.desc}</div>}
                     {b.done ? (
                       <div className="ach-dt">
                         {b.at ? fmtWhen(b.at) : 'получено'}

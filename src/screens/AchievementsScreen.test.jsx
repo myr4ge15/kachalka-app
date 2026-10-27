@@ -46,7 +46,10 @@ describe('AchievementsScreen', () => {
     const [on, off] = container.querySelectorAll('.ach-badge')
     expect(on).toHaveClass('on')
     expect(on).toHaveTextContent('получено') // без даты — честное «получено»
+    // Описание и у полученного: иначе плитка в ряду с закрытыми пустая наполовину (fb_8b4685cc).
+    expect(on.querySelector('.ach-desc')).toHaveTextContent('Десять')
     expect(off).toHaveClass('off')
+    expect(off.querySelector('.ach-desc')).toHaveTextContent('Полсотни')
     expect(off).toHaveTextContent('12 / 50')
     expect(off.querySelector('.ach-pb i').style.width).toBe('24%')
   })

@@ -3684,7 +3684,10 @@ label.act.busy { opacity: .55; pointer-events: none; }
   padding: 11px 7px 9px;
   text-align: center;
   position: relative;
+  /* Ряд тянется по самой высокой плитке: дата и прогресс — внизу, на одной линии у соседей. */
+  display: flex; flex-direction: column;
 }
+.ach-badge > .ach-dt, .ach-badge > .ach-prog { margin-top: auto; padding-top: 6px; }
 .ach-ico {
   width: 44px; height: 44px; margin: 0 auto 7px;
   border-radius: 50%;
