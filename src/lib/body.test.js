@@ -3,7 +3,7 @@ import {
   normalizeBody, normalizeEntry, putEntry, deleteEntry, setBodyPrefs, clearBody, mergeBody, compactBody,
   weightDays, trendSeries, trendChange, trendPace, toneFor, goalLeft, goalForecast, bodyWeightOn,
   lastMeasures, lastEntry, hasEntries, parseWeight, parseCm, fmtSigned, fmtBodyDate, bodyRowSubtitle,
-  shiftYmd, KEEP_ALL_DAYS, TOMBSTONE_DAYS,
+  shiftYmd, KEEP_ALL_DAYS, TOMBSTONE_DAYS, goalTargetProblem, keepTarget,
 } from './body.js'
 
 const T = (d, h = 7) => `${d}T0${h}:00:00.000Z`
@@ -230,5 +230,22 @@ describe('связки и подписи', () => {
     expect(c.goal).toBeNull()
     expect(c.fields).toEqual(['waist'])
     expect(clearBody(c)).toBe(c)
+  })
+})
+
+describe('ввод цели (fb_f87011ab, fb_1993296f)', () => {
+  it('«набрать» — только больше текущего, «сбросить» — только меньше', () => {
+    expect(goalTargetProblem('up', 65, 70)).toBe('up')
+    expect(goalTargetProblem('up', 70, 70)).toBe('up')
+    expect(goalTargetProblem('up', 75, 70)).toBeNull()
+    expect(goalTargetProblem('down', 75, 70)).toBe('down')
+    expect(goalTargetProblem('down', 65, 70)).toBeNull()
+    expect(goalTargetProblem('keep', 65, 70)).toBeNull()
+    expect(goalTargetProblem('up', 65, null)).toBeNull() // веса еще нет — сравнивать не с чем
+  })
+  it('«держать» — текущий вес с шагом 0.5', () => {
+    expect(keepTarget(70.2)).toBe(70)
+    expect(keepTarget(70.3)).toBe(70.5)
+    expect(keepTarget(null)).toBeNull()
   })
 })

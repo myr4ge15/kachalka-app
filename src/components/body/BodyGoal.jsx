@@ -3,7 +3,7 @@ import HoldButton from '../ui/HoldButton.jsx'
 import { showToast } from '../ui/Toast.jsx'
 import { localYmd } from '../../lib/calendar.js'
 import {
-  WEIGHT_MIN, WEIGHT_MAX, parseWeight, goalLeft, goalForecast, fmtBodyDate,
+  WEIGHT_MIN, WEIGHT_MAX, parseWeight, goalLeft, goalForecast, fmtBodyDate, goalTargetProblem, keepTarget,
 } from '../../lib/body.js'
 import { setBodyPrefs } from '../../db/body.js'
 
@@ -29,7 +29,10 @@ export default function BodyGoal({ userId, goal, current, pace, hide = false }) 
     setEdit(true)
   }
 
-  const t = parseWeight(target)
+  // «Держать» с известным весом — число не выбираем: держим текущий (fb_1993296f).
+  const fixedKeep = kind === 'keep' && current != null
+  const t = fixedKeep ? keepTarget(current) : parseWeight(target)
+  const problem = goalTargetProblem(kind, t, current)
   const bump = (d) => setTarget((v) => {
     const n = parseWeight(v)
     return n == null ? v : String(Math.min(WEIGHT_MAX, Math.max(WEIGHT_MIN, Math.round((n + d) * 10) / 10)))
@@ -55,18 +58,30 @@ export default function BodyGoal({ userId, goal, current, pace, hide = false }) 
                 className={`seg-item${kind === k.id ? ' on' : ''}`} onClick={() => setKind(k.id)}>{k.label}</button>
             ))}
           </div>
-          <div className="body-field">
-            <span className="body-field-lbl" id="body-goal-lbl">{kind === 'keep' ? 'Вес, кг (коридор ±1.5)' : 'Целевой вес, кг'}</span>
-            <div className="stepper body-stepper">
-              <HoldButton aria-label="Цель меньше на 0.5" disabled={t == null} onTrigger={() => bump(-0.5)}>−</HoldButton>
-              <input aria-labelledby="body-goal-lbl" inputMode="decimal" value={target} placeholder="кг"
-                onChange={(e) => setTarget(e.target.value)} />
-              <HoldButton aria-label="Цель больше на 0.5" disabled={t == null} onTrigger={() => bump(0.5)}>+</HoldButton>
+          {fixedKeep ? (
+            <p className="body-hint body-goal-keep">
+              {hide ? 'Держим текущий вес' : `Держим около ${t} кг`} — коридор ±1.5 кг.
+            </p>
+          ) : (
+            <div className="body-field">
+              <span className="body-field-lbl" id="body-goal-lbl">{kind === 'keep' ? 'Вес, кг (коридор ±1.5)' : 'Целевой вес, кг'}</span>
+              <div className="stepper body-stepper">
+                <HoldButton aria-label="Цель меньше на 0.5" disabled={t == null} onTrigger={() => bump(-0.5)}>−</HoldButton>
+                <input aria-labelledby="body-goal-lbl" inputMode="decimal" autoComplete="off" value={target} placeholder="кг"
+                  onChange={(e) => setTarget(e.target.value)} aria-invalid={problem ? true : undefined} />
+                <HoldButton aria-label="Цель больше на 0.5" disabled={t == null} onTrigger={() => bump(0.5)}>+</HoldButton>
+              </div>
+              {problem && (
+                <p className="body-hint">
+                  {problem === 'up' ? 'Чтобы набрать, цель должна быть больше' : 'Чтобы сбросить, цель должна быть меньше'}
+                  {hide ? ' текущего веса.' : ` текущего веса (${Math.round(current * 10) / 10} кг).`}
+                </p>
+              )}
             </div>
-          </div>
+          )}
           <div className="btn-row">
             <button type="button" className="btn ghost" onClick={() => setEdit(false)}>Отмена</button>
-            <button type="button" className="btn primary" disabled={t == null}
+            <button type="button" className="btn primary" disabled={t == null || Boolean(problem)}
               onClick={() => save({ kind, target: t, from: current ?? null, set: localYmd(new Date()) })}>Сохранить</button>
           </div>
         </div>

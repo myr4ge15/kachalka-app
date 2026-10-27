@@ -4935,15 +4935,20 @@ img.has-img, .avatar-lightbox-img { -webkit-touch-callout: none; -webkit-user-dr
 .bc-key--dot { width: 7px; height: 7px; border-radius: 50%; background: color-mix(in srgb, var(--acc) 35%, transparent); }
 .bc-key--goal { background: repeating-linear-gradient(90deg, var(--muted) 0 4px, transparent 4px 7px); }
 .body-list { list-style: none; margin: 0; padding: 0; }
+/* Строка записи (fb_39f49a86): дата · вес · «⋯» на одной линии, подпись — второй строкой под датой. */
 .body-row {
-  position: relative; display: grid; grid-template-columns: 1fr auto; align-items: center; column-gap: 8px;
-  padding: 10px 0; border-bottom: 1px solid var(--border);
+  position: relative; display: grid; grid-template-columns: minmax(0, 1fr) auto auto; align-items: center;
+  column-gap: 8px; min-height: 52px; padding: 4px 0; border-bottom: 1px solid var(--border);
 }
 .body-row:last-child { border-bottom: 0; }
-.body-row-main { display: flex; justify-content: space-between; gap: 10px; }
-.body-row-w { font-family: var(--font-display); font-weight: 800; }
-.body-row-sub { grid-column: 1; margin-top: 2px; }
-.body-row > .more-wrap { grid-column: 2; grid-row: 1 / span 2; }
+.body-row-date { grid-column: 1; grid-row: 1; }
+.body-row-w { grid-column: 2; grid-row: 1; text-align: right; font-family: var(--font-display); font-weight: 800; font-size: 17px; }
+.body-row-sub { grid-column: 1 / 3; grid-row: 2; margin: -6px 0 8px; }
+.body-row > .more-wrap { grid-column: 3; grid-row: 1; }
+.body-list--card { padding: 2px 16px; }
+.body-list--card .body-row > .more-wrap { margin-right: -6px; }
+.body-screen > .sec + .sec { margin-top: 18px; }
+.body-chart-soon { margin: 0 4px 12px; }
 .body-more { width: 44px; height: 44px; margin-right: -10px; background: none; border: 0; border-radius: var(--r-md);
   color: var(--muted); font-size: 20px; cursor: pointer; }
 .body-more[aria-expanded="true"] { background: var(--surface-2); color: var(--text); }

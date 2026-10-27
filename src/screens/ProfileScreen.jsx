@@ -160,10 +160,13 @@ export default function ProfileScreen({ user, onLogout, onAccountDeleted, onOpen
   // Вход на экран достижений/бейджей. Строки меню — общая MenuRow (26.10.2026, аудит оформления).
   const achievementsLink = (
     <section className="sec">
+      {/* fb_242cee13: две строки — одной плашкой .menu-group, а не впритык друг к другу. */}
+      <div className="menu-group">
       <MenuRow icon="trophy" title="Достижения" sub={`получено ${badgesEarned} из ${BADGES.length} бейджей`}
         onClick={() => onOpenAchievements?.()} />
       {/* «Вес и замеры» (PLAN-body-metrics.md): вход — только эта строка, без призывов. */}
       <MenuRow icon="scale" title="Вес и замеры" sub={bodyRowSubtitle(body)} onClick={() => onOpenBody?.()} />
+      </div>
     </section>
   )
 

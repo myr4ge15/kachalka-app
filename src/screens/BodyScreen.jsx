@@ -89,15 +89,13 @@ export default function BodyScreen({ user, onBack }) {
     return (
       <section className="sec">
         <p className="sec-title">Записи</p>
-        <ul className="body-list">
+        <ul className="card body-list body-list--card">
           {items.map((e) => {
             const sub = [kind === 'measures' && !hide && measuresLine(e), e.note].filter(Boolean).join(' · ')
             return (
               <li key={e.id} className="body-row">
-                <div className="body-row-main">
-                  <span className="body-row-date">{fmtBodyDate(e.date)}</span>
-                  <span className="body-row-w">{hide ? HIDDEN : kind === 'weight' ? `${e.weight} кг` : ''}</span>
-                </div>
+                <span className="body-row-date">{fmtBodyDate(e.date)}</span>
+                <span className="body-row-w">{hide ? HIDDEN : kind === 'weight' ? `${e.weight} кг` : ''}</span>
                 {sub && <div className="body-row-sub">{sub}</div>}
                 <MoreMenu label={`Запись ${fmtBodyDate(e.date)}`} btnClassName="body-more" open={menuId === e.id}
                   onToggle={() => { setArmDel(false); setMenuId((id) => (id === e.id ? null : e.id)) }} onClose={() => { setArmDel(false); setMenuId(null) }}>
@@ -161,6 +159,10 @@ export default function BodyScreen({ user, onBack }) {
             </section>
           )}
 
+          {/* fb_ac8e85bc: с одной записью графика нет — говорим, когда он появится. */}
+          {data.days.length === 1 && (
+            <p className="body-hint body-chart-soon">График появится со второго взвешивания в другой день.</p>
+          )}
           {data.days.length > 1 && (
             <section className="sec">
               <div className="card chart-card body-chart-card">
@@ -206,10 +208,8 @@ export default function BodyScreen({ user, onBack }) {
                     const m = data.measures[f.id]
                     return (
                       <li key={f.id} className="body-row">
-                        <div className="body-row-main">
-                          <span className="body-row-date">{f.label}</span>
-                          <span className="body-row-w">{hide ? HIDDEN : `${m.value} см`}</span>
-                        </div>
+                        <span className="body-row-date">{f.label}</span>
+                        <span className="body-row-w">{hide ? HIDDEN : `${m.value} см`}</span>
                         <div className="body-row-sub">
                           {fmtBodyDate(m.date)}
                           {!hide && m.delta != null && ` · за ${m.days} дн. ${m.delta === 0 ? 'без изменений' : fmtSigned(m.delta)}`}
@@ -218,7 +218,6 @@ export default function BodyScreen({ user, onBack }) {
                     )
                   })}
                 </ul>
-                <p className="body-hint">Обхваты — без цветов: у каждого свое «хорошо».</p>
               </div>
             ) : (
               <div className="card body-empty">

@@ -342,6 +342,18 @@ export function toneFor(delta, goal, value = null) {
   return delta > 0 ? 'good' : 'neutral'
 }
 
+// Проверка цели при вводе (fb_f87011ab, fb_1993296f): «набрать» — выше текущего веса, «сбросить» —
+// ниже. null — все в порядке (или веса еще нет — сравнивать не с чем), иначе 'up' | 'down'.
+export function goalTargetProblem(kind, target, current) {
+  if (!Number.isFinite(target) || !Number.isFinite(current)) return null
+  if (kind === 'up' && target <= current) return 'up'
+  if (kind === 'down' && target >= current) return 'down'
+  return null
+}
+
+// «Держать» — без выбора числа: держим текущий вес (по тренду), округленный до 0.5 кг.
+export const keepTarget = (current) => (Number.isFinite(current) ? Math.round(current * 2) / 2 : null)
+
 // Сколько до цели: { left, reached } или null (цели нет). reached у «держать» —
 // попадание в коридор; у «сбросить/набрать» — цель пройдена.
 export function goalLeft(goal, value) {
