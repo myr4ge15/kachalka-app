@@ -26,7 +26,7 @@ test('точный шаблон: редактор → перезагрузка �
   await page.getByRole('button', { name: /Мои шаблоны/ }).click()
   await page.getByRole('button', { name: /Точный план/ }).click()
   await page.getByLabel('Вес или дистанция подхода 2').fill('82.5')
-  await expect(page.getByLabel('Вес или дистанция подхода 2')).toHaveValue('82,5')
+  await expect(page.getByLabel('Вес или дистанция подхода 2')).toHaveValue('82.5')
   expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true)
   await page.screenshot({ path: 'work/template-editor-mobile.png', fullPage: true })
   await page.getByRole('button', { name: 'Сохранить', exact: true }).click()

@@ -2,12 +2,13 @@ import { useState } from 'react'
 import { submitJoin, validateJoin, joinErrorText, NAME_MAX, ABOUT_MAX, JoinError } from '../../lib/joinRequest.js'
 import BusyText from '../ui/BusyText.jsx'
 
-// Форма «Хочу в круг» (v6.12.0): имя + пара слов → владельцу в Telegram.
+// Форма «Хочу в круг» (v6.12.0): имя + ник в Telegram (27.10.2026) + пара слов → владельцу в Telegram.
 // Пропсы: onSubmitted(pending) — заявка принята сервером; onBack() — назад.
 // Скрытое поле website — ловушка для ботов: человек его не видит.
 export default function JoinRequestForm({ onSubmitted, onBack }) {
   const [name, setName] = useState('')
   const [about, setAbout] = useState('')
+  const [tg, setTg] = useState('')
   const [website, setWebsite] = useState('')
   const [error, setError] = useState('')
   const [busy, setBusy] = useState(false)
@@ -15,12 +16,12 @@ export default function JoinRequestForm({ onSubmitted, onBack }) {
   async function submit(e) {
     e.preventDefault()
     if (busy) return
-    const problem = validateJoin({ name, about })
+    const problem = validateJoin({ name, about, tg })
     if (problem) { setError(problem); return }
     setBusy(true)
     setError('')
     try {
-      const pending = await submitJoin({ name, about, website })
+      const pending = await submitJoin({ name, about, tg, website })
       onSubmitted?.(pending)
     } catch (err) {
       setError(joinErrorText(err instanceof JoinError ? err.code : 'server'))
@@ -37,6 +38,13 @@ export default function JoinRequestForm({ onSubmitted, onBack }) {
         <span className="field-lab">Как тебя зовут</span>
         <input className="admin-input" type="text" maxLength={NAME_MAX} autoComplete="name"
           value={name} disabled={busy} onChange={(e) => { setName(e.target.value); setError('') }} />
+      </label>
+      <label className="field">
+        <span className="field-lab">Ник в Telegram · необязательно</span>
+        <input className="admin-input" type="text" maxLength={64} autoComplete="off" autoCapitalize="none"
+          autoCorrect="off" spellCheck={false} placeholder="@ivan_petrov" value={tg} disabled={busy}
+          onChange={(e) => { setTg(e.target.value); setError('') }} />
+        <span className="field-hint">Так владелец поймет, кто ты, и сможет написать.</span>
       </label>
       <label className="field">
         <span className="field-lab">Пара слов о себе</span>

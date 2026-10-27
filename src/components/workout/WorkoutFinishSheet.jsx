@@ -23,7 +23,7 @@ export default function WorkoutFinishSheet({
   const templateDone = templateStatus === 'done'
 
   return (
-    <SheetDialog title="Тренировка готова" onDismiss={onDone}>
+    <SheetDialog title="Тренировка готова" onDismiss={onDone} swipeDown>
       <div className={`workout-finish${mainEvent?.celebrated ? ' has-celebration' : ''}`}>
         <div className="workout-finish-mark" aria-hidden="true"><CheckIcon size={38} strokeWidth={3} /></div>
         <p className="workout-finish-lead">Записали. Можно выдохнуть.</p>

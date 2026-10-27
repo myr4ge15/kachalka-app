@@ -90,7 +90,7 @@ describe('recommendProgression — весовые, стратегия +вес', 
     expect(r.kind).toBe('up')
     expect(r.sets).toEqual([s(82.5, 10), s(82.5, 10), s(82.5, 10)])
     expect(r.changed).toBe(true)
-    expect(r.reasonText).toMatch(/\+2,5 кг/)
+    expect(r.reasonText).toMatch(/\+2.5 кг/)
   })
 
   it('легкий недобор → тот же вес (same), добиваем план', () => {
@@ -170,7 +170,7 @@ describe('recommendProgression — весовые, стратегия +повт�
     })
     expect(r.kind).toBe('nudge')
     expect(r.sets).toEqual([s(82.5, 8), s(82.5, 8)])
-    expect(r.reasonText).toMatch(/пора \+2,5 кг/)
+    expect(r.reasonText).toMatch(/пора \+2.5 кг/)
   })
 })
 
@@ -331,7 +331,7 @@ describe('recommendProgression + RPE, стратегия «+вес»', () => {
     })
     expect(r.kind).toBe('up')
     expect(r.sets).toEqual([s(82.5, 10), s(82.5, 10)])
-    expect(r.reasonText).toBe('Все выполнено → +2,5 кг')
+    expect(r.reasonText).toBe('Все выполнено → +2.5 кг')
   })
 
   it('три раза подряд «легко» → та же ветка вверх, но причина по факту', () => {
@@ -341,7 +341,7 @@ describe('recommendProgression + RPE, стратегия «+вес»', () => {
     })
     expect(r.kind).toBe('up')
     expect(r.sets).toEqual([s(82.5, 10), s(82.5, 10)])
-    expect(r.reasonText).toBe('3 раза подряд «легко» → +2,5 кг')
+    expect(r.reasonText).toBe('3 раза подряд «легко» → +2.5 кг')
   })
 
   it('двух «легко» мало — причина остается расчетной', () => {
@@ -349,7 +349,7 @@ describe('recommendProgression + RPE, стратегия «+вес»', () => {
       metric: 'weight', lastSets: done, settings: wcfg,
       recentSessions: [fsess(done, 'easy'), fsess(done, 'easy')],
     })
-    expect(r.reasonText).toBe('Все выполнено → +2,5 кг')
+    expect(r.reasonText).toBe('Все выполнено → +2.5 кг')
   })
 
   it('легкий недобор + два «тяжело» подряд → снижаем, хотя числа дали бы «тот же вес»', () => {
@@ -363,7 +363,7 @@ describe('recommendProgression + RPE, стратегия «+вес»', () => {
     })
     expect(byFeel.kind).toBe('down')
     expect(byFeel.sets).toEqual([s(77.5, 10), s(77.5, 10)])
-    expect(byFeel.reasonText).toBe('2 раза подряд «тяжело» → −2,5 кг, закрепимся')
+    expect(byFeel.reasonText).toBe('2 раза подряд «тяжело» → −2.5 кг, закрепимся')
   })
 
   it('одного «тяжело» при легком недоборе мало', () => {
@@ -379,7 +379,7 @@ describe('recommendProgression + RPE, стратегия «+вес»', () => {
     const bad = [s(80, 10), s(80, 6), s(80, 5)]
     const r = recommendProgression({ metric: 'weight', lastSets: bad, settings: wcfg })
     expect(r.kind).toBe('down')
-    expect(r.reasonText).toBe('Тяжело далось → −2,5 кг, закрепимся')
+    expect(r.reasonText).toBe('Тяжело далось → −2.5 кг, закрепимся')
   })
 })
 
@@ -407,7 +407,7 @@ describe('recommendProgression + RPE, стратегия «+повторы»', (
       recentSessions: [fsess(done, 'easy'), fsess(done, 'easy'), fsess(done, 'easy')],
     })
     expect(r.kind).toBe('nudge')
-    expect(r.reasonText).toBe('3 раза подряд «легко» → пора +2,5 кг')
+    expect(r.reasonText).toBe('3 раза подряд «легко» → пора +2.5 кг')
   })
 
   it('догадка без оценок сохраняет прежнюю формулировку', () => {
@@ -415,7 +415,7 @@ describe('recommendProgression + RPE, стратегия «+повторы»', (
       metric: 'weight', lastSets: done, settings: rcfg,
       recentSessions: [sess(done), sess(done), sess(done)],
     })
-    expect(r.reasonText).toBe('3 тренировки подряд закрываешь → пора +2,5 кг')
+    expect(r.reasonText).toBe('3 тренировки подряд закрываешь → пора +2.5 кг')
   })
 })
 
@@ -447,7 +447,7 @@ describe('RPE не ломает прежние вызовы', () => {
     const done = [s(80, 10), s(80, 10)]
     const r = recommendProgression({ metric: 'weight', lastSets: done, settings: wcfg })
     expect(r.kind).toBe('up')
-    expect(r.reasonText).toBe('Все выполнено → +2,5 кг')
+    expect(r.reasonText).toBe('Все выполнено → +2.5 кг')
   })
 
   it('сессии без поля feel (история до Slice 4) → поведение прежнее', () => {
@@ -457,7 +457,7 @@ describe('RPE не ломает прежние вызовы', () => {
       recentSessions: [sess(done), sess(done), sess(done)],
     })
     expect(r.kind).toBe('up')
-    expect(r.reasonText).toBe('Все выполнено → +2,5 кг')
+    expect(r.reasonText).toBe('Все выполнено → +2.5 кг')
   })
 
   it('смешанная история: свежая сессия без оценки не наследует старую', () => {

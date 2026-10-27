@@ -141,7 +141,7 @@ describe('GoalsSection', () => {
     fireEvent.click(screen.getByRole('button', { name: 'Сохранить' }))
     expect(await screen.findByRole('alert')).toHaveTextContent('Цель должна быть больше нуля.')
     fireEvent.change(screen.getByLabelText('Целевой вес в килограммах'), { target: { value: '102,5' } })
-    expect(screen.getByLabelText('Целевой вес в килограммах')).toHaveValue('102,5')
+    expect(screen.getByLabelText('Целевой вес в килограммах')).toHaveValue('102.5')
     writeGoals.mockRejectedValueOnce(new Error('db'))
     fireEvent.click(screen.getByRole('button', { name: 'Сохранить' }))
     expect(await screen.findByText('Не получилось сохранить цель. Попробуй еще раз.')).toBeInTheDocument()

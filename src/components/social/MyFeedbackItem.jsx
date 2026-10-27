@@ -119,7 +119,7 @@ export default function MyFeedbackItem({ row: r, userId, api, online, fresh = fa
               max={APPEND_MAX}
               problem={appendProblem}
               send={(note) => api.append(r.id, note)}
-              done={{ emoji: '➕', title: 'Дополнение отправлено', sub: 'Разработчик увидит его в том же обращении.' }}
+              done={{ icon: 'plus', title: 'Дополнение отправлено', sub: 'Разработчик увидит его в том же обращении.' }}
               online={online}
               onDone={onReload}
               attach={attachTo(true)}
@@ -135,7 +135,7 @@ export default function MyFeedbackItem({ row: r, userId, api, online, fresh = fa
               max={REOPEN_MAX}
               problem={reopenProblem}
               send={(note) => api.reopen(r.id, note)}
-              done={{ emoji: '🔁', title: 'Обращение открыто снова', sub: 'Разработчик увидит твой комментарий.' }}
+              done={{ icon: 'repeat', title: 'Обращение открыто снова', sub: 'Разработчик увидит твой комментарий.' }}
               online={online}
               onDone={onReload}
               attach={attachTo(false)}

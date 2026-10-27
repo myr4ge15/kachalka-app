@@ -111,7 +111,7 @@ describe('AdminMfaPanel', () => {
     disableMfa.mockResolvedValue(undefined)
     const onChange = vi.fn(async () => {})
     render(<AdminMfaPanel state={{ enabled: true, factorId: 'f1' }} online onChange={onChange} />)
-    expect(screen.getByText('✅ 2FA включена')).toBeInTheDocument()
+    expect(screen.getByText('2FA включена')).toBeInTheDocument()
     fireEvent.click(screen.getByRole('button', { name: 'Отключить 2FA' }))
     expect(disableMfa).not.toHaveBeenCalled()
     await act(async () => { fireEvent.click(screen.getByRole('button', { name: 'Точно отключить?' })) })

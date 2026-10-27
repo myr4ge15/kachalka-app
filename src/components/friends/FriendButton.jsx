@@ -31,7 +31,7 @@ export default function FriendButton({ me, memberId, label = false, compact = fa
       showToast({ emoji: r === 'accepted' ? '🤝' : '👋', title: requestStatusText(r) })
       await refreshFriends(me)
     } catch (e) {
-      showToast({ emoji: '⚠️', title: e.message })
+      showToast({ icon: 'alert', title: e.message })
     } finally {
       setBusy(false)
     }

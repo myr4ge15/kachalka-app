@@ -32,6 +32,7 @@
 // ============================================================================
 import { useEffect, useRef, useState } from 'react'
 import { createPortal } from 'react-dom'
+import Icon from './Icon.jsx'
 
 const subs = new Set()
 const hideSubs = new Set()
@@ -41,6 +42,8 @@ const hideSubs = new Set()
 // raised:true поднимает тост выше липкой кнопки «Сохранить» композера тренировки
 // (иначе undo-тост удаления перекрывает ее, пока висит окно отмены).
 // kind — необязательная метка вида тоста для адресного hideToast(kind).
+// icon — линейная иконка (ui/Icon.jsx) вместо эмодзи: для итога действия (скопировано, скрыто,
+// удалено, ошибка, нет сети). Эмодзи — только содержание: рекорд, цель, «добро пожаловать» (fb_eed87332).
 export function showToast(payload) {
   for (const fn of subs) {
     try { fn(payload) } catch { /* ignore */ }
@@ -120,7 +123,9 @@ export default function Toast() {
     <div className="toast-live" role="status" data-sheet-pass="">
       {toast && (
         <div key={toast._id} className={`toast${visible ? ' show' : ''}${toast.raised ? ' raised' : ''}`}>
-          <span className="toast-emoji" aria-hidden="true">{toast.emoji ?? '🏆'}</span>
+          {toast.icon
+            ? <span className={`toast-icon${toast.icon === 'alert' ? ' toast-icon--warn' : ''}`}><Icon name={toast.icon} size={20} /></span>
+            : <span className="toast-emoji" aria-hidden="true">{toast.emoji ?? '🏆'}</span>}
           <div className="toast-body">
             <div className="toast-title">{toast.title}</div>
             {toast.sub && <div className="toast-sub">{toast.sub}</div>}

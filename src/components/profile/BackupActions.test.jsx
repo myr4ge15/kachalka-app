@@ -29,6 +29,15 @@ describe('BackupActions', () => {
     expect(exportAllMyData).toHaveBeenCalledWith('me', expect.any(String))
   })
 
+  it('закрыли лист «Поделиться», ничего не сохранив — без тоста (fb_6fbbaeac)', async () => {
+    vi.mocked(exportAllMyData).mockResolvedValue(null)
+    render(<BackupActions userId="me" />)
+    const btn = screen.getByRole('button', { name: /Скачать все мои данные/ })
+    fireEvent.click(btn)
+    await waitFor(() => expect(btn).toBeEnabled())
+    expect(showToast).not.toHaveBeenCalled()
+  })
+
   it('выгрузка упала — «Не удалось выгрузить», кнопка снова доступна', async () => {
     vi.mocked(exportAllMyData).mockRejectedValue(new Error('quota'))
     render(<BackupActions userId="me" />)

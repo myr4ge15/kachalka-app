@@ -62,7 +62,7 @@ describe('RecoverySection', () => {
     vi.mocked(auth.getBotInfo).mockResolvedValue({ username: 'kachalka_notifier_bot', dedicated: false })
     render(<RecoverySection userId="u1" />)
     openIt()
-    expect(await screen.findByTestId('tg-state')).toHaveTextContent('✅ Привязан')
+    expect(await screen.findByTestId('tg-state')).toHaveTextContent('Привязан')
   })
 
   it('отвязка — с подтверждением', async () => {

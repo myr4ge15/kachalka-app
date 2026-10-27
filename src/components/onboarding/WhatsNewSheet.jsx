@@ -14,7 +14,7 @@ export default function WhatsNewSheet({ release, onDone, onOpenAll }) {
   if (!release) return null
   const minor = release.minor ?? []
   return (
-    <SheetDialog title="Что нового" actionLabel="закрыть" onDismiss={onDone} className="sheet--compact">
+    <SheetDialog title="Что нового" actionLabel="закрыть" onDismiss={onDone} swipeDown className="sheet--compact">
       <p className="wn-kicker">
         <span className="wn-ver version-number">v{release.version}</span>
         {fmtWhatsNewDate(release.date)}

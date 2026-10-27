@@ -109,9 +109,9 @@ export function backupFilename(now = new Date()) {
   return `backup-${ymd(now) || 'export'}.json`
 }
 
-// Браузерная выгрузка снимка (переиспользует downloadJson из exportWorkout.js).
+// Браузерная выгрузка снимка (переиспользует downloadJson из exportWorkout.js; промис — его итог).
 export function downloadBackup(data, appVersion = 'dev', now = new Date()) {
-  downloadJson(buildBackup(data, appVersion, now), backupFilename(now))
+  return downloadJson(buildBackup(data, appVersion, now), backupFilename(now))
 }
 
 // ------------------------------- разбор ------------------------------------

@@ -45,6 +45,10 @@ const PATHS = {
   camera: <><path d="M4 8.5A2.5 2.5 0 0 1 6.5 6h1.8l1.5-2h4.4l1.5 2h1.8A2.5 2.5 0 0 1 20 8.5v8a2.5 2.5 0 0 1-2.5 2.5h-11A2.5 2.5 0 0 1 4 16.5z" /><circle cx="12" cy="12.5" r="3.5" /></>,
   globe: <><circle cx="12" cy="12" r="9" /><path d="M3 12h18M12 3c2.5 2.6 3.8 5.6 3.8 9s-1.3 6.4-3.8 9c-2.5-2.6-3.8-5.6-3.8-9S9.5 5.6 12 3z" /></>,
   target: <><circle cx="12" cy="12" r="9" /><circle cx="12" cy="12" r="5" /><circle cx="12" cy="12" r="1" /></>,
+  check: <path d="M5 12.5l4.5 4.5L19 7.5" />,
+  alert: <><path d="M12 3.5L2.5 20h19z" /><path d="M12 10v4.5M12 17.5v.01" /></>,
+  offline: <><path d="M2.5 8.5a14 14 0 0 1 4.6-2.9M10.5 4.6A14 14 0 0 1 21.5 8.5M5.5 12a9.5 9.5 0 0 1 3.4-2M15 10.2a9.5 9.5 0 0 1 3.5 1.8M9 15.5a4.5 4.5 0 0 1 6 0M12 19v.01" /><path d="M3 3l18 18" /></>,
+  pencil: <path d="M4 20l1-4.5L16 4.5a2.1 2.1 0 0 1 3 3L8 18.5zM14 7l3 3" />,
 }
 
 export const ICON_NAMES = Object.keys(PATHS)

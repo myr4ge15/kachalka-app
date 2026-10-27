@@ -21,10 +21,10 @@ export default function DeadLetterAlert({ userId }) {
     setDlBusy(true)
     try {
       const n = await retryDeadLetter()
-      showToast({ emoji: '🔄', title: 'Повторная отправка', sub: `Операций в очереди: ${n}` })
+      showToast({ icon: 'refresh', title: 'Повторная отправка', sub: `Операций в очереди: ${n}` })
       if (navigator.onLine) syncNow(userId)
     } catch (e) {
-      showToast({ emoji: '⚠️', title: 'Не удалось', sub: String(e?.message ?? e) })
+      showToast({ icon: 'alert', title: 'Не удалось', sub: String(e?.message ?? e) })
     } finally {
       if (aliveRef.current) setDlBusy(false)
     }
@@ -34,10 +34,10 @@ export default function DeadLetterAlert({ userId }) {
     try {
       const n = await discardDeadLetter()
       if (aliveRef.current) setDlArm(false)
-      showToast({ emoji: '🧹', title: 'Изменения отклонены', sub: `Удалено операций: ${n}` })
+      showToast({ icon: 'trash', title: 'Изменения отклонены', sub: `Удалено операций: ${n}` })
       if (navigator.onLine) syncNow(userId)
     } catch (e) {
-      showToast({ emoji: '⚠️', title: 'Не удалось', sub: String(e?.message ?? e) })
+      showToast({ icon: 'alert', title: 'Не удалось', sub: String(e?.message ?? e) })
     } finally {
       if (aliveRef.current) setDlBusy(false)
     }
@@ -46,8 +46,8 @@ export default function DeadLetterAlert({ userId }) {
   if (!(deadCount > 0)) return null
   return (
     <div className="danger-confirm">
-      <p className="danger-text">
-        ⚠️ Не удалось отправить изменений: {deadCount}. Обычно помогает повторить
+      <p className="danger-text status-line status-line--warn">
+        <Icon name="alert" size={16} className="status-line-icon" />Не удалось отправить изменений: {deadCount}. Обычно помогает повторить
         (например, после восстановления связи).
       </p>
       {dlArm ? (

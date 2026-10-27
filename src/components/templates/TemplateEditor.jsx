@@ -146,7 +146,7 @@ export default function TemplateEditor({ user, templateId, onBack, backGuardRef 
     setItems(items.filter((_, i) => i !== idx))
     if (!removed) return
     showToast({
-      emoji: '🗑', kind: 'undo', title: 'Упражнение убрано', sub: removed.exercise?.name,
+      icon: 'trash', kind: 'undo', title: 'Упражнение убрано', sub: removed.exercise?.name,
       actionLabel: 'Отменить', duration: 4000,
       onAction: () => setItems((prev) => (prev.some((it) => it.exercise.id === removed.exercise.id)
         ? prev

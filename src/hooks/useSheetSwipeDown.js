@@ -8,7 +8,7 @@
 import { useEffect, useRef } from 'react'
 import { flushSync } from 'react-dom'
 import { swipeBackBlocked, textSelectionActive } from '../lib/screenNav.js'
-import { swipeDownAxis, swipeDownCommits } from '../lib/sheetTouch.js'
+import { scrollableAncestor, swipeDownAxis, swipeDownCommits } from '../lib/sheetTouch.js'
 
 const SETTLE_MS = 200
 
@@ -39,15 +39,20 @@ export function useSheetSwipeDown(overlayRef, sheetRef, onDismiss, enabled) {
       settling = false
     }
     const finish = () => { flushSync(() => dismissRef.current?.()); clear() }
-    const atTop = () => {
+    // У пикеров прокручивается свой список (.picker-list), а не .sheet-scroll (fb_d32a9a9c, 27.10.2026):
+    // смотрим и общий скролл листа, и ближайший прокручиваемый блок под пальцем — пролистанный
+    // вниз список жест «вниз» листает, а не закрывает лист.
+    const atTop = (target) => {
       const sc = sheetRef.current?.querySelector('.sheet-scroll')
-      return !sc || sc.scrollTop <= 0
+      if (sc && sc.scrollTop > 0) return false
+      const box = scrollableAncestor(target, sheetRef.current)
+      return !box || box.scrollTop <= 0
     }
 
     function onStart(e) {
       if (g || settling || e.touches.length !== 1) return
       if (!sheetRef.current?.contains(e.target)) return
-      if (!atTop() || swipeBackBlocked(e.target, overlay)) return
+      if (!atTop(e.target) || swipeBackBlocked(e.target, overlay)) return
       const t = e.touches[0]
       g = { x0: t.clientX, y0: t.clientY, axis: null, dy: 0, lastY: t.clientY, lastT: e.timeStamp, v: 0 }
     }

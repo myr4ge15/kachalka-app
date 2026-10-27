@@ -73,7 +73,7 @@ describe('InvitesSection (админка)', () => {
     api.create.mockRejectedValue(new Error('Нет прав'))
     renderSec()
     fireEvent.click(screen.getByRole('button', { name: 'Создать ссылку' }))
-    await waitFor(() => expect(showToast).toHaveBeenCalledWith({ emoji: '⚠️', title: 'Не удалось', sub: 'Нет прав' }))
+    await waitFor(() => expect(showToast).toHaveBeenCalledWith({ icon: 'alert', title: 'Не удалось', sub: 'Нет прав' }))
     expect(screen.getByRole('button', { name: 'Создать ссылку' })).toBeEnabled()
   })
 
@@ -90,7 +90,7 @@ describe('InvitesSection (админка)', () => {
     expect(api.revoke).not.toHaveBeenCalled() // со второго тапа (UI-ревью 23.10)
     fireEvent.click(screen.getByRole('button', { name: 'Точно отозвать ссылку «Саша»' }))
     await waitFor(() => expect(api.revoke).toHaveBeenCalledWith('a'))
-    await waitFor(() => expect(showToast).toHaveBeenCalledWith({ emoji: '⛔', title: 'Ссылка отозвана' }))
+    await waitFor(() => expect(showToast).toHaveBeenCalledWith({ icon: 'block', title: 'Ссылка отозвана' }))
     expect(api.list).toHaveBeenCalledTimes(2)
   })
 

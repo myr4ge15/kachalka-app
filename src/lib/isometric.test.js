@@ -16,7 +16,7 @@ describe('изометрия: вес снаряда у «На время»', () 
 
   it('подпись подхода: «10 кг · 1:30», без веса — «1:30»', () => {
     expect(fmtSet('time', { weight: 10, reps: 90 })).toBe('10 кг · 1:30')
-    expect(fmtSet('time', { weight: 2.5, reps: 45 })).toBe('2,5 кг · 0:45')
+    expect(fmtSet('time', { weight: 2.5, reps: 45 })).toBe('2.5 кг · 0:45')
     expect(fmtSet('time', { weight: 0, reps: 60 })).toBe('1:00')
   })
 

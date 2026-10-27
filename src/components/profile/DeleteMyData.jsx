@@ -18,13 +18,13 @@ export default function DeleteMyData({ userId }) {
       const n = await softDeleteMyWorkouts(userId)
       if (aliveRef.current) setDelArm(false)
       showToast({
-        emoji: '🗑',
+        icon: 'trash',
         title: 'Данные удалены',
         sub: n ? `Помечено тренировок: ${n}` : 'Удалять было нечего.',
       })
       if (navigator.onLine) syncNow(userId) // отправить удаления на сервер
     } catch (e) {
-      showToast({ emoji: '⚠️', title: 'Не удалось удалить', sub: String(e?.message ?? e) })
+      showToast({ icon: 'alert', title: 'Не удалось удалить', sub: String(e?.message ?? e) })
     } finally {
       if (aliveRef.current) setDelBusy(false)
     }

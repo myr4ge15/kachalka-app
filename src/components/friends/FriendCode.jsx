@@ -33,7 +33,7 @@ export default function FriendCode({ api, myName }) {
   async function copy() {
     try {
       await navigator.clipboard.writeText(text)
-      showToast({ emoji: '📋', title: 'Скопировано', sub: 'Отправь другу — код и ссылка внутри.' })
+      showToast({ icon: 'copy', title: 'Скопировано', sub: 'Отправь другу — код и ссылка внутри.' })
     } catch {
       setErr('Не удалось скопировать — перепиши код вручную.')
     }
@@ -42,7 +42,7 @@ export default function FriendCode({ api, myName }) {
   async function copyCode() {
     try {
       await navigator.clipboard.writeText(fmtCode(code.code))
-      showToast({ emoji: '📋', title: 'Код скопирован' })
+      showToast({ icon: 'copy', title: 'Код скопирован' })
     } catch { /* выделение все равно работает */ }
   }
   async function share() {

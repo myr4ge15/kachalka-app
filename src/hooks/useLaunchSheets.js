@@ -71,7 +71,7 @@ export function useLaunchSheets(user, historyBusy) {
       storageSet('localStorage', snoozeKey(user.id), String(Date.now() + SNOOZE_MS))
     }
     setTgAsk(null)
-    if (result === 'linked') showToast({ emoji: '✅', title: 'Telegram привязан' })
+    if (result === 'linked') showToast({ icon: 'check', title: 'Telegram привязан' })
   }
 
   // Разовый вопрос «Включить уведомления?» (v6.6.1): после входа/обновления, когда
@@ -93,7 +93,7 @@ export function useLaunchSheets(user, historyBusy) {
   function closePushAsk(enabled) {
     if (user?.id) markPushAsked(user.id)
     setPushAsk(false)
-    if (enabled) showToast({ emoji: '🔔', title: 'Уведомления включены' })
+    if (enabled) showToast({ icon: 'bell', title: 'Уведомления включены' })
   }
 
   return { welcome, closeWelcome, whatsNew, closeWhatsNew, tgAsk, closeTgAsk, pushAsk, closePushAsk }

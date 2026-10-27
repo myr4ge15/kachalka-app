@@ -459,6 +459,8 @@ select.prog-select, select.admin-input {
   border: 1px solid var(--stroke); box-shadow: none;
 }
 .tab-add--sunk .tab-add-circle .fab-ico { width: 22px; height: 22px; }
+/* Открыта новая тренировка (fb_9b86c8f0): «+» — текущий раздел, акцентом; точки меню нет. */
+.tab-add--sunk.tab-add--active .tab-add-circle { color: var(--acc); border-color: color-mix(in srgb, var(--acc) 40%, var(--stroke)); }
 /* Вложенный экран со своей главной кнопкой (аудит 16.10): круг на месте и работает, но без
    акцентной заливки и свечения — не спорит с кнопкой экрана. */
 .tab-add--calm .tab-add-circle {
@@ -758,6 +760,10 @@ select.prog-select, select.admin-input {
 /* .btn.ghost (ниже по файлу, та же специфичность) дает margin-top: 6px — в ряду «Отмена» садилась ниже соседки
    (лист «Удалить комментарий?», fb_e87fb37b). Ряд сильнее. */
 .btn-row > .btn.ghost { margin: 0; }
+/* То же для псевдонимов ряда (fb_6f176982, 27.10.2026): в формах логина и PIN «Отмена» с margin-top
+   делала строку грида на 6px выше, «Сохранить» растягивалась по ней до 54px и выпирала вверх. */
+.danger-actions > .btn.ghost, .pin-form-actions > .btn.ghost, .goal-editor-actions > .btn.ghost,
+.name-editor-actions > .btn.ghost, .admin-ex-actions > .btn.ghost { margin: 0; }
 .btn.full { width: 100%; }
 /* Ссылка в виде кнопки (v7.5.0, TgLinkSheet): без подчеркивания и по центру, как <button>. */
 a.btn { display: flex; text-decoration: none; }
@@ -2449,6 +2455,11 @@ button.cm-name { cursor: pointer; padding: 12px 0; margin: -12px 0 -11px; }
 .toast.show { transform: translateX(-50%) translateY(0); }
 @media (prefers-reduced-motion: reduce) { .toast { transition: none; } }
 .toast-emoji { font-size: 24px; flex-shrink: 0; }
+.toast-icon {
+  flex-shrink: 0; width: 36px; height: 36px; border-radius: 50%;
+  display: grid; place-items: center; background: var(--acc-soft); color: var(--acc-2);
+}
+.toast-icon--warn { background: color-mix(in srgb, var(--yellow) 16%, transparent); color: var(--yellow); }
 .toast-title { font-weight: 600; font-size: 15px; }
 .toast-sub { font-size: var(--fs-meta); color: var(--muted); margin-top: 1px; }
 .toast-body { flex: 1; min-width: 0; }
@@ -2724,6 +2735,10 @@ label.act.busy { opacity: .55; pointer-events: none; }
   color: var(--text); font-size: 18px; letter-spacing: .3em; min-height: 48px;
 }
 .pin-input:focus { outline: none; border-color: var(--acc); }
+/* Разрядка — для цифр и точек PIN/кода, не для подсказки: «4 ц и ф р ы» и «е щ е  р а з» читались
+   вразбивку (fb_2857a50d, 27.10.2026). Так же у всех полей кодов с разрядкой. */
+.pin-input::placeholder, .mfa-code::placeholder, .recovery-code-input::placeholder,
+.fc-code-input::placeholder { letter-spacing: normal; text-transform: none; }
 .pin-err { margin: 0; color: var(--red); font-size: var(--fs-meta); font-weight: 600; }
 .pin-form-actions { margin-top: 2px; }
 
@@ -2737,6 +2752,13 @@ label.act.busy { opacity: .55; pointer-events: none; }
 .recovery-code-input { font-family: ui-monospace, SFMono-Regular, Menlo, monospace; letter-spacing: .04em; }
 .recovery-row-title { margin: 6px 0 0; font-size: var(--fs-small); color: var(--muted); text-transform: uppercase; letter-spacing: .04em; }
 .recovery-state { margin: 0; font-size: 14px; color: var(--text); }
+/* Строка статуса с иконкой (27.10.2026, fb_e423d635/fb_6ca4b0c4): вместо эмодзи ✅/⚠️/⛔ — CheckIcon/Icon
+   цвета смысла; иконка — первой «буквой» строки, перенос текста не ломает. */
+.status-line-icon { display: inline-block; vertical-align: -0.18em; margin-right: 6px; flex-shrink: 0; }
+.status-line--ok .status-line-icon, .status-line--used .status-line-icon { color: var(--green); }
+.status-line--warn .status-line-icon { color: var(--yellow); }
+.status-line--revoked .status-line-icon { color: var(--red); }
+.status-line--expired .status-line-icon, .status-line--wait .status-line-icon { color: var(--muted); }
 .recovery-box .btn, .recovery-box a.btn { margin-top: 0; text-align: center; text-decoration: none; }
 .recovery-box .link-btn { align-self: flex-start; }
 
@@ -2799,9 +2821,6 @@ label.act.busy { opacity: .55; pointer-events: none; }
 .app-version {
   margin: 18px 0 4px; text-align: center;
   color: var(--muted); font-size: var(--fs-small); opacity: .7;
-}
-.repo-link {
-  color: inherit; text-decoration: underline; text-underline-offset: 2px;
 }
 
 /* ---------- адаптив узких экранов (≤380px) ---------- */

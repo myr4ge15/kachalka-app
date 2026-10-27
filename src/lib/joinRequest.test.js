@@ -1,7 +1,7 @@
 import { describe, expect, it, vi } from 'vitest'
 import {
   JOIN_KEY, JoinError, SOURCE_KEY, captureSource, clearPending, loadSource, normSource, joinErrorText, joinPollDelay, loadPending, pollJoin, randomSecret, savePending,
-  submitJoin, validateJoin,
+  submitJoin, validateJoin, normTgNick,
 } from './joinRequest.js'
 
 function memStorage() {
@@ -16,6 +16,28 @@ describe('joinRequest', () => {
     expect(validateJoin({ name: 'x'.repeat(41) })).toMatch(/до 40/)
     expect(validateJoin({ name: 'Вася', about: 'x'.repeat(301) })).toMatch(/до 300/)
     expect(validateJoin({ name: 'Вася', about: 'друг Димы' })).toBeNull()
+  })
+
+  it('ник в Telegram: @, t.me и ссылка — к одному виду; пусто — нет ника; кривой — ошибка (fb_6af9ae21)', () => {
+    expect(normTgNick('@Ivan_Petrov')).toBe('Ivan_Petrov')
+    expect(normTgNick(' https://t.me/ivan_petrov/ ')).toBe('ivan_petrov')
+    expect(normTgNick('t.me/ivan_petrov')).toBe('ivan_petrov')
+    expect(normTgNick('')).toBe('')
+    expect(normTgNick('  ')).toBe('')
+    expect(normTgNick('@abc')).toBeNull() // короче 5
+    expect(normTgNick('1ivan')).toBeNull() // с цифры
+    expect(normTgNick('иван_петров')).toBeNull()
+    expect(validateJoin({ name: 'Вася', tg: '@abc' })).toMatch(/Ник в Telegram/)
+    expect(validateJoin({ name: 'Вася', tg: '@ivan_petrov' })).toBeNull()
+    expect(validateJoin({ name: 'Вася' })).toBeNull() // поле необязательное
+  })
+
+  it('заявка уходит с ником без «@»; без ника — поля tg нет', async () => {
+    const fetchImpl = reply(200, { id: 'r1' })
+    await submitJoin({ name: 'Вася', tg: 'https://t.me/ivan_petrov' }, { fetchImpl, storage: memStorage() })
+    expect(JSON.parse(fetchImpl.mock.calls[0][1].body).tg).toBe('ivan_petrov')
+    await submitJoin({ name: 'Вася', tg: '' }, { fetchImpl, storage: memStorage() })
+    expect(JSON.parse(fetchImpl.mock.calls[1][1].body)).not.toHaveProperty('tg')
   })
 
   it('randomSecret — 43 символа base64url и каждый раз новый', () => {

@@ -62,7 +62,7 @@ export default function WorkoutCalendar({ workouts, filter = null, initialDate =
   const pickedDate = picked ? new Date(`${picked}T12:00:00`) : null
 
   return (
-    <SheetDialog title="Календарь" onDismiss={onDismiss}>
+    <SheetDialog title="Календарь" onDismiss={onDismiss} swipeDown>
       <div className="sheet-scroll cal">
         <div className="cal-nav">
           <button type="button" className="back-btn" onClick={() => go(-1)} aria-label="Предыдущий месяц">

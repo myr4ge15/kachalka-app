@@ -26,11 +26,21 @@ describe('JoinRequestForm', () => {
     const onSubmitted = vi.fn()
     const { container } = render(<JoinRequestForm onSubmitted={onSubmitted} />)
     fill('Как тебя зовут', 'Петя')
+    fill(/Ник в Telegram/, '@petya_k')
     fill('Пара слов о себе', 'друг Димы')
     fireEvent.change(container.querySelector('.hp input'), { target: { value: 'spam.example' } })
     send()
     await waitFor(() => expect(onSubmitted).toHaveBeenCalledWith({ id: 'j1' }))
-    expect(submitJoin).toHaveBeenCalledWith({ name: 'Петя', about: 'друг Димы', website: 'spam.example' })
+    expect(submitJoin).toHaveBeenCalledWith({ name: 'Петя', about: 'друг Димы', tg: '@petya_k', website: 'spam.example' })
+  })
+
+  it('кривой ник в Telegram — подсказка до сети (fb_6af9ae21)', () => {
+    render(<JoinRequestForm />)
+    fill('Как тебя зовут', 'Петя')
+    fill(/Ник в Telegram/, 'пётр')
+    send()
+    expect(screen.getByRole('alert')).toHaveTextContent('Ник в Telegram')
+    expect(submitJoin).not.toHaveBeenCalled()
   })
 
   it('ошибки сервера — понятный текст, форму можно отправить снова', async () => {

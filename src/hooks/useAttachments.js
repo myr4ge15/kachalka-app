@@ -18,6 +18,10 @@ import { videoPoster as defaultPoster } from '../lib/videoPoster.js'
 // api — { upload(userId, file, { onBytes }) → path, discard(paths) }; может пересоздаваться на каждом
 // рендере — держим в ref. poster(file) → dataURL|null — кадр видео для миниатюры. wait(ms) — пауза
 // перед автоповтором (тест подставляет мгновенную).
+// stash — ключ черновика (fb_4d192432, 27.10.2026): ушли с экрана — уже загруженные вложения не
+// удаляются, а ждут в памяти страницы и возвращаются в форму при следующем открытии (не дольше
+// STASH_TTL_MS: сервер подчищает непривязанные файлы старше суток). Идущие загрузки — как раньше.
+// Без stash ушли с экрана = «Отмена».
 // Элемент: { key, file, video, status: 'uploading'|'done'|'error', loaded, total, path, poster, error }.
 export const AUTO_RETRIES = 2
 export const RETRY_PAUSE_MS = 2000
@@ -36,8 +40,23 @@ function untilVisible() {
   })
 }
 
-export function useAttachments(userId, api, { poster = defaultPoster, wait = sleep } = {}) {
-  const [items, setItems] = useState([])
+export const STASH_TTL_MS = 6 * 3600 * 1000
+const stashes = new Map() // stash → { items, at }: только загруженные, в памяти страницы
+
+// Забрать отложенные вложения (просроченные — удалить на сервере).
+function takeStash(stash, discardFn) {
+  const s = stash ? stashes.get(stash) : null
+  if (!s) return []
+  stashes.delete(stash)
+  if (Date.now() - s.at > STASH_TTL_MS) { discardFn(s.items.map((x) => x.path)); return [] }
+  return s.items
+}
+
+// Только для тестов: забыть отложенные вложения.
+export function resetAttachmentStash() { stashes.clear() }
+
+export function useAttachments(userId, api, { poster = defaultPoster, wait = sleep, stash = null } = {}) {
+  const [items, setItems] = useState(() => takeStash(stash, (paths) => { if (paths.length) api?.discard(paths) }))
   const itemsRef = useRef(items)
   itemsRef.current = items
   const apiRef = useRef(api)
@@ -45,11 +64,12 @@ export function useAttachments(userId, api, { poster = defaultPoster, wait = sle
   const alive = useRef(true)
   const dropped = useRef(new Set()) // убранные, пока шла загрузка: путь — сразу в discard
   const pending = useRef(new Map()) // key → промис загрузки (для readyPaths)
-  const seq = useRef(0)
+  const seq = useRef(items.length ? Math.max(...items.map((x) => Number(String(x.key).slice(1)) || 0)) : 0)
   const queue = useRef(Promise.resolve()) // загрузки — по одной
   // Статус и путь каждого элемента — еще и здесь, синхронно: readyPaths не ждет, пока React
   // применит последние setItems. Порядок вставки = порядок миниатюр.
-  const live = useRef(new Map())
+  const live = useRef(null)
+  if (live.current === null) live.current = new Map(items.map((x) => [x.key, { status: x.status, path: x.path }]))
   const hides = useRef(0) // сколько раз приложение уходило в фон — обрыв «из-за сворачивания»
 
   useEffect(() => {
@@ -150,15 +170,25 @@ export function useAttachments(userId, api, { poster = defaultPoster, wait = sle
     setItems([])
   }, [discard])
 
-  // Ушли с экрана — то же, что «Отмена»: идущие загрузки удалят себя сами (alive = false).
+  // Ушли с экрана — то же, что «Отмена»: идущие загрузки удалят себя сами (alive = false). Со stash
+  // загруженные откладываются для следующего открытия формы, удаляется только остальное.
   useEffect(() => {
     alive.current = true
+    if (stash) stashes.delete(stash) // StrictMode: повторный эффект — вложения уже в форме
     const map = live.current // тот же Map на всю жизнь хука
     return () => {
       alive.current = false
+      if (stash) {
+        const done = itemsRef.current.filter((x) => map.get(x.key)?.status === 'done' && map.get(x.key)?.path)
+          .map((x) => ({ ...x, status: 'done', path: map.get(x.key).path }))
+        if (done.length) stashes.set(stash, { items: done, at: Date.now() })
+        const kept = new Set(done.map((x) => x.path))
+        discard(pathsOf(map).filter((p) => !kept.has(p)))
+        return
+      }
       discard(pathsOf(map))
     }
-  }, [discard])
+  }, [discard, stash])
 
   const uploading = items.filter((x) => x.status === 'uploading').length
   const failed = items.filter((x) => x.status === 'error').length

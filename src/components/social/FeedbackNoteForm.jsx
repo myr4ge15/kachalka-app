@@ -58,7 +58,7 @@ export default function FeedbackNoteForm({
       setWaiting(false)
       if (my !== attempt.current) return
       // Текст уже ушел, файлы — нет: выбор файлов остается, повторно уйдут только они.
-      showToast({ emoji: '⚠️', title: textSent ? 'Текст отправлен, файлы — нет' : 'Не отправилось',
+      showToast({ icon: 'alert', title: textSent ? 'Текст отправлен, файлы — нет' : 'Не отправилось',
         sub: e instanceof FeedbackError ? e.message : e?.message || 'Попробуй еще раз.' })
       if (textSent) onDone?.()
     } finally {

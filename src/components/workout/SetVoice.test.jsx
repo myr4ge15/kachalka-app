@@ -59,7 +59,7 @@ describe('подход голосом в карточке', () => {
     say('шестьдесят два с половиной на восемь')
     expect(onVoiceSet).not.toHaveBeenCalled()
     expect(screen.getByRole('button', { name: 'В подход 2' })).toHaveAttribute('aria-pressed', 'true')
-    expect(screen.getByRole('status')).toHaveTextContent('Подход 2: 60×10 → 62,5×8')
+    expect(screen.getByRole('status')).toHaveTextContent('Подход 2: 60×10 → 62.5×8')
     fireEvent.click(screen.getByRole('button', { name: 'Записать' }))
     expect(onVoiceSet).toHaveBeenCalledExactlyOnceWith(3, 1, { weight: 62.5, reps: 8 })
     expect(screen.queryByText('Распознано')).not.toBeInTheDocument()

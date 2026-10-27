@@ -81,8 +81,8 @@ describe('тексты', () => {
   })
   it('строка списка в админке', () => {
     const now = new Date('2026-10-02T12:00:00Z')
-    expect(inviteListLabel({ status: 'ok', expires_at: '2026-10-09T12:00:00Z' }, now)).toBe('⏳ ждет · еще 7 дн.')
-    expect(inviteListLabel({ status: 'used', used_by_name: 'Маша', used_at: '2026-10-03T10:00:00' })).toBe('✅ Маша · 03.10')
+    expect(inviteListLabel({ status: 'ok', expires_at: '2026-10-09T12:00:00Z' }, now)).toBe('ждет · еще 7 дн.')
+    expect(inviteListLabel({ status: 'used', used_by_name: 'Маша', used_at: '2026-10-03T10:00:00' })).toBe('Маша · 03.10')
     expect(inviteListLabel({ status: 'used', used_by_name: null, used_at: '2026-10-03T10:00:00' })).toMatch(/удален/)
     expect(inviteListLabel({ status: 'revoked' })).toMatch(/отозвана/)
   })

@@ -76,5 +76,5 @@ export function templatesExportFilename(templates, now = new Date()) {
 export function exportTemplates(templates, appVersion = 'dev', now = new Date()) {
   const list = Array.isArray(templates) ? templates : [templates]
   if (list.length === 0) return
-  downloadJson(buildTemplatesExport(list, appVersion, now), templatesExportFilename(list, now))
+  return downloadJson(buildTemplatesExport(list, appVersion, now), templatesExportFilename(list, now))
 }

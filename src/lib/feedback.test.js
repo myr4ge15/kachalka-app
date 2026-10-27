@@ -196,11 +196,11 @@ describe('видео к обращению (fb_1c5fab9c)', () => {
     expect(attachmentProblemText(f('a.mp4', 'video/mp4', 50 * 1024 * 1024))).toBe('')
     // fb_59c95046: кадр видео на iPhone и подпись размера в форме.
     expect([videoPosterSrc('blob:x'), videoPosterSrc('')]).toEqual(['blob:x#t=0.1', ''])
-    expect([fmtFileSize(2317943), fmtFileSize(1000), fmtFileSize(0)]).toEqual(['2,3 МБ', '0,1 МБ', ''])
+    expect([fmtFileSize(2317943), fmtFileSize(1000), fmtFileSize(0)]).toEqual(['2.3 МБ', '0.1 МБ', ''])
     expect(feedbackErrorText('bad_request')).toMatch(/вложение/)
     expect(attachmentProblem(f('a.mp4', 'video/mp4', 50 * 1024 * 1024 + 1))).toBe('video_too_big')
     // В отказе — настоящий размер файла от телефона, а не только порог.
-    expect(attachmentProblemText(f('a.mov', 'video/quicktime', 61.3 * 1024 * 1024))).toMatch(/^Видео 64,3 МБ — больше 50 МБ\./) // десятичные МБ, как в «Фото»
+    expect(attachmentProblemText(f('a.mov', 'video/quicktime', 61.3 * 1024 * 1024))).toMatch(/^Видео 64.3 МБ — больше 50 МБ\./) // десятичные МБ, как в «Фото»
     expect(attachmentProblemText(f('a.webm', 'video/webm'))).toBe(feedbackErrorText('video_format'))
     expect(attachmentProblem(f('a.webm', 'video/webm'))).toBe('video_format')
     expect(attachmentProblem(f('a.pdf', 'application/pdf'))).toBe('shot_format')

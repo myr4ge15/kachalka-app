@@ -127,18 +127,24 @@ export function splitInvites(list) {
   return { active, past, used: past.filter((i) => i.status === 'used').length }
 }
 
+// Иконка статуса ссылки (ui/Icon.jsx) — рядом с текстом inviteListLabel. Эмодзи ✅/⛔/⌛ в строке
+// сидели цветными картинками и выбивались из оформления (fb_e423d635, 27.10.2026).
+export function inviteStatusIcon(status) {
+  return { used: 'check', revoked: 'block', expired: 'timer', ok: 'timer' }[status] ?? null
+}
+
 export function inviteListLabel(inv, now = new Date()) {
   const d = (iso) => {
     const x = new Date(iso)
     return `${String(x.getDate()).padStart(2, '0')}.${String(x.getMonth() + 1).padStart(2, '0')}`
   }
   switch (inv?.status) {
-    case 'used': return `✅ ${inv.used_by_name ?? 'участник удален'} · ${d(inv.used_at)}`
-    case 'revoked': return '⛔ отозвана'
-    case 'expired': return '⌛ истекла'
+    case 'used': return `${inv.used_by_name ?? 'участник удален'} · ${d(inv.used_at)}`
+    case 'revoked': return 'отозвана'
+    case 'expired': return 'истекла'
     case 'ok': {
       const days = Math.max(0, Math.ceil((new Date(inv.expires_at) - now) / 86400000))
-      return `⏳ ждет · еще ${days} дн.`
+      return `ждет · еще ${days} дн.`
     }
     default: return inv?.status ?? ''
   }

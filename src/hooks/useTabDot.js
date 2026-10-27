@@ -15,6 +15,7 @@ export function useTabDot(navRef, activeKey) {
     let alive = true
     const place = () => {
       if (!alive) return
+      // Открыта новая тренировка (fb_9b86c8f0): активной вкладки нет — точка гаснет, подсвечен сам «+».
       const tab = nav.querySelector('.tab.active')
       if (!tab) { nav.dataset.dot = 'off'; return }
       nav.style.setProperty('--dot-x', `${dotX(nav.getBoundingClientRect(), tab.getBoundingClientRect())}px`)

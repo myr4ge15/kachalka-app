@@ -12,8 +12,10 @@
 // (отзыв, v6.3.0). Если завершенных недель с начала еще нет (первая тренировка —
 // на этой неделе), итог — «на этой неделе».
 import { plural } from './plural.js'
+import { fmtNum } from './metric.js'
 
-const fmt1 = new Intl.NumberFormat('ru-RU', { maximumFractionDigits: 1 })
+// Десятичный разделитель — общий, из fmtNum (точка, fb_92319634).
+const fmt1 = { format: (v) => fmtNum(Math.round(v * 10) / 10) }
 const num = (w) => Number(w?.count) || 0
 
 export function rhythmChart(weeks) {
@@ -31,7 +33,7 @@ export function rhythmChart(weeks) {
   return { mode, avg, total, max, weeks: whole ? list.length : base.length, onlyCurrent }
 }
 
-// «2,4» — с запятой и не больше одного знака.
+// «2.4» — разделитель из fmtNum и не больше одного знака.
 export const fmtAvg = (avg) => fmt1.format(Number(avg) || 0)
 
 // Дробное число — всегда «тренировки» («2,4 тренировки»), целое — по обычным правилам.

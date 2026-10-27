@@ -9,10 +9,12 @@
 // Иконка — инлайн-SVG (как TabIcon/SyncIcon, без зависимостей), красится через
 // currentColor; круг, цвет и анимация утапливания — в CSS (.tab-add / .tab-add-circle).
 // calm (аудит 16.10) — вложенный экран со своей главной кнопкой: круг нейтральный, но рабочий.
-export default function AddFab({ onClick, sunk = false, calm = false }) {
+// active (fb_9b86c8f0) — открыта новая тренировка: «+» — текущий раздел (акцентом), точки меню нет.
+export default function AddFab({ onClick, sunk = false, calm = false, active = false }) {
   return (
     <button
-      className={'tab-add' + (sunk ? ' tab-add--sunk' : calm ? ' tab-add--calm' : '')}
+      className={'tab-add' + (sunk ? ' tab-add--sunk' : calm ? ' tab-add--calm' : '') + (active ? ' tab-add--active' : '')}
+      aria-current={active ? 'page' : undefined}
       onClick={onClick}
       disabled={sunk}
       aria-label="Записать тренировку"

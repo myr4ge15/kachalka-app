@@ -29,8 +29,9 @@ export async function exportAllMyData(userId, appVersion = 'dev') {
     getAccentPref(userId),
     getMeta(`priv_${userId}`),
   ])
-  downloadBackup({ userId, workouts, goals, badges, prog, rpe, fav, accent, priv }, appVersion)
-  return workouts.length
+  // null — закрыли лист «Поделиться», ничего не сохранив: тоста «Файл сохранен» не будет.
+  const how = await downloadBackup({ userId, workouts, goals, badges, prog, rpe, fav, accent, priv }, appVersion)
+  return how === 'cancelled' ? null : workouts.length
 }
 
 // Восстановить из файла в режиме «только добавить недостающее».

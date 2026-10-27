@@ -1,4 +1,6 @@
 import MenuRow from '../ui/MenuRow.jsx'
+import CheckIcon from '../ui/CheckIcon.jsx'
+import Icon from '../ui/Icon.jsx'
 import { useCallback, useEffect, useState } from 'react'
 import {
   getRecoveryStatus, createRecoveryCode, createTgLinkToken, unlinkTg, getBotUsername, getBotInfo, LoginError,
@@ -81,7 +83,7 @@ export default function RecoverySection({ userId }) {
       await unlinkTg(userId)
       if (!aliveRef.current) return
       setConfirmUnlink(false)
-      showToast({ emoji: '🔐', title: 'Telegram отвязан' })
+      showToast({ icon: 'link', title: 'Telegram отвязан' })
       await refresh()
     })
   }
@@ -120,7 +122,7 @@ export default function RecoverySection({ userId }) {
         <p className="muted" role="status">{err ? '' : 'Проверяю…'}</p>
       ) : status.tgLinked && !relink ? (
         <>
-          <p className="recovery-state" data-testid="tg-state">✅ Привязан{since(status.tgLinkedAt)} — бот пришлет ссылку для нового PIN.</p>
+          <p className="recovery-state status-line status-line--ok" data-testid="tg-state"><CheckIcon size={16} className="status-line-icon" />Привязан{since(status.tgLinkedAt)} — бот пришлет ссылку для нового PIN.</p>
           <button type="button" className={confirmUnlink ? 'link-btn danger' : 'link-btn'} disabled={!!busy} onClick={doUnlink}>
             {busy === 'unlink' ? 'Отвязываю…' : confirmUnlink ? 'Точно отвязать?' : 'Отвязать'}
           </button>
@@ -132,7 +134,7 @@ export default function RecoverySection({ userId }) {
         </>
       ) : relink ? (
         <>
-          <p className="recovery-state" data-testid="tg-state">⚠️ Привязан к старому боту. Ссылки для сброса теперь присылает новый — привяжи заново.</p>
+          <p className="recovery-state status-line status-line--warn" data-testid="tg-state"><Icon name="alert" size={16} className="status-line-icon" />Привязан к старому боту. Ссылки для сброса теперь присылает новый — привяжи заново.</p>
           <button type="button" className="btn ghost" disabled={!!busy} onClick={prepareLink}>
             {busy === 'link' ? 'Готовлю ссылку…' : 'Перепривязать Telegram'}
           </button>
@@ -148,8 +150,9 @@ export default function RecoverySection({ userId }) {
 
       <p className="recovery-row-title">Код восстановления</p>
       {status !== null && (
-        <p className="recovery-state" data-testid="code-state">
-          {status.hasCode ? `✅ Есть${since(status.codeCreatedAt)}. Сам код не хранится — только у тебя.` : 'Нет кода'}
+        <p className={`recovery-state${status.hasCode ? ' status-line status-line--ok' : ''}`} data-testid="code-state">
+          {status.hasCode && <CheckIcon size={16} className="status-line-icon" />}
+          {status.hasCode ? `Есть${since(status.codeCreatedAt)}. Сам код не хранится — только у тебя.` : 'Нет кода'}
         </p>
       )}
       {confirmCode && <p className="muted invite-note">Прежний код перестанет действовать.</p>}

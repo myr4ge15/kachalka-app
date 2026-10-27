@@ -47,8 +47,10 @@ export default function TemplatePicker({ user, onPick, onClose }) {
   const shared = list.filter((t) => t.user_id !== user.id) // чужие общие
 
   // Портал в <body>: оверлей на весь вьюпорт, не застревает под шапкой/таббаром.
+  // Закрывается свайпом вбок и вниз (fb_d32a9a9c, 27.10.2026): на телефоне лист во весь экран,
+  // и палец тянется закрыть его так же, как вложенный экран.
   return (
-    <SheetDialog title="Выбрать шаблон" onDismiss={onClose}>
+    <SheetDialog title="Выбрать шаблон" onDismiss={onClose} swipeBack swipeDown>
         <div className="picker-list" data-sheet-bounce="">
           {loading && <p className="muted">Загрузка…</p>}
 

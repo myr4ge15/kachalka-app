@@ -168,7 +168,7 @@ export default function CommentThread({ workoutId, ownerId, comments, me, open, 
         setText((cur) => cur || body)
         setReplying((cur) => cur ?? replyTo)
       }
-      showToast({ emoji: '⚠️', title: 'Комментарий не отправлен', sub: e?.message })
+      showToast({ icon: 'alert', title: 'Комментарий не отправлен', sub: e?.message })
     } finally {
       if (aliveRef.current) setPending((p) => p.filter((x) => x.id !== tmp.id))
     }
@@ -184,7 +184,7 @@ export default function CommentThread({ workoutId, ownerId, comments, me, open, 
       await updateComment({ userId: me.id, comment: c, ownerId, text: body })
     } catch (e) {
       if (aliveRef.current) { setEditing(c); setText((cur) => cur || body) }
-      showToast({ emoji: '⚠️', title: 'Не удалось изменить', sub: e?.message })
+      showToast({ icon: 'alert', title: 'Не удалось изменить', sub: e?.message })
     } finally {
       if (aliveRef.current) setEdits((m) => { const n = { ...m }; delete n[c.id]; return n })
     }
@@ -219,7 +219,7 @@ export default function CommentThread({ workoutId, ownerId, comments, me, open, 
     try {
       await setCommentReaction({ userId: me.id, comment: c, ownerId, kind })
     } catch (e) {
-      showToast({ emoji: '⚠️', title: 'Не получилось', sub: e?.message })
+      showToast({ icon: 'alert', title: 'Не получилось', sub: e?.message })
     } finally {
       if (aliveRef.current) setLikes((m) => { const n = { ...m }; delete n[c.id]; return n })
     }
@@ -236,7 +236,7 @@ export default function CommentThread({ workoutId, ownerId, comments, me, open, 
         if (replying?.id === c.id) setReplying(null)
       }
     } catch (e) {
-      showToast({ emoji: '⚠️', title: 'Не удалось удалить', sub: e?.message })
+      showToast({ icon: 'alert', title: 'Не удалось удалить', sub: e?.message })
     } finally {
       if (aliveRef.current) setDeleting(false)
     }
@@ -246,9 +246,9 @@ export default function CommentThread({ workoutId, ownerId, comments, me, open, 
     setMenu(null)
     try {
       await navigator.clipboard.writeText(c.body)
-      showToast({ emoji: '📋', title: 'Скопировано' })
+      showToast({ icon: 'copy', title: 'Скопировано' })
     } catch {
-      showToast({ emoji: '⚠️', title: 'Не получилось скопировать' })
+      showToast({ icon: 'alert', title: 'Не получилось скопировать' })
     }
   }
 

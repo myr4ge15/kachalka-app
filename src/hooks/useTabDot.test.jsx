@@ -50,6 +50,23 @@ describe('useTabDot', () => {
     expect(nav.dataset.dotReady).toBe('1')
   })
 
+  it('открыта новая тренировка — точка гаснет, «+» ее не забирает (fb_9b86c8f0)', () => {
+    function WithAdd({ active }) {
+      const ref = useRef(null)
+      useTabDot(ref, active)
+      return (
+        <nav ref={ref} data-testid="nav">
+          <button className={active === 'history' ? 'tab active' : 'tab'} data-left={0} />
+          <button className={active === 'new' ? 'tab-add tab-add--active' : 'tab-add'} data-left={100} />
+        </nav>
+      )
+    }
+    const { getByTestId, rerender } = render(<WithAdd active="history" />)
+    expect(getByTestId('nav').style.getPropertyValue('--dot-x')).toBe('48px')
+    rerender(<WithAdd active="new" />)
+    expect(getByTestId('nav').dataset.dot).toBe('off')
+  })
+
   it('переезжает при смене вкладки; на вложенном роуте (нет активной) гаснет', () => {
     const { getByTestId, rerender } = render(<Nav active="home" />)
     rerender(<Nav active="history" />)

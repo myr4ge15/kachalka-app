@@ -1,4 +1,5 @@
 import { useState } from 'react'
+import CheckIcon from '../ui/CheckIcon.jsx'
 import { verifyCode, startEnroll, disableMfa, cleanCode, groupSecret, MfaError } from '../../lib/adminMfa.js'
 
 // 2FA Админки (v6.14.0). Две части:
@@ -76,7 +77,7 @@ export function AdminMfaPanel({ state, online, onChange }) {
   if (state?.enabled) {
     return (
       <div className="admin-merge">
-        <p className="admin-merge-title">✅ 2FA включена</p>
+        <p className="admin-merge-title status-line status-line--ok"><CheckIcon size={18} className="status-line-icon" />2FA включена</p>
         <p className="admin-hint">Перед Админкой в каждой новой сессии (после входа по PIN) спросим код из приложения. Без кода сервер админ-операции не выполнит, даже если кто-то узнает твой PIN.</p>
         <p className="admin-hint">Потерял телефон с приложением — снять защиту можно только из SQL Editor (запрос — в supabase/admin-mfa.sql).</p>
         {err && <p className="pin-err" role="alert">{err}</p>}

@@ -31,8 +31,8 @@ describe('rhythmChart', () => {
 })
 
 describe('подписи ритма', () => {
-  it('среднее с запятой и правильным словом', () => {
-    expect(fmtAvg(2.4)).toBe('2,4')
+  it('среднее с точкой и правильным словом', () => {
+    expect(fmtAvg(2.4)).toBe('2.4')
     expect(fmtAvg(3)).toBe('3')
     expect(avgWord(2.4)).toBe('тренировки')
     expect(avgWord(1)).toBe('тренировка')

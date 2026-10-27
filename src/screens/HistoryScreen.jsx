@@ -61,6 +61,8 @@ function useMediaQuery(query) {
 //                        onOpenNewConsumed, чтобы не переоткрывать композер.
 //   onBusyChange(bool) — хаб ушел в под-вид (композер/деталь/редактор шаблона) или включил
 //                        режим выбора для экспорта: App утапливает «+» меню.
+//   onNewChange(bool)  — открыт композер НОВОЙ тренировки (27.10.2026, fb_9b86c8f0): точка меню
+//                        гаснет, «Тренировки» не подсвечены.
 //   onCalmChange(bool) — открыт список шаблонов (19.10.2026): «+» рабочая, но «спокойная»,
 //                        как на вложенных экранах. До этого шаблоны считались «занятым»
 //                        под-видом — наследие плавающей «+» v5, и кнопка была утоплена.
@@ -78,6 +80,7 @@ export default function HistoryScreen({
   onOpenCalendarConsumed,
   onReturn,
   onBusyChange,
+  onNewChange,
   onCalmChange,
   onOpenProgress,
   contentRef,
@@ -197,6 +200,10 @@ export default function HistoryScreen({
     onBusyChange?.((selected !== null && !tplList) || selectMode || (tplList && tplSelecting) || finishResult !== null)
     return () => onBusyChange?.(false)
   }, [selected, tplList, tplSelecting, selectMode, finishResult, onBusyChange])
+  useEffect(() => {
+    onNewChange?.(selected === 'new')
+    return () => onNewChange?.(false)
+  }, [selected, onNewChange])
   useEffect(() => {
     onCalmChange?.(tplList)
     return () => onCalmChange?.(false)

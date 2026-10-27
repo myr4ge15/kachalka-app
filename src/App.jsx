@@ -157,6 +157,9 @@ export default function App() {
   const [historyBusy, setHistoryBusy] = useState(false)
   // Список шаблонов (19.10.2026): «+» там рабочая, но спокойная, как на вложенных экранах.
   const [historyCalm, setHistoryCalm] = useState(false)
+  // Открыт композер новой тренировки (fb_9b86c8f0): «Тренировки» не подсвечены, точки меню нет, «+» — акцентом.
+  const [composingNew, setComposingNew] = useState(false)
+  const newActive = tab === 'history' && composingNew
 
   // «Добро пожаловать», «Что нового» и вопрос про уведомления — hooks/useLaunchSheets.js.
   const { welcome, closeWelcome, whatsNew, closeWhatsNew, tgAsk, closeTgAsk, pushAsk, closePushAsk } = useLaunchSheets(user, historyBusy)
@@ -235,7 +238,7 @@ export default function App() {
 
   // Нижнее меню: переезжающая точка активной вкладки (hooks/useTabDot.js).
   const navRef = useRef(null)
-  useTabDot(navRef, tab)
+  useTabDot(navRef, newActive ? 'new' : tab)
   // Акцент учетки с других устройств (v6.2.0): применить и запомнить для сплэша.
   useAccentSync(user?.id ?? null)
   // «Я в приложении» для точки «в сети» у друзей (v8.6.0, db/presence.js).
@@ -374,6 +377,7 @@ export default function App() {
                   onOpenCalendarConsumed={() => setCalendarIntent(false)}
                   onReturn={backToRhythm}
                   onBusyChange={setHistoryBusy}
+                  onNewChange={setComposingNew}
                   onCalmChange={setHistoryCalm}
                   onOpenProgress={openProgressFor}
                   contentRef={contentRef}
@@ -500,8 +504,8 @@ export default function App() {
           <span>Главная</span>
         </button>
         <button
-          className={tab === 'history' ? 'tab active' : 'tab'}
-          aria-current={tab === 'history' ? 'page' : undefined}
+          className={tab === 'history' && !newActive ? 'tab active' : 'tab'}
+          aria-current={tab === 'history' && !newActive ? 'page' : undefined}
           onClick={() => goTab('history')}
         >
           <TabIcon name="history" />
@@ -510,7 +514,7 @@ export default function App() {
         {/* «+» по центру меню (редизайн v6): запись тренировки в один тап. Есть
             ВСЕГДА (v6.0.4, в т.ч. на вложенных роутах); когда хаб занят (композер /
             экспорт) — утоплен и неактивен, см. lib/quickAdd.js fabState. */}
-        <AddFab onClick={startNewWorkout} sunk={fabState({ busy: historyBusy }) === 'sunk'}
+        <AddFab onClick={startNewWorkout} sunk={fabState({ busy: historyBusy }) === 'sunk'} active={newActive}
           calm={fabState({ busy: historyBusy, calm: isNested(tab) || historyCalm }) === 'calm'} />
         <button
           className={tab === 'feed' || tab === 'member' ? 'tab active' : 'tab'}

@@ -6,6 +6,8 @@ import userEvent from '@testing-library/user-event'
 import FeedbackScreen from './FeedbackScreen.jsx'
 import { showToast } from '../components/ui/Toast.jsx'
 import { FeedbackError } from '../lib/feedbackApi.js'
+import { resetAttachmentStash } from '../hooks/useAttachments.js'
+import { resetDraftMemory } from '../lib/draftStore.js'
 
 const sync = vi.hoisted(() => ({ online: true }))
 vi.mock('../db/sync.js', () => ({ useSyncStatus: () => sync }))
@@ -29,6 +31,10 @@ const expand = async (name = /Пропал подход/) => userEvent.click(awa
 const formReady = () => screen.findByLabelText('Что случилось?')
 
 function setup(over = {}, props = {}) {
+  return setupWith(over, props).api
+}
+
+function setupWith(over = {}, props = {}) {
   const api = {
     submit: vi.fn(async () => ({ id: 'new', delivered: true })),
     list: vi.fn(async () => []),
@@ -40,18 +46,37 @@ function setup(over = {}, props = {}) {
     discard: vi.fn(),
     ...over,
   }
-  render(<FeedbackScreen user={USER} onBack={() => {}} api={api} {...props} />)
-  return api
+  const view = render(<FeedbackScreen user={USER} onBack={() => {}} api={api} {...props} />)
+  return { api, ...view }
 }
 
 beforeEach(() => {
   vi.clearAllMocks()
+  resetAttachmentStash()
+  resetDraftMemory()
+  localStorage.clear()
   sync.online = true
   globalThis.URL.createObjectURL = vi.fn(() => 'blob:preview')
   globalThis.URL.revokeObjectURL = vi.fn()
 })
 
 describe('FeedbackScreen', () => {
+  it('черновик: ушли с экрана и вернулись — текст и загруженный скриншот на месте (fb_4d192432)', async () => {
+    const first = setupWith()
+    await formReady()
+    await userEvent.type(screen.getByLabelText('Что случилось?'), 'Черновик')
+    await userEvent.upload(screen.getByTestId('fb-file'), new File(['x'], 's.png', { type: 'image/png' }))
+    expect(await screen.findByRole('img', { name: 'Загружено' })).toBeTruthy()
+    first.unmount()
+    expect(first.api.discard).not.toHaveBeenCalled() // загруженное отложено, не удалено
+    const again = setupWith({}, {})
+    expect(await formReady()).toHaveValue('Черновик')
+    expect(screen.getByAltText('Скриншот к обращению')).toBeInTheDocument()
+    await userEvent.click(screen.getByRole('button', { name: 'Отправить' }))
+    await waitFor(() => expect(again.api.submit).toHaveBeenCalledWith('me', expect.objectContaining({ body: 'Черновик', paths: ['me/s.png'] })))
+    expect(localStorage.getItem('gym_app_feedback_text_me')).toBeNull() // отправлено — черновика нет
+  })
+
   it('«Обновить список» и возврат в приложение перечитывают обращения (fb_6e2e0d6c)', async () => {
     const list = vi.fn(async () => [])
     setup({ list })

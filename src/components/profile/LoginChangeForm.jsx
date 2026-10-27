@@ -52,7 +52,7 @@ export default function LoginChangeForm({ userId }) {
       if (!aliveRef.current) return
       setCurrent(saved)
       close()
-      showToast({ emoji: '🔤', title: 'Логин сохранен', sub: `Вход — по «${saved}».` })
+      showToast({ icon: 'idcard', title: 'Логин сохранен', sub: `Вход — по «${saved}».` })
     } catch (e) {
       if (!aliveRef.current) return
       setBusy(false)

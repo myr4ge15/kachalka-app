@@ -9,7 +9,7 @@ describe('SetsCells', () => {
   it('свой вес с помощью/доп. весом — строкой со знаком, без колонок (v7.5.2)', () => {
     const { container } = render(<span data-testid="a"><SetsCells metric="reps" sets={[s(-10, 12), s(0, 8), s(17.5, 6)]} /></span>)
     expect(container.querySelector('.sets-cols')).toBeNull()
-    expect(screen.getByTestId('a').textContent).toBe('−10×12, 8, +17,5×6')
+    expect(screen.getByTestId('a').textContent).toBe('−10×12, 8, +17.5×6')
   })
 
   it('без веса и у весовых — строка, пусто — прочерк', () => {

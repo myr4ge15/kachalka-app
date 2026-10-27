@@ -21,9 +21,9 @@ export default function BackupActions({ userId }) {
     setBkBusy(true)
     try {
       const n = await exportAllMyData(userId, APP_VERSION)
-      showToast({ emoji: '💾', title: 'Файл сохранен', sub: `Тренировок в выгрузке: ${n}` })
+      if (n !== null) showToast({ icon: 'download', title: 'Файл сохранен', sub: `Тренировок в выгрузке: ${n}` })
     } catch (e) {
-      showToast({ emoji: '⚠️', title: 'Не удалось выгрузить', sub: String(e?.message ?? e) })
+      showToast({ icon: 'alert', title: 'Не удалось выгрузить', sub: String(e?.message ?? e) })
     } finally {
       if (aliveRef.current) setBkBusy(false)
     }
@@ -35,14 +35,14 @@ export default function BackupActions({ userId }) {
     setBkBusy(true)
     try {
       const c = await importAllMyData(userId, await file.text())
-      showToast({ emoji: '📥', title: 'Восстановлено', sub: describeImport(c) })
+      showToast({ icon: 'upload', title: 'Восстановлено', sub: describeImport(c) })
       if (c.failed) {
-        showToast({ emoji: '⚠️', title: 'Часть записей пропущена', sub: `Не удалось добавить: ${c.failed}` })
+        showToast({ icon: 'alert', title: 'Часть записей пропущена', sub: `Не удалось добавить: ${c.failed}` })
       }
       if (navigator.onLine) syncNow(userId) // отправить восстановленное на сервер
     } catch (err) {
       showToast({
-        emoji: '⚠️',
+        icon: 'alert',
         title: err instanceof BackupError ? 'Не тот файл' : 'Не удалось восстановить',
         sub: String(err?.message ?? err),
       })

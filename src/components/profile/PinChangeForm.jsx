@@ -38,7 +38,7 @@ export default function PinChangeForm({ userId }) {
     try {
       await setPin(userId, curPin, newPin)
       if (aliveRef.current) closePinForm()
-      showToast({ emoji: '🔑', title: 'PIN обновлен', sub: 'Вход — уже новым PIN.' })
+      showToast({ icon: 'key', title: 'PIN обновлен', sub: 'Вход — уже новым PIN.' })
     } catch (e) {
       if (!aliveRef.current) return
       setPinBusy(false)

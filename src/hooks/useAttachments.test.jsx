@@ -2,9 +2,9 @@
 // Предзагрузка вложений (20.10.2026): загрузка сразу после выбора, прогресс, ошибка и повтор,
 // убрали во время загрузки — путь удаляется, когда загрузка закончится; ушли с экрана или
 // «Отмена» — загруженное удаляется; отправленное (commit) — нет.
-import { afterEach, describe, expect, it, vi } from 'vitest'
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { act, renderHook, waitFor } from '@testing-library/react'
-import { useAttachments, AUTO_RETRIES, NOT_READY } from './useAttachments.js'
+import { useAttachments, AUTO_RETRIES, NOT_READY, STASH_TTL_MS, resetAttachmentStash } from './useAttachments.js'
 
 const png = (n = 'a.png') => new File(['x'], n, { type: 'image/png' })
 const mp4 = () => { const f = new File(['x'], 'v.mp4', { type: 'video/mp4' }); Object.defineProperty(f, 'size', { value: 1000 }); return f }
@@ -208,5 +208,42 @@ describe('useAttachments: сворачивание приложения', () => 
     await act(async () => d.fail(coded('video_too_big')))
     await waitFor(() => expect(result.current.items[0].status).toBe('error'))
     expect(api.upload).toHaveBeenCalledTimes(1)
+  })
+
+  describe('stash — черновик формы (fb_4d192432)', () => {
+    beforeEach(() => resetAttachmentStash()) // прошлый тест отложил свое при авто-размонтировании
+    afterEach(() => { resetAttachmentStash(); vi.useRealTimers() })
+    const open = (api) => renderHook(() => useAttachments('me', api, { poster: vi.fn(async () => null), wait, stash: 'fb_me' }))
+
+    it('ушли с экрана — загруженное ждет и возвращается; идущая загрузка удаляется как раньше', async () => {
+      const d = deferred()
+      const api = { upload: vi.fn(async (uid, f) => (f.name === 'slow.png' ? d.p : `${uid}/${f.name}`)), discard: vi.fn() }
+      const first = open(api)
+      act(() => first.result.current.add([png('a.png'), png('slow.png')]))
+      await waitFor(() => expect(first.result.current.items[0].status).toBe('done'))
+      first.unmount()
+      expect(api.discard).not.toHaveBeenCalled()
+      await act(async () => d.ok('me/slow.png'))
+      await waitFor(() => expect(api.discard).toHaveBeenCalledWith(['me/slow.png']))
+      const again = open(api)
+      expect(again.result.current.items).toHaveLength(1)
+      expect(again.result.current.items[0]).toMatchObject({ status: 'done', path: 'me/a.png' })
+      await expect(again.result.current.readyPaths()).resolves.toEqual(['me/a.png'])
+      act(() => again.result.current.add([png('b.png')]))
+      expect(new Set(again.result.current.items.map((x) => x.key)).size).toBe(2) // ключи не повторяются
+    })
+
+    it('черновик старше срока не возвращается — файлы удаляются', async () => {
+      vi.useFakeTimers({ toFake: ['Date'] })
+      const api = { upload: vi.fn(async (uid, f) => `${uid}/${f.name}`), discard: vi.fn() }
+      const first = open(api)
+      act(() => first.result.current.add([png('a.png')]))
+      await waitFor(() => expect(first.result.current.items[0].status).toBe('done'))
+      first.unmount()
+      vi.setSystemTime(Date.now() + STASH_TTL_MS + 1000)
+      const again = open(api)
+      expect(again.result.current.items).toEqual([])
+      expect(api.discard).toHaveBeenCalledWith(['me/a.png'])
+    })
   })
 })

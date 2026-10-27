@@ -255,7 +255,7 @@ describe('подходы: ввод и степперы', () => {
     writeDraft(DRAFT, [entry(bench, [{ weight: 60, reps: 8 }])])
     render(<WorkoutScreen user={user} />)
     fireEvent.change(screen.getByLabelText('Вес, подход 1'), { target: { value: '62.5' } })
-    expect(screen.getByLabelText('Вес, подход 1')).toHaveValue('62,5') // показ — с запятой (аудит 16.10)
+    expect(screen.getByLabelText('Вес, подход 1')).toHaveValue('62.5') // показ — с точкой (fb_92319634)
     const repsGroup = screen.getByRole('group', { name: 'Подход 1, повторения' })
     const plus = [...repsGroup.querySelectorAll('button')].find((b) => b.textContent === '+')
     fireEvent.pointerDown(plus)

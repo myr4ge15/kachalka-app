@@ -103,12 +103,12 @@ export default function UsersSection({ meId, online, errMsg, cache = null }) {
         await adminSetUser(edId, edName, edRole)
       }
       if (edSex !== edInit.sex) await adminSetSex(edId, edSex || null)
-      showToast({ emoji: '✅', title: 'Участник обновлен' })
+      showToast({ icon: 'check', title: 'Участник обновлен' })
       if (alive.current) closeEdit()
       reload()
     } catch (e) {
       if (alive.current) setEdBusy(false)
-      showToast({ emoji: '⚠️', title: 'Не удалось', sub: errMsg(e) })
+      showToast({ icon: 'alert', title: 'Не удалось', sub: errMsg(e) })
       reload() // часть шагов могла примениться — подтягиваем реальное состояние
     }
   }
@@ -118,9 +118,9 @@ export default function UsersSection({ meId, online, errMsg, cache = null }) {
     try {
       const pin = await adminResetPin(u.id) // сервер сгенерит
       setShownPin({ id: u.id, pin })
-      showToast({ emoji: '🔑', title: 'PIN сброшен', sub: 'Передай новый PIN человеку.' })
+      showToast({ icon: 'key', title: 'PIN сброшен', sub: 'Передай новый PIN человеку.' })
     } catch (e) {
-      showToast({ emoji: '⚠️', title: 'Не удалось', sub: errMsg(e) })
+      showToast({ icon: 'alert', title: 'Не удалось', sub: errMsg(e) })
     } finally {
       setPinBusy(false); setPinForId(null)
     }
@@ -135,7 +135,7 @@ export default function UsersSection({ meId, online, errMsg, cache = null }) {
       await adminDeleteUser(deleteUser.id, meId)
 
       showToast({
-        emoji: '🗑️',
+        icon: 'trash',
         title: 'Участник удален',
         sub: deleteUser.name,
       })
@@ -148,7 +148,7 @@ export default function UsersSection({ meId, online, errMsg, cache = null }) {
       reload()
     } catch (e) {
       showToast({
-        emoji: '⚠️',
+        icon: 'alert',
         title: 'Не удалось удалить',
         sub: errMsg(e),
       })
@@ -170,7 +170,7 @@ export default function UsersSection({ meId, online, errMsg, cache = null }) {
       if (alive.current) { setAddOpen(false); setAddName(''); setAddLogin(''); setAddRole('member'); setAddPin(''); setAddSex('') }
       reload()
     } catch (e) {
-      showToast({ emoji: '⚠️', title: 'Не удалось', sub: errMsg(e) })
+      showToast({ icon: 'alert', title: 'Не удалось', sub: errMsg(e) })
       // Учетка могла создаться, а пол — не встать: подтягиваем
       // список, чтобы UI показал реально созданного участника (не пустую форму).
       reload()

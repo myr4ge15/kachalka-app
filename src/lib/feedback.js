@@ -56,7 +56,7 @@ export function attachmentProblemText(file) {
 export function fmtFileSize(bytes) {
   const mb = Number(bytes) / 1e6
   if (!(mb > 0)) return ''
-  return mb < 0.1 ? '0,1 МБ' : fmtNum(Math.round(mb * 10) / 10) + ' МБ'
+  return mb < 0.1 ? '0.1 МБ' : fmtNum(Math.round(mb * 10) / 10) + ' МБ'
 }
 
 // Тип по первым байтам: Edge отдает вложение как octet-stream, а <video> на iPhone без

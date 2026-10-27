@@ -16,6 +16,16 @@ export const JOIN_KEY = 'gym_app_join_request'
 export const NAME_MAX = 40
 export const ABOUT_MAX = 300
 
+// Ник в Telegram (27.10.2026, fb_6af9ae21): владелец видит в заявке, кто пришел, и может написать.
+// Правила Telegram: 5–32 символа, латиница, цифры и _, с буквы. Принимаем «@nick», «t.me/nick» и
+// полную ссылку; пусто — ника нет (поле необязательное). Тот же разбор — `_shared/joinTg.ts normTgNick`.
+const TG_NICK_RE = /^[A-Za-z][A-Za-z0-9_]{4,31}$/
+export function normTgNick(v) {
+  const s = String(v ?? '').trim().replace(/^(?:https?:\/\/)?(?:www\.)?(?:t|telegram)\.me\//i, '').replace(/^@/, '').replace(/\/+$/, '')
+  if (!s) return ''
+  return TG_NICK_RE.test(s) ? s : null
+}
+
 export class JoinError extends Error {
   constructor(code) {
     super(code)
@@ -27,15 +37,16 @@ export class JoinError extends Error {
 export function joinErrorText(code) {
   if (code === 'network') return 'Нет связи с сервером — попробуй позже.'
   if (code === 'rate_limited') return 'Заявок сейчас слишком много. Попробуй завтра.'
-  if (code === 'bad_request') return 'Проверь имя (до 40 символов) и текст (до 300).'
+  if (code === 'bad_request') return 'Проверь имя (до 40 символов), ник в Telegram и текст (до 300).'
   return 'Не получилось отправить. Попробуй еще раз.'
 }
 
 // Проверка формы до отправки: текст ошибки или null.
-export function validateJoin({ name, about }) {
+export function validateJoin({ name, about, tg = '' }) {
   const n = String(name ?? '').trim()
   if (!n) return 'Напиши, как тебя зовут.'
   if (n.length > NAME_MAX) return `Имя — до ${NAME_MAX} символов.`
+  if (normTgNick(tg) === null) return 'Ник в Telegram — латиница, цифры и _, от 5 символов (например, @ivan_petrov).'
   if (String(about ?? '').trim().length > ABOUT_MAX) return `Пара слов — до ${ABOUT_MAX} символов.`
   return null
 }
@@ -121,10 +132,11 @@ async function call(payload, fetchImpl = fetch) {
 
 // Отправить заявку. website — скрытое поле-ловушка формы (у человека пустое).
 // Возвращает сохраненную заявку { id, secret, name, at }.
-export async function submitJoin({ name, about, website = '' }, { fetchImpl, storage, now = Date.now } = {}) {
+export async function submitJoin({ name, about, tg = '', website = '' }, { fetchImpl, storage, now = Date.now } = {}) {
   const secret = randomSecret()
   const source = loadSource(storage) // откуда пришел (метка ?src= из ссылки анонса), null — напрямую
-  const body = await call({ action: 'submit', name: String(name).trim(), about: String(about ?? '').trim(), website, secret, source }, fetchImpl)
+  const nick = normTgNick(tg) || null // кривой ник сюда не доходит — его ловит validateJoin
+  const body = await call({ action: 'submit', name: String(name).trim(), about: String(about ?? '').trim(), ...(nick && { tg: nick }), website, secret, source }, fetchImpl)
   if (typeof body.id !== 'string') throw new JoinError('server')
   const pending = { id: body.id, secret, name: String(name).trim(), at: now() }
   savePending(pending, storage)

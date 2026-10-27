@@ -60,7 +60,7 @@ describe('форматтеры панели', () => {
     expect(nextProgStep(10, 'time', +1)).toBe(15)
   })
   it('fmtProgStep', () => {
-    expect(fmtProgStep(2.5, 'weight')).toBe('2,5 кг')
+    expect(fmtProgStep(2.5, 'weight')).toBe('2.5 кг')
     expect(fmtProgStep(5, 'time')).toBe('5 с')
   })
   // Время зафиксировано: «сейчас − 24 ч» в полночь после перехода на летнее время

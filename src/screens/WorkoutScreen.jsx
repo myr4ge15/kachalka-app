@@ -324,7 +324,7 @@ export default function WorkoutScreen({ user, workoutId = null, onBack, onSaved,
     // Удаление срабатывает сразу, но даем окно отмены — кнопка удаления
     // соседствует с зоной сохранения/добавления, легко нажать случайно.
     showToast({
-      emoji: '🗑',
+      icon: 'trash',
       kind: 'undo', // привязан к экрану — гасится при размонтировании WorkoutScreen
       title: 'Упражнение убрано',
       sub: removed.exercise?.name,
@@ -353,7 +353,7 @@ export default function WorkoutScreen({ user, workoutId = null, onBack, onSaved,
     if (items.length === 0) {
       // Тостом, а не баннером: шаблон выбирают внизу экрана, баннер вверху был не виден и
       // висел до сохранения, даже после очистки тренировки (проверка на iPhone 23.10).
-      showToast({ emoji: '📋', title: 'Все упражнения шаблона уже добавлены', raised: true })
+      showToast({ icon: 'copy', title: 'Все упражнения шаблона уже добавлены', raised: true })
       return
     }
     const toAdd = []
@@ -412,7 +412,7 @@ export default function WorkoutScreen({ user, workoutId = null, onBack, onSaved,
     const series = [...(removedSetsRef.current ?? []), { exId: entry.exercise.id, si, set: removed, name: entry.exercise?.name }]
     const names = [...new Set(series.map((r) => r.name).filter(Boolean))]
     showToast({
-      emoji: '🗑',
+      icon: 'trash',
       kind: 'undo', // привязан к экрану — гасится при размонтировании WorkoutScreen
       title: series.length > 1 ? `Подходов удалено: ${series.length}` : 'Подход удален',
       sub: names.join(', ') || undefined,
@@ -548,7 +548,7 @@ export default function WorkoutScreen({ user, workoutId = null, onBack, onSaved,
       setTplArm(false)
       if (navigator.onLine) syncNow(user.id)
       vibrate(HAPTIC.success)
-      showToast({ emoji: '📋', title: 'Шаблон создан', sub: tplName.trim() })
+      showToast({ icon: 'copy', title: 'Шаблон создан', sub: tplName.trim() })
     } catch (err) {
       setMessage({ type: 'error', text: 'Не удалось создать шаблон: ' + (err?.message ?? err) })
     } finally {
@@ -564,7 +564,7 @@ export default function WorkoutScreen({ user, workoutId = null, onBack, onSaved,
     setCopyArm(false)
     if (!n) { setMessage({ type: 'error', text: 'В тренировке нет упражнений с подходами.' }); return }
     vibrate(HAPTIC.success)
-    showToast({ emoji: '📋', title: 'Тренировка скопирована', sub: 'Новая — на сегодня', raised: true })
+    showToast({ icon: 'copy', title: 'Тренировка скопирована', sub: 'Новая — на сегодня', raised: true })
     onCopy?.()
   }
 

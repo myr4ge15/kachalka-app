@@ -334,7 +334,7 @@ describe('ExerciseCard — свой вес: доп. вес и помощь (v7.2
   it('недописанный ввод («-», «0.») не стирается — минус и дробь можно набрать', () => {
     renderCard(pullups([{ weight: '-', reps: 8, _k: 'a' }, { weight: '0.', reps: 8, _k: 'b' }]))
     expect(screen.getByLabelText('Доп. вес, подход 1')).toHaveValue('-')
-    expect(screen.getByLabelText('Доп. вес, подход 2')).toHaveValue('0,') // показ — с запятой (аудит 16.10)
+    expect(screen.getByLabelText('Доп. вес, подход 2')).toHaveValue('0.') // показ — с точкой (fb_92319634)
   })
 
   it('типографский минус и запятая уходят как «-» и «.»', () => {

@@ -64,9 +64,39 @@ export function exportFilename(workouts, now = new Date()) {
   return `workouts-${list.length}-${ymd(now) || 'export'}.json`
 }
 
-// Браузерная выгрузка: сериализуем снимок и кликаем по временной ссылке.
+// iPhone «на экране Домой» (fb_6fbbaeac, 27.10.2026): скачивание по ссылке открывает файл в системном
+// просмотрщике поверх PWA, и после закрытия приложение остается в рамке браузера (адрес, ✕) до
+// перезапуска. Там отдаем файл листу «Поделиться» → «Сохранить в Файлы»; в браузере — ссылка, как было.
+export function shouldShareFile(file, nav = typeof navigator !== 'undefined' ? navigator : null) {
+  if (!nav || nav.standalone !== true || typeof nav.share !== 'function') return false
+  try { return nav.canShare ? nav.canShare({ files: [file] }) : false } catch { return false }
+}
+
+// Браузерная выгрузка: сериализуем снимок и кликаем по временной ссылке (на iPhone «на экране Домой» —
+// лист «Поделиться»). Промис: 'downloaded' | 'shared' | 'cancelled' (закрыли лист, ничего не сохранив).
+// Путь со ссылкой — синхронный: файл уходит в том же тапе.
 export function downloadJson(obj, filename) {
   const json = JSON.stringify(obj, null, 2)
+  if (typeof File === 'function') {
+    const file = new File([json], filename, { type: 'application/json' })
+    if (shouldShareFile(file)) return shareFile(file, json, filename)
+  }
+  saveByLink(json, filename)
+  return Promise.resolve('downloaded')
+}
+
+async function shareFile(file, json, filename) {
+  try {
+    await navigator.share({ files: [file] })
+    return 'shared'
+  } catch (e) {
+    if (e?.name === 'AbortError') return 'cancelled'
+    saveByLink(json, filename) // лист не открылся (нет жеста, запрет) — хоть так
+    return 'downloaded'
+  }
+}
+
+function saveByLink(json, filename) {
   const blob = new Blob([json], { type: 'application/json' })
   const url = URL.createObjectURL(blob)
   const a = document.createElement('a')
@@ -82,5 +112,5 @@ export function downloadJson(obj, filename) {
 export function exportWorkouts(workouts, appVersion = 'dev', now = new Date()) {
   const list = Array.isArray(workouts) ? workouts : [workouts]
   if (list.length === 0) return
-  downloadJson(buildExport(list, appVersion, now), exportFilename(list, now))
+  return downloadJson(buildExport(list, appVersion, now), exportFilename(list, now))
 }

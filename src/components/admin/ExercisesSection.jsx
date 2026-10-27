@@ -49,7 +49,7 @@ export default function ExercisesSection({ exercises, userId, online, errMsg, he
   const groups = useMemo(() => catalogGroups(live), [live])
 
   async function save(f) {
-    if (!online) { showToast({ emoji: '📡', title: 'Нужна сеть' }); return }
+    if (!online) { showToast({ icon: 'offline', title: 'Нужна сеть' }); return }
     const ex = editing
     setBusy(true)
     try {
@@ -60,10 +60,10 @@ export default function ExercisesSection({ exercises, userId, online, errMsg, he
         is_bench_lift: Boolean(ex.is_bench_lift), is_female_lift: Boolean(ex.is_female_lift), is_hidden: f.is_hidden,
         metric: f.metric !== normMetric(ex.metric) ? f.metric : undefined,
       })
-      showToast({ emoji: '✅', title: 'Упражнение обновлено' })
+      showToast({ icon: 'check', title: 'Упражнение обновлено' })
       if (alive.current) setEditing(null)
     } catch (e) {
-      showToast({ emoji: '⚠️', title: 'Не удалось', sub: errMsg(e) })
+      showToast({ icon: 'alert', title: 'Не удалось', sub: errMsg(e) })
     } finally {
       if (alive.current) setBusy(false)
     }
@@ -71,7 +71,7 @@ export default function ExercisesSection({ exercises, userId, online, errMsg, he
 
   // Быстрое скрыть/показать без открытия формы.
   async function toggleHidden(ex) {
-    if (!online) { showToast({ emoji: '📡', title: 'Нужна сеть' }); return }
+    if (!online) { showToast({ icon: 'offline', title: 'Нужна сеть' }); return }
     try {
       await adminUpdateExercise({
         id: ex.id,
@@ -84,9 +84,9 @@ export default function ExercisesSection({ exercises, userId, online, errMsg, he
         is_female_lift: Boolean(ex.is_female_lift),
         is_hidden: !ex.is_hidden,
       })
-      showToast({ emoji: ex.is_hidden ? '👁' : '🙈', title: ex.is_hidden ? 'Показано в пикере' : 'Скрыто из пикера' })
+      showToast({ icon: ex.is_hidden ? 'eye' : 'eyeoff', title: ex.is_hidden ? 'Показано в пикере' : 'Скрыто из пикера' })
     } catch (e) {
-      showToast({ emoji: '⚠️', title: 'Не удалось', sub: errMsg(e) })
+      showToast({ icon: 'alert', title: 'Не удалось', sub: errMsg(e) })
     }
   }
 
@@ -100,14 +100,14 @@ export default function ExercisesSection({ exercises, userId, online, errMsg, he
   }, [mFrom, exercises])
 
   async function doMerge() {
-    if (!online) { showToast({ emoji: '📡', title: 'Нужна сеть' }); return }
+    if (!online) { showToast({ icon: 'offline', title: 'Нужна сеть' }); return }
     setMBusy(true)
     try {
       await adminMergeExercise(mFrom, mInto)
-      showToast({ emoji: '🔗', title: 'Дубль слит', sub: 'Старое упражнение скрыто.' })
+      showToast({ icon: 'link', title: 'Дубль слит', sub: 'Старое упражнение скрыто.' })
       setMergeOpen(false); setMFrom(''); setMInto('')
     } catch (e) {
-      showToast({ emoji: '⚠️', title: 'Не удалось слить', sub: errMsg(e) })
+      showToast({ icon: 'alert', title: 'Не удалось слить', sub: errMsg(e) })
     } finally {
       setMBusy(false)
     }

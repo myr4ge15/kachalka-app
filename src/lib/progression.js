@@ -61,7 +61,7 @@ const HARD_FEEL_NEEDED = 2
 // Нормализация веса к шагу приложения (2 знака, как trim_scale/clampWeight).
 const roundW = (v) => Math.round((Number(v) || 0) * 100) / 100
 // Печать шага без хвостовых нулей: 2.5 → «2.5», 2 → «2».
-// На экране дробь — с запятой (fb_f284d134: «+2.5 кг» в подсказке).
+// На экране дробь — через fmtNum (с 27.10.2026 точка, fb_92319634).
 const fmtStep = (v) => fmtNum(Math.round((Number(v) || 0) * 100) / 100)
 // База повторов после накидывания веса в стратегии '+повт.' (схема 8–12 → 8).
 const repFloor = (ceiling) => Math.max(1, Math.round(Number(ceiling) || 12) - 4)

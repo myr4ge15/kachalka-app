@@ -75,7 +75,7 @@ export default function ForgotPin({ initialLogin = '', onBack, onLogin }) {
   if (way === 'new-code' && fresh) {
     return (
       <>
-        <p className="invite-lead">PIN сменен ✅ Старый код больше не действует — вот новый.</p>
+        <p className="invite-lead">PIN сменен. Старый код больше не действует — вот новый.</p>
         <RecoveryCodeView code={fresh.code} doneLabel="Сохранил, войти" onDone={() => onLogin(fresh.user)} />
       </>
     )

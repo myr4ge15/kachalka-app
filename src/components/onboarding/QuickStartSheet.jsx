@@ -16,7 +16,7 @@ function Inline({ text }) {
 export default function QuickStartSheet({ onClose }) {
   const blocks = useMemo(() => parseMarkdown(quickStart).filter((b) => !(b.type === 'h' && b.level === 1)), [])
   return (
-    <SheetDialog title="Быстрый старт" actionLabel="закрыть" onDismiss={() => onClose?.()}>
+    <SheetDialog title="Быстрый старт" actionLabel="закрыть" onDismiss={() => onClose?.()} swipeBack swipeDown>
       <div className="sheet-scroll qs-doc">
         {blocks.map((b, i) => {
           if (b.type === 'h') return b.level === 2 ? <h3 key={i}><Inline text={b.text} /></h3> : <h4 key={i}><Inline text={b.text} /></h4>

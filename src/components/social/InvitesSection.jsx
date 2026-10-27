@@ -1,7 +1,7 @@
 import Chevron from '../ui/Chevron.jsx'
 import { useEffect, useRef, useState } from 'react'
 import { adminCreateInvite, adminListInvites, adminRevokeInvite } from '../../lib/admin.js'
-import { inviteUrl, inviteListLabel, inviteCreatorLabel, inviteMessage, splitInvites } from '../../lib/invite.js'
+import { inviteUrl, inviteListLabel, inviteStatusIcon, inviteCreatorLabel, inviteMessage, splitInvites } from '../../lib/invite.js'
 import { showToast } from '../ui/Toast.jsx'
 import CardsSkeleton from '../ui/CardsSkeleton.jsx'
 import Icon from '../ui/Icon.jsx'
@@ -44,7 +44,7 @@ export default function InvitesSection({ online, errMsg, api = adminApi, limit =
       if (alive.current) { setFresh({ id: inv.id, url, note: note.trim(), expiresAt: inv.expires_at }); setNote('') }
       await reload()
     } catch (e) {
-      showToast({ emoji: '⚠️', title: 'Не удалось', sub: errMsg(e) })
+      showToast({ icon: 'alert', title: 'Не удалось', sub: errMsg(e) })
     } finally {
       operation.current = false
       if (alive.current) setBusy(false)
@@ -54,9 +54,9 @@ export default function InvitesSection({ online, errMsg, api = adminApi, limit =
   async function copy() {
     try {
       await navigator.clipboard.writeText(inviteMessage(fresh))
-      showToast({ emoji: '📋', title: 'Приглашение скопировано', sub: 'Текст со ссылкой — вставь в чат.' })
+      showToast({ icon: 'copy', title: 'Приглашение скопировано', sub: 'Текст со ссылкой — вставь в чат.' })
     } catch {
-      showToast({ emoji: '⚠️', title: 'Не скопировалось', sub: 'Выдели ссылку и скопируй вручную.' })
+      showToast({ icon: 'alert', title: 'Не скопировалось', sub: 'Выдели ссылку и скопируй вручную.' })
     }
   }
 
@@ -79,10 +79,10 @@ export default function InvitesSection({ online, errMsg, api = adminApi, limit =
     try {
       await api.revoke(inv.id)
       if (alive.current && fresh?.id === inv.id) setFresh(null)
-      showToast({ emoji: '⛔', title: 'Ссылка отозвана' })
+      showToast({ icon: 'block', title: 'Ссылка отозвана' })
       await reload()
     } catch (e) {
-      showToast({ emoji: '⚠️', title: 'Не удалось', sub: errMsg(e) })
+      showToast({ icon: 'alert', title: 'Не удалось', sub: errMsg(e) })
     } finally {
       operation.current = false
       if (alive.current) setRevId(null)
@@ -97,7 +97,10 @@ export default function InvitesSection({ online, errMsg, api = adminApi, limit =
       <div className="admin-user-row">
         <div className="admin-ex-main">
           <span className="admin-ex-name">{inv.note || 'Без пометки'}</span>
-          <span className="admin-ex-meta">{limit && inv.status === 'used' ? '✅ Участник зарегистрировался' : inviteListLabel(inv)}</span>
+          <span className={`admin-ex-meta status-line status-line--${inv.status === 'ok' ? 'wait' : inv.status}`}>
+            {inviteStatusIcon(inv.status) && <Icon name={inviteStatusIcon(inv.status)} size={14} className="status-line-icon" />}
+            {limit && inv.status === 'used' ? 'Участник зарегистрировался' : inviteListLabel(inv)}
+          </span>
           {/* Создатель — только в админском списке (там ссылки всех); в Профиле они свои. */}
           {limit === null && 'created_by_name' in inv && <span className="admin-ex-meta">{inviteCreatorLabel(inv)}</span>}
         </div>

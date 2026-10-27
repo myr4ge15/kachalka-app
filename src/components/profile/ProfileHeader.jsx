@@ -26,7 +26,7 @@ export default function ProfileHeader({ user, avatarUrl, onRenamed }) {
     e.target.value = '' // позволить выбрать тот же файл повторно
     if (!file) return
     if (!navigator.onLine) {
-      showToast({ emoji: '📷', title: 'Нужна сеть', sub: 'Аватар загружается онлайн.' })
+      showToast({ icon: 'camera', title: 'Нужна сеть', sub: 'Аватар загружается онлайн.' })
       return
     }
     setAvBusy(true)
@@ -34,7 +34,7 @@ export default function ProfileHeader({ user, avatarUrl, onRenamed }) {
       const ready = await toDecodableFile(file) // HEIC с iPhone → JPEG
       if (aliveRef.current) setCropFile(ready)
     } catch (err) {
-      showToast({ emoji: '⚠️', title: 'Не удалось открыть фото', sub: String(err?.message ?? err) })
+      showToast({ icon: 'alert', title: 'Не удалось открыть фото', sub: String(err?.message ?? err) })
     } finally {
       if (aliveRef.current) setAvBusy(false)
     }
@@ -45,9 +45,9 @@ export default function ProfileHeader({ user, avatarUrl, onRenamed }) {
       const url = await uploadAvatarBlob(user.id, await cropToJpeg(img, rect))
       await setCachedAvatar(user.id, url) // мгновенно обновить шапку/ЛК до pull
       if (aliveRef.current) setCropFile(null)
-      showToast({ emoji: '📷', title: 'Аватар обновлен' })
+      showToast({ icon: 'camera', title: 'Аватар обновлен' })
     } catch (err) {
-      showToast({ emoji: '⚠️', title: 'Не удалось загрузить', sub: String(err?.message ?? err) })
+      showToast({ icon: 'alert', title: 'Не удалось загрузить', sub: String(err?.message ?? err) })
     } finally {
       if (aliveRef.current) setAvBusy(false)
     }
@@ -71,7 +71,7 @@ export default function ProfileHeader({ user, avatarUrl, onRenamed }) {
       await setCachedName(user.id, saved) // пикер входа/кэш — сразу новое имя
       onRenamed?.(saved)                  // шапка + localStorage профиля
       if (aliveRef.current) setNameEditing(false)
-      showToast({ emoji: '✏️', title: 'Имя обновлено' })
+      showToast({ icon: 'pencil', title: 'Имя обновлено' })
       // Имя в Ленте/лидерборде приходит join'ом с сервера — освежим на pull.
       if (navigator.onLine) syncNow(user.id)
     } catch (e) {

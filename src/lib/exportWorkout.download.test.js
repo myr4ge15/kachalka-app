@@ -29,6 +29,43 @@ describe('downloadJson', () => {
   })
 })
 
+describe('downloadJson на iPhone «на экране Домой» (fb_6fbbaeac)', () => {
+  const setNav = (share, canShare = () => true) => {
+    Object.defineProperty(navigator, 'standalone', { value: true, configurable: true })
+    Object.defineProperty(navigator, 'share', { value: share, configurable: true })
+    Object.defineProperty(navigator, 'canShare', { value: canShare, configurable: true })
+  }
+  afterEach(() => { for (const k of ['standalone', 'share', 'canShare']) delete navigator[k] })
+
+  it('файл уходит в лист «Поделиться», а не ссылкой', async () => {
+    const share = vi.fn(async () => {})
+    setNav(share)
+    await expect(downloadJson({ a: 1 }, 'f.json')).resolves.toBe('shared')
+    expect(clicks).toEqual([])
+    const [file] = share.mock.calls[0][0].files
+    expect(file.name).toBe('f.json')
+    expect(JSON.parse(await file.text())).toEqual({ a: 1 })
+  })
+
+  it('закрыли лист — «cancelled», ссылкой не качаем', async () => {
+    setNav(vi.fn(async () => { throw Object.assign(new Error('x'), { name: 'AbortError' }) }))
+    await expect(downloadJson({ a: 1 }, 'f.json')).resolves.toBe('cancelled')
+    expect(clicks).toEqual([])
+  })
+
+  it('лист не открылся (нет жеста) — запасной путь ссылкой', async () => {
+    setNav(vi.fn(async () => { throw Object.assign(new Error('x'), { name: 'NotAllowedError' }) }))
+    await expect(downloadJson({ a: 1 }, 'f.json')).resolves.toBe('downloaded')
+    expect(clicks).toHaveLength(1)
+  })
+
+  it('файлы делить нельзя — ссылка, как в браузере', async () => {
+    setNav(vi.fn(), () => false)
+    await expect(downloadJson({ a: 1 }, 'f.json')).resolves.toBe('downloaded')
+    expect(clicks).toHaveLength(1)
+  })
+})
+
 describe('exportWorkouts', () => {
   const W = { id: 'w1', performed_at: '2026-10-19T10:00:00Z', entries: [{ exercise: { id: 'e', name: 'Жим' }, sets: [{ weight: '60', reps: 8 }] }] }
 

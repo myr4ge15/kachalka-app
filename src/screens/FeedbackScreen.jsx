@@ -18,6 +18,7 @@ import {
   FeedbackError, attachUploadedScreenshots, discardAttachments, uploadAttachment,
 } from '../lib/feedbackApi.js'
 import { useAttachments, NOT_READY } from '../hooks/useAttachments.js'
+import { readDraft, writeDraft, clearDraft } from '../lib/draftStore.js'
 import { withDeviceLogs } from '../lib/deviceLogs.js'
 import { readPushLog } from '../lib/pushIntent.js'
 import { readSwipeLog } from '../lib/swipeLog.js'
@@ -36,10 +37,14 @@ const defaultApi = {
 // пришли в Настройки (в контекст обращения), [api] — для тестов.
 export default function FeedbackScreen({ user, onBack, focusId = null, fromScreen = null, viaScreen = null, api = defaultApi }) {
   const { online } = useSyncStatus()
-  const [text, setText] = useState('')
+  // Черновик текста — draftStore (fb_4d192432, 27.10.2026): ушли в другое меню или PWA выгрузилась —
+  // текст на месте. Только это устройство и эта учетка, в синк не идет. Вложения — stash в useAttachments.
+  const draftKey = `feedback_text_${user.id}`
+  const [text, setTextState] = useState(() => (typeof readDraft(draftKey) === 'string' ? readDraft(draftKey) : ''))
+  const setText = (v) => { setTextState(v); if (v) writeDraft(draftKey, v); else clearDraft(draftKey) }
   // Приложить журналы свайпов и пушей этого телефона (23.10.2026, lib/deviceLogs.js).
   const [withLogs, setWithLogs] = useState(false)
-  const att = useAttachments(user.id, api)
+  const att = useAttachments(user.id, api, { stash: `feedback_${user.id}` })
   const [busy, setBusy] = useState(false)
   const [list, setList] = useState(null)
   const [loadErr, setLoadErr] = useState('')
@@ -147,12 +152,12 @@ export default function FeedbackScreen({ user, onBack, focusId = null, fromScree
       setFormOpen(false) // ушло — снова на виду список, там и новое обращение
       // Обращение уже в базе — его видят Админка и desk; задержка Telegram (а на бете Telegram нет вовсе) участника
       // не касается, поэтому «доставка задержалась» не пишем (fb_e87fb37b).
-      showToast({ emoji: '📨', title: 'Отправлено', sub: 'Спасибо! Ответ появится здесь.' })
+      showToast({ icon: 'message', title: 'Отправлено', sub: 'Спасибо! Ответ появится здесь.' })
       reload()
     } catch (e) {
       if (alive.current) setWaiting(false)
       if (my !== attempt.current) return
-      showToast({ emoji: '⚠️', title: 'Не отправилось', sub: e instanceof FeedbackError || e?.message === NOT_READY ? e.message : 'Попробуй еще раз.' })
+      showToast({ icon: 'alert', title: 'Не отправилось', sub: e instanceof FeedbackError || e?.message === NOT_READY ? e.message : 'Попробуй еще раз.' })
     } finally {
       if (alive.current && my === attempt.current) setBusy(false) // устаревшая попытка не снимает «занято» с новой
     }

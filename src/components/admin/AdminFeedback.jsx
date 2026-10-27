@@ -101,7 +101,7 @@ function FeedbackCard({ row, online, api, editing, onEdit, onSaved }) {
     try {
       setShotUrl(await api.shot(row.screenshot_path))
     } catch (e) {
-      showToast({ emoji: '⚠️', title: 'Скриншот не открылся', sub: errText(e) })
+      showToast({ icon: 'alert', title: 'Скриншот не открылся', sub: errText(e) })
     } finally {
       setShotBusy(false)
     }
@@ -198,7 +198,7 @@ function FeedbackEditor({ row, online, api, onCancel, onSaved }) {
     try {
       const res = await api.update(row.id, status, reply)
       showToast({
-        emoji: '✅',
+        icon: 'check',
         title: 'Сохранено',
         sub: res.notified
           ? (res.pushed ? 'Автору отправлено уведомление.' : 'Ответ виден автору в приложении (пуши у него выключены).')
@@ -206,7 +206,7 @@ function FeedbackEditor({ row, online, api, onCancel, onSaved }) {
       })
       onSaved()
     } catch (e) {
-      showToast({ emoji: '⚠️', title: 'Не сохранилось', sub: errText(e) })
+      showToast({ icon: 'alert', title: 'Не сохранилось', sub: errText(e) })
       setBusy(false)
     }
   }

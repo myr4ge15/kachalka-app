@@ -139,7 +139,7 @@ describe('fmtTonnage', () => {
     expect(fmtTonnage(850)).toEqual({ value: '850', unit: 'кг' })
   })
   it('от тонны — в тоннах (1 знак до 100 т, дальше целое)', () => {
-    expect(fmtTonnage(12340)).toEqual({ value: '12,3', unit: 'т' })
+    expect(fmtTonnage(12340)).toEqual({ value: '12.3', unit: 'т' })
     expect(fmtTonnage(250000)).toEqual({ value: '250', unit: 'т' })
   })
 })

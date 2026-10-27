@@ -30,9 +30,9 @@ export default function DeleteAccount({ user, onDeleted }) {
     setBusy('export')
     try {
       const n = await exportAllMyData(user.id, APP_VERSION)
-      showToast({ emoji: '💾', title: 'Файл сохранен', sub: `Тренировок в выгрузке: ${n}` })
+      if (n !== null) showToast({ icon: 'download', title: 'Файл сохранен', sub: `Тренировок в выгрузке: ${n}` })
     } catch (e) {
-      showToast({ emoji: '⚠️', title: 'Не удалось выгрузить', sub: String(e?.message ?? e) })
+      showToast({ icon: 'alert', title: 'Не удалось выгрузить', sub: String(e?.message ?? e) })
     } finally {
       if (aliveRef.current) setBusy('')
     }
