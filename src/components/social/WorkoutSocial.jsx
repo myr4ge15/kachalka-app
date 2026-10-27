@@ -15,14 +15,15 @@ import { summarizeReactions } from '../../lib/reactions.js'
 // openThread — открыть ветку сразу (пуш о комментарии привел к этой карточке); focusCommentId — на этом
 // комментарии (уведомление о комментарии, ответе или реакции на него, fb_2277554b).
 // me — { id, name, avatar }; authorAvatar — фото автора тренировки для «поста» над веткой.
-export default function WorkoutSocial({ workout, me, isMe, onReact, onOpenMember, openThread = false, focusCommentId = null, authorAvatar = null }) {
+// readOnly — только просмотр (режим админа «Видеть всех», 27.10.2026: автор вне круга, сервер действий не примет).
+export default function WorkoutSocial({ workout, me, isMe, onReact, onOpenMember, openThread = false, focusCommentId = null, authorAvatar = null, readOnly = false }) {
   const [open, setOpen] = useState(openThread)
   const [focusTick, setFocusTick] = useState(0)
   const [composeHost, setComposeHost] = useState(null) // подвал листа под полем ввода
   const wantFocus = useRef(false)
   const comments = workout.comments ?? []
   function openSheet() {
-    wantFocus.current = comments.length === 0 // пусто — сразу писать
+    wantFocus.current = comments.length === 0 && !readOnly // пусто — сразу писать
     setOpen(true)
   }
   // Курсор — после того как ветка смонтировалась в листе: CommentThread ставит фокус по СМЕНЕ focusTick.
@@ -33,8 +34,8 @@ export default function WorkoutSocial({ workout, me, isMe, onReact, onOpenMember
   }, [open])
   return (
     <>
-      <ReactionBar reactions={workout.reactions} myId={me.id} isMe={isMe} onReact={onReact} />
-      <CommentStrip comments={comments} onOpen={openSheet} />
+      <ReactionBar reactions={workout.reactions} myId={me.id} isMe={isMe || readOnly} onReact={onReact} />
+      {(!readOnly || comments.length > 0) && <CommentStrip comments={comments} onOpen={openSheet} />}
       {open && (
         <SheetDialog title="Комментарии" actionLabel="закрыть" onDismiss={() => setOpen(false)} swipeBack className="cm-sheet">
           {/* data-sheet-bounce: у края ветка пружинит, как родной список, а не «упирается» (fb_4cbd8655). */}
@@ -51,6 +52,7 @@ export default function WorkoutSocial({ workout, me, isMe, onReact, onOpenMember
               onOpenMember={onOpenMember ? (id) => { setOpen(false); onOpenMember(id) } : undefined}
               composeHost={composeHost}
               focusCommentId={focusCommentId}
+              readOnly={readOnly}
             />
           </div>
           {/* Поле ввода — вне прокрутки, как в мессенджерах: листается только переписка (fb_ad51c03b, fb_fbbf5381). */}

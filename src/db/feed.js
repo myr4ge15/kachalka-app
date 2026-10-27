@@ -29,7 +29,7 @@ const FEED_LIMIT = 50
 // Сигнатура окна ленты (id + max updated_at по видимым 50 строкам) в meta. Пока
 // она не изменилась — тяжелый вложенный join (workout_exercises→exercise→sets)
 // НЕ тянем: реакции обновляем поверх кэша дешевым отдельным запросом.
-const FEED_SIG = 'sig_feed'
+export const FEED_SIG = 'sig_feed'
 // Сигнатура справочника упражнений — ее пишет pull справочника (db/sync/pull.js
 // SIG_EXERCISES), он идет в syncNow раньше fetchFeed. Входит в сигнатуру ленты
 // (v8.2.1): переименование/слияние упражнения не двигает workouts.updated_at (и не

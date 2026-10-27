@@ -17,6 +17,9 @@ import SwipeLog from '../components/admin/SwipeLog.jsx'
 import { mfaState, needsCode } from '../lib/adminMfa.js'
 import ExercisesSection from '../components/admin/ExercisesSection.jsx'
 import UsersSection from '../components/admin/UsersSection.jsx'
+import ViewAllSection from '../components/admin/ViewAllSection.jsx'
+import { useViewAll } from '../hooks/useViewAll.js'
+import { viewAllActive } from '../lib/viewAll.js'
 
 // Экран «Админка» (PLAN-admin). Виден только при role='admin' (вход из Профиля);
 // сервер все равно перепроверяет роль в каждой операции. Все мутации требуют
@@ -33,6 +36,8 @@ const SECTIONS = [
   { key: 'feedback', title: 'Обращения' },
   // «Доступ к тренировкам» (связи вручную) убран в v9.0.0: связи — это дружбы («Друзья»).
   { key: 'mfa', title: 'Защита (2FA)' },
+  // Временный просмотр всех участников (27.10.2026, PLAN-admin-view-all.md).
+  { key: 'viewall', title: 'Видеть всех' },
   // Журнал пушей этого устройства (v8.9.6) — отладка перехода по пушу.
   { key: 'pushlog', title: 'Журнал пушей (это устройство)' },
   // Журнал свайпов «назад» (23.10.2026) — отладка «свайп прыгает»: что видел жест на этом телефоне.
@@ -42,6 +47,7 @@ const SECTIONS = [
 export default function AdminScreen({ user, onBack, contentRef, edgeSwipeOn = false, onInnerNav }) {
   const { online } = useSyncStatus()
   const exercises = useLiveQuery(() => getAllExercisesForAdmin(), [], [])
+  const viewAllOn = viewAllActive(useViewAll())
 
   const [section, setSection] = useState(null) // открытый раздел — ключ из SECTIONS
   const [deep, setDeep] = useState(false) // в справочнике открыто упражнение — свайп ведет оно
@@ -113,6 +119,7 @@ export default function AdminScreen({ user, onBack, contentRef, edgeSwipeOn = fa
       ? <AdminMfaPanel state={mfa} online={online} onChange={loadMfa} />
       : <p className="admin-hint">Не удалось узнать состояние 2FA — проверь сеть и открой раздел заново.</p>)
   }
+  if (section === 'viewall') sectionView = plain(<ViewAllSection userId={user.id} online={online} />)
   if (section === 'pushlog') sectionView = plain(<PushLog />)
   if (section === 'swipelog') sectionView = plain(<SwipeLog />)
 
@@ -138,7 +145,7 @@ export default function AdminScreen({ user, onBack, contentRef, edgeSwipeOn = fa
       <div className="admin-nav">
         {SECTIONS.map(({ key, title }) => (
           <button key={key} type="button" className="admin-nav-btn" onClick={() => setSection(key)}>
-            <span className="admin-nav-name">{key === 'mfa' && mfa?.enabled ? `${title} · вкл` : title}</span>
+            <span className="admin-nav-name">{(key === 'mfa' && mfa?.enabled) || (key === 'viewall' && viewAllOn) ? `${title} · вкл` : title}</span>
             <Chevron className="admin-nav-chev" />
           </button>
         ))}

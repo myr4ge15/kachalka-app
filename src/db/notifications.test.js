@@ -5,7 +5,8 @@
 // знак «прочитано». Фокус — то, что пользователь видит на колокольчике и в тостах.
 import 'fake-indexeddb/auto' // ПЕРВЫМ: ставит глобальный indexedDB до Dexie-модулей
 import { describe, it, expect, beforeEach, afterEach } from 'vitest'
-import { openUserDb, closeUserDb } from './local.js'
+import { openUserDb, closeUserDb, db, setMeta } from './local.js'
+import { VIEW_ALL_KEY } from '../lib/viewAll.js'
 import { uniqueUserId } from '../test/idbHarness.js'
 import { saveWorkout } from './repo.js'
 import {
@@ -170,5 +171,24 @@ describe('countUnread / markAllSeen / getSeenAt (водяной знак)', () =
     expect(goals).toHaveLength(2)
     // свежая (май) должна идти раньше старой (январь)
     expect(goals[0].at > goals[1].at).toBe(true)
+  })
+})
+
+// Режим админа «Видеть всех» (27.10.2026): тех, кого видно только из-за режима, в уведомлениях нет.
+describe('getNotifications и режим «Видеть всех»', () => {
+  const item = (id, user_id, at, weight) => ({
+    id, user_id, user_name: user_id, performed_at: at, created_at: at,
+    entries: [{ exercise_id: 'ex_bench', exercise: bench, sets: [{ weight, reps: 1 }] }],
+  })
+  it('«побил твой рекорд» — от друга есть, от «чужого» нет', async () => {
+    await wk(userId, '2026-01-01T10:00:00.000Z', [{ weight: 80, reps: 1 }])
+    await db.feed.bulkPut([
+      item('f0', 'friend', '2026-01-02T10:00:00.000Z', 70), item('f1', 'friend', '2026-01-03T10:00:00.000Z', 90),
+      item('s0', 'stranger', '2026-01-02T10:00:00.000Z', 70), item('s1', 'stranger', '2026-01-03T10:00:00.000Z', 95),
+    ])
+    const who = async () => (await getNotifications(userId)).filter((n) => n.type === 'beaten').map((n) => n.who).sort()
+    expect(await who()).toEqual(['friend', 'stranger'])
+    await setMeta(VIEW_ALL_KEY, { until: '2099-01-01T00:00:00Z', extra: ['stranger'] })
+    expect(await who()).toEqual(['friend'])
   })
 })

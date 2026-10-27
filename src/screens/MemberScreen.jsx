@@ -21,6 +21,7 @@ import CardsSkeleton from '../components/ui/CardsSkeleton.jsx'
 import FeedPrBadge, { prForEntry } from '../components/social/FeedPrBadge.jsx'
 import WorkoutSocial from '../components/social/WorkoutSocial.jsx'
 import FriendButton from '../components/friends/FriendButton.jsx'
+import { useViewAllExtra } from '../hooks/useViewAll.js'
 import './MemberScreen.css'
 import ScrollTopButton from '../components/ui/ScrollTopButton.jsx'
 
@@ -34,6 +35,8 @@ const REC_PREVIEW = 5
 const RECENT_STEP = 5
 
 export default function MemberScreen({ user, memberId, onBack, onOpenMember }) {
+  // Режим админа «Видеть всех»: участник вне круга — только просмотр, без «В друзья» (сервер откажет).
+  const outside = useViewAllExtra().has(memberId)
   const snap = useLiveQuery(
     () => getCachedMember(memberId, { id: user.id, name: user.name }),
     [memberId, user.id, user.name],
@@ -132,10 +135,12 @@ export default function MemberScreen({ user, memberId, onBack, onOpenMember }) {
           {view?.lastAt && (
             <div className="member-sub">последняя тренировка — {fmtWhen(view.lastAt)}</div>
           )}
-          <FriendButton me={user.id} memberId={memberId} label />
+          {outside
+            ? <div className="member-sub"><span className="feed-me feed-out">вне круга</span></div>
+            : <FriendButton me={user.id} memberId={memberId} label />}
         </div>
       </div>
-      <FriendButton me={user.id} memberId={memberId} />
+      {!outside && <FriendButton me={user.id} memberId={memberId} />}
 
       {error && <div className="banner error">{error}</div>}
       {loading && <CardsSkeleton cards={3} />}
@@ -256,6 +261,7 @@ export default function MemberScreen({ user, memberId, onBack, onOpenMember }) {
                     authorAvatar={roster?.avatar_url ?? null}
                     onReact={(kind, mine) => onReact(w.id, kind, mine)}
                     onOpenMember={onOpenMember}
+                    readOnly={outside}
                   />
                 </article>
               ))}

@@ -19,6 +19,7 @@ import FeedPrBadge, { prForEntry } from '../components/social/FeedPrBadge.jsx'
 import WorkoutSocial from '../components/social/WorkoutSocial.jsx'
 import { useSpinPhase } from '../hooks/useSpinPhase.js'
 import { usePresence } from '../hooks/usePresence.js'
+import { useViewAllExtra } from '../hooks/useViewAll.js'
 import { isOnline } from '../lib/presence.js'
 import EmptyHint from '../components/ui/EmptyHint.jsx'
 
@@ -45,6 +46,8 @@ export default function FeedScreen({ user, onOpenMember, flashId = null, thread 
 
   // Аватары участников — из кэша пользователей (по user_id строки ленты).
   const users = useLiveQuery(() => getUsers(), [], [])
+  // Режим админа «Видеть всех»: кого видно только из-за него — метка и без действий.
+  const outside = useViewAllExtra()
   const avatarById = useMemo(() => {
     const m = new Map()
     for (const u of users ?? []) m.set(u.id, u.avatar_url)
@@ -302,6 +305,7 @@ export default function FeedScreen({ user, onOpenMember, flashId = null, thread 
 
           {list.map((w) => {
         const isMe = w.user_id === user.id
+        const out = outside.has(w.user_id)
         return (
           <div key={w.id} className={`card feed-card${w.id === flashId ? ' feed-card--flash' : ''}`} data-anchor-box="">
             {/* Тап по автору — его профиль (v6.7.0; свой — обычный Профиль). */}
@@ -318,6 +322,7 @@ export default function FeedScreen({ user, onOpenMember, flashId = null, thread 
                 <div className="feed-name">
                   {w.user_name}
                   {isMe && <span className="feed-me">я</span>}
+                  {out && <span className="feed-me feed-out">вне круга</span>}
                 </div>
                 <div className="muted feed-when">{fmtWhen(w.performed_at)}</div>
               </div>
@@ -354,6 +359,7 @@ export default function FeedScreen({ user, onOpenMember, flashId = null, thread 
               onOpenMember={onOpenMember ? (uid) => onOpenMember(uid, `feed-${w.id}`) : undefined}
               openThread={w.id === thread?.workoutId}
               focusCommentId={w.id === thread?.workoutId ? thread.commentId : null}
+              readOnly={out}
             />
           </div>
         )

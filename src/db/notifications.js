@@ -25,6 +25,7 @@ import { getBadges, getCachedUser } from './repo.js'
 import { getCachedLeaderboard } from './leaderboard.js'
 import { normMetric } from '../lib/metric.js'
 import { capPerCategory, unreadCount } from '../lib/notifFilter.js'
+import { VIEW_ALL_KEY, viewAllExtra, withoutExtra } from '../lib/viewAll.js'
 
 // Метка «прочитано» неймспейснута по userId — иначе на общем устройстве второй
 // вошедший наследует «прочитано» первого (notif_seen_at был глобальным). Старый
@@ -121,7 +122,8 @@ async function badgeNotifs(userId) {
 // Полный список уведомлений (свежие сверху), по LIMIT на категорию.
 export async function getNotifications(userId) {
   const workouts = await myWorkouts(userId)
-  const feedItems = await db.feed.toArray()
+  // Без тех, кого видно только в режиме админа «Видеть всех» (27.10.2026): «X побил твой рекорд» о незнакомых.
+  const feedItems = withoutExtra(await db.feed.toArray(), viewAllExtra(await getMeta(VIEW_ALL_KEY)))
   const myBest = myBestByExercise(workouts)
   const mine = minePrs(workouts)
   const beaten = computeBeaten(feedItems, userId, myBest)

@@ -305,6 +305,21 @@ select.prog-select, select.admin-input {
 .topbar-name { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 /* Пометка бета-стенда (VITE_BETA=1, lib/appVersion.js IS_BETA): в шапке и в сайдбаре десктопа.
    Желтый — смысловой «внимание», не акцент: бету не спутать с приложением друзей. */
+/* Плашка режима админа «Видеть всех» (27.10.2026, PLAN-admin-view-all.md): строка под шапкой,
+   плотная подложка (не стекло — под ней произвольный контент), смысловой желтый «внимание». */
+.viewall-bar {
+  flex: none; display: flex; align-items: center; gap: 10px;
+  padding: 6px 16px; padding-left: calc(16px + env(safe-area-inset-left)); padding-right: calc(16px + env(safe-area-inset-right));
+  background: color-mix(in srgb, var(--yellow) 14%, var(--surface-solid));
+  border-bottom: 1px solid color-mix(in srgb, var(--yellow) 35%, transparent);
+  font-size: var(--fs-small); color: var(--text);
+}
+.viewall-ico { flex: none; color: var(--yellow); }
+.viewall-txt { flex: 1; min-width: 0; }
+.viewall-txt b { color: var(--yellow); font-weight: 700; }
+/* Метка «вне круга» у автора в Ленте — тот же вид, что «я», цветом режима. */
+.feed-me.feed-out { color: var(--yellow); border-color: color-mix(in srgb, var(--yellow) 40%, transparent); }
+
 .beta-badge {
   flex: none; margin-right: 8px; padding: 3px 7px; border-radius: 6px;
   background: var(--yellow); color: var(--bg);
@@ -2858,10 +2873,12 @@ label.act.busy { opacity: .55; pointer-events: none; }
   .app {
     display: grid;
     grid-template-columns: 232px minmax(0, 1fr);
-    grid-template-rows: auto 1fr;
-    grid-template-areas: "side top" "side main";
+    /* note — плашка режима «Видеть всех» (27.10.2026); нет плашки — строка нулевой высоты. */
+    grid-template-rows: auto auto 1fr;
+    grid-template-areas: "side top" "side note" "side main";
   }
   .topbar { grid-area: top; }
+  .viewall-bar { grid-area: note; }
   .content {
     grid-area: main;
     /* нижнего таббара на десктопе нет — резерв под него не нужен */
@@ -4139,10 +4156,11 @@ html[data-sheet-open] .content { overflow-y: hidden; }
   .app {
     display: grid;
     grid-template-columns: var(--rail-w) minmax(0, 1fr);
-    grid-template-rows: minmax(0, 1fr);
-    grid-template-areas: "side main";
+    grid-template-rows: auto minmax(0, 1fr);
+    grid-template-areas: "side note" "side main";
   }
   .topbar { display: none; }
+  .viewall-bar { grid-area: note; }
   .content {
     grid-area: main;
     padding-bottom: calc(24px + env(safe-area-inset-bottom));

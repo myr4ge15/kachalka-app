@@ -117,3 +117,22 @@ describe('WorkoutSocial — строка комментариев', () => {
     expect(screen.queryByRole('dialog', { name: 'Комментарии' })).toBeNull()
   })
 })
+
+// Режим админа «Видеть всех» (27.10.2026): тренировка человека вне круга — только просмотр.
+describe('WorkoutSocial — только просмотр', () => {
+  it('реакции без кнопок, в ветке нет поля, ответа и реакций — подпись «Режим просмотра»', () => {
+    const w = { ...workout(COMMENTS), reactions: [{ user_id: 'u1', user_name: 'Маша', kind: 'fire' }] }
+    const { container } = render(<WorkoutSocial workout={w} me={me} isMe={false} onReact={vi.fn()} readOnly />)
+    expect(container.querySelector('.reaction-btn:not(.static)')).toBeNull()
+    fireEvent.click(screen.getByRole('button', { name: '4 комментария' }))
+    const sheet = screen.getByRole('dialog', { name: 'Комментарии' })
+    expect(within(sheet).queryByLabelText('Комментарий')).toBeNull()
+    expect(within(sheet).getByText('Режим просмотра — писать и отвечать нельзя')).toBeInTheDocument()
+    expect(sheet.querySelector('.cm-swipe-ico')).toBeNull()
+  })
+
+  it('без комментариев строки «Оставить комментарий» нет', () => {
+    render(<WorkoutSocial workout={workout([])} me={me} isMe={false} onReact={vi.fn()} readOnly />)
+    expect(screen.queryByRole('button', { name: 'Оставить комментарий' })).toBeNull()
+  })
+})

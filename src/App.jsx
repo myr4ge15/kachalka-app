@@ -44,6 +44,8 @@ import { wipeLocalAccount } from './db/local.js'
 import { useAppNav } from './hooks/useAppNav.js'
 import { useLaunchSheets } from './hooks/useLaunchSheets.js'
 import { useLoginSetup } from './hooks/useLoginSetup.js'
+import { useViewAllWatch } from './hooks/useViewAll.js'
+import ViewAllBanner from './components/app/ViewAllBanner.jsx'
 
 // Экраны-вкладки грузим лениво: код активной вкладки подтягивается по требованию.
 // Главный выигрыш — «Прогресс» тянет тяжелый recharts, который теперь не попадает
@@ -165,6 +167,8 @@ export default function App() {
   const { welcome, closeWelcome, whatsNew, closeWhatsNew, tgAsk, closeTgAsk, pushAsk, closePushAsk } = useLaunchSheets(user, historyBusy)
   // «Придумай логин» (П4, v6.17.0): у старых учеток логина нет — обязательный шаг онлайн.
   const loginSetup = useLoginSetup(user)
+  // «Видеть всех» (27.10.2026): режим админа идет — плашка под шапкой, конец срока — чистка кэшей.
+  const viewAll = useViewAllWatch(user)
   // Строка новой версии (UpdatePrompt, вне App) не показывается посреди записи
   // тренировки — сообщаем ей через атрибут на <html> (CSS прячет).
   useEffect(() => {
@@ -347,6 +351,7 @@ export default function App() {
         {IS_BETA && <span className="beta-badge">БЕТА</span>}
         <SyncTools unread={unread} onOpenNotif={openNotif} userId={user.id} onOpenProfile={() => goTab('profile')} />
       </header>
+      {viewAll && <ViewAllBanner userId={user.id} until={viewAll.until} />}
 
       <main className="content" ref={contentRef}>
         <div className="nav-stack" key={user.id}>

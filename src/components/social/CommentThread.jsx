@@ -43,8 +43,10 @@ import Icon from '../ui/Icon.jsx'
 // прокрутку к месту поля без липкости — переписка уезжала за экран. Портал: состояние и обработчики здесь же.
 // focusCommentId — к этому комментарию привело уведомление (fb_2277554b): при открытии он по центру листа и
 // коротко подсвечен.
-export default function CommentThread({ workoutId, ownerId, comments, me, open, onOpen, focusTick = 0, onOpenMember, composeHost = null, focusCommentId = null }) {
+// readOnly — только чтение (режим админа «Видеть всех», 27.10.2026): без поля, ответов и реакций.
+export default function CommentThread({ workoutId, ownerId, comments, me, open, onOpen, focusTick = 0, onOpenMember, composeHost = null, focusCommentId = null, readOnly = false }) {
   const online = useOnline()
+  const live = online && !readOnly // можно писать, отвечать и реагировать
   const aliveRef = useAliveRef()
   const [text, setText] = useState('')
   const [pending, setPending] = useState([])
@@ -82,7 +84,7 @@ export default function CommentThread({ workoutId, ownerId, comments, me, open, 
     const t = Date.now()
     if (isDoubleTap(lastTap.current, c.id, t)) {
       lastTap.current = null
-      if (online && canReactComment(c, me.id)) { vibrate(); react(c, nextReaction(c, 'heart')) }
+      if (live && canReactComment(c, me.id)) { vibrate(); react(c, nextReaction(c, 'heart')) }
       return
     }
     lastTap.current = { id: c.id, t }
@@ -269,15 +271,17 @@ export default function CommentThread({ workoutId, ownerId, comments, me, open, 
   }
   function menuActions(c) {
     const out = []
-    if (online && canReplyComment(c, me.id)) out.push({ key: 'reply', icon: 'reply', label: 'Ответить', onSelect: () => startReply(c) })
+    if (live && canReplyComment(c, me.id)) out.push({ key: 'reply', icon: 'reply', label: 'Ответить', onSelect: () => startReply(c) })
     out.push({ key: 'copy', icon: 'copy', label: 'Скопировать', onSelect: () => copy(c) })
-    if (canEditComment(c, me.id)) out.push({ key: 'edit', icon: 'edit', label: 'Изменить', disabled: !online, onSelect: () => startEdit(c) })
+    if (canEditComment(c, me.id)) out.push({ key: 'edit', icon: 'edit', label: 'Изменить', disabled: !live, onSelect: () => startEdit(c) })
     if (canDeleteComment(c, me.id, ownerId)) {
       out.push({ key: 'delete', icon: 'delete', label: 'Удалить', danger: true, onSelect: () => { setMenu(null); setAsking(c) } })
     }
     return out
   }
-  const compose = open && (online ? (
+  const compose = open && (readOnly ? (
+    <div className="cm-offline" role="status">Режим просмотра — писать и отвечать нельзя</div>
+  ) : online ? (
     // Блок ввода — одним узлом: в листе ветки (WorkoutSocial) он в подвале листа, под перепиской.
     <div className="cm-compose">
       {editing && (
@@ -333,8 +337,8 @@ export default function CommentThread({ workoutId, ownerId, comments, me, open, 
         const own = c.user_id === me.id
         const { first, last } = series[i]
         const quote = replyQuote(c, all)
-        const canReply = !c.pending && online && canReplyComment(c, me.id)
-        const canReact = canReactComment(c, me.id)
+        const canReply = !c.pending && live && canReplyComment(c, me.id)
+        const canReact = !readOnly && canReactComment(c, me.id)
         // Таблетки реакций под текстом (fb_4cbd8655): «эмодзи число», своя подсвечена; тап — поставить/снять этот вид.
         const pills = c.pending ? [] : reactionPills(c)
         const likeBtn = pills.length > 0 && pills.map((p) => (
@@ -408,7 +412,7 @@ export default function CommentThread({ workoutId, ownerId, comments, me, open, 
       {menu && (
         <CommentMenu anchor={menu.el} itemClass={menuItemClass(menu.c)} align={menu.c.user_id === me.id ? 'right' : 'left'}
           actions={menuActions(menu.c)} onClose={() => setMenu(null)}
-          reactions={online && canReactComment(menu.c, me.id)
+          reactions={live && canReactComment(menu.c, me.id)
             ? { mine: menu.c.my_reaction, onPick: (kind) => { const c = menu.c; setMenu(null); react(c, nextReaction(c, kind)) } }
             : null} />
       )}

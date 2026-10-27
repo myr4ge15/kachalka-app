@@ -28,7 +28,7 @@
 
 export const WHATS_NEW = [
   {
-    version: '1.5.6',
+    version: '1.5.7',
     date: '2026-10-27',
     headline: 'Черновик обращения больше не теряется',
     main: [

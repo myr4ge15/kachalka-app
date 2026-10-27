@@ -22,6 +22,7 @@ import { cmpIsoAsc } from '../lib/cmp.js'
 import { shouldRefetchLeaderboard } from '../lib/leaderboardCache.js'
 import { getRatingCatalog, getRatingBoard } from './disciplines.js'
 import { getMyCircles } from './circles.js'
+import { VIEW_ALL_KEY, viewAllExtra, withoutExtra } from '../lib/viewAll.js'
 
 // Порядок рейтинга — по ФАКТИЧЕСКОМУ весу: тяжелее выше; при равном весе —
 // больше повторов; при равных и весе, и повторах — кто достиг раньше.
@@ -192,7 +193,9 @@ export async function getCachedLeaderboard() {
   // Ростер (пол участников) — общий, в loginDb (см. local.js).
   const users = await loginDb.users.toArray()
   const sexById = new Map(users.map((u) => [u.id, u.sex]))
-  return computeBoardFromFeed(await db.feed.toArray(), sexById)
+  // Режим админа «Видеть всех» (27.10.2026): в окне Ленты и те, кого в рейтинге нет — их не считаем.
+  const feed = withoutExtra(await db.feed.toArray(), viewAllExtra(await getMeta(VIEW_ALL_KEY)))
+  return computeBoardFromFeed(feed, sexById)
 }
 
 // Имена ведущих упражнений бордов (для заголовков карточек). Берем из локального
