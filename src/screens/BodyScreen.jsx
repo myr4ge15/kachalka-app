@@ -33,7 +33,7 @@ export default function BodyScreen({ user, onBack }) {
   const body = useLiveQuery(() => getBody(user.id), [user.id])
   const [tab, setTab] = useState('weight')
   const [period, setPeriod] = useState(90)
-  const [sheet, setSheet] = useState(null) // { entry?, focus }
+  const [sheet, setSheet] = useState(null) // { entry?, mode: 'weight' | 'measures' }
   const [menuId, setMenuId] = useState(null)
   const [armDel, setArmDel] = useState(false) // «Удалить» → «Точно удалить?» в том же меню
 
@@ -64,8 +64,8 @@ export default function BodyScreen({ user, onBack }) {
   const hide = body.hide
   const goal = body.goal
   const current = data.trend.length ? data.trend[data.trend.length - 1].value : null
-  const showMeasuresTab = body.fields.length > 0
-  const view = showMeasuresTab ? tab : 'weight'
+  const view = tab
+  const any = data.entries.length > 0
   const from = period ? shiftYmd(localYmd(new Date()), -period) : ''
   const pDays = data.days.filter((d) => d.date >= from)
   const pTrend = data.trend.filter((d) => d.date >= from)
@@ -82,25 +82,64 @@ export default function BodyScreen({ user, onBack }) {
     }
   }
 
-  const toggleHide = () => setBodyPrefs(user.id, { hide: !hide }).catch(() => {})
+  // Записи вкладки: во «Вес» — взвешивания (только вес, без разниц), в «Замеры» — строки обхватов.
+  // Вкладки не дублируют друг друга (fb_6114e96f).
+  function entryList(items, kind) {
+    if (!items.length) return null
+    return (
+      <section className="sec">
+        <p className="sec-title">Записи</p>
+        <ul className="body-list">
+          {items.map((e) => {
+            const sub = [kind === 'measures' && !hide && measuresLine(e), e.note].filter(Boolean).join(' · ')
+            return (
+              <li key={e.id} className="body-row">
+                <div className="body-row-main">
+                  <span className="body-row-date">{fmtBodyDate(e.date)}</span>
+                  <span className="body-row-w">{hide ? HIDDEN : kind === 'weight' ? `${e.weight} кг` : ''}</span>
+                </div>
+                {sub && <div className="body-row-sub">{sub}</div>}
+                <MoreMenu label={`Запись ${fmtBodyDate(e.date)}`} btnClassName="body-more" open={menuId === e.id}
+                  onToggle={() => { setArmDel(false); setMenuId((id) => (id === e.id ? null : e.id)) }} onClose={() => { setArmDel(false); setMenuId(null) }}>
+                  <button type="button" role="menuitem" onClick={() => { setMenuId(null); setSheet({ entry: e }) }}>Править</button>
+                  <button type="button" role="menuitem" className="danger" onClick={() => remove(e)}>{armDel ? 'Точно удалить?' : 'Удалить'}</button>
+                </MoreMenu>
+              </li>
+            )
+          })}
+        </ul>
+      </section>
+    )
+  }
+
+  // «Что делает глазик?» (fb_6114e96f) — подпись на кнопке и тост с объяснением после нажатия.
+  function toggleHide() {
+    setBodyPrefs(user.id, { hide: !hide }).then(() => showToast(hide
+      ? { icon: 'eye', title: 'Цифры снова видны' }
+      : { icon: 'eyeoff', title: 'Цифры скрыты', sub: 'Вес и замеры не видны на экране, график — только направление. На всех твоих устройствах.' }))
+      .catch(() => {})
+  }
 
   return (
     <div className="screen body-screen">
       <div className="detail-head">
         <BackButton onClick={onBack} />
         <h2 className="screen-title detail-title">Вес и замеры</h2>
-        <button type="button" className="icon-btn body-eye" aria-pressed={hide}
-          aria-label={hide ? 'Показать цифры' : 'Скрыть цифры'} onClick={toggleHide}>
-          <Icon name={hide ? 'eyeoff' : 'eye'} size={20} />
-        </button>
+        {/* Без записей прятать нечего — кнопки нет (иначе непонятно, что она делает). */}
+        {any && (
+          <button type="button" className="body-eye" aria-pressed={hide}
+            aria-label={hide ? 'Показать цифры' : 'Скрыть цифры'} onClick={toggleHide}>
+            <Icon name={hide ? 'eyeoff' : 'eye'} size={18} />
+            <span className="body-eye-txt">{hide ? 'показать' : 'скрыть'}</span>
+          </button>
+        )}
       </div>
 
-      {showMeasuresTab && (
-        <div className="seg body-tabs" role="tablist" aria-label="Раздел">
-          <button type="button" role="tab" aria-selected={view === 'weight'} className={`seg-item${view === 'weight' ? ' on' : ''}`} onClick={() => setTab('weight')}>Вес</button>
-          <button type="button" role="tab" aria-selected={view === 'measures'} className={`seg-item${view === 'measures' ? ' on' : ''}`} onClick={() => setTab('measures')}>Замеры</button>
-        </div>
-      )}
+      {/* Вкладки видны всегда (fb_6114e96f): у каждой свой лист записи — вес отдельно, замеры отдельно. */}
+      <div className="seg body-tabs" role="tablist" aria-label="Раздел">
+        <button type="button" role="tab" aria-selected={view === 'weight'} className={`seg-item${view === 'weight' ? ' on' : ''}`} onClick={() => setTab('weight')}>Вес</button>
+        <button type="button" role="tab" aria-selected={view === 'measures'} className={`seg-item${view === 'measures' ? ' on' : ''}`} onClick={() => setTab('measures')}>Замеры</button>
+      </div>
 
       {view === 'weight' && (
         <>
@@ -146,36 +185,14 @@ export default function BodyScreen({ user, onBack }) {
           )}
 
           <div className="btn-row">
-            <button type="button" className="btn primary" onClick={() => setSheet({ focus: 'weight' })}>
+            <button type="button" className="btn primary" onClick={() => setSheet({ mode: 'weight' })}>
               <Icon name="plus" size={18} /> Записать вес
             </button>
           </div>
 
           <BodyGoal userId={user.id} goal={goal} current={current} pace={data.pace} hide={hide} />
 
-          {data.entries.length > 0 && (
-            <section className="sec">
-              <p className="sec-title">Записи</p>
-              <ul className="body-list">
-                {data.entries.map((e) => (
-                  <li key={e.id} className="body-row">
-                    <div className="body-row-main">
-                      <span className="body-row-date">{fmtBodyDate(e.date)}</span>
-                      <span className="body-row-w">{e.weight == null ? '' : hide ? HIDDEN : `${e.weight} кг`}</span>
-                    </div>
-                    {(!hide && measuresLine(e)) || e.note ? (
-                      <div className="body-row-sub">{[!hide && measuresLine(e), e.note].filter(Boolean).join(' · ')}</div>
-                    ) : null}
-                    <MoreMenu label={`Запись ${fmtBodyDate(e.date)}`} btnClassName="body-more" open={menuId === e.id}
-                      onToggle={() => { setArmDel(false); setMenuId((id) => (id === e.id ? null : e.id)) }} onClose={() => { setArmDel(false); setMenuId(null) }}>
-                      <button type="button" role="menuitem" onClick={() => { setMenuId(null); setSheet({ entry: e, focus: 'weight' }) }}>Править</button>
-                      <button type="button" role="menuitem" className="danger" onClick={() => remove(e)}>{armDel ? 'Точно удалить?' : 'Удалить'}</button>
-                    </MoreMenu>
-                  </li>
-                ))}
-              </ul>
-            </section>
-          )}
+          {entryList(data.entries.filter((e) => e.weight != null), 'weight')}
         </>
       )}
 
@@ -204,19 +221,23 @@ export default function BodyScreen({ user, onBack }) {
                 <p className="body-hint">Обхваты — без цветов: у каждого свое «хорошо».</p>
               </div>
             ) : (
-              <div className="card body-empty"><p className="body-hint">Замеров пока нет.</p></div>
+              <div className="card body-empty">
+                <p className="body-empty-title">Замеров пока нет</p>
+                <p className="body-hint">По желанию: талия, грудь, ягодицы, бицепс, бедро — включи в листе только те, что ведешь.</p>
+              </div>
             )}
           </section>
           <div className="btn-row">
-            <button type="button" className="btn primary" onClick={() => setSheet({ focus: 'measures' })}>
+            <button type="button" className="btn primary" onClick={() => setSheet({ mode: 'measures' })}>
               <Icon name="plus" size={18} /> Записать замеры
             </button>
           </div>
+          {entryList(data.entries.filter((e) => measuresLine(e)), 'measures')}
         </>
       )}
 
       {sheet && (
-        <BodyEntrySheet userId={user.id} body={body} entry={sheet.entry ?? null} focus={sheet.focus}
+        <BodyEntrySheet userId={user.id} body={body} entry={sheet.entry ?? null} mode={sheet.mode}
           last={data.last} onClose={() => setSheet(null)} />
       )}
     </div>

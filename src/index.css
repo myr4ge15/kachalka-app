@@ -4900,8 +4900,9 @@ img.has-img, .avatar-lightbox-img { -webkit-touch-callout: none; -webkit-user-dr
 /* «Вес и замеры» (PLAN-body-metrics.md). Тон числа — только .body-good (движение к своей цели)
    или обычный текст: красного и желтого для веса нет (правило «Как не угнетать» 2). */
 .body-eye {
-  margin-left: auto; width: 44px; height: 44px; display: grid; place-items: center;
+  margin-left: auto; min-height: 44px; padding: 0 12px; display: inline-flex; align-items: center; gap: 6px;
   border: 0; border-radius: var(--r-pill); background: none; color: var(--muted); cursor: pointer;
+  font-size: var(--fs-meta); font-weight: 600;
 }
 .body-eye[aria-pressed="true"] { color: var(--acc-2); background: var(--acc-soft); }
 .body-tabs { margin-bottom: 12px; }
@@ -4950,7 +4951,10 @@ img.has-img, .avatar-lightbox-img { -webkit-touch-callout: none; -webkit-user-dr
 .body-goal-title { font-weight: 700; }
 .body-goal-sub { color: var(--muted); font-size: var(--fs-meta); margin-top: 2px; }
 .body-goal-sub.body-good { color: var(--green); }
-.body-sheet .date-chip { margin-bottom: 12px; }
+.body-sheet .date-chip { margin-bottom: 14px; }
+.body-sheet-scroll { padding-bottom: 8px; }
+.body-sheet-actions { flex: none; padding-top: 10px; }
+.body-note { margin-top: 6px; }
 .body-field { display: flex; flex-direction: column; gap: 6px; margin-bottom: 12px; }
 .body-stepper { max-width: 220px; }
 .body-input {
@@ -4958,6 +4962,12 @@ img.has-img, .avatar-lightbox-img { -webkit-touch-callout: none; -webkit-user-dr
   border: 1px solid var(--border); border-radius: var(--r-md); background: var(--bg); color: var(--text); font-size: 16px;
 }
 .body-input:focus { outline: none; border-color: var(--acc); }
-.body-measures { display: flex; flex-direction: column; gap: 10px; margin: 8px 0 12px; }
-.body-cm { display: grid; grid-template-columns: 1fr 120px; align-items: center; gap: 10px; font-size: var(--fs-meta); font-weight: 600; }
-.body-measures .link-btn { align-self: flex-start; min-height: 44px; }
+.body-cms { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 8px; }
+.body-cm { display: grid; grid-template-columns: auto 1fr 110px; align-items: center; gap: 10px; }
+.body-cm-switch { min-width: 44px; min-height: 44px; padding: 0; border: 0; background: none; cursor: pointer; display: grid; place-items: center; }
+.body-cm-lbl { font-weight: 600; }
+.body-cm.is-off .body-cm-lbl { color: var(--muted); }
+/* Цифры обхватов — как в подходах (степпер): display-шрифт, жирно, по центру. */
+.body-cm .body-input { text-align: center; font-family: var(--font-display); font-weight: 900; font-size: 19px; padding: 0 8px; }
+.body-cm .body-input::placeholder { font-family: inherit; font-weight: 600; font-size: var(--fs-meta); color: var(--muted); }
+.body-cm .body-input:disabled { opacity: .45; }
