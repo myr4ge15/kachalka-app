@@ -76,10 +76,11 @@ describe('WorkoutSocial — строка комментариев', () => {
     expect(sheet.querySelector('.cm-foot')).toHaveTextContent('Нет сети — комментарии только читать')
   })
 
-  it('комментариев нет — «Оставить комментарий», лист сразу с курсором в поле', () => {
+  // fb_55c046c8 (27.10.2026): клавиатуру при входе в ветку не открываем, и в пустой тоже — курсор по тапу.
+  it('комментариев нет — «Оставить комментарий», лист с полем, но без курсора в нем', () => {
     render(<WorkoutSocial workout={workout([])} me={me} isMe={false} onReact={vi.fn()} />)
     fireEvent.click(screen.getByRole('button', { name: 'Оставить комментарий' }))
-    expect(screen.getByLabelText('Комментарий')).toHaveFocus()
+    expect(screen.getByLabelText('Комментарий')).not.toHaveFocus()
   })
 
   it('пуш о комментарии — лист открыт сразу', () => {

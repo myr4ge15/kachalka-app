@@ -68,6 +68,18 @@ describe('useKeyboardLift — поле в листе', () => {
     scrollTo.mockRestore()
   })
 
+  // fb_d3f74593 (27.10.2026, iOS 27): страница не прокручена, а видимая полоса сдвинута — отменить нечем.
+  it('сдвиг видимой полосы без прокрутки страницы — шапка ниже на него, над клавиатурой без зазора', () => {
+    const u = render(<Sheet />)
+    const sheet = u.getByTestId('sheet')
+    fireEvent.focus(u.getByLabelText('Комментарий'))
+    act(() => vv.set(480, 57))
+    expect(sheet.style.getPropertyValue('--kb-top')).toBe('57px')
+    expect(sheet.style.getPropertyValue('--kb')).toBe('263px') // 800 − 57 − 480
+    act(() => vv.set(800, 0))
+    expect(sheet.style.getPropertyValue('--kb-top')).toBe('')
+  })
+
   it('кадр анимации iOS с нереальной высотой (155 из 800) пропускаем — подъем прежний (fb_f4aa0954)', () => {
     const u = render(<Sheet />)
     const sheet = u.getByTestId('sheet')

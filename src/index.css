@@ -317,6 +317,10 @@ select.prog-select, select.admin-input {
 .viewall-ico { flex: none; color: var(--yellow); }
 .viewall-txt { flex: 1; min-width: 0; }
 .viewall-txt b { color: var(--yellow); font-weight: 700; }
+/* Кнопка — меньше обычной .btn--sm и без margin-top у .ghost (fb_bf00d8ce: была высокой и съезжала вниз). */
+.viewall-bar .btn { --btn-h: 30px; min-height: 30px; margin: 0; padding: 4px 12px; font-size: var(--fs-small); border-radius: var(--r-pill); }
+/* Раздел Админки: выбор срока — ниже подсказки (fb_0e4d657f). */
+.viewall-group { margin-top: 14px; }
 /* Метка «вне круга» у автора в Ленте — тот же вид, что «я», цветом режима. */
 .feed-me.feed-out { color: var(--yellow); border-color: color-mix(in srgb, var(--yellow) 40%, transparent); }
 
@@ -2026,6 +2030,9 @@ img.avatar-lg.has-img {
 .cm-sheet .cm-offline { margin-top: 8px; }
 /* Клавиатура открыта (useKeyboardLift holdSheetAboveKeyboard): низ листа — над клавиатурой. */
 .sheet.kb-fit { padding-bottom: calc(var(--kb, 0px) + 8px); }
+/* iOS сдвинула видимую полосу (offsetTop, iOS 27, fb_d3f74593) — шапку листа опускаем на столько же. */
+.sheet.kb-fit { padding-top: calc(var(--kb-top, 0px) + 16px + env(safe-area-inset-top)); }
+@media (min-width: 600px) { .sheet.kb-fit { padding-top: calc(var(--kb-top, 0px) + 16px); } }
 /* Фокус при открытии — на самом листе (SheetDialog), рамка ему не нужна. */
 .sheet:focus, .sheet:focus-visible { outline: none; }
 /* Пузыри (20.10.2026, fb_830c22d6, мокап prototypes/comments-bubbles.html, вариант B):
@@ -4244,6 +4251,7 @@ html[data-sheet-open] .content { overflow-y: hidden; }
     border-radius: 0; border-top: 0; border-bottom: 0;
     padding: calc(8px + env(safe-area-inset-top)) 16px calc(10px + env(safe-area-inset-bottom));
   }
+  .sheet.kb-fit:not(.sheet--compact) { padding-top: calc(var(--kb-top, 0px) + 8px + env(safe-area-inset-top)); }
   .sheet.sheet--compact { max-height: calc(100dvh - 16px); }
   .sheet-head { margin-bottom: 4px; }
   .sheet-head > strong { font-size: 20px; }

@@ -14,7 +14,7 @@ afterEach(() => vi.clearAllMocks())
 describe('ViewAllBanner', () => {
   it('остаток и выключение', async () => {
     render(<ViewAllBanner userId="me" until={until()} />)
-    expect(screen.getByRole('status')).toHaveTextContent('Видно всех · осталось 1 ч 30 мин')
+    expect(screen.getByRole('status')).toHaveTextContent('Наблюдатель · еще 1 ч 30 мин')
     fireEvent.click(screen.getByRole('button', { name: 'Выключить' }))
     await waitFor(() => expect(api.disable).toHaveBeenCalledWith('me'))
     expect(api.toast).toHaveBeenCalledWith(expect.objectContaining({ icon: 'eyeoff' }))

@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useRef } from 'react'
-import { keyboardAlign, keyboardLift, keyboardOpen } from '../lib/keyboardLift.js'
+import { keyboardAlign, keyboardLift, keyboardOpen, sheetKeyboardInsets } from '../lib/keyboardLift.js'
 
 // Поле над экранной клавиатурой (19.10.2026, fb_9e892d66: тап по 💬 ставил курсор в поле
 // комментария, а клавиатура его закрывала). Вешается на onFocus поля: пока клавиатура
@@ -71,6 +71,7 @@ export function holdSheetAboveKeyboard(sheet, box, vv) {
   const reset = () => {
     sheet.classList.remove('kb-fit')
     sheet.style.removeProperty('--kb')
+    sheet.style.removeProperty('--kb-top')
     first = true
   }
   const unpan = () => {
@@ -85,12 +86,18 @@ export function holdSheetAboveKeyboard(sheet, box, vv) {
     // Пока клавиатура выезжает после свайпа-ответа, iOS на кадр отдает нереальное vv.height (155 из 793,
     // fb_f4aa0954): подъем на 638 бросал поле под шапку. Такие замеры пропускаем, ждем следующий resize.
     if (vv.height < window.innerHeight * MIN_VISIBLE) return
+    // Прокрутку страницы (scrollY) отменяем — ее сдвиг не учитываем. Сдвиг видимой полосы без прокрутки
+    // страницы (iOS 27, fb_d3f74593) не отменить — его учитываем сверху и снизу.
+    const pageScrolled = (window.scrollY || window.pageYOffset || document.scrollingElement?.scrollTop || 0) > 0
     unpan()
     // Список был у конца — держим у конца и после подъема (клавиатура выезжает несколькими resize,
     // каждый ужимает список; иначе последний комментарий уходил под строку «Ответ», fb_82ee17ce).
     const atEnd = !scroll || scroll.scrollHeight - scroll.scrollTop - scroll.clientHeight < 24
-    const kb = Math.max(0, Math.round(window.innerHeight - vv.height))
+    // Сдвиг iOS, который не отменился (iOS 27, fb_d3f74593), — учитываем: шапка листа ниже на него, низ — по
+    // нижнему краю видимой полосы, а не innerHeight − height (иначе над клавиатурой пустая полоса).
+    const { top, bottom: kb } = sheetKeyboardInsets({ height: vv.height, offsetTop: pageScrolled ? 0 : vv.offsetTop }, window.innerHeight)
     sheet.style.setProperty('--kb', kb + 'px')
+    sheet.style.setProperty('--kb-top', top + 'px')
     sheet.classList.add('kb-fit')
     if ((first || atEnd) && scroll) scroll.scrollTop = scroll.scrollHeight
     first = false

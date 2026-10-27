@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from 'react'
+import { useState } from 'react'
 import ReactionBar from './ReactionBar.jsx'
 import CommentThread from './CommentThread.jsx'
 import Avatar from '../ui/Avatar.jsx'
@@ -18,20 +18,10 @@ import { summarizeReactions } from '../../lib/reactions.js'
 // readOnly — только просмотр (режим админа «Видеть всех», 27.10.2026: автор вне круга, сервер действий не примет).
 export default function WorkoutSocial({ workout, me, isMe, onReact, onOpenMember, openThread = false, focusCommentId = null, authorAvatar = null, readOnly = false }) {
   const [open, setOpen] = useState(openThread)
-  const [focusTick, setFocusTick] = useState(0)
   const [composeHost, setComposeHost] = useState(null) // подвал листа под полем ввода
-  const wantFocus = useRef(false)
   const comments = workout.comments ?? []
-  function openSheet() {
-    wantFocus.current = comments.length === 0 && !readOnly // пусто — сразу писать
-    setOpen(true)
-  }
-  // Курсор — после того как ветка смонтировалась в листе: CommentThread ставит фокус по СМЕНЕ focusTick.
-  useEffect(() => {
-    if (!open || !wantFocus.current) return
-    wantFocus.current = false
-    setFocusTick((t) => t + 1)
-  }, [open])
+  // Клавиатуру сами не открываем, и в пустой ветке тоже (27.10.2026, fb_55c046c8): курсор — по тапу в поле.
+  const openSheet = () => setOpen(true)
   return (
     <>
       <ReactionBar reactions={workout.reactions} myId={me.id} isMe={isMe || readOnly} onReact={onReact} />
@@ -48,7 +38,6 @@ export default function WorkoutSocial({ workout, me, isMe, onReact, onOpenMember
               comments={comments}
               me={me}
               open
-              focusTick={focusTick}
               onOpenMember={onOpenMember ? (id) => { setOpen(false); onOpenMember(id) } : undefined}
               composeHost={composeHost}
               focusCommentId={focusCommentId}

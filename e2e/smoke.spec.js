@@ -172,6 +172,10 @@ test('вход → запись тренировки → она в истори�
   await saveButton(page).click()
   await expect(page.getByRole('dialog', { name: 'Тренировка готова' })).toHaveCount(0)
   await expect(historyCard(page)).toContainText('2 упр. · 2 подх.')
+  // Список обновляется сразу после записи (useLiveQuery), а возврат к нему — позже, после чтения итога и
+  // оценок (WorkoutScreen.save → onBack). Клик в этом окне открывал запись, и запоздалый onBack ее закрывал —
+  // тест ждал раскрытое упражнение 30 с (flaky в CI 27.10.2026). Ждем, пока деталь закроется.
+  await expect(page.locator('.exercise-card')).toHaveCount(0)
 
   // --- зоны тапа ✕ удаления подхода (геометрия, юнитам не видна) -----------
   // Отметок выполнения с v6.1.0 нет — подход, которого не было, удаляется ✕.

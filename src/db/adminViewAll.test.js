@@ -42,9 +42,28 @@ describe('adminViewAll (db)', () => {
     expect(await getViewAll()).toEqual({ until: UNTIL, extra: [] })
   })
 
+  it('выключить: режим гаснет сразу (снимок без срока, «чужие» помечены), синк и снятие снимка — фоном', async () => {
+    await setMeta(VIEW_ALL_KEY, { until: UNTIL, extra: ['st'] })
+    let release
+    api.sync.mockReturnValue(new Promise((r) => { release = r }))
+    const { done } = await disableViewAll(user)
+    expect(await getViewAll()).toEqual({ until: null, extra: ['st'] }) // синк еще идет — плашки уже нет
+    expect(await getMeta('member_st')).toBeUndefined()
+    release()
+    await done
+    expect(await getViewAll()).toBeNull()
+  })
+
+  it('синк упал — снимок все равно снят', async () => {
+    await setMeta(VIEW_ALL_KEY, { until: UNTIL, extra: ['st'] })
+    api.sync.mockRejectedValue(new Error('сеть'))
+    await (await disableViewAll(user)).done
+    expect(await getViewAll()).toBeNull()
+  })
+
   it('выключить: чистка member_* и метки Ленты, синк, снимок снят; прочий meta цел', async () => {
     await setMeta(VIEW_ALL_KEY, { until: UNTIL, extra: ['st'] })
-    await disableViewAll(user)
+    await (await disableViewAll(user)).done
     expect(api.off).toHaveBeenCalledWith(user)
     expect(await getMeta('member_st')).toBeUndefined()
     expect(await getMeta('member_fr')).toBeUndefined()
@@ -72,6 +91,13 @@ describe('adminViewAll (db)', () => {
     expect(api.sync).toHaveBeenCalledTimes(1)
   })
 
+  it('сверка дочищает снимок без срока (хвост выключения не дошел)', async () => {
+    await setMeta(VIEW_ALL_KEY, { until: null, extra: ['st'] })
+    api.state.mockResolvedValue({ until: null, extra: [] })
+    expect(await refreshViewAll(user)).toBeNull()
+    expect(await getViewAll()).toBeNull()
+  })
+
   it('сверка: режима не было и нет — ни чистки, ни синка', async () => {
     api.state.mockResolvedValue({ until: null, extra: [] })
     expect(await refreshViewAll(user)).toBeNull()
@@ -90,6 +116,7 @@ describe('adminViewAll (db)', () => {
     await closeUserDb()
     await expect(resetViewAllCaches(null)).resolves.toBeUndefined()
     expect(await refreshViewAll(user, null)).toBeNull()
+    await expect((await import('./adminViewAll.js')).endViewAll(user, null).then((r) => r.done)).resolves.toBeUndefined()
     await openUserDb(user)
   })
 })

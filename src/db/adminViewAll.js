@@ -24,13 +24,19 @@ export async function resetViewAllCaches(d = db) {
   await d.meta.bulkDelete([...members, FEED_SIG])
 }
 
-// Режим кончился (кнопка, срок, сервер сказал «нет»): чистка → перечитать → снять снимок.
-// Снимок снимаем последним: пока Лента перечитывается, «чужие» в ней еще помечены.
+// Режим кончился (кнопка, срок, сервер сказал «нет»). Сразу — чистка и снимок без срока: плашка и раздел гаснут
+// мгновенно (fb_de151d74: ждали полный синк, «Выключаю…» висело секунды). Фоном — перечитать и снять снимок:
+// пока Лента перечитывается, «чужие» в ней еще помечены (extra). Возвращает { done } — промис фонового хвоста.
 export async function endViewAll(userId, d = db) {
-  if (!d) return
+  if (!d) return { done: Promise.resolve() }
+  const prev = await getViewAll(d)
   await resetViewAllCaches(d)
-  await syncNow(userId)
-  await d.meta.delete(VIEW_ALL_KEY)
+  await setMeta(VIEW_ALL_KEY, { until: null, extra: prev?.extra ?? [] }, d)
+  const done = (async () => {
+    try { await syncNow(userId) } catch { /* синк сам покажет ошибку; снимок все равно снимаем */ }
+    try { await d.meta.delete(VIEW_ALL_KEY) } catch { /* база уже закрыта (выход) — снимок уйдет с ней */ }
+  })()
+  return { done }
 }
 
 // Включить на minutes. Ошибки (нет сети, нет 2FA, нет SQL) — наружу, текстом AdminError.
@@ -43,9 +49,10 @@ export async function enableViewAll(userId, minutes, d = db) {
   return until
 }
 
+// Ждет только сервер и мгновенную часть; { done } — фоновый хвост (для тестов).
 export async function disableViewAll(userId, d = db) {
   await viewAllOff(userId)
-  await endViewAll(userId, d)
+  return endViewAll(userId, d)
 }
 
 // Сверка с сервером (вход, возврат в приложение, конец срока). Не бросает: нет сети или
@@ -60,6 +67,7 @@ export async function refreshViewAll(userId, d = db) {
     if (prev?.until !== next.until || String(prev?.extra) !== String(next.extra)) await setMeta(VIEW_ALL_KEY, next, d)
     return next
   }
-  if (prev) await endViewAll(userId, d)
+  // Снимок без срока — хвост прошлого выключения не дошел (закрыли приложение): дочищаем так же.
+  if (prev) await (await endViewAll(userId, d)).done
   return null
 }

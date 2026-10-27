@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { keyboardAlign, keyboardLift, keyboardOpen } from './keyboardLift.js'
+import { keyboardAlign, keyboardLift, keyboardOpen, sheetKeyboardInsets } from './keyboardLift.js'
 
 describe('keyboardLift', () => {
   const vv = { offsetTop: 0, height: 400 } // клавиатура съела низ экрана
@@ -42,5 +42,20 @@ describe('keyboardAlign (fb_5b764337)', () => {
     expect(keyboardOpen({ height: 400 }, 793)).toBe(true)
     expect(keyboardOpen({ height: 793 }, 793)).toBe(false)
     expect(keyboardOpen(null, 793)).toBe(false)
+  })
+})
+
+// fb_d3f74593 (27.10.2026, iOS 27): iOS сдвинула видимую полосу — шапка листа ушла вверх, над клавиатурой пустота.
+describe('sheetKeyboardInsets', () => {
+  it('без сдвига — низ = клавиатура, верх 0', () => {
+    expect(sheetKeyboardInsets({ height: 383, offsetTop: 0 }, 793)).toEqual({ top: 0, bottom: 410 })
+  })
+  it('со сдвигом — верх на сдвиг, низ без него (иначе зазор над клавиатурой)', () => {
+    expect(sheetKeyboardInsets({ height: 383, offsetTop: 57.4 }, 793)).toEqual({ top: 57, bottom: 353 })
+  })
+  it('мусорные замеры — нули', () => {
+    expect(sheetKeyboardInsets(null, 793)).toEqual({ top: 0, bottom: 0 })
+    expect(sheetKeyboardInsets({ height: 0, offsetTop: 0 }, 793)).toEqual({ top: 0, bottom: 0 })
+    expect(sheetKeyboardInsets({ height: 900, offsetTop: -5 }, 793)).toEqual({ top: 0, bottom: 0 })
   })
 })

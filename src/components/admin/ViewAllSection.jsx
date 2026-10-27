@@ -6,7 +6,7 @@ import { useViewAll } from '../../hooks/useViewAll.js'
 import { enableViewAll, disableViewAll } from '../../db/adminViewAll.js'
 import { VIEW_ALL_CHOICES, leftLabel, viewAllActive } from '../../lib/viewAll.js'
 
-// Раздел Админки «Видеть всех» (27.10.2026, PLAN-admin-view-all.md): на время Лента, профили,
+// Раздел Админки «Режим наблюдателя» (бывш. «Видеть всех», 27.10.2026, PLAN-admin-view-all.md): на время Лента, профили,
 // комментарии и «в сети» показывают всех участников, а не только друзей и круги. Только
 // просмотр: реакции и комментарии «чужим» сервер не примет. Срок держит сервер.
 export default function ViewAllSection({ userId, online }) {
@@ -38,11 +38,11 @@ export default function ViewAllSection({ userId, online }) {
         {active ? (
           <MenuRow kind="action" icon="eyeoff" title="Выключить" sub={`осталось ${leftLabel(state.until)}`}
             disabled={busy || !online}
-            onClick={() => run(() => disableViewAll(userId), { icon: 'eyeoff', title: 'Режим выключен' })} />
+            onClick={() => run(() => disableViewAll(userId), { icon: 'eyeoff', title: 'Режим наблюдателя выключен' })} />
         ) : VIEW_ALL_CHOICES.map(({ minutes, label }) => (
           <MenuRow key={minutes} kind="action" icon="eye" title={label} sub={off}
             disabled={busy || !online}
-            onClick={() => run(() => enableViewAll(userId, minutes), { icon: 'eye', title: 'Видно всех', sub: label.toLowerCase() })} />
+            onClick={() => run(() => enableViewAll(userId, minutes), { icon: 'eye', title: 'Режим наблюдателя включен', sub: label.toLowerCase() })} />
         ))}
       </div>
     </>
