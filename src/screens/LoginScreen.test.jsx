@@ -163,7 +163,7 @@ describe('LoginScreen', () => {
     fireEvent.change(screen.getByLabelText('Пара слов о себе'), { target: { value: 'друг Димы' } })
     fireEvent.click(screen.getByRole('button', { name: 'Отправить заявку' }))
     expect(await screen.findByText('Заявка отправлена')).toBeInTheDocument()
-    expect(join.submitJoin).toHaveBeenCalledWith({ name: 'Вася', about: 'друг Димы', website: '' })
+    expect(join.submitJoin).toHaveBeenCalledWith({ name: 'Вася', about: 'друг Димы', tg: '', website: '' })
     expect(screen.queryByRole('button', { name: 'Запросить доступ' })).not.toBeInTheDocument()
   })
 
