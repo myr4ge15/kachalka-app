@@ -319,6 +319,18 @@ describe('App: интенты «Тренировок»', () => {
     expect(seen.history.openNew).toBe(true)
   })
 
+  it('«+» с Ленты: точка меню гаснет сразу, к «Тренировкам» не едет (fb_f3c1f386)', async () => {
+    await boot()
+    tab('Лента'); await settle()
+    const nav = document.querySelector('.tabbar')
+    expect(nav.dataset.dot).toBe('on')
+    fireEvent.click(document.querySelector('.side-new')); await settle()
+    // композер еще не сообщил о себе (заглушка onNewChange не зовет) — но «+» уже активна
+    expect(current()).toBe('history')
+    expect(nav.dataset.dot).toBe('off')
+    expect(nav.querySelector('.tab.active')).toBeNull()
+  })
+
   it('Ритм → календарь на день → «вернуться» к Ритму Главной', async () => {
     await boot()
     act(() => seen.home.onOpenCalendar('2026-10-01')); await settle()

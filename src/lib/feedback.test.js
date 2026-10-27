@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest'
 import {
   myFeedbackTab, attachmentProblem, attachmentProblemText, fmtFileSize, videoPosterSrc, sniffMediaType, videoExt, bodyProblem, buildContext, cleanBody, contextLine, describeDevice, feedbackErrorText, isWebKit26Plus,
-  fmtFeedbackDate, hasUnreadReply, isOpenStatus, openCount, unreadReplies, FEEDBACK_MAX,
+  fmtFeedbackDate, hasUnreadReply, isOpenStatus, isFinalStatus, STATUS_LABEL, openCount, unreadReplies, FEEDBACK_MAX,
   canReopen, hasReply, isStaleReply, reopenProblem, REOPEN_LIMIT, REOPEN_MAX, groupAttachments, laterLabel,
 } from './feedback.js'
 
@@ -75,6 +75,10 @@ describe('ответы и статусы', () => {
     expect(unreadReplies(null)).toBe(0)
     expect(openCount([{ status: 'new' }, { status: 'in_progress' }, { status: 'resolved' }])).toBe(2)
     expect(isOpenStatus('declined')).toBe(false)
+    // «В бэклоге» (27.10.2026) — рассмотрено, но открыто: дополнить можно, в «Моих обращениях» — среди открытых.
+    expect(isOpenStatus('backlog')).toBe(true)
+    expect(isFinalStatus('backlog')).toBe(false)
+    expect(STATUS_LABEL.backlog).toBe('В бэклоге')
   })
 })
 

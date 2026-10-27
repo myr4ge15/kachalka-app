@@ -2,7 +2,7 @@
 // График веса: ширина — по контейнеру (ResizeObserver), подписи оси и цели — только без «Скрыть цифры»,
 // подпись цели — слева (справа конец тренда), средняя дата — только на длинном периоде.
 import { afterEach, describe, expect, it, vi } from 'vitest'
-import { act, render } from '@testing-library/react'
+import { act, fireEvent, render } from '@testing-library/react'
 import BodyChart from './BodyChart.jsx'
 
 const days = [
@@ -46,6 +46,33 @@ describe('BodyChart', () => {
     rerender(<BodyChart days={days.slice(0, 1)} trend={trend.slice(0, 1)} />)
     expect(container.querySelector('.bc-trend')).toBeNull()
     expect(texts(container).filter((t) => /[а-я]/.test(t))).toHaveLength(1)
+  })
+
+  it('тап — ближайшее взвешивание: дата, вес и тренд; при скрытых цифрах — только дата (fb_5a1ecb11)', () => {
+    const tr = [{ date: '2026-09-01', value: 72 }, { date: '2026-09-20', value: 71.8 }, { date: '2026-10-27', value: 70.2 }]
+    const { container, rerender } = render(<BodyChart days={days} trend={tr} />)
+    const svg = container.querySelector('svg')
+    expect(container.closest('body').querySelector('[data-no-swipe-back]')).toBeTruthy()
+    svg.getBoundingClientRect = () => ({ left: 0, top: 0, width: 330, height: 190, right: 330, bottom: 190 })
+    fireEvent.pointerDown(svg, { clientX: 320, clientY: 50 })
+    expect(container.querySelector('.bc-tip-txt').textContent).toBe('27 окт · 70.2 кг')
+    fireEvent.pointerMove(svg, { clientX: 150, clientY: 50, buttons: 1 })
+    expect(container.querySelector('.bc-tip-txt').textContent).toBe('20 сент · 71.4 кг · тренд 71.8')
+    fireEvent.pointerMove(svg, { clientX: 40, clientY: 50, buttons: 0, pointerType: 'touch' }) // палец не прижат — не двигаем
+    expect(container.querySelector('.bc-tip-txt').textContent).toMatch(/^20 сент/)
+    fireEvent.pointerLeave(svg, { pointerType: 'mouse' })
+    expect(container.querySelector('.bc-tip')).toBeNull()
+    rerender(<BodyChart days={days} trend={tr} hide />)
+    fireEvent.pointerDown(svg, { clientX: 320, clientY: 50 })
+    expect(container.querySelector('.bc-tip-txt').textContent).toBe('27 окт')
+  })
+
+  it('тап по невидимому графику (нулевая ширина) — без подсказки', () => {
+    const { container } = render(<BodyChart days={days} trend={trend} />)
+    const svg = container.querySelector('svg')
+    svg.getBoundingClientRect = () => ({ left: 0, width: 0 })
+    fireEvent.pointerDown(svg, { clientX: 10 })
+    expect(container.querySelector('.bc-tip')).toBeNull()
   })
 
   it('ширина — по контейнеру, в пределах 260..1000; отписка при размонтировании', () => {

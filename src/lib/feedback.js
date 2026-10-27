@@ -71,14 +71,16 @@ export function sniffMediaType(bytes) {
 }
 
 // Статусы бэклога обращений (совпадают с check в feedback.sql).
-export const FEEDBACK_STATUSES = ['new', 'in_progress', 'resolved', 'declined']
+// backlog (27.10.2026) — «рассмотрели, пока не берем»: открытое, как «В работе», но не очередь на сейчас.
+export const FEEDBACK_STATUSES = ['new', 'in_progress', 'backlog', 'resolved', 'declined']
 export const STATUS_LABEL = {
   new: 'Новое',
   in_progress: 'В работе',
+  backlog: 'В бэклоге',
   resolved: 'Решено',
   declined: 'Не будем делать',
 }
-export const isOpenStatus = (s) => s === 'new' || s === 'in_progress'
+export const isOpenStatus = (s) => s === 'new' || s === 'in_progress' || s === 'backlog'
 export const isFinalStatus = (s) => s === 'resolved' || s === 'declined'
 
 // Переоткрытие автором (v6.12.0): комментарий до 1000 символов, не больше 3 раз

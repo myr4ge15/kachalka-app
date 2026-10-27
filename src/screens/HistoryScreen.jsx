@@ -169,8 +169,11 @@ export default function HistoryScreen({
     setSelected('new')
     setFromRhythm(false)
     setCalendarReturn(null)
+    // «Композер открыт» — в той же пачке, что гашение намерения (fb_f3c1f386): иначе между ними
+    // App видел кадр без того и другого, и точка меню успевала уехать к «Тренировкам».
+    onNewChange?.(true)
     onOpenNewConsumed?.()
-  }, [openNew, onOpenNewConsumed])
+  }, [openNew, onOpenNewConsumed, onNewChange])
 
   // Тап по УЖЕ активной вкладке «Тренировки» = выход из под-вида к списку.
   // Раньше он не делал ничего: человек, зашедший в композер с Главной, жал

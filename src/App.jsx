@@ -162,7 +162,9 @@ export default function App() {
   const [historyCalm, setHistoryCalm] = useState(false)
   // Открыт композер новой тренировки (fb_9b86c8f0): «Тренировки» не подсвечены, точки меню нет, «+» — акцентом.
   const [composingNew, setComposingNew] = useState(false)
-  const newActive = tab === 'history' && composingNew
+  // fb_f3c1f386: «+» активен уже по намерению — иначе кадр «вкладка Тренировки» без композера
+  // уводил точку от прежней вкладки к «Тренировкам», и она гасла на полпути под «+».
+  const newActive = tab === 'history' && (composingNew || openNewWorkout)
 
   // «Добро пожаловать», «Что нового» и вопрос про уведомления — hooks/useLaunchSheets.js.
   const { welcome, closeWelcome, whatsNew, closeWhatsNew, tgAsk, closeTgAsk, pushAsk, closePushAsk } = useLaunchSheets(user, historyBusy)

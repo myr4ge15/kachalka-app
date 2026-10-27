@@ -3144,6 +3144,8 @@ label.act.busy { opacity: .55; pointer-events: none; }
 .fb-status.s-new { color: var(--acc-2); border-color: color-mix(in srgb, var(--acc) 55%, transparent); }
 .fb-status.s-in_progress { color: var(--yellow); border-color: color-mix(in srgb, var(--yellow) 45%, transparent); }
 .fb-status.s-resolved { color: var(--green); border-color: color-mix(in srgb, var(--green) 45%, transparent); }
+/* «В бэклоге» (27.10.2026): рассмотрено, ждет — спокойно, пунктиром, не цветом очереди. */
+.fb-status.s-backlog { color: var(--muted); border-style: dashed; }
 .fb-reply {
   margin-top: 4px; padding: 10px 12px; border-radius: var(--r-md); background: var(--surface-2);
   display: flex; flex-direction: column; gap: 4px;
@@ -3198,7 +3200,10 @@ label.act.busy { opacity: .55; pointer-events: none; }
 .fb-filter .seg-item { min-height: 44px; }
 .fb-edit-btn { margin-top: 4px; min-height: 44px; }
 .fb-editor { margin-top: 4px; }
-.fb-status-pick { display: grid; grid-template-columns: 1fr 1fr; gap: 6px; }
+/* Пять статусов: открытые (новое, в работе, в бэклоге) — верхний ряд по трети, закрытые — нижний пополам. */
+.fb-status-pick { display: grid; grid-template-columns: repeat(6, 1fr); gap: 6px; }
+.fb-status-pick .seg-item { grid-column: span 2; }
+.fb-status-pick .seg-item:nth-child(n+4) { grid-column: span 3; }
 .fb-status-pick .seg-item { min-height: 44px; }
 
 
@@ -4922,7 +4927,11 @@ img.has-img, .avatar-lightbox-img { -webkit-touch-callout: none; -webkit-user-dr
 .body-empty-title { margin: 0; font-weight: 700; }
 .body-chart-card .seg { margin-bottom: 10px; }
 .body-chart-box { width: 100%; }
-.body-chart { display: block; }
+.body-chart { display: block; touch-action: pan-y; cursor: crosshair; -webkit-user-select: none; user-select: none; }
+.bc-sel-line { stroke: var(--muted); stroke-width: 1; stroke-dasharray: 2 3; }
+.bc-sel-dot { fill: var(--acc); stroke: var(--text); stroke-width: 2; }
+.bc-tip { fill: var(--surface-solid); stroke: var(--border); }
+.bc-tip-txt { fill: var(--text); font-size: 11px; font-weight: 600; }
 .body-row-more { border-top: 1px solid var(--border); }
 /* Узкий экран (320): подпись у глаза уводит заголовок на две строки — остается одна иконка. */
 @media (max-width: 360px) { .body-eye-txt { display: none; } .body-eye { padding: 0 10px; } }
@@ -4965,7 +4974,7 @@ img.has-img, .avatar-lightbox-img { -webkit-touch-callout: none; -webkit-user-dr
 .body-goal-sub { color: var(--muted); font-size: var(--fs-meta); margin-top: 2px; }
 .body-goal-sub.body-good { color: var(--green); }
 .body-sheet .date-chip { margin-bottom: 14px; }
-.body-sheet-scroll { flex: 0 1 auto; padding-bottom: 8px; } /* «Сохранить» — сразу под полями, а не у низа экрана */
+.body-sheet-scroll { flex: 0 1 auto; padding: 4px 4px 8px; margin: 0 -4px; } /* поля — под рамку фокуса чипа даты (fb_1df13f61: левый край срезался) */ /* «Сохранить» — сразу под полями, а не у низа экрана */
 .body-sheet-actions { flex: none; padding-top: 10px; }
 .body-note { margin-top: 6px; }
 .body-field { display: flex; flex-direction: column; gap: 6px; margin-bottom: 12px; }
