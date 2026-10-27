@@ -37,7 +37,7 @@ test('точный шаблон: редактор → перезагрузка �
   await page.getByRole('button', { name: /Точный план/ }).click()
   const sets = page.locator('.exercise-card--active .set-row')
   await expect(sets).toHaveCount(3)
-  for (const [i, weight, reps] of [[0, '20', '15'], [1, '82,5', '8'], [2, '70', '10']]) {
+  for (const [i, weight, reps] of [[0, '20', '15'], [1, '82.5', '8'], [2, '70', '10']]) {
     await expect(sets.nth(i).locator('input').nth(0)).toHaveValue(weight)
     await expect(sets.nth(i).locator('input').nth(1)).toHaveValue(reps)
   }

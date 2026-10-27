@@ -4241,6 +4241,9 @@ html[data-sheet-open] .content { overflow-y: hidden; }
   .sheet--picker > .search { padding: 10px 12px; }
   .sheet--picker > .chips { min-width: 0; align-self: center; padding: 6px 0; }
   .sheet--picker > .create-open { margin-top: 8px; min-height: 44px; }
+  /* Ручка свайпа вниз (27.10.2026) — вне сетки: иначе встает в первую ячейку и сдвигает строки, список
+     сжимался до 115 px (e2e landscape-picker). Лежа лист во всю высоту — подсказка жеста не нужна. */
+  .sheet--picker > .sheet-grab { display: none; }
 }
 
 /* вход по имени, «Хочу в круг» (v6.12.0) */
