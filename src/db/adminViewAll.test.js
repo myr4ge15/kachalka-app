@@ -8,7 +8,7 @@ vi.mock('./sync.js', () => ({ syncNow: (...a) => api.sync(...a) }))
 vi.mock('../lib/adminViewAll.js', () => ({
   viewAllOn: (...a) => api.on(...a), viewAllOff: (...a) => api.off(...a), viewAllState: (...a) => api.state(...a),
 }))
-import { openUserDb, closeUserDb, getMeta, setMeta } from './local.js'
+import { openUserDb, closeUserDb, getMeta, setMeta, db } from './local.js'
 import { uniqueUserId } from '../test/idbHarness.js'
 import { FEED_SIG } from './feed.js'
 import { VIEW_ALL_KEY } from '../lib/viewAll.js'
@@ -52,6 +52,14 @@ describe('adminViewAll (db)', () => {
     release()
     await done
     expect(await getViewAll()).toBeNull()
+  })
+
+  it('выключить: тренировки «чужих» уходят из кэша Ленты сразу, до синка; друзья остаются (fb_fda86ffe)', async () => {
+    await setMeta(VIEW_ALL_KEY, { until: UNTIL, extra: ['st'] })
+    await db.feed.bulkPut([{ id: 'w_st', user_id: 'st' }, { id: 'w_fr', user_id: 'fr' }])
+    api.sync.mockReturnValue(new Promise(() => {})) // синк «уже шел» и не перечитал Ленту
+    await disableViewAll(user)
+    expect((await db.feed.toArray()).map((w) => w.id)).toEqual(['w_fr'])
   })
 
   it('синк упал — снимок все равно снят', async () => {

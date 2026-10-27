@@ -317,8 +317,9 @@ select.prog-select, select.admin-input {
 .viewall-ico { flex: none; color: var(--yellow); }
 .viewall-txt { flex: 1; min-width: 0; }
 .viewall-txt b { color: var(--yellow); font-weight: 700; }
-/* Кнопка — меньше обычной .btn--sm и без margin-top у .ghost (fb_bf00d8ce: была высокой и съезжала вниз). */
-.viewall-bar .btn { --btn-h: 30px; min-height: 30px; margin: 0; padding: 4px 12px; font-size: var(--fs-small); border-radius: var(--r-pill); }
+/* Кнопка — меньше обычной .btn--sm и без margin-top у .ghost (fb_bf00d8ce: была высокой и съезжала вниз).
+   .btn.ghost ниже по файлу с той же специфичностью дает margin-top: 6px — селектор сильнее. */
+.viewall-bar .btn.ghost { --btn-h: 30px; min-height: 30px; margin: 0; padding: 4px 12px; font-size: var(--fs-small); border-radius: var(--r-pill); }
 /* Раздел Админки: выбор срока — ниже подсказки (fb_0e4d657f). */
 .viewall-group { margin-top: 14px; }
 /* Метка «вне круга» у автора в Ленте — тот же вид, что «я», цветом режима. */
@@ -4894,3 +4895,67 @@ img.has-img, .avatar-lightbox-img { -webkit-touch-callout: none; -webkit-user-dr
   .fb-ring.spin { animation: none; }
   .fb-ring-arc { transition: none; }
 }
+
+/* «Вес и замеры» (PLAN-body-metrics.md). Тон числа — только .body-good (движение к своей цели)
+   или обычный текст: красного и желтого для веса нет (правило «Как не угнетать» 2). */
+.body-eye {
+  margin-left: auto; width: 44px; height: 44px; display: grid; place-items: center;
+  border: 0; border-radius: var(--r-pill); background: none; color: var(--muted); cursor: pointer;
+}
+.body-eye[aria-pressed="true"] { color: var(--acc-2); background: var(--acc-soft); }
+.body-tabs { margin-bottom: 12px; }
+.body-now-k, .body-hint, .body-stat-k, .body-row-sub, .body-field-lbl, .body-legend {
+  color: var(--muted); font-size: var(--fs-meta); font-weight: 600; margin: 0;
+}
+.body-hint { margin-top: 8px; line-height: 1.4; }
+.body-now-v {
+  margin: 4px 0 0; font-family: var(--font-display); font-weight: 900; font-size: 44px; line-height: 1;
+}
+.body-unit { font-size: 20px; color: var(--muted); }
+.body-stats { display: grid; grid-auto-flow: column; grid-auto-columns: 1fr; gap: 10px; margin-top: 14px; }
+.body-stat { display: flex; flex-direction: column; gap: 2px; min-width: 0; }
+.body-stat-v { font-family: var(--font-display); font-weight: 800; font-size: 20px; }
+.body-good { color: var(--green); }
+.body-empty-title { margin: 0; font-weight: 700; }
+.body-chart-card .seg { margin-bottom: 10px; }
+.body-chart { display: block; width: 100%; height: auto; }
+.bc-grid { stroke: var(--border); stroke-dasharray: 3 3; }
+.bc-axis { fill: var(--muted); font-size: 10px; }
+.bc-dot { fill: color-mix(in srgb, var(--acc) 35%, transparent); }
+.bc-trend { fill: none; stroke: var(--acc); stroke-width: 2.6; stroke-linecap: round; stroke-linejoin: round; }
+.bc-end { fill: var(--acc); stroke: var(--bg); stroke-width: 2; }
+.bc-goal { stroke: var(--muted); stroke-width: 1.5; stroke-dasharray: 6 5; }
+.bc-goal-lbl { fill: var(--muted); font-size: 10px; }
+.body-legend { display: flex; align-items: center; flex-wrap: wrap; gap: 6px 12px; margin-top: 6px; }
+.bc-key { display: inline-block; width: 14px; height: 3px; margin-right: -6px; border-radius: 2px; vertical-align: middle; }
+.bc-key--trend { background: var(--acc); }
+.bc-key--dot { width: 7px; height: 7px; border-radius: 50%; background: color-mix(in srgb, var(--acc) 35%, transparent); }
+.bc-key--goal { background: repeating-linear-gradient(90deg, var(--muted) 0 4px, transparent 4px 7px); }
+.body-list { list-style: none; margin: 0; padding: 0; }
+.body-row {
+  position: relative; display: grid; grid-template-columns: 1fr auto; align-items: center; column-gap: 8px;
+  padding: 10px 0; border-bottom: 1px solid var(--border);
+}
+.body-row:last-child { border-bottom: 0; }
+.body-row-main { display: flex; justify-content: space-between; gap: 10px; }
+.body-row-w { font-family: var(--font-display); font-weight: 800; }
+.body-row-sub { grid-column: 1; margin-top: 2px; }
+.body-row > .more-wrap { grid-column: 2; grid-row: 1 / span 2; }
+.body-more { width: 44px; height: 44px; margin-right: -10px; background: none; border: 0; border-radius: var(--r-md);
+  color: var(--muted); font-size: 20px; cursor: pointer; }
+.body-more[aria-expanded="true"] { background: var(--surface-2); color: var(--text); }
+.body-goal { display: flex; flex-direction: column; gap: 12px; }
+.body-goal-title { font-weight: 700; }
+.body-goal-sub { color: var(--muted); font-size: var(--fs-meta); margin-top: 2px; }
+.body-goal-sub.body-good { color: var(--green); }
+.body-sheet .date-chip { margin-bottom: 12px; }
+.body-field { display: flex; flex-direction: column; gap: 6px; margin-bottom: 12px; }
+.body-stepper { max-width: 220px; }
+.body-input {
+  width: 100%; box-sizing: border-box; min-height: 46px; padding: 11px 13px;
+  border: 1px solid var(--border); border-radius: var(--r-md); background: var(--bg); color: var(--text); font-size: 16px;
+}
+.body-input:focus { outline: none; border-color: var(--acc); }
+.body-measures { display: flex; flex-direction: column; gap: 10px; margin: 8px 0 12px; }
+.body-cm { display: grid; grid-template-columns: 1fr 120px; align-items: center; gap: 10px; font-size: var(--fs-meta); font-weight: 600; }
+.body-measures .link-btn { align-self: flex-start; min-height: 44px; }

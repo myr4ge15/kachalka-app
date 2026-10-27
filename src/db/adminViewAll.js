@@ -12,10 +12,17 @@ import { db, getMeta, setMeta } from './local.js'
 import { FEED_SIG } from './feed.js'
 import { syncNow } from './sync.js'
 import { viewAllOn, viewAllOff, viewAllState } from '../lib/adminViewAll.js'
-import { VIEW_ALL_KEY } from '../lib/viewAll.js'
+import { VIEW_ALL_KEY, viewAllExtra } from '../lib/viewAll.js'
 
 export function getViewAll(d = db) {
   return getMeta(VIEW_ALL_KEY, d).then((v) => v ?? null)
+}
+
+// Тренировки «чужих» — из кэша Ленты: после режима их не видно (их и вычислял сервер как невидимых без него).
+async function dropFromFeed(extra, d) {
+  if (!extra.size) return
+  const ids = await d.feed.filter((w) => extra.has(w.user_id)).primaryKeys()
+  if (ids.length) await d.feed.bulkDelete(ids)
 }
 
 export async function resetViewAllCaches(d = db) {
@@ -25,12 +32,14 @@ export async function resetViewAllCaches(d = db) {
 }
 
 // Режим кончился (кнопка, срок, сервер сказал «нет»). Сразу — чистка и снимок без срока: плашка и раздел гаснут
-// мгновенно (fb_de151d74: ждали полный синк, «Выключаю…» висело секунды). Фоном — перечитать и снять снимок:
-// пока Лента перечитывается, «чужие» в ней еще помечены (extra). Возвращает { done } — промис фонового хвоста.
+// мгновенно (fb_de151d74: ждали полный синк, «Выключаю…» висело секунды), а «чужие» уходят из кэша Ленты
+// (fb_fda86ffe: синк, уже шедший в этот момент, Ленту не перечитывал — «чужой» оставался без метки, и комментарий
+// отклонял сервер). Фоном — перечитать и снять снимок. Возвращает { done } — промис фонового хвоста.
 export async function endViewAll(userId, d = db) {
   if (!d) return { done: Promise.resolve() }
   const prev = await getViewAll(d)
   await resetViewAllCaches(d)
+  await dropFromFeed(viewAllExtra(prev), d)
   await setMeta(VIEW_ALL_KEY, { until: null, extra: prev?.extra ?? [] }, d)
   const done = (async () => {
     try { await syncNow(userId) } catch { /* синк сам покажет ошибку; снимок все равно снимаем */ }
