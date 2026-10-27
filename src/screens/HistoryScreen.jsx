@@ -169,11 +169,8 @@ export default function HistoryScreen({
     setSelected('new')
     setFromRhythm(false)
     setCalendarReturn(null)
-    // «Композер открыт» — в той же пачке, что гашение намерения (fb_f3c1f386): иначе между ними
-    // App видел кадр без того и другого, и точка меню успевала уехать к «Тренировкам».
-    onNewChange?.(true)
     onOpenNewConsumed?.()
-  }, [openNew, onOpenNewConsumed, onNewChange])
+  }, [openNew, onOpenNewConsumed])
 
   // Тап по УЖЕ активной вкладке «Тренировки» = выход из под-вида к списку.
   // Раньше он не делал ничего: человек, зашедший в композер с Главной, жал
@@ -203,10 +200,13 @@ export default function HistoryScreen({
     onBusyChange?.((selected !== null && !tplList) || selectMode || (tplList && tplSelecting) || finishResult !== null)
     return () => onBusyChange?.(false)
   }, [selected, tplList, tplSelecting, selectMode, finishResult, onBusyChange])
+  // Намерение openNew — уже «композер открыт» (fb_f3c1f386, fb_1d9aa1e3): эффект интента гасит его в той
+  // же пачке, где этот эффект еще видит старый selected = null. Без «|| openNew» App получал кадр
+  // «Тренировки активны, композера нет», и точка меню успевала уехать к «Тренировкам».
   useEffect(() => {
-    onNewChange?.(selected === 'new')
+    onNewChange?.(selected === 'new' || !!openNew)
     return () => onNewChange?.(false)
-  }, [selected, onNewChange])
+  }, [selected, openNew, onNewChange])
   useEffect(() => {
     onCalmChange?.(tplList)
     return () => onCalmChange?.(false)

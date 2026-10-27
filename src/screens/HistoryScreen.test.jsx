@@ -1,4 +1,5 @@
 // @vitest-environment jsdom
+import { useCallback, useState } from 'react'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 import { act, fireEvent, render, screen, waitFor } from '@testing-library/react'
 import { useLiveQuery } from 'dexie-react-hooks'
@@ -154,6 +155,23 @@ describe('HistoryScreen', () => {
     expect(screen.getByTestId('workout-screen')).toHaveTextContent('new')
     await waitFor(() => expect(onConsumed).toHaveBeenCalledOnce())
     expect(onBusy).toHaveBeenCalledWith(true)
+  })
+
+  it('интент «+»: ни в одном кадре родителя композер не «закрыт» (точка меню, fb_1d9aa1e3)', async () => {
+    // Родитель — как App: «+» активна, пока есть намерение или композер сообщил о себе.
+    const frames = []
+    function Host() {
+      const [open, setOpen] = useState(true)
+      const [composing, setComposing] = useState(false)
+      const consumed = useCallback(() => setOpen(false), [])
+      frames.push(open || composing)
+      return <HistoryScreen user={user} openNew={open} onOpenNewConsumed={consumed} onNewChange={setComposing} />
+    }
+    render(<Host />)
+    await waitFor(() => expect(screen.getByTestId('workout-screen')).toHaveTextContent('new'))
+    await act(async () => {})
+    expect(frames.length).toBeGreaterThan(1)
+    expect(frames.every(Boolean)).toBe(true)
   })
 
   it('шаблоны: в списке «+» рабочая и спокойная, в редакторе — утоплена (19.10.2026)', () => {
