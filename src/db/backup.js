@@ -13,13 +13,14 @@ import { updateSyncedMeta } from './userMeta.js'
 import { readGoals, writeGoals } from './notifications.js'
 import {
   downloadBackup, parseBackup, assertSameOwner, planImport,
-  mergeBadgesForImport, mergeProgForImport, mergeFavsForImport, accentForImport,
+  mergeBadgesForImport, mergeProgForImport, mergeFavsForImport, accentForImport, mergeBodyForImport,
 } from '../lib/backup.js'
+import { bodyKey } from './body.js'
 import { mergeRpe } from '../lib/rpe.js'
 
 // Собрать все личное состояние и сразу скачать файлом.
 export async function exportAllMyData(userId, appVersion = 'dev') {
-  const [workouts, goals, badges, prog, rpe, fav, accent, priv] = await Promise.all([
+  const [workouts, goals, badges, prog, rpe, fav, accent, priv, body] = await Promise.all([
     getWorkouts(userId),
     readGoals(userId),
     getBadges(userId),
@@ -28,9 +29,10 @@ export async function exportAllMyData(userId, appVersion = 'dev') {
     getFavorites(userId),
     getAccentPref(userId),
     getMeta(`priv_${userId}`),
+    getMeta(bodyKey(userId)),
   ])
   // null — закрыли лист «Поделиться», ничего не сохранив: тоста «Файл сохранен» не будет.
-  const how = await downloadBackup({ userId, workouts, goals, badges, prog, rpe, fav, accent, priv }, appVersion)
+  const how = await downloadBackup({ userId, workouts, goals, badges, prog, rpe, fav, accent, priv, body }, appVersion)
   return how === 'cancelled' ? null : workouts.length
 }
 
@@ -42,7 +44,7 @@ export async function importAllMyData(userId, text) {
 
   // Справочник упражнений берем ЦЕЛИКОМ (включая is_hidden): в истории могут
   // лежать скрытые админкой упражнения, и для них полная форма тоже нужна.
-  const [all, goals, badges, prog, rpe, fav, accent, exercises] = await Promise.all([
+  const [all, goals, badges, prog, rpe, fav, accent, body, exercises] = await Promise.all([
     db.workouts.toArray(),
     readGoals(userId),
     getBadges(userId),
@@ -50,6 +52,7 @@ export async function importAllMyData(userId, text) {
     getRpe(userId),
     getMeta(`fav_${userId}`),
     getAccentPref(userId),
+    getMeta(bodyKey(userId)),
     db.exercises.toArray(),
   ])
 
@@ -63,6 +66,7 @@ export async function importAllMyData(userId, text) {
     rpe,
     fav,
     accent,
+    body,
     userId,
     exercises: new Map(exercises.map((e) => [e.id, e])),
   })
@@ -90,6 +94,7 @@ export async function importAllMyData(userId, text) {
   if (plan.rpe) await updateSyncedMeta(userId, 'rpe', (cur) => mergeRpe(cur ?? {}, snapshot?.rpe ?? {}, true))
   if (plan.fav) await updateSyncedMeta(userId, 'fav', (cur) => mergeFavsForImport(cur, s.favorites) ?? cur)
   if (plan.accent) await updateSyncedMeta(userId, 'accent', (cur) => accentForImport(cur, s.accent, userId) ?? cur)
+  if (plan.body) await updateSyncedMeta(userId, 'body', (cur) => mergeBodyForImport(cur, s.body) ?? cur)
 
   return { ...plan.counts, workouts: plan.counts.workouts - failed, failed }
 }

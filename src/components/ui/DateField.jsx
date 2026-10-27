@@ -4,7 +4,8 @@ import { fmtDayChip, toDateInput, fromDateInput } from '../../lib/dates.js'
 // «Сегодня, 30 сентября» + нативный <input type=date> поверх (тап по чипу открывает
 // пикер). С него же начинается запись задним числом. Презентационное — значение и
 // onChange(nextIso) приходят от WorkoutScreen. Дат-хелперы — чистые в lib/dates.
-export default function DateField({ performedAt, onChange }) {
+// label — подпись поля для скринридера (лист «Вес и замеры» — «Дата записи»).
+export default function DateField({ performedAt, onChange, label = 'Дата тренировки' }) {
   const current = toDateInput(performedAt)
   // Пусто (сброс) → сегодня. Ту же дату повторно не шлем: blur после обычного выбора
   // не должен дергать onChange второй раз.
@@ -28,7 +29,7 @@ export default function DateField({ performedAt, onChange }) {
       <span className="date-chip__value">{fmtDayChip(performedAt)}</span>
       <input
         type="date"
-        aria-label="Дата тренировки"
+        aria-label={label}
         // required (v6.3.8): у даты тренировки не бывает «пусто», и с этим атрибутом iOS
         // не показывает в пикере кнопку «Сбросить» (она очищала поле, а приложение об этом
         // не узнавало). Формы тут нет — на отправку не влияет.

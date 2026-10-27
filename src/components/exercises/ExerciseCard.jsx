@@ -225,13 +225,20 @@ export default function ExerciseCard({
                 </div>
                 {(eff.strategy === 'weight' || eff.strategy === 'reps') && (
                   <div className="ap-step-line">
-                    <span className="lbl">Шаг</span>
+                    {/* fb_ce466edf: в «+повт.» у весового упражнения шаг — это прибавка веса, когда повторы
+                        дошли до потолка (lib/progression.js); без подписи было непонятно, зачем он. */}
+                    <span className="lbl">{eff.strategy === 'reps' && metric === 'weight' ? 'Шаг веса' : 'Шаг'}</span>
                     <div className="stepper ap-stepper">
                       <HoldButton aria-label="Шаг прогрессии меньше" onTrigger={() => onChangeProgSettings(ei, { step: nextProgStep(eff.step, metric, -1) })}>−</HoldButton>
                       <span className="ap-step-val">{fmtProgStep(eff.step, metric)}</span>
                       <HoldButton aria-label="Шаг прогрессии больше" onTrigger={() => onChangeProgSettings(ei, { step: nextProgStep(eff.step, metric, +1) })}>+</HoldButton>
                     </div>
                   </div>
+                )}
+                {eff.strategy === 'reps' && metric === 'weight' && (
+                  <p className="ap-step-note">
+                    Растим повторы до {eff.repCeiling || 12}, потом прибавляем вес на шаг и снова набираем повторы.
+                  </p>
                 )}
               </div>
             )

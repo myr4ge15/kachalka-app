@@ -31,6 +31,7 @@ vi.mock('../components/social/MemberInvites.jsx', () => ({ default: () => null }
 vi.mock('../lib/feedbackApi.js', () => ({ myUnreadReplies: vi.fn(async () => 0) }))
 vi.mock('../db/leaderboard.js', () => ({ getCachedLeaderboard: vi.fn(async () => ({})) }))
 vi.mock('../db/friends.js', () => ({ getFriends: vi.fn(async () => []) }))
+vi.mock('../db/body.js', () => ({ getBody: vi.fn(async () => ({ entries: [{ id: 'b1', date: '2026-10-20', weight: 82.3, at: '' }] })) }))
 vi.mock('../lib/avatar.js', () => ({ uploadMyAvatar: vi.fn() }))
 vi.mock('../db/backup.js', () => ({ exportAllMyData: vi.fn(), importAllMyData: vi.fn() }))
 vi.mock('../db/notifications.js', () => ({ readGoals: vi.fn(async () => []), writeGoals: vi.fn(async () => {}) }))
@@ -109,6 +110,17 @@ describe('Профиль — переходы и метки', () => {
     expect(link).toHaveTextContent(/получено 0 из/)
     fireEvent.click(link)
     expect(onOpenAchievements).toHaveBeenCalled()
+  })
+
+  it('«Вес и замеры» — строка с датой последней записи, без цифр веса', async () => {
+    vi.mocked(repo.getWorkouts).mockResolvedValue([])
+    const onOpenBody = vi.fn()
+    render(<Harness onOpenBody={onOpenBody} />)
+    const row = await screen.findByRole('button', { name: /Вес и замеры/ })
+    await waitFor(() => expect(row).toHaveTextContent(/последняя запись 20 октября/))
+    expect(row.textContent).not.toMatch(/82/)
+    fireEvent.click(row)
+    expect(onOpenBody).toHaveBeenCalled()
   })
 
   it('женский борд — место «по ягодичному мостику»; рейтинг недоступен — без строки', async () => {

@@ -12,11 +12,11 @@ describe('metaKeyFor / SYNCED_KINDS', () => {
     expect(metaKeyFor('notif_seen_at', 'u1')).toBe('notif_seen_at_u1')
   })
 
-  it('синкаем ровно шесть родов ключей (fav — с v6.5.0, user-meta-fav.sql)', () => {
+  it('синкаем ровно семь родов ключей (body — «Вес и замеры», 27.10.2026)', () => {
     // ⚠️ Тест-страховка к инварианту AGENTS.md: список обязан совпадать с белым
-    // списком в upsert_user_meta (supabase/user-meta-fav.sql), иначе push упрется в
+    // списком в upsert_user_meta (supabase/migrations/20261027150000_user_meta_body.sql), иначе push упрется в
     // `unknown user_meta key`. Меняешь здесь — меняй и там.
-    expect(SYNCED_KINDS).toEqual(['badges', 'prog', 'notif_seen_at', 'rpe', 'accent', 'fav'])
+    expect(SYNCED_KINDS).toEqual(['badges', 'prog', 'notif_seen_at', 'rpe', 'accent', 'fav', 'body'])
   })
 })
 
@@ -230,5 +230,22 @@ describe('accent — last-write-wins', () => {
     const remote = { id: 'peach', hue: 200 }
     expect(mergeMetaValue({ kind: 'accent', local, remote, localAt: '2026-09-30T10:00:00Z', remoteAt: '2026-09-30T11:00:00Z' })).toEqual(remote)
     expect(mergeMetaValue({ kind: 'accent', local, remote, localAt: '2026-09-30T11:00:00Z', remoteAt: '2026-09-30T11:00:00Z' })).toEqual(local)
+  })
+})
+
+describe('body — «Вес и замеры»', () => {
+  const rec = (id, at, weight) => ({ id, date: '2026-10-27', weight, at })
+  it('записи двух устройств объединяются, а не перетираются по LWW', () => {
+    const local = { entries: [rec('a', '2026-10-27T07:00:00Z', 82.3)] }
+    const remote = { entries: [rec('b', '2026-10-27T08:00:00Z', 82.1)] }
+    const v = mergeMetaValue({ kind: 'body', local, remote, localAt: '2026-10-27T07:00:00Z', remoteAt: '2026-10-27T08:00:00Z' })
+    expect(v.entries.map((e) => e.id).sort()).toEqual(['a', 'b'])
+  })
+  it('planMetaSync: слитое отличается от сервера — уедет наверх', () => {
+    const local = { entries: [rec('a', '2026-10-27T07:00:00Z', 82.3)] }
+    const remote = { entries: [rec('b', '2026-10-27T08:00:00Z', 82.1)] }
+    const p = planMetaSync({ kind: 'body', local, remote, localAt: '2026-10-27T07:00:00Z', remoteAt: '2026-10-27T08:00:00Z', hasRemote: true, now: NOW })
+    expect(p.dirty).toBe(1)
+    expect(p.write).toBe(true)
   })
 })

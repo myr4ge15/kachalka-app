@@ -1,7 +1,7 @@
 import { describe, it, expect } from 'vitest'
 import {
   BACKUP_SCHEMA, BackupError, buildBackup, backupFilename,
-  parseBackup, assertSameOwner, planImport, describeImport,
+  parseBackup, assertSameOwner, planImport, describeImport, mergeBodyForImport,
 } from './backup.js'
 
 const W1 = '7b0c1d2e-0000-4000-8000-000000000001'
@@ -109,7 +109,7 @@ describe('planImport', () => {
 
   it('пустая база: добавляет все, упражнение берет из локального справочника', () => {
     const p = planImport(snap(), { workoutIds: [], goals: [], badges: {}, prog: undefined, exercises })
-    expect(p.counts).toEqual({ workouts: 1, workoutsSkipped: 0, goals: 1, badges: 1, prog: 1, rpe: 0, fav: 0, accent: 0 })
+    expect(p.counts).toEqual({ workouts: 1, workoutsSkipped: 0, goals: 1, badges: 1, prog: 1, rpe: 0, fav: 0, accent: 0, body: 0 })
     // полная форма из справочника, а не усеченная из файла
     expect(p.workouts[0].entries[0].exercise.is_bench_lift).toBe(true)
     expect(p.workouts[0].entries[0].exercise.secondary).toEqual(['трицепс'])
@@ -122,7 +122,7 @@ describe('planImport', () => {
     const b = snap()
     const cur = { workoutIds: [W1], goals, badges, prog: { enabled: false, byExercise: { ex1: { step: 2.5 } } }, exercises }
     const p = planImport(b, cur)
-    expect(p.counts).toEqual({ workouts: 0, workoutsSkipped: 0, goals: 0, badges: 0, prog: 0, rpe: 0, fav: 0, accent: 0 })
+    expect(p.counts).toEqual({ workouts: 0, workoutsSkipped: 0, goals: 0, badges: 0, prog: 0, rpe: 0, fav: 0, accent: 0, body: 0 })
     expect(p.goals).toBe(null)
     expect(p.badges).toBe(null)
     expect(p.prog).toBe(null)
@@ -235,7 +235,7 @@ describe('planImport', () => {
 
   it('пустой current и пустой снимок не роняют план', () => {
     const p = planImport({ workouts: [], goals: [], badges: {} }, {})
-    expect(p.counts).toEqual({ workouts: 0, workoutsSkipped: 0, goals: 0, badges: 0, prog: 0, rpe: 0, fav: 0, accent: 0 })
+    expect(p.counts).toEqual({ workouts: 0, workoutsSkipped: 0, goals: 0, badges: 0, prog: 0, rpe: 0, fav: 0, accent: 0, body: 0 })
     expect(planImport(undefined, undefined).workouts).toEqual([])
   })
 
@@ -330,5 +330,30 @@ describe('избранное и акцент в бэкапе', () => {
 
   it('describeImport упоминает избранное и цвет', () => {
     expect(describeImport({ fav: 2, accent: 1 })).toBe('Добавлено — избранных упражнений: 2, цвет оформления.')
+  })
+})
+
+describe('«Вес и замеры» в бэкапе', () => {
+  const rec = (id, date, weight) => ({ id, date, weight, at: `${date}T07:00:00.000Z` })
+  it('в файл — живые записи, цель и настройки, без надгробий', () => {
+    const b = buildBackup({ userId: 'u1', body: { entries: [rec('a', '2026-10-27', 82.3), { id: 'x', date: '2026-10-20', at: '2026-10-21T00:00:00Z', del: true }], goal: { kind: 'keep', target: 82 }, fields: ['waist'], hide: true } })
+    expect(b.settings.body.entries.map((e) => e.id)).toEqual(['a'])
+    expect(b.settings.body).toMatchObject({ goal: { kind: 'keep', target: 82 }, fields: ['waist'], hide: true })
+    expect(buildBackup({ userId: 'u1' }).settings.body).toBe(null)
+  })
+  it('импорт дописывает записи по id, удаленное не воскрешает, цель не перетирает', () => {
+    const snap = { entries: [rec('a', '2026-10-27', 82.3), rec('b', '2026-10-25', 82.5), rec('x', '2026-10-20', 83)], goal: { kind: 'down', target: 78 }, fields: [] }
+    const cur = { entries: [rec('a', '2026-10-27', 82.0), { id: 'x', date: '2026-10-20', at: '2026-10-21T00:00:00Z', del: true }], goal: { kind: 'keep', target: 82 } }
+    const m = mergeBodyForImport(cur, snap, '2026-10-27')
+    expect(m.entries.filter((e) => !e.del).map((e) => [e.id, e.weight])).toEqual([['a', 82], ['b', 82.5]])
+    expect(m.goal).toEqual({ kind: 'keep', target: 82, from: null, set: null })
+    expect(mergeBodyForImport(m, snap, '2026-10-27')).toBe(null)
+  })
+  it('пустая учетка получает и цель с настройками; счетчик — в тосте', () => {
+    const p = planImport({ settings: { body: { entries: [rec('a', '2026-10-27', 82.3)], goal: { kind: 'down', target: 78 }, fields: ['waist'] } } }, { userId: 'u1' })
+    expect(p.counts.body).toBe(1)
+    expect(p.body.goal.target).toBe(78)
+    expect(p.body.fields).toEqual(['waist'])
+    expect(describeImport({ body: 3 })).toBe('Добавлено — записей веса и замеров: 3.')
   })
 })

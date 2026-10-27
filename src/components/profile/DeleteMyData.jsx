@@ -1,6 +1,7 @@
 import MenuRow from '../ui/MenuRow.jsx'
 import { useState } from 'react'
 import { softDeleteMyWorkouts } from '../../db/repo.js'
+import { clearMyBody } from '../../db/body.js'
 import { syncNow } from '../../db/sync.js'
 import { showToast } from '../ui/Toast.jsx'
 import { useAliveRef } from '../../hooks/useAliveRef.js'
@@ -16,6 +17,7 @@ export default function DeleteMyData({ userId }) {
     setDelBusy(true)
     try {
       const n = await softDeleteMyWorkouts(userId)
+      await clearMyBody(userId) // и записи «Вес и замеры» (надгробиями — второе устройство их не вернет)
       if (aliveRef.current) setDelArm(false)
       showToast({
         icon: 'trash',
@@ -36,8 +38,8 @@ export default function DeleteMyData({ userId }) {
   return (
     <div className="danger-confirm">
       <p className="danger-text">
-        Удалить все свои тренировки? Отменить это нельзя — если не уверен,
-        сначала нажми «Скачать все мои данные». Учетная запись, цель и шаблоны останутся.
+        Удалить все свои тренировки и записи веса и замеров? Отменить это нельзя — если не уверен,
+        сначала нажми «Скачать все мои данные». Учетная запись, цели упражнений и шаблоны останутся.
       </p>
       <div className="danger-actions">
         <button className="btn ghost" onClick={() => setDelArm(false)} disabled={delBusy}>Отмена</button>

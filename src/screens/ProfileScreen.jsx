@@ -36,6 +36,8 @@ import BackupActions from '../components/profile/BackupActions.jsx'
 import DeleteMyData from '../components/profile/DeleteMyData.jsx'
 import AppVersionLink from '../components/profile/AppVersionLink.jsx'
 import RestTimerToggle from '../components/profile/RestTimerToggle.jsx'
+import { getBody } from '../db/body.js'
+import { bodyRowSubtitle } from '../lib/body.js'
 import { settleScroll } from '../lib/scrollBox.js'
 import { onResume } from '../lib/appEvents.js'
 
@@ -48,7 +50,7 @@ import { onResume } from '../lib/appEvents.js'
 // components/profile/* (v6.14.1); здесь — сводка, навигация и слой Настроек.
 //
 // Пропсы: user, onLogout, onOpenProgress(exerciseId), onOpenFeed().
-export default function ProfileScreen({ user, onLogout, onAccountDeleted, onOpenCircle, onOpenFriends, onOpenProgress, onOpenFeed, onRenamed, onOpenAdmin, onOpenMyExercises, onOpenAchievements, onOpenAppearance, onOpenPushSettings, onOpenWhatsNew, onOpenFeedback, startInSettings = false, onStartInSettingsConsumed, contentRef, edgeSwipeOn = false, active = true }) {
+export default function ProfileScreen({ user, onLogout, onAccountDeleted, onOpenCircle, onOpenFriends, onOpenProgress, onOpenFeed, onRenamed, onOpenAdmin, onOpenMyExercises, onOpenAchievements, onOpenBody, onOpenAppearance, onOpenPushSettings, onOpenWhatsNew, onOpenFeedback, startInSettings = false, onStartInSettingsConsumed, contentRef, edgeSwipeOn = false, active = true }) {
   const workouts = useLiveQuery(() => getWorkouts(user.id), [user.id])
   const goals = useLiveQuery(() => readGoals(user.id), [user.id])
   const myCached = useLiveQuery(() => getCachedUser(user.id), [user.id])
@@ -57,6 +59,8 @@ export default function ProfileScreen({ user, onLogout, onAccountDeleted, onOpen
   const friendRequests = groupFriends(friendRows).incoming.length
   // Тумблер автопрогрессии (рекомендации весов/повторов в тренировке).
   const progEnabled = useLiveQuery(() => getProgSettings(user.id).then((p) => p.enabled), [user.id], true)
+  // «Вес и замеры»: подпись строки — дата последней записи, без цифр веса (lib/body.js).
+  const body = useLiveQuery(() => getBody(user.id), [user.id], null)
   // Пуш-уведомления этого браузера (v6.6.0): здесь — только статус для строки
   // Настроек (v7.1.4), переключение — на экране «Пуш-уведомления».
   const push = usePushToggle(user.id)
@@ -158,6 +162,8 @@ export default function ProfileScreen({ user, onLogout, onAccountDeleted, onOpen
     <section className="sec">
       <MenuRow icon="trophy" title="Достижения" sub={`получено ${badgesEarned} из ${BADGES.length} бейджей`}
         onClick={() => onOpenAchievements?.()} />
+      {/* «Вес и замеры» (PLAN-body-metrics.md): вход — только эта строка, без призывов. */}
+      <MenuRow icon="scale" title="Вес и замеры" sub={bodyRowSubtitle(body)} onClick={() => onOpenBody?.()} />
     </section>
   )
 

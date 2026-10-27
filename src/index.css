@@ -1074,6 +1074,7 @@ button.link-btn { min-height: 44px; display: inline-flex; align-items: center; j
 }
 .seg-item.on { background: var(--acc); color: var(--on-acc); }
 .ap-step-line { display: flex; justify-content: space-between; align-items: center; gap: 10px; margin-top: 10px; }
+.ap-step-note { margin: 8px 0 0; color: var(--muted); font-size: var(--fs-small); line-height: 1.4; }
 .ap-step-line .lbl { color: var(--muted); font-size: var(--fs-meta); font-weight: 600; }
 .ap-stepper { flex: 0 0 160px; }
 .ap-stepper .ap-step-val {
@@ -4904,6 +4905,7 @@ img.has-img, .avatar-lightbox-img { -webkit-touch-callout: none; -webkit-user-dr
 }
 .body-eye[aria-pressed="true"] { color: var(--acc-2); background: var(--acc-soft); }
 .body-tabs { margin-bottom: 12px; }
+.body-screen > .btn-row { margin: 4px 0 18px; }
 .body-now-k, .body-hint, .body-stat-k, .body-row-sub, .body-field-lbl, .body-legend {
   color: var(--muted); font-size: var(--fs-meta); font-weight: 600; margin: 0;
 }

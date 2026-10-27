@@ -67,6 +67,7 @@ const CircleScreen = lazyScreen(() => import('./screens/CircleScreen.jsx'))
 const FriendsScreen = lazyScreen(() => import('./screens/FriendsScreen.jsx'))
 const AchievementsScreen = lazyScreen(() => import('./screens/AchievementsScreen.jsx'))
 const AppearanceScreen = lazyScreen(() => import('./screens/AppearanceScreen.jsx'))
+const BodyScreen = lazyScreen(() => import('./screens/BodyScreen.jsx'))
 const PushSettingsScreen = lazyScreen(() => import('./screens/PushSettingsScreen.jsx'))
 const WhatsNewScreen = lazyScreen(() => import('./screens/WhatsNewScreen.jsx'))
 const FeedbackScreen = lazyScreen(() => import('./screens/FeedbackScreen.jsx'))
@@ -227,7 +228,7 @@ export default function App() {
   useEffect(() => {
     if (!user?.id) return
     const screens = [HomeScreen, HistoryScreen, FeedScreen, ProgressScreen, FreshnessScreen,
-      NotificationsScreen, ProfileScreen, MyExercisesScreen, AchievementsScreen, AppearanceScreen, PushSettingsScreen,
+      NotificationsScreen, ProfileScreen, MyExercisesScreen, AchievementsScreen, AppearanceScreen, BodyScreen, PushSettingsScreen,
       MemberScreen, FeedbackScreen, CircleScreen, FriendsScreen]
     if (user.role === 'admin') screens.push(AdminScreen)
     const prefetch = () => { for (const s of screens) s.preload().catch(() => {}) }
@@ -419,6 +420,7 @@ export default function App() {
                   onOpenCircle={() => goTab('circle')}
                   onOpenFriends={() => goTab('friends')}
                   onOpenAchievements={() => goTab('achievements')}
+                  onOpenBody={() => goTab('body')}
                   onOpenAppearance={() => goTab('appearance')}
                   onOpenPushSettings={() => goTab('pushset')}
                   onOpenWhatsNew={() => goTab('whatsnew')}
@@ -454,6 +456,9 @@ export default function App() {
               )}
               {route === 'whatsnew' && (
                 <WhatsNewScreen onBack={backToSettings} />
+              )}
+              {route === 'body' && (
+                <BodyScreen user={user} onBack={() => goTab('profile')} />
               )}
               {route === 'appearance' && (
                 <AppearanceScreen user={user} onBack={backToSettings} />

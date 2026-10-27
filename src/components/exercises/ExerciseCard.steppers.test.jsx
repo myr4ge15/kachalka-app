@@ -92,6 +92,18 @@ describe('ExerciseCard — настройки прогрессии', () => {
     expect(steps[0]).toBeGreaterThan(steps[1])
   })
 
+  it('«+повт.» у весового: шаг подписан «Шаг веса» и объяснен (fb_ce466edf)', () => {
+    renderCard(entry('weight', [{ weight: 60, reps: 10 }], prog), { prog: { enabled: true, byExercise: { e1: { strategy: 'reps' } } } })
+    expect(screen.getByText('Шаг веса')).toBeInTheDocument()
+    expect(screen.getByText(/Растим повторы до 12, потом прибавляем вес/)).toBeInTheDocument()
+  })
+
+  it('«+вес» — просто «Шаг», без пояснения про повторы', () => {
+    renderCard(entry('weight', [{ weight: 60, reps: 10 }], prog))
+    expect(screen.getByText('Шаг')).toBeInTheDocument()
+    expect(screen.queryByText(/Растим повторы/)).toBeNull()
+  })
+
   it('время: «+сек», без «+вес»', () => {
     renderCard(entry('time', [{ weight: 0, reps: 60 }], prog))
     const seg = screen.getByRole('group', { name: 'Стратегия прогрессии' })

@@ -30,6 +30,7 @@ import { normMetric } from './metric.js'
 import { mergeRpe } from './rpe.js'
 import { normalizeFavs } from './favorites.js'
 import { parseAccent } from './accent.js'
+import { normalizeBody, compactBody } from './body.js'
 
 export const BACKUP_SCHEMA = 'full-backup/v1'
 
@@ -44,7 +45,7 @@ export class BackupError extends Error {
 // ------------------------------- сборка ------------------------------------
 
 // Снимок для выгрузки. `data` — уже собранное состояние из Dexie:
-//   { userId, userName, workouts, goals, badges, prog, rpe, fav, accent, priv }
+//   { userId, userName, workouts, goals, badges, prog, rpe, fav, accent, priv, body }
 export function buildBackup(data, appVersion = 'dev', now = new Date()) {
   const at = now instanceof Date ? now : new Date(now)
   const d = data ?? {}
@@ -85,10 +86,18 @@ export function buildBackup(data, appVersion = 'dev', now = new Date()) {
       // Выбранный акцент (род accent): { id, hue, by }. Только СВОЙ (by === владелец
       // снимка) — чужой/«ничей» цвет в файл не кладем (см. hooks/useAccentSync).
       accent: ownAccent(d.accent, d.userId),
+      // «Вес и замеры» (род body): живые записи, цель, выбор обхватов, «Скрыть цифры».
+      body: exportBody(d.body),
       // Справочно, при импорте игнорируется (см. шапку файла).
       is_private: d.priv == null ? null : Boolean(d.priv),
     },
   }
+}
+
+function exportBody(v) {
+  if (v == null) return null
+  const b = normalizeBody(v)
+  return { v: 1, entries: b.entries.filter((e) => !e.del), goal: b.goal, fields: b.fields, hide: b.hide }
 }
 
 function ownAccent(v, userId) {
@@ -211,7 +220,7 @@ function importDate(v, now = Date.now()) {
 //
 // snapshot — результат parseBackup; current — текущее состояние:
 //   { workoutIds: Set|Array, goals: [], badges: {}, prog: undefined|obj,
-//     rpe: {}, fav: [], accent: obj|null, userId, exercises: Map|obj, now?: ms }
+//     rpe: {}, fav: [], accent: obj|null, body: obj|null, userId, exercises: Map|obj, now?: ms }
 //
 // Возвращает готовые к записи куски (null — «менять нечего») и счетчики для
 // тоста. `workouts` идут в repo.saveWorkout КАК ЕСТЬ, с исходным id — поэтому
@@ -268,6 +277,8 @@ export function planImport(snapshot, current = {}) {
   const fav = mergeFavsForImport(current.fav, snapshot?.settings?.favorites)
   const favCount = fav ? fav.length - normalizeFavs(current.fav).length : 0
   const accent = accentForImport(current.accent, snapshot?.settings?.accent, current.userId ?? snapshot?.user?.id)
+  const body = mergeBodyForImport(current.body, snapshot?.settings?.body)
+  const bodyCount = body ? body.entries.length - normalizeBody(current.body).entries.length : 0
 
   // ── оценки «как пошло» ───────────────────────────────────────────────────
   // Объединение с приоритетом ТЕКУЩИХ оценок (mergeRpe, preferLocal): добавляем
@@ -285,6 +296,7 @@ export function planImport(snapshot, current = {}) {
     rpe,
     fav,
     accent,
+    body,
     counts: {
       workouts: workouts.length,
       workoutsSkipped,
@@ -294,6 +306,7 @@ export function planImport(snapshot, current = {}) {
       rpe: Math.max(0, rpeCount),
       fav: Math.max(0, favCount),
       accent: accent ? 1 : 0,
+      body: Math.max(0, bodyCount),
     },
   }
 }
@@ -355,6 +368,23 @@ export function accentForImport(curAccent, snapAccent, userId) {
   return { id: p.id, hue: p.hue, by: String(userId) }
 }
 
+// «Вес и замеры»: дописываем записи, которых нет по id (надгробие тоже «есть» — удаленное
+// не воскресает). Цель, выбор обхватов и «Скрыть цифры» — только если в учетке еще пусто.
+export function mergeBodyForImport(curBody, snapBody, today) {
+  if (!snapBody || typeof snapBody !== 'object') return null
+  const cur = normalizeBody(curBody)
+  const snap = normalizeBody(snapBody)
+  const have = new Set(cur.entries.map((e) => e.id))
+  const add = snap.entries.filter((e) => !e.del && !have.has(e.id))
+  const fresh = !cur.entries.length && !cur.goal && !cur.fields.length
+  if (!add.length && !(fresh && (snap.goal || snap.fields.length))) return null
+  return compactBody({
+    ...cur,
+    entries: [...cur.entries, ...add],
+    ...(fresh ? { goal: snap.goal, fields: snap.fields, hide: snap.hide, at: new Date().toISOString() } : {}),
+  }, today)
+}
+
 // Сколько оценок (пар тренировка × упражнение) в карте RPE.
 function countFeels(map) {
   let n = 0
@@ -374,6 +404,7 @@ export function describeImport(counts) {
   if (c.badges) parts.push(`достижений: ${c.badges}`)
   if (c.rpe) parts.push(`оценок «как пошло»: ${c.rpe}`)
   if (c.fav) parts.push(`избранных упражнений: ${c.fav}`)
+  if (c.body) parts.push(`записей веса и замеров: ${c.body}`)
   if (c.prog) parts.push('настройки прогрессии')
   if (c.accent) parts.push('цвет оформления')
   if (parts.length === 0) return 'Все из файла уже было в приложении.'

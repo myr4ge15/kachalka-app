@@ -26,9 +26,13 @@
 //     Применение на устройстве (CSS + localStorage для сплэша) — hooks/useAccentSync.
 //   - fav — избранные упражнения, массив id (v6.5.0, lib/favorites.js): LWW.
 //     Объединение «воскрешало» бы звезду, снятую на другом устройстве.
+//   - body — «Вес и замеры» (PLAN-body-metrics.md, lib/body.js): записи —
+//     ОБЪЕДИНЕНИЕ по id (внутри — поздняя правка, удаление — надгробие), цель и
+//     настройки — LWW. Взвешивание, записанное офлайн на двух телефонах, не теряется.
 // ============================================================================
 import { cmpIsoAsc } from './cmp.js'
 import { mergeRpe } from './rpe.js'
+import { mergeBody } from './body.js'
 
 // Синкаемые ключи. Значение — «род» ключа: локальный ключ в Dexie-meta это
 // `${kind}_${userId}`, серверный key — сам kind (владелец там колонкой).
@@ -36,7 +40,7 @@ import { mergeRpe } from './rpe.js'
 // supabase/user-meta-fav.sql), иначе push упрется в `unknown user_meta key`.
 // Новый род — В КОНЕЦ: push идет по порядку, и не накатанный на сервер род
 // падает последним, не мешая уже известным.
-export const SYNCED_KINDS = ['badges', 'prog', 'notif_seen_at', 'rpe', 'accent', 'fav']
+export const SYNCED_KINDS = ['badges', 'prog', 'notif_seen_at', 'rpe', 'accent', 'fav', 'body']
 
 // Локальный ключ персональной meta по роду и пользователю.
 export const metaKeyFor = (kind, userId) => `${kind}_${userId}`
@@ -98,6 +102,8 @@ export function mergeMetaValue({ kind, local, remote, localAt, remoteAt }) {
       // выигрывает сторона, правившая позже. При равенстве — локальная, как и у
       // LWW-родов ниже.
       return mergeRpe(local, remote, cmpIsoAsc(localAt, remoteAt) >= 0)
+    case 'body':
+      return mergeBody(local, remote, cmpIsoAsc(localAt, remoteAt) >= 0)
     default:
       // prog и все будущее без своего правила — last-write-wins. Часы разные
       // (локальные vs серверные), но расхождение в секунды роли не играет:

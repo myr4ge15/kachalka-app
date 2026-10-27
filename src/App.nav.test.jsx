@@ -41,6 +41,7 @@ vi.mock('./screens/FreshnessScreen.jsx', () => stub('freshness'))
 vi.mock('./screens/MyExercisesScreen.jsx', () => stub('myex'))
 vi.mock('./screens/AchievementsScreen.jsx', () => stub('achievements'))
 vi.mock('./screens/AppearanceScreen.jsx', () => stub('appearance'))
+vi.mock('./screens/BodyScreen.jsx', () => stub('body'))
 vi.mock('./screens/PushSettingsScreen.jsx', () => stub('pushset'))
 vi.mock('./screens/WhatsNewScreen.jsx', () => stub('whatsnew'))
 vi.mock('./screens/FeedbackScreen.jsx', () => stub('feedback'))
@@ -240,6 +241,16 @@ describe('App: вложенные экраны и «назад»', () => {
     expect(window.location.hash).toBe('')
     act(() => seen.circle.onJoinCodeConsumed()); await settle()
     expect(seen.circle.joinCode).toBeNull()
+  })
+
+  it('«Вес и замеры»: из Профиля — назад в Профиль, не в Настройки', async () => {
+    await boot()
+    fireEvent.click(screen.getAllByRole('button', { name: 'Открыть профиль' })[0]); await settle()
+    act(() => seen.profile.onOpenBody()); await settle()
+    expect(current()).toBe('body')
+    act(() => seen.body.onBack()); await settle()
+    expect(current()).toBe('profile')
+    expect(seen.profile.startInSettings).toBe(false)
   })
 
   it('под-экраны Настроек возвращают в Настройки (одноразовый интент)', async () => {
