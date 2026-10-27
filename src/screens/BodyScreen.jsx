@@ -2,6 +2,7 @@ import { useMemo, useState } from 'react'
 import { useLiveQuery } from 'dexie-react-hooks'
 import BackButton from '../components/ui/BackButton.jsx'
 import Icon from '../components/ui/Icon.jsx'
+import Chevron from '../components/ui/Chevron.jsx'
 import MoreMenu from '../components/ui/MoreMenu.jsx'
 import CardsSkeleton from '../components/ui/CardsSkeleton.jsx'
 import { showToast } from '../components/ui/Toast.jsx'
@@ -28,6 +29,8 @@ const PERIODS = [
   { id: 0, label: 'Все' },
 ]
 const HIDDEN = '•••'
+// Записей показываем столько, остальное — по «Показать все» (как «Личные рекорды»).
+const LIST_SHORT = 8
 
 export default function BodyScreen({ user, onBack }) {
   const body = useLiveQuery(() => getBody(user.id), [user.id])
@@ -36,6 +39,7 @@ export default function BodyScreen({ user, onBack }) {
   const [sheet, setSheet] = useState(null) // { entry?, mode: 'weight' | 'measures' }
   const [menuId, setMenuId] = useState(null)
   const [armDel, setArmDel] = useState(false) // «Удалить» → «Точно удалить?» в том же меню
+  const [allRows, setAllRows] = useState(false) // список записей: последние LIST_SHORT или все
 
   const data = useMemo(() => {
     if (!body) return null
@@ -86,25 +90,32 @@ export default function BodyScreen({ user, onBack }) {
   // Вкладки не дублируют друг друга (fb_6114e96f).
   function entryList(items, kind) {
     if (!items.length) return null
+    const shown = allRows ? items : items.slice(0, LIST_SHORT)
     return (
       <section className="sec">
         <p className="sec-title">Записи</p>
-        <ul className="card body-list body-list--card">
-          {items.map((e) => {
+        <ul className="body-list">
+          {shown.map((e) => {
             const sub = [kind === 'measures' && !hide && measuresLine(e), e.note].filter(Boolean).join(' · ')
             return (
-              <li key={e.id} className="body-row">
-                <span className="body-row-date">{fmtBodyDate(e.date)}</span>
-                <span className="body-row-w">{hide ? HIDDEN : kind === 'weight' ? `${e.weight} кг` : ''}</span>
-                {sub && <div className="body-row-sub">{sub}</div>}
+              <BodyRow key={e.id} title={fmtBodyDate(e.date)} sub={sub}
+                value={kind === 'weight' && !hide ? e.weight : null} unit="кг">
                 <MoreMenu label={`Запись ${fmtBodyDate(e.date)}`} btnClassName="body-more" open={menuId === e.id}
                   onToggle={() => { setArmDel(false); setMenuId((id) => (id === e.id ? null : e.id)) }} onClose={() => { setArmDel(false); setMenuId(null) }}>
                   <button type="button" role="menuitem" onClick={() => { setMenuId(null); setSheet({ entry: e }) }}>Править</button>
                   <button type="button" role="menuitem" className="danger" onClick={() => remove(e)}>{armDel ? 'Точно удалить?' : 'Удалить'}</button>
                 </MoreMenu>
-              </li>
+              </BodyRow>
             )
           })}
+          {items.length > LIST_SHORT && (
+            <li className="body-row-more">
+              <button type="button" className="pr-toggle" aria-expanded={allRows} onClick={() => setAllRows((v) => !v)}>
+                {allRows ? 'Свернуть' : `Показать все · ${items.length}`}
+                <Chevron toggle open={allRows} size={16} />
+              </button>
+            </li>
+          )}
         </ul>
       </section>
     )
@@ -202,23 +213,14 @@ export default function BodyScreen({ user, onBack }) {
         <>
           <section className="sec">
             {Object.keys(data.measures).length ? (
-              <div className="card body-measures-card">
-                <ul className="body-list">
-                  {BODY_FIELDS.filter((f) => data.measures[f.id] && body.fields.includes(f.id)).map((f) => {
-                    const m = data.measures[f.id]
-                    return (
-                      <li key={f.id} className="body-row">
-                        <span className="body-row-date">{f.label}</span>
-                        <span className="body-row-w">{hide ? HIDDEN : `${m.value} см`}</span>
-                        <div className="body-row-sub">
-                          {fmtBodyDate(m.date)}
-                          {!hide && m.delta != null && ` · за ${m.days} дн. ${m.delta === 0 ? 'без изменений' : fmtSigned(m.delta)}`}
-                        </div>
-                      </li>
-                    )
-                  })}
-                </ul>
-              </div>
+              <ul className="body-list">
+                {BODY_FIELDS.filter((f) => data.measures[f.id] && body.fields.includes(f.id)).map((f) => {
+                  const m = data.measures[f.id]
+                  const sub = fmtBodyDate(m.date) + (!hide && m.delta != null
+                    ? ` · за ${m.days} дн. ${m.delta === 0 ? 'без изменений' : fmtSigned(m.delta)}` : '')
+                  return <BodyRow key={f.id} title={f.label} sub={sub} value={hide ? HIDDEN : m.value} unit={hide ? '' : 'см'} />
+                })}
+              </ul>
             ) : (
               <div className="card body-empty">
                 <p className="body-empty-title">Замеров пока нет</p>
@@ -276,5 +278,22 @@ function NowStats({ change, pace, goal, current }) {
         </div>
       ))}
     </div>
+  )
+}
+
+// Строка списка экрана — одна на все три списка (fb_7934761f), по образцу «Личных рекордов»
+// (.pr-list): слева название и подпись, справа значение display-шрифтом, «⋯» — по центру строки.
+function BodyRow({ title, sub, value = null, unit = '', children }) {
+  return (
+    <li className="body-row">
+      <span className="body-row-txt">
+        <span className="body-row-title">{title}</span>
+        {sub ? <span className="body-row-sub">{sub}</span> : null}
+      </span>
+      {value != null && value !== '' && (
+        <span className="body-row-val">{value}{unit && <span className="u"> {unit}</span>}</span>
+      )}
+      {children}
+    </li>
   )
 }

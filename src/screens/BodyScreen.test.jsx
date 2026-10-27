@@ -120,7 +120,7 @@ describe('BodyScreen', () => {
     expect(b.fields).toEqual(['waist'])
     expect(b.entries[0]).toMatchObject({ waist: 84 })
     expect(b.entries[0].weight).toBeUndefined()
-    expect(await screen.findByText('84 см')).toBeInTheDocument()
+    await waitFor(() => expect([...document.querySelectorAll('.body-row-val')].map((n) => n.textContent)).toContain('84 см'))
   })
 
   it('цель: «набрать» меньше текущего не сохраняется, «держать» — текущий вес без выбора', async () => {
