@@ -1808,14 +1808,11 @@ html[data-update]:not([data-composer]) .content { padding-top: 64px; }
 /* ---------- feed (общая лента) ---------- */
 /* Мобайл: один столбец. Рейтинг (.feed-rail) стоит НАД постами (order:-1) —
    как было до десктоп-раскладки. На десктопе (≥900px) — две колонки, см. ниже. */
-/* Якорь для плавающего индикатора pull-to-refresh (.ptr выплывает из-за верхнего
-   края экрана; сам экран НЕ двигается). */
+/* Pull-to-refresh (hooks/usePullToRefresh): корень экрана уезжает вниз `top` (relative, не transform —
+   иначе ломаются fixed-листы внутри), колесико .ptr стоит по центру открывшегося зазора (позицию,
+   поворот стрелки и прозрачность ведет components/ui/PullIndicator.jsx). На пороге — акцент, во время
+   обновления (.loading) — крутится, экран держится опущенным (PULL_HOLD). */
 .feed-screen, .notif-screen { position: relative; }
-/* Индикатор жеста «потянуть вниз»: компактный круглый бейдж по центру сверху
-   (между заголовком слева и меткой «обновить» справа — там пусто). Позицию/поворот
-   стрелки/прозрачность ведет FeedScreen по прогрессу жеста; при готовности (порог)
-   — зеленый, во время обновления (.loading) — крутится. Контент под ним стоит на
-   месте, поэтому лента не «отваливается». */
 .ptr {
   position: absolute; top: 0; left: 50%; z-index: 3;
   width: 32px; height: 32px;
@@ -1827,8 +1824,6 @@ html[data-update]:not([data-composer]) .content { padding-top: 64px; }
   will-change: transform, opacity;
 }
 .ptr.ready { color: var(--acc); border-color: var(--acc); }
-/* В «Уведомлениях» центр шапки занят заголовком — индикатор в пустом правом углу (fb_fd2caf4e). */
-.notif-screen .ptr { left: calc(100% - 28px); }
 .ptr-ico { display: inline-flex; }
 .ptr.loading .ptr-ico { animation: spin .8s linear infinite; }
 @media (prefers-reduced-motion: reduce) {

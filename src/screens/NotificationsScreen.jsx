@@ -89,7 +89,7 @@ export default function NotificationsScreen({ user, onBack, onOpenFeedback, onOp
   const ptr = usePullToRefresh(rootRef, refresh, refreshing)
 
   return (
-    <div className="screen notif-screen" ref={rootRef}>
+    <div className="screen notif-screen" ref={rootRef} style={ptr.style}>
       <PullIndicator {...ptr} />
       <div className="admin-head">
         <BackButton onClick={onBack} />

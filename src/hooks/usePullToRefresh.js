@@ -1,13 +1,16 @@
 import { useEffect, useRef, useState } from 'react'
 import { vibrate, HAPTIC } from '../lib/haptics.js'
-import { pullDistance, shouldTriggerRefresh } from '../lib/pullRefresh.js'
+import { pullDistance, shouldTriggerRefresh, PULL_HOLD } from '../lib/pullRefresh.js'
 
 // Жест «потянуть вниз для обновления» у самого верха экрана (вынесено из Ленты 28.10.2026, fb_fd2caf4e:
 // тот же жест в «Уведомлениях»). Скроллится не сам экран, а родительский .content (см. App.jsx/index.css),
 // поэтому touch-слушатели вешаем на него. Математика жеста (резина/порог) — lib/pullRefresh.js.
 // rootRef — корень экрана, refresh — обновление (на пороге), refreshing — идет ли оно сейчас.
-// Возвращает { pull, dragging, busy } для components/ui/PullIndicator.jsx; busy — обновление, ЗАПУЩЕННОЕ
-// жестом (тихий авто-refresh при входе на экран индикатор не «дергает»).
+// Экран уезжает вниз за пальцем (28.10.2026, как в iOS: в «Уведомлениях» колесико по центру ложилось на
+// заголовок), колесико — по центру открывшегося зазора; пока идет обновление, экран держится на PULL_HOLD.
+// Сдвиг — `top` у корня (position: relative), НЕ transform: transform ломает position: fixed листов внутри.
+// Возвращает { pull, dragging, busy, offset, style }: style — на корень экрана, остальное —
+// components/ui/PullIndicator.jsx; busy — обновление, ЗАПУЩЕННОЕ жестом (тихий авто-refresh экран не двигает).
 export function usePullToRefresh(rootRef, refresh, refreshing) {
   const [pull, setPull] = useState(0)
   const [dragging, setDragging] = useState(false)
@@ -74,5 +77,7 @@ export function usePullToRefresh(rootRef, refresh, refreshing) {
     }
   }, [rootRef, refresh])
 
-  return { pull, dragging, busy }
+  const offset = busy ? PULL_HOLD : pull
+  const style = { top: `${offset}px`, transition: dragging ? 'none' : 'top var(--dur-base) var(--ease-out)' }
+  return { pull, dragging, busy, offset, style }
 }

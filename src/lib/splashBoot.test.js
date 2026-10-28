@@ -1,7 +1,7 @@
 // @vitest-environment jsdom
 // Сплэш холодного старта и блок «Обновляем до v…» (lib/splashBoot.js, вынесено из main.jsx).
 import { beforeEach, describe, expect, it } from 'vitest'
-import { barStep, splashUpdateUi, startSplash, BAR_MIN_SPEED, BAR_PACE_SHARE, BAR_LAG_OK, BAR_HOLD_MS, SPLASH_HARD_MS } from './splashBoot.js'
+import { barStep, splashUpdateUi, startSplash, BAR_MIN_SPEED, BAR_PACE_SHARE, BAR_LAG_OK, BAR_HOLD_MS, INSTALL_HOLD_MS, SPLASH_HARD_MS } from './splashBoot.js'
 import { SPLASH_FADE_MS, SPLASH_MAX_MS } from './splash.js'
 
 // Та же разметка, что в index.html.
@@ -111,12 +111,18 @@ describe('splashUpdateUi', () => {
     run(1)
     expect(parseFloat($('splash-upd-fill').style.width)).toBeLessThan(100)
     expect(tm.list).toHaveLength(0) // не дошла — паузу не ставим
+    const live = () => $('splash-upd-cap').querySelector('.splash-upd-live')?.textContent
+    expect(live()).toBe('Загружено 100%') // видео 28.10: с 96% сразу «Устанавливаем…», 100% не было
     run(60) // ~1 с: хвост 60 → 100% — меньше секунды
     expect($('splash-upd-fill').style.width).toBe('100%')
     expect(tm.list.map((x) => x.ms)).toEqual([BAR_HOLD_MS])
+    expect(live()).toBe('Загружено 100%')
+    tm.run(BAR_HOLD_MS)
+    expect($('splash-upd-cap').textContent).toBe('Устанавливаем…')
     await flush()
     expect(done).toBe(false)
-    tm.run(BAR_HOLD_MS)
+    expect(tm.list.map((x) => x.ms)).toEqual([INSTALL_HOLD_MS])
+    tm.run(INSTALL_HOLD_MS)
     await flush()
     expect(done).toBe(true)
   })
@@ -155,11 +161,14 @@ describe('splashUpdateUi', () => {
     expect(w() - from).toBeLessThan(6) // не догнала 20 % рывком — идет темпом загрузки
   })
 
-  it('installing — 100% и «Устанавливаем…»; fallback — «Связь слабая»', () => {
-    const ui = splashUpdateUi(document, $('splash'), { reduce: true })
+  it('installing — «Загружено 100%», потом «Устанавливаем…»; fallback — «Связь слабая»', () => {
+    const tm = timers()
+    const ui = splashUpdateUi(document, $('splash'), { reduce: true, setTimer: tm.setTimer })
     ui.start('1.2.0')
     ui.installing()
     expect($('splash-upd-fill').style.width).toBe('100%')
+    expect($('splash-upd-cap').querySelector('.splash-upd-live').textContent).toBe('Загружено 100%')
+    tm.run(BAR_HOLD_MS)
     expect($('splash-upd-cap').textContent).toBe('Устанавливаем…')
     ui.fallback()
     expect($('splash-upd').classList.contains('splash-upd--note')).toBe(true)

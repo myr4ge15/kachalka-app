@@ -79,7 +79,11 @@ export function barStep(shown, target, dtMs, pace = 0) {
 
 // Полоска дошла до 100% — постоять перед перезагрузкой (26.10.2026): раньше страница уходила, пока полоска
 // еще догоняла, и «100%» никто не видел. installing() возвращает обещание «дошла и постояла».
+// 28.10.2026 (видео владельца, beta.101): последнее событие загрузки — 96%, а installing() сразу писал
+// «Устанавливаем…» — подпись «Загружено 100%» не появлялась никогда. Теперь: полоска добегает с «Загружено 100%»,
+// стоит BAR_HOLD_MS, потом «Устанавливаем…» еще INSTALL_HOLD_MS — и перезагрузка.
 export const BAR_HOLD_MS = 500
+export const INSTALL_HOLD_MS = 500
 
 // reduce — «уменьшить движение»: полоска сразу на месте. raf — кадры, now — часы (тест подставляет свои).
 export function splashUpdateUi(doc, root, {
@@ -101,7 +105,11 @@ export function splashUpdateUi(doc, root, {
   let onFull = null // ждет installing(): полоска на 100%
   const paint = () => {
     fill.style.width = `${Math.round(shown * 10) / 10}%`
-    if (onFull && shown >= 100) { const done = onFull; onFull = null; setTimer(done, BAR_HOLD_MS) }
+    if (onFull && shown >= 100) {
+      const done = onFull
+      onFull = null
+      setTimer(() => { cap.textContent = 'Устанавливаем…'; setTimer(done, INSTALL_HOLD_MS) }, BAR_HOLD_MS)
+    }
   }
   const tick = (t) => {
     shown = barStep(shown, target, last ? t - last : 16, pace)
@@ -109,6 +117,20 @@ export function splashUpdateUi(doc, root, {
     paint()
     if (shown < target) frame(tick)
     else { ticking = false; last = 0 }
+  }
+  // Подпись «Загружено N%»: ширину держит невидимая копия финальной строки (см. progress).
+  const loaded = (pct) => {
+    const ghost = doc.createElement('span')
+    ghost.className = 'splash-upd-ghost'
+    ghost.setAttribute('aria-hidden', 'true')
+    ghost.textContent = 'Загружено 100%'
+    const live = doc.createElement('span')
+    live.className = 'splash-upd-live'
+    live.textContent = `Загружено ${pct}%`
+    const capBox = doc.createElement('span')
+    capBox.className = 'splash-upd-capbox'
+    capBox.append(ghost, live)
+    cap.replaceChildren(capBox)
   }
   const moveTo = (pct) => {
     target = Math.max(target, pct)
@@ -141,22 +163,12 @@ export function splashUpdateUi(doc, root, {
       // По центру не дергается при «3%» → «13%» (20.10.2026) и не стоит с дырой (fb_afd6d919: рамка в ch
       // была шире цифры): ширину держит невидимая копия финальной строки «Загружено 100%», живая — от ее
       // левого края.
-      const ghost = doc.createElement('span')
-      ghost.className = 'splash-upd-ghost'
-      ghost.setAttribute('aria-hidden', 'true')
-      ghost.textContent = 'Загружено 100%'
-      const live = doc.createElement('span')
-      live.className = 'splash-upd-live'
-      live.textContent = `Загружено ${p.pct}%`
-      const capBox = doc.createElement('span')
-      capBox.className = 'splash-upd-capbox'
-      capBox.append(ghost, live)
-      cap.replaceChildren(capBox)
+      loaded(p.pct)
     },
     installing() {
       bar.classList.remove('splash-upd-bar--busy')
       bar.setAttribute('aria-valuenow', '100')
-      cap.textContent = 'Устанавливаем…'
+      loaded(100) // «Устанавливаем…» — когда полоска дошла и постояла (paint)
       // Хвост — без темпа загрузки: при медленной сети последние проценты шли бы секундами.
       pace = 0
       return new Promise((resolve) => {

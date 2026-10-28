@@ -1,12 +1,15 @@
 import { PULL_THRESHOLD } from '../../lib/pullRefresh.js'
 
-// Индикатор жеста «потянуть вниз» (hooks/usePullToRefresh.js): компактный круглый бейдж, выплывает из-за
-// верхнего края и доворачивает стрелку по мере протягивания; на пороге — «готов» (акцент), во время
-// обновления — крутится. Сам экран НЕ двигаем — контент стоит на месте. Родитель — с position: relative.
-export default function PullIndicator({ pull, dragging, busy }) {
+const SIZE = 32 // px, как .ptr в index.css
+
+// Индикатор жеста «потянуть вниз» (hooks/usePullToRefresh.js): круглый бейдж с колесиком. Экран уезжает
+// вниз на offset (стиль хука на корне), бейдж стоит по центру открывшегося зазора над ним и доворачивает
+// стрелку по мере протягивания; на пороге — «готов» (акцент), во время обновления — крутится.
+// Родитель — корень экрана с position: relative.
+export default function PullIndicator({ pull, offset, dragging, busy }) {
   if (!busy && !(pull > 0)) return null
   const progress = Math.min(pull / PULL_THRESHOLD, 1)
-  const y = busy ? 8 : -40 + progress * 48 // px: из-за края в зону видимости
+  const y = -(offset + SIZE) / 2 // центр зазора [-offset, 0] над верхом экрана
   const ready = busy || pull >= PULL_THRESHOLD
   return (
     <div
