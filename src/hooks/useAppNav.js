@@ -279,6 +279,14 @@ export function useAppNav(user) {
     goTab('profile')
   }
 
+  // «Мой круг», «Друзья», «Достижения», «Вес» открываются не только из Профиля (fb_06921ee4: «Мой круг»
+  // из Ленты свайпом возвращал в Профиль, хотя под экраном была Лента) — «назад» к экрану под ним в стеке.
+  function backToParent() {
+    const { stack } = routeAnim
+    const parent = stack[stack.length - 1] === tab ? stack[stack.length - 2] : null
+    goTab(parent ?? 'profile')
+  }
+
   // «Назад» вложенного экрана — тот же, что у его кнопки «‹» (см. рендер ниже).
   function nestedBack() {
     switch (tab) {
@@ -286,7 +294,8 @@ export function useAppNav(user) {
       case 'member': return backFromMember()
       case 'freshness': return goTab('home')
       case 'feedback': return backFromFeedback()
-      case 'admin': case 'achievements': case 'circle': case 'friends': case 'body': return goTab('profile')
+      case 'admin': return goTab('profile')
+      case 'achievements': case 'circle': case 'friends': case 'body': return backToParent()
       case 'myex': case 'whatsnew': case 'appearance': case 'pushset': return backToSettings()
       default: return undefined
     }
@@ -350,6 +359,6 @@ export function useAppNav(user) {
     calendarIntent, setCalendarIntent, feedFlashId, feedThread, feedbackFocus, openFeedback, backFromFeedback, lastMainTab,
     focusRhythm, setFocusRhythm, openSettings, setOpenSettings,
     goTab, openNotif, backFromNotif, openProgressFor, openCalendarAt, openMember, backFromMember,
-    backToRhythm, backToSettings, nestedBack, startNewWorkout, setPushIntent, openFeedWorkout
+    backToRhythm, backToSettings, backToParent, nestedBack, startNewWorkout, setPushIntent, openFeedWorkout
   }
 }

@@ -11,7 +11,8 @@ import { onOnline, onResume, onReselect } from '../lib/appEvents.js'
 import { fmtWhen, fmtAgo } from '../lib/dates.js'
 import SetsCells from '../components/workout/SetsCells.jsx'
 import { vibrate, HAPTIC } from '../lib/haptics.js'
-import { pullDistance, shouldTriggerRefresh, PULL_THRESHOLD } from '../lib/pullRefresh.js'
+import { usePullToRefresh } from '../hooks/usePullToRefresh.js'
+import PullIndicator from '../components/ui/PullIndicator.jsx'
 import Leaderboard from './Leaderboard.jsx'
 import Avatar from '../components/ui/Avatar.jsx'
 import CardsSkeleton from '../components/ui/CardsSkeleton.jsx'
@@ -137,119 +138,13 @@ export default function FeedScreen({ user, onOpenMember, flashId = null, thread 
     return () => { off1(); off2(); off3() }
   }, [refresh])
 
-  // Pull-to-refresh: жест «потянуть вниз» у самого верха Ленты → тот же refresh.
-  // Скроллится не сам экран, а родительский .content (см. App.jsx/index.css),
-  // поэтому touch-слушатели вешаем на него. Чистая математика жеста (резина/порог)
-  // — в lib/pullRefresh.js. Индикатор .ptr следует за пальцем, на отпускании
-  // пружинит назад; при переходе порога — легкий haptic + обновление.
+  // Pull-to-refresh: жест «потянуть вниз» у самого верха Ленты → тот же refresh (hooks/usePullToRefresh.js).
   const rootRef = useRef(null)
-  const [pull, setPull] = useState(0)
-  const [dragging, setDragging] = useState(false)
-  // Индикатор крутится только для обновления, ЗАПУЩЕННОГО жестом (не для тихого
-  // авто-refresh при входе на вкладку/возврате/сети — тот лениту не «дергает»).
-  const [ptrBusy, setPtrBusy] = useState(false)
-  const pullRef = useRef(0)
-  const refreshingRef = useRef(refreshing)
-  refreshingRef.current = refreshing
-
-  // Обновление завершилось — гасим спиннер жеста.
-  useEffect(() => { if (!refreshing) setPtrBusy(false) }, [refreshing])
-
-  useEffect(() => {
-    const root = rootRef.current
-    const sc = root?.closest('.content')
-    if (!sc) return
-    let startY = null
-    let startX = null
-    let active = false
-    const setPx = (v) => { pullRef.current = v; setPull(v) }
-
-    const onStart = (e) => {
-      // .content общий: под вложенным экраном (профиль участника, «Мой круг», «Друзья») слой
-      // Ленты жив, но inert — жест там не наш (UI-ревью 23.10).
-      if (root.closest('[inert]')) { startY = null; return }
-      // Начинаем следить за жестом только у самого верха и не во время обновления.
-      startY = (!refreshingRef.current && sc.scrollTop <= 0) ? e.touches[0].clientY : null
-      startX = e.touches[0].clientX ?? 0
-      active = false
-    }
-    const onMove = (e) => {
-      if (startY == null) return
-      if (sc.scrollTop > 0) { startY = null; active = false; setDragging(false); setPx(0); return }
-      const raw = e.touches[0].clientY - startY
-      if (!active) {
-        const dx = (e.touches[0].clientX ?? 0) - startX
-        if (Math.max(Math.abs(dx), Math.abs(raw)) < 4) return
-        // Горизонтальная прокрутка не должна запускать обновление Ленты.
-        if (Math.abs(dx) > Math.abs(raw)) { startY = null; return }
-      }
-      if (raw <= 0) { if (active) { active = false; setDragging(false); setPx(0) } return }
-      if (!active) { active = true; setDragging(true) }
-      // Забираем жест у нативного оверскролла, чтобы тянулся наш индикатор.
-      e.preventDefault()
-      setPx(pullDistance(raw))
-    }
-    const onEnd = () => {
-      if (startY == null) return
-      startY = null
-      const triggered = active && shouldTriggerRefresh(pullRef.current) && !refreshingRef.current
-      active = false
-      setDragging(false)
-      setPx(0)
-      if (triggered) { vibrate(HAPTIC.tap); setPtrBusy(true); refresh() }
-    }
-
-    sc.addEventListener('touchstart', onStart, { passive: true })
-    sc.addEventListener('touchmove', onMove, { passive: false })
-    sc.addEventListener('touchend', onEnd)
-    sc.addEventListener('touchcancel', onEnd)
-    return () => {
-      sc.removeEventListener('touchstart', onStart)
-      sc.removeEventListener('touchmove', onMove)
-      sc.removeEventListener('touchend', onEnd)
-      sc.removeEventListener('touchcancel', onEnd)
-    }
-  }, [refresh])
-
-  // Прогресс жеста 0..1 и позиция плавающего индикатора. Сам экран НЕ двигаем —
-  // контент (заголовок, карточки) стоит на месте; сверху из-за края «выплывает»
-  // компактный круглый бейдж (как нативный Material pull-to-refresh), а не весь
-  // экран уезжает вниз, оголяя пустоту.
-  const ptrProgress = Math.min(pull / PULL_THRESHOLD, 1)
-  const ptrShown = ptrBusy || pull > 0
-  const ptrY = ptrBusy ? 8 : -40 + ptrProgress * 48   // px: из-за края в зону видимости
-  const ptrReady = ptrBusy || pull >= PULL_THRESHOLD
+  const ptr = usePullToRefresh(rootRef, refresh, refreshing)
 
   return (
     <div className="screen feed-screen" ref={rootRef}>
-      {/* Индикатор жеста «потянуть вниз»: компактный круглый бейдж, выплывает из-за
-          верхнего края и доворачивает стрелку по мере протягивания; при достижении
-          порога — «готов» (зеленый), во время обновления — крутится. Экран под ним
-          неподвижен. */}
-      {ptrShown && (
-        <div
-          className={'ptr' + (ptrReady ? ' ready' : '') + (ptrBusy ? ' loading' : '')}
-          aria-hidden="true"
-          style={{
-            transform: `translate(-50%, ${ptrY}px)`,
-            opacity: ptrBusy ? 1 : ptrProgress,
-            transition: dragging ? 'none' : 'transform var(--dur-base) var(--ease-out), opacity var(--dur-base) var(--ease-out)',
-          }}
-        >
-          <span
-            className="ptr-ico"
-            style={!ptrBusy && pull ? { transform: `rotate(${ptrProgress * 180}deg)` } : undefined}
-          >
-            {/* SVG, а не текстовые ↻/↓: у глифов своя базовая линия, при вращении они «гуляли» (UI-ревью 23.10). */}
-            <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" strokeWidth="2.4"
-              strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
-              {ptrBusy
-                ? <><path d="M20 12a8 8 0 1 1-2.34-5.66" /><path d="M20 4v5h-5" /></>
-                : <><path d="M12 5v14" /><path d="m6 13 6 6 6-6" /></>}
-            </svg>
-          </span>
-        </div>
-      )}
+      <PullIndicator {...ptr} />
       <div className="feed-head">
         <h2 className="screen-title">Лента</h2>
         {/* v6.2.2: только иконка — большая «таблетка» с текстом спорила с заголовком.

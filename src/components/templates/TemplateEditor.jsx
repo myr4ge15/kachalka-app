@@ -165,7 +165,11 @@ export default function TemplateEditor({ user, templateId, onBack, backGuardRef 
   // пальцем, соседи расступаются, порядок применяется на отпускании. Alt+↑/↓ на ☰.
   const sortRef = useSortable((id, beforeId) => {
     setItems((prev) => reorderWithPhase(prev, id, beforeId)) // блок — по соседу (разминка/заминка)
-  }, { attr: 'data-tpl-id', handle: '.tpl-handle' })
+  }, {
+    attr: 'data-tpl-id', handle: '.tpl-handle',
+    // Корзина (fb_df0b21b6): бросил в «Убрать» — как «Убрать» в меню строки, с «Отменить».
+    onRemove: (id) => { const i = items.findIndex((it) => String(it.exercise.id) === id); if (i >= 0) removeExercise(i) },
+  })
 
   const canSave = name.trim().length > 0 && items.length > 0 && !saving
   const needName = !name.trim() && items.length > 0

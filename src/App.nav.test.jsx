@@ -192,7 +192,7 @@ describe('App: вложенные экраны и «назад»', () => {
     expect(current()).toBe('profile')
   })
 
-  it('«Мой круг»: из Профиля и из Ленты — назад в Профиль', async () => {
+  it('«Мой круг» и «Друзья»: «назад» туда, откуда открыли — Профиль или Лента (fb_06921ee4)', async () => {
     await boot()
     fireEvent.click(screen.getAllByRole('button', { name: 'Открыть профиль' })[0]); await settle()
     act(() => seen.profile.onOpenCircle()); await settle()
@@ -203,7 +203,11 @@ describe('App: вложенные экраны и «назад»', () => {
     act(() => seen.feed.onOpenCircle()); await settle()
     expect(current()).toBe('circle')
     act(() => seen.circle.onBack()); await settle()
-    expect(current()).toBe('profile')
+    expect(current()).toBe('feed')
+    act(() => seen.feed.onOpenFriends()); await settle()
+    expect(current()).toBe('friends')
+    act(() => seen.friends.onBack()); await settle()
+    expect(current()).toBe('feed')
   })
 
   it('«Друзья»: из Профиля — назад в Профиль; профиль друга из списка', async () => {

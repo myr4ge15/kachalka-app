@@ -944,6 +944,27 @@ button.link-btn { min-height: 44px; display: inline-flex; align-items: center; j
     box-shadow var(--dur-base) var(--ease-out);
 }
 
+/* Корзина перетаскивания (28.10.2026, fb_df0b21b6, hooks/useSortable onRemove): пока строка поднята,
+   внизу экрана — зона «Убрать» (над таббаром и «Сохранить»). Палец над ней (.hot) — красная, строка
+   бледнеет (.sort-trashing). Плотная подложка — это плавающий оверлей. */
+.sort-trash {
+  position: fixed; z-index: 160; left: 50%; bottom: calc(24px + env(safe-area-inset-bottom));
+  transform: translate(-50%, 140%); opacity: 0;
+  display: flex; align-items: center; justify-content: center; gap: 8px;
+  min-width: 160px; min-height: 56px; padding: 0 22px; border-radius: var(--r-pill);
+  background: var(--surface-solid); border: 1.5px dashed var(--border); color: var(--muted);
+  font-weight: 600; box-shadow: var(--shadow-pop); pointer-events: none;
+  transition: transform var(--dur-base) var(--ease-out), opacity var(--dur-base) var(--ease-out),
+    color var(--dur-fast) var(--ease-out), border-color var(--dur-fast) var(--ease-out),
+    background-color var(--dur-fast) var(--ease-out), scale var(--dur-fast) var(--ease-out);
+}
+.sort-trash.show { transform: translate(-50%, 0); opacity: 1; }
+.sort-trash.hot {
+  color: var(--red); border-style: solid; border-color: var(--red); scale: 1.06;
+  background: color-mix(in srgb, var(--red) 18%, var(--surface-solid));
+}
+.sort-lifted.sort-trashing { opacity: .45; }
+
 /* Строки подходов: узкий номер + 1–2 степпера + ✕. */
 .sets-head, .set-row {
   display: grid; grid-template-columns: 18px minmax(0, 1fr) minmax(0, 1fr) 30px;
@@ -1789,7 +1810,7 @@ html[data-update]:not([data-composer]) .content { padding-top: 64px; }
    как было до десктоп-раскладки. На десктопе (≥900px) — две колонки, см. ниже. */
 /* Якорь для плавающего индикатора pull-to-refresh (.ptr выплывает из-за верхнего
    края экрана; сам экран НЕ двигается). */
-.feed-screen { position: relative; }
+.feed-screen, .notif-screen { position: relative; }
 /* Индикатор жеста «потянуть вниз»: компактный круглый бейдж по центру сверху
    (между заголовком слева и меткой «обновить» справа — там пусто). Позицию/поворот
    стрелки/прозрачность ведет FeedScreen по прогрессу жеста; при готовности (порог)
@@ -1806,6 +1827,8 @@ html[data-update]:not([data-composer]) .content { padding-top: 64px; }
   will-change: transform, opacity;
 }
 .ptr.ready { color: var(--acc); border-color: var(--acc); }
+/* В «Уведомлениях» центр шапки занят заголовком — индикатор в пустом правом углу (fb_fd2caf4e). */
+.notif-screen .ptr { left: calc(100% - 28px); }
 .ptr-ico { display: inline-flex; }
 .ptr.loading .ptr-ico { animation: spin .8s linear infinite; }
 @media (prefers-reduced-motion: reduce) {

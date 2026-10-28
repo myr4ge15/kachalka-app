@@ -24,10 +24,16 @@ function from(start, { via } = {}) {
 describe('useAppNav: nestedBack', () => {
   it.each([
     ['freshness', 'home'],
-    ['admin', 'profile'], ['achievements', 'profile'], ['feedback', 'profile'],
+    ['admin', 'profile'], ['feedback', 'profile'],
     ['myex', 'profile'], ['whatsnew', 'profile'], ['appearance', 'profile'], ['pushset', 'profile'],
   ])('%s → %s', (start, back) => {
     expect(from(start).current.tab).toBe(back)
+  })
+
+  // fb_06921ee4: «Мой круг» из Ленты свайпом уводил в Профиль, хотя под экраном лежала Лента.
+  it.each(['circle', 'friends', 'achievements', 'body'])('%s — к экрану под ним в стеке', (start) => {
+    expect(from(start, { via: 'profile' }).current.tab).toBe('profile')
+    expect(from(start, { via: 'feed' }).current.tab).toBe('feed')
   })
 
   it('под-экраны Настроек возвращают именно в Настройки', () => {

@@ -1,5 +1,5 @@
 import Chevron from '../components/ui/Chevron.jsx'
-import { useEffect, useMemo, useRef, useState } from 'react'
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { useLiveQuery } from 'dexie-react-hooks'
 import { getNotifications, getSeenAt, markAllSeen } from '../db/notifications.js'
 import { cmpIsoAsc } from '../lib/cmp.js'
@@ -11,6 +11,11 @@ import { getUsers } from '../db/repo.js'
 import { byGender } from '../lib/gender.js'
 import { filterNotifs, activeCategories } from '../lib/notifFilter.js'
 import { plural } from '../lib/plural.js'
+import { syncNow } from '../db/sync.js'
+import { myUnreadReplies } from '../lib/feedbackApi.js'
+import { usePullToRefresh } from '../hooks/usePullToRefresh.js'
+import { useAliveRef } from '../hooks/useAliveRef.js'
+import PullIndicator from '../components/ui/PullIndicator.jsx'
 
 // Экран «Уведомления»: личные рекорды и кто обходит тебя в кругу (ТЗ §4.5, MVP).
 // Вложенный роут — шапка с общей круглой BackButton, как у остальных вложенных
@@ -67,8 +72,25 @@ export default function NotificationsScreen({ user, onBack, onOpenFeedback, onOp
   const activeFilter = cats.some((c) => c.key === filter) ? filter : 'all'
   const shown = filterNotifs(items, activeFilter)
 
+  // «Потянуть вниз» (fb_fd2caf4e): синк тянет свои тренировки и Ленту с реакциями на комментарии,
+  // myUnreadReplies — ответы на обращения; список пересоберется сам (useLiveQuery). Офлайн — нечего тянуть.
+  const rootRef = useRef(null)
+  const aliveRef = useAliveRef()
+  const [refreshing, setRefreshing] = useState(false)
+  const refresh = useCallback(async () => {
+    if (!navigator.onLine) return
+    setRefreshing(true)
+    try {
+      await Promise.all([syncNow(user.id), myUnreadReplies(user.id)])
+    } catch { /* сбой синка видно в его статусе; список остается прежним */ } finally {
+      if (aliveRef.current) setRefreshing(false)
+    }
+  }, [user.id, aliveRef])
+  const ptr = usePullToRefresh(rootRef, refresh, refreshing)
+
   return (
-    <div className="screen">
+    <div className="screen notif-screen" ref={rootRef}>
+      <PullIndicator {...ptr} />
       <div className="admin-head">
         <BackButton onClick={onBack} />
         <h2 className="admin-title">Уведомления</h2>

@@ -97,6 +97,8 @@ export default function WorkoutScreen({ user, workoutId = null, onBack, onSaved,
     holdMs: 350,
     onLift: id => { if (id === activeExerciseId) setDragFolded(id) },
     onDrop: () => setDragFolded(null),
+    // Корзина (fb_df0b21b6): бросил в «Убрать» — то же удаление, что ✕ на карточке, с «Отменить».
+    onRemove: id => { const i = entries.findIndex(e => String(e.exercise.id) === id); if (i >= 0) removeExercise(i) },
   })
   // Сохраненная — все упражнения свернуты, раскрывает человек (fb_223cf43d).
   const { activeExerciseId, activeCardRef, activateExercise } = useWorkoutFocus(entries, {
@@ -660,7 +662,7 @@ export default function WorkoutScreen({ user, workoutId = null, onBack, onSaved,
             </div>
           )}
 
-          {entries.length > 1 && <p className="muted exercise-reorder-hint">Зажми название упражнения и перетащи, чтобы изменить порядок.</p>}
+          {entries.length > 1 && <p className="muted exercise-reorder-hint">Зажми название упражнения и перетащи — поменять порядок или убрать в корзину внизу.</p>}
           {entries.map((entry, ei) => (
             <Fragment key={entry.exercise.id}>
             {phaseHeading(entries, ei) && <p className="sec-title wk-phase-title">{phaseHeading(entries, ei)}</p>}

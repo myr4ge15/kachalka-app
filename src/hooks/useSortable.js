@@ -20,17 +20,34 @@ import { flushSync } from 'react-dom'
 //   holdMs   — удержание до подъема. Больше 0 — тач-скролл до подъема работает как обычно
 //              (сдвиг пальца > 8px отменяет). 0 — за ручку (touch-action: none) берется сразу;
 //   onLift(id) / onDrop() — до замера раскладки и после конца жеста (тренировка на это
-//              время сворачивает раскрытую карточку).
+//              время сворачивает раскрытую карточку);
+//   onRemove(id) — корзина (28.10.2026, fb_df0b21b6): пока строка поднята, внизу экрана висит зона
+//              «Убрать»; палец над ней — зона горит, строка бледнеет; отпустил там — onRemove вместо
+//              onMove (окно «Отменить» — забота экрана, как у ✕). Без onRemove корзины нет.
 // Тач — touch-события (touchmove non-passive, чтобы гасить скролл только ПОСЛЕ подъема), мышь — pointer.
 // Клавиатура: Alt+↑/↓ на ручке переставляет на одну позицию сразу.
 
 const DROP_MS = 180 // = --dur-base; «подъем» (scale, тень) — в index.css, .sort-lifted
+const TRASH_SLOP = 16 // px вокруг корзины, которые еще считаются «над ней»
 
-export function useSortable(onMove, { attr, handle, holdMs = 0, onLift, onDrop } = {}) {
+// Корзина рисуется вне React (во время жеста экран не перерисовывается — см. выше): иконка — тот же
+// штрих, что `trash` в components/ui/Icon.jsx.
+const TRASH_HTML = '<svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" stroke-width="2"'
+  + ' stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 7h16M9 7V4h6v3M6 7l1 14h10l1-14" /></svg>'
+  + '<span>Убрать</span>'
+
+// Палец над корзиной? rect — getBoundingClientRect() корзины. Чистая проверка (тест).
+export function overTrash(rect, x, y, slop = TRASH_SLOP) {
+  if (!rect) return false
+  return x >= rect.left - slop && x <= rect.right + slop && y >= rect.top - slop && y <= rect.bottom + slop
+}
+
+export function useSortable(onMove, { attr, handle, holdMs = 0, onLift, onDrop, onRemove } = {}) {
   // callback-ref: корень списка может появиться позже экрана (редактор шаблона).
   const [root, setRoot] = useState(null)
-  const cb = useRef({ onMove, onLift, onDrop })
-  cb.current = { onMove, onLift, onDrop }
+  const cb = useRef({ onMove, onLift, onDrop, onRemove })
+  cb.current = { onMove, onLift, onDrop, onRemove }
+  const withTrash = Boolean(onRemove)
   useEffect(() => {
     if (!root) return undefined
     const sel = `[${attr}]`
@@ -39,6 +56,32 @@ export function useSortable(onMove, { attr, handle, holdMs = 0, onLift, onDrop }
     const reduced = () => window.matchMedia?.('(prefers-reduced-motion: reduce)').matches ?? false
     let g = null          // текущий жест
     let timer = null, frame = null, dropTimer = null, suppressUntil = 0
+    let trash = null      // зона «Убрать» на время жеста
+
+    function showTrash() {
+      if (!withTrash || trash) return
+      trash = document.createElement('div')
+      trash.className = 'sort-trash'
+      trash.setAttribute('aria-hidden', 'true')
+      trash.innerHTML = TRASH_HTML
+      document.body.appendChild(trash)
+      // Следующий кадр — чтобы сработал переход появления.
+      requestAnimationFrame(() => trash?.classList.add('show'))
+    }
+    function hideTrash() {
+      trash?.remove()
+      trash = null
+    }
+    // Палец над корзиной: зона горит, строка бледнеет (видно, что ляжет не в список).
+    function markTrash() {
+      if (!trash || !g) return
+      const hot = overTrash(trash.getBoundingClientRect(), g.cx ?? g.x, g.y)
+      if (hot === g.hot) return
+      g.hot = hot
+      trash.classList.toggle('hot', hot)
+      g.list?.[g.d]?.classList.toggle('sort-trashing', hot)
+      if (hot) { try { navigator.vibrate?.(8) } catch { /* нет вибро — ок */ } }
+    }
 
     const scrollerOf = () => root.closest('.content') ?? document.scrollingElement
     const scrollTop = () => g?.scroller?.scrollTop ?? 0
@@ -68,6 +111,7 @@ export function useSortable(onMove, { attr, handle, holdMs = 0, onLift, onDrop }
       root.classList.add('sort-active')
       list.forEach((el, i) => el.classList.add(i === d ? 'sort-lifted' : 'sort-shift'))
       try { navigator.vibrate?.(8) } catch { /* нет вибро — ок */ }
+      showTrash()
       apply()
       frame = requestAnimationFrame(autoscroll)
     }
@@ -99,7 +143,8 @@ export function useSortable(onMove, { attr, handle, holdMs = 0, onLift, onDrop }
     function autoscroll() {
       if (!g?.active || g.dropping) return
       const sc = g.scroller
-      if (sc) {
+      // Над корзиной (она у нижнего края) список не листаем — иначе он уезжал бы, пока палец ждет.
+      if (sc && !g.hot) {
         const r = sc === document.scrollingElement ? { top: 0, bottom: window.innerHeight } : sc.getBoundingClientRect()
         const delta = g.y < r.top + 64 ? -8 : g.y > r.bottom - 88 ? 8 : 0
         if (delta) { sc.scrollTop += delta; apply() }
@@ -109,8 +154,9 @@ export function useSortable(onMove, { attr, handle, holdMs = 0, onLift, onDrop }
 
     function clear() {
       root.classList.remove('sort-active')
+      hideTrash()
       for (const el of [...(g?.list ?? []), ...rows()]) {
-        el.classList.remove('sort-lifted', 'sort-shift', 'sort-dropping')
+        el.classList.remove('sort-lifted', 'sort-shift', 'sort-dropping', 'sort-trashing')
         el.style.transform = ''
       }
     }
@@ -149,6 +195,20 @@ export function useSortable(onMove, { attr, handle, holdMs = 0, onLift, onDrop }
       cancelAnimationFrame(frame)
       detach()
       suppressUntil = Date.now() + 500
+      // Отпустили над корзиной — строка уходит из списка, соседи возвращаются на места.
+      if (commit && g.hot && cb.current.onRemove) {
+        const id = g.id
+        g.dropping = true
+        g.list.forEach((el, i) => { if (i !== g.d) el.style.transform = '' })
+        flushSync(() => {
+          cb.current.onRemove(id)
+          cb.current.onDrop?.()
+        })
+        clear()
+        g = null
+        return
+      }
+      hideTrash()
       const { rects, d, list } = g
       const t = commit ? g.t : d
       let y = 0
@@ -196,7 +256,9 @@ export function useSortable(onMove, { attr, handle, holdMs = 0, onLift, onDrop }
       }
       if (e.cancelable) e.preventDefault()
       g.y = y
+      g.cx = x
       apply()
+      markTrash()
     }
 
     const touchStart = e => {
@@ -265,6 +327,6 @@ export function useSortable(onMove, { attr, handle, holdMs = 0, onLift, onDrop }
       root.removeEventListener('contextmenu', context)
       root.removeEventListener('keydown', key)
     }
-  }, [root, attr, handle, holdMs])
+  }, [root, attr, handle, holdMs, withTrash])
   return setRoot
 }

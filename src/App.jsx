@@ -91,7 +91,7 @@ export default function App() {
     calendarIntent, setCalendarIntent, feedFlashId, feedThread, feedbackFocus, openFeedback, backFromFeedback, lastMainTab,
     focusRhythm, setFocusRhythm, openSettings, setOpenSettings,
     goTab, openNotif, backFromNotif, openProgressFor, openCalendarAt, openMember, backFromMember,
-    backToRhythm, backToSettings, startNewWorkout, openFeedWorkout,
+    backToRhythm, backToSettings, backToParent, startNewWorkout, openFeedWorkout,
   } = useAppNav(user)
   // Ссылка-приглашение (v6.8.0): токен из #invite=… живет только в памяти —
   // из адреса стираем сразу (эффект ниже), чтобы он не остался в истории и закладках.
@@ -442,11 +442,11 @@ export default function App() {
                 <FreshnessScreen user={user} onBack={() => goTab('home')} />
               )}
               {route === 'circle' && (
-                <CircleScreen user={user} onBack={() => goTab('profile')} onOpenMember={openMember}
+                <CircleScreen user={user} onBack={backToParent} onOpenMember={openMember}
                   joinCode={joinCode} onJoinCodeConsumed={() => setJoinCode(null)} />
               )}
               {route === 'friends' && (
-                <FriendsScreen user={user} onBack={() => goTab('profile')} onOpenMember={openMember}
+                <FriendsScreen user={user} onBack={backToParent} onOpenMember={openMember}
                   friendCode={friendCode} onFriendCodeConsumed={() => setFriendCode(null)} />
               )}
               {route === 'myex' && (
@@ -454,13 +454,13 @@ export default function App() {
                   edgeSwipeOn={edgeSwipeOn && route === tab} onInnerNav={setInnerNav} />
               )}
               {route === 'achievements' && (
-                <AchievementsScreen user={user} onBack={() => goTab('profile')} />
+                <AchievementsScreen user={user} onBack={backToParent} />
               )}
               {route === 'whatsnew' && (
                 <WhatsNewScreen onBack={backToSettings} />
               )}
               {route === 'body' && (
-                <BodyScreen user={user} onBack={() => goTab('profile')} />
+                <BodyScreen user={user} onBack={backToParent} />
               )}
               {route === 'appearance' && (
                 <AppearanceScreen user={user} onBack={backToSettings} />

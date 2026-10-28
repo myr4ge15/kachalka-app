@@ -1,8 +1,10 @@
 // @vitest-environment jsdom
 import { beforeEach, describe, expect, it, vi } from 'vitest'
-import { fireEvent, render, screen, waitFor, within } from '@testing-library/react'
+import { act, fireEvent, render, screen, waitFor, within } from '@testing-library/react'
 import NotificationsScreen from './NotificationsScreen.jsx'
 import { getSeenAt, markAllSeen } from '../db/notifications.js'
+import { syncNow } from '../db/sync.js'
+import { myUnreadReplies } from '../lib/feedbackApi.js'
 
 // Построение списка и счетчик — db/notifications.js и lib/notifFilter.js.
 // useLiveQuery → синхронный вызов запроса: моки db отдают значения сразу.
@@ -16,6 +18,9 @@ vi.mock('../db/notifications.js', () => ({
   markAllSeen: vi.fn(),
 }))
 vi.mock('../db/repo.js', () => ({ getUsers: () => mocks.roster }))
+vi.mock('../db/sync.js', () => ({ syncNow: vi.fn(async () => true) }))
+vi.mock('../lib/feedbackApi.js', () => ({ myUnreadReplies: vi.fn(async () => 0) }))
+vi.mock('../lib/haptics.js', () => ({ vibrate: vi.fn(), HAPTIC: { tap: 10 } }))
 
 const ME = { id: 'me' }
 const N = {
@@ -128,5 +133,22 @@ describe('NotificationsScreen', () => {
     await waitFor(() => expect(markAllSeen).toHaveBeenCalled())
     expect(screen.queryByRole('tablist')).toBeNull()
     expect(screen.getByText('1 новое')).toBeInTheDocument()
+  })
+  it('потянуть вниз у верха — синк и ответы на обращения; не дотянул — ничего (fb_fd2caf4e)', async () => {
+    mocks.list = [N.mine]
+    vi.mocked(syncNow).mockClear(); vi.mocked(myUnreadReplies).mockClear()
+    const { container } = render(<div className="content"><NotificationsScreen user={ME} onBack={vi.fn()} /></div>)
+    await screen.findByText(/Жим лежа/)
+    const sc = container.querySelector('.content')
+    const pull = (dy) => {
+      fireEvent.touchStart(sc, { touches: [{ clientY: 100, clientX: 50 }] })
+      fireEvent.touchMove(sc, { touches: [{ clientY: 100 + dy, clientX: 50 }] })
+      fireEvent.touchEnd(sc)
+    }
+    pull(40)
+    expect(syncNow).not.toHaveBeenCalled()
+    await act(async () => { pull(400) })
+    expect(syncNow).toHaveBeenCalledWith('me')
+    expect(myUnreadReplies).toHaveBeenCalledWith('me')
   })
 })

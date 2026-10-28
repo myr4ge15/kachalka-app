@@ -2,7 +2,7 @@
 import { useState } from 'react'
 import { act, fireEvent, render } from '@testing-library/react'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
-import { useSortable } from './useSortable.js'
+import { overTrash, useSortable } from './useSortable.js'
 
 // jsdom не считает раскладку: строки по 90px с зазором 10px (top = i * 100).
 function layout(container) {
@@ -13,7 +13,7 @@ function layout(container) {
     }
   })
 }
-function Harness({ onMove, onLift, onDrop, holdMs, ids = ['a', 'b', 'c'] }) {
+function Harness({ onMove, onLift, onDrop, onRemove, holdMs, ids = ['a', 'b', 'c'] }) {
   const [order, setOrder] = useState(ids)
   const ref = useSortable((id, beforeId) => {
     onMove(id, beforeId)
@@ -22,7 +22,10 @@ function Harness({ onMove, onLift, onDrop, holdMs, ids = ['a', 'b', 'c'] }) {
       rest.splice(beforeId === null ? rest.length : rest.indexOf(beforeId), 0, id)
       return rest
     })
-  }, { attr: 'data-id', handle: '.grip', holdMs, onLift, onDrop })
+  }, {
+    attr: 'data-id', handle: '.grip', holdMs, onLift, onDrop,
+    onRemove: onRemove && (id => { onRemove(id); setOrder(prev => prev.filter(x => x !== id)) }),
+  })
   return <div ref={ref}>{order.map(id => <div key={id} data-id={id}>
     <button className="grip">{id}</button><input aria-label={id} />
   </div>)}</div>
@@ -270,5 +273,73 @@ describe('useSortable — своя кнопка внутри ручки (v8.0.0)
     fireEvent.touchStart(container.querySelector('[data-id="b"] .grip'), touch(20, 145))
     act(() => vi.advanceTimersByTime(400))
     expect(onLift).toHaveBeenCalledWith('b')
+  })
+})
+
+describe('useSortable — корзина (fb_df0b21b6)', () => {
+  const trashEl = () => document.querySelector('.sort-trash')
+  // Корзина внизу экрана: 100..260 по x, 700..756 по y.
+  const placeTrash = () => { trashEl().getBoundingClientRect = () => ({ left: 100, right: 260, top: 700, bottom: 756 }) }
+
+  it('без onRemove корзины нет', () => {
+    const { grip } = setup()
+    fireEvent.touchStart(grip('c'), touch(20, 245))
+    act(() => vi.advanceTimersByTime(350))
+    expect(trashEl()).toBeNull()
+    fireEvent.touchEnd(grip('c'))
+  })
+
+  it('подъем показывает корзину; палец над ней — горит, строка бледнеет; отпустил — onRemove, без onMove', () => {
+    const onRemove = vi.fn()
+    const { grip, row, onMove, onDrop, order } = setup({ onRemove })
+    fireEvent.touchStart(grip('b'), touch(20, 145))
+    act(() => vi.advanceTimersByTime(350))
+    expect(trashEl()).not.toBeNull()
+    placeTrash()
+    fireEvent.touchMove(grip('b'), touch(180, 720))
+    expect(trashEl()).toHaveClass('hot')
+    expect(row('b')).toHaveClass('sort-trashing')
+    fireEvent.touchMove(grip('b'), touch(180, 400)) // ушел с корзины — снова обычная перестановка
+    expect(trashEl()).not.toHaveClass('hot')
+    expect(row('b')).not.toHaveClass('sort-trashing')
+    fireEvent.touchMove(grip('b'), touch(180, 720))
+    fireEvent.touchEnd(grip('b'))
+    expect(onRemove).toHaveBeenCalledWith('b')
+    expect(onMove).not.toHaveBeenCalled()
+    expect(onDrop).toHaveBeenCalledOnce()
+    expect(order()).toEqual(['a', 'c'])
+    expect(trashEl()).toBeNull()
+    for (const id of ['a', 'c']) expect(row(id).style.transform).toBe('')
+  })
+
+  it('отпустил мимо корзины — обычная перестановка, корзина пропадает; отмена касания — без удаления', () => {
+    const onRemove = vi.fn()
+    const { grip, onMove, order } = setup({ onRemove })
+    fireEvent.touchStart(grip('c'), touch(20, 245))
+    act(() => vi.advanceTimersByTime(350))
+    placeTrash()
+    fireEvent.touchMove(grip('c'), touch(20, 25))
+    fireEvent.touchEnd(grip('c'))
+    expect(trashEl()).toBeNull()
+    act(() => vi.advanceTimersByTime(180))
+    expect(onMove).toHaveBeenCalledWith('c', 'a')
+    expect(order()).toEqual(['c', 'a', 'b'])
+
+    fireEvent.touchStart(grip('a'), touch(20, 145))
+    act(() => vi.advanceTimersByTime(350))
+    placeTrash()
+    fireEvent.touchMove(grip('a'), touch(180, 720))
+    fireEvent.touchCancel(grip('a'))
+    act(() => vi.advanceTimersByTime(180))
+    expect(onRemove).not.toHaveBeenCalled()
+    expect(trashEl()).toBeNull()
+  })
+
+  it('overTrash: внутри и в запасе вокруг — да, дальше — нет', () => {
+    const r = { left: 100, right: 260, top: 700, bottom: 756 }
+    expect(overTrash(r, 180, 720)).toBe(true)
+    expect(overTrash(r, 90, 690)).toBe(true)
+    expect(overTrash(r, 180, 600)).toBe(false)
+    expect(overTrash(null, 180, 720)).toBe(false)
   })
 })
