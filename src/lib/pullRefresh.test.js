@@ -4,26 +4,34 @@ import {
   shouldTriggerRefresh,
   PULL_THRESHOLD,
   PULL_MAX,
+  PULL_RESISTANCE,
 } from './pullRefresh.js'
 
 describe('pullDistance', () => {
-  it('тянем вниз — применяется сопротивление', () => {
-    expect(pullDistance(100, { resistance: 0.5, max: 96 })).toBe(50)
-    expect(pullDistance(40, { resistance: 0.5, max: 96 })).toBe(20)
+  it('в начале экран идет почти за пальцем — с наклоном resistance', () => {
+    expect(pullDistance(1)).toBeCloseTo(PULL_RESISTANCE, 2)
+    expect(pullDistance(10, { resistance: 0.5, max: 100 })).toBeCloseTo(4.88, 2)
   })
 
-  it('упирается в потолок', () => {
-    expect(pullDistance(1000, { resistance: 0.5, max: 96 })).toBe(96)
-    expect(pullDistance(1000)).toBe(PULL_MAX)
+  it('дальше тянется все туже и не доходит до max (без жесткого упора, fb_f8a87f1a)', () => {
+    const a = pullDistance(100)
+    const b = pullDistance(200)
+    const c = pullDistance(300)
+    expect(b - a).toBeLessThan(a)       // вторые 100 px пальца дают меньше первых
+    expect(c - b).toBeLessThan(b - a)
+    expect(c).toBeGreaterThan(b)        // но экран все еще идет
+    expect(pullDistance(5000)).toBeLessThanOrEqual(PULL_MAX)
+    expect(pullDistance(5000)).toBeGreaterThan(PULL_MAX - 1)
+  })
+
+  it('порог достижим обычным жестом: ~130–170 px пальца', () => {
+    expect(pullDistance(120)).toBeLessThan(PULL_THRESHOLD)
+    expect(pullDistance(180)).toBeGreaterThanOrEqual(PULL_THRESHOLD)
   })
 
   it('вверх/ноль/отрицательное → 0', () => {
     expect(pullDistance(0)).toBe(0)
     expect(pullDistance(-50)).toBe(0)
-  })
-
-  it('дефолтные параметры применяются', () => {
-    expect(pullDistance(10)).toBe(5) // 10 * 0.5
   })
 })
 

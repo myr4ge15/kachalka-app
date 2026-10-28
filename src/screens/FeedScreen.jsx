@@ -143,7 +143,7 @@ export default function FeedScreen({ user, onOpenMember, flashId = null, thread 
   const ptr = usePullToRefresh(rootRef, refresh, refreshing)
 
   return (
-    <div className="screen feed-screen" ref={rootRef} style={ptr.style}>
+    <div className="screen feed-screen" ref={rootRef}>
       <PullIndicator {...ptr} />
       <div className="feed-head">
         <h2 className="screen-title">Лента</h2>

@@ -1808,10 +1808,9 @@ html[data-update]:not([data-composer]) .content { padding-top: 64px; }
 /* ---------- feed (общая лента) ---------- */
 /* Мобайл: один столбец. Рейтинг (.feed-rail) стоит НАД постами (order:-1) —
    как было до десктоп-раскладки. На десктопе (≥900px) — две колонки, см. ниже. */
-/* Pull-to-refresh (hooks/usePullToRefresh): корень экрана уезжает вниз `top` (relative, не transform —
-   иначе ломаются fixed-листы внутри), колесико .ptr стоит по центру открывшегося зазора (позицию,
-   поворот стрелки и прозрачность ведет components/ui/PullIndicator.jsx). На пороге — акцент, во время
-   обновления (.loading) — крутится, экран держится опущенным (PULL_HOLD). */
+/* Pull-to-refresh (hooks/usePullToRefresh): корень экрана уезжает вниз translate3d — только пока жест или
+   обновление, стили пишет хук прямо в DOM (fb_f8a87f1a: через React и `top` экран ехал рывками). Колесико .ptr —
+   по центру открывшегося зазора; в покое прозрачно. На пороге — акцент, во время обновления (.loading) — крутится. */
 .feed-screen, .notif-screen { position: relative; }
 .ptr {
   position: absolute; top: 0; left: 50%; z-index: 3;
@@ -1821,9 +1820,10 @@ html[data-update]:not([data-composer]) .content { padding-top: 64px; }
   background: var(--surface-2); border: 1px solid var(--border);
   box-shadow: var(--shadow-sm);
   color: var(--muted); font-size: 16px; line-height: 1; pointer-events: none;
+  opacity: 0; transform: translate(-50%, -16px);
   will-change: transform, opacity;
 }
-.ptr.ready { color: var(--acc); border-color: var(--acc); }
+.ptr.ready, .ptr.loading { color: var(--acc); border-color: var(--acc); }
 .ptr-ico { display: inline-flex; }
 .ptr.loading .ptr-ico { animation: spin .8s linear infinite; }
 @media (prefers-reduced-motion: reduce) {

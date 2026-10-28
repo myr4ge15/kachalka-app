@@ -1,27 +1,11 @@
-import { PULL_THRESHOLD } from '../../lib/pullRefresh.js'
-
-const SIZE = 32 // px, как .ptr в index.css
-
-// Индикатор жеста «потянуть вниз» (hooks/usePullToRefresh.js): круглый бейдж с колесиком. Экран уезжает
-// вниз на offset (стиль хука на корне), бейдж стоит по центру открывшегося зазора над ним и доворачивает
-// стрелку по мере протягивания; на пороге — «готов» (акцент), во время обновления — крутится.
-// Родитель — корень экрана с position: relative.
-export default function PullIndicator({ pull, offset, dragging, busy }) {
-  if (!busy && !(pull > 0)) return null
-  const progress = Math.min(pull / PULL_THRESHOLD, 1)
-  const y = -(offset + SIZE) / 2 // центр зазора [-offset, 0] над верхом экрана
-  const ready = busy || pull >= PULL_THRESHOLD
+// Колесико жеста «потянуть вниз» (hooks/usePullToRefresh.js): круглый бейдж над экраном. Позицию,
+// прозрачность, поворот стрелки и «готов» (акцент) во время жеста пишет хук прямо в DOM через ref — без
+// перерисовок React (fb_f8a87f1a); здесь только разметка и иконка: стрелка или крутится (busy).
+// Родитель — корень экрана с position: relative. В покое бейдж прозрачен (index.css .ptr).
+export default function PullIndicator({ indicatorRef, busy }) {
   return (
-    <div
-      className={'ptr' + (ready ? ' ready' : '') + (busy ? ' loading' : '')}
-      aria-hidden="true"
-      style={{
-        transform: `translate(-50%, ${y}px)`,
-        opacity: busy ? 1 : progress,
-        transition: dragging ? 'none' : 'transform var(--dur-base) var(--ease-out), opacity var(--dur-base) var(--ease-out)',
-      }}
-    >
-      <span className="ptr-ico" style={!busy && pull ? { transform: `rotate(${progress * 180}deg)` } : undefined}>
+    <div ref={indicatorRef} className={'ptr' + (busy ? ' loading' : '')} aria-hidden="true">
+      <span className="ptr-ico">
         {/* SVG, а не текстовые ↻/↓: у глифов своя базовая линия, при вращении они «гуляли» (UI-ревью 23.10). */}
         <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" strokeWidth="2.4"
           strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
