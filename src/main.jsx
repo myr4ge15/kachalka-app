@@ -9,7 +9,11 @@ import { onAppReady } from './lib/splash.js'
 import { runLaunchUpdate } from './lib/launchUpdate.js'
 import { startSplash } from './lib/splashBoot.js'
 import { startPushListener } from './lib/pushIntent.js'
+import { initErrorReporter } from './lib/errorReporter.js'
 import './index.css'
+
+// Отчеты об ошибках (lib/errorReport.js): только при заданном VITE_SENTRY_DSN, иначе пустышка.
+initErrorReporter({ dsn: import.meta.env.VITE_SENTRY_DSN, release: __APP_VERSION__ })
 
 // ===== Ранняя инициализация (до рендера React) =====
 // Ускоряет холодный старт вошедшего: параллельно с загрузкой React начинаем

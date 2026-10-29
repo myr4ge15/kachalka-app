@@ -116,6 +116,7 @@ jobs:
           VITE_SUPABASE_KEY: ${{ secrets.VITE_SUPABASE_KEY }}
           VITE_SUPABASE_REF: ${{ secrets.VITE_SUPABASE_REF }}
           VITE_VAPID_PUBLIC_KEY: ${{ secrets.VITE_VAPID_PUBLIC_KEY }}
+          VITE_SENTRY_DSN: ${{ secrets.VITE_SENTRY_DSN }}
         run: |
           # Бета — только на своей базе. Секретов окружения beta нет → взялись секреты прода → стоп.
           case "$VITE_SUPABASE_REF|$VITE_SUPABASE_URL" in

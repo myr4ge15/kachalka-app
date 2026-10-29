@@ -5,6 +5,7 @@ import { readFileSync } from 'node:fs'
 import { WHATS_NEW } from './src/content/whatsNew.js'
 import { versionJson as versionInfo } from './src/lib/whatsNew.js'
 import { avatarCachePattern, withBackendCsp } from './src/lib/backendOrigin.js'
+import { withReportCsp } from './src/lib/errorReport.js'
 import { ocrAssets } from './scripts/ocrAssets.mjs'
 import { pureLibTests } from './src/test/pureTests.js'
 
@@ -53,6 +54,12 @@ const backendCsp = (url) => ({
   transformIndexHtml: (html) => withBackendCsp(html, url),
 })
 
+// Приемник отчетов об ошибках (VITE_SENTRY_DSN, lib/errorReport.js): его хост — в connect-src.
+const reportCsp = (dsn) => ({
+  name: 'report-csp',
+  transformIndexHtml: (html) => withReportCsp(html, dsn),
+})
+
 // Бета: другое имя под иконкой на iPhone (apple-mobile-web-app-title), заголовок вкладки и
 // apple-touch-icon с лентой BETA. Файлы beta-*.png лежат в public/ и в основной сборке не используются.
 const betaHtml = (on) => ({
@@ -97,9 +104,9 @@ export default defineConfig(({ mode }) => ({
     // задачи unit (Москва), отчет — артефакт `coverage`, итог — аннотацией прогона.
     // main.jsx — только склейка запуска (логика сплэша — lib/splashBoot.js), его грузит
     // каждый e2e; content/ — тексты. Пороги — храповик (AGENTS.md, DoD п. 2): «факт минус
-    // 1–2 пункта», вниз; только поднимаем. 20.10.2026 (прогон 4e81416): строки 96,4,
-    // операторы 92,9, функции 92,4, ветки 84,1; lib — от 774ec2f (96,9/94,3/95,6/86,9).
-    // История — docs/reviews/ПОКРЫТИЕ-ТЕСТАМИ-2026-10-19.md, разделы 7–8.
+    // 1–2 пункта», вниз; только поднимаем. 29.10.2026 (прогон c133ba3): строки 96,7,
+    // операторы 93,4, функции 93,0, ветки 85,6; lib — 97,7/95,1/96,1/88,2.
+    // История — docs/reviews/ПОКРЫТИЕ-ТЕСТАМИ-2026-10-19.md, разделы 7–9.
     coverage: {
       provider: 'v8',
       include: ['src/**/*.{js,jsx}'],
@@ -108,10 +115,10 @@ export default defineConfig(({ mode }) => ({
       reportsDirectory: 'coverage',
       thresholds: {
         lines: 95,
-        statements: 91,
+        statements: 92,
         functions: 91,
-        branches: 83,
-        'src/lib/**': { lines: 95, statements: 93, functions: 94, branches: 85 },
+        branches: 84,
+        'src/lib/**': { lines: 96, statements: 93, functions: 94, branches: 86 },
       },
     },
   },
@@ -120,6 +127,7 @@ export default defineConfig(({ mode }) => ({
     ocrAssets(),
     versionJson(appVersion(mode)),
     backendCsp(backendUrl(mode)),
+    reportCsp(viteEnv(mode).VITE_SENTRY_DSN),
     betaHtml(isBeta(mode)),
     VitePWA({
       registerType: 'prompt',

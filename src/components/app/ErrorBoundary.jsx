@@ -1,4 +1,5 @@
 import { Component } from 'react'
+import { captureError } from '../../lib/errorReporter.js'
 
 // Ловит исключения в рендере дочерних компонентов, чтобы ошибка не гасила все
 // приложение (белый экран). Два режима работы:
@@ -22,8 +23,8 @@ export default class ErrorBoundary extends Component {
   }
 
   componentDidCatch(error, info) {
-    // Логируем для диагностики; продакшен-логгера пока нет.
     console.error('Перехвачено ErrorBoundary:', error, info)
+    captureError(error, { source: 'react', handled: true })
   }
 
   reset() {
