@@ -57,6 +57,7 @@ server/
 # CI приватного репозитория (тесты SQL на PGlite + Edge Functions на Deno) — лежит в общем
 # .github/, но коммитится только туда (pgit add -f); публичному CI сервер недоступен.
 .github/workflows/server-tests.yml
+.github/workflows/db-backup.yml
 
 # разовый локальный генератор PNG-иконок (рецепт пересборки — в docs/PASPORT.md), в репо не нужен
 scripts/gen-icons.mjs
