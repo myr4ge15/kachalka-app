@@ -15,6 +15,12 @@ import './index.css'
 // Отчеты об ошибках (lib/errorReport.js): только при заданном VITE_SENTRY_DSN, иначе пустышка.
 initErrorReporter({ dsn: import.meta.env.VITE_SENTRY_DSN, release: __APP_VERSION__ })
 
+// Только бета: проверка, что стек в Sentry читается (source maps). В консоли беты: __throwTestError().
+// Ошибка бросается из кода приложения (а не из консоли), поэтому кадр ссылается на собранный файл.
+if (__APP_VERSION__.includes('-beta')) {
+  window.__throwTestError = () => setTimeout(function throwTestError() { throw new Error('тест source maps') })
+}
+
 // ===== Ранняя инициализация (до рендера React) =====
 // Ускоряет холодный старт вошедшего: параллельно с загрузкой React начинаем
 // открывать персональную базу и тянуть чанк Главной. App.jsx все равно откроет

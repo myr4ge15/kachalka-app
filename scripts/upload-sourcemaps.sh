@@ -8,7 +8,6 @@
 set -euo pipefail
 
 : "${SENTRY_AUTH_TOKEN:?нет SENTRY_AUTH_TOKEN}"
-export SENTRY_URL="${SENTRY_URL:-https://de.sentry.io}"
 export SENTRY_ORG="${SENTRY_ORG:-kachalka}"
 export SENTRY_PROJECT="${SENTRY_PROJECT:-kachalka-app}"
 
