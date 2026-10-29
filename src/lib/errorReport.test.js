@@ -62,13 +62,13 @@ describe('parseStack', () => {
       '    at https://x.ru/assets/b.js:3:7',
     ].join('\n')
     expect(parseStack(stack)).toEqual([
-      { function: '?', filename: 'https://x.ru/assets/b.js', lineno: 3, colno: 7 },
-      { function: 'inner', filename: 'https://x.ru/assets/a.js', lineno: 10, colno: 5 },
+      { function: '?', filename: 'https://x.ru/assets/b.js', abs_path: 'https://x.ru/assets/b.js', lineno: 3, colno: 7 },
+      { function: 'inner', filename: 'https://x.ru/assets/a.js', abs_path: 'https://x.ru/assets/a.js', lineno: 10, colno: 5 },
     ])
   })
   it('Safari/Firefox: имя@адрес:строка:колонка', () => {
     expect(parseStack('go@https://x.ru/a.js:4:9')).toEqual([
-      { function: 'go', filename: 'https://x.ru/a.js', lineno: 4, colno: 9 },
+      { function: 'go', filename: 'https://x.ru/a.js', abs_path: 'https://x.ru/a.js', lineno: 4, colno: 9 },
     ])
   })
   it('пусто и мусор — пустой список', () => {

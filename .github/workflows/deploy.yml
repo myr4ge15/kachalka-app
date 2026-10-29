@@ -147,6 +147,9 @@ jobs:
     timeout-minutes: 15
     permissions:
       contents: read
+    env:
+      # На уровне задачи: `if` шага не видит ни secrets, ни env самого шага.
+      SENTRY_AUTH_TOKEN: ${{ secrets.SENTRY_AUTH_TOKEN }}
     steps:
       - uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09 # v5.1.0
 
@@ -166,7 +169,21 @@ jobs:
           VITE_SUPABASE_REF: ${{ secrets.VITE_SUPABASE_REF }}
           VITE_VAPID_PUBLIC_KEY: ${{ secrets.VITE_VAPID_PUBLIC_KEY }}
           VITE_SENTRY_DSN: ${{ secrets.VITE_SENTRY_DSN }}
+          SENTRY_SOURCEMAPS: ${{ secrets.SENTRY_AUTH_TOKEN && '1' || '' }}
         run: npm run build
+
+      # Source maps → Sentry (scripts/upload-sourcemaps.sh). Нет токена — шаг пропущен, карты не собирались.
+      # Сбой загрузки выкат не валит; карты удаляем ВСЕГДА, до публикации.
+      - name: Source maps в Sentry
+        if: ${{ env.SENTRY_AUTH_TOKEN != '' }}
+        continue-on-error: true
+        env:
+          APP_BASE: ${{ vars.VITE_APP_BASE || '/kachalka-app/' }}
+        run: bash scripts/upload-sourcemaps.sh
+
+      - name: Убрать .map из публикации
+        if: always()
+        run: find dist -name '*.map' -delete
 
       - uses: actions/upload-pages-artifact@fc324d3547104276b827a68afc52ff2a11cc49c9 # v5.0.0
         with:

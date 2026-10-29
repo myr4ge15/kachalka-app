@@ -64,6 +64,8 @@ jobs:
     env:
       PROJECT: ${{ vars.BETA_PAGES_PROJECT || 'kachalka-beta' }}
       SHA: ${{ github.event.workflow_run.head_sha || github.sha }}
+      # На уровне задачи: `if` шага не видит ни secrets, ни env самого шага.
+      SENTRY_AUTH_TOKEN: ${{ secrets.SENTRY_AUTH_TOKEN }}
     steps:
       - name: Секреты Cloudflare заданы?
         id: cf
@@ -117,6 +119,7 @@ jobs:
           VITE_SUPABASE_REF: ${{ secrets.VITE_SUPABASE_REF }}
           VITE_VAPID_PUBLIC_KEY: ${{ secrets.VITE_VAPID_PUBLIC_KEY }}
           VITE_SENTRY_DSN: ${{ secrets.VITE_SENTRY_DSN }}
+          SENTRY_SOURCEMAPS: ${{ secrets.SENTRY_AUTH_TOKEN && '1' || '' }}
         run: |
           # Бета — только на своей базе. Секретов окружения beta нет → взялись секреты прода → стоп.
           case "$VITE_SUPABASE_REF|$VITE_SUPABASE_URL" in
@@ -128,6 +131,19 @@ jobs:
           # Бету не индексируем: заголовок для всех путей (файл _headers понимает Cloudflare Pages).
           printf '/*\n  X-Robots-Tag: noindex\n' > dist/_headers
           echo "Собрана $(node -p "require('./dist/version.json').version") (${SHA:0:7})."
+
+      # Source maps → Sentry (scripts/upload-sourcemaps.sh); нет токена — шаг пропущен. Сбой бету не валит;
+      # карты удаляем ВСЕГДА, до публикации.
+      - name: Source maps в Sentry
+        if: steps.cf.outputs.ready == 'true' && env.SENTRY_AUTH_TOKEN != ''
+        continue-on-error: true
+        env:
+          APP_BASE: /
+        run: bash scripts/upload-sourcemaps.sh
+
+      - name: Убрать .map из публикации
+        if: steps.cf.outputs.ready == 'true'
+        run: find dist -name '*.map' -delete
 
       # Wrangler — точная версия через npx, без стороннего action: меньше движущихся частей.
       - name: Публикация на Cloudflare Pages

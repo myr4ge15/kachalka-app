@@ -214,6 +214,10 @@ export default defineConfig(({ mode }) => ({
     // его размер не влияет. Поднимаем порог предупреждения чуть выше этого чанка,
     // чтобы не заглушать сигнал о реально раздувшихся чанках приложения.
     chunkSizeWarningLimit: 1400,
+    // Source maps — только когда CI собирается их загружать в Sentry (SENTRY_SOURCEMAPS=1,
+    // scripts/upload-sourcemaps.sh). 'hidden': файлы .map есть, ссылки на них из кода нет;
+    // перед публикацией workflow удаляет их из dist — на сайт они не попадают.
+    sourcemap: process.env.SENTRY_SOURCEMAPS === '1' ? 'hidden' : false,
     rollupOptions: {
       output: {
         // Общий чанк без собственной точки входа Rollup называет по первому попавшемуся

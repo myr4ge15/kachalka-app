@@ -76,6 +76,7 @@ export function parseStack(stack) {
     frames.push({
       function: m[1] || '?',
       filename: scrubUrl(m[2]),
+      abs_path: scrubUrl(m[2]),
       lineno: Number(m[3]),
       colno: Number(m[4]),
     })
