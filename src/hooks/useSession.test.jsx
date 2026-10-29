@@ -27,6 +27,7 @@ vi.mock('../lib/splash.js', () => ({ markAppReady: vi.fn(() => order.push('ready
 
 import { useSession, SESSION_KEY } from './useSession.js'
 import { reconcilePushOwner } from '../db/push.js'
+import { openUserDb } from '../db/local.js'
 
 // Записываем в order момент, когда хук отдал user (после рендера).
 function track() {
@@ -81,6 +82,30 @@ describe('useSession', () => {
     act(() => authListener('SIGNED_OUT'))
     expect(result.current.user).toBeNull()
     expect(order.at(-1)).toBe('close')
+  })
+
+  it('SIGNED_IN: подписка на пуши еще раз сверяется — за вошедшей учеткой; до входа — нет', async () => {
+    const { result } = track()
+    await waitFor(() => expect(order).toEqual(['ready']))
+    act(() => authListener('SIGNED_IN'))
+    expect(reconcilePushOwner).not.toHaveBeenCalled()
+    await act(() => result.current.handleLogin({ id: 'u2', name: 'Саня' }))
+    vi.mocked(reconcilePushOwner).mockClear()
+    act(() => authListener('SIGNED_IN'))
+    expect(reconcilePushOwner).toHaveBeenCalledWith('u2')
+    act(() => authListener('TOKEN_REFRESHED'))
+    expect(reconcilePushOwner).toHaveBeenCalledOnce()
+  })
+
+  it('персональная база не открылась — экран входа, след в консоли, сплэш все равно снят', async () => {
+    const err = vi.spyOn(console, 'error').mockImplementation(() => {})
+    vi.mocked(openUserDb).mockRejectedValueOnce(new Error('IDB blocked'))
+    localStorage.setItem(SESSION_KEY, JSON.stringify({ id: 'u1' }))
+    const { result } = track()
+    await waitFor(() => expect(order).toContain('ready'))
+    expect(result.current.user).toBeNull()
+    expect(err).toHaveBeenCalledWith('Не удалось восстановить сессию:', expect.any(Error))
+    err.mockRestore()
   })
 
   it('переименование меняет только имя; ссылка на функцию стабильна', async () => {

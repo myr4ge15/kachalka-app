@@ -57,4 +57,40 @@ describe('useAccentSync (v6.2.4: только свой выбор)', () => {
     renderHook(() => useAccentSync('u1', { storage: mem('{"id":"teal","by":"u2"}'), root }))
     expect(root.dataset.accent).toBeUndefined()
   })
+
+  // Инцидент 30.09: тот же цвет у двух учеток телефона — владелец на устройстве все равно должен стать своим.
+  it('тот же цвет, но на устройстве записан другой владелец — перезаписываем со своим', () => {
+    vi.mocked(useLiveQuery).mockReturnValue({ id: 'peach', hue: 200, by: 'u1' })
+    const storage = mem('{"id":"peach","hue":200,"by":"u2"}')
+    const root = document.createElement('div')
+    root.dataset.accent = 'peach'
+    renderHook(() => useAccentSync('u1', { storage, root }))
+    expect(stored(storage).by).toBe('u1')
+  })
+
+  it('все уже совпадает — хранилище не трогаем', () => {
+    vi.mocked(useLiveQuery).mockReturnValue({ id: 'peach', hue: 200, by: 'u1' })
+    const storage = mem('{"id":"peach","hue":200,"by":"u1"}')
+    const setItem = vi.spyOn(storage, 'setItem')
+    const root = document.createElement('div')
+    root.dataset.accent = 'peach'
+    renderHook(() => useAccentSync('u1', { storage, root }))
+    expect(setItem).not.toHaveBeenCalled()
+  })
+
+  it('без явного хранилища — localStorage; хранилище недоступно (Safari) — интерфейс не падает', () => {
+    vi.mocked(useLiveQuery).mockReturnValue({ id: 'peach', hue: 200, by: 'u1' })
+    const root = document.createElement('div')
+    localStorage.clear()
+    renderHook(() => useAccentSync('u1', { root }))
+    expect(JSON.parse(localStorage.getItem(ACCENT_KEY))).toMatchObject({ id: 'peach', by: 'u1' })
+    const spy = vi.spyOn(window, 'localStorage', 'get').mockImplementation(() => { throw new Error('SecurityError') })
+    try {
+      const root2 = document.createElement('div')
+      expect(() => renderHook(() => useAccentSync('u1', { root: root2 }))).not.toThrow()
+      expect(root2.dataset.accent).toBe('peach')
+    } finally {
+      spy.mockRestore()
+    }
+  })
 })

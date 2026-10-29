@@ -57,13 +57,20 @@ const loginSetupState = vi.hoisted(() => ({ needed: false }))
 vi.mock('./hooks/useLoginSetup.js', () => ({ useLoginSetup: () => ({ needed: loginSetupState.needed, done: vi.fn() }) }))
 
 let mockUser = { id: 'me', name: 'Саня', role: 'admin' }
+const session = vi.hoisted(() => ({ handleLogin: vi.fn(async () => {}), handleLogout: vi.fn(async () => {}) }))
 vi.mock('./hooks/useSession.js', () => ({
   SESSION_KEY: 'gym_app_user',
-  useSession: () => ({ user: mockUser, handleLogin: vi.fn(), handleRenamed: vi.fn(), handleLogout: vi.fn() }),
+  useSession: () => ({ user: mockUser, handleLogin: session.handleLogin, handleRenamed: vi.fn(), handleLogout: session.handleLogout }),
 }))
-vi.mock('./hooks/useLaunchSheets.js', () => ({
-  useLaunchSheets: () => ({ whatsNew: null, closeWhatsNew: vi.fn(), pushAsk: false, closePushAsk: vi.fn() }),
+const launch = vi.hoisted(() => ({ welcome: false, whatsNew: null, pushAsk: false }))
+const closers = vi.hoisted(() => ({ closeWelcome: vi.fn(), closeWhatsNew: vi.fn(), closePushAsk: vi.fn() }))
+vi.mock('./hooks/useLaunchSheets.js', () => ({ useLaunchSheets: () => ({ ...launch, ...closers }) }))
+vi.mock('./components/onboarding/WelcomeSheet.jsx', () => ({
+  default: ({ onStart }) => <button onClick={onStart}>Записать первую тренировку</button>,
 }))
+vi.mock('./lib/joinRequest.js', async (orig) => ({ ...(await orig()), clearPending: vi.fn() }))
+vi.mock('./lib/welcome.js', async (orig) => ({ ...(await orig()), markWelcomePending: vi.fn() }))
+vi.mock('./db/local.js', async (orig) => ({ ...(await orig()), wipeLocalAccount: vi.fn(async () => {}) }))
 vi.mock('./hooks/useAccentSync.js', () => ({ useAccentSync: () => {} }))
 vi.mock('dexie-react-hooks', () => ({ useLiveQuery: (_f, _d, fallback) => fallback }))
 vi.mock('./db/supabase.js', () => ({ isConfigured: true, warmup: vi.fn() }))
@@ -79,6 +86,10 @@ vi.mock('./lib/appEvents.js', () => ({ emitReselect: vi.fn(), onResume: () => ()
 
 import App from './App.jsx'
 import { emitReselect } from './lib/appEvents.js'
+import { clearPending } from './lib/joinRequest.js'
+import { markWelcomePending } from './lib/welcome.js'
+import { wipeLocalAccount } from './db/local.js'
+import { enablePush } from './db/push.js'
 
 const REACTION = 'reaction-11111111-2222-4333-8444-555555555555-u2'
 
@@ -94,6 +105,7 @@ beforeEach(() => {
   for (const k of Object.keys(seen)) delete seen[k]
   sessionStorage.clear()
   mockUser = { id: 'me', name: 'Саня', role: 'admin' }
+  Object.assign(launch, { welcome: false, whatsNew: null, pushAsk: false })
   window.history.replaceState(null, '', '/kachalka-app/')
   Element.prototype.scrollTo = vi.fn()
 })
@@ -445,6 +457,33 @@ describe('App: ссылки при уже открытом приложении'
     expect(seen.circle.joinCode).toBe('7F3Q9XWD')
   })
 
+  it.each([
+    ['#invite=' + TOKEN, 'ссылке'],
+    ['#friend=7F3Q9XWD', 'коду друга'],
+    ['#join=7F3Q9XWD', 'коду круга'],
+  ])('%s: зарегистрировался по %s — заявка забыта, новичку приветствие, вход, экран регистрации закрыт', async (hash) => {
+    mockUser = null
+    render(<App />)
+    await screen.findByTestId('screen-login')
+    await go(hash)
+    expect(shown()).toBe('invite')
+    await act(async () => { await seen.invite.onRegistered({ id: 'n1', name: 'Вася' }) })
+    expect(clearPending).toHaveBeenCalledOnce()
+    expect(markWelcomePending).toHaveBeenCalledWith('n1')
+    expect(session.handleLogin).toHaveBeenCalledWith({ id: 'n1', name: 'Вася' })
+    expect(shown()).toBe('login') // сессию в тесте поднимает заглушка useSession — ее нет
+  })
+
+  it('новый PIN по ссылке — вход и экран сброса закрыт', async () => {
+    mockUser = null
+    render(<App />)
+    await screen.findByTestId('screen-login')
+    await go('#reset=' + TOKEN)
+    await act(async () => { await seen.reset.onDone({ id: 'me', name: 'Саня' }) })
+    expect(session.handleLogin).toHaveBeenCalledWith({ id: 'me', name: 'Саня' })
+    expect(shown()).toBe('login')
+  })
+
   it('у старой учетки нет логина — сначала «Придумай логин»', async () => {
     loginSetupState.needed = true
     try {
@@ -453,5 +492,51 @@ describe('App: ссылки при уже открытом приложении'
     } finally {
       loginSetupState.needed = false
     }
+  })
+})
+
+describe('App: удаление аккаунта и стартовые листы', () => {
+  it('аккаунт удален — сначала выход, потом стирается локальное этой учетки', async () => {
+    const order = []
+    session.handleLogout.mockImplementationOnce(async () => { order.push('logout') })
+    vi.mocked(wipeLocalAccount).mockImplementationOnce(async (id) => { order.push('wipe ' + id) })
+    await boot()
+    fireEvent.click(document.querySelector('.side-profile')); await settle() // профиль в боковой колонке
+    expect(current()).toBe('profile')
+    await act(async () => { await seen.profile.onAccountDeleted() })
+    expect(order).toEqual(['logout', 'wipe me'])
+  })
+
+  it('из Профиля — в Ленту; бренд в боковой колонке — на Главную', async () => {
+    await boot()
+    fireEvent.click(document.querySelector('.side-profile')); await settle()
+    act(() => seen.profile.onOpenFeed()); await settle()
+    expect(current()).toBe('feed')
+    fireEvent.click(screen.getByRole('button', { name: 'На главную' })); await settle()
+    expect(current()).toBe('home')
+  })
+
+  it('приветствие новичка: «Записать первую тренировку» — лист закрыт, открыта новая тренировка', async () => {
+    launch.welcome = true
+    await boot()
+    fireEvent.click(screen.getByRole('button', { name: 'Записать первую тренировку' })); await settle()
+    expect(closers.closeWelcome).toHaveBeenCalled()
+    expect(current()).toBe('history')
+    expect(seen.history.openNew).toBe(true)
+  })
+
+  it('«Что нового» → «Все обновления» — экран обновлений; лист про пуши — «Включить» для своей учетки', async () => {
+    launch.whatsNew = { version: '1.7.1', date: '2026-10-28', main: ['🚀 Быстрее'], minor: [] }
+    const { unmount } = render(<App />)
+    fireEvent.click(await screen.findByRole('button', { name: 'Все обновления' })); await settle()
+    expect(closers.closeWhatsNew).toHaveBeenCalled()
+    expect(current()).toBe('whatsnew')
+    unmount()
+    Object.assign(launch, { whatsNew: null, pushAsk: true })
+    vi.mocked(enablePush).mockResolvedValueOnce(true)
+    render(<App />)
+    fireEvent.click(await screen.findByRole('button', { name: 'Включить' }))
+    await waitFor(() => expect(closers.closePushAsk).toHaveBeenCalledWith(true))
+    expect(enablePush).toHaveBeenCalledWith('me')
   })
 })

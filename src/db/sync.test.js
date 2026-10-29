@@ -46,8 +46,11 @@ vi.mock('./supabase.js', () => {
       if (b._in) {
         // дотягивание по id (самолечение): отдаем строки из «полной» серверной истории
         state.healFetches.push(...b._in)
+        if (state.healError) return { data: null, error: state.healError }
         const all = state.workoutsAll ?? state.workoutsMain
-        return { data: all.filter((r) => b._in.includes(r.id)), error: null }
+        const rows = { data: all.filter((r) => b._in.includes(r.id)), error: null }
+        // onHeal — правка на устройстве, пока ответ дотягивания в пути
+        return state.onHeal ? Promise.resolve(state.onHeal()).then(() => rows) : rows
       }
       if (b._eqUser) {
         // инкрементально: если задан .gt('updated_at', wm) — отдаем только дельту
@@ -165,6 +168,8 @@ beforeEach(async () => {
   srv.state.workoutsAll = null
   srv.state.identityCalls = 0
   srv.state.onIdentity = null
+  srv.state.healError = null
+  srv.state.onHeal = null
 })
 afterEach(async () => {
   await closeUserDb()
@@ -661,6 +666,38 @@ describe('pull: правка упражнения на сервере освеж
     srv.state.healFetches = []
     expect(await syncNow(userId)).toBe(true) // прогон прошел целиком
     expect(srv.state.healFetches).toEqual([])
+    expect((await db.workouts.get('w1')).entries[0].exercise.name).toBe('Жим лежа')
+  })
+
+  async function renameAfterFirstSync() {
+    srv.state.exercises = [{ ...bench, updated_at: '2026-01-01T00:00:00Z' }]
+    srv.state.workoutsMain = [serverRow({ id: 'w1', user_id: userId, updated_at: '2026-01-10T00:00:00Z' })]
+    srv.state.workoutIds = ['w1']
+    await syncNow(userId)
+    srv.state.exercises = [{ ...bench, name: 'Новое имя', updated_at: '2026-02-01T00:00:00Z' }]
+    const renamed = serverRow({ id: 'w1', user_id: userId, updated_at: '2026-01-10T00:00:00Z' })
+    renamed.workout_exercises[0].exercise.name = 'Новое имя'
+    srv.state.workoutsAll = [renamed]
+  }
+
+  it('тренировку правили, пока шло перечитывание, — правка остается', async () => {
+    await renameAfterFirstSync()
+    srv.state.onHeal = () => db.workouts.update('w1', { _dirty: 1, updated_at: '2026-02-02T00:00:00Z' })
+
+    expect(await syncNow(userId)).toBe(true)
+
+    expect(srv.state.healFetches).toEqual(['w1'])
+    expect(await db.workouts.get('w1')).toMatchObject({ _dirty: 1, updated_at: '2026-02-02T00:00:00Z' })
+    expect((await db.workouts.get('w1')).entries[0].exercise.name).toBe('Жим лежа')
+  })
+
+  it('сбой перечитывания — предупреждение, прогон не падает, снимок прежний', async () => {
+    await renameAfterFirstSync()
+    srv.state.healError = { message: 'timeout' }
+
+    expect(await syncNow(userId)).toBe(true)
+
+    expect(getSyncState().lastError).toContain('история не обновлена после правки упражнения: timeout')
     expect((await db.workouts.get('w1')).entries[0].exercise.name).toBe('Жим лежа')
   })
 })

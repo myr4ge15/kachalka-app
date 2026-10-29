@@ -1,9 +1,11 @@
 // @vitest-environment jsdom
 import { useCallback, useState } from 'react'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
-import { act, fireEvent, render, screen, waitFor } from '@testing-library/react'
+import { act, fireEvent, render, screen, waitFor, within } from '@testing-library/react'
 import { useLiveQuery } from 'dexie-react-hooks'
 import { saveTemplate } from '../db/repo.js'
+import { syncNow } from '../db/sync.js'
+import { exportWorkouts } from '../lib/exportWorkout.js'
 import { emitReselect } from '../lib/appEvents.js'
 import HistoryScreen from './HistoryScreen.jsx'
 
@@ -344,5 +346,54 @@ describe('HistoryScreen', () => {
     fireEvent.click(screen.getByRole('button', { name: 'Назад из тренировки' }))
     expect(screen.queryByRole('dialog')).not.toBeInTheDocument()
     expect(screen.getByText('Мои тренировки')).toBeInTheDocument()
+  })
+
+  it('шаблон из итога не создался — понятная ошибка, синка нет', async () => {
+    vi.mocked(saveTemplate).mockRejectedValueOnce(new Error('quota'))
+    vi.mocked(syncNow).mockClear()
+    render(<HistoryScreen user={user} openNew />)
+    fireEvent.click(screen.getByRole('button', { name: 'Сохранить тестовую' }))
+    fireEvent.click(screen.getByRole('button', { name: 'Сохранить как шаблон' }))
+    expect(await screen.findByText('Не удалось создать шаблон: quota')).toBeInTheDocument()
+    expect(syncNow).not.toHaveBeenCalled()
+  })
+})
+
+describe('HistoryScreen — фильтр по мышцам и экспорт', () => {
+  const back = {
+    id: 'w2', user_id: 'u1', performed_at: '2026-07-27T10:00:00',
+    entries: [{ exercise_id: 'pull', exercise: { id: 'pull', name: 'Подтягивания', metric: 'reps', muscle_group: 'спина' }, sets: [{ weight: 0, reps: 10 }] }],
+  }
+  const chips = () => within(document.querySelector('.tag-filter'))
+  const names = () => [...document.querySelectorAll('.history-ex-name')].map((el) => el.textContent)
+
+  beforeEach(() => {
+    vi.mocked(useLiveQuery).mockReset()
+    vi.mocked(useLiveQuery).mockReturnValue([workout, back])
+    vi.mocked(exportWorkouts).mockReset()
+    window.matchMedia = vi.fn().mockReturnValue({ matches: false, addEventListener: vi.fn(), removeEventListener: vi.fn() })
+  })
+
+  it('чип группы оставляет ее тренировки; повторный тап и «все» — снова весь список', () => {
+    render(<HistoryScreen user={user} />)
+    expect(names()).toEqual(['Жим лежа', 'Подтягивания'])
+    fireEvent.click(chips().getByRole('button', { name: 'спина' }))
+    expect(names()).toEqual(['Подтягивания'])
+    expect(chips().getByRole('button', { name: 'спина' })).toHaveAttribute('aria-pressed', 'true')
+    fireEvent.click(chips().getByRole('button', { name: 'спина' }))
+    expect(names()).toEqual(['Жим лежа', 'Подтягивания'])
+    fireEvent.click(chips().getByRole('button', { name: 'грудь' }))
+    fireEvent.click(chips().getByRole('button', { name: 'все' }))
+    expect(names()).toEqual(['Жим лежа', 'Подтягивания'])
+  })
+
+  it('экспорт: «Все» берет отфильтрованные, «Скачать» отдает только их', () => {
+    render(<HistoryScreen user={user} />)
+    fireEvent.click(chips().getByRole('button', { name: 'грудь' }))
+    fireEvent.click(screen.getByRole('button', { name: /Экспорт тренировок/ }))
+    fireEvent.click(screen.getByRole('button', { name: 'Все' }))
+    fireEvent.click(screen.getByRole('button', { name: /Скачать \(1\)/ }))
+    expect(exportWorkouts).toHaveBeenCalledOnce()
+    expect(vi.mocked(exportWorkouts).mock.calls[0][0].map((w) => w.id)).toEqual(['w1'])
   })
 })

@@ -24,6 +24,9 @@ vi.mock('../db/repo.js', () => ({
   toggleFavorite: vi.fn(),
 }))
 vi.mock('../db/sync.js', () => ({ syncNow: vi.fn() }))
+// Свайп «назад» (iOS) — ловим колбэк, который экран отдает жесту.
+const swipe = vi.hoisted(() => ({ back: null }))
+vi.mock('../hooks/useEdgeSwipeBack.js', () => ({ useEdgeSwipeBack: (_c, _r, back) => { swipe.back = back } }))
 vi.mock('../lib/exportTemplate.js', () => ({ exportTemplates: vi.fn() }))
 vi.mock('../components/exercises/ExercisePicker.jsx', () => ({
   default: ({ exercises, onPick, onPickMany, onClose }) => (
@@ -330,6 +333,66 @@ describe('TemplatesScreen — редактор', () => {
     expect(saveTemplate).not.toHaveBeenCalled()
   })
 
+  it('свайп «назад» с несохраненной правкой — тот же вопрос; без правок — уходит сразу', async () => {
+    renderScreen()
+    fireEvent.click(screen.getByText('Грудь').closest('button'))
+    await screen.findByDisplayValue('Грудь')
+    act(() => swipe.back())
+    expect(screen.queryByDisplayValue('Грудь')).toBeNull()
+    fireEvent.click(screen.getByText('Грудь').closest('button'))
+    fireEvent.change(await screen.findByDisplayValue('Грудь'), { target: { value: 'Грудь 3' } })
+    act(() => swipe.back())
+    expect(screen.getByText(/Выйти без сохранения/)).toBeInTheDocument()
+    expect(screen.getByDisplayValue('Грудь 3')).toBeInTheDocument()
+  })
+
+  it('шаблон, ставший чужим, — только просмотр: план и автор, без полей и кнопок', async () => {
+    vi.mocked(getTemplate).mockResolvedValueOnce({ ...THEIR_TPL, id: 't1' })
+    renderScreen()
+    fireEvent.click(screen.getByText('Грудь').closest('button'))
+    expect(await screen.findByText(/только просмотр/)).toBeInTheDocument()
+    expect(screen.getByText('от Петя')).toBeInTheDocument()
+    expect(document.querySelector('.history-ex')).toHaveTextContent('Подтягивания')
+    expect(screen.queryByRole('button', { name: 'Сохранить' })).toBeNull()
+  })
+
+  it('упражнение в разминку — через меню блока; сохраняется с фазой', async () => {
+    renderScreen()
+    fireEvent.click(screen.getByText('Грудь').closest('button'))
+    await screen.findByDisplayValue('Грудь')
+    fireEvent.click(screen.getByRole('button', { name: 'Блок «Жим лежа»' }))
+    expect(screen.queryByRole('menuitem', { name: 'В основную часть' })).toBeNull() // уже в основной
+    fireEvent.click(screen.getByRole('menuitem', { name: 'В разминку' }))
+    expect(screen.queryByRole('menuitem')).toBeNull()
+    save()
+    await waitFor(() => expect(saveTemplate).toHaveBeenCalled())
+    expect(vi.mocked(saveTemplate).mock.calls[0][0].exercises[0]).toMatchObject({ exercise: { id: 'bench' }, phase: 'warmup' })
+  })
+
+  it('перетащил в корзину — упражнение убрано, «Отменить» возвращает', async () => {
+    online = false
+    render(<Toast />)
+    renderScreen()
+    fireEvent.click(screen.getByText('Грудь').closest('button'))
+    await screen.findByDisplayValue('Грудь')
+    fireEvent.click(screen.getByRole('button', { name: 'Добавить упражнение' }))
+    fireEvent.click(screen.getByRole('button', { name: 'выбрать Подтягивания' }))
+    window.matchMedia = vi.fn(() => ({ matches: true }))
+    document.querySelectorAll('.tpl-ex').forEach((row, i) => {
+      row.getBoundingClientRect = () => ({ top: i * 110, height: 100, bottom: i * 110 + 100 })
+    })
+    const handle = screen.getAllByRole('button', { name: 'Перетащить' })[0]
+    fireEvent.touchStart(handle, { touches: [{ clientX: 5, clientY: 10 }] })
+    document.querySelector('.sort-trash').getBoundingClientRect = () => ({ left: 100, right: 260, top: 700, bottom: 756 })
+    fireEvent.touchMove(handle, { touches: [{ clientX: 180, clientY: 720 }] })
+    fireEvent.touchEnd(handle)
+    expect(screen.getAllByRole('button', { name: 'убрать' })).toHaveLength(1)
+    expect(document.querySelector('.tpl-name')).toHaveTextContent('Подтягивания')
+    fireEvent.click(await screen.findByRole('button', { name: 'Отменить' }))
+    expect(screen.getAllByRole('button', { name: 'убрать' })).toHaveLength(2)
+    delete window.matchMedia
+  })
+
   it('шаблон не найден / сбой чтения — сообщение вместо вечного каркаса', async () => {
     vi.mocked(getTemplate).mockResolvedValueOnce(undefined)
     const { unmount } = renderScreen()
@@ -356,6 +419,18 @@ describe('TemplatesScreen — редактор', () => {
     await waitFor(() => expect(deleteTemplate).toHaveBeenCalledWith('t1'))
     expect(syncNow).toHaveBeenCalledWith('me')
     expect(await screen.findByRole('button', { name: '+ Новый шаблон' })).toBeInTheDocument()
+  })
+
+  it('ошибка удаления — баннер, редактор остается', async () => {
+    vi.mocked(deleteTemplate).mockRejectedValueOnce(new Error('IDB'))
+    renderScreen()
+    fireEvent.click(screen.getByText('Грудь').closest('button'))
+    await screen.findByDisplayValue('Грудь')
+    fireEvent.click(screen.getByRole('button', { name: 'Удалить', exact: true }))
+    fireEvent.click(screen.getByRole('button', { name: 'Да, удалить' }))
+    expect(await screen.findByText('Не удалилось: IDB')).toBeInTheDocument()
+    expect(screen.getByDisplayValue('Грудь')).toBeInTheDocument()
+    expect(syncNow).not.toHaveBeenCalled()
   })
 
   it('ошибка сохранения — баннер, редактор остается, можно повторить', async () => {

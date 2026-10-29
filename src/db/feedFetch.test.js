@@ -4,7 +4,7 @@
 import 'fake-indexeddb/auto'
 import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest'
 
-const server = vi.hoisted(() => ({ workouts: [], reactions: [], session: 'u', onReactions: null }))
+const server = vi.hoisted(() => ({ workouts: [], reactions: [], session: 'u', onReactions: null, rpc: null, rpcCalls: [] }))
 
 vi.mock('./supabase.js', () => {
   function from(table) {
@@ -28,8 +28,13 @@ vi.mock('./supabase.js', () => {
     }
     return b
   }
+  // RPC окна Ленты: comments_for, feed_pr_baseline, my_comment_reactions. Без обработчика — ошибка сервера.
+  async function rpc(name, args) {
+    server.rpcCalls.push({ name, args })
+    return server.rpc ? server.rpc(name, args) : { data: null, error: { message: 'no function' } }
+  }
   return {
-    supabase: { from },
+    supabase: { from, rpc },
     isConfigured: true,
     hasSession: async (userId) => !userId || userId === server.session,
   }
@@ -52,6 +57,8 @@ beforeEach(async () => {
   }]
   server.reactions = [{ workout_id: 'w1', user_id: 'x', kind: 'fire', created_at: '2026-07-28T11:00:00.000Z', user: { name: 'Икс' } }]
   server.onReactions = null
+  server.rpc = null
+  server.rpcCalls = []
   await openUserDb(userId)
 })
 
@@ -112,5 +119,80 @@ describe('fetchFeed — запись кэша только при изменен
     await fetchFeed(userId, db)
 
     expect(await db.feed.count()).toBe(0)
+  })
+})
+
+describe('fetchFeed — комментарии окна (comments_for)', () => {
+  const comment = (over = {}) => ({
+    id: 'c1', workout_id: 'w1', user_id: 'x', author_name: 'Икс', author_known: true, author_avatar_url: 'https://a/x.jpg',
+    body: 'Огонь', created_at: '2026-07-28T12:00:00.000Z', ...over,
+  })
+  const rpcWith = (rows) => (name) => (name === 'comments_for' ? { data: rows, error: null } : { data: [], error: null })
+
+  it('один вызов на все карточки окна; комментарии ложатся в свои карточки', async () => {
+    server.workouts.push({ id: 'w2', user_id: 'friend', performed_at: '2026-07-27', updated_at: '2026-07-27T10:00:00.000Z',
+      user: { id: 'friend', name: 'Дима' }, workout_exercises: [] })
+    server.rpc = rpcWith([comment(), comment({ id: 'c0', body: 'Первый', created_at: '2026-07-28T11:00:00.000Z' })])
+
+    await fetchFeed(userId, db)
+
+    expect(server.rpcCalls.filter((c) => c.name === 'comments_for')).toEqual([
+      { name: 'comments_for', args: { p_workout_ids: ['w1', 'w2'] } },
+    ])
+    expect((await db.feed.get('w1')).comments).toMatchObject([
+      { id: 'c0', body: 'Первый' },
+      { id: 'c1', body: 'Огонь', name: 'Икс', known: true, avatar_url: 'https://a/x.jpg' },
+    ])
+    expect((await db.feed.get('w2')).comments).toEqual([])
+  })
+
+  it('сервер не отдал комментарии — у карточки остаются прежние', async () => {
+    server.rpc = rpcWith([comment()])
+    await fetchFeed(userId, db)
+    server.workouts[0].updated_at = '2026-07-28T13:00:00.000Z' // окно изменилось → тяжелый запрос
+    server.rpc = (name) => (name === 'comments_for' ? { data: null, error: { message: 'timeout' } } : { data: [], error: null })
+
+    await fetchFeed(userId, db)
+
+    expect((await db.feed.get('w1')).comments).toMatchObject([{ id: 'c1', body: 'Огонь' }])
+  })
+})
+
+describe('fetchFeed — кубки с учетом результатов до окна (feed_pr_baseline)', () => {
+  const lift = (id, day, weight) => ({
+    id, user_id: 'friend', performed_at: day, updated_at: `${day}T10:00:00.000Z`, user: { id: 'friend', name: 'Дима' },
+    workout_exercises: [{ id: 'we_' + id, position: 0, exercise_id: 'e1', exercise: { id: 'e1', name: 'Жим', metric: 'weight' },
+      sets: [{ id: 's_' + id, set_number: 0, weight, reps: 5 }] }],
+  })
+  beforeEach(() => { server.workouts = [lift('w2', '2026-07-28', 80), lift('w1', '2026-07-20', 70)] })
+
+  it('запрос — от самой ранней тренировки окна и по ее авторам; старый лучший результат гасит ложный кубок', async () => {
+    server.rpc = (name) => (name === 'feed_pr_baseline'
+      ? { data: [{ user_id: 'friend', exercise_id: 'e1', best: 90 }], error: null }
+      : { data: [], error: null })
+
+    await fetchFeed(userId, db)
+
+    expect(server.rpcCalls.find((c) => c.name === 'feed_pr_baseline').args).toEqual({ p_before: '2026-07-20', p_user_ids: ['friend'] })
+    expect((await db.feed.get('w2')).prs).toEqual([])
+    expect((await db.feed.get('w1')).prs).toEqual([])
+  })
+
+  it('результат выше старого лучшего — кубок, в том числе у первой тренировки окна', async () => {
+    server.rpc = (name) => (name === 'feed_pr_baseline'
+      ? { data: [{ user_id: 'friend', exercise_id: 'e1', best: 65 }], error: null }
+      : { data: [], error: null })
+
+    await fetchFeed(userId, db)
+
+    expect((await db.feed.get('w1')).prs).toEqual([{ name: 'Жим', metric: 'weight', value: 70 }])
+    expect((await db.feed.get('w2')).prs).toEqual([{ name: 'Жим', metric: 'weight', value: 80 }])
+  })
+
+  it('сервер без функции — кубки по окну, как раньше', async () => {
+    await fetchFeed(userId, db)
+
+    expect((await db.feed.get('w1')).prs).toEqual([])
+    expect((await db.feed.get('w2')).prs).toEqual([{ name: 'Жим', metric: 'weight', value: 80 }])
   })
 })

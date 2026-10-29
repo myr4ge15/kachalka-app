@@ -89,6 +89,13 @@ describe('computePrs (отметки рекордов в окне)', () => {
     expect(items[0].prs).toEqual([expect.objectContaining({ value: 85 })])
   })
 
+  it('нулевой подход не сбивает лучший результат и не считается замером', () => {
+    const items = [it_('w3', 'a', '2026-03-01', 85), it_('w2', 'a', '2026-02-01', 0), it_('w1', 'a', '2026-01-01', 80)]
+    computePrs(items)
+    expect(items.find((i) => i.id === 'w2').prs).toEqual([])
+    expect(items.find((i) => i.id === 'w3').prs).toEqual([expect.objectContaining({ value: 85 })])
+  })
+
   it('baselineMap отбрасывает мусор', () => {
     const m = baselineMap([{ user_id: 'a', exercise_id: 'x', best: 0 }, { user_id: null, exercise_id: 'y', best: 5 }, { user_id: 'a', exercise_id: 'z', best: '7' }])
     expect([...m.get('a')]).toEqual([['z', 7]])

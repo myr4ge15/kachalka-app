@@ -233,3 +233,135 @@ describe('«Мой круг»: регистрация по коду', () => {
     await expect(auth.registerByInvite({ code: '7F3Q9XWD' }, { name: 'М', pin: '4826' })).rejects.toMatchObject({ code: 'busy' })
   })
 })
+
+describe('«Друзья»: код дружбы до регистрации', () => {
+  it('превью шлет friend; отказ сервера и нет сети — LoginError', async () => {
+    fetchMock.mockResolvedValueOnce(res(200, { status: 'ok', inviter_name: 'Сега' }))
+    expect(await auth.checkFriendCode('K7M2P9QX')).toEqual({ status: 'ok', inviter_name: 'Сега' })
+    expect(JSON.parse(fetchMock.mock.calls[0][1].body)).toEqual({ action: 'friend_check', friend: 'K7M2P9QX' })
+    fetchMock.mockResolvedValueOnce(res(500, {}))
+    await expect(auth.checkFriendCode('K7M2P9QX')).rejects.toMatchObject({ code: 'server' })
+    fetchMock.mockRejectedValueOnce(new TypeError('Failed to fetch'))
+    await expect(auth.checkFriendCode('K7M2P9QX')).rejects.toMatchObject({ code: 'network' })
+  })
+
+  it('регистрация по коду дружбы шлет friend, а не token/code', async () => {
+    fetchMock.mockResolvedValueOnce(res(200, {
+      session: { access_token: 'a', refresh_token: 'r' }, pin_hash: 'hash-4826', user: { id: 'n3', name: 'Оля', role: 'member' },
+    }))
+    expect(await auth.registerByInvite({ friend: 'K7M2P9QX' }, { name: 'Оля', pin: '4826' })).toMatchObject({ id: 'n3' })
+    const body = JSON.parse(fetchMock.mock.calls[0][1].body)
+    expect(body).toMatchObject({ action: 'redeem', friend: 'K7M2P9QX' })
+    expect(body.token).toBeUndefined()
+    expect(body.code).toBeUndefined()
+  })
+})
+
+describe('офлайн-вход по кэшу PIN', () => {
+  it('кэша нет или хэш стерт после отказа сервера — null (нужна сеть)', async () => {
+    expect(await auth.verifyPinOffline('u1', '4826')).toBe(null)
+    meta.set('pin_u1', { pin_hash: null, pin_salt: null, name: 'Дима' })
+    expect(await auth.verifyPinOffline('u1', '4826')).toBe(null)
+    expect(auth.canRefreshSilently('u1')).toBe(false)
+  })
+
+  it('неверный PIN — false, в память не кладется; верный — профиль из кэша', async () => {
+    meta.set('pin_u1', { pin_hash: 'hash-4826', pin_salt: 's', name: 'Дима', role: 'member' })
+    expect(await auth.verifyPinOffline('u1', '1111')).toBe(false)
+    expect(auth.canRefreshSilently('u1')).toBe(false)
+    expect(await auth.verifyPinOffline('u1', '4826')).toEqual({ id: 'u1', name: 'Дима', role: 'member' })
+    expect(auth.getSessionPin()).toBe('4826')
+  })
+})
+
+describe('вход: сеть и ответы сервера', () => {
+  const okBody = { session: { access_token: 'a', refresh_token: 'r' }, pin_hash: 'hash-4826', user: { id: 'u1', name: 'Дима', role: 'member' } }
+
+  it('нет сети, лок с паузой, ответ без сессии — свои коды', async () => {
+    fetchMock.mockRejectedValueOnce(new TypeError('Failed to fetch'))
+    await expect(auth.login('u1', '4826')).rejects.toMatchObject({ code: 'network', userId: 'u1' })
+    fetchMock.mockResolvedValueOnce(res(429, { retry_after: 900 }))
+    await expect(auth.login('u1', '4826')).rejects.toMatchObject({ code: 'locked', retryAfter: 900 })
+    fetchMock.mockResolvedValueOnce(res(200, { error: 'bridge_failed' }))
+    await expect(auth.login('u1', '4826')).rejects.toMatchObject({ code: 'server', message: 'bridge_failed' })
+  })
+
+  it('сессию не поставить — server, хэш не кэшируется', async () => {
+    fetchMock.mockResolvedValueOnce(res(200, okBody))
+    setSession.mockResolvedValueOnce({ error: { message: 'bad jwt' } })
+    await expect(auth.login('u1', '4826')).rejects.toMatchObject({ code: 'server', message: 'bad jwt' })
+    expect(meta.get('pin_u1')).toBeUndefined()
+  })
+
+  it('вышли, пока шел запрос, — вход отменен, сессия не ставится, PIN не запоминается', async () => {
+    fetchMock.mockImplementationOnce(async () => { await auth.logout(); return res(200, okBody) })
+    await expect(auth.login('u1', '4826')).rejects.toMatchObject({ code: 'cancelled' })
+    expect(setSession).not.toHaveBeenCalled()
+    expect(auth.canRefreshSilently('u1')).toBe(false)
+  })
+
+  it('тихий перевыпуск ждет вход этой учетки, который уже в полете; его сбой — false', async () => {
+    let fail
+    fetchMock.mockImplementationOnce(() => new Promise((_, rej) => { fail = rej }))
+    const running = auth.login('u1', '4826')
+    const refreshed = auth.refreshSessionSilently('u1')
+    fail(new TypeError('Failed to fetch'))
+    await expect(running).rejects.toMatchObject({ code: 'network' })
+    expect(await refreshed).toBe(false)
+    expect(fetchMock).toHaveBeenCalledTimes(1) // второго запроса с тем же PIN нет
+  })
+})
+
+describe('почему нет своей сессии — текст по последней неудаче входа', () => {
+  beforeEach(() => { session = null })
+
+  it.each([
+    ['locked', /временно заблокировал/],
+    ['network', /Не достучаться до сервера входа/],
+    ['invalid', /не принял PIN/],
+  ])('%s', async (code, text) => {
+    auth.noteLoginFailure(new LoginError(code, 'x'))
+    await expect(auth.setName('u1', 'Дима')).rejects.toMatchObject({ code: 'session', message: expect.stringMatching(text) })
+    expect(rpc).not.toHaveBeenCalled()
+  })
+})
+
+describe('свои RPC: сбои сети и прав', () => {
+  it('createRecoveryCode: обрыв запроса — network, нет прав — подсказка админу', async () => {
+    rpc.mockRejectedValueOnce(new TypeError('Failed to fetch'))
+    await expect(auth.createRecoveryCode('u1')).rejects.toMatchObject({ code: 'network' })
+    rpc.mockResolvedValueOnce({ data: null, error: { code: '42501', message: 'permission denied for function' } })
+    await expect(auth.createRecoveryCode('u1')).rejects.toMatchObject({ code: 'server', message: expect.stringMatching(/не дал прав на create_my_recovery_code/) })
+  })
+
+  it('getMyLogin / setMyLogin: обрыв — network, ошибка сервера — server; setMyLogin офлайн — без запроса', async () => {
+    rpc.mockRejectedValueOnce(new TypeError('Failed to fetch'))
+    await expect(auth.getMyLogin('u1')).rejects.toMatchObject({ code: 'network' })
+    rpc.mockResolvedValueOnce({ data: null, error: { message: 'boom' } })
+    await expect(auth.getMyLogin('u1')).rejects.toMatchObject({ code: 'server', message: 'boom' })
+    rpc.mockRejectedValueOnce(new TypeError('Failed to fetch'))
+    await expect(auth.setMyLogin('u1', 'sega')).rejects.toMatchObject({ code: 'network' })
+    rpc.mockResolvedValueOnce({ data: null, error: { message: 'JWT expired' } })
+    await expect(auth.setMyLogin('u1', 'sega')).rejects.toMatchObject({ code: 'session' })
+    rpc.mockClear()
+    vi.stubGlobal('navigator', { onLine: false })
+    await expect(auth.setMyLogin('u1', 'sega')).rejects.toMatchObject({ code: 'network' })
+    expect(rpc).not.toHaveBeenCalled()
+  })
+
+  it('setName: обрыв запроса — network, кэш имени не меняется', async () => {
+    meta.set('pin_u1', { pin_hash: 'h', name: 'Дима' })
+    rpc.mockRejectedValueOnce(new TypeError('Failed to fetch'))
+    await expect(auth.setName('u1', 'Дмитрий')).rejects.toMatchObject({ code: 'network' })
+    expect(meta.get('pin_u1').name).toBe('Дима')
+  })
+
+  it('deleteMyAccount: без своей сессии — отказ без запроса; обрыв — network', async () => {
+    session = null
+    await expect(auth.deleteMyAccount('u1', '4826')).rejects.toMatchObject({ code: 'server', message: expect.stringMatching(/Сессия не найдена/) })
+    expect(fetchMock).not.toHaveBeenCalled()
+    session = { access_token: 'tok' }
+    fetchMock.mockRejectedValueOnce(new TypeError('Failed to fetch'))
+    await expect(auth.deleteMyAccount('u1', '4826')).rejects.toMatchObject({ code: 'network' })
+  })
+})

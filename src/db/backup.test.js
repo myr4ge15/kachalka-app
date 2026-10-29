@@ -18,6 +18,8 @@ import { getMeta } from './local.js'
 import { getUserMetaState } from './userMeta.js'
 import { exportAllMyData, importAllMyData } from './backup.js'
 import { BACKUP_SCHEMA } from '../lib/backup.js'
+import { getBody, saveBodyEntry, setBodyPrefs } from './body.js'
+import { localYmd } from '../lib/calendar.js'
 
 let userId
 beforeEach(async () => {
@@ -49,6 +51,21 @@ describe('бэкап: избранное и акцент', () => {
     const st = await getUserMetaState()
     expect(st.fav.dirty).toBe(1)
     expect(st.accent.dirty).toBe(1)
+  })
+
+  it('«Вес и замеры» из файла: недостающие записи дописываются синкаемо, своя запись и цель не перетираются', async () => {
+    const day = (n) => localYmd(new Date(Date.now() - n * 86400000))
+    const rec = (id, n, weight) => ({ id, date: day(n), weight, at: `${day(n)}T07:00:00.000Z` })
+    await saveBodyEntry(userId, rec('a', 1, 82))
+    await setBodyPrefs(userId, { goal: { kind: 'keep', target: 82 } })
+
+    const counts = await importAllMyData(userId, file({ body: { entries: [rec('a', 1, 90), rec('b', 3, 82.5)], goal: { kind: 'down', target: 78 } } }))
+
+    expect(counts).toMatchObject({ body: 1 })
+    const body = await getBody(userId)
+    expect(body.entries.map((e) => [e.id, e.weight])).toEqual([['a', 82], ['b', 82.5]])
+    expect(body.goal).toMatchObject({ kind: 'keep', target: 82 })
+    expect((await getUserMetaState()).body.dirty).toBe(1)
   })
 
   it('свой акцент импорт не перетирает; старый файл без полей ничего не меняет', async () => {

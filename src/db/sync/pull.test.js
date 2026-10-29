@@ -70,11 +70,19 @@ vi.mock('../supabase.js', () => {
   return { supabase: { from, rpc } }
 })
 
+// Крючок в planMetaSync: правка ключа «между чтением состояния и записью» pullUserMeta.
+const metaHooks = vi.hoisted(() => ({ onPlan: null }))
+vi.mock('../../lib/userMeta.js', async (importOriginal) => {
+  const actual = await importOriginal()
+  return { ...actual, planMetaSync: (args) => { metaHooks.onPlan?.(args); return actual.planMetaSync(args) } }
+})
+
 import { openUserDb, closeUserDb, db, loginDb, getMeta, setMeta, getLoginMeta, setLoginMeta } from '../local.js'
 import { readGoals, writeGoals } from '../notifications.js'
 import {
   getUserMetaState,
   setUserMetaState,
+  writeSyncedMeta,
 } from '../userMeta.js'
 import { pull, pullGoal, pullUserMeta } from './pull.js'
 import { uniqueUserId } from '../../test/idbHarness.js'
@@ -274,6 +282,19 @@ describe('pullGoal', () => {
     expect(await readGoals(userId, db)).toEqual([fresh])
   })
 
+  it('цели сменились без пометки dirty, пока шел запрос (их отправил push), — серверный список не пишется', async () => {
+    const pushed = { exerciseId: 'ex2', exerciseName: 'Присед', metric: 'weight', targetWeight: 140, achievedAt: null, _dirty: 0 }
+    server.from = async (call) => {
+      if (call.table !== 'goals') return defaultResponse(call)
+      await writeGoals(userId, [pushed], db)
+      return { data: [{ exercise_id: 'ex1', target_weight: 100, metric: 'weight', achieved_at: null }], error: null }
+    }
+
+    await pullGoal(userId, db)
+
+    expect(await readGoals(userId, db)).toEqual([pushed])
+  })
+
   it('без правок во время запроса принимает серверный список', async () => {
     server.from = (call) => {
       if (call.table !== 'goals') return defaultResponse(call)
@@ -455,6 +476,43 @@ describe('pullUserMeta', () => {
 
     expect(await getMeta(`fav_${userId}`, db)).toEqual(['A', 'B'])
     expect((await getUserMetaState(db)).fav.dirty).toBe(1)
+  })
+
+  it('звезду поставили, пока сливался ответ сервера, — правка остается и ждет отправки', async () => {
+    await setMeta(`fav_${userId}`, ['A'], db)
+    await setMeta('user_meta_state', { fav: { at: T1, dirty: 0, base: T1 } }, db)
+    server.from = (call) => (call.table === 'user_meta'
+      ? { data: [{ key: 'fav', value: ['A', 'C'], updated_at: T3 }], error: null }
+      : defaultResponse(call))
+    let tap
+    metaHooks.onPlan = ({ kind }) => {
+      if (kind !== 'fav') return
+      metaHooks.onPlan = null
+      tap = writeSyncedMeta(userId, 'fav', ['A', 'B'], db)
+    }
+
+    try {
+      await pullUserMeta(userId, db)
+      await tap
+    } finally {
+      metaHooks.onPlan = null
+    }
+
+    expect(await getMeta(`fav_${userId}`, db)).toEqual(['A', 'B'])
+    expect((await getUserMetaState(db)).fav).toMatchObject({ dirty: 1, base: T1 })
+  })
+
+  it('без правки во время слияния более свежая серверная версия принимается', async () => {
+    await setMeta(`fav_${userId}`, ['A'], db)
+    await setMeta('user_meta_state', { fav: { at: T1, dirty: 0, base: T1 } }, db)
+    server.from = (call) => (call.table === 'user_meta'
+      ? { data: [{ key: 'fav', value: ['A', 'C'], updated_at: T3 }], error: null }
+      : defaultResponse(call))
+
+    await pullUserMeta(userId, db)
+
+    expect(await getMeta(`fav_${userId}`, db)).toEqual(['A', 'C'])
+    expect((await getUserMetaState(db)).fav).toMatchObject({ dirty: 0, base: T3 })
   })
 })
 
