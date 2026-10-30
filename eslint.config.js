@@ -85,7 +85,7 @@ export default [
     languageOptions: { sourceType: 'script', globals: { ...globals.serviceworker } },
   },
   {
-    files: ['public/accent-boot.js'],
+    files: ['public/accent-boot.js', 'landing/reveal.js'],
     languageOptions: { sourceType: 'script', globals: { ...globals.browser } },
   },
 
