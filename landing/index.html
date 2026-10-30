@@ -1,0 +1,181 @@
+<!doctype html>
+<html lang="ru">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <!-- Адрес приложения стоит в ссылках с классом js-app: при переезде приложения заменить его
+       во всех сразу (docs/plans/PLAN-domain.md). reveal.js — только анимации, без него страница цела. -->
+  <meta http-equiv="Content-Security-Policy" content="default-src 'none'; script-src 'self'; style-src 'self'; img-src 'self'; font-src 'self'; base-uri 'none'; form-action 'none'">
+  <title>kachalka-app — журнал тренировок для своей компании</title>
+  <meta name="description" content="Записывай подходы прямо в зале, следи за весами и рекордами, соревнуйся с друзьями. Работает без интернета и ставится без магазина приложений.">
+  <meta name="theme-color" content="#111827">
+  <link rel="canonical" href="https://kachalka-app.ru/">
+  <link rel="icon" type="image/svg+xml" href="favicon.svg">
+  <link rel="icon" type="image/png" sizes="192x192" href="icon-192.png">
+  <link rel="apple-touch-icon" href="apple-touch-icon.png">
+  <meta property="og:type" content="website">
+  <meta property="og:locale" content="ru_RU">
+  <meta property="og:url" content="https://kachalka-app.ru/">
+  <meta property="og:title" content="kachalka-app — журнал тренировок для своей компании">
+  <meta property="og:description" content="Подходы, рекорды и рейтинг с друзьями. Без интернета в зале и без магазина приложений.">
+  <meta property="og:image" content="https://kachalka-app.ru/og.png">
+  <meta property="og:image:width" content="1200">
+  <meta property="og:image:height" content="630">
+  <meta name="twitter:card" content="summary_large_image">
+  <link rel="preload" href="fonts/SofiaSansCondensed-Black-cyrillic.woff2" as="font" type="font/woff2" crossorigin>
+  <link rel="stylesheet" href="style.css">
+  <script src="reveal.js"></script>
+</head>
+<body>
+  <a class="skip" href="#main">К содержанию</a>
+
+  <header class="top">
+    <div class="wrap top-row">
+      <a class="brand" href="#main" aria-label="kachalka-app, в начало страницы">
+        <img src="favicon.svg" width="36" height="36" alt="">
+        <span>kachalka-app</span>
+      </a>
+      <nav class="top-nav" aria-label="Разделы страницы">
+        <a href="#features">Что умеет</a>
+        <a href="#friends">С друзьями</a>
+        <a href="#access">Как попасть</a>
+        <a href="quick-start/">Быстрый старт</a>
+      </nav>
+      <a class="btn btn--sm js-app" href="https://myr4ge15.github.io/kachalka-app/">Войти</a>
+    </div>
+  </header>
+
+  <main id="main">
+    <section class="hero">
+      <div class="wrap hero-grid">
+        <div class="hero-text">
+          <p class="eyebrow">Журнал тренировок</p>
+          <h1>Качайся. Записывай. Обгоняй своих.</h1>
+          <p class="lead">Подходы, рекорды и прогресс — в телефоне, прямо в зале. А рядом друзья: их тренировки, реакции и общий рейтинг.</p>
+          <div class="btn-row">
+            <a class="btn js-app" href="https://myr4ge15.github.io/kachalka-app/">Открыть приложение</a>
+            <a class="btn btn--ghost" href="#access">Как получить доступ</a>
+          </div>
+          <p class="note">Доступ по приглашению. Без магазина приложений.</p>
+        </div>
+        <div class="hero-shots">
+          <figure class="phone phone--back"><img src="img/feed.png" width="786" height="1538" alt="" loading="lazy"></figure>
+          <figure class="phone phone--front"><img src="img/home.png" width="786" height="1538" alt="Главный экран: кнопка «Начать тренировку», серия 10 недель, тоннаж за месяц и ближайшая цель"></figure>
+        </div>
+      </div>
+    </section>
+
+    <section class="facts" aria-label="Коротко в цифрах">
+      <div class="wrap facts-row">
+        <p><b data-count="4">4</b> типа упражнений: вес, повторы, время, дистанция</p>
+        <p><b data-count="60">60</b> подсказок по технике с рисунками</p>
+      </div>
+    </section>
+
+    <section id="features" class="section">
+      <div class="wrap">
+        <h2>Все, что нужно в зале</h2>
+
+        <article class="feature">
+          <figure class="phone"><img src="img/workout.png" width="786" height="1538" alt="Экран новой тренировки: прошлый результат, рекомендация на сегодня и строки подходов" loading="lazy"></figure>
+          <div class="feature-text">
+            <h3>Запись без лишних тапов</h3>
+            <p>Прошлый результат уже перед глазами. Приложение подскажет вес и повторы на сегодня, а ты только поправишь, если день не тот.</p>
+            <ul>
+              <li>Шаблоны тренировок: не собирай одно и то же заново</li>
+              <li>Таймер отдыха с уведомлением на заблокированном экране</li>
+              <li>Сканер: название тренажера читается с таблички камерой</li>
+            </ul>
+          </div>
+        </article>
+
+        <article class="feature feature--flip">
+          <figure class="phone"><img src="img/progress-chart.png" width="786" height="1538" alt="График рабочего веса в жиме лежа с рекордами и линией цели 110 килограммов" loading="lazy"></figure>
+          <div class="feature-text">
+            <h3>Прогресс виден, а не кажется</h3>
+            <p>График по каждому упражнению, рекорды и цель, до которой осталось вот столько. Все подходы по дням — на случай, если захочется вспомнить, как оно было.</p>
+            <ul>
+              <li>Личные рекорды и расчетный максимум на одно повторение</li>
+              <li>Цели по весу и повторам с полосой прогресса</li>
+              <li>Достижения за регулярность и серии занятий</li>
+            </ul>
+          </div>
+        </article>
+
+        <article class="feature">
+          <figure class="phone"><img src="img/recovery.png" width="786" height="1538" alt="Карта тела: какие мышцы можно нагружать, какие отдыхают и какие давно не работали" loading="lazy"></figure>
+          <div class="feature-text">
+            <h3>Карта мышц подскажет, что качать сегодня</h3>
+            <p>Видно, какие группы уже можно грузить, какие еще отдыхают и про какие ты давно забыл. Оценка ориентировочная и строится на твоей истории тренировок.</p>
+          </div>
+        </article>
+      </div>
+    </section>
+
+    <section id="friends" class="section section--alt">
+      <div class="wrap">
+        <h2>Вместе веселее и тяжелее</h2>
+        <p class="section-lead">Можно вести журнал только для себя. Но интереснее, когда друг вчера пожал на пять килограммов больше.</p>
+        <div class="duo">
+          <div class="duo-item">
+            <figure class="phone"><img src="img/feed.png" width="786" height="1538" alt="Лента: тренировка друга с рекордами, реакциями и комментариями" loading="lazy"></figure>
+            <h3>Лента</h3>
+            <p>Тренировки друзей, новые рекорды, реакции и комментарии с ответами.</p>
+          </div>
+          <div class="duo-item">
+            <figure class="phone"><img src="img/rating.png" width="786" height="1538" alt="Рейтинг по жиму лежа: пять участников и разница до ближайшего соперника" loading="lazy"></figure>
+            <h3>Рейтинг</h3>
+            <p>В своем круге: по весу, повторам или времени. Дисциплины выбирает владелец круга.</p>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <section class="section">
+      <div class="wrap">
+        <h2>И еще немного</h2>
+        <ul class="tiles">
+          <li class="tile"><h3>Работает без сети</h3><p>В подвальном зале тренировка запишется и уйдет на сервер, когда появится интернет.</p></li>
+          <li class="tile"><h3>Как выполнять</h3><p>Кнопка «i» у упражнения: рисунки движения, шаги и частые ошибки.</p></li>
+          <li class="tile"><h3>Бег и кардио</h3><p>Километры и минуты, темп считается сам.</p></li>
+          <li class="tile"><h3>Уведомления</h3><p>Реакции, комментарии, побитые рекорды, конец отдыха — пушем.</p></li>
+          <li class="tile"><h3>Только свои</h3><p>Тренировки видят друзья и участники твоих кругов. Заблокировал — больше не видят.</p></li>
+          <li class="tile"><h3>Твои данные — у тебя</h3><p>Тренировки можно выгрузить в файл, а если решишь уйти — удалить аккаунт вместе с ними.</p></li>
+        </ul>
+      </div>
+    </section>
+
+    <section id="access" class="section section--alt">
+      <div class="wrap">
+        <h2>Как попасть</h2>
+        <p class="section-lead">kachalka-app — закрытый клуб. Войти можно, только если тебя кто-то позвал или ты попросил доступ.</p>
+        <div class="steps">
+          <div class="step">
+            <h3>Есть знакомый внутри</h3>
+            <p>Попроси приглашение, ссылку друга или код своего круга. Откроешь, придумаешь логин и PIN — и ты в деле.</p>
+          </div>
+          <div class="step">
+            <h3>Никого не знаешь</h3>
+            <p>Открой приложение, на экране входа нажми «Запросить доступ» и напиши пару слов о себе. Заявку рассмотрит владелец.</p>
+          </div>
+          <div class="step">
+            <h3>Поставь на телефон</h3>
+            <p>iPhone: в Safari «Поделиться» → «На экран Домой». Android: в меню браузера «Установить приложение» или «Добавить на главный экран».</p>
+          </div>
+        </div>
+        <div class="final">
+          <p class="final-title">Хватит держать рекорды в заметках</p>
+          <a class="btn js-app" href="https://myr4ge15.github.io/kachalka-app/">Открыть приложение</a>
+        </div>
+      </div>
+    </section>
+  </main>
+
+  <footer class="foot">
+    <div class="wrap foot-row">
+      <span>kachalka-app</span>
+      <a href="quick-start/">Быстрый старт</a>
+    </div>
+  </footer>
+</body>
+</html>
