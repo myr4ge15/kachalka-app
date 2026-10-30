@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import MenuRow from '../ui/MenuRow.jsx'
+import { useRevealFocus } from '../../hooks/useRevealFocus.js'
 import { useLiveQuery } from 'dexie-react-hooks'
 import { getExercises } from '../../db/repo.js'
 import { invalidateRatingCache } from '../../db/disciplines.js'
@@ -7,7 +8,19 @@ import { fmtDate } from '../../lib/dates.js'
 
 // Владельцу: название, автоприем, живые коды участников (отозвать), дисциплины рейтинга
 // круга, удалить круг. Права — только внутри своего круга (это не Админка).
-export default function CircleOwnerSettings({ api, circle, onChanged, onDeleted }) {
+// Аккордеон, свернут: нужны редко, а блок длинный.
+export default function CircleOwnerSettings(props) {
+  const [open, setOpen] = useState(false)
+  const revealRef = useRevealFocus(open)
+  return (
+    <div className="fc-fold" ref={revealRef}>
+      <MenuRow kind="expand" icon="sliders" title="Настройки круга" open={open} onClick={() => setOpen((v) => !v)} />
+      {open && <OwnerPanel {...props} />}
+    </div>
+  )
+}
+
+function OwnerPanel({ api, circle, onChanged, onDeleted }) {
   const [name, setName] = useState(circle.name)
   const [err, setErr] = useState('')
   const [busy, setBusy] = useState('')
@@ -40,7 +53,6 @@ export default function CircleOwnerSettings({ api, circle, onChanged, onDeleted 
   const nameDirty = name.trim() !== circle.name
   return (
     <div className="card fc-owner">
-      <h3 className="fc-h">Настройки круга</h3>
       <div className="field">
         <label className="field-lab" htmlFor="fc-name">Название</label>
         <div className="fc-join-row">

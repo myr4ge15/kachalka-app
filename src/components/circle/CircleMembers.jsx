@@ -7,7 +7,7 @@ import MoreMenu from '../ui/MoreMenu.jsx'
 
 // Участники круга: кто кого привел; владельцу — заявки (принять/отклонить), удалить
 // участника, передать круг. Действия с последствиями — в два нажатия.
-export default function CircleMembers({ api, circle, me, onChanged, onOpenMember }) {
+export default function CircleMembers({ api, circle, me, onChanged, onOpenMember, tick = 0 }) {
   // «В сети» (v8.6.0) — точка на аватарке участника.
   const presence = usePresence(me)
   const sexOf = useRosterSex()
@@ -28,7 +28,7 @@ export default function CircleMembers({ api, circle, me, onChanged, onOpenMember
       if (alive.current) setErr(e.message)
     }
   }, [api, circle.circle_id])
-  useEffect(() => { load() }, [load])
+  useEffect(() => { load() }, [load, tick]) // tick — обновление потягиванием на экране круга
 
   async function act(key, fn) {
     setBusy(key); setErr('')

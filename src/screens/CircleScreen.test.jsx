@@ -54,7 +54,7 @@ describe('CircleScreen', () => {
     expect(await screen.findByText(/свои люди/)).toBeInTheDocument()
     fireEvent.click(screen.getByRole('button', { name: 'Создать свой круг' }))
     fireEvent.change(screen.getByLabelText('Название'), { target: { value: 'Зал' } })
-    api.myCircles.mockResolvedValue([OWN])
+    api.myCircles.mockResolvedValue([{ ...OWN, members: 1 }])
     fireEvent.click(screen.getByRole('button', { name: 'Создать' }))
     await waitFor(() => expect(api.create).toHaveBeenCalledWith('Зал'))
     expect(await screen.findByTestId('fc-code')).toHaveTextContent('7F3Q-9XWD')
@@ -118,5 +118,27 @@ describe('CircleScreen', () => {
     fireEvent.click(await screen.findByRole('button', { name: 'Вступить' }))
     await waitFor(() => expect(onJoinCodeConsumed).toHaveBeenCalled())
     expect(showToast).toHaveBeenCalledWith(expect.objectContaining({ title: 'Ты в круге 🎉' }))
+  })
+})
+
+describe('CircleScreen: потянуть вниз', () => {
+  it('колесико на экране, жест перечитывает круги и участников', async () => {
+    api.myCircles.mockResolvedValue([OWN])
+    const box = document.createElement('div')
+    box.className = 'content'
+    const host = document.createElement('div')
+    box.appendChild(host)
+    document.body.appendChild(box)
+    const { container } = render(<CircleScreen user={ME} onBack={vi.fn()} />, { container: host })
+    await waitFor(() => expect(api.members).toHaveBeenCalled())
+    expect(container.querySelector('.ptr')).not.toBeNull()
+    const circles = api.myCircles.mock.calls.length
+    const members = api.members.mock.calls.length
+    fireEvent.touchStart(box, { touches: [{ clientX: 0, clientY: 0 }] })
+    fireEvent.touchMove(box, { touches: [{ clientX: 0, clientY: 300 }] })
+    fireEvent.touchEnd(box, { changedTouches: [{ clientX: 0, clientY: 300 }] })
+    await waitFor(() => expect(api.members.mock.calls.length).toBeGreaterThan(members))
+    expect(api.myCircles.mock.calls.length).toBeGreaterThan(circles)
+    box.remove()
   })
 })

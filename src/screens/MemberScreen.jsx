@@ -17,6 +17,8 @@ import SetsCells from '../components/workout/SetsCells.jsx'
 import { plural, pluralize } from '../lib/plural.js'
 import AvatarZoom from '../components/ui/AvatarZoom.jsx'
 import BackButton from '../components/ui/BackButton.jsx'
+import PullIndicator from '../components/ui/PullIndicator.jsx'
+import { usePullToRefresh } from '../hooks/usePullToRefresh.js'
 import CardsSkeleton from '../components/ui/CardsSkeleton.jsx'
 import FeedPrBadge, { prForEntry } from '../components/social/FeedPrBadge.jsx'
 import WorkoutSocial from '../components/social/WorkoutSocial.jsx'
@@ -79,6 +81,9 @@ export default function MemberScreen({ user, memberId, onBack, onOpenMember }) {
     }
   }, [user.id, memberId])
 
+  const rootRef = useRef(null)
+  const ptr = usePullToRefresh(rootRef, refresh, refreshing)
+
   // Реакция на тренировку участника (v6.7.1): очередь + оптимистичная правка,
   // затем отправка и свежий снимок профиля.
   const onReact = useCallback((workoutId, kind, mine) => {
@@ -118,7 +123,8 @@ export default function MemberScreen({ user, memberId, onBack, onOpenMember }) {
   const partial = disp.partial
 
   return (
-    <div className="screen profile member">
+    <div className="screen profile member" ref={rootRef}>
+      <PullIndicator {...ptr} />
       <div className="admin-head">
         <BackButton onClick={onBack} />
         <h2 className="admin-title">Профиль</h2>

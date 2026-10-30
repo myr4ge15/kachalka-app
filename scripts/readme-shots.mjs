@@ -383,6 +383,7 @@ async function main() {
       FAKE_RPC.fc_members = FAKE_RPC.fc_members.map((m) => ({ ...m, avatar_url: av.get(m.user_id) ?? null }))
       await page.getByRole('button', { name: 'Открыть профиль' }).click()
       await page.getByRole('button', { name: /Мой круг/ }).click()
+      await page.getByRole('button', { name: 'Мой код в круг' }).click() // свернут, если в круге есть люди
       await page.getByTestId('fc-code').waitFor()
       await page.evaluate(() => document.querySelectorAll('.content').forEach((e) => { e.scrollTop = 0 }))
       // В README не показываем название конкретного зала; приложение не меняем.

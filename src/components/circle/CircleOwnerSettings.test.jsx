@@ -32,7 +32,11 @@ beforeEach(() => {
 })
 afterEach(() => vi.clearAllMocks())
 
-const renderIt = (props = {}) => render(<CircleOwnerSettings api={api} circle={CIRCLE} onChanged={vi.fn()} onDeleted={vi.fn()} {...props} />)
+const renderIt = (props = {}) => {
+  const view = render(<CircleOwnerSettings api={api} circle={CIRCLE} onChanged={vi.fn()} onDeleted={vi.fn()} {...props} />)
+  fireEvent.click(screen.getByRole('button', { name: 'Настройки круга' }))
+  return view
+}
 
 describe('CircleOwnerSettings', () => {
   it('переименование: «Сохранить» только при изменении, затем onChanged', async () => {
@@ -101,5 +105,18 @@ describe('CircleOwnerSettings', () => {
     fireEvent.change(screen.getByLabelText('Название'), { target: { value: 'X' } })
     fireEvent.click(screen.getByRole('button', { name: 'Сохранить' }))
     await waitFor(() => expect(screen.getAllByRole('alert').map((a) => a.textContent).join(' ')).toMatch(/от 1 до 40/))
+  })
+})
+
+describe('CircleOwnerSettings: аккордеон', () => {
+  it('свернут, пока не нажали, и повторное нажатие сворачивает', () => {
+    render(<CircleOwnerSettings api={api} circle={CIRCLE} onChanged={vi.fn()} onDeleted={vi.fn()} />)
+    const row = screen.getByRole('button', { name: 'Настройки круга' })
+    expect(row).toHaveAttribute('aria-expanded', 'false')
+    expect(screen.queryByLabelText('Название')).toBeNull()
+    fireEvent.click(row)
+    expect(screen.getByLabelText('Название')).toBeInTheDocument()
+    fireEvent.click(row)
+    expect(screen.queryByLabelText('Название')).toBeNull()
   })
 })

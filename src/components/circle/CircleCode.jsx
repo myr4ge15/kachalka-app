@@ -1,10 +1,24 @@
 import { useEffect, useRef, useState } from 'react'
 import { codeMeta, fmtCode, joinMessage, joinUrl } from '../../lib/friendCircles.js'
 import { showToast } from '../ui/Toast.jsx'
+import MenuRow from '../ui/MenuRow.jsx'
+import { useRevealFocus } from '../../hooks/useRevealFocus.js'
 
 // Мой личный код в круг: крупно, срок и сколько вступили; «Поделиться», «Скопировать»,
 // «Новый код» (старый сразу перестает работать). Код многоразовый: 7 дней или 10 человек.
+// Аккордеон: пока в круге никого, кроме тебя, позвать друга — главное на экране, код открыт сразу.
 export default function CircleCode({ api, circle }) {
+  const [open, setOpen] = useState(!(circle.members > 1))
+  const revealRef = useRevealFocus(open)
+  return (
+    <div className="fc-fold" ref={revealRef}>
+      <MenuRow kind="expand" icon="invite" title="Мой код в круг" open={open} onClick={() => setOpen((v) => !v)} />
+      {open && <CodePanel api={api} circle={circle} />}
+    </div>
+  )
+}
+
+function CodePanel({ api, circle }) {
   const [code, setCode] = useState(null)
   const [err, setErr] = useState('')
   const [busy, setBusy] = useState(false)
@@ -51,7 +65,6 @@ export default function CircleCode({ api, circle }) {
 
   return (
     <div className="card fc-code-card">
-      <h3 className="fc-h">Мой код в круг</h3>
       {code ? (
         <>
           <p className="fc-code" data-testid="fc-code" role="button" tabIndex={0} aria-label={`Код ${fmtCode(code.code)} — нажми, чтобы скопировать`}

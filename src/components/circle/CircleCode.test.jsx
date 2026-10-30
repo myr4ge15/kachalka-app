@@ -77,3 +77,18 @@ describe('CircleCode', () => {
     expect(screen.queryByTestId('fc-code')).toBeNull()
   })
 })
+
+describe('CircleCode: аккордеон', () => {
+  it('в круге один — код открыт, есть люди — свернут до нажатия', async () => {
+    const { unmount } = render(<CircleCode api={api} circle={{ ...CIRCLE, members: 1 }} />)
+    expect(screen.getByRole('button', { name: 'Мой код в круг' })).toHaveAttribute('aria-expanded', 'true')
+    expect(await screen.findByTestId('fc-code')).toBeInTheDocument()
+    unmount()
+    render(<CircleCode api={api} circle={{ ...CIRCLE, members: 3 }} />)
+    const row = screen.getByRole('button', { name: 'Мой код в круг' })
+    expect(row).toHaveAttribute('aria-expanded', 'false')
+    expect(screen.queryByTestId('fc-code')).toBeNull()
+    fireEvent.click(row)
+    expect(await screen.findByTestId('fc-code')).toBeInTheDocument()
+  })
+})

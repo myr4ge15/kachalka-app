@@ -11,6 +11,8 @@ import JoinByCode from '../components/circle/JoinByCode.jsx'
 import CircleCode from '../components/circle/CircleCode.jsx'
 import CircleMembers from '../components/circle/CircleMembers.jsx'
 import CircleOwnerSettings from '../components/circle/CircleOwnerSettings.jsx'
+import PullIndicator from '../components/ui/PullIndicator.jsx'
+import { usePullToRefresh } from '../hooks/usePullToRefresh.js'
 
 // «Мой круг» (07.10.2026; сервер — supabase/friend-circles.sql). Свой круг (один) и круги,
 // куда вступил по коду (до 5). У каждого участника — личный код: позвать друга без админа.
@@ -36,6 +38,23 @@ export default function CircleScreen({ user, onBack, onOpenMember, joinCode = nu
     }
   }, [api])
   useEffect(() => { load() }, [load, online])
+
+  // Потянуть вниз — обновить, как в Ленте: круги здесь, участников и заявки перечитывает панель (membersTick).
+  const rootRef = useRef(null)
+  const [refreshing, setRefreshing] = useState(false)
+  const [membersTick, setMembersTick] = useState(0)
+  const refresh = useCallback(async () => {
+    if (!navigator.onLine) return
+    setRefreshing(true)
+    try {
+      await load()
+      if (alive.current) setMembersTick((t) => t + 1)
+    } finally {
+      if (alive.current) setRefreshing(false)
+    }
+  }, [load])
+  const ptr = usePullToRefresh(rootRef, refresh, refreshing)
+
   // v8.0.1: пока идет запрос — последний снимок кругов из локальной базы (тот же
   // fc_my_circles, его держит Лента/Рейтинг), чтобы экран не стоял пустым.
   useEffect(() => {
@@ -56,7 +75,8 @@ export default function CircleScreen({ user, onBack, onOpenMember, joinCode = nu
   const ownCircle = (circles ?? []).find((c) => c.is_owner)
 
   return (
-    <div className="screen profile fc-screen">
+    <div className="screen profile fc-screen" ref={rootRef}>
+      <PullIndicator {...ptr} />
       <div className="admin-head">
         <BackButton onClick={onBack} />
         <h2 className="admin-title">Мой круг</h2>
@@ -94,7 +114,7 @@ export default function CircleScreen({ user, onBack, onOpenMember, joinCode = nu
       )}
 
       {current && (
-        <CirclePanel key={current.circle_id} api={api} circle={current} me={user.id}
+        <CirclePanel key={current.circle_id} api={api} circle={current} me={user.id} membersTick={membersTick}
           onOpenMember={onOpenMember} onChanged={changed} onGone={() => { setSelected(null); changed() }} />
       )}
 
@@ -104,7 +124,7 @@ export default function CircleScreen({ user, onBack, onOpenMember, joinCode = nu
   )
 }
 
-function CirclePanel({ api, circle, me, onChanged, onGone, onOpenMember }) {
+function CirclePanel({ api, circle, me, membersTick, onChanged, onGone, onOpenMember }) {
   const [armLeave, setArmLeave] = useState(false)
   const [leaving, setLeaving] = useState(false) // двойной тап не шлет выход дважды (UI-ревью 23.10)
   const [err, setErr] = useState('')
@@ -135,7 +155,7 @@ function CirclePanel({ api, circle, me, onChanged, onGone, onOpenMember }) {
         <span className="muted">{circle.is_owner ? 'твой круг' : `круг ${circle.owner_name}`} · {circle.members} {plural(circle.members)}</span>
       </div>
       <CircleCode api={api} circle={circle} />
-      <CircleMembers onOpenMember={onOpenMember} api={api} circle={circle} me={me} onChanged={onChanged} />
+      <CircleMembers onOpenMember={onOpenMember} api={api} circle={circle} me={me} onChanged={onChanged} tick={membersTick} />
       {circle.is_owner ? (
         <CircleOwnerSettings api={api} circle={circle} onChanged={onChanged} onDeleted={onGone} />
       ) : (
