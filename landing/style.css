@@ -244,6 +244,7 @@ h3 { font-size: 22px; font-weight: 700; line-height: 1.25; }
 @keyframes rise { from { opacity: 0; translate: 0 26px; } }
 @keyframes fan-out { from { opacity: 0; translate: 90px 24px; rotate: 6deg; } }
 @keyframes float { to { translate: 0 -10px; } }
+@keyframes fade { from { opacity: 0; } }
 
 .hero-text > * { animation: rise .7s cubic-bezier(.2, .7, .2, 1) both; }
 .hero-text > :nth-child(2) { animation-delay: .08s; }
@@ -275,5 +276,8 @@ h3 { font-size: 22px; font-weight: 700; line-height: 1.25; }
 @media (prefers-reduced-motion: reduce) {
   html { scroll-behavior: auto; }
   .btn { transition: none; }
-  .hero-text > *, .phone--front, .phone--back { animation: none; }
+  /* Без сдвигов и покачивания: прозрачность не двигает экран, поэтому проявление остается. */
+  .hero-text > *, .phone--back { animation-name: fade; }
+  .phone--front { animation: fade .8s .2s ease-out both; }
+  .js :is(.facts p, .section h2, .section-lead, .feature .phone, .feature-text, .duo-item, .tile, .step, .final) { translate: none !important; }
 }
