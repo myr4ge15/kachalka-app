@@ -160,7 +160,9 @@ describe('BodyScreen: экран «О разделе»', () => {
   it('квадратная кнопка i открывает описание поверх, назад возвращает на экран', async () => {
     const onInnerNav = vi.fn()
     render(<BodyScreen user={{ id: userId }} onBack={() => {}} onInnerNav={onInnerNav} />)
-    fireEvent.click(await screen.findByRole('button', { name: 'О разделе' }))
+    // Сначала данные: на скелетоне кнопка другая, и нажатие попало бы в уже снятый узел.
+    await screen.findByText('Записей пока нет')
+    fireEvent.click(screen.getByRole('button', { name: 'О разделе' }))
     expect(await screen.findByRole('heading', { name: 'Кто это видит' })).toBeInTheDocument()
     expect(screen.getByText(/В Ленту, круги, рейтинги и Telegram/)).toBeInTheDocument()
     expect(onInnerNav).toHaveBeenLastCalledWith(true)
