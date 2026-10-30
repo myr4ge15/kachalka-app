@@ -285,18 +285,21 @@ describe('сплэш после обновления', () => {
     expect(document.documentElement.classList.contains('splash-resume')).toBe(false)
   })
 
-  it('«Устанавливаем…»: прыжок снимается на границе цикла, не раньше', () => {
-    document.body.innerHTML = `<div id="splash" class="splash"><g class="splash-loop"></g>
+  it('«Устанавливаем…»: штанга опускается из текущей точки, тень уходит', () => {
+    document.body.innerHTML = `<div id="splash" class="splash"><div class="splash-shadow"></div><svg class="splash-logo"></svg>
       <div id="splash-upd" hidden><p id="splash-upd-title"></p><div id="splash-upd-bar"><div id="splash-upd-fill"></div></div><p id="splash-upd-cap"></p></div></div>`
     const list = []
     const root = document.getElementById('splash')
     const ui = splashUpdateUi(document, root, { reduce: true, setTimer: (fn, ms) => list.push({ fn, ms }) })
     ui.start('1.0.0')
     ui.installing()
-    list.shift().fn()
     expect(root.classList.contains('splash--updating')).toBe(true)
-    root.querySelector('.splash-loop').dispatchEvent(new Event('animationiteration'))
+    list.shift().fn()
     expect(root.classList.contains('splash--updating')).toBe(false)
-    expect(INSTALL_HOLD_MS).toBeGreaterThanOrEqual(1000)
+    const logo = root.querySelector('.splash-logo')
+    expect(logo.style.transform).toBe('none')
+    expect(logo.style.transition).toContain(`${INSTALL_HOLD_MS}ms`)
+    expect(root.querySelector('.splash-shadow').style.opacity).toBe('0')
+    expect(list.map((x) => x.ms)).toEqual([INSTALL_HOLD_MS])
   })
 })

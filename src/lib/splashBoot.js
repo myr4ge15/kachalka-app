@@ -86,8 +86,32 @@ export function barStep(shown, target, dtMs, pace = 0) {
 // «Устанавливаем…» — подпись «Загружено 100%» не появлялась никогда. Теперь: полоска добегает с «Загружено 100%»,
 // стоит BAR_HOLD_MS, потом «Устанавливаем…» еще INSTALL_HOLD_MS — и перезагрузка.
 export const BAR_HOLD_MS = 500
-// Не короче прыжка штанги (1 с, index.css): она успевает приземлиться, и перезагрузка не обрывает ее в воздухе.
-export const INSTALL_HOLD_MS = 1000
+export const INSTALL_HOLD_MS = 500
+
+// Штангу опускаем из той точки, где застал конец установки, а не обрываем жим: иначе после перезагрузки знак
+// прыгнул бы на место. Тень уходит вместе с ней — на сплэше без обновления ее нет.
+export function settlePress(root) {
+  const view = root.ownerDocument?.defaultView
+  if (!view?.getComputedStyle) return
+  const logo = root.querySelector('.splash-logo')
+  const shadow = root.querySelector('.splash-shadow')
+  const frozen = [logo, shadow].filter(Boolean).map((el) => {
+    const st = view.getComputedStyle(el)
+    return [el, st.transform, st.opacity]
+  })
+  root.classList.remove('splash--updating')
+  for (const [el, transform, opacity] of frozen) {
+    el.style.transform = transform
+    el.style.opacity = opacity
+  }
+  logo?.getBoundingClientRect() // зафиксировать начальную точку перехода
+  for (const [el] of frozen) {
+    el.style.transition = `transform ${INSTALL_HOLD_MS}ms ease-in-out, opacity ${INSTALL_HOLD_MS}ms ease-in-out`
+    el.style.transform = 'none'
+  }
+  if (shadow) shadow.style.opacity = '0'
+  if (logo) logo.style.opacity = '1'
+}
 
 // reduce — «уменьшить движение»: полоска сразу на месте. raf — кадры, now — часы (тест подставляет свои).
 export function splashUpdateUi(doc, root, {
@@ -114,9 +138,7 @@ export function splashUpdateUi(doc, root, {
       onFull = null
       setTimer(() => {
         cap.textContent = 'Устанавливаем…'
-        // Прыжок кончается на земле: снимаем петлю на границе цикла, а не на полпути.
-        root.querySelector('.splash-loop')?.addEventListener('animationiteration',
-          () => root.classList.remove('splash--updating'), { once: true })
+        settlePress(root)
         setTimer(done, INSTALL_HOLD_MS)
       }, BAR_HOLD_MS)
     }

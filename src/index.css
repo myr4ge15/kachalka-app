@@ -3768,7 +3768,7 @@ label.act.busy { opacity: .55; pointer-events: none; }
   transition: opacity 300ms var(--ease-in-out), visibility 0s linear 300ms;
 }
 .splash--out { opacity: 0; visibility: hidden; pointer-events: none; }
-.splash-logo { width: 132px; height: 132px; overflow: visible; }
+.splash-logo { display: block; width: 132px; height: 132px; overflow: visible; }
 .splash--out .splash-logo { transform: scale(1.08); transition: transform 300ms var(--ease-in-out); }
 .splash-stop-1 { stop-color: var(--g1); }
 .splash-stop-2 { stop-color: var(--g3); }
@@ -3800,31 +3800,26 @@ label.act.busy { opacity: .55; pointer-events: none; }
   100% { transform: none; }
 }
 @keyframes splash-rise { from { opacity: 0; transform: translateY(8px); } to { opacity: 1; transform: none; } }
-/* Пока качается обновление (v1.4.3), штанга прыгает с «приседом» при приземлении, под ней
-   дышит тень. Своя группа .splash-loop внутри .splash-lift — не спорит с жимом из сборки;
-   задержку (--splash-loop-delay) ставит splashBoot.js, чтобы прыжки начались после сборки. */
-/* Присед — от низа блинов (y 131.25), а не от середины: иначе штанга сжимается в воздухе. */
-.splash-loop { transform-box: view-box; transform-origin: 100px 131.25px; }
-/* Тень — темная, а не в цвет акцента (fb_7f0c37b5: цветное пятно под штангой выглядело странно). */
-.splash-shadow { fill: rgb(0 0 0); opacity: 0; transform-box: fill-box; transform-origin: center; }
-.splash--updating .splash-loop { animation: splash-bounce 1s var(--splash-loop-delay, 0ms) infinite both; }
-.splash--updating .splash-shadow { animation: splash-shadow 1s var(--splash-loop-delay, 0ms) infinite both; }
-@keyframes splash-bounce {
-  0% { transform: scale(1.08, .92); animation-timing-function: cubic-bezier(.2, .7, .4, 1); }
-  12% { transform: translateY(-3px) scale(.96, 1.04); animation-timing-function: cubic-bezier(.3, .6, .5, 1); }
-  48% { transform: translateY(-22px); animation-timing-function: cubic-bezier(.5, 0, .8, .4); }
-  88% { transform: none; }
-  100% { transform: scale(1.08, .92); }
+/* Жим при обновлении (fb 30.10.2026, prototypes/update-dumbbell-2.html, вариант C): штангу плавно жмут вверх и
+   опускают, 3 с на цикл. Двигается сам .splash-logo, отдельным слоем: группа внутри SVG на iPhone зависела от
+   основного потока, а он при запуске занят, и прыжок выходил рваным. Задержку (--splash-loop-delay) ставит
+   splashBoot.js, чтобы жим начался после сборки; он же плавно опускает штангу перед установкой. */
+.splash-mark { position: relative; width: 132px; height: 132px; }
+.splash-shadow {
+  position: absolute; left: 50%; top: 106px; width: 92px; height: 8px; margin-left: -46px; border-radius: 50%;
+  background: rgb(0 0 0); opacity: 0;
 }
-/* Тень повторяет splash-bounce: те же опорные точки и те же кривые на отрезках, размер — от высоты
-   (12% — подъем на 3 из 22), в приседе тень шире вместе со штангой. С кривой по умолчанию тень
-   на падении «обгоняла» штангу: восстанавливалась на 80%, пока та прошла лишь пятую часть пути. */
-@keyframes splash-shadow {
-  0% { opacity: .6; transform: scaleX(1.08); animation-timing-function: cubic-bezier(.2, .7, .4, 1); }
-  12% { opacity: .5; transform: scaleX(.94); animation-timing-function: cubic-bezier(.3, .6, .5, 1); }
-  48% { opacity: .2; transform: scaleX(.55); animation-timing-function: cubic-bezier(.5, 0, .8, .4); }
-  88% { opacity: .55; transform: none; }
-  100% { opacity: .6; transform: scaleX(1.08); }
+.splash--updating .splash-logo, .splash--updating .splash-shadow { will-change: transform; }
+.splash--updating .splash-logo {
+  animation: splash-press 3s cubic-bezier(.37, 0, .63, 1) var(--splash-loop-delay, 0ms) infinite both;
+}
+.splash--updating .splash-shadow {
+  animation: splash-press-shadow 3s cubic-bezier(.37, 0, .63, 1) var(--splash-loop-delay, 0ms) infinite both;
+}
+@keyframes splash-press { 0%, 100% { transform: none; } 50% { transform: translateY(-18px); } }
+@keyframes splash-press-shadow {
+  0%, 100% { opacity: .5; transform: none; }
+  50% { opacity: .22; transform: scaleX(.72); }
 }
 /* Перезагрузка после обновления (accent-boot.js): штанга уже собрана и стоит там же, где была, только с уходом. */
 .splash-resume .splash-bar, .splash-resume .splash-plate, .splash-resume .splash-lift,
@@ -3872,7 +3867,7 @@ label.act.busy { opacity: .55; pointer-events: none; }
 @media (prefers-reduced-motion: reduce) {
   .splash, .splash--out .splash-logo { transition: none; }
   .splash-bar, .splash-plate, .splash-lift, .splash-title,
-  .splash--updating .splash-loop, .splash--updating .splash-shadow { animation: none; }
+  .splash--updating .splash-logo, .splash--updating .splash-shadow { animation: none; }
 }
 
 /* ============================================================================
