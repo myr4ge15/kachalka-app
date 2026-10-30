@@ -66,7 +66,7 @@ a { color: var(--acc-2); }
 .skip { position: absolute; left: 16px; top: -60px; z-index: 20; padding: 10px 14px; background: var(--acc); color: var(--on-acc); border-radius: var(--r-md); }
 .skip:focus { top: 10px; }
 
-h1, h2, .final-title, .facts b {
+h1, h2, .final-title {
   font-family: var(--font-display);
   font-weight: 900;
   text-transform: uppercase;
@@ -121,14 +121,10 @@ h3 { font-size: 22px; font-weight: 700; line-height: 1.25; }
 .lead { margin: 20px 0 28px; max-width: 34em; color: var(--muted); font-size: 19px; }
 .hero-text .btn { flex: 1 1 100%; }
 .note { margin-top: 16px; color: var(--muted); font-size: 15px; }
+.note b { color: var(--text); font-weight: 600; }
 .hero-shots { position: relative; display: flex; justify-content: center; }
 .phone--back { display: none; }
 .phone--front { position: relative; width: min(82%, 300px); }
-
-.facts { background: var(--bg-2); border-block: 1px solid var(--border); }
-.facts-row { display: grid; gap: 20px; padding-top: 28px; padding-bottom: 28px; }
-.facts p { display: flex; align-items: center; gap: 14px; color: var(--muted); font-size: 16px; line-height: 1.35; }
-.facts b { flex: 0 0 64px; color: var(--acc); font-size: 52px; text-align: center; }
 
 .section { padding: var(--section-y) 0; }
 .section--alt { background: var(--bg-2); }
@@ -157,6 +153,9 @@ h3 { font-size: 22px; font-weight: 700; line-height: 1.25; }
 .step { padding: 22px; background: var(--surface); border: 1px solid var(--border); border-radius: var(--r-card); }
 .step p { margin-top: 8px; color: var(--muted); font-size: 16px; }
 
+.install { margin-top: 18px; color: var(--muted); font-size: 16px; }
+.install b { color: var(--text); font-weight: 600; }
+
 .final { display: grid; gap: 22px; justify-items: center; margin-top: 56px; text-align: center; }
 .final-title { font-size: clamp(36px, 8vw, 52px); text-wrap: balance; }
 .final .btn { width: 100%; max-width: 340px; }
@@ -169,7 +168,6 @@ h3 { font-size: 22px; font-weight: 700; line-height: 1.25; }
 @media (min-width: 620px) {
   :root { --gutter: 28px; --section-y: 84px; }
   .hero-text .btn { flex: 0 0 auto; }
-  .facts-row { grid-template-columns: repeat(2, 1fr); }
   .duo { grid-template-columns: repeat(2, 1fr); }
   .tiles { grid-template-columns: repeat(2, 1fr); }
 }
@@ -187,7 +185,8 @@ h3 { font-size: 22px; font-weight: 700; line-height: 1.25; }
   .feature-text { max-width: 520px; }
   .duo { max-width: 760px; margin-inline: auto; }
   .duo-item { width: 300px; justify-self: center; }
-  .tiles, .steps { grid-template-columns: repeat(3, 1fr); }
+  .tiles { grid-template-columns: repeat(3, 1fr); }
+  .steps { grid-template-columns: repeat(2, 1fr); }
 }
 
 /* Страница «Быстрый старт» (собирается scripts/quick-start-page.mjs). */
@@ -256,17 +255,17 @@ h3 { font-size: 22px; font-weight: 700; line-height: 1.25; }
 }
 .phone--back { animation: fan-out .9s .5s cubic-bezier(.2, .7, .2, 1) both; }
 
-.js :is(.facts p, .section h2, .section-lead, .feature .phone, .feature-text, .duo-item, .tile, .step, .final) {
+.js :is(.section h2, .section-lead, .feature .phone, .feature-text, .duo-item, .tile, .step, .final) {
   opacity: 0;
   translate: 0 28px;
   transition: opacity .6s ease-out, translate .7s cubic-bezier(.2, .7, .2, 1);
 }
-.js :is(.facts p, .section h2, .section-lead, .feature .phone, .feature-text, .duo-item, .tile, .step, .final).is-in {
+.js :is(.section h2, .section-lead, .feature .phone, .feature-text, .duo-item, .tile, .step, .final).is-in {
   opacity: 1;
   translate: none;
 }
-.js :is(.facts p, .tile, .step, .duo-item):nth-child(3n + 2) { transition-delay: .09s; }
-.js :is(.facts p, .tile, .step):nth-child(3n) { transition-delay: .18s; }
+.js :is(.tile, .step, .duo-item):nth-child(3n + 2) { transition-delay: .09s; }
+.js :is(.tile, .step):nth-child(3n) { transition-delay: .18s; }
 
 @media (min-width: 960px) {
   .js .feature .phone { translate: -56px 0; }
@@ -279,5 +278,5 @@ h3 { font-size: 22px; font-weight: 700; line-height: 1.25; }
   /* Без сдвигов и покачивания: прозрачность не двигает экран, поэтому проявление остается. */
   .hero-text > *, .phone--back { animation-name: fade; }
   .phone--front { animation: fade .8s .2s ease-out both; }
-  .js :is(.facts p, .section h2, .section-lead, .feature .phone, .feature-text, .duo-item, .tile, .step, .final) { translate: none !important; }
+  .js :is(.section h2, .section-lead, .feature .phone, .feature-text, .duo-item, .tile, .step, .final) { translate: none !important; }
 }
