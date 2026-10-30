@@ -8,14 +8,15 @@ import { fmtDate } from '../../lib/dates.js'
 
 // Владельцу: название, автоприем, живые коды участников (отозвать), дисциплины рейтинга
 // круга, удалить круг. Права — только внутри своего круга (это не Админка).
-// Аккордеон, свернут: нужны редко, а блок длинный.
+// Аккордеон, свернут: нужны редко, а блок длинный. Панель смонтирована и свернутой: коды и дисциплины
+// уже загружены, и раскрытие не дергает экран, а набранное название не пропадает.
 export default function CircleOwnerSettings(props) {
   const [open, setOpen] = useState(false)
   const revealRef = useRevealFocus(open)
   return (
     <div className="fc-fold" ref={revealRef}>
       <MenuRow kind="expand" icon="sliders" title="Настройки круга" open={open} onClick={() => setOpen((v) => !v)} />
-      {open && <OwnerPanel {...props} />}
+      <div hidden={!open}><OwnerPanel {...props} /></div>
     </div>
   )
 }

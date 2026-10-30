@@ -87,8 +87,24 @@ describe('CircleCode: аккордеон', () => {
     render(<CircleCode api={api} circle={{ ...CIRCLE, members: 3 }} />)
     const row = screen.getByRole('button', { name: 'Мой код в круг' })
     expect(row).toHaveAttribute('aria-expanded', 'false')
-    expect(screen.queryByTestId('fc-code')).toBeNull()
+    const code = await screen.findByTestId('fc-code')
+    expect(code).not.toBeVisible() // уже загружен: раскрытие без «Загружаю код…»
     fireEvent.click(row)
-    expect(await screen.findByTestId('fc-code')).toBeInTheDocument()
+    expect(code).toBeVisible()
+    expect(api.myCode).toHaveBeenCalledTimes(2) // по разу на каждый рендер теста, не на раскрытие
+  })
+
+  it('снимок был старый, свежий состав говорит «ты один» — код открывается сам', async () => {
+    const { rerender } = render(<CircleCode api={api} circle={{ ...CIRCLE, members: 3 }} />)
+    expect(screen.getByRole('button', { name: 'Мой код в круг' })).toHaveAttribute('aria-expanded', 'false')
+    rerender(<CircleCode api={api} circle={{ ...CIRCLE, members: 1 }} />)
+    expect(screen.getByRole('button', { name: 'Мой код в круг' })).toHaveAttribute('aria-expanded', 'true')
+  })
+
+  it('свернул сам — новый состав решение не отменяет', () => {
+    const { rerender } = render(<CircleCode api={api} circle={{ ...CIRCLE, members: 1 }} />)
+    fireEvent.click(screen.getByRole('button', { name: 'Мой код в круг' }))
+    rerender(<CircleCode api={api} circle={{ ...CIRCLE, members: 1, name: 'Зал 2' }} />)
+    expect(screen.getByRole('button', { name: 'Мой код в круг' })).toHaveAttribute('aria-expanded', 'false')
   })
 })

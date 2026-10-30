@@ -7,13 +7,16 @@ import { useRevealFocus } from '../../hooks/useRevealFocus.js'
 // Мой личный код в круг: крупно, срок и сколько вступили; «Поделиться», «Скопировать»,
 // «Новый код» (старый сразу перестает работать). Код многоразовый: 7 дней или 10 человек.
 // Аккордеон: пока в круге никого, кроме тебя, позвать друга — главное на экране, код открыт сразу.
+// Состав считаем от свежего circle, а не один раз: экран сперва рисует снимок, он может быть старым.
+// Панель смонтирована и свернутой: код уже загружен, и раскрытие не дергает экран через «Загружаю код…».
 export default function CircleCode({ api, circle }) {
-  const [open, setOpen] = useState(!(circle.members > 1))
+  const [manual, setManual] = useState(null) // выбор человека сильнее правила
+  const open = manual ?? !(circle.members > 1)
   const revealRef = useRevealFocus(open)
   return (
     <div className="fc-fold" ref={revealRef}>
-      <MenuRow kind="expand" icon="invite" title="Мой код в круг" open={open} onClick={() => setOpen((v) => !v)} />
-      {open && <CodePanel api={api} circle={circle} />}
+      <MenuRow kind="expand" icon="invite" title="Мой код в круг" open={open} onClick={() => setManual(!open)} />
+      <div hidden={!open}><CodePanel api={api} circle={circle} /></div>
     </div>
   )
 }
