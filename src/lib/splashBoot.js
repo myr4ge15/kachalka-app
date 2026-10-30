@@ -42,7 +42,9 @@ export function startSplash({
     splash.classList.add('splash--out')
     setTimer(() => splash.remove(), reduce ? 0 : SPLASH_FADE_MS)
   }
-  const maybeHide = () => { if (appReady && updateDone) setTimer(hide, splashDelay(now(), reduce)) }
+  // После обновления штанга уже собрана (.splash-resume, accent-boot.js) — ждать конца сборки незачем.
+  const resumed = doc?.documentElement?.classList.contains('splash-resume')
+  const maybeHide = () => { if (appReady && updateDone) setTimer(hide, splashDelay(now(), reduce || resumed)) }
   onReady(() => { appReady = true; maybeHide() })
   let check
   try { check = Promise.resolve(runUpdate(splashUpdateUi(doc, splash, { reduce }))) } catch { check = Promise.resolve('skip') }
@@ -84,7 +86,8 @@ export function barStep(shown, target, dtMs, pace = 0) {
 // «Устанавливаем…» — подпись «Загружено 100%» не появлялась никогда. Теперь: полоска добегает с «Загружено 100%»,
 // стоит BAR_HOLD_MS, потом «Устанавливаем…» еще INSTALL_HOLD_MS — и перезагрузка.
 export const BAR_HOLD_MS = 500
-export const INSTALL_HOLD_MS = 500
+// Не короче прыжка штанги (1 с, index.css): она успевает приземлиться, и перезагрузка не обрывает ее в воздухе.
+export const INSTALL_HOLD_MS = 1000
 
 // reduce — «уменьшить движение»: полоска сразу на месте. raf — кадры, now — часы (тест подставляет свои).
 export function splashUpdateUi(doc, root, {
@@ -109,7 +112,13 @@ export function splashUpdateUi(doc, root, {
     if (onFull && shown >= 100) {
       const done = onFull
       onFull = null
-      setTimer(() => { cap.textContent = 'Устанавливаем…'; setTimer(done, INSTALL_HOLD_MS) }, BAR_HOLD_MS)
+      setTimer(() => {
+        cap.textContent = 'Устанавливаем…'
+        // Прыжок кончается на земле: снимаем петлю на границе цикла, а не на полпути.
+        root.querySelector('.splash-loop')?.addEventListener('animationiteration',
+          () => root.classList.remove('splash--updating'), { once: true })
+        setTimer(done, INSTALL_HOLD_MS)
+      }, BAR_HOLD_MS)
     }
   }
   const tick = (t) => {

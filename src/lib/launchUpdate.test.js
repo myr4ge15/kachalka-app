@@ -103,7 +103,7 @@ describe('runLaunchUpdate', () => {
     let result = null
     const run = s.run({ sleep }).then((r) => { result = r })
     await new Promise((r) => setTimeout(r, 0))
-    expect(s.reg.waiting.postMessage).toHaveBeenCalled() // применяется параллельно с полоской
+    expect(s.reg.waiting.postMessage).not.toHaveBeenCalled() // активация — только после полоски
     expect(s.reload).not.toHaveBeenCalled()
     barFull()
     await run

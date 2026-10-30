@@ -3826,6 +3826,9 @@ label.act.busy { opacity: .55; pointer-events: none; }
   88% { opacity: .55; transform: none; }
   100% { opacity: .6; transform: scaleX(1.08); }
 }
+/* Перезагрузка после обновления (accent-boot.js): штанга уже собрана и стоит там же, где была, только с уходом. */
+.splash-resume .splash-bar, .splash-resume .splash-plate, .splash-resume .splash-lift,
+.splash-resume .splash-title { animation: none; }
 /* Обновление при запуске (v6.13.0): «Обновляем до v…» + прогресс под знаком.
    Абсолютно — чтобы знак не прыгал, когда блок появляется. */
 .splash-upd {

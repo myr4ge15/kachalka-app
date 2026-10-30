@@ -1,6 +1,8 @@
 // @vitest-environment jsdom
 // Сплэш холодного старта и блок «Обновляем до v…» (lib/splashBoot.js, вынесено из main.jsx).
-import { beforeEach, describe, expect, it } from 'vitest'
+import { readFileSync } from 'node:fs'
+import { resolve } from 'node:path'
+import { afterEach, beforeEach, describe, expect, it } from 'vitest'
 import { barStep, splashUpdateUi, startSplash, BAR_MIN_SPEED, BAR_PACE_SHARE, BAR_LAG_OK, BAR_HOLD_MS, INSTALL_HOLD_MS, SPLASH_HARD_MS } from './splashBoot.js'
 import { SPLASH_FADE_MS, SPLASH_MAX_MS } from './splash.js'
 
@@ -264,5 +266,37 @@ describe('startSplash', () => {
     const t = timers()
     startSplash({ splash: null, onReady: () => {}, runUpdate: () => 'none', setTimer: t.setTimer })
     expect(t.list).toEqual([])
+  })
+})
+
+describe('сплэш после обновления', () => {
+  const boot = readFileSync(resolve(process.cwd(), 'public/accent-boot.js'), 'utf8')
+  afterEach(() => { document.documentElement.classList.remove('splash-resume'); sessionStorage.clear() })
+
+  it('метка перезагрузки: штанга собрана до первого кадра, метка одноразовая', () => {
+    sessionStorage.setItem('gym_app_splash_resume', '1')
+    new Function(boot)()
+    expect(document.documentElement.classList.contains('splash-resume')).toBe(true)
+    expect(sessionStorage.getItem('gym_app_splash_resume')).toBeNull()
+  })
+
+  it('обычный запуск: сборка на месте', () => {
+    new Function(boot)()
+    expect(document.documentElement.classList.contains('splash-resume')).toBe(false)
+  })
+
+  it('«Устанавливаем…»: прыжок снимается на границе цикла, не раньше', () => {
+    document.body.innerHTML = `<div id="splash" class="splash"><g class="splash-loop"></g>
+      <div id="splash-upd" hidden><p id="splash-upd-title"></p><div id="splash-upd-bar"><div id="splash-upd-fill"></div></div><p id="splash-upd-cap"></p></div></div>`
+    const list = []
+    const root = document.getElementById('splash')
+    const ui = splashUpdateUi(document, root, { reduce: true, setTimer: (fn, ms) => list.push({ fn, ms }) })
+    ui.start('1.0.0')
+    ui.installing()
+    list.shift().fn()
+    expect(root.classList.contains('splash--updating')).toBe(true)
+    root.querySelector('.splash-loop').dispatchEvent(new Event('animationiteration'))
+    expect(root.classList.contains('splash--updating')).toBe(false)
+    expect(INSTALL_HOLD_MS).toBeGreaterThanOrEqual(1000)
   })
 })

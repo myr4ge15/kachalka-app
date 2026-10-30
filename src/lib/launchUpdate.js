@@ -15,7 +15,7 @@
 //   4. не успели за WAIT_MS (слабая сеть; если файлы еще идут — ждем до MAX_WAIT_MS,
 //      пока прогресс двигается) → «Связь слабая…» и внутрь; докачанное
 //      применится при следующем запуске (или по плашке);
-//   5. применение: SKIP_WAITING ждущему SW → controllerchange → перезагрузка.
+//   5. применение: полоска и «Устанавливаем…» → SKIP_WAITING ждущему SW → controllerchange → перезагрузка.
 //      Флаг в sessionStorage — одна попытка на версию за сессию: если после
 //      перезагрузки версия все та же (CDN отстал), не зацикливаемся.
 //
@@ -30,9 +30,11 @@ export const MAX_WAIT_MS = 30000      // …и до скольких продл�
 export const STALL_MS = 3000          // «идет» = прогресс двигался за последние STALL_MS
 export const FALLBACK_SHOW_MS = 1800  // сколько висит «Связь слабая…»
 export const APPLY_TIMEOUT_MS = 4000  // ждем смену контроллера, потом перезагружаем сами
-export const BAR_DONE_MAX_MS = 2500   // дольше полоску «100%» перед перезагрузкой не ждем
+export const BAR_DONE_MAX_MS = 3000   // дольше полоску «100%» перед перезагрузкой не ждем
 export const POLL_MS = 250
 export const TRIED_KEY = 'gym_app_update_tried'
+// Перезагрузка после обновления: сплэш читает метку и не собирает штангу заново (public/accent-boot.js).
+export const SPLASH_RESUME_KEY = 'gym_app_splash_resume'
 
 // Манифест precache из текста sw.js (generateSW: precacheAndRoute([{url:"…",revision:"…"|null},…])).
 // Не разобрали — [] (прогресс тогда «бегущий», без цифр).
@@ -170,6 +172,9 @@ export async function runLaunchUpdate({
   let barDone
   try { barDone = Promise.resolve(ui.installing?.()).catch(() => {}) } catch { barDone = Promise.resolve() }
   try { storage?.setItem(TRIED_KEY, String(server)) } catch { /* приватный режим */ }
+  // Активируем только после полоски и «Устанавливаем…»: смена контроллера сразу перезагружает страницу, если
+  // приложение уже поднялось за сплэшем (UpdatePrompt, fb_96e976ff), и подпись не успевала показаться.
+  await Promise.race([barDone, sleep(BAR_DONE_MAX_MS)])
   await new Promise((resolve) => {
     let done = false
     const finish = () => { if (!done) { done = true; resolve() } }
@@ -177,7 +182,7 @@ export async function runLaunchUpdate({
     try { worker.postMessage({ type: 'SKIP_WAITING' }) } catch { finish() }
     sleep(APPLY_TIMEOUT_MS).then(finish)
   })
-  await Promise.race([barDone, sleep(BAR_DONE_MAX_MS)])
+  try { storage?.setItem(SPLASH_RESUME_KEY, '1') } catch { /* приватный режим */ }
   reload()
   return 'applied'
 }

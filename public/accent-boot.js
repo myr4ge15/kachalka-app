@@ -16,6 +16,13 @@
       if (v.id === 'custom' || PRESETS.indexOf(v.id) !== -1) id = v.id
     }
   } catch { /* нет хранилища или мусор — акцент по умолчанию */ }
+  // Перезагрузка после обновления (lib/launchUpdate.js): тоже до первого кадра, иначе штанга мелькнет сборкой.
+  try {
+    if (sessionStorage.getItem('gym_app_splash_resume')) {
+      sessionStorage.removeItem('gym_app_splash_resume')
+      root.classList.add('splash-resume')
+    }
+  } catch { /* приватный режим — обычный сплэш */ }
   root.setAttribute('data-accent', id)
   if (id === 'custom') {
     root.style.setProperty('--acc', 'oklch(0.79 0.19 ' + hue + ')')

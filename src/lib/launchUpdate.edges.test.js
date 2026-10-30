@@ -4,7 +4,7 @@
 // работают настоящие обработчики по умолчанию на фейковых часах.
 import { afterEach, describe, expect, it, vi } from 'vitest'
 import {
-  APPLY_TIMEOUT_MS, BAR_DONE_MAX_MS, FALLBACK_SHOW_MS, MAX_WAIT_MS, POLL_MS, RESUME_KEY, STALL_MS, TRIED_KEY,
+  APPLY_TIMEOUT_MS, BAR_DONE_MAX_MS, SPLASH_RESUME_KEY, FALLBACK_SHOW_MS, MAX_WAIT_MS, POLL_MS, RESUME_KEY, STALL_MS, TRIED_KEY,
   VERSION_TIMEOUT_MS, downloadProgress, parsePrecacheManifest, precacheKey, reloadForUpdatePush, runLaunchUpdate,
 } from './launchUpdate.js'
 import { SPLASH_HARD_MS } from './splashBoot.js'
@@ -206,6 +206,45 @@ describe('runLaunchUpdate: слабая связь', () => {
 
   it('сплэш не снимается раньше, чем закончится ожидание обновления', () => {
     expect(SPLASH_HARD_MS).toBeGreaterThan(MAX_WAIT_MS)
+  })
+})
+
+describe('runLaunchUpdate: порядок применения', () => {
+  it('SKIP_WAITING уходит только после полоски и «Устанавливаем…» (fb_96e976ff)', async () => {
+    const h = harness()
+    const worker = waitingWorker()
+    h.reg.waiting = worker
+    let barFinished
+    h.ui.installing = vi.fn(() => new Promise((r) => { barFinished = r }))
+    const run = h.run({ sleep: (ms) => (ms === BAR_DONE_MAX_MS ? new Promise(() => {}) : Promise.resolve()) })
+    await vi.waitFor(() => expect(h.ui.installing).toHaveBeenCalled())
+    await new Promise((r) => setTimeout(r, 0))
+    expect(worker.postMessage).not.toHaveBeenCalled()
+    barFinished()
+    expect(await run).toBe('applied')
+    expect(worker.postMessage).toHaveBeenCalledWith({ type: 'SKIP_WAITING' })
+  })
+
+  it('перед перезагрузкой ставится метка для сплэша', async () => {
+    const h = harness()
+    h.reg.waiting = waitingWorker()
+    expect(await h.run()).toBe('applied')
+    expect(h.storage.map.get(SPLASH_RESUME_KEY)).toBe('1')
+  })
+
+  it('«Связь слабая»: перезагрузки нет — метки нет', async () => {
+    const h = harness()
+    expect(await h.run({ waitMs: 1000, maxWaitMs: 1000 })).toBe('fallback')
+    expect(h.storage.map.has(SPLASH_RESUME_KEY)).toBe(false)
+  })
+
+  it('полоска зависла — активация все равно уходит по BAR_DONE_MAX_MS', async () => {
+    const h = harness()
+    const worker = waitingWorker()
+    h.reg.waiting = worker
+    h.ui.installing = vi.fn(() => new Promise(() => {}))
+    expect(await h.run()).toBe('applied')
+    expect(worker.postMessage).toHaveBeenCalledWith({ type: 'SKIP_WAITING' })
   })
 })
 
