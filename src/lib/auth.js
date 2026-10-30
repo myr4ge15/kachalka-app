@@ -71,6 +71,7 @@ let lastLoginUserId = null
 // должен — иначе он возвращал в хранилище сессию вышедшего и подменял PIN в памяти
 // (РЕВЬЮ-КОДА-2026-10-02, п. 21).
 let authGeneration = 0
+let logoutDone = Promise.resolve()
 // Вход, который сейчас в полете: фоновый перевыпуск не дублирует его.
 let inFlight = null // { userId, promise }
 
@@ -163,6 +164,10 @@ async function postLogin(payload, timeoutMs = DB_TIMEOUT_MS) {
 // invite-redeem) → поднять сессию, закэшировать свой хэш для офлайн-входа, PIN в память.
 async function adoptSession(body, userId, pin, stale) {
   // Пока ждали ответ, человек вышел (или вошел другой): сессию не поднимаем.
+  if (stale()) throw new LoginError('cancelled', 'Вход отменен.')
+
+  // Экран входа открывается сразу, а выход дорабатывает в фоне: его signOut не должен снести новую сессию.
+  await logoutDone
   if (stale()) throw new LoginError('cancelled', 'Вход отменен.')
 
   const { error } = await supabase.auth.setSession({
@@ -706,10 +711,18 @@ export function getSessionPin() {
   return sessionPin
 }
 
-export async function logout() {
+// Память и поколение сбрасываются сразу, остальное идет в фоне и никогда не бросает. beforeSignOut —
+// то, что еще нужно под живой сессией (отвязка пушей); пока выход не кончился, новая сессия ждет (adoptSession).
+export function logout(beforeSignOut) {
   sessionPin = null
   sessionPinUserId = null
   authGeneration++
+  logoutDone = finishLogout(beforeSignOut)
+  return logoutDone
+}
+
+async function finishLogout(beforeSignOut) {
+  try { await beforeSignOut?.() } catch { /* выход важнее */ }
   // scope:'local' — чистим ТОЛЬКО локально сохраненную сессию, без сетевого
   // вызова /logout (по умолчанию scope:'global' дергает сервер и в авиарежиме
   // висел минутами/не отвечал). Таймаут — страховка на случай зависшего I/O.

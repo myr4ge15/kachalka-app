@@ -56,6 +56,7 @@ export function useSession(onLoggedIn) {
   // Подписка на пуши — за той учеткой, что вошла (общий телефон): сверка при
   // входе и, раз уж серверной части нужна своя сессия, еще раз, когда она поднялась.
   const userIdRef = useRef(null)
+  const logoutRef = useRef(null)
   useEffect(() => {
     userIdRef.current = user?.id ?? null
     if (user?.id) reconcilePushOwner(user.id)
@@ -63,7 +64,8 @@ export function useSession(onLoggedIn) {
   useEffect(() => {
     const { data } = supabase.auth.onAuthStateChange((event) => {
       if (event === 'SIGNED_IN' && userIdRef.current) reconcilePushOwner(userIdRef.current)
-      if (event === 'SIGNED_OUT') {
+      // Свой выход уже все снял, а его событие может прийти, когда вошел следующий.
+      if (event === 'SIGNED_OUT' && !logoutRef.current) {
         storageRemove('localStorage', SESSION_KEY)
         setUser(null)
         closeUserDb()
@@ -91,21 +93,19 @@ export function useSession(onLoggedIn) {
     setUser((u) => (u ? { ...u, name } : u))
   }, [])
 
-  // Выход уже идет (до ~7 с: пуш-подписка + signOut). Второй вызов — no-op,
-  // индикацию «Выхожу…» рисует LogoutButton (РЕВЬЮ-КОДА-2026-10-02).
-  const logoutRef = useRef(null)
+  // Экран входа — сразу: человек не ждет сеть. Пуши этой учетки на устройство больше не нужны
+  // (общий телефон): отвязка на сервере (пока сессия жива, до 4 с) и signOut дорабатывают в фоне,
+  // промис отдает их конец — кому нужен полный выход (приглашение, удаление учетки), тот его ждет.
+  // Новый вход ждет сам (auth.adoptSession). Второй вызов — тот же промис.
   function handleLogout() {
     if (!logoutRef.current) {
-      logoutRef.current = (async () => {
-        // Пуши этой учетки на устройство больше не нужны (общий телефон). Пока сессия
-        // жива — снимаем подписку и на сервере; никогда не бросает, ждет не дольше 4 с.
-        if (user?.id) await releasePushOnLogout(user.id)
-        await authLogout()
-        storageRemove('localStorage', SESSION_KEY)
-        resetPresence()    // чужие «в сети» следующему на этом телефоне не показываем
-        setUser(null)      // сначала размонтируем экраны и их live-queries…
-        closeUserDb()      // …затем закрываем персональную базу
-      })().finally(() => { logoutRef.current = null })
+      const uid = user?.id
+      logoutRef.current = authLogout(uid ? () => releasePushOnLogout(uid) : undefined)
+        .finally(() => { logoutRef.current = null })
+      storageRemove('localStorage', SESSION_KEY)
+      resetPresence()    // чужие «в сети» следующему на этом телефоне не показываем
+      setUser(null)      // сначала размонтируем экраны и их live-queries…
+      closeUserDb()      // …затем закрываем персональную базу
     }
     return logoutRef.current
   }

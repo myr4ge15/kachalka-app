@@ -91,3 +91,27 @@ describe('auth: вход и выход', () => {
     expect(fetchMock).toHaveBeenCalledTimes(1)
   })
 })
+
+describe('фоновый выход и следующий вход', () => {
+  it('новая сессия ставится только после конца прошлого выхода', async () => {
+    const seq = []
+    let finish
+    signOut.mockImplementationOnce(async () => { seq.push('signOut'); return { error: null } })
+    setSession.mockImplementationOnce(async () => { seq.push('setSession'); return { error: null } })
+    const out = logout(() => new Promise((r) => { finish = r }))
+    globalThis.fetch = vi.fn(async () => okResponse('b'))
+    const entered = login('b', '4826')
+    await new Promise((r) => setTimeout(r, 0))
+    expect(seq).toEqual([])
+    finish()
+    await out
+    await entered
+    expect(seq).toEqual(['signOut', 'setSession'])
+  })
+
+  it('сбой отвязки пушей выход не срывает', async () => {
+    signOut.mockClear()
+    await expect(logout(async () => { throw new Error('сеть') })).resolves.toBeUndefined()
+    expect(signOut).toHaveBeenCalled()
+  })
+})
