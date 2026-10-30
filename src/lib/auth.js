@@ -25,11 +25,21 @@ import { DB_TIMEOUT_MS, withTimeout } from './withTimeout.js'
 // прокси/фаервол «держит» соединение, не отклоняя его) иначе вешала вход на
 // минуту+. По истечении DB_TIMEOUT_MS запрос прерывается → fetch бросает →
 // вызов мапит это в LoginError('network'), а не крутит спиннер бесконечно.
+// Тело читаем под тем же сроком: заголовки могли прийти, а ответ оборваться. Отдаем уже разобранное.
 async function fetchWithTimeout(url, opts, ms = DB_TIMEOUT_MS) {
   const ctrl = new AbortController()
-  const t = setTimeout(() => ctrl.abort(), ms)
+  let t
+  const expired = new Promise((_, reject) => {
+    t = setTimeout(() => { ctrl.abort(); reject(new Error('timeout')) }, ms)
+  })
+  const load = async () => {
+    const res = await fetch(url, { ...opts, signal: ctrl.signal })
+    let body = null
+    try { body = await res.json() } catch { /* пустое/нестандартное тело */ }
+    return { ok: res.ok, status: res.status, json: async () => body }
+  }
   try {
-    return await fetch(url, { ...opts, signal: ctrl.signal })
+    return await Promise.race([load(), expired])
   } finally {
     clearTimeout(t)
   }
@@ -470,6 +480,8 @@ export async function setPin(userId, currentPin, newPin) {
     pin_hash: body.pin_hash,
     pin_salt: body.pin_salt ?? null,
   })
+  // Сразу: дальше может быть выход с ошибкой, а старый PIN в памяти тихий перевыпуск отправил бы на сервер.
+  rememberPin(userId, newPin)
   // Сервер отозвал все прежние сессии (v6.8.0) и выдал свежую — поднимаем ее, иначе
   // текущая сессия этого устройства уже мертва и синк попросил бы войти заново.
   if (body.session?.access_token && body.session?.refresh_token) {
@@ -479,7 +491,6 @@ export async function setPin(userId, currentPin, newPin) {
     })
     if (error) throw new LoginError('session', 'PIN сменен. Войди заново с новым PIN.')
   }
-  rememberPin(userId, newPin)
   return true
 }
 

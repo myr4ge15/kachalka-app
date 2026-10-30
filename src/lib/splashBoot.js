@@ -16,10 +16,11 @@
 // от конца проверки.
 // ============================================================================
 import { splashDelay, SPLASH_FADE_MS, SPLASH_MAX_MS } from './splash.js'
-import { WAIT_MS } from './launchUpdate.js'
+import { APPLY_TIMEOUT_MS, BAR_DONE_MAX_MS, MAX_WAIT_MS } from './launchUpdate.js'
 
+// Не раньше конца самого долгого обновления: снятый сплэш и последующая перезагрузка — посреди работы.
 // Последняя страховка от начала: что бы ни случилось с проверкой, сплэш не вечный.
-export const SPLASH_HARD_MS = SPLASH_MAX_MS + WAIT_MS + 10000
+export const SPLASH_HARD_MS = SPLASH_MAX_MS + MAX_WAIT_MS + APPLY_TIMEOUT_MS + BAR_DONE_MAX_MS
 
 // splash — узел #splash; runUpdate(ui) → Promise<'skip'|'none'|'retried'|'fallback'|'applied'>.
 export function startSplash({

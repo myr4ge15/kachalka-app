@@ -182,12 +182,18 @@ export async function pushTemplates(d = db) {
         await d.tpl_outbox.delete(op.seq)
       })
     } else if (op.type === 'delete') {
+      // ops — снимок начала прохода: шаблон могли пересоздать, и enqueueTpl уже снял этот delete.
+      if (!(await d.tpl_outbox.get(op.seq))) return
       const { error } = await withTimeout(
         supabase.from('workout_templates').delete().eq('id', op.templateId)
       )
       if (error) throw error
-      await d.templates.delete(op.templateId)
-      await d.tpl_outbox.delete(op.seq)
+      // Пересоздали, пока шел запрос: живую версию не трогаем, ее дошлет новый upsert.
+      await d.transaction('rw', d.templates, d.tpl_outbox, async () => {
+        const cur = await d.templates.get(op.templateId)
+        if (!cur || cur._deleted) await d.templates.delete(op.templateId)
+        await d.tpl_outbox.delete(op.seq)
+      })
     }
   })
   return waitServer ? [waitServer] : []
@@ -245,12 +251,18 @@ export async function push(d = db) {
         await d.outbox.delete(op.seq)
       })
     } else if (op.type === 'delete') {
+      // ops — снимок начала прохода: тренировку могли пересоздать, и enqueue уже снял этот delete.
+      if (!(await d.outbox.get(op.seq))) return
       const { error } = await withTimeout(
         supabase.from('workouts').delete().eq('id', op.workoutId)
       )
       if (error) throw error
-      await d.workouts.delete(op.workoutId)
-      await d.outbox.delete(op.seq)
+      // Пересоздали, пока шел запрос: живую версию не трогаем, ее дошлет новый upsert.
+      await d.transaction('rw', d.workouts, d.outbox, async () => {
+        const cur = await d.workouts.get(op.workoutId)
+        if (!cur || cur._deleted) await d.workouts.delete(op.workoutId)
+        await d.outbox.delete(op.seq)
+      })
     }
   })
   return justPushed

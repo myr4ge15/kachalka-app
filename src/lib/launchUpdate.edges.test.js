@@ -125,9 +125,7 @@ describe('runLaunchUpdate: когда сразу внутрь', () => {
     expect(h.ui.start).not.toHaveBeenCalled()
   })
 
-  // ОШИБКА (см. отчет): withTimeout (launchUpdate.js:109) закрывает только заголовки, res.json() (:110)
-  // ждет без срока — сплэш висит до страховки SPLASH_HARD_MS вместо обещанных 3 с.
-  it.skip('заголовки version.json пришли, тело зависло — внутрь за VERSION_TIMEOUT_MS', async () => {
+  it('заголовки version.json пришли, тело зависло — внутрь за VERSION_TIMEOUT_MS', async () => {
     vi.useFakeTimers()
     const h = harness()
     h.fetchFn.mockResolvedValue({ ok: true, json: () => new Promise(() => {}) })
@@ -187,9 +185,7 @@ describe('runLaunchUpdate: слабая связь', () => {
     expect(await h.run({ waitMs: 500 })).toBe('fallback')
   })
 
-  // ОШИБКА (см. отчет): запрос sw.js (launchUpdate.js:140) идет без таймаута внутри цикла ожидания:
-  // зависнет — keepWaiting не проверяется, «Связь слабая» не покажется, промис не завершится.
-  it.skip('запрос sw.js завис — «Связь слабая» и внутрь не позже потолка', async () => {
+  it('запрос sw.js завис — «Связь слабая» и внутрь не позже потолка', async () => {
     vi.useFakeTimers()
     const h = harness({ ...installing(), script: () => new Promise(() => {}) })
     let result = null
@@ -208,9 +204,7 @@ describe('runLaunchUpdate: слабая связь', () => {
     expect(h.ui.fallback).toHaveBeenCalledTimes(1)
   })
 
-  // ОШИБКА (см. отчет): страховка сплэша SPLASH_HARD_MS (27 с, splashBoot.js:22) раньше потолка ожидания
-  // MAX_WAIT_MS (30 с): сплэш уже снят, человек в приложении, а 'applied' еще может перезагрузить страницу.
-  it.skip('сплэш не снимается раньше, чем закончится ожидание обновления', () => {
+  it('сплэш не снимается раньше, чем закончится ожидание обновления', () => {
     expect(SPLASH_HARD_MS).toBeGreaterThan(MAX_WAIT_MS)
   })
 })

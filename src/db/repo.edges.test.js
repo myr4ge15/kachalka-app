@@ -346,10 +346,7 @@ describe('saveWorkout: документ и базис merge-часов', () => {
     expect((await db.workouts.get(id))._base_updated_at).toBeNull()
   })
 
-  // ОШИБКА низкой тяжести (см. отчет): repo.js:524 подставляет локальное updated_at как базис, если
-  // у грязной записи базис null: вторая правка неотправленной тренировки и правка после push с
-  // обнулением базиса. Базис должен быть серверным временем, иначе pull видит ложный conflict.
-  it.skip('вторая правка неотправленной записи: базис остается пустым', async () => {
+  it('вторая правка неотправленной записи: базис остается пустым', async () => {
     const id = await saveWorkout({ user_id: userId, entries })
     await saveWorkout({ id, user_id: userId, entries })
     expect((await db.workouts.get(id))._base_updated_at).toBeNull()

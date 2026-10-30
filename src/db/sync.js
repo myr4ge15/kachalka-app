@@ -66,11 +66,11 @@ let runningFor = null // учетка идущего прогона (для за
 // Тихий перевыпуск сессии из syncNow — не чаще раза в REVIVE_EVERY_MS.
 const REVIVE_EVERY_MS = 60000
 let lastReviveAt = 0
-async function reviveSession(userId) {
+async function reviveSession(userId, put) {
   if (!canRefreshSilently(userId)) {
     // PIN в памяти нет (приложение перезапускали): поднять сессию может только
     // сам человек. Говорим об этом прямо, а не рисуем «синхронизировано».
-    setState({ lastError: 'Нет входа на сервере — выйди и войди по PIN, чтобы данные отправились', netError: true })
+    put({ lastError: 'Нет входа на сервере — выйди и войди по PIN, чтобы данные отправились', netError: true })
     return false
   }
   const now = Date.now()
@@ -158,7 +158,7 @@ async function runOnce(userId) {
       // просто молчал — «↑ N» висело до ручного «выйти и войти». Теперь пробуем
       // поднять сессию сами, пока PIN есть в памяти (не чаще раза в минуту: каждая
       // попытка — запрос к серверу входа).
-      if (!(await reviveSession(userId))) return
+      if (!(await reviveSession(userId, put))) return
     }
     // Сервер все еще считает эту сессию нашей? Отозванная (сброс PIN админом) или
     // чужая сессия отдает под RLS пустые выборки БЕЗ ошибки — pull принял бы их за
@@ -191,7 +191,7 @@ async function runOnce(userId) {
     // pullGoal может пометить локальную цель на отправку (бэкофилл старой цели
     // без _dirty) — сразу доливаем ее вторым pushGoal в этом же цикле.
     try {
-      await pullGoal(userId, d)
+      await pullGoal(userId, d, { identityVerified: who.known })
       await pushGoal(userId, d)
     } catch (e) { if (!goalWarn) goalWarn = 'цель не отправлена: ' + String(e?.message ?? e) }
     // Личный meta (бейджи / настройки прогрессии / метка «прочитано»): сперва

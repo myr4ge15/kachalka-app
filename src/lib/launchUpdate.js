@@ -64,6 +64,12 @@ export function downloadProgress(needed, haveSet) {
 
 const realSleep = (ms) => new Promise((r) => setTimeout(r, ms))
 
+// Тело под тем же сроком, что и заголовки: иначе оборванный ответ держал бы сплэш до страховки.
+const serverVersion = (fetchFn, url) => withTimeout((async () => {
+  const res = await fetchFn(url, { cache: 'no-store' })
+  return res.ok ? (await res.json())?.version ?? null : null
+})(), VERSION_TIMEOUT_MS)
+
 function withTimeout(promise, ms) {
   return Promise.race([promise, new Promise((_, rej) => setTimeout(() => rej(new Error('timeout')), ms))])
 }
@@ -106,8 +112,7 @@ export async function runLaunchUpdate({
 
   let server = null
   try {
-    const res = await withTimeout(fetchFn(versionUrl, { cache: 'no-store' }), VERSION_TIMEOUT_MS)
-    if (res.ok) server = (await res.json())?.version ?? null
+    server = await serverVersion(fetchFn, versionUrl)
   } catch { /* офлайн/таймаут */ }
   if (!server || !isRealUpdate(currentVersion, server)) return 'none'
 
@@ -137,8 +142,11 @@ export async function runLaunchUpdate({
       const inst = reg.installing
       if (inst && needed === null && fetchFn) {
         try {
-          const res = await fetchFn(inst.scriptURL, { cache: 'no-store' })
-          const text = res.ok ? await res.text() : ''
+          // Срок обязателен: зависший запрос иначе остановил бы весь цикл ожидания.
+          const text = await withTimeout((async () => {
+            const res = await fetchFn(inst.scriptURL, { cache: 'no-store' })
+            return res.ok ? res.text() : ''
+          })(), Math.max(deadline - now(), STALL_MS))
           needed = parsePrecacheManifest(text).map((e) => precacheKey(e, inst.scriptURL)).filter((k) => !before.has(k))
         } catch { needed = [] }
       }
@@ -206,8 +214,7 @@ export async function reloadForUpdatePush({
   if (!fetchFn) return 'none'
   let server = null
   try {
-    const res = await withTimeout(fetchFn(versionUrl, { cache: 'no-store' }), VERSION_TIMEOUT_MS)
-    if (res.ok) server = (await res.json())?.version ?? null
+    server = await serverVersion(fetchFn, versionUrl)
   } catch { /* офлайн/таймаут — остаемся, плашка догонит */ }
   if (!server || !isRealUpdate(currentVersion, server)) return 'none'
   if (resume) {

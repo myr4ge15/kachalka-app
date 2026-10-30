@@ -395,9 +395,7 @@ describe('pushTemplates: края', () => {
     expect((await db.tpl_outbox.toArray())[0]).toMatchObject({ type: 'delete', attempts: 1 })
   })
 
-  // ОШИБКА (см. отчет): ветка delete в push.js:189 удаляет строку, не проверяя, что ее пересоздали,
-  // пока шел запрос; enqueueTpl поставил upsert, но документа уже нет и правка пропадает.
-  it.skip('пересоздали, пока шел delete: новая версия не теряется', async () => {
+  it('пересоздали, пока шел delete: новая версия не теряется', async () => {
     await seedTemplate('t1', { _deleted: 1, _dirty: 0 })
     await db.tpl_outbox.clear()
     await db.tpl_outbox.add({ templateId: 't1', type: 'delete', createdAt: T1, attempts: 0 })
@@ -525,9 +523,7 @@ describe('push тренировок: края', () => {
     expect(ops[0]).toMatchObject({ workoutId: 'broken', _dead: 1 })
   })
 
-  // ОШИБКА (см. отчет): ветка delete в push.js:252 — то же, что у шаблонов: saveWorkout, заменивший
-  // delete на upsert, пока шел запрос, теряется вместе со строкой.
-  it.skip('пересоздали, пока шел delete: новая версия не теряется', async () => {
+  it('пересоздали, пока шел delete: новая версия не теряется', async () => {
     await seedWorkout('w1', { _deleted: 1, _dirty: 0 })
     await db.outbox.clear()
     await db.outbox.add({ workoutId: 'w1', type: 'delete', createdAt: T1, attempts: 0 })

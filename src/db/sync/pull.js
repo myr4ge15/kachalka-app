@@ -587,7 +587,7 @@ async function pullTemplates(userId, d = db, { identityVerified = false } = {}) 
 // ближайший pushGoal, last-write-wins как у тренировок). Так сюда приезжают цели
 // с других устройств, исчезают удаленные там и обновляется achieved_at от бота.
 // Имя упражнения — из локального справочника (фолбэк — прежнее имя).
-export async function pullGoal(userId, d = db) {
+export async function pullGoal(userId, d = db, { identityVerified = true } = {}) {
   const local = await readGoals(userId, d)
   if (local.some((g) => g._dirty)) return
   // metric читаем отдельной попыткой: на не-обновленном сервере колонки еще нет
@@ -609,6 +609,9 @@ export async function pullGoal(userId, d = db) {
   }
   if (res.error) return
   const rows = res.data ?? []
+  // Пустой ответ под RLS — не «удалено» (v6.7.5): без подтвержденной личности чистые цели не стираем,
+  // иначе пропала бы и отметка достижения, которая у целей по повторам и времени живет только на устройстве.
+  if (!rows.length && local.length && !identityVerified) return
   const byEx = new Map(local.map((g) => [g.exerciseId, g]))
   const next = []
   for (const row of rows) {

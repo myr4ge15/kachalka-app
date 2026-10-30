@@ -314,11 +314,7 @@ describe('поколения состояния: смена учетки пос�
     expect(getSyncState()).toMatchObject({ lastError: null, netError: false })
   })
 
-  // НАЙДЕННАЯ ОШИБКА (sync.js:73). reviveSession пишет ошибку прямым setState, мимо `put` с
-  // проверкой поколения: прогон учетки A, ждавший hasSession, после смены учетки кладет в шапку
-  // B «Нет входа на сервере — выйди и войди по PIN» и netError=true — ровно то, от чего защищает
-  // epoch. Снять skip, когда reviveSession пойдет через поколение.
-  it.skip('«нет входа» прежней учетки не попадает в шапку новой', async () => {
+  it('«нет входа» прежней учетки не попадает в шапку новой', async () => {
     const net = deferred()
     h.gate = net.promise
     h.session = false

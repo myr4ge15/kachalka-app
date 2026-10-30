@@ -521,7 +521,7 @@ export async function saveWorkout({ id, user_id, performed_at, entries }) {
       // грязной записи сохраняем ИСХОДНЫЙ базис (правок могло быть несколько до
       // push'а); для чистой серверной — ее updated_at; для новой — null (на
       // сервере записи еще нет, сравнивать не с чем).
-      _base_updated_at: existing?._base_updated_at ?? existing?.updated_at ?? null,
+      _base_updated_at: existing?._dirty ? (existing._base_updated_at ?? null) : (existing?.updated_at ?? null),
       entries: cleaned,
       _dirty: 1,
       _deleted: 0,

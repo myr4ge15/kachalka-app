@@ -143,10 +143,7 @@ describe('кардио и разминка — не мышцы', () => {
     expect(submuscleFreshness(list, { now: NOW })).toEqual([])
   })
 
-  // Настоящая мелкая ошибка: freshness.js:188 — mostNeglectedGroup не пропускает кардио и
-  // разминку (инвариант AGENTS.md: «забытая мышца» их не включает). Сейчас не видна
-  // участнику: homeSummary.nextFocus ни один экран не читает. Снять skip при починке.
-  it.skip('самая запущенная группа — не кардио', () => {
+  it('самая запущенная группа — не кардио', () => {
     const list = [
       wk({ id: 'run', at: daysAgo(30), entries: [{ group: 'кардио' }] }),
       wk({ id: 'wu', at: daysAgo(40), entries: [{ group: 'разминка' }] }),

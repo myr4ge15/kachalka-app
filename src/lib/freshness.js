@@ -186,6 +186,7 @@ export function mostNeglectedGroup(workouts, now = new Date()) {
   const today = dayIndex(now)
   let worst = null
   for (const [g, { day }] of map) {
+    if (isNonMuscleGroup(g)) continue // кардио и разминка — не мышцы
     const days = today - day
     // Тай-брейк по слагу группы — при равной давности выбор не должен зависеть
     // от порядка обхода Map (иначе «забытая группа» флипает между прогонами).

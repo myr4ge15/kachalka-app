@@ -142,9 +142,7 @@ describe('таймаут запроса входа', () => {
     expect(done).toMatchObject({ code: 'network' })
   })
 
-  // ОШИБКА (см. отчет): fetchWithTimeout снимает таймер, как только пришли заголовки, а тело читается
-  // уже без него (auth.js:32-35, :135). Оборвалось на теле — вход висит, кэш не открывается.
-  it.skip('заголовки пришли, тело зависло — все равно network в срок', async () => {
+  it('заголовки пришли, тело зависло — все равно network в срок', async () => {
     vi.useFakeTimers()
     fetchMock.mockResolvedValue({ ok: true, status: 200, json: () => new Promise(() => {}) })
     let done = null
@@ -323,10 +321,7 @@ describe('смена PIN: края', () => {
     expect(meta.get('pin_u1').pin_hash).toBe('old')
   })
 
-  // ОШИБКА (см. отчет): auth.js:480 бросает раньше rememberPin (:482). В памяти остается СТАРЫЙ PIN:
-  // тихий перевыпуск шлет его на сервер (лишняя попытка в счетчик), 401 стирает только что записанный
-  // хэш нового PIN — офлайн-вход пропадает до следующего входа с сетью.
-  it.skip('PIN сменен, новую сессию не поставить — старый PIN в памяти не остается', async () => {
+  it('PIN сменен, новую сессию не поставить — старый PIN в памяти не остается', async () => {
     await unlock('u1', '4826')
     fetchMock.mockResolvedValueOnce(res(200, { ok: true, pin_hash: 'h2', session: { access_token: 'a', refresh_token: 'r' } }))
     setSession.mockResolvedValueOnce({ error: { message: 'x' } })
