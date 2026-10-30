@@ -10,11 +10,12 @@ import { emitReselect } from '../lib/appEvents.js'
 
 // Склейка экрана: кэш → карточки, обновление (вход/повтор вкладки/жест/кнопка),
 // реакции, приватный режим. Данные витрины — db/feed.js (свои тесты).
-const mocks = vi.hoisted(() => ({ feed: undefined, users: [], priv: false }))
+const mocks = vi.hoisted(() => ({ feed: undefined, users: [], priv: false, railHidden: false }))
 vi.mock('dexie-react-hooks', () => ({
   useLiveQuery: (fn, _deps, def) => { const v = fn(); return v === undefined ? def : v },
 }))
 vi.mock('../db/feed.js', () => ({ getCachedFeed: () => mocks.feed, fetchFeed: vi.fn() }))
+vi.mock('../db/disciplines.js', () => ({ ratingRailHidden: () => mocks.railHidden }))
 vi.mock('../db/repo.js', () => ({
   getUsers: () => mocks.users,
   getPrivacyFlag: () => mocks.priv,
@@ -209,3 +210,24 @@ describe('FeedScreen', () => {
     expect(vibrate).not.toHaveBeenCalled()
   })
 })
+
+describe('FeedScreen: строка «Рейтинг»', () => {
+  afterEach(() => { mocks.railHidden = false })
+
+  it('обычно на месте', () => {
+    mocks.feed = []
+    render(<FeedScreen user={ME} />)
+    expect(screen.getByRole('button', { name: 'Рейтинг' })).toBeInTheDocument()
+  })
+
+  it('участник круга без дисциплин: строки нет, но рейтинг смонтирован и обновляет каталог', () => {
+    mocks.feed = []
+    mocks.railHidden = true
+    const { container } = render(<FeedScreen user={ME} />)
+    expect(screen.queryByRole('button', { name: 'Рейтинг' })).toBeNull()
+    expect(container.querySelector('.feed-rail')).toHaveAttribute('hidden')
+    expect(container.querySelector('.feed-layout--solo')).not.toBeNull()
+    expect(screen.getByTestId('leaderboard')).toBeInTheDocument()
+  })
+})
+

@@ -23,3 +23,12 @@ export function disciplineResult(metric, value) {
 
 // Подпись единицы рядом с названием — со строчной (26.10.2026, fb_c6b5ce77).
 export const DISCIPLINE_UNITS = { weight: 'вес, кг', reps: 'повторы', time: 'время, мин:сек', distance: 'дистанция, км' }
+
+// Строка «Рейтинг» в Ленте скрыта только там, где это тупик: человек состоит в кругах, ни одним не владеет
+// (добавить дисциплины не может), и у всех каталог уже загружен и пуст. Без круга строка остается — она зовет
+// создать круг, владельцу — подсказывает, что делать; неизвестный каталог (офлайн, первая загрузка) — не повод прятать.
+export function ratingRailEmpty(circles, catalogs) {
+  const active = (circles ?? []).filter((c) => c.my_status === 'active')
+  if (!active.length) return false
+  return active.every((c) => !c.is_owner && catalogs?.[c.circle_id]?.items?.length === 0)
+}

@@ -460,7 +460,8 @@ export default function App() {
                 <WhatsNewScreen onBack={backToSettings} />
               )}
               {route === 'body' && (
-                <BodyScreen user={user} onBack={backToParent} />
+                <BodyScreen user={user} onBack={backToParent} contentRef={contentRef}
+                  edgeSwipeOn={edgeSwipeOn && route === tab} onInnerNav={setInnerNav} />
               )}
               {route === 'appearance' && (
                 <AppearanceScreen user={user} onBack={backToSettings} />

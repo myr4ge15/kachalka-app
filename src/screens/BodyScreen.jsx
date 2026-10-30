@@ -1,4 +1,4 @@
-import { useMemo, useState } from 'react'
+import { useEffect, useMemo, useRef, useState } from 'react'
 import { useLiveQuery } from 'dexie-react-hooks'
 import BackButton from '../components/ui/BackButton.jsx'
 import Icon from '../components/ui/Icon.jsx'
@@ -9,6 +9,8 @@ import { showToast } from '../components/ui/Toast.jsx'
 import BodyChart from '../components/body/BodyChart.jsx'
 import BodyEntrySheet from '../components/body/BodyEntrySheet.jsx'
 import BodyGoal from '../components/body/BodyGoal.jsx'
+import BodyInfo from '../components/body/BodyInfo.jsx'
+import NavLayers from '../components/ui/NavLayers.jsx'
 import { getBody, deleteBodyEntry, setBodyPrefs } from '../db/body.js'
 import { localYmd } from '../lib/calendar.js'
 import {
@@ -32,7 +34,7 @@ const HIDDEN = '•••'
 // Записей показываем столько, остальное — по «Показать все» (как «Личные рекорды»).
 const LIST_SHORT = 8
 
-export default function BodyScreen({ user, onBack }) {
+export default function BodyScreen({ user, onBack, contentRef, edgeSwipeOn = false, onInnerNav }) {
   const body = useLiveQuery(() => getBody(user.id), [user.id])
   const [tab, setTab] = useState('weight')
   const [period, setPeriod] = useState(90)
@@ -40,6 +42,11 @@ export default function BodyScreen({ user, onBack }) {
   const [menuId, setMenuId] = useState(null)
   const [armDel, setArmDel] = useState(false) // «Удалить» → «Точно удалить?» в том же меню
   const [allRows, setAllRows] = useState(false) // список записей: последние LIST_SHORT или все
+  const [info, setInfo] = useState(false) // экран «О разделе» поверх этого
+  const innerRef = useRef(onInnerNav)
+  innerRef.current = onInnerNav
+  useEffect(() => { innerRef.current?.(info) }, [info])
+  useEffect(() => () => innerRef.current?.(false), [])
 
   const data = useMemo(() => {
     if (!body) return null
@@ -56,10 +63,21 @@ export default function BodyScreen({ user, onBack }) {
     }
   }, [body])
 
+  const infoBtn = (
+    <button type="button" className="body-info" aria-label="О разделе" onClick={() => setInfo(true)}>
+      <Icon name="info" size={20} />
+    </button>
+  )
+  const layers = (under) => (
+    <NavLayers open={info} onBack={() => setInfo(false)} under={under} contentRef={contentRef} swipe={edgeSwipeOn}>
+      {info && <BodyInfo onBack={() => setInfo(false)} />}
+    </NavLayers>
+  )
+
   if (!body || !data) {
-    return (
+    return layers(
       <div className="screen body-screen">
-        <div className="detail-head"><BackButton onClick={onBack} /><h2 className="screen-title detail-title">Вес и замеры</h2></div>
+        <div className="detail-head"><BackButton onClick={onBack} /><h2 className="screen-title detail-title">Вес и замеры</h2>{infoBtn}</div>
         <CardsSkeleton cards={2} />
       </div>
     )
@@ -129,7 +147,7 @@ export default function BodyScreen({ user, onBack }) {
       .catch(() => {})
   }
 
-  return (
+  return layers(
     <div className="screen body-screen">
       <div className="detail-head">
         <BackButton onClick={onBack} />
@@ -142,6 +160,7 @@ export default function BodyScreen({ user, onBack }) {
             <span className="body-eye-txt">{hide ? 'показать' : 'скрыть'}</span>
           </button>
         )}
+        {infoBtn}
       </div>
 
       {/* Вкладки видны всегда (fb_6114e96f): у каждой свой лист записи — вес отдельно, замеры отдельно. */}

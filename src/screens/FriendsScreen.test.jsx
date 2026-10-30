@@ -5,6 +5,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { fireEvent, render, screen, waitFor, within } from '@testing-library/react'
 import FriendsScreen from './FriendsScreen.jsx'
 import { showToast } from '../components/ui/Toast.jsx'
+import { refreshFriends } from '../db/friends.js'
 
 const api = vi.hoisted(() => ({}))
 const live = vi.hoisted(() => ({ rows: [] }))
@@ -189,3 +190,32 @@ describe('FriendsScreen — коды дружбы', () => {
     expect(showToast).toHaveBeenCalledWith(expect.objectContaining({ title: 'Теперь вы друзья 🎉' }))
   })
 })
+
+describe('FriendsScreen: потянуть вниз', () => {
+  const scroller = (node) => {
+    const box = document.createElement('div')
+    box.className = 'content'
+    document.body.appendChild(box)
+    box.appendChild(node)
+    return box
+  }
+  const pull = async (el) => {
+    fireEvent.touchStart(el, { touches: [{ clientX: 0, clientY: 0 }] })
+    fireEvent.touchMove(el, { touches: [{ clientX: 0, clientY: 300 }] })
+    fireEvent.touchEnd(el, { changedTouches: [{ clientX: 0, clientY: 300 }] })
+  }
+
+  it('колесико на экране, жест обновляет список', async () => {
+    live.rows = []
+    const host = document.createElement('div')
+    const box = scroller(host)
+    const { container } = render(<FriendsScreen user={{ id: 'me', name: 'Я' }} onBack={() => {}} />, { container: host })
+    await waitFor(() => expect(refreshFriends).toHaveBeenCalled())
+    expect(container.querySelector('.ptr')).not.toBeNull()
+    const before = vi.mocked(refreshFriends).mock.calls.length
+    await pull(box)
+    await waitFor(() => expect(vi.mocked(refreshFriends).mock.calls.length).toBeGreaterThan(before))
+    box.remove()
+  })
+})
+

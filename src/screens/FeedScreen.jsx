@@ -6,6 +6,7 @@ import { useRevealFocus } from '../hooks/useRevealFocus.js'
 import { useLiveQuery } from 'dexie-react-hooks'
 import { getCachedFeed, fetchFeed } from '../db/feed.js'
 import { getUsers, toggleReaction } from '../db/repo.js'
+import { ratingRailHidden } from '../db/disciplines.js'
 import { syncNow } from '../db/sync.js'
 import { onOnline, onResume, onReselect } from '../lib/appEvents.js'
 import { fmtWhen, fmtAgo } from '../lib/dates.js'
@@ -47,6 +48,7 @@ export default function FeedScreen({ user, onOpenMember, flashId = null, thread 
 
   // Аватары участников — из кэша пользователей (по user_id строки ленты).
   const users = useLiveQuery(() => getUsers(), [], [])
+  const railHidden = useLiveQuery(() => ratingRailHidden(), [user.id], false) === true
   // Режим админа «Видеть всех»: кого видно только из-за него — метка и без действий.
   const outside = useViewAllExtra()
   const avatarById = useMemo(() => {
@@ -177,7 +179,7 @@ export default function FeedScreen({ user, onOpenMember, flashId = null, thread 
       {/* Десктоп (≥900px) раскладывает это в две колонки: посты слева, рейтинг
           в правом сайдбаре. На мобиле — один столбец, рейтинг сверху (.feed-rail
           order:-1), как было раньше. */}
-      <div className="feed-layout">
+      <div className={railHidden ? 'feed-layout feed-layout--solo' : 'feed-layout'}>
         <div className="feed-main">
           {/* «Офлайн» — только пока показать нечего: при запуске кэш еще не прочитан (список
               пуст), и плашка оставалась висеть над подгрузившимися карточками. */}
@@ -263,7 +265,8 @@ export default function FeedScreen({ user, onOpenMember, flashId = null, thread 
 
         {/* Рейтинг: общий — не приватным, доски кругов — участникам кругов, приватному без
             круга — подсказка «Мой круг» (DisciplineLeaderboard, «Мой круг» 07.10.2026). */}
-        <aside ref={railRef} className="feed-rail" data-open={railOpen ? '1' : '0'}>
+        {/* hidden, а не размонтирование: Leaderboard обновляет каталог, и добавленные дисциплины вернут строку. */}
+        <aside ref={railRef} className="feed-rail" data-open={railOpen ? '1' : '0'} hidden={railHidden}>
             {/* v6.12.0: строка-кнопка как «Настройки»/«Пригласить» в Профиле — мелкий
                 серый заголовок с треугольником было еле видно. */}
             <MenuRow kind="expand" icon="trophy" title="Рейтинг" className="feed-rail-toggle" open={railOpen}

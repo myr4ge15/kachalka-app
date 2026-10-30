@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest'
-import { compareDisciplineRows, disciplineResult, disciplineGroup } from './disciplines.js'
+import { ratingRailEmpty, compareDisciplineRows, disciplineResult, disciplineGroup } from './disciplines.js'
 import { findNearestRival } from './rivalry.js'
 
 describe('результат дисциплины', () => {
@@ -19,3 +19,32 @@ describe('результат дисциплины', () => {
     expect(findNearestRival(rows,'me','time')).toMatchObject({ myPlace:2,gap:30,gapMetric:'time',progress:67 })
   })
 })
+
+describe('ratingRailEmpty: когда прятать строку «Рейтинг»', () => {
+  const member = (id = 'c1') => ({ circle_id: id, my_status: 'active', is_owner: false })
+  const empty = { fetchedAt: 't', items: [] }
+
+  it('без круга и до загрузки кругов строка на месте: она зовет создать круг', () => {
+    expect(ratingRailEmpty(null, {})).toBe(false)
+    expect(ratingRailEmpty([], {})).toBe(false)
+    expect(ratingRailEmpty([{ ...member(), my_status: 'pending' }], { c1: empty })).toBe(false)
+  })
+
+  it('участник круга без дисциплин: тупик, прячем', () => {
+    expect(ratingRailEmpty([member()], { c1: empty })).toBe(true)
+  })
+
+  it('владелец может добавить дисциплины: строка на месте', () => {
+    expect(ratingRailEmpty([{ ...member(), is_owner: true }], { c1: empty })).toBe(false)
+  })
+
+  it('каталог неизвестен (офлайн, первая загрузка): не прячем', () => {
+    expect(ratingRailEmpty([member()], { c1: null })).toBe(false)
+    expect(ratingRailEmpty([member()], {})).toBe(false)
+  })
+
+  it('есть дисциплины хотя бы в одном круге: строка на месте', () => {
+    expect(ratingRailEmpty([member('a'), member('b')], { a: empty, b: { items: [{ id: 'd' }] } })).toBe(false)
+  })
+})
+

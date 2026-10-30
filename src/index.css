@@ -1833,6 +1833,7 @@ html[data-update]:not([data-composer]) .content { padding-top: 64px; }
 
 .feed-layout { display: flex; flex-direction: column; }
 .feed-rail { order: -1; }
+.feed-rail[hidden] { display: none; }
 /* Рейтинг в ленте сворачивается (v6.11.1, FeedScreen): на телефоне по умолчанию
    свернут, на десктопе (сайдбар) кнопки нет и он виден всегда — см. @media ниже. */
 .feed-rail-toggle { margin: 4px 0 12px; }
@@ -3047,6 +3048,7 @@ label.act.busy { opacity: .55; pointer-events: none; }
     grid-template-areas: "main rail";
     gap: 24px; align-items: start;
   }
+  .feed-layout--solo { grid-template-columns: minmax(0, 1fr); grid-template-areas: "main"; }
   .feed-main { grid-area: main; }
   .feed-rail {
     grid-area: rail; order: 0;
@@ -4935,6 +4937,16 @@ img.has-img, .avatar-lightbox-img { -webkit-touch-callout: none; -webkit-user-dr
 }
 .body-eye[aria-pressed="true"] { color: var(--acc-2); background: var(--acc-soft); }
 .body-tabs { margin-bottom: 12px; }
+.body-info {
+  margin-left: auto; width: 44px; height: 44px; flex-shrink: 0; padding: 0;
+  display: inline-flex; align-items: center; justify-content: center;
+  border: 1px solid var(--stroke); border-radius: var(--r-md); background: var(--surface); color: var(--text);
+}
+.body-info:active { background: var(--surface-2); }
+.body-eye + .body-info { margin-left: 0; }
+.body-about { margin-bottom: 12px; }
+.body-about h3 { margin: 0 0 6px; font-size: 17px; font-weight: var(--fw-strong); }
+.body-about p { margin: 0; line-height: 1.45; }
 .body-screen > .btn-row { margin: 14px 0 18px; }
 .body-now-k, .body-hint, .body-stat-k, .body-field-lbl, .body-legend {
   color: var(--muted); font-size: var(--fs-meta); font-weight: 600; margin: 0;

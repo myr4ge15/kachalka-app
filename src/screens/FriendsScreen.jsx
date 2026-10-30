@@ -10,6 +10,8 @@ import FriendCode from '../components/friends/FriendCode.jsx'
 import FriendByCode from '../components/friends/FriendByCode.jsx'
 import FriendLists from '../components/friends/FriendLists.jsx'
 import SheetDialog from '../components/ui/SheetDialog.jsx'
+import PullIndicator from '../components/ui/PullIndicator.jsx'
+import { usePullToRefresh } from '../hooks/usePullToRefresh.js'
 
 // «Друзья» (этап 1, 15.10.2026; сервер — supabase/friends.sql). Взаимная дружба: свой код
 // (сразу друзья), заявки из круга и профиля участника, удалить/заблокировать. Друзья видят
@@ -33,6 +35,16 @@ export default function FriendsScreen({ user, onBack, onOpenMember, friendCode =
   }, [user.id])
   useEffect(() => { load() }, [load, online])
 
+  // Потянуть вниз — обновить, как в Ленте и «Уведомлениях».
+  const rootRef = useRef(null)
+  const [refreshing, setRefreshing] = useState(false)
+  const refresh = useCallback(async () => {
+    if (!navigator.onLine) return
+    setRefreshing(true)
+    try { await load() } finally { if (alive.current) setRefreshing(false) }
+  }, [load])
+  const ptr = usePullToRefresh(rootRef, refresh, refreshing)
+
   // Видимость изменилась — Лента, ростер и рейтинги должны это увидеть.
   const changed = useCallback(async () => {
     await load()
@@ -53,7 +65,8 @@ export default function FriendsScreen({ user, onBack, onOpenMember, friendCode =
   }
 
   return (
-    <div className="screen profile fc-screen">
+    <div className="screen profile fc-screen" ref={rootRef}>
+      <PullIndicator {...ptr} />
       <div className="admin-head">
         <BackButton onClick={onBack} />
         <h2 className="admin-title">Друзья</h2>

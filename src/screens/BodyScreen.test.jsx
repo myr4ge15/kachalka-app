@@ -3,7 +3,7 @@
 // «Как не угнетать» проверяем по DOM — скрытые цифры в него не попадают, без цели нет
 // ни одного зеленого числа, в списке записей — только вес, без разниц день ко дню.
 import 'fake-indexeddb/auto'
-import { afterEach, beforeEach, describe, expect, it } from 'vitest'
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { fireEvent, render, screen, waitFor, within } from '@testing-library/react'
 import { openUserDb, closeUserDb } from '../db/local.js'
 import { uniqueUserId } from '../test/idbHarness.js'
@@ -155,3 +155,18 @@ describe('BodyScreen', () => {
     expect(dlg.textContent).not.toMatch(/82\.5/)
   })
 })
+
+describe('BodyScreen: экран «О разделе»', () => {
+  it('квадратная кнопка i открывает описание поверх, назад возвращает на экран', async () => {
+    const onInnerNav = vi.fn()
+    render(<BodyScreen user={{ id: userId }} onBack={() => {}} onInnerNav={onInnerNav} />)
+    fireEvent.click(await screen.findByRole('button', { name: 'О разделе' }))
+    expect(await screen.findByRole('heading', { name: 'Кто это видит' })).toBeInTheDocument()
+    expect(screen.getByText(/В Ленту, круги, рейтинги и Telegram/)).toBeInTheDocument()
+    expect(onInnerNav).toHaveBeenLastCalledWith(true)
+    fireEvent.click(screen.getAllByRole('button', { name: /назад/i }).at(-1))
+    await waitFor(() => expect(screen.queryByRole('heading', { name: 'Кто это видит' })).toBeNull())
+    expect(onInnerNav).toHaveBeenLastCalledWith(false)
+  })
+})
+

@@ -4,7 +4,8 @@ import { db, getMeta, setMeta } from './local.js'
 import { supabase, isConfigured, hasSession, serverIdentity } from './supabase.js'
 import { withTimeout } from '../lib/withTimeout.js'
 import { shouldRefetchLeaderboard } from '../lib/leaderboardCache.js'
-import { disciplineSignature, compareDisciplineRows } from '../lib/disciplines.js'
+import { disciplineSignature, compareDisciplineRows, ratingRailEmpty } from '../lib/disciplines.js'
+import { getMyCircles } from './circles.js'
 
 const CATALOG = 'rating_catalog'
 // Рейтинг круга («Мой круг», этап 5): свой каталог на круг, доски — по id дисциплины
@@ -17,6 +18,14 @@ const revisions = new WeakMap()
 
 export function getRatingCatalog(circle = null) {
   return db ? getMeta(catalogKey(circle), db).then(v => v ?? null) : Promise.resolve(null)
+}
+
+// Прятать ли строку «Рейтинг» в Ленте — по снимкам кругов и каталогов (правило — lib/disciplines.js).
+export async function ratingRailHidden() {
+  const circles = await getMyCircles()
+  const catalogs = {}
+  for (const c of circles ?? []) catalogs[c.circle_id] = await getRatingCatalog(c.circle_id)
+  return ratingRailEmpty(circles, catalogs)
 }
 
 export async function getRatingBoard(discipline) {
