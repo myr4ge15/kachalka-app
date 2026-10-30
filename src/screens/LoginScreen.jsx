@@ -271,7 +271,7 @@ export default function LoginScreen({ onLogin, onInvite }) {
           </button>
         </div>
         {confirmForget && (
-          <p className="muted invite-note">Тренировки не пропадут — потом войдешь по имени и PIN.</p>
+          <p className="muted invite-note">Тренировки не пропадут — потом войдешь по логину и PIN.</p>
         )}
       </div>
     </div>

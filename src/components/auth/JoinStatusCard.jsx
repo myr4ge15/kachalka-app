@@ -23,7 +23,7 @@ export default function JoinStatusCard({ pending, joinNote, onInvite, onCheck, o
     return (
       <div className="join-status" role="status">
         <p><b>Тебя приняли в круг 🎉</b></p>
-        <p className="muted">Осталось придумать PIN и войти.</p>
+        <p className="muted">Осталось придумать логин, PIN и имя.</p>
         <button className="btn primary" onClick={() => onInvite?.(pending.token)}>Зарегистрироваться</button>
         <button className="link-btn" onClick={onForget}>Убрать</button>
       </div>
