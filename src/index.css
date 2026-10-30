@@ -505,6 +505,7 @@ select.prog-select, select.admin-input {
 .screen.center {
   height: 100vh; height: 100dvh;
   display: flex; align-items: center; justify-content: center;
+  align-items: safe center; /* карточка выше экрана: без safe ее верх уходит туда, куда не докрутить */
   overflow-y: auto; overscroll-behavior: contain;
   /* Вход/загрузка/ошибки рендерятся ВНЕ .app и ограничены по ширине (max-width от
      .screen). Aurora-градиент на этом узком боксе рисовался только по центру, а по
@@ -4303,6 +4304,8 @@ html[data-sheet-open] .content { overflow-y: hidden; }
 /* вход по имени, «Хочу в круг» (v6.12.0) */
 .login-alt { display: flex; flex-wrap: wrap; justify-content: center; gap: 4px 16px; margin-top: 14px; }
 .login-alt .link-btn { min-height: 44px; font-weight: 600; }
+.forgot-form .btn.ghost { margin-top: 0; }
+.forgot-form .login-alt { margin-top: 0; }
 .join-status {
   margin-top: 14px; padding: 12px 14px; border-radius: var(--r-lg); background: var(--acc-soft);
   display: flex; flex-direction: column; gap: 6px; align-items: center; text-align: center;

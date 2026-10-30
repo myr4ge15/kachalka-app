@@ -107,7 +107,7 @@ export default function ForgotPin({ initialLogin = '', onBack, onLogin }) {
 
   if (way === 'code') {
     return (
-      <form className="invite-form" onSubmit={byCode} noValidate>
+      <form className="invite-form forgot-form" onSubmit={byCode} noValidate>
         <p className="invite-lead">Восстановление по коду</p>
         {loginField}
         <div className="field">
@@ -120,8 +120,8 @@ export default function ForgotPin({ initialLogin = '', onBack, onLogin }) {
         <NewPinFields pin={pin} pin2={pin2} onPin={edit(setPin)} onPin2={edit(setPin2)} disabled={busy} />
         {error && <p className="error" role="alert">{error}</p>}
         <button className="btn primary" type="submit" disabled={busy}>{busy ? 'Проверяю…' : 'Сменить PIN и войти'}</button>
+        <button type="button" className="btn ghost" disabled={busy} onClick={() => { setError(''); setWay('tg') }}>Через Telegram</button>
         <div className="login-alt">
-          <button type="button" className="link-btn" disabled={busy} onClick={() => { setError(''); setWay('tg') }}>Через Telegram</button>
           <button type="button" className="link-btn" disabled={busy} onClick={onBack}>К входу</button>
         </div>
       </form>
@@ -129,13 +129,13 @@ export default function ForgotPin({ initialLogin = '', onBack, onLogin }) {
   }
 
   return (
-    <form className="invite-form" onSubmit={sendLink} noValidate>
+    <form className="invite-form forgot-form" onSubmit={sendLink} noValidate>
       <p className="invite-lead">Бот в Telegram пришлет ссылку — по ней задашь новый PIN.</p>
       {loginField}
       {error && <p className="error" role="alert">{error}</p>}
       <button className="btn primary" type="submit" disabled={busy}>{busy ? <BusyText>Отправляю</BusyText> : 'Прислать ссылку в Telegram'}</button>
+      <button type="button" className="btn ghost" disabled={busy} onClick={() => { setError(''); setWay('code') }}>Нет Telegram? Восстановить кодом</button>
       <div className="login-alt">
-        <button type="button" className="link-btn" disabled={busy} onClick={() => { setError(''); setWay('code') }}>Нет Telegram? Восстановить кодом</button>
         <button type="button" className="link-btn" disabled={busy} onClick={onBack}>К входу</button>
       </div>
       <p className="muted invite-note">Нет ни Telegram, ни кода — попроси админа сбросить PIN.</p>
