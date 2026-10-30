@@ -19,6 +19,11 @@ describe('AppearanceScreen', () => {
     expect(screen.getAllByRole('radio')).toHaveLength(8)
   })
 
+  it('превью неактивно: кнопки образца не ловят фокус', () => {
+    const { container } = render(<AppearanceScreen onBack={() => {}} storage={memStorage()} root={document.createElement('div')} />)
+    expect(container.querySelector('.appearance-preview')).toHaveAttribute('inert')
+  })
+
   it('выбор готового акцента применяется и сохраняется', () => {
     const st = memStorage()
     const root = document.createElement('div')
