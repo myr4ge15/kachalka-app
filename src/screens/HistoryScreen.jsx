@@ -1,4 +1,5 @@
 import PhaseTag from '../components/workout/PhaseTag.jsx'
+import { localYmd } from '../lib/calendar.js'
 import Chevron from '../components/ui/Chevron.jsx'
 import MenuRow from '../components/ui/MenuRow.jsx'
 import { useState, useMemo, useEffect, useRef } from 'react'
@@ -102,6 +103,7 @@ export default function HistoryScreen({
   // Фильтр по группе мышц (null = «Все»). Чипы строим только из реально
   // встречающихся групп, чтобы не показывать пустые.
   const [filter, setFilter] = useState(null)
+  const [monthFilter, setMonthFilter] = useState(null)
   // Календарь (v6.3.0): false — закрыт, иначе { date } — с какого дня открыть.
   const [calendar, setCalendar] = useState(false)
   // Пришли из Ритма (интент календаря) — выход из этой «вылазки» ведет обратно на Главную.
@@ -112,8 +114,8 @@ export default function HistoryScreen({
   const [calendarReturn, setCalendarReturn] = useState(null)
   const groups = useMemo(() => availableGroups(list), [list])
   const shown = useMemo(
-    () => list.filter((w) => matchesGroup(w.entries, filter)),
-    [list, filter]
+    () => list.filter((w) => matchesGroup(w.entries, filter) && (!monthFilter || localYmd(w.performed_at).startsWith(monthFilter))),
+    [list, filter, monthFilter]
   )
 
   // Режим экспорта: мультивыбор тренировок из списка → выгрузка в JSON. Общий хук
@@ -127,8 +129,11 @@ export default function HistoryScreen({
     if (openCalendar === false) return
     setSelected(null)
     setCalendarReturn(null)
-    setCalendar({ date: openCalendar })
-    setFromRhythm(Boolean(onReturn))
+    const targetMonth = typeof openCalendar === 'object' ? openCalendar?.month : null
+    setMonthFilter(targetMonth ?? null)
+    if (targetMonth) setFilter(null)
+    setCalendar({ date: targetMonth ? `${targetMonth}-01` : openCalendar, monthOnly: Boolean(targetMonth) })
+    setFromRhythm(Boolean(onReturn) && !targetMonth)
     onOpenCalendarConsumed?.()
   }, [openCalendar, onOpenCalendarConsumed, onReturn])
 
@@ -305,6 +310,8 @@ export default function HistoryScreen({
         workouts={shown}
         filter={filter}
         initialDate={calendar.date}
+        monthOnly={calendar.monthOnly}
+        onMonthChange={calendar.monthOnly ? setMonthFilter : undefined}
         onDismiss={() => {
           setCalendar(false)
           backFromRhythmOr(() => {})
@@ -343,6 +350,7 @@ export default function HistoryScreen({
           </div>
         )}
 
+        {monthFilter && <button type="button" className="chip active" onClick={() => setMonthFilter(null)}>{new Date(`${monthFilter}-01T12:00:00`).toLocaleDateString('ru-RU', { month: 'long', year: 'numeric' })} · Сбросить</button>}
         {groups.length > 0 && (
           <div className="chips tag-filter">
             <button

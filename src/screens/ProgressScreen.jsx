@@ -16,7 +16,6 @@ import { buildGoalGuide, selectProgressGoal } from '../lib/progressGoal.js'
 import { localYmd, toDate } from '../lib/calendar.js'
 import CardsSkeleton from '../components/ui/CardsSkeleton.jsx'
 import EmptyHint from '../components/ui/EmptyHint.jsx'
-import MonthlySummary from '../components/progress/MonthlySummary.jsx'
 
 function fmtDate(iso) {
   const d = toDate(iso) // 'YYYY-MM-DD' — местный день, а не UTC-полночь
@@ -210,7 +209,6 @@ export default function ProgressScreen({
   return (
     <div className="screen prog-screen">
       <h2 className="screen-title">Прогресс</h2>
-      {!loading && <MonthlySummary workouts={workouts ?? []} />}
       <p className="muted sub">
         {weighted
           ? <>

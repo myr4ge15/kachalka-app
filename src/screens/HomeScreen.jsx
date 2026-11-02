@@ -3,7 +3,8 @@ import Chevron from '../components/ui/Chevron.jsx'
 import { useEffect, useRef, useState } from 'react'
 import { fmtHomeTitle } from '../lib/dates.js'
 import { useLiveQuery } from 'dexie-react-hooks'
-import { getHomeData } from '../db/insights.js'
+import { getHomeData, dismissMonthlySummary } from '../db/insights.js'
+import { getWorkouts } from '../db/repo.js'
 import { fmtDaysAgo } from '../lib/homeSummary.js'
 import { fmtTonnage } from '../lib/profileStats.js'
 import { fmtMetricValue } from '../lib/metric.js'
@@ -17,7 +18,8 @@ import { useRevealFocus } from '../hooks/useRevealFocus.js'
 import CardsSkeleton from '../components/ui/CardsSkeleton.jsx'
 import EmptyHint from '../components/ui/EmptyHint.jsx'
 import { monthOf, shiftMonth } from '../lib/calendar.js'
-import { monthLabel } from '../lib/monthlySummary.js'
+import { monthKey, monthLabel } from '../lib/monthlySummary.js'
+import MonthlySummary from '../components/progress/MonthlySummary.jsx'
 import '../components/progress/MonthlySummary.css'
 
 // Полоска свежести в тизере — в каноническом порядке групп (стабильно), не по
@@ -66,7 +68,22 @@ const HOME_EMPTY_ITEMS = [
   { e: '🏆', t: 'Рекорды и выводы по твоим тренировкам' },
 ]
 
-export default function HomeScreen({ user, onNavigate, onNewWorkout, onOpenProgress, onOpenCalendar, focusRhythm = false, onFocusRhythmConsumed }) {
+export default function HomeScreen({ user, onNavigate, onNewWorkout, onOpenProgress, onOpenCalendar, onMonthlyWorkouts, focusRhythm = false, onFocusRhythmConsumed }) {
+  const [monthlyOpen, setMonthlyOpen] = useState(false)
+  const [monthlyHidden, setMonthlyHidden] = useState(null)
+  const [monthlyError, setMonthlyError] = useState(false)
+  const reportMonth = shiftMonth(monthOf(new Date()), -1)
+  const reportKey = monthKey(reportMonth)
+  const monthlyWorkouts = useLiveQuery(() => monthlyOpen ? getWorkouts(user.id) : undefined, [user.id, monthlyOpen])
+  async function closeMonthly() {
+    try {
+      await dismissMonthlySummary(user.id, reportKey)
+      setMonthlyHidden(reportKey)
+      setMonthlyOpen(false)
+      setMonthlyError(false)
+      return true
+    } catch { setMonthlyError(true); return false }
+  }
   const [openWeek, setOpenWeek] = useState(null)
   const [rhHelp, setRhHelp] = useState(false) // пояснение к Ритму свернуто (v6.5.1)
   const openWeekRef = useRevealFocus(openWeek)
@@ -145,9 +162,12 @@ export default function HomeScreen({ user, onNavigate, onNewWorkout, onOpenProgr
   return (
     <div className="screen home">
       <h2 className="screen-title">{fmtHomeTitle()}</h2>
-      {summary?.hasData && <button type="button" className="card monthly-teaser" onClick={() => onNavigate?.('progress')}>
-        {monthLabel(shiftMonth(monthOf(new Date()), -1))}: итоги в цифрах →
+      {summary?.hasData && home?.monthlyDismissed !== reportKey && monthlyHidden !== reportKey && <button type="button" className="card monthly-teaser" onClick={() => setMonthlyOpen(true)}>
+        <span className="muted">Твой месяц в цифрах</span>
+        <strong>{monthLabel(reportMonth)} <span aria-hidden="true">→</span></strong>
       </button>}
+      {monthlyOpen && <MonthlySummary workouts={Array.isArray(monthlyWorkouts) ? monthlyWorkouts : []} loading={monthlyWorkouts === undefined} month={reportMonth} onDismiss={closeMonthly} error={monthlyError}
+        onOpenWorkouts={async () => { if (await closeMonthly()) onMonthlyWorkouts?.(reportKey) }} />}
 
       {/* Главное действие. Дублирует «+» меню намеренно: на Главной это первое, что
           ищет глаз, и сразу видно, как давно была прошлая тренировка. */}

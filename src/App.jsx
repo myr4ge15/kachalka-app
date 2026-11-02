@@ -372,6 +372,7 @@ export default function App() {
                   onNewWorkout={startNewWorkout}
                   onOpenProgress={openProgressFor}
                   onOpenCalendar={openCalendarAt}
+                  onMonthlyWorkouts={(month) => openCalendarAt({ month })}
                   focusRhythm={focusRhythm}
                   onFocusRhythmConsumed={() => setFocusRhythm(false)}
                 />

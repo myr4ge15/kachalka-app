@@ -26,10 +26,10 @@ const DAY_TITLE = new Intl.DateTimeFormat('ru-RU', { weekday: 'long', day: 'nume
 //   initialDate  — день, который открыть и выделить (Date/ISO); по умолчанию сегодня
 //   onOpen(id, day) — открыть тренировку; day — выбранный день 'YYYY-MM-DD', чтобы
 //                  экран мог вернуть календарь на то же место; onDismiss — закрыть лист
-export default function WorkoutCalendar({ workouts, filter = null, initialDate = null, onOpen, onDismiss }) {
+export default function WorkoutCalendar({ workouts, filter = null, initialDate = null, monthOnly = false, onMonthChange, onOpen, onDismiss }) {
   const today = useMemo(() => new Date(), [])
   const [month, setMonth] = useState(() => monthOf(initialDate ?? today))
-  const [picked, setPicked] = useState(() => (initialDate ? localYmd(initialDate) : null))
+  const [picked, setPicked] = useState(() => (initialDate && !monthOnly ? localYmd(initialDate) : null))
   const byDay = useMemo(() => workoutsByDay(workouts), [workouts])
   const weeks = useMemo(() => monthGrid(month, { today }), [month, today])
   const count = countInMonth(byDay, month)
@@ -37,7 +37,9 @@ export default function WorkoutCalendar({ workouts, filter = null, initialDate =
 
   function go(n) {
     if (n > 0 && atCurrent) return // будущие месяцы пусты — не листаем туда
-    setMonth((m) => shiftMonth(m, n))
+    const next = shiftMonth(month, n)
+    setMonth(next)
+    onMonthChange?.(`${next.year}-${String(next.month + 1).padStart(2, '0')}`)
     setPicked(null)
   }
 

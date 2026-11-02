@@ -1,7 +1,7 @@
 import { test, expect } from '@playwright/test'
-import { enterPin, tabbar } from './helpers.js'
+import { enterPin, tabbar, openTab } from './helpers.js'
 
-test('итоги месяца скрыты до первой записи и работают офлайн после сохранения', async ({ page, context }) => {
+test('одноразовые итоги ведут в календарь месяца и не возвращаются после перезагрузки', async ({ page, context }) => {
   await context.addInitScript(() => {
     Object.defineProperty(window.navigator, 'onLine', { get: () => false, configurable: true })
   })
@@ -12,23 +12,43 @@ test('итоги месяца скрыты до первой записи и р�
   await page.getByRole('button', { name: user.name }).click()
   await enterPin(page, user.pin)
   await expect(tabbar(page)).toBeVisible()
-  await expect(page.getByRole('button', { name: /итоги в цифрах/ })).toHaveCount(0)
+  await expect(page.getByRole('button', { name: /Твой месяц в цифрах/ })).toHaveCount(0)
   await page.evaluate(async (userId) => {
     const [{ saveWorkout }, { E2E_EXERCISES }] = await Promise.all([
       import('/kachalka-app/src/db/repo.js'), import('/kachalka-app/src/test/e2eSeed.js'),
     ])
     const now = new Date()
-    await saveWorkout({ user_id: userId, performed_at: new Date(now.getFullYear(), now.getMonth() - 1, 15, 12).toISOString(), entries: [{ exercise: E2E_EXERCISES[0], sets: [{ weight: 60, reps: 5 }] }] })
+    for (const day of [1, 2, 3, 4, 5, 6, 7, 8, 9]) {
+      await saveWorkout({ user_id: userId, performed_at: new Date(now.getFullYear(), now.getMonth() - 1, day, 12).toISOString(), entries: [{ exercise: E2E_EXERCISES[0], sets: [{ weight: 50 + day, reps: 5 }] }] })
+    }
+    await saveWorkout({ user_id: userId, performed_at: new Date(now.getFullYear(), now.getMonth(), 1, 12).toISOString(), entries: [{ exercise: E2E_EXERCISES[0], sets: [{ weight: 60, reps: 5 }] }] })
   }, user.id)
-  await page.getByRole('button', { name: /итоги в цифрах/ }).click()
-  const summary = page.getByRole('region', { name: 'Итоги месяца' })
-  await expect(summary).toBeVisible()
+  await page.getByRole('button', { name: /Твой месяц в цифрах/ }).click()
+  const summary = page.getByRole('dialog', { name: 'Итоги месяца' })
   await expect(summary.getByText('Рабочие подходы')).toBeVisible()
-  await summary.getByRole('button', { name: 'Посмотреть тренировки месяца' }).click()
-  await expect(summary.getByText(/Жим лежа \(e2e\):/)).toBeVisible()
-  await expect(summary.getByText('Личные рекорды', { exact: false })).toHaveCount(0)
+  await expect(summary.getByRole('heading', { level: 2 })).toHaveText('9тренировок')
   await page.screenshot({ path: 'test-results/monthly-summary.png', fullPage: true })
-  await summary.getByRole('button', { name: 'Следующий месяц' }).click()
-  await expect(summary.getByText(/Месяц еще идет/)).toBeVisible()
-  await expect(summary.getByText('За этот месяц пока нет тренировок.')).toBeVisible()
+  await summary.getByRole('button', { name: 'Тренировки за месяц' }).click()
+  const calendar = page.getByRole('dialog', { name: 'Календарь' })
+  await expect(calendar).toBeVisible()
+  await expect(calendar.getByText('9 тренировок', { exact: true })).toBeVisible()
+  await expect(calendar.getByText('Нет тренировок в этот день.')).toHaveCount(0)
+  await calendar.getByRole('button', { name: 'закрыть', exact: true }).click()
+  await expect(page.getByRole('heading', { name: 'Мои тренировки' })).toBeVisible()
+  await expect(page.getByRole('button', { name: /Сбросить/ })).toBeVisible()
+  await openTab(page, 'Главная')
+  await expect(page.getByRole('button', { name: /Твой месяц в цифрах/ })).toHaveCount(0)
+  await page.reload()
+  await expect(tabbar(page)).toBeVisible()
+  await expect(page.getByRole('button', { name: /Твой месяц в цифрах/ })).toHaveCount(0)
+  await openTab(page, 'Прогресс')
+  await expect(page.getByText('Итоги месяца', { exact: true })).toHaveCount(0)
+  const nextMonth = new Date()
+  nextMonth.setMonth(nextMonth.getMonth() + 1, 2)
+  await page.clock.setFixedTime(nextMonth)
+  await openTab(page, 'Главная')
+  await page.getByRole('button', { name: /Твой месяц в цифрах/ }).click()
+  await page.getByRole('button', { name: 'Готово', exact: true }).click()
+  await expect(page.getByRole('dialog', { name: 'Итоги месяца' })).toHaveCount(0)
+  await expect(page.getByRole('button', { name: /Твой месяц в цифрах/ })).toHaveCount(0)
 })

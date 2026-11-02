@@ -1,12 +1,15 @@
 // @vitest-environment jsdom
 import { beforeEach, describe, expect, it, vi } from 'vitest'
-import { fireEvent, render, screen } from '@testing-library/react'
+import { fireEvent, render, screen, waitFor } from '@testing-library/react'
+import { dismissMonthlySummary } from '../db/insights.js'
+import { monthKey } from '../lib/monthlySummary.js'
+import { monthOf, shiftMonth } from '../lib/calendar.js'
 import { useLiveQuery } from 'dexie-react-hooks'
 import { fmtHomeTitle } from '../lib/dates.js'
 import HomeScreen from './HomeScreen.jsx'
 
 vi.mock('dexie-react-hooks', () => ({ useLiveQuery: vi.fn() }))
-vi.mock('../db/insights.js', () => ({ getHomeData: vi.fn() }))
+vi.mock('../db/insights.js', () => ({ getHomeData: vi.fn(), dismissMonthlySummary: vi.fn().mockResolvedValue(undefined) }))
 
 const user = { id: 'u1', name: 'Саня' }
 const scrollIntoView = vi.fn()
@@ -47,15 +50,34 @@ const readyHome = {
 }
 
 describe('HomeScreen', () => {
-  it('сводка появляется только после первой тренировки и открывает Прогресс', () => {
+  it('не предлагает просмотренный месяц, но предлагает следующий отчет', () => {
+    const closed = monthKey(shiftMonth(monthOf(new Date()), -1))
+    vi.mocked(useLiveQuery).mockReturnValue({ ...readyHome, monthlyDismissed: closed })
+    const { rerender } = render(<HomeScreen user={user} />)
+    expect(screen.queryByRole('button', { name: /Твой месяц в цифрах/ })).toBeNull()
+    vi.mocked(useLiveQuery).mockReturnValue({ ...readyHome, monthlyDismissed: '2020-01' })
+    rerender(<HomeScreen user={user} />)
+    expect(screen.getByRole('button', { name: /Твой месяц в цифрах/ })).toBeInTheDocument()
+  })
+  it('сохраняет закрытие и скрывает предложение сразу', async () => {
+    vi.mocked(useLiveQuery).mockReturnValue(readyHome)
+    render(<HomeScreen user={user} />)
+    fireEvent.click(screen.getByRole('button', { name: /Твой месяц в цифрах/ }))
+    fireEvent.click(screen.getByRole('button', { name: 'Готово' }))
+    await waitFor(() => expect(screen.queryByRole('dialog')).toBeNull())
+    expect(dismissMonthlySummary).toHaveBeenCalledWith(user.id, monthKey(shiftMonth(monthOf(new Date()), -1)))
+    expect(screen.queryByRole('button', { name: /Твой месяц в цифрах/ })).toBeNull()
+  })
+  it('сводка появляется только после первой тренировки и открывается отдельно', () => {
     const onNavigate = vi.fn()
     vi.mocked(useLiveQuery).mockReturnValue({ ...readyHome, summary: { ...readyHome.summary, hasData: false } })
     const { rerender } = render(<HomeScreen user={user} onNavigate={onNavigate} />)
-    expect(screen.queryByRole('button', { name: /итоги в цифрах/ })).toBeNull()
+    expect(screen.queryByRole('button', { name: /Твой месяц в цифрах/ })).toBeNull()
     vi.mocked(useLiveQuery).mockReturnValue(readyHome)
     rerender(<HomeScreen user={user} onNavigate={onNavigate} />)
-    fireEvent.click(screen.getByRole('button', { name: /итоги в цифрах/ }))
-    expect(onNavigate).toHaveBeenCalledWith('progress')
+    fireEvent.click(screen.getByRole('button', { name: /Твой месяц в цифрах/ }))
+    expect(screen.getByRole('dialog', { name: 'Итоги месяца' })).toBeInTheDocument()
+    expect(onNavigate).not.toHaveBeenCalled()
   })
   beforeEach(() => {
     vi.mocked(useLiveQuery).mockReset()

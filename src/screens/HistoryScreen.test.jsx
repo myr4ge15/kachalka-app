@@ -60,6 +60,19 @@ const workout = {
 }
 
 describe('HistoryScreen', () => {
+  it('открывает календарь всего месяца и сохраняет фильтр списка без возврата в Ритм', () => {
+    const onReturn = vi.fn()
+    vi.mocked(useLiveQuery).mockReturnValue([workout, { ...workout, id: 'other', performed_at: '2026-06-01T12:00:00' }])
+    render(<HistoryScreen user={user} openCalendar={{ month: '2026-07' }} onOpenCalendarConsumed={vi.fn()} onReturn={onReturn} />)
+    const calendar = screen.getByRole('dialog', { name: 'Календарь' })
+    expect(calendar).toHaveTextContent('1 тренировка')
+    expect(screen.queryByText('Нет тренировок в этот день.')).toBeNull()
+    fireEvent.click(screen.getByRole('button', { name: 'закрыть', exact: true }))
+    expect(onReturn).not.toHaveBeenCalled()
+    const clear = screen.getByRole('button', { name: /июль 2026 г.*Сбросить/ })
+    fireEvent.click(clear)
+    expect(screen.queryByRole('button', { name: /Сбросить/ })).toBeNull()
+  })
   beforeEach(() => {
     vi.mocked(useLiveQuery).mockReset()
     vi.mocked(useLiveQuery).mockReturnValue([workout])

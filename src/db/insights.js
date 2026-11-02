@@ -8,6 +8,7 @@
 // снимок лидерборда (getCachedLeaderboard). Сеть не требуется — офлайн-доступно.
 // ============================================================================
 import { getWorkouts, getCachedUser } from './repo.js'
+import { getMeta, setMeta } from './local.js'
 import { getCachedLeaderboard } from './leaderboard.js'
 import { readGoals } from './notifications.js'
 import { buildInsights } from '../lib/insights.js'
@@ -49,6 +50,7 @@ export async function getHomeData(userId, { max = 3 } = {}) {
   ])
   return {
     sex,
+    monthlyDismissed: await getMeta(`monthly_dismissed_${userId}`),
     summary: buildHomeSummary({ workouts, goals }),
     insights: buildInsights({ workouts, leaderboard, userId, max, sex }),
     freshness: {
@@ -63,6 +65,10 @@ export async function getHomeData(userId, { max = 3 } = {}) {
 
 // Инсайты именно этой (только что сохраненной) тренировки — для тоста после
 // сохранения. leaderboard тоже тянем, чтобы «обгон» мог всплыть сразу.
+export async function dismissMonthlySummary(userId, month) {
+  await setMeta(`monthly_dismissed_${userId}`, month)
+}
+
 export async function detectInsightsOnSave(userId, workoutId, { max = 3 } = {}) {
   const [workouts, leaderboard, sex] = await Promise.all([getWorkouts(userId), safeLeaderboard(), mySex(userId)])
   return buildInsights({ workouts, leaderboard, userId, contextWorkoutId: workoutId, max, sex })
