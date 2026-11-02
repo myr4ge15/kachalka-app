@@ -1,3 +1,18 @@
+.domain-migration {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  padding: 12px;
+  margin-bottom: 12px;
+  border: 1px solid var(--acc);
+  border-radius: var(--r-card);
+  background: var(--surface-solid);
+  font-size: var(--fs-small);
+}
+.domain-migration .btn { min-height: 44px; }
+
 /* ============================================================================
    Onest — самохостинг (редизайн Aurora Glass, слайс 0). CSP разрешает font-src
    'self', поэтому шрифт грузим со своего origin, без Google Fonts. Sora из плана

@@ -1,6 +1,6 @@
 // @vitest-environment jsdom
-import { describe, it, expect, beforeEach } from 'vitest'
-import { readDraft, writeDraft, clearDraft, resetDraftMemory } from './draftStore.js'
+import { describe, it, expect, beforeEach, vi } from 'vitest'
+import { readDraft, writeDraft, clearDraft, resetDraftMemory, hasWorkoutDrafts } from './draftStore.js'
 
 beforeEach(() => {
   resetDraftMemory()
@@ -8,6 +8,28 @@ beforeEach(() => {
 })
 
 describe('draftStore', () => {
+  it('переезд учитывает новые и редактируемые черновики своей учетки, включая память', () => {
+    writeDraft('workout_draft_new_other', ['x'])
+    expect(hasWorkoutDrafts('u1')).toBe(false)
+    writeDraft('workout_draft_new_u1', ['x'])
+    localStorage.removeItem('gym_app_workout_draft_new_u1')
+    expect(hasWorkoutDrafts('u1')).toBe(true)
+    clearDraft('workout_draft_new_u1')
+    localStorage.setItem('gym_app_workout_edit_u1_w1', JSON.stringify({ entries: ['x'] }))
+    expect(hasWorkoutDrafts('u1')).toBe(true)
+    clearDraft('workout_edit_u1_w1')
+    writeDraft('workout_draft_new_u1', [])
+    expect(hasWorkoutDrafts('u1')).toBe(false)
+  })
+  it('битый черновик не считается подтверждением сохранности', () => {
+    localStorage.setItem('gym_app_workout_edit_u1_w1', '{broken')
+    expect(() => hasWorkoutDrafts('u1')).toThrow()
+  })
+  it('недоступное хранилище не считается пустым', () => {
+    vi.stubGlobal('localStorage', null)
+    try { expect(() => hasWorkoutDrafts('u1')).toThrow(/черновики/) }
+    finally { vi.unstubAllGlobals() }
+  })
   it('пишет черновик на диск и поднимает его после сброса памяти (перезапуск)', () => {
     writeDraft('workout_draft_new_u1', [{ exercise: { id: 'bench' }, sets: [{ weight: 60, reps: 8 }] }])
     resetDraftMemory()

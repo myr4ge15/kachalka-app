@@ -59,6 +59,22 @@ export function clearDraft(key) {
   } catch { /* нечего чистить */ }
 }
 
+// Черновики не синкаются. Учитываем память, даже если запись на диск не прошла.
+export function hasWorkoutDrafts(userId) {
+  const keys = new Set(memory.keys())
+  const s = storage()
+  if (!s) throw new Error('Не удалось проверить сохраненные черновики')
+  for (let i = 0; i < s.length; i++) {
+    const key = s.key(i)
+    if (key?.startsWith(PREFIX)) keys.add(key.slice(PREFIX.length))
+  }
+  return [...keys].some((key) => {
+    if (key !== `workout_draft_new_${userId}` && !key.startsWith(`workout_edit_${userId}_`)) return false
+    const value = memory.has(key) ? memory.get(key) : JSON.parse(s.getItem(PREFIX + key))
+    return !isEmpty(value)
+  })
+}
+
 // Только для тестов: сбросить слой памяти (localStorage тест чистит сам).
 export function resetDraftMemory() {
   memory.clear()

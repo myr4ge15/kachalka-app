@@ -11,14 +11,15 @@ set -euo pipefail
 export SENTRY_ORG="${SENTRY_ORG:-kachalka}"
 export SENTRY_PROJECT="${SENTRY_PROJECT:-kachalka-app}"
 
+build_dir="${BUILD_DIR:-dist}"
 base="${APP_BASE:-/}"
 base="${base%/}"
-release="$(node -p "require('./dist/version.json').version")"
+release="$(node -p "JSON.parse(require('fs').readFileSync(process.argv[1], 'utf8')).version" "$build_dir/version.json")"
 
 # Адрес в кадре стека — https://<хост><база>/assets/<файл>.js; «~» = любой хост.
 npx --yes @sentry/cli@3.8.1 sourcemaps upload \
   --release "$release" \
   --url-prefix "~${base}/assets" \
-  dist/assets
+  "$build_dir/assets"
 
 echo "Source maps релиза ${release} загружены в Sentry."

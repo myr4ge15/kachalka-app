@@ -16,6 +16,7 @@ import { isNested } from './lib/screenNav.js'
 import { useAccentSync } from './hooks/useAccentSync.js'
 import { IS_BETA } from './lib/appVersion.js'
 import LoginScreen from './screens/LoginScreen.jsx'
+import DomainMigration from './components/app/DomainMigration.jsx'
 import InviteScreen from './screens/InviteScreen.jsx'
 import LoginSetupScreen from './screens/LoginSetupScreen.jsx'
 import { inviteFromUrl, stripInvite } from './lib/invite.js'
@@ -358,6 +359,7 @@ export default function App() {
       {viewAll && <ViewAllBanner userId={user.id} until={viewAll.until} />}
 
       <main className="content" ref={contentRef}>
+        <DomainMigration key={`migration-${user.id}`} userId={user.id} />
         <div className="nav-stack" key={user.id}>
           {routeAnim.stack.map((route, index) => (
             <div key={route} data-route={route}

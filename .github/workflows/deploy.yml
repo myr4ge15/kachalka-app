@@ -164,6 +164,8 @@ jobs:
       - name: Build
         env:
           VITE_APP_BASE: ${{ vars.VITE_APP_BASE }}
+          # Пусто = подготовка; announce/retire включаем после проверки нового домена.
+          VITE_DOMAIN_MIGRATION: ${{ vars.VITE_DOMAIN_MIGRATION }}
           VITE_SUPABASE_URL: ${{ secrets.VITE_SUPABASE_URL }}
           VITE_SUPABASE_KEY: ${{ secrets.VITE_SUPABASE_KEY }}
           VITE_SUPABASE_REF: ${{ secrets.VITE_SUPABASE_REF }}
@@ -184,6 +186,34 @@ jobs:
       - name: Убрать .map из публикации
         if: always()
         run: find dist -name '*.map' -delete
+
+      # Отдельная сборка: старый Pages URL сохраняет /kachalka-app/.
+      # VDS проксирует /app/ → /kachalka-app/app/; пути внутри новой сборки — /app/.
+      - name: Сборка для нового адреса без переноса с GitHub Pages
+        env:
+          VITE_APP_BASE: /app/
+          VITE_DOMAIN_MIGRATION: ''
+          VITE_SUPABASE_URL: ${{ secrets.VITE_SUPABASE_URL }}
+          VITE_SUPABASE_KEY: ${{ secrets.VITE_SUPABASE_KEY }}
+          VITE_SUPABASE_REF: ${{ secrets.VITE_SUPABASE_REF }}
+          VITE_VAPID_PUBLIC_KEY: ${{ secrets.VITE_VAPID_PUBLIC_KEY }}
+          VITE_SENTRY_DSN: ${{ secrets.VITE_SENTRY_DSN }}
+          SENTRY_SOURCEMAPS: ${{ secrets.SENTRY_AUTH_TOKEN && '1' || '' }}
+        run: npm run build -- --outDir dist-domain
+
+      - name: Source maps нового адреса в Sentry
+        if: ${{ env.SENTRY_AUTH_TOKEN != '' }}
+        continue-on-error: true
+        env:
+          APP_BASE: /app/
+          BUILD_DIR: dist-domain
+        run: bash scripts/upload-sourcemaps.sh
+
+      - name: Добавить новую сборку в публикацию без .map
+        run: |
+          find dist-domain -name '*.map' -delete
+          mv dist-domain dist/app
+          node scripts/check-domain-build.mjs
 
       - uses: actions/upload-pages-artifact@fc324d3547104276b827a68afc52ff2a11cc49c9 # v5.0.0
         with:

@@ -1,6 +1,7 @@
 node_modules
 dist
 dist-ssr
+dist-domain/
 *.local
 .env
 .env.*
