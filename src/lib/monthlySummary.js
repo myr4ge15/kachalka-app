@@ -2,6 +2,7 @@ import { localYmd, monthOf, shiftMonth } from './calendar.js'
 import { sortDesc, mainEntries, currentExerciseShapes, entryExId, entryUnitMetric } from './entries.js'
 import { leadingValue } from './metric.js'
 import { isNonMuscleGroup, isNonMuscleSub } from './muscles.js'
+import { totalTonnage } from './profileStats.js'
 
 export function monthKey({ year, month }) {
   return `${year}-${String(month + 1).padStart(2, '0')}`
@@ -29,11 +30,19 @@ export function buildMonthlySummary(workouts, month, { now = new Date() } = {}) 
   const best = new Map()
   const records = new Map()
   const groups = new Map()
+  const exercises = new Map()
   for (const w of [...history].reverse()) {
     const inMonth = localYmd(w.performed_at).startsWith(key)
+    const seenExercises = new Set()
     for (const e of mainEntries(w)) {
       const id = entryExId(e)
       const shape = shapes.get(id)
+      if (inMonth && id && e.sets?.length && !seenExercises.has(id)) {
+        seenExercises.add(id)
+        const rec = exercises.get(id) ?? { id, name: shape?.name ?? e.exercise?.name ?? e.name ?? 'Упражнение', workouts: 0 }
+        rec.workouts++
+        exercises.set(id, rec)
+      }
       const metric = entryUnitMetric(e, shape?.metric)
       const value = leadingValue(metric, e.sets)
       const recordKey = `${id}:${metric}`
@@ -54,9 +63,10 @@ export function buildMonthlySummary(workouts, month, { now = new Date() } = {}) 
     available: history.length > 0,
     key, workouts: selected, count: selected.length,
     activeDays: new Set(selected.map((w) => localYmd(w.performed_at))).size,
-    sets, previousCount: previous.length,
+    sets, tonnage: totalTonnage(selected), previousCount: previous.length,
     setsChange: previousSets > 0 ? Math.round((sets - previousSets) / previousSets * 100) : null,
     current: key === monthKey(monthOf(now)),
+    favoriteExercise: [...exercises.values()].sort((a, b) => b.workouts - a.workouts || a.name.localeCompare(b.name, 'ru') || String(a.id).localeCompare(String(b.id)))[0] ?? null,
     records: [...records.values()].slice(-3).reverse(),
     groups: [...groups].sort((a, b) => b[1] - a[1] || a[0].localeCompare(b[0], 'ru')).slice(0, 2).map(([g]) => g),
   }

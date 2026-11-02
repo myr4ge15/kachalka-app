@@ -2,17 +2,22 @@
 .monthly-teaser strong { display: flex; justify-content: space-between; width: 100%; text-transform: capitalize; }
 .overlay:has(> .monthly-sheet) { align-items: center; justify-content: center; padding: max(12px, env(safe-area-inset-top)) max(12px, env(safe-area-inset-right)) max(12px, env(safe-area-inset-bottom)) max(12px, env(safe-area-inset-left)); }
 .sheet.monthly-sheet { position: relative; max-width: 480px; height: auto; max-height: 100%; border-radius: var(--r-xl); padding: 16px; }
-.monthly-sheet .sheet-scroll { flex: 0 1 auto; min-width: 0; margin-right: 0; padding-right: 8px; }
+.monthly-sheet .sheet-scroll { flex: 0 1 auto; min-width: 0; margin-right: -8px; padding-right: 20px; scrollbar-gutter: stable; }
 .monthly-summary { padding: 4px 4px 12px; }
 .monthly-period { margin: 12px 0 0; text-transform: capitalize; color: var(--muted); text-align: center; }
 .monthly-picker { display: grid; gap: 6px; margin-top: 12px; }
-.monthly-picker select { min-height: 44px; width: 100%; }
+.monthly-month-trigger { display: flex; justify-content: space-between; align-items: center; min-height: 44px; padding: 12px; border: 1px solid var(--stroke); border-radius: 12px; background: var(--surface); color: var(--text); text-align: left; font: inherit; }
+.monthly-month-options { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 6px; }
+.monthly-month-options button { min-height: 44px; padding: 8px; border: 1px solid var(--stroke); border-radius: 10px; background: var(--surface); color: var(--text); font: inherit; font-size: 13px; }
+.monthly-month-options button[aria-pressed="true"] { border-color: var(--acc); color: var(--acc); }
+.monthly-favorite { display: grid; gap: 4px; margin: 16px 0; overflow-wrap: anywhere; }
 .monthly-hero { display: flex; flex-direction: column; align-items: center; gap: 0; font-size: 72px; line-height: 1.1; margin: 16px 0 24px; color: var(--acc); }
 .monthly-hero span { font-size: 18px; font-weight: 500; color: var(--text); }
 .monthly-stats { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 12px; margin: 0; }
 .monthly-stats div { display: flex; flex-direction: column-reverse; padding: 16px; border: 1px solid var(--stroke); border-radius: 16px; text-align: center; }
 .monthly-stats dt { color: var(--muted); font-size: 12px; margin-top: 6px; }
 .monthly-stats dd { margin: 0; font-size: 28px; line-height: 1.1; font-weight: 700; }
+.monthly-stats .monthly-tonnage { grid-column: 1 / -1; }
 .monthly-comparison { color: var(--muted); font-size: 14px; text-align: center; margin: 16px 0 24px; }
 .monthly-records h3 { font-size: 16px; margin: 20px 0 8px; }
 .monthly-record { display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: 12px; padding: 12px 0; border-bottom: 1px solid var(--stroke); font-size: 14px; }

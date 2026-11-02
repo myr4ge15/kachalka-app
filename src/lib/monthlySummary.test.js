@@ -9,6 +9,26 @@ const workout = (id, day, value = 60, metric = 'weight', extra = {}) => ({
 const summary = (items, selected = month) => buildMonthlySummary(items, selected, { now })
 
 describe('monthly summary', () => {
+  it('picks the most frequent exercise by workouts, deduplicating entries and ignoring warmup and other months', () => {
+    const a = workout('a', '2026-10-01')
+    const b = workout('b', '2026-10-02')
+    const rare = { exercise_id: 'rare', exercise: { name: 'Присед', metric: 'weight' }, sets: Array(20).fill({ weight: 50, reps: 5 }) }
+    a.entries.push(a.entries[0], rare, { ...rare, phase: 'warmup' })
+    const result = summary([a, b, workout('old', '2026-09-30'), workout('deleted', '2026-10-03', 60, 'weight', { _deleted: true })])
+    expect(result.favoriteExercise).toEqual({ id: 'bench', name: 'Жим', workouts: 2 })
+    expect(summary([]).favoriteExercise).toBeNull()
+  })
+  it('counts monthly weight × reps only, excluding warmup, cooldown, other metrics and deleted workouts', () => {
+    const w = workout('1', '2026-10-01', 10)
+    w.entries = [
+      ...w.entries,
+      { ...w.entries[0], phase: 'warmup' },
+      { ...w.entries[0], phase: 'cooldown' },
+      ...['reps', 'time', 'distance'].map((metric) => ({ ...w.entries[0], exercise: { metric } })),
+    ]
+    expect(summary([w, workout('old', '2026-09-30'), workout('deleted', '2026-10-02', 100, 'weight', { _deleted: true })]).tonnage).toBe(100)
+    expect(summary([]).tonnage).toBe(0)
+  })
   it('stays hidden until the first non-deleted, non-future workout', () => {
     expect(summary([]).available).toBe(false)
     expect(summary([workout('1', '2026-10-01', 60, 'weight', { _deleted: true }), workout('2', '2026-12-01')]).available).toBe(false)
