@@ -15,6 +15,16 @@ import {
 const wk = (id, performed_at, entries) => ({ id, performed_at, entries })
 
 describe('workoutsThisMonth', () => {
+  it('учитывает переданную дату и локальные границы месяца и года', () => {
+    const workouts = [
+      wk('before', new Date(2025, 11, 31, 23, 59).toISOString(), []),
+      wk('start', new Date(2026, 0, 1, 0, 0).toISOString(), []),
+      wk('end', new Date(2026, 0, 31, 23, 59).toISOString(), []),
+      wk('after', new Date(2026, 1, 1, 0, 0).toISOString(), []),
+    ]
+    expect(workoutsThisMonth(workouts, new Date(2026, 0, 15))).toBe(2)
+    expect(workoutsThisMonth(workouts, new Date(2025, 11, 31))).toBe(1)
+  })
   it('считает только тренировки текущего календарного месяца (локально)', () => {
     const now = new Date()
     const thisMonth = new Date(now.getFullYear(), now.getMonth(), 15).toISOString()

@@ -23,8 +23,7 @@ import { entryExId, currentExerciseShapes, entryUnitMetric, mainEntries } from '
 // тоже локально (toLocaleDateString/fmtWhen). Считать месяц в UTC значило бы
 // разойтись с днем, который видит пользователь (ревью 30.06 #8 — проверено,
 // не баг: «по той же зоне, что хранение» = по той же зоне, что показ = local).
-export function workoutsThisMonth(workouts) {
-  const now = new Date()
+export function workoutsThisMonth(workouts, now = new Date()) {
   const y = now.getFullYear()
   const m = now.getMonth()
   let n = 0

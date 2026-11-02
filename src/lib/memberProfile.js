@@ -96,7 +96,7 @@ export function buildMemberView(items, { total = null, limit = MEMBER_LIMIT, now
   const knownTotal = Number.isFinite(total) && total >= recent.length ? total : recent.length
   return {
     total: knownTotal,
-    thisMonth: workoutsThisMonth(docs),
+    thisMonth: workoutsThisMonth(docs, now),
     streak,
     streakFloor,
     records: personalRecords(docs),

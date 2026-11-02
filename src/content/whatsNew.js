@@ -28,7 +28,7 @@
 
 export const WHATS_NEW = [
   {
-    version: '1.7.5',
+    version: '1.7.6',
     date: '2026-11-02',
     headline: 'Точнее ввод веса и сравнение рекордов',
     main: [
