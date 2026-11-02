@@ -47,6 +47,16 @@ const readyHome = {
 }
 
 describe('HomeScreen', () => {
+  it('сводка появляется только после первой тренировки и открывает Прогресс', () => {
+    const onNavigate = vi.fn()
+    vi.mocked(useLiveQuery).mockReturnValue({ ...readyHome, summary: { ...readyHome.summary, hasData: false } })
+    const { rerender } = render(<HomeScreen user={user} onNavigate={onNavigate} />)
+    expect(screen.queryByRole('button', { name: /итоги в цифрах/ })).toBeNull()
+    vi.mocked(useLiveQuery).mockReturnValue(readyHome)
+    rerender(<HomeScreen user={user} onNavigate={onNavigate} />)
+    fireEvent.click(screen.getByRole('button', { name: /итоги в цифрах/ }))
+    expect(onNavigate).toHaveBeenCalledWith('progress')
+  })
   beforeEach(() => {
     vi.mocked(useLiveQuery).mockReset()
     scrollIntoView.mockReset()

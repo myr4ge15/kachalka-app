@@ -16,6 +16,9 @@ import { rhythmChart, fmtAvg, avgWord, mondayLabel } from '../lib/rhythmChart.js
 import { useRevealFocus } from '../hooks/useRevealFocus.js'
 import CardsSkeleton from '../components/ui/CardsSkeleton.jsx'
 import EmptyHint from '../components/ui/EmptyHint.jsx'
+import { monthOf, shiftMonth } from '../lib/calendar.js'
+import { monthLabel } from '../lib/monthlySummary.js'
+import '../components/progress/MonthlySummary.css'
 
 // Полоска свежести в тизере — в каноническом порядке групп (стабильно), не по
 // приоритету «пора». Группы вне канона уезжают в конец.
@@ -142,6 +145,9 @@ export default function HomeScreen({ user, onNavigate, onNewWorkout, onOpenProgr
   return (
     <div className="screen home">
       <h2 className="screen-title">{fmtHomeTitle()}</h2>
+      {summary?.hasData && <button type="button" className="card monthly-teaser" onClick={() => onNavigate?.('progress')}>
+        {monthLabel(shiftMonth(monthOf(new Date()), -1))}: итоги в цифрах →
+      </button>}
 
       {/* Главное действие. Дублирует «+» меню намеренно: на Главной это первое, что
           ищет глаз, и сразу видно, как давно была прошлая тренировка. */}

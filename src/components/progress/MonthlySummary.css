@@ -1,0 +1,13 @@
+.monthly-summary { margin-bottom: 24px; }
+.monthly-summary h3, .monthly-summary h4 { margin: 0 0 12px; }
+.monthly-nav { display: flex; align-items: center; justify-content: space-between; gap: 8px; }
+.monthly-nav strong { text-align: center; text-transform: capitalize; }
+.monthly-nav button { min-width: 44px; min-height: 44px; border: 1px solid var(--border); border-radius: 12px; background: var(--surface-solid); color: var(--text); font-size: 24px; }
+.monthly-nav button:disabled { opacity: .35; }
+.monthly-stats { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 12px; }
+.monthly-stats dt { color: var(--muted); font-size: 12px; min-height: 2.8em; overflow-wrap: anywhere; }
+.monthly-stats dd { margin: 4px 0 0; font-size: 28px; font-weight: 700; }
+.monthly-workouts { padding-left: 20px; }
+.monthly-workouts li { margin-top: 16px; }
+.monthly-workouts p { margin: 4px 0; }
+.monthly-teaser { display: block; width: 100%; min-height: 44px; margin: 16px 0; text-align: left; color: var(--text); }
