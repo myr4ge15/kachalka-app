@@ -51,6 +51,7 @@ export async function getHomeData(userId, { max = 3 } = {}) {
   return {
     sex,
     monthlyDismissed: await getMeta(`monthly_dismissed_${userId}`),
+    monthlyOpened: await getMeta(`monthly_opened_${userId}`),
     summary: buildHomeSummary({ workouts, goals }),
     insights: buildInsights({ workouts, leaderboard, userId, max, sex }),
     freshness: {
@@ -67,6 +68,10 @@ export async function getHomeData(userId, { max = 3 } = {}) {
 // сохранения. leaderboard тоже тянем, чтобы «обгон» мог всплыть сразу.
 export async function dismissMonthlySummary(userId, month) {
   await setMeta(`monthly_dismissed_${userId}`, month)
+}
+
+export async function markMonthlySummaryOpened(userId, month) {
+  await setMeta(`monthly_opened_${userId}`, month)
 }
 
 export async function detectInsightsOnSave(userId, workoutId, { max = 3 } = {}) {

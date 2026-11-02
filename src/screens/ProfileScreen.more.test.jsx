@@ -58,6 +58,19 @@ function Harness(props) {
 }
 const openSettings = async () => fireEvent.click(await screen.findByRole('button', { name: 'Настройки' }))
 
+it('повторно открывает итоги из профиля и ведет к тренировкам выбранного месяца', async () => {
+  vi.mocked(repo.getWorkouts).mockResolvedValue([WORKOUT, { ...WORKOUT, id: 'september', performed_at: '2026-09-15T12:00:00' }])
+  const onMonthlyWorkouts = vi.fn()
+  render(<Harness onMonthlyWorkouts={onMonthlyWorkouts} />)
+  fireEvent.click(await screen.findByRole('button', { name: /Итоги месяца/ }))
+  const picker = screen.getByRole('combobox', { name: 'Месяц итогов' })
+  fireEvent.change(picker, { target: { value: '2026-09' } })
+  expect(picker).toHaveValue('2026-09')
+  fireEvent.click(screen.getByRole('button', { name: 'Тренировки за месяц' }))
+  expect(onMonthlyWorkouts).toHaveBeenCalledWith('2026-09')
+  expect(screen.queryByRole('dialog', { name: 'Итоги месяца' })).toBeNull()
+})
+
 beforeEach(() => { Element.prototype.scrollTo = vi.fn(); Element.prototype.scrollIntoView = vi.fn() })
 afterEach(() => vi.clearAllMocks())
 

@@ -3,7 +3,7 @@ import Chevron from '../components/ui/Chevron.jsx'
 import { useEffect, useRef, useState } from 'react'
 import { fmtHomeTitle } from '../lib/dates.js'
 import { useLiveQuery } from 'dexie-react-hooks'
-import { getHomeData, dismissMonthlySummary } from '../db/insights.js'
+import { getHomeData, dismissMonthlySummary, markMonthlySummaryOpened } from '../db/insights.js'
 import { getWorkouts } from '../db/repo.js'
 import { fmtDaysAgo } from '../lib/homeSummary.js'
 import { fmtTonnage } from '../lib/profileStats.js'
@@ -68,7 +68,7 @@ const HOME_EMPTY_ITEMS = [
   { e: '🏆', t: 'Рекорды и выводы по твоим тренировкам' },
 ]
 
-export default function HomeScreen({ user, onNavigate, onNewWorkout, onOpenProgress, onOpenCalendar, onMonthlyWorkouts, focusRhythm = false, onFocusRhythmConsumed }) {
+export default function HomeScreen({ user, onNavigate, onNewWorkout, onOpenProgress, onOpenCalendar, onMonthlyWorkouts, monthlyAutoBlocked = false, onMonthlyBusyChange, focusRhythm = false, onFocusRhythmConsumed }) {
   const [monthlyOpen, setMonthlyOpen] = useState(false)
   const [monthlyHidden, setMonthlyHidden] = useState(null)
   const [monthlyError, setMonthlyError] = useState(false)
@@ -94,6 +94,20 @@ export default function HomeScreen({ user, onNavigate, onNewWorkout, onOpenProgr
   const summary = home?.summary
   const insights = home?.insights ?? []
   const freshness = home?.freshness
+  const autoAttempt = useRef(null)
+  useEffect(() => {
+    onMonthlyBusyChange?.(monthlyOpen)
+    return () => onMonthlyBusyChange?.(false)
+  }, [monthlyOpen, onMonthlyBusyChange])
+  useEffect(() => {
+    if (!summary?.hasData || monthlyAutoBlocked || monthlyOpen || monthlyHidden === reportKey || home?.monthlyDismissed === reportKey || home?.monthlyOpened === reportKey || autoAttempt.current === reportKey) return
+    const timer = setTimeout(() => {
+      autoAttempt.current = reportKey
+      setMonthlyOpen(true)
+      markMonthlySummaryOpened(user.id, reportKey).catch(() => {})
+    }, 300)
+    return () => clearTimeout(timer)
+  }, [summary?.hasData, monthlyAutoBlocked, monthlyOpen, monthlyHidden, reportKey, home?.monthlyDismissed, home?.monthlyOpened, user.id])
 
   // Вернулись из календаря/тренировки, открытых из Ритма (v6.3.5): докручиваем к Ритму.
   // Ждем загрузки данных — до нее блока нет; после прокрутки гасим интент у App.

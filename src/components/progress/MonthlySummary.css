@@ -5,6 +5,8 @@
 .monthly-sheet .sheet-scroll { flex: 0 1 auto; min-width: 0; margin-right: 0; padding-right: 8px; }
 .monthly-summary { padding: 4px 4px 12px; }
 .monthly-period { margin: 12px 0 0; text-transform: capitalize; color: var(--muted); text-align: center; }
+.monthly-picker { display: grid; gap: 6px; margin-top: 12px; }
+.monthly-picker select { min-height: 44px; width: 100%; }
 .monthly-hero { display: flex; flex-direction: column; align-items: center; gap: 0; font-size: 72px; line-height: 1.1; margin: 16px 0 24px; color: var(--acc); }
 .monthly-hero span { font-size: 18px; font-weight: 500; color: var(--text); }
 .monthly-stats { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 12px; margin: 0; }

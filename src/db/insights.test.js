@@ -8,7 +8,7 @@ import { describe, it, expect, beforeEach, afterEach } from 'vitest'
 import { openUserDb, closeUserDb } from './local.js'
 import { uniqueUserId } from '../test/idbHarness.js'
 import { saveWorkout } from './repo.js'
-import { getHomeData, detectInsightsOnSave, getFreshness, dismissMonthlySummary } from './insights.js'
+import { getHomeData, detectInsightsOnSave, getFreshness, dismissMonthlySummary, markMonthlySummaryOpened } from './insights.js'
 
 const bench = { id: 'ex_bench', name: 'Жим лежа', muscle_group: 'грудь', is_bench_lift: true, metric: 'weight' }
 const entry = (ex, sets) => ({ exercise: ex, sets })
@@ -33,6 +33,8 @@ afterEach(async () => {
 
 describe('getHomeData', () => {
   it('сохраняет закрытый месяц в персональной базе между чтениями', async () => {
+    await markMonthlySummaryOpened(userId, '2026-10')
+    expect((await getHomeData(userId)).monthlyOpened).toBe('2026-10')
     expect((await getHomeData(userId)).monthlyDismissed).toBeUndefined()
     await dismissMonthlySummary(userId, '2026-10')
     expect((await getHomeData(userId)).monthlyDismissed).toBe('2026-10')

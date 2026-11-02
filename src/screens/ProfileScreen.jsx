@@ -20,6 +20,9 @@ import { myUnreadReplies } from '../lib/feedbackApi.js'
 import CardsSkeleton from '../components/ui/CardsSkeleton.jsx'
 import StatGrid from '../components/ui/StatGrid.jsx'
 import PersonalRecords from '../components/progress/PersonalRecords.jsx'
+import MonthlySummary from '../components/progress/MonthlySummary.jsx'
+import { localYmd, monthOf, shiftMonth } from '../lib/calendar.js'
+import { monthKey } from '../lib/monthlySummary.js'
 import BackButton from '../components/ui/BackButton.jsx'
 import { useEdgeSwipeBack } from '../hooks/useEdgeSwipeBack.js'
 import { WHATS_NEW } from '../content/whatsNew.js'
@@ -50,8 +53,20 @@ import { onResume } from '../lib/appEvents.js'
 // components/profile/* (v6.14.1); здесь — сводка, навигация и слой Настроек.
 //
 // Пропсы: user, onLogout, onOpenProgress(exerciseId), onOpenFeed().
-export default function ProfileScreen({ user, onLogout, onAccountDeleted, onOpenCircle, onOpenFriends, onOpenProgress, onOpenFeed, onRenamed, onOpenAdmin, onOpenMyExercises, onOpenAchievements, onOpenBody, onOpenAppearance, onOpenPushSettings, onOpenWhatsNew, onOpenFeedback, startInSettings = false, onStartInSettingsConsumed, contentRef, edgeSwipeOn = false, active = true }) {
+export default function ProfileScreen({ user, onLogout, onAccountDeleted, onOpenCircle, onOpenFriends, onOpenProgress, onOpenFeed, onRenamed, onOpenAdmin, onOpenMyExercises, onOpenAchievements, onOpenBody, onOpenAppearance, onOpenPushSettings, onOpenWhatsNew, onOpenFeedback, onMonthlyWorkouts, onMonthlyBusyChange, startInSettings = false, onStartInSettingsConsumed, contentRef, edgeSwipeOn = false, active = true }) {
   const workouts = useLiveQuery(() => getWorkouts(user.id), [user.id])
+  const [monthlyMonth, setMonthlyMonth] = useState(null)
+  const lastMonthKey = monthKey(shiftMonth(monthOf(new Date()), -1))
+  const monthlyOptions = useMemo(() => [...new Set([lastMonthKey, ...(workouts ?? [])
+    .filter((w) => !w._deleted && localYmd(w.performed_at) && localYmd(w.performed_at).slice(0, 7) <= lastMonthKey)
+    .map((w) => localYmd(w.performed_at).slice(0, 7))])].sort().reverse().map((key) => {
+    const [year, month] = key.split('-').map(Number)
+    return { year, month: month - 1 }
+  }), [workouts, lastMonthKey])
+  useEffect(() => {
+    onMonthlyBusyChange?.(Boolean(monthlyMonth))
+    return () => onMonthlyBusyChange?.(false)
+  }, [monthlyMonth, onMonthlyBusyChange])
   const goals = useLiveQuery(() => readGoals(user.id), [user.id])
   const myCached = useLiveQuery(() => getCachedUser(user.id), [user.id])
   // «Друзья»: входящие заявки — счетчик на строке (снимок fr_list, db/friends.js).
@@ -166,6 +181,7 @@ export default function ProfileScreen({ user, onLogout, onAccountDeleted, onOpen
         onClick={() => onOpenAchievements?.()} />
       {/* «Вес и замеры» (PLAN-body-metrics.md): вход — только эта строка, без призывов. */}
       <MenuRow icon="scale" title="Вес и замеры" sub={bodyRowSubtitle(body)} onClick={() => onOpenBody?.()} />
+      {workouts?.some((w) => !w._deleted) && <MenuRow icon="book" title="Итоги месяца" sub="прошлые месяцы и личные рекорды" onClick={() => setMonthlyMonth(monthlyOptions[0])} />}
       </div>
     </section>
   )
@@ -211,6 +227,8 @@ export default function ProfileScreen({ user, onLogout, onAccountDeleted, onOpen
 
   return (
     <div className="nav-stack profile-stack">
+    {monthlyMonth && <MonthlySummary workouts={workouts ?? []} month={monthlyMonth} months={monthlyOptions} onMonthChange={setMonthlyMonth} celebrate={false}
+      onDismiss={() => setMonthlyMonth(null)} onOpenWorkouts={() => { const key = monthKey(monthlyMonth); setMonthlyMonth(null); onMonthlyWorkouts?.(key) }} />}
     <div ref={profileSurfaceRef} className={settingsOpen ? "nav-layer nav-underlay" : "nav-layer nav-current"} inert={settingsOpen} aria-hidden={settingsOpen ? true : undefined}>
     <div className="screen profile">
       {/* шапка профиля */}

@@ -1,17 +1,17 @@
 import { useMemo } from 'react'
 import { monthOf, shiftMonth } from '../../lib/calendar.js'
-import { buildMonthlySummary, monthLabel } from '../../lib/monthlySummary.js'
+import { buildMonthlySummary, monthKey, monthLabel } from '../../lib/monthlySummary.js'
 import { fmtMetricValue } from '../../lib/metric.js'
 import { plural } from '../../lib/plural.js'
 import SheetDialog from '../ui/SheetDialog.jsx'
 import CardsSkeleton from '../ui/CardsSkeleton.jsx'
 import './MonthlySummary.css'
 
-export default function MonthlySummary({ workouts, month = shiftMonth(monthOf(new Date()), -1), onDismiss, onOpenWorkouts, error = false, loading = false }) {
+export default function MonthlySummary({ workouts, month = shiftMonth(monthOf(new Date()), -1), months, onMonthChange, celebrate = true, onDismiss, onOpenWorkouts, error = false, loading = false }) {
   const summary = useMemo(() => buildMonthlySummary(workouts, month), [workouts, month])
   return (
     <SheetDialog title="Итоги месяца" onDismiss={onDismiss} swipeDown className="monthly-sheet">
-      {!loading && summary.count > 0 && <div className="monthly-fireworks" aria-hidden="true">
+      {celebrate && !loading && summary.count > 0 && <div className="monthly-fireworks" aria-hidden="true">
         {[0, 1, 2].map((burst) => <div className="monthly-burst" key={burst} style={{ left: `${[22, 76, 48][burst]}%`, top: `${[25, 32, 17][burst]}%`, '--burst-delay': `${burst * 240}ms` }}>
           {Array.from({ length: 14 }, (_, i) => {
             const angle = i * Math.PI * 2 / 14
@@ -21,7 +21,10 @@ export default function MonthlySummary({ workouts, month = shiftMonth(monthOf(ne
         </div>)}
       </div>}
       <div className="sheet-scroll monthly-summary">
-        <p className="monthly-period">{monthLabel(month)}</p>
+        {months ? <label className="monthly-picker"><span className="muted">Месяц</span><select className="prog-select" aria-label="Месяц итогов" value={monthKey(month)} onChange={(e) => {
+          const [year, selectedMonth] = e.target.value.split('-').map(Number)
+          onMonthChange?.({ year, month: selectedMonth - 1 })
+        }}>{months.map((m) => <option key={monthKey(m)} value={monthKey(m)}>{monthLabel(m)}</option>)}</select></label> : <p className="monthly-period">{monthLabel(month)}</p>}
         {loading ? <CardsSkeleton cards={1} /> : <>
         <h2 className="monthly-hero">{summary.count}<span>{plural(summary.count, 'тренировка', 'тренировки', 'тренировок')}</span></h2>
         {summary.count === 0 ? <p className="muted">За этот месяц пока нет тренировок.</p> : <>
@@ -30,7 +33,7 @@ export default function MonthlySummary({ workouts, month = shiftMonth(monthOf(ne
             <div><dt>Активные дни</dt><dd>{summary.activeDays}</dd></div>
           </dl>
           {!summary.current && summary.previousCount > 0 && <p className="monthly-comparison">
-            {summary.count === summary.previousCount ? 'Столько же тренировок, сколько месяцем ранее' : `${Math.abs(summary.count - summary.previousCount)} ${plural(Math.abs(summary.count - summary.previousCount), 'тренировка', 'тренировки', 'тренировок')} ${summary.count > summary.previousCount ? 'больше' : 'меньше'}, чем месяцем ранее`}
+            {summary.count === summary.previousCount ? 'Столько же тренировок, сколько в прошлом месяце' : `На ${Math.abs(summary.count - summary.previousCount)} ${plural(Math.abs(summary.count - summary.previousCount), 'тренировку', 'тренировки', 'тренировок')} ${summary.count > summary.previousCount ? 'больше' : 'меньше'}, чем в прошлом месяце`}
           </p>}
           {summary.records.length > 0 && <div className="monthly-records"><h3>🏆 Личные рекорды</h3>
             {summary.records.map((r) => <div className="monthly-record" key={r.id}><span>{r.name}</span><strong>{fmtMetricValue(r.metric, r.value)}{r.metric === 'reps' ? ' повт.' : r.metric === 'time' ? ' мин:сек' : ''}</strong></div>)}

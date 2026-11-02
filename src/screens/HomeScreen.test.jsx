@@ -9,7 +9,7 @@ import { fmtHomeTitle } from '../lib/dates.js'
 import HomeScreen from './HomeScreen.jsx'
 
 vi.mock('dexie-react-hooks', () => ({ useLiveQuery: vi.fn() }))
-vi.mock('../db/insights.js', () => ({ getHomeData: vi.fn(), dismissMonthlySummary: vi.fn().mockResolvedValue(undefined) }))
+vi.mock('../db/insights.js', () => ({ getHomeData: vi.fn(), dismissMonthlySummary: vi.fn().mockResolvedValue(undefined), markMonthlySummaryOpened: vi.fn().mockResolvedValue(undefined) }))
 
 const user = { id: 'u1', name: 'Саня' }
 const scrollIntoView = vi.fn()
@@ -50,6 +50,13 @@ const readyHome = {
 }
 
 describe('HomeScreen', () => {
+  it('открывает итоги автоматически после закрытия приветственных окон', async () => {
+    vi.mocked(useLiveQuery).mockReturnValue(readyHome)
+    const { rerender } = render(<HomeScreen user={user} monthlyAutoBlocked />)
+    expect(screen.queryByRole('dialog', { name: 'Итоги месяца' })).toBeNull()
+    rerender(<HomeScreen user={user} monthlyAutoBlocked={false} />)
+    await waitFor(() => expect(screen.getByRole('dialog', { name: 'Итоги месяца' })).toBeInTheDocument())
+  })
   it('не предлагает просмотренный месяц, но предлагает следующий отчет', () => {
     const closed = monthKey(shiftMonth(monthOf(new Date()), -1))
     vi.mocked(useLiveQuery).mockReturnValue({ ...readyHome, monthlyDismissed: closed })

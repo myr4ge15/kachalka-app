@@ -158,6 +158,7 @@ export default function App() {
   // выбора для экспорта) — тогда FAB прячем: он там либо не нужен, либо налезает
   // на нижнюю панель («Сохранить» / бар экспорта). Хаб сообщает об этом сам.
   const [historyBusy, setHistoryBusy] = useState(false)
+  const [monthlyBusy, setMonthlyBusy] = useState(false)
   // Список шаблонов (19.10.2026): «+» там рабочая, но спокойная, как на вложенных экранах.
   const [historyCalm, setHistoryCalm] = useState(false)
   // Открыт композер новой тренировки (fb_9b86c8f0): «Тренировки» не подсвечены, точки меню нет, «+» — акцентом.
@@ -167,7 +168,7 @@ export default function App() {
   const newActive = tab === 'history' && (composingNew || openNewWorkout)
 
   // «Добро пожаловать», «Что нового» и вопрос про уведомления — hooks/useLaunchSheets.js.
-  const { welcome, closeWelcome, whatsNew, closeWhatsNew, tgAsk, closeTgAsk, pushAsk, closePushAsk } = useLaunchSheets(user, historyBusy)
+  const { welcome, closeWelcome, whatsNew, closeWhatsNew, tgAsk, closeTgAsk, pushAsk, closePushAsk } = useLaunchSheets(user, historyBusy || monthlyBusy)
   // «Придумай логин» (П4, v6.17.0): у старых учеток логина нет — обязательный шаг онлайн.
   const loginSetup = useLoginSetup(user)
   // «Видеть всех» (27.10.2026): режим админа идет — плашка под шапкой, конец срока — чистка кэшей.
@@ -373,6 +374,8 @@ export default function App() {
                   onOpenProgress={openProgressFor}
                   onOpenCalendar={openCalendarAt}
                   onMonthlyWorkouts={(month) => openCalendarAt({ month })}
+                  monthlyAutoBlocked={Boolean(welcome || whatsNew || tgAsk || pushAsk)}
+                  onMonthlyBusyChange={setMonthlyBusy}
                   focusRhythm={focusRhythm}
                   onFocusRhythmConsumed={() => setFocusRhythm(false)}
                 />
@@ -417,6 +420,8 @@ export default function App() {
                   onAccountDeleted={async () => { const id = user.id; await handleLogout(); await wipeLocalAccount(id) }}
                   onOpenProgress={openProgressFor}
                   onOpenFeed={() => goTab('feed')}
+                  onMonthlyWorkouts={(month) => openCalendarAt({ month })}
+                  onMonthlyBusyChange={setMonthlyBusy}
                   onRenamed={handleRenamed}
                   onOpenAdmin={() => goTab('admin')}
                   onOpenMyExercises={() => goTab('myex')}

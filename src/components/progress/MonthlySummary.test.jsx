@@ -21,7 +21,7 @@ describe('MonthlySummary', () => {
   })
   it('shows records and a readable comparison without a huge growth percentage', () => {
     render(<MonthlySummary month={month} workouts={[{ ...w, id: '0', performed_at: '2026-09-01T12:00:00', entries: [{ ...w.entries[0], sets: [{ weight: 50, reps: 5 }] }] }, w]} />)
-    expect(screen.getByText(/Столько же тренировок/)).toBeInTheDocument()
+    expect(screen.getByText('Столько же тренировок, сколько в прошлом месяце')).toBeInTheDocument()
     expect(screen.getByText('60 кг')).toBeInTheDocument()
     expect(screen.getByText('Жим')).toBeInTheDocument()
   })
