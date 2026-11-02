@@ -1,5 +1,6 @@
 import { test, expect } from '@playwright/test'
 import { enterPin, tabbar, openTab } from './helpers.js'
+test.use({ viewport: { width: 393, height: 793 } })
 
 test('одноразовые итоги ведут в календарь месяца и не возвращаются после перезагрузки', async ({ page, context }) => {
   await context.addInitScript(() => {
@@ -19,7 +20,7 @@ test('одноразовые итоги ведут в календарь мес�
     ])
     const now = new Date()
     for (const day of [1, 2, 3, 4, 5, 6, 7, 8, 9]) {
-      await saveWorkout({ user_id: userId, performed_at: new Date(now.getFullYear(), now.getMonth() - 1, day, 12).toISOString(), entries: [{ exercise: E2E_EXERCISES[0], sets: [{ weight: 50 + day, reps: 5 }] }] })
+      await saveWorkout({ user_id: userId, performed_at: new Date(now.getFullYear(), now.getMonth() - 1, day, 12).toISOString(), entries: [{ exercise: { ...E2E_EXERCISES[0], name: 'Разведение ног в тренажере (Hip Abductor)' }, sets: [{ weight: 50 + day, reps: 5 }] }] })
     }
     await saveWorkout({ user_id: userId, performed_at: new Date(now.getFullYear(), now.getMonth(), 1, 12).toISOString(), entries: [{ exercise: E2E_EXERCISES[0], sets: [{ weight: 60, reps: 5 }] }] })
   }, user.id)
@@ -29,6 +30,17 @@ test('одноразовые итоги ведут в календарь мес�
   await expect(summary.getByRole('heading', { level: 2 })).toHaveText('9тренировок')
   await expect(summary.locator('.monthly-fireworks')).toHaveCSS('pointer-events', 'none')
   await expect(summary.locator('.monthly-fireworks')).toBeHidden()
+  const panel = await summary.boundingBox()
+  const viewport = page.viewportSize()
+  expect(Math.abs(panel.x + panel.width / 2 - viewport.width / 2)).toBeLessThan(2)
+  expect(Math.abs(panel.y + panel.height / 2 - viewport.height / 2)).toBeLessThan(2)
+  const done = await summary.getByRole('button', { name: 'Готово', exact: true }).boundingBox()
+  expect(panel.y + panel.height - done.y - done.height).toBeLessThanOrEqual(24)
+  expect(await summary.locator('.sheet-scroll').evaluate((el) => el.scrollWidth <= el.clientWidth)).toBe(true)
+  await page.setViewportSize({ width: 320, height: 568 })
+  await expect(summary.getByRole('button', { name: 'Готово', exact: true })).toBeInViewport()
+  expect(await summary.locator('.sheet-scroll').evaluate((el) => el.scrollWidth <= el.clientWidth)).toBe(true)
+  await page.setViewportSize({ width: 393, height: 793 })
   await page.screenshot({ path: 'test-results/monthly-summary.png', fullPage: true })
   await summary.getByRole('button', { name: 'Тренировки за месяц' }).click()
   const calendar = page.getByRole('dialog', { name: 'Календарь' })

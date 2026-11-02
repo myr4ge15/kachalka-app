@@ -1,7 +1,8 @@
 .monthly-teaser { display: flex; flex-direction: column; gap: 6px; min-height: 72px; margin: 16px 0; text-align: left; color: var(--text); }
 .monthly-teaser strong { display: flex; justify-content: space-between; width: 100%; text-transform: capitalize; }
-.sheet.monthly-sheet { position: relative; max-width: 480px; height: auto; max-height: 90dvh; border-radius: var(--r-xl) var(--r-xl) 0 0; padding-top: 16px; }
-.monthly-sheet .sheet-scroll { flex: 0 1 auto; }
+.overlay:has(> .monthly-sheet) { align-items: center; justify-content: center; padding: max(12px, env(safe-area-inset-top)) max(12px, env(safe-area-inset-right)) max(12px, env(safe-area-inset-bottom)) max(12px, env(safe-area-inset-left)); }
+.sheet.monthly-sheet { position: relative; max-width: 480px; height: auto; max-height: 100%; border-radius: var(--r-xl); padding: 16px; }
+.monthly-sheet .sheet-scroll { flex: 0 1 auto; min-width: 0; margin-right: 0; padding-right: 8px; }
 .monthly-summary { padding: 4px 4px 12px; }
 .monthly-period { margin: 12px 0 0; text-transform: capitalize; color: var(--muted); text-align: center; }
 .monthly-hero { display: flex; flex-direction: column; align-items: center; gap: 0; font-size: 72px; line-height: 1.1; margin: 16px 0 24px; color: var(--acc); }
@@ -15,7 +16,7 @@
 .monthly-record { display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: 12px; padding: 12px 0; border-bottom: 1px solid var(--stroke); font-size: 14px; }
 .monthly-record span { overflow-wrap: anywhere; }
 .monthly-record strong { align-self: center; white-space: nowrap; }
-.monthly-actions { display: grid; gap: 12px; padding-top: 12px; }
+.monthly-actions { flex: none; display: grid; gap: 12px; padding-top: 12px; }
 .monthly-actions .link-btn { min-height: 44px; white-space: normal; }
 .monthly-fireworks { position: absolute; inset: 0; overflow: hidden; pointer-events: none; z-index: 2; animation: monthly-fireworks-end 1.8s step-end forwards; }
 .monthly-burst { position: absolute; width: 0; height: 0; }
