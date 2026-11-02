@@ -4,7 +4,7 @@
 import { mkdirSync, readFileSync, writeFileSync } from 'node:fs'
 import { inlineParts, parseMarkdown } from '../src/lib/miniMarkdown.js'
 
-const APP_URL = 'https://myr4ge15.github.io/kachalka-app/'
+const APP_URL = '/app/'
 const OUT_DIR = 'landing/quick-start'
 
 const esc = (s) => s.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;')
