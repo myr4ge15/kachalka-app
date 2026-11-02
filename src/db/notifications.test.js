@@ -5,7 +5,7 @@
 // знак «прочитано». Фокус — то, что пользователь видит на колокольчике и в тостах.
 import 'fake-indexeddb/auto' // ПЕРВЫМ: ставит глобальный indexedDB до Dexie-модулей
 import { describe, it, expect, beforeEach, afterEach } from 'vitest'
-import { openUserDb, closeUserDb, db, setMeta } from './local.js'
+import { openUserDb, closeUserDb, db, loginDb, setMeta } from './local.js'
 import { VIEW_ALL_KEY } from '../lib/viewAll.js'
 import { uniqueUserId } from '../test/idbHarness.js'
 import { saveWorkout } from './repo.js'
@@ -181,6 +181,7 @@ describe('getNotifications и режим «Видеть всех»', () => {
     entries: [{ exercise_id: 'ex_bench', exercise: bench, sets: [{ weight, reps: 1 }] }],
   })
   it('«побил твой рекорд» — от друга есть, от «чужого» нет', async () => {
+    await loginDb.users.bulkPut([userId, 'friend', 'stranger'].map((id) => ({ id, sex: 'm' })))
     await wk(userId, '2026-01-01T10:00:00.000Z', [{ weight: 80, reps: 1 }])
     await db.feed.bulkPut([
       item('f0', 'friend', '2026-01-02T10:00:00.000Z', 70), item('f1', 'friend', '2026-01-03T10:00:00.000Z', 90),
@@ -190,5 +191,21 @@ describe('getNotifications и режим «Видеть всех»', () => {
     expect(await who()).toEqual(['friend', 'stranger'])
     await setMeta(VIEW_ALL_KEY, { until: '2099-01-01T00:00:00Z', extra: ['stranger'] })
     expect(await who()).toEqual(['friend'])
+  })
+
+  it.each([
+    ['f', 'm', 0], ['m', 'f', 0], ['f', 'f', 1], ['m', 'm', 1],
+    [null, 'm', 0], ['f', null, 0], [null, null, 0],
+  ])('пол %s и %s: число сравнений %s', async (mine, theirs, count) => {
+    const friend = `${userId}-friend`
+    await loginDb.users.bulkPut([{ id: userId, sex: mine }, { id: friend, sex: theirs }])
+    await wk(userId, '2026-01-01', [{ weight: 80, reps: 1 }])
+    await db.feed.bulkPut([
+      item('f0', friend, '2026-01-02', 70), item('f1', friend, '2026-01-03', 90),
+    ])
+    expect((await getNotifications(userId)).filter((n) => n.type === 'beaten')).toHaveLength(count)
+    // Смена пола в профиле убирает старое сравнение без перезагрузки ленты.
+    await loginDb.users.put({ id: friend, sex: null })
+    expect((await getNotifications(userId)).filter((n) => n.type === 'beaten')).toEqual([])
   })
 })

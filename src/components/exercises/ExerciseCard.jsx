@@ -264,7 +264,7 @@ export default function ExerciseCard({
               {/* Ноль доп. веса — пустое поле. Только ЧИСЛОВОЙ ноль: строку ввода
                   («-», «0.») показываем как есть, иначе минус и «0,5» не набрать. */}
               <SetInput
-                inputMode="decimal" value={(extra || load) && s.weight === 0 ? '' : fmtNum(s.weight ?? '')}
+                inputMode={extra ? 'text' : 'decimal'} value={(extra || load) && s.weight === 0 ? '' : fmtNum(s.weight ?? '')}
                 aria-label={`${isDistance ? 'Дистанция, км' : extra ? 'Доп. вес' : load ? 'Вес снаряда' : 'Вес'}, подход ${si + 1}`}
                 placeholder={isDistance ? 'км' : (extra || load) ? '0' : undefined}
                 onChange={(e) => onUpdateSet(ei, si, 'weight', e.target.value.replace(',', '.').replace('−', '-'))}

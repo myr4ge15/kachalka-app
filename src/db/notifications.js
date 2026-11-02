@@ -11,7 +11,7 @@
 // событие новее метки. Открытие экрана двигает метку на самое свежее событие.
 // ============================================================================
 import { mainEntries } from '../lib/entries.js'
-import { db, getMeta, setMeta, nowIso } from './local.js'
+import { db, loginDb, getMeta, setMeta, nowIso } from './local.js'
 import { writeSyncedMeta } from './userMeta.js'
 import { cmpIsoAsc, cmpIsoDesc } from '../lib/cmp.js'
 import { myBestByExercise, minePrs, computeBeaten, computeNewPrs, crossedGoal, goalMetByExercise } from '../lib/records.js'
@@ -126,7 +126,16 @@ export async function getNotifications(userId) {
   const feedItems = withoutExtra(await db.feed.toArray(), viewAllExtra(await getMeta(VIEW_ALL_KEY)))
   const myBest = myBestByExercise(workouts)
   const mine = minePrs(workouts)
-  const beaten = computeBeaten(feedItems, userId, myBest)
+  // Сравнение с чужими рекордами — только при одинаковом явно указанном поле.
+  // Неизвестный пол не считаем мужским. Ростер читаем заново: старый кэш ленты
+  // не должен сохранять сравнения после изменения профиля.
+  const ids = [...new Set([userId, ...feedItems.map((it) => it.user_id)])]
+  const users = await loginDb.users.bulkGet(ids)
+  const sexById = new Map(users.filter(Boolean).map((u) => [u.id, u.sex]))
+  const sex = sexById.get(userId)
+  const comparable = sex === 'm' || sex === 'f'
+    ? feedItems.filter((it) => sexById.get(it.user_id) === sex) : []
+  const beaten = computeBeaten(comparable, userId, myBest)
   const goal = await goalNotif(userId)
   // Реакции на мои тренировки — из того же окна ленты (в нем есть и мои записи).
   const reactions = computeReactionNotifs(feedItems, userId)

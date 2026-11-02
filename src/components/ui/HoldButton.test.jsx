@@ -33,6 +33,37 @@ function setup() {
 }
 
 describe('HoldButton', () => {
+  it.each(['pointerup', 'pointercancel', 'touchend', 'touchcancel', 'blur'])('останавливает повтор при %s вне кнопки', (event) => {
+    vi.useFakeTimers()
+    const { onTrigger, button } = setup()
+    fireEvent.pointerDown(button, { pointerId: 7, button: 0 })
+    act(() => { vi.advanceTimersByTime(HOLD_START) })
+    fireEvent(window, event.startsWith('pointer')
+      ? new PointerEvent(event, { pointerId: 7 }) : new Event(event))
+    act(() => { vi.advanceTimersByTime(5000) })
+    expect(onTrigger).toHaveBeenCalledTimes(1)
+  })
+
+  it('повторный pointerdown не оставляет бесхозный таймер', () => {
+    vi.useFakeTimers()
+    const { onTrigger, button } = setup()
+    fireEvent.pointerDown(button, { pointerId: 1, button: 0 })
+    fireEvent.pointerDown(button, { pointerId: 2, button: 0 })
+    fireEvent.pointerUp(button, { pointerId: 2 })
+    act(() => { vi.advanceTimersByTime(5000) })
+    expect(onTrigger).toHaveBeenCalledTimes(1)
+  })
+
+  it('движение пальца останавливает уже начавшийся повтор', () => {
+    vi.useFakeTimers()
+    const { onTrigger, button } = setup()
+    fireEvent.pointerDown(button, { pointerId: 1, button: 0, clientX: 50, clientY: 50 })
+    act(() => { vi.advanceTimersByTime(HOLD_START) })
+    fireEvent.pointerMove(button, { pointerId: 1, clientX: 50, clientY: 20 })
+    act(() => { vi.advanceTimersByTime(5000) })
+    expect(onTrigger).toHaveBeenCalledTimes(1)
+  })
+
   it('тап — один шаг на отпускании, не на касании', () => {
     vi.useFakeTimers()
     const { onTrigger, button } = setup()

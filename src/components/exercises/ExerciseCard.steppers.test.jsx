@@ -40,6 +40,8 @@ describe('ExerciseCard — степперы', () => {
   it('свой вес: «±кг» шагом 2,5, ноль — пустое поле, «−» из ввода — минус', () => {
     const cb = renderCard(entry('reps', [{ weight: 0, reps: 10 }]))
     expect(screen.getByLabelText('Доп. вес, подход 1')).toHaveValue('')
+    // У decimal-клавиатуры iPhone нет минуса: для помощи нужна обычная клавиатура.
+    expect(screen.getByLabelText('Доп. вес, подход 1')).toHaveAttribute('inputmode', 'text')
     step('Подход 1, доп. вес или помощь', '−')
     expect(cb.onStep).toHaveBeenLastCalledWith(0, 0, 'weight', -2.5)
     fireEvent.change(screen.getByLabelText('Доп. вес, подход 1'), { target: { value: '−10' } })

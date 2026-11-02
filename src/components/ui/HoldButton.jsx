@@ -34,10 +34,34 @@ export default function HoldButton({ onTrigger, children, className, disabled, .
     origin.current = null
   }, [])
 
+  // На iOS при закрытии клавиатуры конец касания может прийти вне кнопки.
+  // Захват pointer не заменяет страховку на уровне окна и touchend.
+  useEffect(() => {
+    const end = (e) => {
+      if (e.pointerId != null && e.pointerId !== pointer.current) return
+      stop()
+    }
+    window.addEventListener('pointerup', end)
+    window.addEventListener('pointercancel', end)
+    window.addEventListener('touchend', end)
+    window.addEventListener('touchcancel', end)
+    window.addEventListener('blur', stop)
+    document.addEventListener('visibilitychange', stop)
+    return () => {
+      window.removeEventListener('pointerup', end)
+      window.removeEventListener('pointercancel', end)
+      window.removeEventListener('touchend', end)
+      window.removeEventListener('touchcancel', end)
+      window.removeEventListener('blur', stop)
+      document.removeEventListener('visibilitychange', stop)
+    }
+  }, [stop])
+
   // На размонтировании гасим таймер (защита от утечки при удалении подхода/строки).
   useEffect(() => stop, [stop])
 
   const tick = useCallback(() => {
+    if (pointer.current == null) return
     fired.current = true
     cb.current?.()
     delay.current = nextHoldDelay(delay.current)
@@ -47,6 +71,7 @@ export default function HoldButton({ onTrigger, children, className, disabled, .
   const start = useCallback((e) => {
     if (disabled) return
     if (e.button != null && e.button !== 0) return // только основная кнопка/тач
+    stop() // повторный pointerdown не должен оставлять второй таймер
     e.preventDefault()
     // Захват гарантирует pointerup/pointercancel даже если палец ушел за кнопку.
     // Без него потерянный pointerup оставлял auto-repeat навсегда активным:
@@ -58,11 +83,11 @@ export default function HoldButton({ onTrigger, children, className, disabled, .
     fired.current = false
     delay.current = HOLD_START  // пауза перед стартом авто-повтора
     timer.current = setTimeout(tick, delay.current)
-  }, [disabled, tick])
+  }, [disabled, tick, stop])
 
   const move = useCallback((e) => {
     const o = origin.current
-    if (!o || fired.current) return
+    if (!o) return
     if (Math.abs((e.clientX ?? 0) - o.x) > HOLD_SLOP || Math.abs((e.clientY ?? 0) - o.y) > HOLD_SLOP) stop()
   }, [stop])
 
