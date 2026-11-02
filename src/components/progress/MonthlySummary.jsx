@@ -11,6 +11,15 @@ export default function MonthlySummary({ workouts, month = shiftMonth(monthOf(ne
   const summary = useMemo(() => buildMonthlySummary(workouts, month), [workouts, month])
   return (
     <SheetDialog title="Итоги месяца" onDismiss={onDismiss} swipeDown className="monthly-sheet">
+      {!loading && summary.count > 0 && <div className="monthly-fireworks" aria-hidden="true">
+        {[0, 1, 2].map((burst) => <div className="monthly-burst" key={burst} style={{ left: `${[22, 76, 48][burst]}%`, top: `${[25, 32, 17][burst]}%`, '--burst-delay': `${burst * 240}ms` }}>
+          {Array.from({ length: 14 }, (_, i) => {
+            const angle = i * Math.PI * 2 / 14
+            const radius = 70 + (i % 3) * 14
+            return <span key={i} style={{ '--spark-x': `${Math.cos(angle) * radius}px`, '--spark-y': `${Math.sin(angle) * radius + 28}px`, '--spark-color': `var(--${['acc', 'g4', 'g1'][i % 3]})` }} />
+          })}
+        </div>)}
+      </div>}
       <div className="sheet-scroll monthly-summary">
         <p className="monthly-period">{monthLabel(month)}</p>
         {loading ? <CardsSkeleton cards={1} /> : <>
