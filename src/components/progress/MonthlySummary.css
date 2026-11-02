@@ -11,12 +11,12 @@
 .monthly-month-options button { min-height: 44px; padding: 8px; border: 1px solid var(--stroke); border-radius: 10px; background: var(--surface); color: var(--text); font: inherit; font-size: 13px; }
 .monthly-month-options button[aria-pressed="true"] { border-color: var(--acc); color: var(--acc); }
 .monthly-favorite { display: grid; gap: 4px; margin: 16px 0; overflow-wrap: anywhere; }
-.monthly-hero { display: flex; flex-direction: column; align-items: center; gap: 0; font-size: 72px; line-height: 1.1; margin: 16px 0 24px; color: var(--acc); }
-.monthly-hero span { font-size: 18px; font-weight: 500; color: var(--text); }
+.monthly-hero { display: flex; flex-direction: column; align-items: center; gap: 0; font-family: var(--font-display); font-weight: 900; font-size: 72px; line-height: 1.1; margin: 16px 0 24px; color: var(--acc); }
+.monthly-hero span { font-family: 'Onest', system-ui, sans-serif; font-size: 18px; font-weight: 500; color: var(--text); }
 .monthly-stats { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 12px; margin: 0; }
 .monthly-stats div { display: flex; flex-direction: column-reverse; padding: 16px; border: 1px solid var(--stroke); border-radius: 16px; text-align: center; }
 .monthly-stats dt { color: var(--muted); font-size: 12px; margin-top: 6px; }
-.monthly-stats dd { margin: 0; font-size: 28px; line-height: 1.1; font-weight: 700; }
+.monthly-stats dd { margin: 0; font-family: var(--font-display); font-size: 28px; line-height: 1.1; font-weight: 800; }
 .monthly-stats .monthly-tonnage { grid-column: 1 / -1; }
 .monthly-comparison { color: var(--muted); font-size: 14px; text-align: center; margin: 16px 0 24px; }
 .monthly-records h3 { font-size: 16px; margin: 20px 0 8px; }

@@ -5,6 +5,7 @@ import { fmtMetricValue } from '../../lib/metric.js'
 import { plural } from '../../lib/plural.js'
 import { fmtTonnage } from '../../lib/profileStats.js'
 import SheetDialog from '../ui/SheetDialog.jsx'
+import Chevron from '../ui/Chevron.jsx'
 import CardsSkeleton from '../ui/CardsSkeleton.jsx'
 import './MonthlySummary.css'
 
@@ -24,7 +25,7 @@ export default function MonthlySummary({ workouts, month = shiftMonth(monthOf(ne
       </div>}
       <div className="sheet-scroll monthly-summary">
         {months ? <div className="monthly-picker"><span className="muted">Месяц</span>
-          <button type="button" className="monthly-month-trigger" aria-label="Выбрать месяц" aria-expanded={pickingMonth} onClick={() => setPickingMonth(!pickingMonth)}>{monthLabel(month)} <span aria-hidden="true">⌄</span></button>
+          <button type="button" className="monthly-month-trigger" aria-label="Выбрать месяц" aria-expanded={pickingMonth} onClick={() => setPickingMonth(!pickingMonth)}>{monthLabel(month)} <Chevron toggle open={pickingMonth} /></button>
           {pickingMonth && <div className="monthly-month-options" role="group" aria-label="Месяц итогов">{months.map((m) => <button type="button" key={monthKey(m)} aria-pressed={monthKey(m) === monthKey(month)} onClick={() => { setPickingMonth(false); onMonthChange?.(m) }}>{monthLabel(m)}</button>)}</div>}
         </div> : <p className="monthly-period">{monthLabel(month)}</p>}
         {loading ? <CardsSkeleton cards={1} /> : <>
