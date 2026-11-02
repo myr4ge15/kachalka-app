@@ -49,6 +49,16 @@ test('одноразовые итоги ведут в календарь мес�
   await calendar.getByRole('button', { name: 'закрыть', exact: true }).click()
   await expect(page.getByRole('heading', { name: 'Мои тренировки' })).toBeVisible()
   await expect(page.getByRole('button', { name: /Сбросить/ })).toBeVisible()
+  for (const width of [393, 1866]) {
+    await page.setViewportSize({ width, height: 850 })
+    await expect(page.getByRole('button', { name: /Сбросить/ })).toBeVisible()
+    await expect(page.locator('.tag-filter')).toBeVisible()
+    const month = await page.getByRole('button', { name: /Сбросить/ }).boundingBox()
+    const groups = await page.locator('.tag-filter').boundingBox()
+    expect(groups.y - month.y - month.height).toBeGreaterThanOrEqual(8)
+  }
+  await page.screenshot({ path: 'test-results/history-month-filter.png', fullPage: true })
+  await page.setViewportSize({ width: 393, height: 793 })
   await openTab(page, 'Главная')
   await expect(page.getByRole('button', { name: /Твой месяц в цифрах/ })).toHaveCount(0)
   await page.reload()

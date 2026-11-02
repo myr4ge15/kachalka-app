@@ -350,7 +350,7 @@ export default function HistoryScreen({
           </div>
         )}
 
-        {monthFilter && <button type="button" className="chip active" onClick={() => setMonthFilter(null)}>{new Date(`${monthFilter}-01T12:00:00`).toLocaleDateString('ru-RU', { month: 'long', year: 'numeric' })} · Сбросить</button>}
+        {monthFilter && <div className="history-month-filter"><button type="button" className="chip active" onClick={() => setMonthFilter(null)}>{new Date(`${monthFilter}-01T12:00:00`).toLocaleDateString('ru-RU', { month: 'long', year: 'numeric' })} · Сбросить</button></div>}
         {groups.length > 0 && (
           <div className="chips tag-filter">
             <button

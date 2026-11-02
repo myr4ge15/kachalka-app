@@ -1583,6 +1583,8 @@ button.link-btn { min-height: 44px; display: inline-flex; align-items: center; j
 
 /* Строка фильтра по группам над списком тренировок/ленты. */
 .tag-filter { padding-top: 0; margin-bottom: 4px; }
+.history-month-filter { display: flex; margin: 4px 0 12px; }
+.history-month-filter .chip { min-height: 44px; }
 
 /* ---------- шаблоны ---------- */
 /* Вторичная кнопка «Шаблоны» под «+ Добавить тренировку» */

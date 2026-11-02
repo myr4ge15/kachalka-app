@@ -14,9 +14,8 @@ export default function FeedbackScreenshotPicker({ items, onAdd, onRemove, onRet
   const input = useRef(null)
   const [error, setError] = useState('')
   const urls = useImageUrls(items)
-  function pick(e) {
-    const picked = Array.from(e.target.files ?? [])
-    e.target.value = ''
+  function addFiles(picked) {
+    if (disabled) return
     const bad = picked.map(attachmentProblemText).find(Boolean)
     if (bad) { setError(bad); return }
     // Больше, чем влезает (fb_9e79f821: выбрали 6 — не добавлялось ни одного): берем первые, что влезают.
@@ -26,6 +25,42 @@ export default function FeedbackScreenshotPicker({ items, onAdd, onRemove, onRet
       ? `Добавлено ${fit.length} из ${picked.length}: всего можно ${max} ${plural(max, 'вложение', 'вложения', 'вложений')}.`
       : '')
     if (fit.length) onAdd(fit)
+  }
+  function pick(e) {
+    addFiles(Array.from(e.target.files ?? []))
+    e.target.value = ''
+  }
+  // Событие из поля текста обрабатывает только его форма: открытых дополнений
+  // может быть несколько. Обычный текст сохраняет стандартное поведение вставки.
+  useEffect(() => {
+    const scope = input.current?.closest('.fb-form, .fb-reopen-form') ?? input.current?.parentElement
+    function paste(e) {
+      if (disabled) return
+      const files = Array.from(e.clipboardData?.files ?? []).filter((f) => f.type.startsWith('image/'))
+      if (!files.length) return
+      e.preventDefault()
+      addFiles(files)
+    }
+    scope?.addEventListener('paste', paste)
+    return () => scope?.removeEventListener('paste', paste)
+  })
+  async function pasteImage() {
+    try {
+      if (!navigator.clipboard?.read) {
+        setError('Вставь скриншот в поле сообщения через меню «Вставить» или выбери файл.')
+        return
+      }
+      const clips = await navigator.clipboard.read()
+      const files = []
+      for (const clip of clips) {
+        const type = clip.types.find((t) => t.startsWith('image/'))
+        if (type) files.push(new File([await clip.getType(type)], 'screenshot.png', { type }))
+      }
+      if (files.length) addFiles(files)
+      else setError('В буфере нет изображения. Скопируй скриншот и попробуй еще раз.')
+    } catch {
+      setError('Не удалось прочитать буфер. Вставь скриншот в поле сообщения или выбери файл.')
+    }
   }
   const one = items.length === 1
   return <>
@@ -69,6 +104,8 @@ export default function FeedbackScreenshotPicker({ items, onAdd, onRemove, onRet
     <button type="button" className="btn ghost fb-attach" disabled={disabled || items.length >= max}
       onClick={() => input.current?.click()}><Icon name="clip" size={17} /> {items.length ? 'Добавить еще' : 'Приложить скриншоты или видео'}</button>
     <input ref={input} type="file" accept="image/*,video/mp4,video/quicktime" multiple hidden disabled={disabled} onChange={pick} data-testid={testId} />
+    <button type="button" className="btn ghost fb-attach" disabled={disabled || items.length >= max}
+      onClick={pasteImage}>Вставить скриншот</button>
     {/* fb_37f0c1a8: свернутое приложение iPhone замораживает — файл начнет грузиться заново после возврата. */}
     {items.some((it) => it.status === 'uploading') && (
       <p className="muted fb-upload-hint">Не сворачивай приложение, пока идет загрузка, — иначе файл начнет грузиться заново.</p>

@@ -2,7 +2,7 @@
 // Вложения обращения: кнопка открывает выбор, неподходящий файл и перебор — понятная ошибка;
 // предзагрузка (20.10.2026): кольцо с процентами, ✓ готово, «Повторить», кадр видео; крестик.
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
-import { cleanup, fireEvent, render, screen } from '@testing-library/react'
+import { cleanup, fireEvent, render, screen, waitFor } from '@testing-library/react'
 import FeedbackScreenshotPicker from './FeedbackScreenshotPicker.jsx'
 
 const png = (n = 'a.png') => new File(['x'], n, { type: 'image/png' })
@@ -18,6 +18,42 @@ beforeEach(() => { URL.createObjectURL = vi.fn(() => 'blob:x'); URL.revokeObject
 afterEach(() => vi.clearAllMocks())
 
 describe('FeedbackScreenshotPicker', () => {
+  it('вставка картинки из поля добавляет ее только в свою форму; текст не перехватывается', () => {
+    const a = props(), b = props()
+    render(<><section className="fb-form"><textarea aria-label="Первая" /><FeedbackScreenshotPicker {...a} /></section>
+      <section className="fb-reopen-form"><textarea aria-label="Вторая" /><FeedbackScreenshotPicker {...b} /></section></>)
+    const file = png()
+    expect(fireEvent.paste(screen.getByLabelText('Вторая'), { clipboardData: { files: [file] } })).toBe(false)
+    expect(b.onAdd).toHaveBeenCalledWith([file])
+    expect(a.onAdd).not.toHaveBeenCalled()
+    expect(fireEvent.paste(screen.getByLabelText('Первая'), { clipboardData: { files: [] } })).toBe(true)
+    expect(a.onAdd).not.toHaveBeenCalled()
+  })
+
+  it('кнопка читает изображение из буфера; отказ дает понятное сообщение', async () => {
+    const read = vi.fn().mockResolvedValue([{ types: ['image/png'], getType: async () => png() }])
+    Object.defineProperty(navigator, 'clipboard', { configurable: true, value: { read } })
+    const p = props()
+    render(<FeedbackScreenshotPicker {...p} />)
+    fireEvent.click(screen.getByRole('button', { name: 'Вставить скриншот' }))
+    await waitFor(() => expect(p.onAdd).toHaveBeenCalledWith([expect.objectContaining({ type: 'image/png' })]))
+    read.mockRejectedValue(new Error('denied'))
+    fireEvent.click(screen.getByRole('button', { name: 'Вставить скриншот' }))
+    await waitFor(() => expect(screen.getByRole('alert')).toHaveTextContent('Не удалось прочитать буфер'))
+  })
+
+  it('вставка соблюдает лимит и блокировку загрузки', () => {
+    const p = props({ items: [item(png())], max: 1 })
+    const { container, rerender } = render(<FeedbackScreenshotPicker {...p} />)
+    expect(screen.getByRole('button', { name: 'Вставить скриншот' })).toBeDisabled()
+    fireEvent.paste(container, { clipboardData: { files: [png()] } })
+    expect(p.onAdd).not.toHaveBeenCalled()
+    expect(screen.getByRole('alert')).toHaveTextContent('Добавлено 0 из 1')
+    rerender(<FeedbackScreenshotPicker {...p} items={[]} disabled />)
+    fireEvent.paste(container, { clipboardData: { files: [png()] } })
+    expect(p.onAdd).not.toHaveBeenCalled()
+  })
+
   it('«Приложить» открывает выбор; выбранные уходят наверх', () => {
     const p = props()
     render(<FeedbackScreenshotPicker {...p} />)
