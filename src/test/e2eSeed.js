@@ -19,6 +19,8 @@
 // ============================================================================
 import { loginDb, openUserDb } from '../db/local.js'
 import { pbkdf2Hex, randomSaltHex } from '../lib/hash.js'
+import { monthOf, shiftMonth } from '../lib/calendar.js'
+import { monthKey } from '../lib/monthlySummary.js'
 
 export const E2E_USER = { id: 'e2e-user', name: 'E2E Тестер', pin: '1234' }
 
@@ -50,7 +52,7 @@ export const E2E_EXERCISES = [
 
 // Разложить состояние «устройство уже входило» и вернуть учетку для теста.
 // Идемпотентно: повторный вызов просто перезапишет те же записи.
-export async function seedE2E({ user = E2E_USER, exercises = E2E_EXERCISES } = {}) {
+export async function seedE2E({ user = E2E_USER, exercises = E2E_EXERCISES, monthlyAutoShow = false } = {}) {
   const pin_salt = randomSaltHex()
   const pin_hash = await pbkdf2Hex(user.pin, pin_salt)
 
@@ -62,6 +64,12 @@ export async function seedE2E({ user = E2E_USER, exercises = E2E_EXERCISES } = {
 
   const db = await openUserDb(user.id)
   await db.exercises.bulkPut(exercises)
+  // Обычные сценарии начинают с уже просмотренных итогов. Иначе любое добавление
+  // истории на Главной запускает отложенный лист и гонку с навигацией во всех спеках.
+  // Проверка самого автопоказа явно включает его через monthlyAutoShow.
+  if (!monthlyAutoShow) {
+    await db.meta.put({ key: `monthly_dismissed_${user.id}`, value: monthKey(shiftMonth(monthOf(new Date()), -1)) })
+  }
 
   return { id: user.id, name: user.name, pin: user.pin }
 }

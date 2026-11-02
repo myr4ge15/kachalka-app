@@ -8,7 +8,7 @@ test('одноразовые итоги ведут в календарь мес�
   })
   await context.route(/supabase\.co/, (route) => route.abort())
   await page.goto('/kachalka-app/')
-  const user = await page.evaluate(async () => (await import('/kachalka-app/src/test/e2eSeed.js')).seedE2E())
+  const user = await page.evaluate(async () => (await import('/kachalka-app/src/test/e2eSeed.js')).seedE2E({ monthlyAutoShow: true }))
   await page.reload()
   await page.getByRole('button', { name: user.name }).click()
   await enterPin(page, user.pin)

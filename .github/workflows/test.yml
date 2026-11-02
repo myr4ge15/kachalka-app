@@ -131,13 +131,11 @@ jobs:
           path: playwright-report/
           retention-days: 7
 
-  # Smoke в WebKit (19.10.2026): друзья на iPhone, а основной e2e — Chromium. Пока
-  # информационно: continue-on-error — красный WebKit не останавливает выкат по тегу,
-  # пока не разобраны первые расхождения. PWA «на экране Домой» WebKit не эмулирует.
+  # Обязательный smoke в WebKit: падение делает Tests красным и блокирует бету
+  # и выкат по тегу. PWA «на экране Домой» WebKit не эмулирует.
   e2e-webkit:
     runs-on: ubuntu-24.04  # закреплено 15.10.2026: ubuntu-latest с 19.10 → Ubuntu 26 (runner-images#14748)
     timeout-minutes: 20
-    continue-on-error: true
     container:
       image: mcr.microsoft.com/playwright:v1.63.0-noble
     steps:
@@ -154,3 +152,11 @@ jobs:
         env:
           E2E_WEBKIT: '1'
         run: npx playwright test --project=webkit
+
+      - name: Upload WebKit e2e report
+        if: failure()
+        uses: actions/upload-artifact@b7c566a772e6b6bfb58ed0dc250532a479d7789f # v6.0.0 (Node 24; v5 был на Node 20)
+        with:
+          name: playwright-webkit-report
+          path: playwright-report/
+          retention-days: 7

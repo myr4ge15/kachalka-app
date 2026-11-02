@@ -89,16 +89,6 @@ async function setup(page, context, upsertStatus) {
     if (!localStorage.getItem(key)) localStorage.setItem(key, value)
   }, [STORAGE_KEY, JSON.stringify(session)])
   await seedAndLogin(page, APP)
-  // Итоги открываются с задержкой при любой непустой истории, даже когда
-  // тренировка в текущем месяце. Здесь проверяем синк, а автопоказ — в monthly-summary.
-  await page.evaluate(async (userId) => {
-    const [{ dismissMonthlySummary }, { monthOf, shiftMonth }, { monthKey }] = await Promise.all([
-      import('/kachalka-app/src/db/insights.js'),
-      import('/kachalka-app/src/lib/calendar.js'),
-      import('/kachalka-app/src/lib/monthlySummary.js'),
-    ])
-    await dismissMonthlySummary(userId, monthKey(shiftMonth(monthOf(new Date()), -1)))
-  }, USER_ID)
   return sent
 }
 
@@ -117,7 +107,7 @@ test('записал офлайн → появилась сеть → upsert_wor
     p_entries: [{ exercise_id: 'e2e-ex-bench', sets: [{ weight: 60, reps: 8 }, { weight: 62.5, reps: 5 }] }],
   })
   await expect.poll(() => localState(page, id), { timeout: 15_000 }).toEqual({ dirty: 0, ops: 0 })
-  // Даем отложенным стартовым листам время появиться: без отметки в setup
+  // Даем отложенным стартовым листам время появиться: без отметки в общем сиде
   // тест на быстрой машине успевал уйти с Главной до таймера автопоказа (300 мс).
   await page.waitForTimeout(1500)
   await expect(page.getByRole('dialog', { name: 'Итоги месяца' })).toHaveCount(0)
