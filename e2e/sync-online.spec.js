@@ -80,6 +80,9 @@ const localState = (page, id) => page.evaluate(async (wid) => {
 }, id)
 
 async function setup(page, context, upsertStatus) {
+  // Тренировка ниже относится к октябрю: фиксируем и часы приложения, чтобы
+  // после смены месяца автопоказ итогов не перекрывал проверку синхронизации.
+  await page.clock.setFixedTime(new Date('2026-10-19T12:00:00.000Z'))
   await switchableOnline(context)
   const sent = await fakeServer(context, upsertStatus)
   const session = fakeSession()
