@@ -28,7 +28,7 @@
 
 export const WHATS_NEW = [
   {
-    version: '1.9.1',
+    version: '1.9.2',
     date: '2026-11-03',
     headline: 'Переезжаем на новый адрес',
     main: [

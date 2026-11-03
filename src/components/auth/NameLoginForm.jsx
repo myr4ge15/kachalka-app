@@ -31,16 +31,15 @@ export default function NameLoginForm({ onLogin, showError, error, setError }) {
   return (
     <form className="invite-form" onSubmit={submit} noValidate>
       <div className="field">
-        <label className="field-lab" htmlFor="login-name">Логин</label>
+        <label className="sr-only" htmlFor="login-name">Логин</label>
         <input id="login-name" className="admin-input" type="text" maxLength={60} autoComplete="username"
-          autoCapitalize="none" autoCorrect="off" spellCheck={false} aria-describedby="login-hint"
+          autoCapitalize="none" autoCorrect="off" spellCheck={false} placeholder="Логин"
           value={name} disabled={busy} onChange={(e) => { setName(e.target.value); setError('') }} />
-        <span className="field-hint" id="login-hint">Еще нет логина — введи свое имя, как раньше.</span>
       </div>
       <label className="field">
-        <span className="field-lab">PIN — 4 цифры</span>
+        <span className="sr-only">PIN</span>
         <input className="pin-input" type="password" inputMode="numeric" maxLength={4}
-          autoComplete="current-password" placeholder="••••" value={pin} disabled={busy}
+          autoComplete="current-password" placeholder="PIN" value={pin} disabled={busy}
           onChange={(e) => { setPin(onlyDigits(e.target.value).slice(0, 4)); setError('') }} />
       </label>
       {error && <p className="error" role="alert">{error}</p>}

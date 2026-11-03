@@ -261,7 +261,7 @@ export default function LoginScreen({ onLogin, onInvite }) {
           <BackButton onClick={goPick} label="Выбрать другого" />
         </div>
         <h2 className="title">{selected.name}</h2>
-        <p className="muted login-sub">Введи PIN — 4 цифры</p>
+        <p className="muted login-sub">Введи PIN</p>
 
         <PinPad length={pin.length} busy={busy} error={error} onDigit={pressDigit} onBackspace={backspace} />
         <div className="login-alt">

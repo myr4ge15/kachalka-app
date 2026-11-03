@@ -44,7 +44,6 @@ export default function JoinRequestForm({ onSubmitted, onBack }) {
         <input className="admin-input" type="text" maxLength={64} autoComplete="off" autoCapitalize="none"
           autoCorrect="off" spellCheck={false} placeholder="@ivan_petrov" value={tg} disabled={busy}
           onChange={(e) => { setTg(e.target.value); setError('') }} />
-        <span className="field-hint">Так владелец поймет, кто ты, и сможет написать.</span>
       </label>
       <label className="field">
         <span className="field-lab">Пара слов о себе</span>
