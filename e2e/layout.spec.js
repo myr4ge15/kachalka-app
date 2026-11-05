@@ -10,6 +10,51 @@ import { enterPin, tabbar, openTab, pickerItem, layoutProblems } from './helpers
 const APP = '/kachalka-app/'
 const EXERCISE = 'Жим лежа (e2e)'
 
+test('статусы переезда читаются на телефоне и десктопе, кнопка помещается', async ({ page }) => {
+  await page.route('**/migration-layout', (route) => route.fulfill({
+    contentType: 'text/html',
+    body: '<!doctype html><html lang="ru"><head><meta name="viewport" content="width=device-width, initial-scale=1"><link rel="stylesheet" href="/kachalka-app/src/index.css"></head><body><div id="root"></div></body></html>',
+  }))
+  await page.route('**/src/db/domainMigrationStatus.js*', (route) => route.fulfill({
+    contentType: 'application/javascript',
+    body: `export const touchDomainMigration = async () => {};
+      export const reportMigrationCheck = async () => {};
+      export const fetchDomainMigrationStatus = async () => [
+        {user_id:'one',name:'Александр с длинным именем',devices:[
+          {domain:'new',device_id:'n',last_seen_at:'2026-11-05T09:00:00Z'},
+          {domain:'old',device_id:'o',device_label:'iPhone',last_seen_at:'2026-11-04T09:00:00Z',checked_at:'2026-11-04T09:00:00Z',save_state:'ready',version:'1.10.0'},
+          {domain:'old',device_id:'o2',device_label:'Браузер',last_seen_at:'2026-11-04T09:00:00Z',checked_at:'2026-11-04T09:00:00Z',save_state:'draft',version:'1.10.0'}]},
+        {user_id:'two',name:'Маша',devices:[]}
+      ];`,
+  }))
+  await page.goto(`${APP}migration-layout`)
+  await page.evaluate(async () => {
+    const { default: RefreshRuntime } = await import('/kachalka-app/@react-refresh')
+    RefreshRuntime.injectIntoGlobalHook(window)
+    window.$RefreshReg$ = () => {}
+    window.$RefreshSig$ = () => (type) => type
+    window.__vite_plugin_react_preamble_installed__ = true
+    const { default: React } = await import('/kachalka-app/node_modules/.vite/deps/react.js')
+    const { default: ReactDOM } = await import('/kachalka-app/node_modules/.vite/deps/react-dom_client.js')
+    const { default: Section } = await import('/kachalka-app/src/components/admin/DomainMigrationSection.jsx')
+    document.getElementById('root').style.display = 'none'
+    const host = document.createElement('div')
+    host.className = 'screen admin'
+    document.body.append(host)
+    ReactDOM.createRoot(host).render(React.createElement(React.Fragment, null,
+      React.createElement('h2', { className: 'admin-title' }, 'Переезд на новый домен'),
+      React.createElement(Section, { userId: 'admin', online: true }),
+    ))
+  })
+  await expect(page.getByRole('article', { name: 'Александр с длинным именем' })).toBeVisible()
+  for (const width of [360, 1280]) {
+    await page.setViewportSize({ width, height: 844 })
+    await expectTidy(page, 'Статусы переезда')
+    expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true)
+    await page.screenshot({ path: `test-results/domain-migration-${width}.png`, fullPage: true })
+  }
+})
+
 async function settle(page) {
   // Экран въезжает сдвигом; меряем после анимаций.
   await page.waitForTimeout(450)

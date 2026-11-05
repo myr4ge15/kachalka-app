@@ -19,6 +19,7 @@ vi.mock('../lib/auth.js', () => ({
 import { useLaunchSheets } from './useLaunchSheets.js'
 import { SESSION_KEY } from './useSession.js'
 import { SEEN_KEY } from '../lib/whatsNew.js'
+import { WHATS_NEW } from '../content/whatsNew.js'
 import { markWelcomePending, welcomeKey } from '../lib/welcome.js'
 import { markPushAsked } from '../db/push.js'
 import { getBotInfo, getRecoveryStatus } from '../lib/auth.js'
@@ -50,7 +51,15 @@ describe('useLaunchSheets', () => {
     localStorage.setItem(SESSION_KEY, JSON.stringify({ id: 'u1' }))
     localStorage.setItem('kachalka:whats_new_seen', '9.6.0')
     const { result } = renderHook(() => useLaunchSheets(ME, false))
-    expect(result.current.whatsNew?.version).toBe(__APP_VERSION__)
+    expect(result.current.whatsNew?.version).toBe(WHATS_NEW[0].version)
+  })
+
+  it('технический выпуск не повторяет уже показанную пользовательскую новость', () => {
+    localStorage.setItem(SESSION_KEY, JSON.stringify({ id: 'u1' }))
+    localStorage.setItem(SEEN_KEY, WHATS_NEW[0].version)
+    const { result } = renderHook(() => useLaunchSheets(ME, false))
+    expect(result.current.whatsNew).toBeNull()
+    expect(localStorage.getItem(SEEN_KEY)).toBe(__APP_VERSION__)
   })
 
   it('вопрос про пуши — не во время записи тренировки; «Не сейчас» больше не спросит', async () => {

@@ -52,8 +52,8 @@ describe('versionJson (v7.5.0)', () => {
     expect(versionJson(E, '7.5.0')).toEqual({ version: '7.5.0', epoch: 2, headline: 'Новое', silent: true })
     expect(versionJson(E.slice(1), '7.4.0')).toEqual({ version: '7.4.0', epoch: 2, headline: 'b' })
   })
-  it('запись не про эту версию — без заголовка и без silent', () => {
-    expect(versionJson(E, '7.5.1')).toEqual({ version: '7.5.1', epoch: 2, headline: null })
+  it('без новости этого выпуска — без заголовка и с silent', () => {
+    expect(versionJson(E, '7.5.1')).toEqual({ version: '7.5.1', epoch: 2, headline: null, silent: true })
   })
 })
 
@@ -106,9 +106,13 @@ describe('content/whatsNew — правила записей', () => {
       }
     }
   })
-  it('свежая запись — версия из package.json (запись обязана попасть в релиз)', async () => {
+  it('запись не новее сборки; технический выпуск без новости выходит тихо', async () => {
     const pkg = await import('../../package.json')
-    expect(WHATS_NEW[0].version).toBe(pkg.default.version)
+    expect(cmpVersion(WHATS_NEW[0].version, pkg.default.version)).toBeLessThanOrEqual(0)
+    if (WHATS_NEW[0].version !== pkg.default.version) {
+      expect(versionJson(WHATS_NEW, pkg.default.version)).toMatchObject({ headline: null, silent: true })
+      expect(pendingWhatsNew(WHATS_NEW, WHATS_NEW[0].version, pkg.default.version).show).toEqual([])
+    }
   })
 })
 

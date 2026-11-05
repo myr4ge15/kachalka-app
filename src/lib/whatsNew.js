@@ -72,9 +72,10 @@ export function hasUnopened(entries, opened) {
 // про эту версию. push: false у записи (v7.5.0) → silent: push-update запишет версию как
 // объявленную, но пуш «Вышла версия» не пошлет (вся линейка x.y — тихо). epoch (v1.0.0 э2) —
 // эпоха нумерации для сравнения версий на сервере.
+// Нет новости этого выпуска — тоже тихое обновление, старую запись не повторяем.
 export function versionJson(entries, version, epoch = VERSION_EPOCH) {
   const latest = entries?.[0]?.version === version ? entries[0] : null
-  return { version, epoch, headline: updateHeadline(latest), ...(latest?.push === false ? { silent: true } : {}) }
+  return { version, epoch, headline: updateHeadline(latest), ...(!latest || latest.push === false ? { silent: true } : {}) }
 }
 
 // Заголовок для строки новой версии и пуша «Вышла версия» (version.json): headline + «. И еще N улучшений».

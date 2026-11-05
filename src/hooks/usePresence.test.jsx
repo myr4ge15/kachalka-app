@@ -6,6 +6,8 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { renderHook } from '@testing-library/react'
 import { usePresence, usePresenceHeartbeat, useRosterSex } from './usePresence.js'
 import { refreshPresence, touchPresence } from '../db/presence.js'
+import { touchDomainMigration } from '../db/domainMigrationStatus.js'
+vi.mock('../db/domainMigrationStatus.js', () => ({ touchDomainMigration: vi.fn() }))
 
 // Снимок — один и тот же объект, как у настоящего стора (иначе useSyncExternalStore зациклится).
 const SNAP = vi.hoisted(() => new Map([['u1', '2026-10-20T10:00:00Z']]))
@@ -49,6 +51,7 @@ describe('usePresenceHeartbeat', () => {
     vi.advanceTimersByTime(600_000)
     window.dispatchEvent(new Event('online'))
     expect(touchPresence).toHaveBeenCalledTimes(4) // после ухода — ни таймера, ни слушателей
+    expect(touchDomainMigration).toHaveBeenCalledTimes(4)
   })
 })
 

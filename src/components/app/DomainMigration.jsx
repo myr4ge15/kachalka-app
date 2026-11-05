@@ -1,5 +1,6 @@
 import { useRef, useState } from 'react'
 import { checkDomainMigration } from '../../db/domainMigration.js'
+import { reportMigrationCheck } from '../../db/domainMigrationStatus.js'
 import SheetDialog from '../ui/SheetDialog.jsx'
 
 const TARGET = 'https://kachalka-app.ru/app/'
@@ -25,6 +26,9 @@ export default function DomainMigration({ userId, phase = import.meta.env.VITE_D
     setStatus('checking')
     try {
       const result = await checkDomainMigration(userId)
+      // Не добавляем сетевой await между проверкой и переходом: за это время
+      // человек мог бы изменить тренировку. Heartbeat тоже отправляет снимки.
+      void reportMigrationCheck(userId, result)
       if (result === 'ready') {
         // Проверка и переход одним действием: не оставляем устаревающую ссылку
         // «все сохранено», пока человек продолжает редактировать тренировку.

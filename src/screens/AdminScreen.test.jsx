@@ -8,6 +8,8 @@ import { render, screen, waitFor } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import AdminScreen from './AdminScreen.jsx'
 import { mfaState, verifyCode } from '../lib/adminMfa.js'
+import { fetchDomainMigrationStatus } from '../db/domainMigrationStatus.js'
+vi.mock('../db/domainMigrationStatus.js', () => ({ fetchDomainMigrationStatus: vi.fn(async () => []) }))
 import { useLiveQuery } from 'dexie-react-hooks'
 import {
   adminListUsers, adminSetUser, adminSetPrivate, adminSetSex, adminUpdateExercise,
@@ -303,6 +305,15 @@ describe('2FA перед Админкой (v6.14.0)', () => {
 
 // 23.10.2026: разделы — отдельными экранами поверх меню (раньше аккордеон «на полстраницы»).
 describe('AdminScreen — раздел открывается своим экраном', () => {
+  it('статусы переезда доступны отдельным разделом и возвращаются в меню', async () => {
+    const user = userEvent.setup()
+    render(<AdminScreen user={ME} onBack={() => {}} />)
+    await user.click(await screen.findByRole('button', { name: 'Переезд на новый домен' }))
+    expect(await screen.findByText('Участников пока нет.')).toBeInTheDocument()
+    expect(fetchDomainMigrationStatus).toHaveBeenCalledWith(ME.id)
+    await user.click(screen.getByRole('button', { name: 'Назад в Админку' }))
+    expect(screen.getByRole('heading', { name: 'Админка' })).toBeInTheDocument()
+  })
   it('заголовок раздела и «назад» в меню; App узнает, что открыт внутренний слой', async () => {
     adminListUsers.mockResolvedValue([])
     const onInnerNav = vi.fn()

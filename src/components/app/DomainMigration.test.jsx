@@ -5,6 +5,7 @@ import DomainMigration from './DomainMigration.jsx'
 import { checkDomainMigration } from '../../db/domainMigration.js'
 
 vi.mock('../../db/domainMigration.js', () => ({ checkDomainMigration: vi.fn() }))
+vi.mock('../../db/domainMigrationStatus.js', () => ({ reportMigrationCheck: vi.fn() }))
 vi.mock('../ui/SheetDialog.jsx', () => ({ default: ({ title, children }) => <section role="dialog" aria-label={title}>{children}</section> }))
 const assign = vi.fn()
 beforeEach(() => {

@@ -7,7 +7,7 @@ import { adminListFeedback } from '../lib/feedbackApi.js'
 import { createAdminCache } from '../lib/adminCache.js'
 import InvitesSection from '../components/social/InvitesSection.jsx'
 import BackButton from '../components/ui/BackButton.jsx'
-import Chevron from '../components/ui/Chevron.jsx'
+import MenuRow from '../components/ui/MenuRow.jsx'
 import NavLayers from '../components/ui/NavLayers.jsx'
 import AdminDisciplines from '../components/admin/AdminDisciplines.jsx'
 import AdminFeedback from '../components/admin/AdminFeedback.jsx'
@@ -18,6 +18,7 @@ import { mfaState, needsCode } from '../lib/adminMfa.js'
 import ExercisesSection from '../components/admin/ExercisesSection.jsx'
 import UsersSection from '../components/admin/UsersSection.jsx'
 import ViewAllSection from '../components/admin/ViewAllSection.jsx'
+import DomainMigrationSection from '../components/admin/DomainMigrationSection.jsx'
 import { useViewAll } from '../hooks/useViewAll.js'
 import { viewAllActive } from '../lib/viewAll.js'
 
@@ -32,6 +33,7 @@ const SECTIONS = [
   { key: 'disciplines', title: 'Дисциплины рейтинга' },
   { key: 'exercises', title: 'Справочник упражнений' },
   { key: 'users', title: 'Пользователи' },
+  { key: 'migration', title: 'Переезд на новый домен' },
   { key: 'invites', title: 'Приглашения' },
   { key: 'feedback', title: 'Обращения' },
   // «Доступ к тренировкам» (связи вручную) убран в v9.0.0: связи — это дружбы («Друзья»).
@@ -112,6 +114,7 @@ export default function AdminScreen({ user, onBack, contentRef, edgeSwipeOn = fa
     )
   }
   if (section === 'users') sectionView = plain(<UsersSection meId={user.id} online={online} errMsg={errMsg} cache={cache} />)
+  if (section === 'migration') sectionView = plain(<DomainMigrationSection userId={user.id} online={online} />)
   if (section === 'invites') sectionView = plain(<InvitesSection online={online} errMsg={errMsg} cache={cache} />)
   if (section === 'feedback') sectionView = plain(<AdminFeedback online={online} cache={cache} />)
   if (section === 'mfa') {
@@ -144,10 +147,8 @@ export default function AdminScreen({ user, onBack, contentRef, edgeSwipeOn = fa
 
       <div className="admin-nav">
         {SECTIONS.map(({ key, title }) => (
-          <button key={key} type="button" className="admin-nav-btn" onClick={() => setSection(key)}>
-            <span className="admin-nav-name">{(key === 'mfa' && mfa?.enabled) || (key === 'viewall' && viewAllOn) ? `${title} · вкл` : title}</span>
-            <Chevron className="admin-nav-chev" />
-          </button>
+          <MenuRow key={key} className="admin-nav-btn" onClick={() => setSection(key)}
+            title={(key === 'mfa' && mfa?.enabled) || (key === 'viewall' && viewAllOn) ? `${title} · вкл` : title} />
         ))}
       </div>
       </>)}

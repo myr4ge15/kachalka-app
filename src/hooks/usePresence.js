@@ -2,6 +2,7 @@ import { useEffect, useMemo, useSyncExternalStore } from 'react'
 import { useLiveQuery } from 'dexie-react-hooks'
 import { getUsers } from '../db/repo.js'
 import { getPresence, refreshPresence, subscribePresence, touchPresence, FETCH_EVERY_MS, TOUCH_EVERY_MS } from '../db/presence.js'
+import { touchDomainMigration } from '../db/domainMigrationStatus.js'
 
 // Пока приложение на экране — раз в period зовем fn; при возврате в приложение и
 // появлении сети — сразу. Скрытую вкладку не дергаем.
@@ -26,7 +27,7 @@ function useWhileVisible(fn, period, deps) {
 
 // «Я тут» (v8.6.0): App ставит один раз на вошедшего.
 export function usePresenceHeartbeat(userId) {
-  useWhileVisible(() => { touchPresence(userId) }, TOUCH_EVERY_MS, [userId])
+  useWhileVisible(() => { touchPresence(userId); touchDomainMigration(userId) }, TOUCH_EVERY_MS, [userId])
 }
 
 // Отметки видимых участников — Map(userId → last_seen_at). Экраны с аватарками друзей.
