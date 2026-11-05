@@ -40,6 +40,8 @@ jobs:
           node-version: 22
           cache: npm
       - run: npm ci
+      - name: Hawk source maps contract
+        run: node --test scripts/upload-sourcemaps.test.mjs
       - name: Lint (ESLint)
         run: npm run lint
 

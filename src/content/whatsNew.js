@@ -28,8 +28,8 @@
 
 export const WHATS_NEW = [
   {
-    version: '1.9.2',
-    date: '2026-11-03',
+    version: '1.9.3',
+    date: '2026-11-05',
     headline: 'Переезжаем на новый адрес',
     main: [
       { e: '🏠', t: 'Новый адрес приложения: kachalka-app.ru/app/' },

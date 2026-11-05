@@ -149,7 +149,7 @@ jobs:
       contents: read
     env:
       # На уровне задачи: `if` шага не видит ни secrets, ни env самого шага.
-      SENTRY_AUTH_TOKEN: ${{ secrets.SENTRY_AUTH_TOKEN }}
+      VITE_HAWK_TOKEN: ${{ secrets.VITE_HAWK_TOKEN }}
     steps:
       - uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09 # v5.1.0
 
@@ -170,18 +170,18 @@ jobs:
           VITE_SUPABASE_KEY: ${{ secrets.VITE_SUPABASE_KEY }}
           VITE_SUPABASE_REF: ${{ secrets.VITE_SUPABASE_REF }}
           VITE_VAPID_PUBLIC_KEY: ${{ secrets.VITE_VAPID_PUBLIC_KEY }}
-          VITE_SENTRY_DSN: ${{ secrets.VITE_SENTRY_DSN }}
-          SENTRY_SOURCEMAPS: ${{ secrets.SENTRY_AUTH_TOKEN && '1' || '' }}
+          VITE_HAWK_TOKEN: ${{ secrets.VITE_HAWK_TOKEN }}
+          HAWK_SOURCEMAPS: ${{ secrets.VITE_HAWK_TOKEN && '1' || '' }}
         run: npm run build
 
-      # Source maps → Sentry (scripts/upload-sourcemaps.sh). Нет токена — шаг пропущен, карты не собирались.
+      # Source maps → Hawk (scripts/upload-sourcemaps.mjs). Нет токена — шаг пропущен, карты не собирались.
       # Сбой загрузки выкат не валит; карты удаляем ВСЕГДА, до публикации.
-      - name: Source maps в Sentry
-        if: ${{ env.SENTRY_AUTH_TOKEN != '' }}
+      - name: Source maps в Hawk
+        if: ${{ env.VITE_HAWK_TOKEN != '' }}
         continue-on-error: true
         env:
           APP_BASE: ${{ vars.VITE_APP_BASE || '/kachalka-app/' }}
-        run: bash scripts/upload-sourcemaps.sh
+        run: node scripts/upload-sourcemaps.mjs
 
       - name: Убрать .map из публикации
         if: always()
@@ -197,17 +197,17 @@ jobs:
           VITE_SUPABASE_KEY: ${{ secrets.VITE_SUPABASE_KEY }}
           VITE_SUPABASE_REF: ${{ secrets.VITE_SUPABASE_REF }}
           VITE_VAPID_PUBLIC_KEY: ${{ secrets.VITE_VAPID_PUBLIC_KEY }}
-          VITE_SENTRY_DSN: ${{ secrets.VITE_SENTRY_DSN }}
-          SENTRY_SOURCEMAPS: ${{ secrets.SENTRY_AUTH_TOKEN && '1' || '' }}
+          VITE_HAWK_TOKEN: ${{ secrets.VITE_HAWK_TOKEN }}
+          HAWK_SOURCEMAPS: ${{ secrets.VITE_HAWK_TOKEN && '1' || '' }}
         run: npm run build -- --outDir dist-domain
 
-      - name: Source maps нового адреса в Sentry
-        if: ${{ env.SENTRY_AUTH_TOKEN != '' }}
+      - name: Source maps нового адреса в Hawk
+        if: ${{ env.VITE_HAWK_TOKEN != '' }}
         continue-on-error: true
         env:
           APP_BASE: /app/
           BUILD_DIR: dist-domain
-        run: bash scripts/upload-sourcemaps.sh
+        run: node scripts/upload-sourcemaps.mjs
 
       - name: Добавить новую сборку в публикацию без .map
         run: |

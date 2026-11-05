@@ -1,38 +1,36 @@
-// Отчеты об ошибках клиента (Sentry-совместимый приемник: sentry.io, GlitchTip) — чистая часть.
+// Отчеты об ошибках клиента (Hawk) — чистая часть.
 // Без SDK (v1.7.2): свой тонкий отправитель ради контроля над тем, что уходит наружу. Приложение
 // хранит вес тела, имена и одноразовые токены в адресе (#reset=, #join=, #friend=), и стандартный
 // SDK по умолчанию собирает URL, хлебные крошки и тексты запросов. Здесь уходит только:
 // тип и текст ошибки (с вычисткой секретов), стек, версия, окружение, адрес БЕЗ query и hash,
 // случайный id устройства (не учетки). Отправка — lib/errorReporter.js, подключение — main.jsx.
-// Без VITE_SENTRY_DSN ничего не делается.
+// Без VITE_HAWK_TOKEN ничего не делается.
 
 const MAX_TEXT = 300
 const MAX_FRAMES = 30
 
-// DSN вида https://<ключ>@<хост>/<проект>. Не https или кривой → null (отчеты выключены).
-export function parseDsn(dsn) {
-  if (!dsn) return null
-  let u
+// Токен Hawk — base64 JSON; integrationId проверяем до включения в имя хоста.
+export function parseHawkToken(token) {
   try {
-    u = new URL(String(dsn).trim())
+    const { integrationId, secret } = JSON.parse(atob(String(token).trim()))
+    const uuid = /^[a-f0-9]{8}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{12}$/i
+    if (!uuid.test(integrationId) || !uuid.test(secret)) return null
+    return { host: `${integrationId}.k1.hawk.so` }
   } catch {
     return null
   }
-  const project = u.pathname.replace(/^\/+|\/+$/g, '')
-  if (u.protocol !== 'https:' || !u.username || !/^\d+$/.test(project)) return null
-  return { key: u.username, host: u.host, project }
 }
 
-export function envelopeUrl(parsed) {
-  return `https://${parsed.host}/api/${parsed.project}/envelope/?sentry_key=${encodeURIComponent(parsed.key)}&sentry_version=7`
+export function collectorUrl(parsed) {
+  return `https://${parsed.host}`
 }
 
 const CSP_META = /(<meta http-equiv="Content-Security-Policy" content=")([^"]*)(")/
 
-// Разрешает хост приемника в connect-src. DSN нет или кривой — html не меняется; CSP не найдена
-// при заданном DSN — бросаем (иначе сборка молча режет отчеты).
-export function withReportCsp(html, dsn) {
-  const parsed = parseDsn(dsn)
+// Разрешает хост приемника в connect-src. токена нет или он некорректен — html не меняется; CSP не найдена
+// при заданном токене — бросаем (иначе сборка молча режет отчеты).
+export function withReportCsp(html, token) {
+  const parsed = parseHawkToken(token)
   if (!parsed) return html
   if (!CSP_META.test(html)) throw new Error('errorReport: в index.html не найден мета-тег CSP')
   return html.replace(CSP_META, (_, head, csp, tail) => {
@@ -136,13 +134,32 @@ export function buildEvent(error, ctx) {
   }
 }
 
-// Тело запроса: три строки JSON (заголовок конверта, заголовок элемента, событие).
-export function toEnvelope(event, sentAt) {
-  return [
-    JSON.stringify({ event_id: event.event_id, sent_at: sentAt }),
-    JSON.stringify({ type: 'event' }),
-    JSON.stringify(event),
-  ].join('\n')
+// Протокол Hawk. На входе только уже очищенные поля buildEvent, без исходного Error.
+export function toHawkMessage(event, token) {
+  const error = event.exception.values[0]
+  return {
+    token,
+    catcherType: 'errors/javascript',
+    payload: {
+      title: error.value,
+      type: scrubText(error.type),
+      release: event.release,
+      backtrace: [...(error.stacktrace?.frames || [])].reverse().map((frame) => ({
+        file: frame.filename,
+        line: frame.lineno,
+        column: frame.colno,
+        function: scrubText(frame.function),
+      })),
+      user: event.user,
+      context: {
+        environment: event.environment,
+        url: event.request?.url,
+        source: error.mechanism.type,
+        handled: error.mechanism.handled,
+        ...event.tags,
+      },
+    },
+  }
 }
 
 // Предохранитель: не больше `max` отчетов за сессию, одинаковые — не чаще раза в `dedupeMs`.

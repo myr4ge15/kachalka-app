@@ -54,10 +54,10 @@ const backendCsp = (url) => ({
   transformIndexHtml: (html) => withBackendCsp(html, url),
 })
 
-// Приемник отчетов об ошибках (VITE_SENTRY_DSN, lib/errorReport.js): его хост — в connect-src.
-const reportCsp = (dsn) => ({
+// Приемник отчетов об ошибках (VITE_HAWK_TOKEN, lib/errorReport.js): его хост — в connect-src.
+const reportCsp = (token) => ({
   name: 'report-csp',
-  transformIndexHtml: (html) => withReportCsp(html, dsn),
+  transformIndexHtml: (html) => withReportCsp(html, token),
 })
 
 // Бета: другое имя под иконкой на iPhone (apple-mobile-web-app-title), заголовок вкладки и
@@ -127,7 +127,7 @@ export default defineConfig(({ mode }) => ({
     ocrAssets(),
     versionJson(appVersion(mode)),
     backendCsp(backendUrl(mode)),
-    reportCsp(viteEnv(mode).VITE_SENTRY_DSN),
+    reportCsp(viteEnv(mode).VITE_HAWK_TOKEN),
     betaHtml(isBeta(mode)),
     VitePWA({
       registerType: 'prompt',
@@ -216,10 +216,10 @@ export default defineConfig(({ mode }) => ({
     // его размер не влияет. Поднимаем порог предупреждения чуть выше этого чанка,
     // чтобы не заглушать сигнал о реально раздувшихся чанках приложения.
     chunkSizeWarningLimit: 1400,
-    // Source maps — только когда CI собирается их загружать в Sentry (SENTRY_SOURCEMAPS=1,
-    // scripts/upload-sourcemaps.sh). 'hidden': файлы .map есть, ссылки на них из кода нет;
+    // Source maps — только когда CI собирается их загружать в Hawk (HAWK_SOURCEMAPS=1,
+    // scripts/upload-sourcemaps.mjs). 'hidden': файлы .map есть, ссылки на них из кода нет;
     // перед публикацией workflow удаляет их из dist — на сайт они не попадают.
-    sourcemap: process.env.SENTRY_SOURCEMAPS === '1' ? 'hidden' : false,
+    sourcemap: process.env.HAWK_SOURCEMAPS === '1' ? 'hidden' : false,
     rollupOptions: {
       output: {
         // Общий чанк без собственной точки входа Rollup называет по первому попавшемуся

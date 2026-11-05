@@ -12,8 +12,8 @@ import { startPushListener } from './lib/pushIntent.js'
 import { initErrorReporter } from './lib/errorReporter.js'
 import './index.css'
 
-// Отчеты об ошибках (lib/errorReport.js): только при заданном VITE_SENTRY_DSN, иначе пустышка.
-initErrorReporter({ dsn: import.meta.env.VITE_SENTRY_DSN, release: __APP_VERSION__ })
+// Отчеты об ошибках (lib/errorReport.js): только при заданном VITE_HAWK_TOKEN, иначе пустышка.
+initErrorReporter({ token: import.meta.env.VITE_HAWK_TOKEN, release: __APP_VERSION__ })
 
 // Только бета: проверка, что стек в Sentry читается (source maps). В консоли беты: __throwTestError().
 // Ошибка бросается из кода приложения (а не из консоли), поэтому кадр ссылается на собранный файл.

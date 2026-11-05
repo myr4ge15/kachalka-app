@@ -1,6 +1,6 @@
 // Отправка отчетов об ошибках (чистая часть — lib/errorReport.js). Онлайн-модуль вне очередей синка:
-// ничего не пишет в Dexie, сбои тихие, офлайн отчеты не копятся. Без DSN — пустышка.
-import { parseDsn, envelopeUrl, buildEvent, toEnvelope, createLimiter } from './errorReport.js'
+// ничего не пишет в Dexie, сбои тихие, офлайн отчеты не копятся. Без токена — пустышка.
+import { parseHawkToken, collectorUrl, buildEvent, toHawkMessage, createLimiter } from './errorReport.js'
 
 const DEVICE_KEY = 'gym_app_diag_id'
 
@@ -28,15 +28,15 @@ function deviceId(storage) {
 
 // Подключает перехват window.onerror / unhandledrejection. Повторный вызов — без второго подписчика.
 export function initErrorReporter({
-  dsn,
+  token,
   release,
   win = window,
   fetchFn = (...a) => fetch(...a),
   now = () => Date.now(),
 } = {}) {
-  const parsed = parseDsn(dsn)
+  const parsed = parseHawkToken(token)
   if (!parsed || sender) return Boolean(sender)
-  const url = envelopeUrl(parsed)
+  const url = collectorUrl(parsed)
   const environment = String(release).includes('-beta') ? 'beta' : 'production'
   const allow = createLimiter()
   const id = deviceId(win.localStorage)
@@ -59,10 +59,11 @@ export function initErrorReporter({
       if (!event) return
       const top = event.exception.values[0]
       if (!allow(`${top.type}|${top.value}`, now())) return
-      // text/plain — «простой» запрос без предзапроса CORS; ответ не нужен.
+      // Приемник не возвращает CORS-заголовки: no-cors + text/plain, ответ не читаем.
       fetchFn(url, {
         method: 'POST',
-        body: toEnvelope(event, new Date(now()).toISOString()),
+        mode: 'no-cors',
+        body: JSON.stringify(toHawkMessage(event, token)),
         headers: { 'Content-Type': 'text/plain;charset=UTF-8' },
         keepalive: true,
       }).catch(() => {})

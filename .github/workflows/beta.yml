@@ -65,7 +65,7 @@ jobs:
       PROJECT: ${{ vars.BETA_PAGES_PROJECT || 'kachalka-beta' }}
       SHA: ${{ github.event.workflow_run.head_sha || github.sha }}
       # На уровне задачи: `if` шага не видит ни secrets, ни env самого шага.
-      SENTRY_AUTH_TOKEN: ${{ secrets.SENTRY_AUTH_TOKEN }}
+      VITE_HAWK_TOKEN: ${{ secrets.VITE_HAWK_TOKEN }}
     steps:
       - name: Секреты Cloudflare заданы?
         id: cf
@@ -118,8 +118,8 @@ jobs:
           VITE_SUPABASE_KEY: ${{ secrets.VITE_SUPABASE_KEY }}
           VITE_SUPABASE_REF: ${{ secrets.VITE_SUPABASE_REF }}
           VITE_VAPID_PUBLIC_KEY: ${{ secrets.VITE_VAPID_PUBLIC_KEY }}
-          VITE_SENTRY_DSN: ${{ secrets.VITE_SENTRY_DSN }}
-          SENTRY_SOURCEMAPS: ${{ secrets.SENTRY_AUTH_TOKEN && '1' || '' }}
+          VITE_HAWK_TOKEN: ${{ secrets.VITE_HAWK_TOKEN }}
+          HAWK_SOURCEMAPS: ${{ secrets.VITE_HAWK_TOKEN && '1' || '' }}
         run: |
           # Бета — только на своей базе. Секретов окружения beta нет → взялись секреты прода → стоп.
           case "$VITE_SUPABASE_REF|$VITE_SUPABASE_URL" in
@@ -132,14 +132,14 @@ jobs:
           printf '/*\n  X-Robots-Tag: noindex\n' > dist/_headers
           echo "Собрана $(node -p "require('./dist/version.json').version") (${SHA:0:7})."
 
-      # Source maps → Sentry (scripts/upload-sourcemaps.sh); нет токена — шаг пропущен. Сбой бету не валит;
+      # Source maps → Hawk (scripts/upload-sourcemaps.mjs); нет токена — шаг пропущен. Сбой бету не валит;
       # карты удаляем ВСЕГДА, до публикации.
-      - name: Source maps в Sentry
-        if: steps.cf.outputs.ready == 'true' && env.SENTRY_AUTH_TOKEN != ''
+      - name: Source maps в Hawk
+        if: steps.cf.outputs.ready == 'true' && env.VITE_HAWK_TOKEN != ''
         continue-on-error: true
         env:
           APP_BASE: /
-        run: bash scripts/upload-sourcemaps.sh
+        run: node scripts/upload-sourcemaps.mjs
 
       - name: Убрать .map из публикации
         if: steps.cf.outputs.ready == 'true'

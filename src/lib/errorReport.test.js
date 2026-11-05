@@ -1,39 +1,39 @@
 import { describe, it, expect } from 'vitest'
 import { readFileSync } from 'node:fs'
 import {
-  parseDsn, envelopeUrl, withReportCsp, scrubText, scrubUrl, parseStack,
-  shouldIgnore, buildEvent, toEnvelope, createLimiter,
+  parseHawkToken, collectorUrl, withReportCsp, scrubText, scrubUrl, parseStack,
+  shouldIgnore, buildEvent, toHawkMessage, createLimiter,
 } from './errorReport.js'
 
-const DSN = 'https://abc123@o1.ingest.de.sentry.io/4500'
+const TOKEN = btoa(JSON.stringify({ integrationId: '00000000-0000-4000-8000-000000000001', secret: '00000000-0000-4000-8000-000000000002' }))
 const indexHtml = readFileSync(new URL('../../index.html', import.meta.url), 'utf-8')
 const csp = (html) => html.match(/Content-Security-Policy" content="([^"]*)"/)[1]
 const connectSrc = (html) => csp(html).match(/connect-src ([^;]*)/)[1]
 
-describe('parseDsn / envelopeUrl', () => {
-  it('разбирает https DSN', () => {
-    expect(parseDsn(DSN)).toEqual({ key: 'abc123', host: 'o1.ingest.de.sentry.io', project: '4500' })
-    expect(envelopeUrl(parseDsn(DSN))).toBe('https://o1.ingest.de.sentry.io/api/4500/envelope/?sentry_key=abc123&sentry_version=7')
+describe('parseHawkToken / collectorUrl', () => {
+  it('разбирает https TOKEN', () => {
+    expect(parseHawkToken(TOKEN)).toEqual({ host: '00000000-0000-4000-8000-000000000001.k1.hawk.so' })
+    expect(collectorUrl(parseHawkToken(TOKEN))).toBe('https://00000000-0000-4000-8000-000000000001.k1.hawk.so')
   })
   it('пусто, не https, без ключа или проекта — null', () => {
-    for (const bad of [undefined, '', 'мусор', 'http://k@h/1', 'https://h/1', 'https://k@h/', 'https://k@h/abc']) {
-      expect(parseDsn(bad)).toBe(null)
+    for (const bad of [undefined, '', 'мусор', 'http://k@h/1', 'https://h/1', 'https://k@h/', 'https://k@h/abc', btoa('{}'), btoa(JSON.stringify({ integrationId: 'host/path', secret: 'x' }))]) {
+      expect(parseHawkToken(bad)).toBe(null)
     }
   })
 })
 
 describe('withReportCsp (на настоящем index.html)', () => {
-  it('без DSN html не меняется', () => {
+  it('без TOKEN html не меняется', () => {
     expect(withReportCsp(indexHtml, '')).toBe(indexHtml)
     expect(withReportCsp(indexHtml, 'мусор')).toBe(indexHtml)
   })
-  it('с DSN хост добавлен только в connect-src', () => {
-    const out = withReportCsp(indexHtml, DSN)
-    expect(connectSrc(out)).toBe(connectSrc(indexHtml) + ' https://o1.ingest.de.sentry.io')
+  it('с TOKEN хост добавлен только в connect-src', () => {
+    const out = withReportCsp(indexHtml, TOKEN)
+    expect(connectSrc(out)).toBe(connectSrc(indexHtml) + ' https://00000000-0000-4000-8000-000000000001.k1.hawk.so')
     expect(csp(out).match(/script-src [^;]*/)[0]).toBe(csp(indexHtml).match(/script-src [^;]*/)[0])
   })
-  it('нет CSP при заданном DSN — ошибка сборки', () => {
-    expect(() => withReportCsp('<html></html>', DSN)).toThrow(/CSP/)
+  it('нет CSP при заданном TOKEN — ошибка сборки', () => {
+    expect(() => withReportCsp('<html></html>', TOKEN)).toThrow(/CSP/)
     expect(withReportCsp('<html></html>', '')).toBe('<html></html>')
   })
 })
@@ -93,7 +93,7 @@ describe('shouldIgnore', () => {
   })
 })
 
-describe('buildEvent / toEnvelope', () => {
+describe('buildEvent / toHawkMessage', () => {
   const ctx = {
     eventId: 'e'.repeat(32), timestamp: 1700000000, release: '1.7.2', environment: 'production',
     source: 'onerror', handled: false, deviceId: 'dev1', url: 'https://x.ru/app/?t=1#reset=SECRET',
@@ -117,13 +117,22 @@ describe('buildEvent / toEnvelope', () => {
   it('шум → null', () => {
     expect(buildEvent(new TypeError('Failed to fetch'), ctx)).toBe(null)
   })
-  it('конверт — три строки JSON', () => {
-    const ev = buildEvent(new Error('x'), ctx)
-    const lines = toEnvelope(ev, '2026-10-29T00:00:00.000Z').split('\n')
-    expect(lines).toHaveLength(3)
-    expect(JSON.parse(lines[0])).toEqual({ event_id: ctx.eventId, sent_at: '2026-10-29T00:00:00.000Z' })
-    expect(JSON.parse(lines[1])).toEqual({ type: 'event' })
-    expect(JSON.parse(lines[2]).event_id).toBe(ctx.eventId)
+  it('сообщение Hawk: очищенные поля и кадры от нового к старому', () => {
+    const err = new TypeError('bad a@b.ru')
+    err.stack = 'TypeError: bad\n at inner (https://x.ru/a.js?token=SECRET:10:2)\n at outer (https://x.ru/b.js:20:4)'
+    const msg = toHawkMessage(buildEvent(err, ctx), TOKEN)
+    expect(msg.token).toBe(TOKEN)
+    expect(msg.catcherType).toBe('errors/javascript')
+    expect(msg.payload).toMatchObject({
+      title: 'bad [email]', type: 'TypeError', release: ctx.release,
+      user: { id: 'dev1' }, context: { environment: 'production', url: 'https://x.ru/app/', source: 'onerror', handled: false },
+    })
+    expect(msg.payload.backtrace).toEqual([
+      { file: 'https://x.ru/a.js', line: 10, column: 2, function: 'inner' },
+      { file: 'https://x.ru/b.js', line: 20, column: 4, function: 'outer' },
+    ])
+    expect(JSON.stringify(msg)).not.toContain('SECRET')
+    expect(toHawkMessage(buildEvent('plain', {}), TOKEN).payload.backtrace).toEqual([])
   })
 })
 
