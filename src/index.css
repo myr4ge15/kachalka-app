@@ -4378,7 +4378,8 @@ html[data-sheet-open] .content { overflow-y: hidden; }
 .fc-title-row { display: flex; flex-direction: column; gap: 2px; margin: 4px 0 12px; }
 .fc-fold { margin-bottom: 12px; }
 .fc-fold > .menu-row { margin-bottom: 0; }
-.fc-fold > .card { margin-top: 8px; margin-bottom: 0; }
+.fc-fold-panel { padding-top: 8px; }
+.fc-fold-panel > .card { margin-bottom: 0; }
 .fc-circle-name { margin: 0; font-family: var(--font-display); font-weight: 900; font-size: 22px; text-transform: uppercase; letter-spacing: .02em; }
 .fc-code {
   margin: 6px 0 4px; text-align: center; color: var(--text);

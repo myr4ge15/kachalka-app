@@ -16,7 +16,7 @@ export default function CircleOwnerSettings(props) {
   return (
     <div className="fc-fold" ref={revealRef}>
       <MenuRow kind="expand" icon="sliders" title="Настройки круга" open={open} onClick={() => setOpen((v) => !v)} />
-      <div hidden={!open}><OwnerPanel {...props} /></div>
+      <div className="fc-fold-panel" hidden={!open}><OwnerPanel {...props} /></div>
     </div>
   )
 }

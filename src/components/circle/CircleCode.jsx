@@ -16,7 +16,7 @@ export default function CircleCode({ api, circle }) {
   return (
     <div className="fc-fold" ref={revealRef}>
       <MenuRow kind="expand" icon="invite" title="Мой код в круг" open={open} onClick={() => setManual(!open)} />
-      <div hidden={!open}><CodePanel api={api} circle={circle} /></div>
+      <div className="fc-fold-panel" hidden={!open}><CodePanel api={api} circle={circle} /></div>
     </div>
   )
 }

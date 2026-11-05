@@ -100,3 +100,43 @@ test('вложенные экраны открываются и кнопки н�
     await visit(heading)
   }
 })
+
+test('раскрытые блоки круга отделены от заголовков', async ({ page, context }) => {
+  await context.route(/supabase\.co/, (route) => route.abort())
+  await page.goto(APP)
+  await page.evaluate(async () => {
+    const { default: React } = await import('/kachalka-app/node_modules/.vite/deps/react.js')
+    const { default: ReactDOM } = await import('/kachalka-app/node_modules/.vite/deps/react-dom_client.js')
+    const { default: CircleCode } = await import('/kachalka-app/src/components/circle/CircleCode.jsx')
+    const { default: CircleOwnerSettings } = await import('/kachalka-app/src/components/circle/CircleOwnerSettings.jsx')
+    await (await import('/kachalka-app/src/test/e2eSeed.js')).seedE2E()
+    const host = document.createElement('div')
+    host.className = 'screen fc-screen'
+    document.getElementById('root').style.display = 'none'
+    document.body.append(host)
+    const api = {
+      myCode: async () => ({ code: '7F3Q9XWD', uses: 0, max_uses: 10 }),
+      codes: async () => [], disciplines: async () => [],
+    }
+    const circle = { circle_id: 'c1', name: 'Зал', members: 5 }
+    ReactDOM.createRoot(host).render(React.createElement(React.Fragment, null,
+      React.createElement(CircleCode, { api, circle }),
+      React.createElement(CircleOwnerSettings, { api, circle }),
+    ))
+  })
+  for (const title of ['Мой код в круг', 'Настройки круга']) {
+    const button = page.getByRole('button', { name: title, exact: true })
+    await button.click()
+    const fold = button.locator('..')
+    const card = fold.locator('.fc-fold-panel > .card')
+    await expect(card).toBeVisible()
+    await settle(page)
+    const headerBox = await button.boundingBox()
+    const cardBox = await card.boundingBox()
+    expect(cardBox.y - headerBox.y - headerBox.height).toBeGreaterThanOrEqual(8)
+    await expectTidy(page, title)
+    await page.screenshot({ path: `test-results/circle-${title === 'Мой код в круг' ? 'code' : 'settings'}.png`, fullPage: true })
+    await button.click()
+    await expect(card).toBeHidden()
+  }
+})
