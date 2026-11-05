@@ -5023,13 +5023,19 @@ img.has-img, .avatar-lightbox-img { -webkit-touch-callout: none; -webkit-user-dr
 .body-chart-soon { margin: 0 4px 12px; }
 .body-more { width: 44px; height: 44px; background: none; border: 0; border-radius: var(--r-md);
   color: var(--muted); font-size: 20px; cursor: pointer; }
-.migration-status-list { display: grid; gap: 12px; margin-top: 16px; }
-.migration-status-card { padding: 16px; overflow-wrap: anywhere; }
-.migration-status-card h3 { margin: 0 0 12px; }
-.migration-status-card dl { margin: 0; display: grid; gap: 10px; }
-.migration-status-card dt { color: var(--muted); font-size: var(--fs-small); }
-.migration-status-card dd { margin: 3px 0 0; }
-.migration-status-card .admin-hint { margin-bottom: 0; }
+.migration-tools { margin-bottom: 12px; }
+.migration-summary { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 8px; margin-bottom: 16px; }
+.migration-summary > div { padding: 10px; background: var(--surface); border-radius: var(--r-md); }
+.migration-summary strong { display: block; font: 800 28px/1.1 var(--font-display); }
+.migration-summary span { display: block; margin-top: 4px; color: var(--muted); font-size: var(--fs-small); }
+.migration-person + .migration-person { border-top: 1px solid var(--border); }
+.migration-person > .menu-row { border: 0; border-radius: 0; background: none; }
+.migration-details { padding: 0 16px 16px; overflow-wrap: anywhere; }
+.migration-details dl { margin: 0; display: grid; gap: 10px; }
+.migration-details dt { color: var(--muted); font-size: var(--fs-small); }
+.migration-details dd { margin: 3px 0 0; }
+.migration-details .admin-hint { margin: 10px 0 0; }
+.migration-help { margin-top: 16px; }
 .body-more[aria-expanded="true"] { background: var(--surface-2); color: var(--text); }
 .body-goal { display: flex; flex-direction: column; gap: 12px; }
 .body-goal-title { font-weight: 700; }

@@ -51,7 +51,15 @@ test('статусы переезда читаются на телефоне и 
     await page.setViewportSize({ width, height: 844 })
     await expectTidy(page, 'Статусы переезда')
     expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true)
+    const row = page.getByRole('article', { name: 'Александр с длинным именем' })
+    expect((await row.boundingBox()).height).toBeLessThan(120)
+    await expect(page.getByRole('region', { name: 'Подробности: Александр с длинным именем' })).toHaveCount(0)
     await page.screenshot({ path: `test-results/domain-migration-${width}.png`, fullPage: true })
+    await row.getByRole('button').click()
+    await expect(page.getByRole('region', { name: 'Подробности: Александр с длинным именем' })).toBeVisible()
+    await expectTidy(page, 'Подробности переезда')
+    await page.screenshot({ path: `test-results/domain-migration-details-${width}.png`, fullPage: true })
+    await row.getByRole('button').click()
   }
 })
 
