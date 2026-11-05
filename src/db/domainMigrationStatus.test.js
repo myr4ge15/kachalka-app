@@ -1,11 +1,12 @@
 // @vitest-environment jsdom
 import { beforeEach, afterEach, expect, it, vi } from 'vitest'
 import { supabase, hasSession } from './supabase.js'
-import { checkDomainMigration } from './domainMigration.js'
-import { reportMigrationCheck, touchDomainMigration, fetchDomainMigrationStatus } from './domainMigrationStatus.js'
+import { checkDomainMigration, inspectDomainMigration } from './domainMigration.js'
+import { reportMigrationCheck, touchDomainMigration, fetchDomainMigrationStatus, prepareDomainMigration } from './domainMigrationStatus.js'
 
 vi.mock('./supabase.js', () => ({ supabase: { rpc: vi.fn() }, hasSession: vi.fn() }))
-vi.mock('./domainMigration.js', () => ({ checkDomainMigration: vi.fn() }))
+vi.mock('./domainMigration.js', () => ({ checkDomainMigration: vi.fn(), inspectDomainMigration: vi.fn() }))
+vi.mock('./local.js', () => ({ db: { name: 'gym_app_u' } }))
 vi.mock('../lib/appVersion.js', () => ({ APP_VERSION: '1.10.0', IS_BETA: false }))
 beforeEach(() => {
   vi.resetAllMocks()
@@ -15,6 +16,7 @@ beforeEach(() => {
   hasSession.mockResolvedValue(true)
   supabase.rpc.mockResolvedValue({ data: [], error: null })
   checkDomainMigration.mockResolvedValue('ready')
+  inspectDomainMigration.mockResolvedValue('ready')
 })
 afterEach(() => { vi.restoreAllMocks(); vi.unstubAllGlobals() })
 
@@ -31,6 +33,49 @@ it('при возвращении сначала снимает старое п�
   await touchDomainMigration('u')
   expect(checkDomainMigration).toHaveBeenCalledWith('u')
   expect(supabase.rpc.mock.calls.map((c) => c[1].p_save_state)).toEqual(['unknown', 'ready'])
+})
+
+it('переход ждет подтверждения сервера; heartbeat не может затереть его во время отправки', async () => {
+  let finish
+  supabase.rpc.mockReturnValue(new Promise((resolve) => { finish = resolve }))
+  let settled = false
+  const preparing = prepareDomainMigration('u').then((result) => { settled = true; return result })
+  await vi.waitFor(() => expect(supabase.rpc).toHaveBeenCalledOnce())
+  await touchDomainMigration('u')
+  expect(supabase.rpc).toHaveBeenCalledOnce()
+  expect(settled).toBe(false)
+  finish({ error: null })
+  expect(await preparing).toBe('ready')
+  expect(inspectDomainMigration).toHaveBeenCalledWith('u', expect.objectContaining({ name: 'gym_app_u' }))
+})
+it('переход дожидается фоновой проверки, чтобы ее результат не затер подтверждение', async () => {
+  let finish
+  checkDomainMigration.mockReturnValueOnce(new Promise((resolve) => { finish = resolve })).mockResolvedValue('ready')
+  const heartbeat = touchDomainMigration('u')
+  await vi.waitFor(() => expect(checkDomainMigration).toHaveBeenCalledOnce())
+  const preparing = prepareDomainMigration('u')
+  expect(await prepareDomainMigration('u')).toBe('sync')
+  finish('sync')
+  await heartbeat
+  expect(await preparing).toBe('ready')
+  expect(supabase.rpc.mock.calls.map((c) => c[1].p_save_state)).toEqual(['unknown', 'sync', 'ready'])
+})
+it('ошибка записи ready дает повторяемую ошибку вместо немедленного перехода', async () => {
+  supabase.rpc.mockResolvedValue({ error: { code: '500' } })
+  expect(await prepareDomainMigration('u')).toBe('report')
+  supabase.rpc.mockResolvedValue({ error: null })
+  expect(await prepareDomainMigration('u')).toBe('ready')
+})
+it.each(['draft', 'pending', 'account', 'offline'])('изменения во время отправки (%s) блокируют переход и исправляют отметку', async (state) => {
+  inspectDomainMigration.mockResolvedValue(state)
+  expect(await prepareDomainMigration('u')).toBe(state)
+  expect(supabase.rpc.mock.lastCall[1].p_save_state).toBe(state)
+})
+it('провал первоначальной проверки не отправляет ready', async () => {
+  checkDomainMigration.mockResolvedValue('pending')
+  expect(await prepareDomainMigration('u')).toBe('pending')
+  expect(supabase.rpc.mock.lastCall[1].p_save_state).toBe('pending')
+  expect(inspectDomainMigration).not.toHaveBeenCalled()
 })
 it.each(['draft', 'pending', 'sync', 'offline'])('передает неуспешный результат %s', async (state) => {
   checkDomainMigration.mockResolvedValue(state)

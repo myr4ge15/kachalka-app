@@ -51,9 +51,11 @@ export default function DomainMigrationSection({ userId, online }) {
           const newAt = row.devices.filter((d) => d.domain === 'new').map((d) => d.last_seen_at).sort().at(-1)
           const oldAt = summary.old.map((d) => d.last_seen_at).sort().at(-1)
           const open = expanded === row.user_id
+          const saved = summary.old.filter((d) => d.save_state === 'ready' && d.checked_at).length
           const sub = row.devices.length === 0 ? 'Еще нет отметок'
             : [summary.newSeen ? 'Заходил на новый' : 'Новый не отмечался',
-              summary.oldReady ? 'На старом сохранено' : summary.old.length ? 'Старый: нужна проверка' : 'Старый не отмечался'].join(' · ')
+              summary.oldReady ? 'На старом сохранено' : saved ? `Старый: сохранено ${saved}/${summary.old.length}`
+                : summary.old.length ? 'Старый: нужна проверка' : 'Старый не отмечался'].join(' · ')
           return <article className="migration-person" key={row.user_id} aria-label={row.name} ref={open ? revealRef : null}>
             <MenuRow kind="expand" title={row.name} sub={sub} open={open} onClick={() => toggle(row.user_id)}
               aria-controls={`migration-details-${row.user_id}`} />

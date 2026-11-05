@@ -1,6 +1,5 @@
 import { useRef, useState } from 'react'
-import { checkDomainMigration } from '../../db/domainMigration.js'
-import { reportMigrationCheck } from '../../db/domainMigrationStatus.js'
+import { prepareDomainMigration } from '../../db/domainMigrationStatus.js'
 import SheetDialog from '../ui/SheetDialog.jsx'
 
 const TARGET = 'https://kachalka-app.ru/app/'
@@ -11,6 +10,7 @@ const messages = {
   account: 'Учетка изменилась. Закрой это окно и начни проверку заново.',
   pending: 'На устройстве остались неотправленные изменения. Проверь синхронизацию в профиле и повтори попытку.',
   error: 'Не удалось проверить данные. Останься в старом приложении и повтори попытку позже.',
+  report: 'Данные сохранены, но сервер не подтвердил отметку переезда. Проверь связь и повтори переход.',
 }
 
 export default function DomainMigration({ userId, phase = import.meta.env.VITE_DOMAIN_MIGRATION }) {
@@ -25,10 +25,7 @@ export default function DomainMigration({ userId, phase = import.meta.env.VITE_D
     checking.current = true
     setStatus('checking')
     try {
-      const result = await checkDomainMigration(userId)
-      // Не добавляем сетевой await между проверкой и переходом: за это время
-      // человек мог бы изменить тренировку. Heartbeat тоже отправляет снимки.
-      void reportMigrationCheck(userId, result)
+      const result = await prepareDomainMigration(userId)
       if (result === 'ready') {
         // Проверка и переход одним действием: не оставляем устаревающую ссылку
         // «все сохранено», пока человек продолжает редактировать тренировку.

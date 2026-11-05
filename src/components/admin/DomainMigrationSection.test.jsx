@@ -19,7 +19,7 @@ it('показывает и неизвестных участников, и вс
   ])
   render(<DomainMigrationSection {...props} />)
   const sasha = await screen.findByRole('article', { name: 'Саня' })
-  expect(sasha).toHaveTextContent('Старый: нужна проверка')
+  expect(sasha).toHaveTextContent('Старый: сохранено 1/2')
   expect(screen.getByRole('article', { name: 'Маша' })).toHaveTextContent('Еще нет отметок')
   expect(screen.getByRole('status', { name: 'Сводка переезда' })).toHaveTextContent('1/2')
   expect(screen.queryByRole('region')).toBeNull()
