@@ -68,7 +68,7 @@ export default function LoginChangeForm({ userId }) {
   }
   return (
     <div className="pin-form" ref={formRef}>
-      <p className="pin-form-title">Сменить логин для входа</p>
+      <MenuRow kind="expand" icon="idcard" title="Сменить логин для входа" open onClick={close} disabled={busy} />
       {current && <p className="muted">Текущий логин: {current}</p>}
       <LoginField value={value} disabled={busy} label="Новый логин" onChange={(v) => { setValue(v); setErr('') }} />
       {err && <p className="pin-err" role="alert">{err}</p>}

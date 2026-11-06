@@ -124,6 +124,67 @@ describe('Профиль: смена PIN', () => {
   })
 })
 
+it('сворачивает формы из заголовка и сбрасывает несохраненные поля', async () => {
+  vi.mocked(auth.getMyLogin).mockResolvedValueOnce(null)
+  render(<Harness />)
+  await openSettings()
+  const loginRow = () => screen.getByRole('button', { name: /Сменить логин для входа/ })
+  await waitFor(() => expect(loginRow()).toHaveTextContent('еще не задан'))
+  fireEvent.click(loginRow())
+  fireEvent.change(screen.getByLabelText('Новый логин'), { target: { value: 'temporary' } })
+  expect(loginRow()).toHaveAttribute('aria-expanded', 'true')
+  fireEvent.click(loginRow())
+  expect(screen.queryByLabelText('Новый логин')).toBeNull()
+  fireEvent.click(loginRow())
+  expect(screen.getByLabelText('Новый логин')).toHaveValue('')
+
+  fireEvent.click(screen.getByRole('button', { name: 'Сменить PIN' }))
+  fireEvent.change(screen.getByLabelText('Текущий PIN'), { target: { value: '4826' } })
+  fireEvent.click(screen.getByRole('button', { name: 'Смена PIN', expanded: true }))
+  fireEvent.click(screen.getByRole('button', { name: 'Сменить PIN', expanded: false }))
+  expect(screen.getByLabelText('Текущий PIN')).toHaveValue('')
+})
+
+it('проверяет короткий и совпадающий PIN и показывает сетевую ошибку', async () => {
+  vi.mocked(auth.setPin).mockRejectedValueOnce(new Error('offline'))
+  render(<Harness />)
+  await openSettings()
+  const submit = () => fireEvent.click(screen.getByRole('button', { name: 'Сменить PIN' }))
+  submit()
+  submit()
+  expect(screen.getByRole('alert')).toHaveTextContent('4 цифры')
+  for (const label of ['Текущий PIN', 'Новый PIN', 'Повтор нового PIN']) {
+    fireEvent.change(screen.getByLabelText(label), { target: { value: '4826' } })
+  }
+  submit()
+  expect(screen.getByRole('alert')).toHaveTextContent('совпадает с текущим')
+  for (const label of ['Новый PIN', 'Повтор нового PIN']) {
+    fireEvent.change(screen.getByLabelText(label), { target: { value: '5091' } })
+  }
+  submit()
+  expect(await screen.findByRole('alert')).toHaveTextContent('Не удалось сменить PIN')
+})
+
+it('проверяет логин до запроса и показывает неожиданную ошибку сохранения', async () => {
+  vi.mocked(auth.setMyLogin).mockRejectedValueOnce(new Error('offline'))
+  render(<Harness />)
+  await openSettings()
+  const loginRow = () => screen.getByRole('button', { name: /Сменить логин для входа/ })
+  const save = () => fireEvent.click(screen.getByRole('button', { name: 'Сохранить' }))
+  await waitFor(() => expect(loginRow()).toHaveTextContent('dima'))
+  fireEvent.click(loginRow())
+  save()
+  expect(screen.queryByLabelText('Новый логин')).toBeNull()
+  fireEvent.click(loginRow())
+  fireEvent.change(screen.getByLabelText('Новый логин'), { target: { value: 'x' } })
+  save()
+  expect(screen.getByRole('alert')).toBeInTheDocument()
+  expect(auth.setMyLogin).not.toHaveBeenCalled()
+  fireEvent.change(screen.getByLabelText('Новый логин'), { target: { value: 'test.login' } })
+  save()
+  expect(await screen.findByRole('alert')).toHaveTextContent('Не удалось сохранить логин')
+})
+
 describe('Профиль: застрявшие изменения', () => {
   it('предупреждение и в Профиле, и в Настройках; повтор и отклонение', async () => {
     vi.mocked(repo.deadLetterCount).mockResolvedValue(2)

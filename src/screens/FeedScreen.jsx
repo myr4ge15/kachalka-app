@@ -148,7 +148,7 @@ export default function FeedScreen({ user, onOpenMember, flashId = null, thread 
     <div className="screen feed-screen" ref={rootRef}>
       <PullIndicator {...ptr} />
       <div className="feed-head">
-        <h2 className="screen-title">Лента</h2>
+        <h2 className="screen-title tab-title">Лента</h2>
         {/* v6.2.2: только иконка — большая «таблетка» с текстом спорила с заголовком.
             Свежесть («обновлено 5 мин назад») переехала в подзаголовок. */}
         {/* Свежесть — рядом с кнопкой, а не в подзаголовке (v6.3.3): при смене

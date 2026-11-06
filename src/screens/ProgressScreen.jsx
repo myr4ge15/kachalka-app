@@ -208,7 +208,7 @@ export default function ProgressScreen({
 
   return (
     <div className="screen prog-screen">
-      <h2 className="screen-title">Прогресс</h2>
+      <h2 className="screen-title tab-title">Прогресс</h2>
       <p className="muted sub">
         {weighted
           ? <>

@@ -50,6 +50,49 @@ const readyHome = {
 }
 
 describe('HomeScreen', () => {
+  it('показывает одинаковый заголовок при загрузке и после нее', () => {
+    vi.mocked(useLiveQuery).mockReturnValue(undefined)
+    const { rerender } = render(<HomeScreen user={user} />)
+    expect(screen.getByRole('heading', { name: fmtHomeTitle() })).toHaveClass('tab-title')
+    vi.mocked(useLiveQuery).mockReturnValue(readyHome)
+    rerender(<HomeScreen user={user} />)
+    expect(screen.getByRole('heading', { name: fmtHomeTitle() })).toHaveClass('tab-title')
+  })
+
+  it('показывает теги прошлой тренировки, спад тоннажа и цель по повторам', () => {
+    const onNavigate = vi.fn()
+    vi.mocked(useLiveQuery).mockReturnValue({
+      ...readyHome,
+      summary: {
+        ...readyHome.summary,
+        streak: 0,
+        rhythm: [],
+        tonnage: { month: 1000, pct: -10 },
+        lastWorkout: { daysAgo: 0, tags: ['chest_middle', 'спина', 'ноги', 'пресс', 'плечи'] },
+        nearestGoal: { name: 'Жим', metric: 'weight', target: 80, reps: 5, pct: 90, waitingForReps: true },
+      },
+      freshness: { recovery: [{ group: 'грудь', state: 'ready', bucket: 'fresh', daysSince: 3 }], cardio: 1 },
+    })
+    render(<HomeScreen user={user} onNavigate={onNavigate} />)
+    expect(screen.getByText('середина груди')).toHaveClass('tag-chest')
+    expect(screen.getByText('спина')).toHaveClass('tag-back')
+    expect(screen.getByText(/▼ -10%/)).toBeInTheDocument()
+    expect(screen.getByText(/целевой вес взят/)).toBeInTheDocument()
+    fireEvent.click(screen.getByRole('button', { name: /Все группы готовы к нагрузке/ }))
+    expect(onNavigate).toHaveBeenCalledWith('freshness')
+  })
+
+  it('оставляет итоги открытыми при ошибке сохранения и позволяет повторить', async () => {
+    vi.mocked(dismissMonthlySummary).mockRejectedValueOnce(new Error('offline'))
+    vi.mocked(useLiveQuery).mockReturnValue(readyHome)
+    render(<HomeScreen user={user} />)
+    fireEvent.click(screen.getByRole('button', { name: /Твой месяц в цифрах/ }))
+    fireEvent.click(screen.getByRole('button', { name: 'Готово' }))
+    expect(await screen.findByRole('alert')).toHaveTextContent('Не удалось сохранить')
+    fireEvent.click(screen.getByRole('button', { name: 'Готово' }))
+    await waitFor(() => expect(screen.queryByRole('dialog')).toBeNull())
+  })
+
   it('открывает итоги автоматически после закрытия приветственных окон', async () => {
     vi.mocked(useLiveQuery).mockReturnValue(readyHome)
     const { rerender } = render(<HomeScreen user={user} monthlyAutoBlocked />)

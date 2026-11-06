@@ -126,7 +126,7 @@ export default function HomeScreen({ user, onNavigate, onNewWorkout, onOpenProgr
   if (loading) {
     return (
       <div className="screen home">
-        <h2 className="screen-title home-date-title">{fmtHomeTitle()}</h2>
+        <h2 className="screen-title tab-title">{fmtHomeTitle()}</h2>
         <CardsSkeleton cards={3} />
       </div>
     )
@@ -135,7 +135,7 @@ export default function HomeScreen({ user, onNavigate, onNewWorkout, onOpenProgr
   if (!summary.hasData) {
     return (
       <div className="screen home">
-        <h2 className="screen-title home-date-title">{fmtHomeTitle()}</h2>
+        <h2 className="screen-title tab-title">{fmtHomeTitle()}</h2>
         <EmptyHint
           emoji="💪"
           title="Начни с первой тренировки"
@@ -175,7 +175,7 @@ export default function HomeScreen({ user, onNavigate, onNewWorkout, onOpenProgr
   // готовность мышц и ближайшая цель ВВЕРХУ → ритм → наблюдения → рекорд.
   return (
     <div className="screen home">
-      <h2 className="screen-title home-date-title">{fmtHomeTitle()}</h2>
+      <h2 className="screen-title tab-title">{fmtHomeTitle()}</h2>
       {summary?.hasData && home?.monthlyDismissed !== reportKey && monthlyHidden !== reportKey && <button type="button" className="card monthly-teaser" onClick={() => setMonthlyOpen(true)}>
         <span className="muted">Твой месяц в цифрах</span>
         <strong>{monthLabel(reportMonth)} <span aria-hidden="true">→</span></strong>

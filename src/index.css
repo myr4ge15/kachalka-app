@@ -87,11 +87,11 @@
   --note-text: #FDE68A; --note-bg: rgba(251, 191, 36, .12);                            /* предупреждение в «Оформлении» */
   /* Метки групп мышц в Истории (.day-tag.tag-*): фон / рамка / текст. */
   --tag-chest-bg: rgba(250, 204, 21, .14);  --tag-chest-line: var(--yellow); --tag-chest-text: #facc15;
-  --tag-back-bg: rgba(125, 119, 221, .16);  --tag-back-line: #534ab7;        --tag-back-text: #afa9ec;
+  --tag-back-bg: rgba(167, 139, 250, .16);  --tag-back-line: #7955bd;        --tag-back-text: #c4b5fd;
   --tag-legs-bg: rgba(56, 138, 221, .16);   --tag-legs-line: #185fa5;        --tag-legs-text: #85b7eb;
   --tag-shoulders-bg: rgba(216, 90, 48, .16); --tag-shoulders-line: #993c1d; --tag-shoulders-text: #f0997b;
   --tag-biceps-bg: rgba(22, 163, 74, .16);  --tag-biceps-line: var(--green); --tag-biceps-text: #86efac;
-  --tag-triceps-bg: rgba(29, 158, 117, .16); --tag-triceps-line: #0f6e56;    --tag-triceps-text: #5dcaa5;
+  --tag-triceps-bg: rgba(34, 211, 238, .14); --tag-triceps-line: #168197;   --tag-triceps-text: #67e8f9;
   --tag-abs-bg: rgba(212, 83, 126, .16);    --tag-abs-line: #993556;         --tag-abs-text: #ed93b1;
   /* ── Типографика (v6.3.1, макет prototypes/typography.html, вариант A) ──
      Две жирности обычного шрифта: 600 — у всего, что НАЗЫВАЕТ (заголовок раздела и
@@ -1561,7 +1561,7 @@ button.link-btn { min-height: 44px; display: inline-flex; align-items: center; j
 .history-list { list-style: none; margin: 10px 0 0; padding: 0; }
 .history-ex {
   /* Названиям больше места. Подходы выровнены по первой строке справа. */
-  display: grid; grid-template-columns: minmax(0, 3fr) minmax(0, 2fr); column-gap: 12px;
+  display: grid; grid-template-columns: minmax(0, 1fr) fit-content(40%); column-gap: 12px;
   padding: 8px 0; border-top: 1px solid var(--border);
   align-items: start; min-height: 36px;
 }
@@ -2078,7 +2078,7 @@ img.avatar-lg.has-img {
 .cm-item { display: flex; align-items: flex-end; gap: 8px; margin-top: 2px; }
 .cm-item.first { margin-top: 10px; }
 .cm-item.own { justify-content: flex-end; }
-.cm-item .avatar-sm { width: 28px; height: 28px; }
+.cm-item .avatar-sm { width: 28px; height: 28px; align-self: flex-start; }
 .cm-av-gap { width: 28px; flex: none; }
 .cm-item.pending { opacity: .55; }
 /* Комментарий, к которому привело уведомление (fb_2277554b): пузырь вспыхивает акцентом и гаснет,
@@ -3219,7 +3219,7 @@ label.act.busy { opacity: .55; pointer-events: none; }
   .fb-viewer--closing { animation: fb-viewer-exit 160ms ease-in both; pointer-events: none; }
   @keyframes fb-viewer-exit { to { opacity: 0; } }
 }
-.fb-viewer-body video { width: 100%; height: 100%; object-fit: contain; border-radius: var(--r-md); background: var(--bg); }
+.fb-viewer-body video { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: contain; border-radius: var(--r-md); background: var(--bg); }
 .fb-gallery-nav { display: flex; align-items: center; justify-content: center; gap: 12px; padding: 8px 0; }
 .fb-gallery-nav .btn { min-width: 44px; min-height: 44px; padding: 0; }
 .fb-video-play { position: absolute; inset: 0; display: grid; place-items: center; color: var(--on-acc); }
@@ -3236,7 +3236,7 @@ label.act.busy { opacity: .55; pointer-events: none; }
 .fb-viewer-body { flex: 1; min-height: 0; display: grid; place-items: center; overflow: hidden; touch-action: pinch-zoom; }
 .fb-viewer-body img { max-width: 100%; max-height: 100%; object-fit: contain; border-radius: var(--r-md); }
 /* свайп вверх/вниз закрывает просмотр (v6.12.1): вертикаль ведет JS, щипок — браузер */
-.fb-viewer-drag { display: grid; grid-template: minmax(0, 1fr) / minmax(0, 1fr); place-items: center; width: 100%; height: 100%; }
+.fb-viewer-drag { position: relative; display: grid; grid-template: minmax(0, 1fr) / minmax(0, 1fr); place-items: center; width: 100%; height: 100%; min-width: 0; min-height: 0; }
 .fb-viewer-drag--settle { transition: transform 200ms var(--ease-out, ease-out), opacity 200ms ease; }
 @media (prefers-reduced-motion: reduce) { .fb-viewer-drag--settle { transition: none; } }
 .fb-reply-head { display: flex; align-items: center; justify-content: space-between; gap: 8px; font-size: var(--fs-small); color: var(--muted); }
@@ -3958,7 +3958,7 @@ label.act.busy { opacity: .55; pointer-events: none; }
 .screen-head { display: flex; align-items: center; justify-content: space-between; gap: 12px; margin: 4px 0 12px; }
 .screen-head .screen-title { margin: 0; }
 .history-screen-head { margin-bottom: 16px; }
-.home-date-title { min-height: 44px; display: flex; align-items: center; margin-top: 0; font-size: 25px; }
+.tab-title { min-height: 44px; display: flex; align-items: center; margin-top: 4px; }
 .feed-head, .history-screen-head { min-height: 44px; }
 .cal { display: flex; flex-direction: column; gap: 14px; }
 .cal-nav { display: flex; align-items: center; gap: 10px; }

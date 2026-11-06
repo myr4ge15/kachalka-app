@@ -290,7 +290,7 @@ export default function HistoryScreen({
   function renderHead() {
     return (
       <div className="screen-head history-screen-head">
-        <h2 className="screen-title">Мои тренировки</h2>
+        <h2 className="screen-title tab-title">Мои тренировки</h2>
         {list.length > 0 && (
           <button className="back-btn" aria-label="Календарь тренировок" onClick={() => setCalendar({ date: null })}>
             <Icon name="calendar" size={20} />

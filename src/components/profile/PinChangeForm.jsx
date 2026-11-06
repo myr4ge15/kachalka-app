@@ -52,7 +52,7 @@ export default function PinChangeForm({ userId }) {
   return (
     // <form>: Enter отправляет; поля заперты, пока идет сохранение (UI-ревью 23.10).
     <form className="pin-form" ref={pinFormRef} onSubmit={(e) => { e.preventDefault(); if (!pinBusy) submitPin() }}>
-      <p className="pin-form-title">Смена PIN</p>
+      <MenuRow kind="expand" icon="key" title="Смена PIN" open onClick={closePinForm} disabled={pinBusy} />
       <label className="field">
         <span className="field-lab">Текущий PIN</span>
         <input
