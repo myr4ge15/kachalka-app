@@ -47,8 +47,9 @@ export default defineConfig({
     { name: 'chromium', use: { ...devices['Desktop Chrome'], viewport: { width: 390, height: 844 } } },
     // Smoke в WebKit (19.10.2026, задача e2e-webkit в test.yml): только по E2E_WEBKIT=1 —
     // обычный прогон и локальный запуск остаются на одном Chromium.
+    // Длинному smoke в WebKit нужен запас на медленный CI, включая перезагрузку.
     ...(process.env.E2E_WEBKIT
-      ? [{ name: 'webkit', testMatch: /smoke\.spec\.js$/, use: { ...devices['iPhone 13'], defaultBrowserType: 'webkit' } }]
+      ? [{ name: 'webkit', timeout: 60_000, testMatch: /smoke\.spec\.js$/, use: { ...devices['iPhone 13'], defaultBrowserType: 'webkit' } }]
       : []),
   ],
 
