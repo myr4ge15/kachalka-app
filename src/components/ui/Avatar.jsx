@@ -34,5 +34,5 @@ function AvatarPic({ name, url, className }) {
       />
     )
   }
-  return <div className={className} aria-hidden="true">{initial}</div>
+  return <div className={className} aria-hidden="true"><span className="avatar-initial">{initial}</span></div>
 }

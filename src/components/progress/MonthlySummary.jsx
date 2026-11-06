@@ -12,6 +12,15 @@ import './MonthlySummary.css'
 export default function MonthlySummary({ workouts, month = shiftMonth(monthOf(new Date()), -1), months, onMonthChange, celebrate = true, onDismiss, onOpenWorkouts, error = false, loading = false }) {
   const summary = useMemo(() => buildMonthlySummary(workouts, month), [workouts, month])
   const [pickingMonth, setPickingMonth] = useState(false)
+  const recent = months?.slice(0, 6) ?? []
+  const archive = new Map()
+  for (const m of months?.slice(6) ?? []) {
+    const year = monthKey(m).slice(0, 4)
+    if (!archive.has(year)) archive.set(year, [])
+    archive.get(year).push(m)
+  }
+  const monthButton = (m) => <button type="button" key={monthKey(m)}
+    aria-pressed={monthKey(m) === monthKey(month)} onClick={() => { setPickingMonth(false); onMonthChange?.(m) }}>{monthLabel(m)}</button>
   return (
     <SheetDialog title="Итоги месяца" onDismiss={onDismiss} swipeDown className="monthly-sheet">
       {celebrate && !loading && summary.count > 0 && <div className="monthly-fireworks" aria-hidden="true">
@@ -26,7 +35,11 @@ export default function MonthlySummary({ workouts, month = shiftMonth(monthOf(ne
       <div className="sheet-scroll monthly-summary">
         {months ? <div className="monthly-picker"><span className="muted">Месяц</span>
           <button type="button" className="monthly-month-trigger" aria-label="Выбрать месяц" aria-expanded={pickingMonth} onClick={() => setPickingMonth(!pickingMonth)}>{monthLabel(month)} <Chevron toggle open={pickingMonth} /></button>
-          {pickingMonth && <div className="monthly-month-options" role="group" aria-label="Месяц итогов">{months.map((m) => <button type="button" key={monthKey(m)} aria-pressed={monthKey(m) === monthKey(month)} onClick={() => { setPickingMonth(false); onMonthChange?.(m) }}>{monthLabel(m)}</button>)}</div>}
+          {pickingMonth && <div className="monthly-month-options" role="group" aria-label="Месяц итогов">{recent.map(monthButton)}
+            {[...archive].map(([year, items]) => <details key={year} className="monthly-archive">
+              <summary>{year}</summary>
+              <div className="monthly-month-options">{items.map(monthButton)}</div>
+            </details>)}</div>}
         </div> : <p className="monthly-period">{monthLabel(month)}</p>}
         {loading ? <CardsSkeleton cards={1} /> : <>
         <h2 className="monthly-hero">{summary.count}<span>{plural(summary.count, 'тренировка', 'тренировки', 'тренировок')}</span></h2>

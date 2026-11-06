@@ -39,3 +39,6 @@
   .monthly-fireworks { display: none; animation: none; }
   .monthly-burst span { animation: none; }
 }
+
+.monthly-archive { grid-column: 1 / -1; }
+.monthly-archive summary { cursor: pointer; padding: 10px 0; }

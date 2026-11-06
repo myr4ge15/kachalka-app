@@ -114,7 +114,8 @@ export default function RecoverySection({ userId }) {
   const since = (iso) => (iso ? ` с ${fmtDate(iso)}` : '')
   return (
     <div className="pin-form recovery-box" ref={boxRef}>
-      <p className="pin-form-title">Восстановление доступа</p>
+      <MenuRow kind="expand" icon="lifebuoy" title="Восстановление доступа" open disabled={!!busy}
+        onClick={() => { setOpen(false); setTgLink(null); setConfirmCode(false); setConfirmUnlink(false) }} />
       <p className="muted invite-note">Забудешь PIN — на экране входа нажми «Забыл PIN?» и войди одним из способов.</p>
 
       <p className="recovery-row-title">Telegram</p>
@@ -161,9 +162,6 @@ export default function RecoverySection({ userId }) {
       </button>
 
       {err && <p className="pin-err" role="alert">{err}</p>}
-      <div className="pin-form-actions">
-        <button type="button" className="btn ghost" onClick={() => { setOpen(false); setTgLink(null); setConfirmCode(false); setConfirmUnlink(false) }}>Свернуть</button>
-      </div>
     </div>
   )
 }

@@ -42,7 +42,7 @@ export default function DomainMigrationSection({ userId, online }) {
       <div className="migration-summary" role="status" aria-label="Сводка переезда">
         <div><strong>{rows.filter((r) => migrationSummary(r.devices).newSeen).length}/{rows.length}</strong><span>На новом</span></div>
         <div><strong>{rows.filter((r) => migrationSummary(r.devices).recentOld).length}</strong><span>Старый за 7 дней</span></div>
-        <div><strong>{rows.filter((r) => migrationSummary(r.devices).oldReady).length}</strong><span>На старом сохранено</span></div>
+        <div><strong>{rows.filter((r) => migrationSummary(r.devices).oldReady).length}</strong><span>Все старые устройства проверены</span></div>
       </div>
       {rows.length === 0 && <p>Участников пока нет.</p>}
       <div className="menu-group migration-status-list">
@@ -64,7 +64,7 @@ export default function DomainMigrationSection({ userId, online }) {
             <dl>
               <div><dt>Новый адрес</dt><dd>{summary.newSeen ? `Был вход · ${time(newAt)}` : 'Пока нет данных'}</dd></div>
               <div><dt>Старый адрес</dt><dd>{oldAt ? `${summary.recentOld ? 'Был за последние 7 дней' : 'Давняя активность'} · ${time(oldAt)}` : 'Пока нет данных'}</dd></div>
-              <div><dt>Сохранение на старом</dt><dd>{summary.oldReady ? 'Все сохранено на последних проверках известных устройств' : summary.old.length ? 'Не на всех известных устройствах подтверждено' : 'Пока нет данных'}</dd></div>
+              <div><dt>Сохранение на старом</dt><dd>{summary.oldReady ? 'Все сохранено на последних проверках известных устройств' : summary.old.length ? `Подтверждено на ${saved} из ${summary.old.length} известных старых устройств` : 'Пока нет данных'}</dd></div>
             </dl>
             {summary.old.map((d, index) => <p className="admin-hint" key={d.device_id}>
               {d.device_label} · устройство {index + 1}: {MIGRATION_STATES[d.save_state] ?? MIGRATION_STATES.unknown}.

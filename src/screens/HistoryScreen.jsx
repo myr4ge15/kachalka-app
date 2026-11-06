@@ -17,6 +17,7 @@ import TemplatesScreen from './TemplatesScreen.jsx'
 import CardsSkeleton from '../components/ui/CardsSkeleton.jsx'
 import ExportBar from '../components/workout/ExportBar.jsx'
 import CheckIcon from '../components/ui/CheckIcon.jsx'
+import Icon from '../components/ui/Icon.jsx'
 import WorkoutFinishSheet from '../components/workout/WorkoutFinishSheet.jsx'
 import WorkoutCalendar from '../components/workout/WorkoutCalendar.jsx'
 import { defaultTemplateName, templateExercisesFromWorkout } from '../lib/templateFromWorkout.js'
@@ -288,15 +289,11 @@ export default function HistoryScreen({
   // Заголовок хаба + иконка календаря справа (как «поиск по дате» в мессенджерах).
   function renderHead() {
     return (
-      <div className="screen-head">
+      <div className="screen-head history-screen-head">
         <h2 className="screen-title">Мои тренировки</h2>
         {list.length > 0 && (
           <button className="back-btn" aria-label="Календарь тренировок" onClick={() => setCalendar({ date: null })}>
-            <svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" strokeWidth="2"
-              strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
-              {/* Тот же значок, что у даты в карточке тренировки (DateField). */}
-              <rect x="3" y="5" width="18" height="16" rx="3" /><path d="M3 10h18M8 3v4M16 3v4" />
-            </svg>
+            <Icon name="calendar" size={20} />
           </button>
         )}
       </div>
@@ -411,9 +408,9 @@ export default function HistoryScreen({
               </div>
 
               {tags.length > 0 && (
-                <div className="day-tags">
+                <div className="day-tags" aria-label="Мышцы. Цвет соответствует крупной группе" title="Цвет чипа соответствует крупной группе мышц" role="group">
                   {tags.map((s) => (
-                    <span key={s} className={`day-tag tag-${tagSlug(majorOf(s))}`}>{labelOf(s)}</span>
+                    <span key={s} className={`day-tag tag-${tagSlug(majorOf(s) ?? s)}`}>{labelOf(s)}</span>
                   ))}
                 </div>
               )}

@@ -135,7 +135,7 @@ export default function WorkoutCalendar({ workouts, filter = null, initialDate =
                     {tags.length > 0 && (
                       <div className="day-tags">
                         {tags.map((s) => (
-                          <span key={s} className={`day-tag tag-${tagSlug(majorOf(s))}`}>{labelOf(s)}</span>
+                          <span key={s} className={`day-tag tag-${tagSlug(majorOf(s) ?? s)}`}>{labelOf(s)}</span>
                         ))}
                       </div>
                     )}

@@ -80,7 +80,7 @@ export default function CommentThread({ workoutId, ownerId, comments, me, open, 
   // Двойной тап по чужому пузырю — ❤️ (fb_afd6d919). Тап после удержания (открыл меню) не считаем.
   const lastTap = useRef(null)
   function tapBubble(e, c) {
-    if (wasLong() || e.target.closest('button, a')) { lastTap.current = null; return }
+    if (c.pending || wasLong() || e.target.closest('button, a')) { lastTap.current = null; return }
     const t = Date.now()
     if (isDoubleTap(lastTap.current, c.id, t)) {
       lastTap.current = null

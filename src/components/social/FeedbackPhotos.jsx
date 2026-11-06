@@ -3,6 +3,7 @@ import SheetDialog from '../ui/SheetDialog.jsx'
 import { dragOpacity, shouldDismiss } from '../../lib/swipeDismiss.js'
 import { isVideoMedia, videoPosterSrc } from '../../lib/feedback.js'
 import Icon from '../ui/Icon.jsx'
+import Chevron from '../ui/Chevron.jsx'
 
 // Картинки обращения из Telegram (v6.12.0): фото ответа разработчика или скриншот
 // участника. Хранятся в Telegram, байты отдает Edge `feedback` — load(id, kind, n)
@@ -23,6 +24,18 @@ export default function FeedbackPhotos({
   const [on, setOn] = useState(!lazy)
   const [urls, setUrls] = useState(() => Array(total).fill(null)) // null — грузится, '' — не вышло
   const [open, setOpen] = useState(null)
+  const [closing, setClosing] = useState(false)
+
+  useEffect(() => {
+    if (!closing) return undefined
+    const timer = setTimeout(() => { setOpen(null); setClosing(false) }, 160)
+    return () => clearTimeout(timer)
+  }, [closing])
+
+  function close() {
+    if (window.matchMedia?.('(prefers-reduced-motion: no-preference)').matches) setClosing(true)
+    else setOpen(null)
+  }
 
   useEffect(() => {
     const list = numsKey ? numsKey.split(',').map(Number) : []
@@ -36,6 +49,13 @@ export default function FeedbackPhotos({
     })
     return () => { alive = false }
   }, [on, id, kind, numsKey, load])
+
+  const current = open === null ? null : urls[open]
+  const previous = urls.findLastIndex((url, index) => index < open && Boolean(url))
+  const next = urls.findIndex((url, index) => index > open && Boolean(url))
+  function move(index) {
+    if (!closing && index >= 0) setOpen(index)
+  }
 
   if (!total) return null
   if (!on) {
@@ -56,20 +76,30 @@ export default function FeedbackPhotos({
               ? <span key={n} className="fb-photo skel" aria-label="Загрузка" />
               : (
                 <button key={n} type="button" className={'fb-photo' + (isVideo(url) ? ' fb-photo--video' : '')}
-                  onClick={() => setOpen(url)}
+                  onClick={() => setOpen(n)}
                   aria-label={(total > 1 ? `${mediaLabel(label, isVideo(url))} ${n + 1} из ${total}` : mediaLabel(label, isVideo(url)))}>
-                  {isVideo(url) ? <video src={videoPosterSrc(url)} muted playsInline preload="metadata" /> : <img src={url} alt="" />}
+                  {isVideo(url) ? <>
+                    <video src={videoPosterSrc(url)} muted playsInline preload="metadata" />
+                    <span className="fb-video-play"><Icon name="play" size={20} /></span>
+                  </> : <img src={url} alt="" />}
                 </button>
               )
         ))}
       </div>
-      {open && (
-        <SheetDialog title={mediaLabel(label, isVideo(open))} onDismiss={() => setOpen(null)} className="fb-viewer">
-          <SwipeToClose onClose={() => setOpen(null)}>
-            {isVideo(open)
-              ? <video src={open} controls autoPlay playsInline aria-label={mediaLabel(label, true)} />
-              : <img src={open} alt={label} />}
+      {current && (
+        <SheetDialog title={mediaLabel(label, isVideo(current))} onDismiss={close} className={closing ? "fb-viewer fb-viewer--closing" : "fb-viewer"}>
+          <SwipeToClose onClose={close} onSlide={(forward) => move(forward ? next : previous)}>
+            {isVideo(current)
+              ? <video key={current} src={current} controls autoPlay playsInline aria-label={mediaLabel(label, true)} />
+              : <img src={current} alt={label} />}
           </SwipeToClose>
+          {total > 1 && <div className="fb-gallery-nav">
+            <button type="button" className="btn ghost" aria-label="Предыдущее вложение" disabled={previous < 0}
+              onClick={() => move(previous)}><Chevron back /></button>
+            <span role="status">{open + 1} из {total}</span>
+            <button type="button" className="btn ghost" aria-label="Следующее вложение" disabled={next < 0}
+              onClick={() => move(next)}><Chevron /></button>
+          </div>}
         </SheetDialog>
       )}
     </>
@@ -84,13 +114,13 @@ function mediaLabel(label, video) {
 
 // Картинка тянется за пальцем по вертикали; отпустили далеко или резко — закрыть,
 // иначе вернуть на место. Один палец; щипок (два пальца) не перехватываем.
-function SwipeToClose({ onClose, children }) {
+function SwipeToClose({ onClose, onSlide, children }) {
   const start = useRef(null)
   const [dy, setDy] = useState(0)
   const [dragging, setDragging] = useState(false)
 
   function onTouchStart(e) {
-    if (e.touches.length !== 1) { start.current = null; return }
+    if (e.touches.length !== 1 || e.target.closest('video')) { start.current = null; return }
     const t = e.touches[0]
     start.current = { x: t.clientX, y: t.clientY, at: Date.now() }
     setDragging(true)
@@ -111,7 +141,10 @@ function SwipeToClose({ onClose, children }) {
     const dx = t ? t.clientX - s.x : 0
     const y = t ? t.clientY - s.y : dy
     if (shouldDismiss({ dx, dy: y, dt: Date.now() - s.at })) onClose()
-    else setDy(0)
+    else {
+      setDy(0)
+      if (Math.abs(dx) >= 45 && Math.abs(dx) > Math.abs(y) * 1.5) onSlide(dx < 0)
+    }
   }
 
   return (

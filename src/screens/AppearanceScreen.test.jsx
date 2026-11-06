@@ -17,6 +17,7 @@ describe('AppearanceScreen', () => {
     render(<AppearanceScreen onBack={() => {}} storage={memStorage()} root={document.createElement('div')} />)
     expect(screen.getByRole('radio', { name: 'Фиолет' })).toHaveAttribute('aria-checked', 'true')
     expect(screen.getAllByRole('radio')).toHaveLength(8)
+    expect(screen.queryByLabelText('Оттенок своего цвета')).toBeNull()
   })
 
   it('превью неактивно: кнопки образца не ловят фокус', () => {
@@ -38,6 +39,7 @@ describe('AppearanceScreen', () => {
     const st = memStorage()
     const root = document.createElement('div')
     render(<AppearanceScreen onBack={() => {}} storage={st} root={root} />)
+    fireEvent.click(screen.getByRole('radio', { name: 'Свой' }))
     const range = screen.getByLabelText('Оттенок своего цвета')
     fireEvent.change(range, { target: { value: '150' } })
     expect(root.dataset.accent).toBe('custom')
@@ -65,6 +67,8 @@ describe('AppearanceScreen', () => {
       vi.useFakeTimers()
       const root = document.createElement('div')
       render(<AppearanceScreen onBack={() => {}} user={{ id: 'u1' }} storage={memStorage()} root={root} />)
+      fireEvent.click(screen.getByRole('radio', { name: 'Свой' }))
+      vi.mocked(setAccentPref).mockClear()
       const range = screen.getByLabelText('Оттенок своего цвета')
       for (const v of ['100', '120', '140']) fireEvent.change(range, { target: { value: v } })
       expect(root.style.getPropertyValue('--acc')).toBe('oklch(0.79 0.19 140)')
@@ -78,6 +82,8 @@ describe('AppearanceScreen', () => {
     it('уход с экрана посреди паузы дописывает последнее значение', () => {
       vi.useFakeTimers()
       const { unmount } = render(<AppearanceScreen onBack={() => {}} user={{ id: 'u1' }} storage={memStorage()} root={document.createElement('div')} />)
+      fireEvent.click(screen.getByRole('radio', { name: 'Свой' }))
+      vi.mocked(setAccentPref).mockClear()
       fireEvent.change(screen.getByLabelText('Оттенок своего цвета'), { target: { value: '77' } })
       unmount()
       expect(setAccentPref).toHaveBeenCalledOnce()

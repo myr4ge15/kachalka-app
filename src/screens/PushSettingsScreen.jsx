@@ -13,7 +13,7 @@ import { usePushToggle } from '../hooks/usePushToggle.js'
 
 export default function PushSettingsScreen({ user, onBack }) {
   const push = usePushToggle(user.id)
-  const canPick = push.availability === 'ok' && push.enabled
+  const canPick = push.availability === 'ok' && push.enabled && !push.busy
   return (
     <div className="screen push-screen">
       <div className="admin-head">
@@ -43,7 +43,7 @@ export default function PushSettingsScreen({ user, onBack }) {
           />
           <p className="push-note">Выбор общий для всех твоих устройств.</p>
         </section>
-      ) : push.availability === 'ok' && (
+      ) : push.availability === 'ok' && !push.busy && (
         <p className="push-note">Включи — и здесь можно будет выбрать, о чем присылать.</p>
       )}
     </div>

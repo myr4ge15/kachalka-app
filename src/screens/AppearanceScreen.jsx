@@ -95,7 +95,7 @@ export default function AppearanceScreen({ onBack, user, storage, root }) {
         </div>
       </section>
 
-      <section className="sec">
+      {isCustom && <section className="sec">
         <p className="sec-title">Свой цвет</p>
         <div className={'hue-card' + (isCustom ? ' on' : '')}>
           <input
@@ -119,18 +119,13 @@ export default function AppearanceScreen({ onBack, user, storage, root }) {
             <p className="hue-warn" role="status">Похож на цвет ошибок и спада — будет путаться</p>
           )}
         </div>
-      </section>
+      </section>}
 
       <section className="sec">
         <p className="sec-title">Как это выглядит</p>
         {/* Превью — картинка, а не кнопки: скринридер не должен читать «Начать тренировку» (UI-ревью 23.10). */}
         <div className="appearance-preview" inert aria-hidden="true">
           <button type="button" className="btn primary" tabIndex={-1}>Начать тренировку</button>
-          <div className="appearance-preview-row">
-            <span className="chip active">все</span>
-            <span className="chip">грудь</span>
-            <span className="appearance-num">7<small> нед.</small></span>
-          </div>
         </div>
         <p className="muted appearance-note">
           Фон у всех одинаковый — ночной. Цвет только твой и сохраняется в учетке — будет таким же на всех твоих устройствах.

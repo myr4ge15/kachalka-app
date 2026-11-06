@@ -14,7 +14,15 @@ describe('FeedbackPhotos', () => {
     expect(screen.getAllByLabelText('Загрузка')).toHaveLength(1) // первая еще грузится
     finish()
     fireEvent.click(await screen.findByRole('button', { name: 'Фото 1 из 2' }))
-    expect(screen.getByRole('dialog', { name: 'Фото' }).querySelector('img')).toHaveAttribute('src', 'blob:0')
+    const dialog = screen.getByRole('dialog', { name: 'Фото' })
+    const image = dialog.querySelector('img')
+    expect(image).toHaveAttribute('src', 'blob:0')
+    fireEvent.touchStart(image, { touches: [{ clientX: 150, clientY: 100 }] })
+    fireEvent.touchEnd(image, { changedTouches: [{ clientX: 60, clientY: 100 }] })
+    expect(dialog.querySelector('img')).toHaveAttribute('src', 'blob:1')
+    expect(screen.getByRole('status')).toHaveTextContent('2 из 2')
+    fireEvent.click(screen.getByRole('button', { name: 'Предыдущее вложение' }))
+    expect(dialog.querySelector('img')).toHaveAttribute('src', 'blob:0')
   })
 
   it('indices — только эти номера, подпись и счет по ним (fb_37f0c1a8)', async () => {

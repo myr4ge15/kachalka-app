@@ -20,13 +20,16 @@ export function usePushToggle(userId) {
   const [error, setError] = useState('')
   const aliveRef = useRef(true)
   const selfRef = useRef({})
+  const busyRef = useRef(false)
+  const stateRevision = useRef(0)
 
   const refresh = useCallback(async () => {
+    const revision = ++stateRevision.current
     try {
       const s = await getPushState(userId)
-      if (aliveRef.current) setState(s)
+      if (aliveRef.current && revision === stateRevision.current) setState(s)
     } catch {
-      if (aliveRef.current) setState({ availability: 'unsupported', enabled: false })
+      if (aliveRef.current && revision === stateRevision.current) setState({ availability: 'unsupported', enabled: false })
     }
   }, [userId])
 
@@ -34,7 +37,7 @@ export function usePushToggle(userId) {
     aliveRef.current = true
     refresh()
     // Вернулись из настроек телефона (разрешили/запретили уведомления) — перечитать.
-    const onVisible = () => { if (document.visibilityState === 'visible') refresh() }
+    const onVisible = () => { if (document.visibilityState === 'visible' && !busyRef.current) refresh() }
     document.addEventListener('visibilitychange', onVisible)
     return () => {
       aliveRef.current = false
@@ -46,10 +49,10 @@ export function usePushToggle(userId) {
   // перечитывание реального состояния. После успеха браузер заново НЕ спрашиваем:
   // свежая подписка видна getSubscription() не мгновенно (iPhone), и перечитывание
   // откатывало тумблер в «выкл» — включалось только со второго тапа.
-  const busyRef = useRef(false)
   const toggle = useCallback(async (next) => {
     if (busyRef.current) return
     busyRef.current = true
+    stateRevision.current += 1
     setBusy(true)
     setError('')
     setState((s) => ({ ...s, enabled: next }))

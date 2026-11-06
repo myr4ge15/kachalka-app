@@ -1560,19 +1560,16 @@ button.link-btn { min-height: 44px; display: inline-flex; align-items: center; j
 
 .history-list { list-style: none; margin: 10px 0 0; padding: 0; }
 .history-ex {
-  /* Таблица из двух столбцов без видимых границ (v7.4.1): название — левая половина,
-     подходы — правая, по правому краю (v7.5.3; по центру короткие «15, 12» висели
-     посередине, а длинные упирались в край — ровной границы не было), по центру строки. Раньше flex: длинное
-     название забирало всю строку, и колонкам подходов доставался один столбец. */
-  display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); column-gap: 12px;
+  /* Названиям больше места. Подходы выровнены по первой строке справа. */
+  display: grid; grid-template-columns: minmax(0, 3fr) minmax(0, 2fr); column-gap: 12px;
   padding: 8px 0; border-top: 1px solid var(--border);
-  align-items: center;
+  align-items: start; min-height: 36px;
 }
 .history-ex:first-child { border-top: none; }
-.history-ex-name { font-size: 15px; font-weight: 600; line-height: 1.35; min-width: 0; overflow-wrap: anywhere; }
+.history-ex-name { text-wrap: pretty; font-size: 15px; font-weight: 600; line-height: 1.35; min-width: 0; overflow-wrap: anywhere; }
 /* Подходы переносятся МЕЖДУ сетами (по пробелу после запятой), но сам токен —
    «14×12» / «1:00» — не рвем посимвольно (word-break:keep-all). Каждому столбцу —
-   своя половина строки (v7.4.1), поэтому ни название, ни подходы не отнимают место
+   своя доля строки, поэтому ни название, ни подходы не отнимают место
    друг у друга; длинное название переносится по словам в своей половине. */
 .history-ex-sets {
   color: var(--muted); font-size: 14px; line-height: 1.35; text-align: right;
@@ -1906,6 +1903,7 @@ html[data-update]:not([data-composer]) .content { padding-top: 64px; }
 /* v6.7.1: шеврон «откроется профиль» — справа в шапке карточки и в строке рейтинга. */
 .go-chev { flex-shrink: 0; margin-left: auto; color: var(--muted); }
 .lb-row .go-chev { margin-left: -2px; margin-right: -4px; width: 18px; height: 18px; }
+.avatar-initial { line-height: 1; display: block; }
 .avatar {
   width: 40px; height: 40px; flex-shrink: 0; border-radius: 50%;
   display: flex; align-items: center; justify-content: center;
@@ -2145,7 +2143,7 @@ button.cm-name { cursor: pointer; padding: 12px 0; margin: -12px 0 -11px; }
 .cm-like-emo { display: block; font-size: 14px; line-height: 1; transform: translateY(1px); } /* эмодзи iOS сидит на 1 px выше цифр (fb_c2b3f276) */
 /* Меню пузыря — по удержанию (hooks/useLongPress.js), «⋯» нет. Системное меню iOS «Скопировать/Выделить» и выделение
    текста гасим: копирование — пунктом меню. */
-.cm-bub { -webkit-touch-callout: none; -webkit-user-select: none; user-select: none; }
+.cm-bub { touch-action: manipulation; -webkit-touch-callout: none; -webkit-user-select: none; user-select: none; }
 .cm-bub:focus { outline: none; }
 .cm-bub:focus-visible { outline: 2px solid var(--acc-2); outline-offset: 2px; }
 /* Пока открыто меню, пузырь в ветке прячем — над размытием стоит его копия (CommentMenu). */
@@ -2209,6 +2207,10 @@ button.cm-name { cursor: pointer; padding: 12px 0; margin: -12px 0 -11px; }
 .cm-quote-text { display: block; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; color: var(--muted); }
 /* Стена ветки, как в мокапе (fb_afd6d919): чуть темнее фона, редкие точки акцента. Плашки дней — как «Начало обсуждения». */
 .cm-sheet { background: var(--cm-wall); }
+@media (prefers-reduced-motion: no-preference) {
+  .cm-sheet .sheet-scroll, .cm-sheet .cm-foot { animation: cm-enter 180ms var(--ease-out) both; }
+  @keyframes cm-enter { from { opacity: 0; } to { opacity: 1; } }
+}
 .cm-sheet .sheet-scroll {
   background-image: radial-gradient(color-mix(in srgb, var(--acc) 9%, transparent) 1px, transparent 1.2px);
   background-size: 18px 18px;
@@ -3213,11 +3215,15 @@ label.act.busy { opacity: .55; pointer-events: none; }
 /* Видео к обращению (16.10): кадр плиткой + ▶ поверх, на весь экран — плеер. */
 .fb-photo video, .fb-shot video { width: 100%; height: 100%; object-fit: cover; display: block; pointer-events: none; }
 .fb-photo--video { position: relative; }
-.fb-photo--video::after {
-  content: "▶"; position: absolute; inset: 0; display: grid; place-items: center;
-  color: var(--on-media); font-size: 20px; text-shadow: 0 1px 4px rgba(0, 0, 0, .6);
+@media (prefers-reduced-motion: no-preference) {
+  .fb-viewer--closing { animation: fb-viewer-exit 160ms ease-in both; pointer-events: none; }
+  @keyframes fb-viewer-exit { to { opacity: 0; } }
 }
-.fb-viewer-body video { max-width: 100%; max-height: 100%; border-radius: var(--r-md); background: #000; }
+.fb-viewer-body video { width: 100%; height: 100%; object-fit: contain; border-radius: var(--r-md); background: var(--bg); }
+.fb-gallery-nav { display: flex; align-items: center; justify-content: center; gap: 12px; padding: 8px 0; }
+.fb-gallery-nav .btn { min-width: 44px; min-height: 44px; padding: 0; }
+.fb-video-play { position: absolute; inset: 0; display: grid; place-items: center; color: var(--on-acc); }
+.fb-video-play svg { background: var(--acc); border-radius: 50%; padding: 4px; box-sizing: content-box; }
 .fb-picker .fb-shot video { height: 120px; object-fit: contain; background: var(--bg); border-radius: var(--r-md); }
 /* Подпись видео в форме (fb_59c95046): даже без кадра видно, что видео приложено. */
 .fb-shot-video { position: relative; }
@@ -3227,10 +3233,10 @@ label.act.busy { opacity: .55; pointer-events: none; }
   overflow: hidden; text-overflow: ellipsis; pointer-events: none;
 }
 .fb-photo--gone { opacity: .6; }
-.fb-viewer-body { flex: 1; min-height: 0; display: grid; place-items: center; overflow: auto; touch-action: pinch-zoom; }
+.fb-viewer-body { flex: 1; min-height: 0; display: grid; place-items: center; overflow: hidden; touch-action: pinch-zoom; }
 .fb-viewer-body img { max-width: 100%; max-height: 100%; object-fit: contain; border-radius: var(--r-md); }
 /* свайп вверх/вниз закрывает просмотр (v6.12.1): вертикаль ведет JS, щипок — браузер */
-.fb-viewer-drag { display: grid; place-items: center; width: 100%; height: 100%; }
+.fb-viewer-drag { display: grid; grid-template: minmax(0, 1fr) / minmax(0, 1fr); place-items: center; width: 100%; height: 100%; }
 .fb-viewer-drag--settle { transition: transform 200ms var(--ease-out, ease-out), opacity 200ms ease; }
 @media (prefers-reduced-motion: reduce) { .fb-viewer-drag--settle { transition: none; } }
 .fb-reply-head { display: flex; align-items: center; justify-content: space-between; gap: 8px; font-size: var(--fs-small); color: var(--muted); }
@@ -3896,7 +3902,7 @@ label.act.busy { opacity: .55; pointer-events: none; }
 .accent-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 8px; }
 .accent-tile {
   display: flex; flex-direction: column; align-items: center; gap: 8px;
-  min-height: 84px; padding: 12px 4px 10px; border-radius: var(--r-lg);
+  min-height: 64px; padding: 7px 4px; border-radius: var(--r-lg);
   background: var(--surface); border: 1px solid var(--border); color: var(--text);
   font-size: var(--fs-small); font-weight: 600;
   transition: transform var(--dur-fast) var(--ease-out);
@@ -3904,7 +3910,7 @@ label.act.busy { opacity: .55; pointer-events: none; }
 .accent-tile:active { transform: scale(var(--press-scale)); }
 .accent-tile.on { border-color: var(--text); box-shadow: inset 0 0 0 1px var(--text); }
 .accent-tile:focus-visible, .hue-range:focus-visible { outline: 3px solid var(--acc-2); outline-offset: 2px; }
-.accent-sw { width: 38px; height: 38px; border-radius: var(--r-md); flex: none; box-shadow: inset 0 0 0 2px rgba(255, 255, 255, .12); }
+.accent-sw { width: 30px; height: 30px; border-radius: var(--r-md); flex: none; box-shadow: inset 0 0 0 2px rgba(255, 255, 255, .12); }
 .accent-sw--volt { background: #C8F135; }
 .accent-sw--teal { background: #2DD4BF; }
 .accent-sw--red { background: #FF4D5E; }
@@ -3951,6 +3957,9 @@ label.act.busy { opacity: .55; pointer-events: none; }
    токены: экран не должен читаться как «женский» трекер. */
 .screen-head { display: flex; align-items: center; justify-content: space-between; gap: 12px; margin: 4px 0 12px; }
 .screen-head .screen-title { margin: 0; }
+.history-screen-head { margin-bottom: 16px; }
+.home-date-title { min-height: 44px; display: flex; align-items: center; margin-top: 0; font-size: 25px; }
+.feed-head, .history-screen-head { min-height: 44px; }
 .cal { display: flex; flex-direction: column; gap: 14px; }
 .cal-nav { display: flex; align-items: center; gap: 10px; }
 .cal-nav .back-btn:disabled { opacity: .35; cursor: default; }

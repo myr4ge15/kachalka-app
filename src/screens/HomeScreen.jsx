@@ -126,7 +126,7 @@ export default function HomeScreen({ user, onNavigate, onNewWorkout, onOpenProgr
   if (loading) {
     return (
       <div className="screen home">
-        <h2 className="screen-title">{fmtHomeTitle()}</h2>
+        <h2 className="screen-title home-date-title">{fmtHomeTitle()}</h2>
         <CardsSkeleton cards={3} />
       </div>
     )
@@ -135,7 +135,7 @@ export default function HomeScreen({ user, onNavigate, onNewWorkout, onOpenProgr
   if (!summary.hasData) {
     return (
       <div className="screen home">
-        <h2 className="screen-title">{fmtHomeTitle()}</h2>
+        <h2 className="screen-title home-date-title">{fmtHomeTitle()}</h2>
         <EmptyHint
           emoji="💪"
           title="Начни с первой тренировки"
@@ -175,7 +175,7 @@ export default function HomeScreen({ user, onNavigate, onNewWorkout, onOpenProgr
   // готовность мышц и ближайшая цель ВВЕРХУ → ритм → наблюдения → рекорд.
   return (
     <div className="screen home">
-      <h2 className="screen-title">{fmtHomeTitle()}</h2>
+      <h2 className="screen-title home-date-title">{fmtHomeTitle()}</h2>
       {summary?.hasData && home?.monthlyDismissed !== reportKey && monthlyHidden !== reportKey && <button type="button" className="card monthly-teaser" onClick={() => setMonthlyOpen(true)}>
         <span className="muted">Твой месяц в цифрах</span>
         <strong>{monthLabel(reportMonth)} <span aria-hidden="true">→</span></strong>
@@ -197,7 +197,7 @@ export default function HomeScreen({ user, onNavigate, onNewWorkout, onOpenProgr
           <span className="home-tags-lab">В прошлый раз:</span>
           {/* Одна строка (аудит 16.10): третья группа уходила на вторую строку одна — дальше «+N». */}
           {lw.tags.slice(0, TAGS_SHOWN).map((s) => (
-            <span key={s} className={`day-tag tag-${tagSlug(majorOf(s))}`}>{labelOf(s)}</span>
+            <span key={s} className={`day-tag tag-${tagSlug(majorOf(s) ?? s)}`}>{labelOf(s)}</span>
           ))}
           {lw.tags.length > TAGS_SHOWN && (
             <span className="day-tag home-tags-more" title={lw.tags.slice(TAGS_SHOWN).map(labelOf).join(', ')}>

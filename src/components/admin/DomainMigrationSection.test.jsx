@@ -24,7 +24,7 @@ it('показывает и неизвестных участников, и вс
   expect(screen.getByRole('status', { name: 'Сводка переезда' })).toHaveTextContent('1/2')
   expect(screen.queryByRole('region')).toBeNull()
   fireEvent.click(within(sasha).getByRole('button'))
-  expect(sasha).toHaveTextContent('Не на всех известных устройствах подтверждено')
+  expect(sasha).toHaveTextContent('Подтверждено на 1 из 2 известных старых устройств')
   expect(screen.getByText(/iPhone · устройство 1/)).toHaveTextContent('Все сохранено на последней проверке')
   expect(screen.getByText(/Браузер · устройство 2/)).toHaveTextContent('Есть незавершенная')
   fireEvent.click(within(sasha).getByRole('button'))

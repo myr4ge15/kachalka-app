@@ -69,7 +69,8 @@ function OwnerPanel({ api, circle, onChanged, onDeleted }) {
         <span>Принимать по коду сразу<span className="muted fc-sub-inline">{circle.auto_approve ? '' : ' — сейчас каждую заявку решаешь ты'}</span></span>
       </label>
 
-      <p className="fc-sub">Живые коды участников</p>
+      <p className="fc-sub">Действующие коды приглашения</p>
+      <p className="muted">Здесь коды, выпущенные участниками в разделе «Мой код в круг».</p>
       {codes === null ? <p className="muted">…</p> : codes.length === 0 ? <p className="muted">Сейчас ни у кого нет живого кода.</p> : (
         <ul className="fc-list">
           {codes.map((c) => (
@@ -81,8 +82,10 @@ function OwnerPanel({ api, circle, onChanged, onDeleted }) {
                 onClick={() => {
                   if (armRevoke !== c.code_id) { setArmRevoke(c.code_id); return }
                   setArmRevoke(null)
-                  act(`rv-${c.code_id}`, () => api.revokeCode(c.code_id), loadCodes)
-                }}>{armRevoke === c.code_id ? 'Точно отозвать?' : 'Отозвать'}</button>
+                  act(`rv-${c.code_id}`, () => api.revokeCode(c.code_id), () => {
+                    setCodes((current) => current.filter((code) => code.code_id !== c.code_id))
+                  })
+                }}>{busy === `rv-${c.code_id}` ? 'Отзываем…' : armRevoke === c.code_id ? 'Точно отозвать?' : 'Отозвать'}</button>
             </li>
           ))}
         </ul>
