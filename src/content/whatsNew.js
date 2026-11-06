@@ -30,7 +30,7 @@
 
 export const WHATS_NEW = [
   {
-    version: '1.10.3',
+    version: '1.10.4',
     date: '2026-11-06',
     headline: 'Свайпы по видео и реакции в комментариях',
     push: false,
