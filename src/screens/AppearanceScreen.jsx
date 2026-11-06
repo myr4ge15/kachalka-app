@@ -97,7 +97,7 @@ export default function AppearanceScreen({ onBack, user, storage, root }) {
 
       {isCustom && <section className="sec">
         <p className="sec-title">Свой цвет</p>
-        <div className={'hue-card' + (isCustom ? ' on' : '')}>
+        <div className="hue-card on">
           <input
             className="hue-range"
             type="range"
@@ -108,14 +108,7 @@ export default function AppearanceScreen({ onBack, user, storage, root }) {
             aria-label="Оттенок своего цвета"
             onChange={(e) => choose({ id: CUSTOM, hue: Number(e.target.value) }, { debounce: true })}
           />
-          <div className="hue-row">
-            {/* Только число оттенка — цвет собирает CSS (.accent-sw--hue), без хардкода в JSX. */}
-            <span className="accent-sw accent-sw--hue" style={{ '--sw-hue': pref.hue }} aria-hidden="true" />
-            <span className="muted">
-              Двигай ползунок — цвет применится сразу. Яркость подбирается сама, чтобы все читалось.
-            </span>
-          </div>
-          {isCustom && isRedZone(pref.hue) && (
+          {isRedZone(pref.hue) && (
             <p className="hue-warn" role="status">Похож на цвет ошибок и спада — будет путаться</p>
           )}
         </div>
@@ -127,9 +120,7 @@ export default function AppearanceScreen({ onBack, user, storage, root }) {
         <div className="appearance-preview" inert aria-hidden="true">
           <button type="button" className="btn primary" tabIndex={-1}>Начать тренировку</button>
         </div>
-        <p className="muted appearance-note">
-          Фон у всех одинаковый — ночной. Цвет только твой и сохраняется в учетке — будет таким же на всех твоих устройствах.
-        </p>
+        <p className="muted appearance-note">Акцент сохраняется в учетке.</p>
       </section>
     </div>
   )

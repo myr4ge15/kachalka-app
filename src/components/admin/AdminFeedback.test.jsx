@@ -97,7 +97,7 @@ describe('AdminFeedback — Telegram (v6.12.0)', () => {
     expect(api.media).not.toHaveBeenCalled() // байты не тянем, пока не попросили
     await userEvent.click(screen.getByRole('button', { name: 'Показать вложение от Оля' }))
     await waitFor(() => expect(api.media).toHaveBeenCalledWith('t', 'shot', 0))
-    await userEvent.click(screen.getByRole('button', { name: 'Показать фото ответа (2)' }))
+    await userEvent.click(screen.getByRole('button', { name: /Показать фото ответа.*2/ }))
     await waitFor(() => expect(api.media).toHaveBeenCalledWith('t', 'reply', 1))
     expect(api.shot).not.toHaveBeenCalled()
   })

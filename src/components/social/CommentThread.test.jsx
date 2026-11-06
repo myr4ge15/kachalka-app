@@ -356,7 +356,8 @@ describe('CommentThread', () => {
 
   it('реакция из полоски над пузырем: тап — ставит и закрывает меню, повторно — снимает; ошибка — откат и тост', async () => {
     let fail
-    setCommentReaction.mockReturnValue(new Promise((_, rej) => { fail = rej }))
+    setCommentReaction.mockResolvedValueOnce({ reactions: { like: 1 }, my_reaction: 'like' })
+      .mockImplementationOnce(() => new Promise((_, rej) => { fail = rej }))
     renderThread({ open: true, comments: [c('a', 'x')] })
     expect(document.querySelector('.cm-like')).toBeNull()
     openMenu('a')
@@ -365,6 +366,7 @@ describe('CommentThread', () => {
     fireEvent.click(screen.getByRole('button', { name: 'Класс' }))
     expect(screen.queryByRole('menu')).toBeNull()
     expect(screen.getByRole('button', { name: 'Класс: 1, убрать' })).toBeInTheDocument()
+    await act(async () => {})
     openMenu('a')
     expect(screen.getByRole('button', { name: 'Класс' })).toHaveAttribute('aria-pressed', 'true')
     fireEvent.click(screen.getByRole('button', { name: 'Класс' }))
@@ -391,6 +393,24 @@ describe('CommentThread', () => {
     expect(screen.getByText('09:05')).toBeInTheDocument()
     expect(screen.getByText('14:30')).toBeInTheDocument()
     expect([...document.querySelectorAll('.cm-day')].map((el) => el.textContent)).toEqual(['Вчера', 'Сегодня'])
+  })
+
+  it('сохраняет реакцию и время последнего комментария после двух касаний', async () => {
+    setCommentReaction.mockResolvedValue({ reactions: { heart: 1 }, my_reaction: 'heart' })
+    renderThread({ open: true, comments: [c('last', 'x')] })
+    const target = bubble('last')
+    const clock = target.querySelector('.cm-meta')
+    const touch = { clientX: 120, clientY: 400 }
+    for (let i = 0; i < 2; i += 1) {
+      fireEvent.touchStart(target, { touches: [touch] })
+      fireEvent.touchEnd(target, { changedTouches: [touch] })
+      fireEvent.click(target)
+    }
+    await act(async () => {})
+    expect(setCommentReaction).toHaveBeenCalledTimes(1)
+    expect(setCommentReaction).toHaveBeenCalledWith(expect.objectContaining({ kind: 'heart' }))
+    expect(screen.getByRole('button', { name: 'Сердце: 1, убрать' })).toBeInTheDocument()
+    expect(target.querySelector('.cm-message .cm-meta')).toBe(clock)
   })
 
   it('двойной тап по чужому пузырю — ❤️, по своему — ничего; одиночный тап — ничего', () => {

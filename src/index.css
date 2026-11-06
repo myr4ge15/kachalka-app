@@ -93,6 +93,8 @@
   --tag-biceps-bg: rgba(22, 163, 74, .16);  --tag-biceps-line: var(--green); --tag-biceps-text: #86efac;
   --tag-triceps-bg: rgba(34, 211, 238, .14); --tag-triceps-line: #168197;   --tag-triceps-text: #67e8f9;
   --tag-abs-bg: rgba(212, 83, 126, .16);    --tag-abs-line: #993556;         --tag-abs-text: #ed93b1;
+  --tag-glutes-bg: rgba(232, 121, 249, .14); --tag-glutes-line: #a755ac; --tag-glutes-text: #f0abfc;
+  --tag-cardio-bg: rgba(45, 212, 191, .14); --tag-cardio-line: #268c80; --tag-cardio-text: #5eead4;
   /* ── Типографика (v6.3.1, макет prototypes/typography.html, вариант A) ──
      Две жирности обычного шрифта: 600 — у всего, что НАЗЫВАЕТ (заголовок раздела и
      карточки, подпись поля, ссылка, кнопка), 400 — у содержимого. Крупный сжатый
@@ -919,7 +921,7 @@ button.link-btn { min-height: 44px; display: inline-flex; align-items: center; j
 .wk-phase-title:first-child { margin-top: 0; }
 .ex-phase-tag {
   display: inline-block; margin-right: 6px; padding: 1px 7px; border-radius: var(--r-pill); vertical-align: 1px;
-  font-size: var(--fs-tiny); font-weight: 600; color: var(--muted); background: var(--surface-2); border: 1px solid var(--border);
+  font-size: var(--fs-tiny); font-weight: 600; color: var(--text); background: var(--surface-2); border: 1px solid var(--border);
 }
 
 /* Свернутое упражнение — одна строка-кнопка. */
@@ -1591,6 +1593,9 @@ button.link-btn { min-height: 44px; display: inline-flex; align-items: center; j
 .day-tag.tag-biceps    { background: var(--tag-biceps-bg); border-color: var(--tag-biceps-line); color: var(--tag-biceps-text); }
 .day-tag.tag-triceps   { background: var(--tag-triceps-bg); border-color: var(--tag-triceps-line); color: var(--tag-triceps-text); }
 .day-tag.tag-abs       { background: var(--tag-abs-bg); border-color: var(--tag-abs-line); color: var(--tag-abs-text); }
+.day-tag.tag-glutes { background: var(--tag-glutes-bg); border-color: var(--tag-glutes-line); color: var(--tag-glutes-text); }
+.day-tag.tag-cardio { background: var(--tag-cardio-bg); border-color: var(--tag-cardio-line); color: var(--tag-cardio-text); }
+.day-tag.tag-warmup { background: var(--surface-2); border-color: var(--border); color: var(--text); }
 .day-tag.tag-other     { background: var(--surface-2); border-color: var(--border); color: var(--muted); }
 
 /* Строка фильтра по группам над списком тренировок/ленты. */
@@ -2124,14 +2129,14 @@ button.cm-name { cursor: pointer; padding: 12px 0; margin: -12px 0 -11px; }
 .cm-name.t7 { color: var(--cm-n7); }
 .cm-text { font-size: 15px; line-height: 1.38; overflow-wrap: anywhere; white-space: pre-wrap; }
 .cm-meta { display: inline-flex; align-items: center; gap: 5px; font-size: var(--fs-tiny); color: var(--muted); white-space: nowrap; }
-/* Без ❤️ время стоит в правом нижнем углу пузыря, а ::after в конце текста держит под него место на
+/* Время закреплено в блоке текста, а ::after держит под него место на
    последней строке: короткий текст — время рядом, длинный — переносится. */
-.cm-bub > .cm-meta { position: absolute; right: 10px; bottom: 6px; }
+.cm-message { position: relative; }
+.cm-message > .cm-meta { position: absolute; right: 0; bottom: 0; }
 .cm-text.with-meta::after { content: ''; display: inline-block; width: calc(var(--meta-ch, 5) * 6.2px + 8px); height: 1px; }
 .cm-time, .cm-edited { font-size: var(--fs-tiny); color: var(--muted); }
 /* ❤️ таблеткой под текстом — только когда лайки есть (первый ставят пунктом меню). Зона тапа 44px — невидимым слоем. */
 .cm-reacts { display: flex; flex-wrap: wrap; align-items: center; gap: 6px; padding: 6px 0 1px; }
-.cm-reacts .cm-meta { margin-left: auto; padding-left: 10px; }
 .cm-like {
   position: relative; display: inline-flex; align-items: center; gap: 4px; height: 26px; padding: 0 9px; border: 0;
   border-radius: var(--r-lg); background: color-mix(in srgb, var(--text) 8%, transparent); color: var(--text);
@@ -3154,7 +3159,8 @@ label.act.busy { opacity: .55; pointer-events: none; }
 .fb-logs input { width: 20px; height: 20px; accent-color: var(--acc); }
 .fb-logs-view summary { cursor: pointer; min-height: 44px; display: flex; align-items: center; color: var(--acc-2); }
 .fb-logs-view pre { margin: 0; max-height: 320px; overflow: auto; white-space: pre-wrap; font-size: var(--fs-small); line-height: 1.45; color: var(--text); }
-.fb-attach { min-height: 46px; }
+.fb-attach { min-height: 46px; gap: 8px; }
+.fb-attach-count { flex: none; border-radius: var(--r-pill); background: var(--surface-2); padding: 2px 8px; }
 .fb-shot { display: flex; flex-direction: column; gap: 8px; }
 .fb-shot img {
   display: block; max-width: 100%; max-height: 320px; width: auto; align-self: flex-start;
@@ -3234,9 +3240,16 @@ label.act.busy { opacity: .55; pointer-events: none; }
 }
 .fb-photo--gone { opacity: .6; }
 .fb-viewer-body { flex: 1; min-height: 0; display: grid; place-items: center; overflow: hidden; touch-action: pinch-zoom; }
-.fb-viewer-body img { max-width: 100%; max-height: 100%; object-fit: contain; border-radius: var(--r-md); }
+.fb-viewer-body img { width: 100%; height: 100%; object-fit: contain; border-radius: var(--r-md); }
 /* свайп вверх/вниз закрывает просмотр (v6.12.1): вертикаль ведет JS, щипок — браузер */
 .fb-viewer-drag { position: relative; display: grid; grid-template: minmax(0, 1fr) / minmax(0, 1fr); place-items: center; width: 100%; height: 100%; min-width: 0; min-height: 0; }
+.fb-slide { position: relative; display: grid; grid-template: minmax(0, 1fr) / minmax(0, 1fr); place-items: center; width: 100%; height: 100%; min-height: 0; min-width: 0; }
+@media (prefers-reduced-motion: no-preference) {
+  .fb-slide--next { --fb-slide-from: 24px; }
+  .fb-slide--previous { --fb-slide-from: -24px; }
+  .fb-slide--next, .fb-slide--previous { animation: fb-slide-in 180ms var(--ease-out, ease-out) both; }
+  @keyframes fb-slide-in { from { transform: translateX(var(--fb-slide-from)); opacity: .6; } }
+}
 .fb-viewer-drag--settle { transition: transform 200ms var(--ease-out, ease-out), opacity 200ms ease; }
 @media (prefers-reduced-motion: reduce) { .fb-viewer-drag--settle { transition: none; } }
 .fb-reply-head { display: flex; align-items: center; justify-content: space-between; gap: 8px; font-size: var(--fs-small); color: var(--muted); }
@@ -3899,10 +3912,10 @@ label.act.busy { opacity: .55; pointer-events: none; }
 /* Экран «Оформление» не внутри .profile: без своего отступа заголовки секций
    прилипали к карточке над ними (fb_4d60a491). */
 .appearance-screen .sec + .sec { margin-top: 20px; }
-.accent-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 8px; }
+.accent-grid { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 6px; }
 .accent-tile {
   display: flex; flex-direction: column; align-items: center; gap: 8px;
-  min-height: 64px; padding: 7px 4px; border-radius: var(--r-lg);
+  min-height: 54px; padding: 4px 2px; border-radius: var(--r-lg);
   background: var(--surface); border: 1px solid var(--border); color: var(--text);
   font-size: var(--fs-small); font-weight: 600;
   transition: transform var(--dur-fast) var(--ease-out);
@@ -3910,7 +3923,7 @@ label.act.busy { opacity: .55; pointer-events: none; }
 .accent-tile:active { transform: scale(var(--press-scale)); }
 .accent-tile.on { border-color: var(--text); box-shadow: inset 0 0 0 1px var(--text); }
 .accent-tile:focus-visible, .hue-range:focus-visible { outline: 3px solid var(--acc-2); outline-offset: 2px; }
-.accent-sw { width: 30px; height: 30px; border-radius: var(--r-md); flex: none; box-shadow: inset 0 0 0 2px rgba(255, 255, 255, .12); }
+.accent-sw { width: 24px; height: 24px; border-radius: var(--r-md); flex: none; box-shadow: inset 0 0 0 2px rgba(255, 255, 255, .12); }
 .accent-sw--volt { background: #C8F135; }
 .accent-sw--teal { background: #2DD4BF; }
 .accent-sw--red { background: #FF4D5E; }

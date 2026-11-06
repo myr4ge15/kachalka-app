@@ -25,6 +25,7 @@ export default function FeedbackPhotos({
   const [urls, setUrls] = useState(() => Array(total).fill(null)) // null — грузится, '' — не вышло
   const [open, setOpen] = useState(null)
   const [closing, setClosing] = useState(false)
+  const [direction, setDirection] = useState(null)
 
   useEffect(() => {
     if (!closing) return undefined
@@ -54,14 +55,18 @@ export default function FeedbackPhotos({
   const previous = urls.findLastIndex((url, index) => index < open && Boolean(url))
   const next = urls.findIndex((url, index) => index > open && Boolean(url))
   function move(index) {
-    if (!closing && index >= 0) setOpen(index)
+    if (closing || index < 0) return
+    setDirection(index > open ? 'next' : 'previous')
+    setOpen(index)
   }
 
   if (!total) return null
   if (!on) {
     return (
       <button type="button" className="btn ghost fb-attach" onClick={() => setOn(true)} disabled={disabled}>
-        <Icon name="clip" size={17} /> Показать {total > 1 ? `${lowerFirst(label)} (${total})` : lowerFirst(label)}
+        <Icon name="clip" size={17} />
+        <span>Показать {total > 1 && /^Вложение/.test(label) ? 'вложения' : lowerFirst(label)}</span>
+        {total > 1 && <span className="fb-attach-count" aria-label={`Количество: ${total}`}>{total}</span>}
       </button>
     )
   }
@@ -76,7 +81,7 @@ export default function FeedbackPhotos({
               ? <span key={n} className="fb-photo skel" aria-label="Загрузка" />
               : (
                 <button key={n} type="button" className={'fb-photo' + (isVideo(url) ? ' fb-photo--video' : '')}
-                  onClick={() => setOpen(n)}
+                  onClick={() => { setDirection(null); setOpen(n) }}
                   aria-label={(total > 1 ? `${mediaLabel(label, isVideo(url))} ${n + 1} из ${total}` : mediaLabel(label, isVideo(url)))}>
                   {isVideo(url) ? <>
                     <video src={videoPosterSrc(url)} muted playsInline preload="metadata" />
@@ -89,9 +94,11 @@ export default function FeedbackPhotos({
       {current && (
         <SheetDialog title={mediaLabel(label, isVideo(current))} onDismiss={close} className={closing ? "fb-viewer fb-viewer--closing" : "fb-viewer"}>
           <SwipeToClose onClose={close} onSlide={(forward) => move(forward ? next : previous)}>
-            {isVideo(current)
-              ? <video key={current} src={current} controls autoPlay playsInline aria-label={mediaLabel(label, true)} />
-              : <img src={current} alt={label} />}
+            <div key={open} className={direction ? `fb-slide fb-slide--${direction}` : 'fb-slide'}>
+              {isVideo(current)
+                ? <video src={current} controls autoPlay playsInline aria-label={mediaLabel(label, true)} />
+                : <img src={current} alt={label} />}
+            </div>
           </SwipeToClose>
           {total > 1 && <div className="fb-gallery-nav">
             <button type="button" className="btn ghost" aria-label="Предыдущее вложение" disabled={previous < 0}
@@ -120,9 +127,11 @@ function SwipeToClose({ onClose, onSlide, children }) {
   const [dragging, setDragging] = useState(false)
 
   function onTouchStart(e) {
-    if (e.touches.length !== 1 || e.target.closest('video')) { start.current = null; return }
     const t = e.touches[0]
-    start.current = { x: t.clientX, y: t.clientY, at: Date.now() }
+    const video = e.target.closest('video')
+    const controls = video && t && t.clientY >= video.getBoundingClientRect().bottom - 64
+    if (e.touches.length !== 1 || controls) { start.current = null; return }
+    start.current = { x: t.clientX, y: t.clientY, at: Date.now(), video: Boolean(video) }
     setDragging(true)
   }
   function onTouchMove(e) {
@@ -130,7 +139,7 @@ function SwipeToClose({ onClose, onSlide, children }) {
     const t = e.touches[0]
     const dx = t.clientX - start.current.x
     const y = t.clientY - start.current.y
-    if (Math.abs(y) > Math.abs(dx)) setDy(y)
+    if (!start.current.video && Math.abs(y) > Math.abs(dx)) setDy(y)
   }
   function onTouchEnd(e) {
     const s = start.current
@@ -140,7 +149,7 @@ function SwipeToClose({ onClose, onSlide, children }) {
     const t = e.changedTouches?.[0]
     const dx = t ? t.clientX - s.x : 0
     const y = t ? t.clientY - s.y : dy
-    if (shouldDismiss({ dx, dy: y, dt: Date.now() - s.at })) onClose()
+    if (!s.video && shouldDismiss({ dx, dy: y, dt: Date.now() - s.at })) onClose()
     else {
       setDy(0)
       if (Math.abs(dx) >= 45 && Math.abs(dx) > Math.abs(y) * 1.5) onSlide(dx < 0)

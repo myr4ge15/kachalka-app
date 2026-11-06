@@ -13,6 +13,21 @@ function memStorage(init) {
 }
 
 describe('AppearanceScreen', () => {
+  it('применяет акцент к документу и сохраняет его при обычном открытии экрана', () => {
+    const root = document.documentElement
+    const initial = root.getAttribute('data-accent')
+    try {
+      render(<AppearanceScreen onBack={() => {}} />)
+      fireEvent.click(screen.getByRole('radio', { name: 'Персик' }))
+      expect(root.dataset.accent).toBe('peach')
+      expect(JSON.parse(localStorage.getItem(ACCENT_KEY))).toMatchObject({ id: 'peach' })
+    } finally {
+      localStorage.removeItem(ACCENT_KEY)
+      if (initial === null) root.removeAttribute('data-accent')
+      else root.setAttribute('data-accent', initial)
+    }
+  })
+
   it('по умолчанию выбран фиолет (v6.15.3)', () => {
     render(<AppearanceScreen onBack={() => {}} storage={memStorage()} root={document.createElement('div')} />)
     expect(screen.getByRole('radio', { name: 'Фиолет' })).toHaveAttribute('aria-checked', 'true')

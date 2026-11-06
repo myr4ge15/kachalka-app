@@ -57,7 +57,8 @@ export default function CommentThread({ workoutId, ownerId, comments, me, open, 
   const [replying, setReplying] = useState(null) // комментарий, на который отвечаем
   const [replyTick, setReplyTick] = useState(0) // каждый «Ответить»/свайп — снова курсор в поле (fb_244e1492)
   const [edits, setEdits] = useState({}) // id → текст, пока правка уходит на сервер
-  const [likes, setLikes] = useState({}) // id → { reactions, my_reaction, … }, пока реакция уходит на сервер
+  const [likes, setLikes] = useState({})
+  const pendingReactions = useRef(new Set())
   const [reveal, setReveal] = useState(null)
   const boxRef = useRevealFocus(reveal)
   const inputRef = useRef(null)
@@ -79,6 +80,23 @@ export default function CommentThread({ workoutId, ownerId, comments, me, open, 
   const { bind: holdBind, wasLong } = useLongPress((c, el) => openMenu(c, el))
   // Двойной тап по чужому пузырю — ❤️ (fb_afd6d919). Тап после удержания (открыл меню) не считаем.
   const lastTap = useRef(null)
+  const touchStart = useRef(null)
+  const lastTouch = useRef(null)
+  function startBubbleTouch(e) {
+    touchStart.current = e.touches.length === 1 ? e.touches[0] : null
+  }
+  function endBubbleTouch(e, c) {
+    const start = touchStart.current
+    touchStart.current = null
+    const end = e.changedTouches[0]
+    if (!start || !end || Math.hypot(end.clientX - start.clientX, end.clientY - start.clientY) > 10) return
+    lastTouch.current = { id: c.id, t: Date.now() }
+    tapBubble(e, c)
+  }
+  function clickBubble(e, c) {
+    if (lastTouch.current?.id === c.id && Date.now() - lastTouch.current.t < 450) return
+    tapBubble(e, c)
+  }
   function tapBubble(e, c) {
     if (c.pending || wasLong() || e.target.closest('button, a')) { lastTap.current = null; return }
     const t = Date.now()
@@ -144,7 +162,8 @@ export default function CommentThread({ workoutId, ownerId, comments, me, open, 
   const all = [...(comments ?? []), ...pending].map((c) => {
     let x = c
     if (edits[c.id] != null) x = { ...x, body: edits[c.id], edited_at: x.edited_at ?? 'pending' }
-    if (likes[c.id]) x = { ...x, ...likes[c.id] }
+    const reaction = likes[c.id]
+    if (reaction && (reaction.pending || reaction.source === c)) x = { ...x, ...reaction.patch }
     return x
   })
   const { shown, hidden } = previewComments(all, open)
@@ -216,14 +235,20 @@ export default function CommentThread({ workoutId, ownerId, comments, me, open, 
 
   // Реакция (fb_4cbd8655): kind — вид или null (снять); одна от человека, новая заменяет прежнюю.
   async function react(c, kind) {
-    if (!online) return
-    setLikes((m) => ({ ...m, [c.id]: applyReaction(c, kind) }))
+    if (!online || pendingReactions.current.has(c.id)) return
+    const previous = likes[c.id]
+    const source = comments?.find((item) => item.id === c.id)
+    const optimistic = applyReaction(c, kind)
+    pendingReactions.current.add(c.id)
+    setLikes((m) => ({ ...m, [c.id]: { patch: optimistic, pending: true, source } }))
     try {
-      await setCommentReaction({ userId: me.id, comment: c, ownerId, kind })
+      const patch = await setCommentReaction({ userId: me.id, comment: c, ownerId, kind })
+      if (aliveRef.current) setLikes((m) => ({ ...m, [c.id]: { patch, source } }))
     } catch (e) {
+      if (aliveRef.current) setLikes((m) => ({ ...m, [c.id]: previous }))
       showToast({ icon: 'alert', title: 'Не получилось', sub: e?.message })
     } finally {
-      if (aliveRef.current) setLikes((m) => { const n = { ...m }; delete n[c.id]; return n })
+      pendingReactions.current.delete(c.id)
     }
   }
 
@@ -377,7 +402,9 @@ export default function CommentThread({ workoutId, ownerId, comments, me, open, 
             <div className={`cm-bub${menu?.c.id === c.id ? ' held' : ''}`}
               tabIndex={c.pending ? undefined : 0} aria-haspopup={c.pending ? undefined : 'menu'}
               aria-expanded={c.pending ? undefined : menu?.c.id === c.id}
-              onKeyDown={(e) => keyBubble(e, c)} onClick={(e) => tapBubble(e, c)} {...(c.pending ? {} : hold(c))}>
+              onKeyDown={(e) => keyBubble(e, c)} onClick={(e) => clickBubble(e, c)}
+              onTouchStart={startBubbleTouch} onTouchEnd={(e) => endBubbleTouch(e, c)}
+              onTouchCancel={() => { touchStart.current = null }} {...(c.pending ? {} : hold(c))}>
               {!own && first && (c.known && onOpenMember && c.user_id
                 ? <button type="button" className={`cm-name${tone}`} onClick={() => onOpenMember(c.user_id)}>{c.name}</button>
                 : <span className={`cm-name${tone}`}>{c.name}</span>)}
@@ -387,14 +414,12 @@ export default function CommentThread({ workoutId, ownerId, comments, me, open, 
                   {quote.text && <span className="cm-quote-text">{quote.text}</span>}
                 </div>
               )}
-              {/* Время — справа на последней строке текста (место держит ::after по длине подписи), а при
-                  реакциях — справа в ряду таблеток. */}
-              <span className={`cm-text${likeBtn ? '' : ' with-meta'}`} style={likeBtn ? undefined : { '--meta-ch': metaText.length }}>
-                {c.body}
-              </span>
-              {likeBtn
-                ? <div className="cm-reacts">{likeBtn}{meta}</div>
-                : meta}
+              {/* Место для времени на последней строке сохраняется при изменении реакций. */}
+              <div className="cm-message">
+                <span className="cm-text with-meta" style={{ '--meta-ch': metaText.length }}>{c.body}</span>
+                {meta}
+              </div>
+              {likeBtn && <div className="cm-reacts">{likeBtn}</div>}
             </div>
           </div>
           </Fragment>

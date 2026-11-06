@@ -1,5 +1,6 @@
 import { describe, it, expect } from 'vitest'
 import {
+  availableGroups,
   daySubTags,
   dayTags,
   tagSlug,
@@ -19,6 +20,23 @@ describe('dayTags', () => {
 
   it('поддерживает оба формата записи', () => {
     expect(dayTags([{ muscle_group: 'ноги' }])).toEqual(['ноги'])
+  })
+
+  it('строит фильтры для старых записей и собственных групп', () => {
+    const entries = [
+      { exercise: { muscle_group: 'трапеции' } },
+      { exercise: { muscle_group: 'ягодицы' } },
+      { exercise: { muscle_group: 'ноги' } },
+      { exercise: { muscle_group: 'грудь' } },
+      {},
+    ]
+    expect(availableGroups([{ entries }])).toEqual(['грудь', 'ноги', 'трапеции', 'ягодицы'])
+    expect(availableGroups()).toEqual([])
+    expect(dayTags()).toEqual([])
+    expect(daySubTags()).toEqual([])
+    expect(daySubTags(entries)).toContain('glute_max')
+    expect(matchesGroup(entries, null)).toBe(true)
+    expect(matchesGroup(entries, 'плечи')).toBe(false)
   })
 
   it('кардио одновременно проходит фильтр и остается видимой меткой карточки', () => {
@@ -61,6 +79,7 @@ describe('groupAccusative', () => {
 describe('tagSlug', () => {
   it('известная группа → slug, неизвестная → other', () => {
     expect(tagSlug('спина')).toBe('back')
+    expect(['ягодицы', 'кардио', 'разминка', 'заминка'].map(tagSlug)).toEqual(['glutes', 'cardio', 'warmup', 'warmup'])
     expect(tagSlug('нечто')).toBe('other')
   })
 })

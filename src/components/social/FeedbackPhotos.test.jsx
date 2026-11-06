@@ -85,3 +85,21 @@ it('видео (fb_1c5fab9c): плитка с ▶, на весь экран — 
   expect(player).toHaveAttribute('controls')
   expect(screen.getByRole('button', { name: 'Скриншот 1 из 2' }).querySelector('img')).toBeTruthy()
 })
+
+it('листит видео за областью управления и сохраняет жесты нативного плеера', async () => {
+  const load = vi.fn(async (_id, _kind, n) => `blob:${n}`)
+  render(<FeedbackPhotos id="f" count={2} load={load} lazy label="Вложение к обращению" isVideo={(url) => url === 'blob:0'} />)
+  fireEvent.click(screen.getByRole('button', { name: /Показать вложения.*2/ }))
+  fireEvent.click(await screen.findByRole('button', { name: 'Видео к обращению 1 из 2' }))
+  const video = screen.getByRole('dialog').querySelector('video')
+  vi.spyOn(video, 'getBoundingClientRect').mockReturnValue({ bottom: 700 })
+  function swipe(y) {
+    fireEvent.touchStart(video, { touches: [{ clientX: 190, clientY: y }] })
+    fireEvent.touchEnd(video, { changedTouches: [{ clientX: 80, clientY: y }] })
+  }
+  swipe(675)
+  expect(screen.getByRole('status')).toHaveTextContent('1 из 2')
+  swipe(300)
+  expect(screen.getByRole('status')).toHaveTextContent('2 из 2')
+  expect(screen.getByRole('dialog').querySelector('.fb-slide--next img')).toHaveAttribute('src', 'blob:1')
+})
