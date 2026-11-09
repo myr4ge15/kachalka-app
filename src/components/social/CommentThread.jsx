@@ -392,7 +392,7 @@ export default function CommentThread({ workoutId, ownerId, comments, me, open, 
         const time = c.pending ? 'отправка…' : commentClock(c.created_at)
         const meta = (
           <span className="cm-meta">
-            {edited && <span className="cm-edited" title="изменено">изм.</span>}
+            {edited && <><span className="cm-edited" title="изменено">изм.</span>{' '}</>}
             <span className="cm-time">{time}</span>
           </span>
         )
@@ -426,7 +426,7 @@ export default function CommentThread({ workoutId, ownerId, comments, me, open, 
                   {quote.text && <span className="cm-quote-text">{quote.text}</span>}
                 </div>
               )}
-              <div className="cm-message">
+              <div className="cm-message" data-time-label={`${edited ? 'изм. ' : ''}${time}`}>
                 <span className="cm-text">{c.body}</span>
                 {meta}
               </div>

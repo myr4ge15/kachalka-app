@@ -30,10 +30,11 @@ describe('ExportBar', () => {
     expect(h.onToggleMode).toHaveBeenCalledTimes(1)
   })
 
-  it('с отметками — счетчик на кнопке, нажатие экспортирует', () => {
+  it('с отметками — счетчик над кнопками, нажатие экспортирует', () => {
     const h = handlers()
     render(<ExportBar selectMode count={3} label="x" {...h} />)
-    fireEvent.click(screen.getByRole('button', { name: 'Скачать (3)' }))
+    expect(screen.getByText('Выбрано: 3')).toBeInTheDocument()
+    fireEvent.click(screen.getByRole('button', { name: 'Скачать' }))
     expect(h.onExport).toHaveBeenCalledTimes(1)
   })
 

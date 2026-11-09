@@ -1535,7 +1535,8 @@ button.link-btn { min-height: 44px; display: inline-flex; align-items: center; j
   display: flex; justify-content: space-between; align-items: center; gap: 8px;
   flex-wrap: wrap; margin: -8px 0 16px;
 }
-.export-bar-actions { display: flex; align-items: center; gap: 12px; }
+.export-bar-actions { width: 100%; grid-template-columns: 1fr 1fr 1.5fr; }
+.export-bar-actions > .btn { min-width: 0; min-height: 44px; padding-inline: 8px; }
 /* Экспорт уведен под список: ссылка внизу по центру, а в режиме выбора — бар
    фиксируется над таббаром (как «Сохранить»), чтобы счетчик/«Скачать» не терялись
    при прокрутке длинного списка. */
@@ -2136,8 +2137,14 @@ button.cm-name { cursor: pointer; padding: 12px 0; margin: -12px 0 -11px; }
 .cm-name.t1 { color: var(--cm-n1); } .cm-name.t2 { color: var(--cm-n2); } .cm-name.t3 { color: var(--cm-n3); }
 .cm-name.t4 { color: var(--cm-n4); } .cm-name.t5 { color: var(--cm-n5); } .cm-name.t6 { color: var(--cm-n6); }
 .cm-name.t7 { color: var(--cm-n7); }
-.cm-text { font-size: 15px; line-height: 1.38; overflow-wrap: anywhere; white-space: pre-wrap; }
-.cm-meta { display: inline-flex; align-items: baseline; gap: 5px; margin-inline-start: 8px; font-size: var(--fs-tiny); color: var(--muted); white-space: nowrap; }
+.cm-message { position: relative; font-size: 15px; line-height: 1.38; }
+.cm-text { overflow-wrap: anywhere; white-space: pre-wrap; }
+/* Резерв на последней строке равен ширине подписи, в том числе у «изм.» и «отправка…». */
+.cm-message::after {
+  content: attr(data-time-label); display: inline-block; visibility: hidden;
+  padding-inline-start: 8px; font-size: var(--fs-tiny); white-space: nowrap;
+}
+.cm-meta { position: absolute; inset-inline-end: 0; bottom: 0; font-size: var(--fs-tiny); color: var(--muted); white-space: nowrap; }
 .cm-time, .cm-edited { font-size: var(--fs-tiny); color: var(--muted); }
 /* ❤️ таблеткой под текстом — только когда лайки есть (первый ставят пунктом меню). Зона тапа 44px — невидимым слоем. */
 .cm-reacts { display: flex; flex-wrap: wrap; align-items: center; gap: 6px; padding: 6px 0 1px; }

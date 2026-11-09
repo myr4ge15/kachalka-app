@@ -25,11 +25,11 @@ export default function ExportBar({
       {placement === 'bottom' && <div className="wk-save-spacer" aria-hidden="true" />}
       <div className="export-bar export-bar--fixed">
         <span className="muted">Выбрано: {count}</span>
-        <div className="export-bar-actions">
-          <button className="link-btn" onClick={onPickAll}>Все</button>
-          <button className="link-btn" onClick={onToggleMode}>Отмена</button>
-          <button className="btn primary" disabled={count === 0} onClick={onExport}>
-            <DownloadIcon className="export-ico" /> Скачать{count ? ` (${count})` : ''}
+        <div className="btn-row export-bar-actions">
+          <button type="button" className="btn btn--sm ghost" onClick={onPickAll}>Все</button>
+          <button type="button" className="btn btn--sm ghost" onClick={onToggleMode}>Отмена</button>
+          <button type="button" className="btn btn--sm primary" disabled={count === 0} onClick={onExport}>
+            <DownloadIcon className="export-ico" /> Скачать
           </button>
         </div>
       </div>
