@@ -100,6 +100,29 @@ describe('useAppNav: nestedBack', () => {
     expect(result.current.feedThread.seq).not.toBe(first.seq)
   })
 
+  it('переходит из профиля сразу в ветку внутри View Transition', () => {
+    const start = vi.fn(() => ({ ready: Promise.resolve() }))
+    Object.defineProperty(document, 'startViewTransition', { configurable: true, value: start })
+    vi.stubGlobal('CSS', { supports: () => true })
+    vi.stubGlobal('matchMedia', () => ({ matches: false }))
+    try {
+      const { result } = renderHook(() => useAppNav(ME))
+      act(() => result.current.openFeedWorkout('w1'))
+      act(() => result.current.openMember('u2', 'feed-w1', { workoutId: 'w1', scrollTop: 320 }))
+      act(() => result.current.nestedBack())
+      expect(result.current.tab).toBe('member')
+      expect(start).toHaveBeenCalledOnce()
+      const [{ update, types }] = start.mock.calls[0]
+      expect(types).toEqual(['comment-return'])
+      act(update)
+      expect(result.current.tab).toBe('feed')
+      expect(result.current.feedThread).toMatchObject({ workoutId: 'w1', scrollTop: 320 })
+    } finally {
+      delete document.startViewTransition
+      vi.unstubAllGlobals()
+    }
+  })
+
   it('на вкладке «назад» ничего не делает; свайп включен только на вложенном экране', () => {
     expect(from('history').current.tab).toBe('history')
     const calls = vi.mocked(useEdgeSwipeBack).mock.calls

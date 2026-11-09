@@ -667,15 +667,15 @@ select.prog-select, select.admin-input {
 /* Отложенный показ каркаса: не мигать скелетоном на холодном старте.
    useLiveQuery на первом рендере всегда undefined (чтение IndexedDB асинхронно),
    поэтому экран рисует заглушку даже когда данные уже в кэше. Держим контейнер
-   загрузки (aria-busy) прозрачным первые ~220мс — быстрое локальное чтение
+   скелетона прозрачным первые ~220мс — быстрое локальное чтение
    успевает размонтировать скелетон ДО появления, и контент возникает без мигания.
    По-настоящему медленная загрузка (первый вход / тяжелый чанк) заглушку покажет. */
-[aria-busy="true"] { animation: skel-appear .18s var(--ease-in-out) .22s both; }
+.skel-delay { animation: skel-appear .18s var(--ease-in-out) .22s both; }
 @keyframes skel-appear { from { opacity: 0; } to { opacity: 1; } }
 @media (prefers-reduced-motion: reduce) {
   /* Задержку сохраняем (это анти-мигание, а не декоративное движение),
      но убираем сам fade — снап после порога. */
-  [aria-busy="true"] { animation-duration: .01s; }
+  .skel-delay { animation-duration: .01s; }
 }
 /* Раскладка каркаса экрана (<ScreenSkeleton>): заголовок + колонка карточек. */
 .skel-title { margin: 6px 0 16px; }
@@ -747,6 +747,15 @@ select.prog-select, select.admin-input {
 .screen-anim--push { animation: screen-push var(--dur-nav) var(--ease-out); }
 .screen-anim--pop  { animation: none; }
 @keyframes screen-push { from { left: 44px; } to { left: 0; } }
+/* Возврат в портальную ветку: уезжает снимок профиля, под ним уже видна сама ветка. */
+:root:active-view-transition-type(comment-return)::view-transition-new(root) {
+  animation: none; mix-blend-mode: normal;
+}
+:root:active-view-transition-type(comment-return)::view-transition-old(root) {
+  animation: comment-return-out var(--dur-nav) var(--ease-out) both;
+  z-index: 1; mix-blend-mode: normal;
+}
+@keyframes comment-return-out { to { transform: translateX(100%); } }
 /* Свайп назад от края (hooks/useEdgeSwipeBack.js): экран ведет палец, а не анимация. */
 /* edge-settled — жест закончился возвратом: анимацию въезда не перезапускаем, иначе экран отскакивает (fb_39b706ad). */
 .screen-anim.edge-dragging, .screen-anim.edge-settled { animation: none; }

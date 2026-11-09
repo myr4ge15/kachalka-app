@@ -6,7 +6,7 @@ import Skeleton from './Skeleton.jsx'
 // скелетон встает на место будущего списка. aria-busy озвучивает загрузку.
 export default function CardsSkeleton({ cards = 3, height = 72 }) {
   return (
-    <div className="skel-cards" aria-busy="true" aria-label="Загрузка">
+    <div className="skel-cards skel-delay" aria-busy="true" aria-label="Загрузка">
       {Array.from({ length: cards }, (_, i) => (
         <Skeleton key={i} h={height} r={14} />
       ))}

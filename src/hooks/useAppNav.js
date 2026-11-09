@@ -1,4 +1,5 @@
 import { useEffect, useLayoutEffect, useRef, useState } from 'react'
+import { flushSync } from 'react-dom'
 import { appendPushLog, onPushOpen, PENDING_RECHECK_MS, pushIntentFromUrl, takePendingPushUrl, takeTappedPushUrl } from '../lib/pushIntent.js'
 import { onResume } from '../lib/appEvents.js'
 import { emitReselect } from '../lib/appEvents.js'
@@ -67,6 +68,7 @@ export function useAppNav(user) {
   // же карточке/строке рейтинга, а не в начало Ленты.
   const feedAnchorRef = useRef(null)
   const [memberThreadReturn, setMemberThreadReturn] = useState(null)
+  const memberReturnPending = useRef(false)
   const memberFromRef = useRef(null) // вкладка, откуда открыли профиль участника
   const [feedRestore, setFeedRestore] = useState(null)
 
@@ -251,11 +253,29 @@ export function useAppNav(user) {
   function backFromMember() {
     const from = memberFromRef.current
     if (from && from !== 'feed') { goTab(from); return }
-    setFeedRestore(feedAnchorRef.current)
     const thread = memberThreadReturn
-    setMemberThreadReturn(null)
-    if (thread) setFeedThread((previous) => ({ ...nextThread(previous, thread.workoutId), scrollTop: thread.scrollTop }))
-    goTab('feed')
+    function restore() {
+      setFeedRestore(feedAnchorRef.current)
+      setMemberThreadReturn(null)
+      if (thread) setFeedThread((previous) => ({ ...nextThread(previous, thread.workoutId), scrollTop: thread.scrollTop }))
+      goTab('feed')
+    }
+    if (memberReturnPending.current) return
+    if (!thread || window.matchMedia?.('(prefers-reduced-motion: reduce)').matches
+      || !document.startViewTransition || !window.CSS?.supports?.('selector(:active-view-transition-type(comment-return))')) {
+      restore()
+      return
+    }
+    memberReturnPending.current = true
+    const transition = document.startViewTransition({
+      types: ['comment-return'],
+      update: () => {
+        flushSync(restore)
+        memberReturnPending.current = false
+      },
+    })
+    // Скрытая вкладка может пропустить анимацию, но update всё равно отработает.
+    transition.ready.catch(() => {})
   }
 
   // «Обратная связь» (16.10, fb_536826f3 + fb_bb404b7e): «назад» — туда, откуда открыли

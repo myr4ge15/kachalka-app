@@ -10,6 +10,19 @@ import { enterPin, tabbar, openTab, pickerItem, layoutProblems } from './helpers
 const APP = '/kachalka-app/'
 const EXERCISE = 'Жим лежа (e2e)'
 
+test('занятый тумблер остаётся видимым, задержка показа действует на скелетон', async ({ page }) => {
+  await page.setContent(`
+    <button class="act menu-row push-toggle" role="switch" aria-checked="false">Присылать на это устройство</button>
+    <div class="skel-cards skel-delay" aria-busy="true">Загрузка</div>
+  `)
+  await page.addStyleTag({ path: 'src/index.css' })
+  const toggle = page.getByRole('switch')
+  await toggle.evaluate((element) => element.setAttribute('aria-busy', 'true'))
+  await expect(toggle).toHaveCSS('animation-name', 'none')
+  await expect(toggle).toHaveCSS('opacity', '1')
+  await expect(page.locator('.skel-delay')).toHaveCSS('animation-name', 'skel-appear')
+})
+
 test('статусы переезда читаются на телефоне и десктопе, кнопка помещается', async ({ page }) => {
   await page.route('**/migration-layout', (route) => route.fulfill({
     contentType: 'text/html',
