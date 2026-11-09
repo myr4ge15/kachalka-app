@@ -2140,14 +2140,17 @@ button.cm-name { cursor: pointer; padding: 12px 0; margin: -12px 0 -11px; }
 .cm-message { position: relative; font-size: 15px; line-height: 1.38; }
 .cm-text { overflow-wrap: anywhere; white-space: pre-wrap; }
 /* Резерв на последней строке равен ширине подписи, в том числе у «изм.» и «отправка…». */
-.cm-message::after {
+.cm-message[data-time-label]::after {
   content: attr(data-time-label); display: inline-block; visibility: hidden;
   padding-inline-start: 8px; font-size: var(--fs-tiny); white-space: nowrap;
 }
-.cm-meta { position: absolute; inset-inline-end: 0; bottom: 0; font-size: var(--fs-tiny); color: var(--muted); white-space: nowrap; }
+.cm-meta { font-size: var(--fs-tiny); color: var(--muted); white-space: nowrap; }
+.cm-message > .cm-meta { position: absolute; inset-inline-end: 0; bottom: 0; }
 .cm-time, .cm-edited { font-size: var(--fs-tiny); color: var(--muted); }
 /* ❤️ таблеткой под текстом — только когда лайки есть (первый ставят пунктом меню). Зона тапа 44px — невидимым слоем. */
-.cm-reacts { display: flex; flex-wrap: wrap; align-items: center; gap: 6px; padding: 6px 0 1px; }
+.cm-reacts { display: flex; align-items: flex-end; gap: 8px; padding: 6px 0 1px; }
+.cm-react-pills { display: flex; flex-wrap: wrap; min-width: 0; gap: 6px; }
+.cm-reacts > .cm-meta { flex: none; margin-inline-start: auto; }
 .cm-like {
   position: relative; display: inline-flex; align-items: center; gap: 4px; height: 26px; padding: 0 9px; border: 0;
   border-radius: var(--r-lg); background: color-mix(in srgb, var(--text) 8%, transparent); color: var(--text);

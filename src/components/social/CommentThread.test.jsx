@@ -399,7 +399,7 @@ describe('CommentThread', () => {
     setCommentReaction.mockResolvedValue({ reactions: { heart: 1 }, my_reaction: 'heart' })
     renderThread({ open: true, comments: [c('last', 'x')] })
     const target = bubble('last')
-    const clock = target.querySelector('.cm-meta')
+    const clock = target.querySelector('.cm-message .cm-meta').textContent
     const touch = { clientX: 120, clientY: 400 }
     for (let i = 0; i < 2; i += 1) {
       fireEvent.touchStart(target, { touches: [touch] })
@@ -410,7 +410,14 @@ describe('CommentThread', () => {
     expect(setCommentReaction).toHaveBeenCalledTimes(1)
     expect(setCommentReaction).toHaveBeenCalledWith(expect.objectContaining({ kind: 'heart' }))
     expect(screen.getByRole('button', { name: 'Сердце: 1, убрать' })).toBeInTheDocument()
-    expect(target.querySelector('.cm-message .cm-meta')).toBe(clock)
+    expect(target.querySelector('.cm-reacts .cm-meta')).toHaveTextContent(clock)
+    expect(target.querySelector('.cm-message')).not.toHaveAttribute('data-time-label')
+    setCommentReaction.mockResolvedValue({ reactions: {}, my_reaction: null })
+    fireEvent.click(screen.getByRole('button', { name: 'Сердце: 1, убрать' }))
+    await act(async () => {})
+    expect(target.querySelector('.cm-reacts')).toBeNull()
+    expect(target.querySelector('.cm-message .cm-meta')).toHaveTextContent(clock)
+    expect(target.querySelectorAll('.cm-meta')).toHaveLength(1)
   })
 
   it('двойной тап по чужому пузырю — ❤️, по своему — ничего; одиночный тап — ничего', () => {

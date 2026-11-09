@@ -426,11 +426,16 @@ export default function CommentThread({ workoutId, ownerId, comments, me, open, 
                   {quote.text && <span className="cm-quote-text">{quote.text}</span>}
                 </div>
               )}
-              <div className="cm-message" data-time-label={`${edited ? 'изм. ' : ''}${time}`}>
+              <div className="cm-message" data-time-label={likeBtn ? undefined : `${edited ? 'изм. ' : ''}${time}`}>
                 <span className="cm-text">{c.body}</span>
-                {meta}
+                {!likeBtn && meta}
               </div>
-              {likeBtn && <div className="cm-reacts">{likeBtn}</div>}
+              {likeBtn && (
+                <div className="cm-reacts">
+                  <div className="cm-react-pills">{likeBtn}</div>
+                  {meta}
+                </div>
+              )}
             </div>
           </div>
           </Fragment>
