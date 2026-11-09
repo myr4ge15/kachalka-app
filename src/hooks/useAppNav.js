@@ -66,6 +66,7 @@ export function useAppNav(user) {
   // Откуда ушли в профиль (v6.7.1): якорь прокрутки Ленты — «Назад» возвращает к той
   // же карточке/строке рейтинга, а не в начало Ленты.
   const feedAnchorRef = useRef(null)
+  const feedThreadReturnRef = useRef(null)
   const memberFromRef = useRef(null) // вкладка, откуда открыли профиль участника
   const [feedRestore, setFeedRestore] = useState(null)
 
@@ -234,12 +235,15 @@ export function useAppNav(user) {
   }
 
   // Профиль участника из Ленты/рейтинга. Свой — это обычный «Профиль».
-  function openMember(id, anchor) {
+  function openMember(id, anchor, threadReturn = null) {
     if (!id) return
     if (id === user?.id) { goTab('profile'); return }
-    feedAnchorRef.current = tab === 'feed' ? captureAnchor(contentRef.current, anchor) : null
     // Откуда открыли (v8.9.2): из «Друзей» «назад» вел в Ленту — теперь туда, откуда пришли.
-    if (tab !== 'member') memberFromRef.current = tab
+    if (tab !== 'member') {
+      memberFromRef.current = tab
+      feedAnchorRef.current = tab === 'feed' ? captureAnchor(contentRef.current, anchor) : null
+      feedThreadReturnRef.current = tab === 'feed' ? threadReturn : null
+    }
     setMemberId(id)
     goTab('member')
   }
@@ -248,6 +252,9 @@ export function useAppNav(user) {
     const from = memberFromRef.current
     if (from && from !== 'feed') { goTab(from); return }
     setFeedRestore(feedAnchorRef.current)
+    const thread = feedThreadReturnRef.current
+    feedThreadReturnRef.current = null
+    if (thread) setFeedThread((previous) => ({ ...nextThread(previous, thread.workoutId), scrollTop: thread.scrollTop }))
     goTab('feed')
   }
 

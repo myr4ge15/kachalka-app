@@ -113,9 +113,16 @@ describe('WorkoutSocial — строка комментариев', () => {
     const onOpenMember = vi.fn()
     renderSocial({ onOpenMember })
     fireEvent.click(screen.getByRole('button', { name: '4 комментария' }))
-    fireEvent.click(within(screen.getByRole('dialog')).getAllByRole('button', { name: 'Петя' })[0])
-    expect(onOpenMember).toHaveBeenCalledWith('u3')
+    const sheet = screen.getByRole('dialog')
+    sheet.querySelector('.sheet-scroll').scrollTop = 240
+    fireEvent.click(within(sheet).getAllByRole('button', { name: 'Петя' })[0])
+    expect(onOpenMember).toHaveBeenCalledWith('u3', 240)
     expect(screen.queryByRole('dialog', { name: 'Комментарии' })).toBeNull()
+  })
+
+  it('после возврата из профиля восстанавливает прокрутку открытой ветки', () => {
+    renderSocial({ openThread: true, initialScrollTop: 240 })
+    expect(screen.getByRole('dialog').querySelector('.sheet-scroll').scrollTop).toBe(240)
   })
 })
 
@@ -129,7 +136,7 @@ describe('WorkoutSocial — только просмотр', () => {
     expect(screen.queryByRole('button', { name: comment.name })).toBeNull()
     rerender(<WorkoutSocial {...props} observerMembers={new Set([comment.user_id])} />)
     fireEvent.click(screen.getByRole('button', { name: comment.name }))
-    expect(onOpenMember).toHaveBeenCalledWith(comment.user_id)
+    expect(onOpenMember).toHaveBeenCalledWith(comment.user_id, 0)
     expect(screen.queryByRole('dialog', { name: 'Комментарии' })).toBeNull()
   })
 

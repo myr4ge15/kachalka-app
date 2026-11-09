@@ -390,7 +390,6 @@ export default function CommentThread({ workoutId, ownerId, comments, me, open, 
         ))
         const edited = !c.pending && c.edited_at
         const time = c.pending ? 'отправка…' : commentClock(c.created_at)
-        const metaText = `${edited ? 'изм. ' : ''}${time}`
         const meta = (
           <span className="cm-meta">
             {edited && <span className="cm-edited" title="изменено">изм.</span>}
@@ -427,9 +426,8 @@ export default function CommentThread({ workoutId, ownerId, comments, me, open, 
                   {quote.text && <span className="cm-quote-text">{quote.text}</span>}
                 </div>
               )}
-              {/* Место для времени на последней строке сохраняется при изменении реакций. */}
               <div className="cm-message">
-                <span className="cm-text with-meta" style={{ '--meta-ch': metaText.length }}>{c.body}</span>
+                <span className="cm-text">{c.body}</span>
                 {meta}
               </div>
               {likeBtn && <div className="cm-reacts">{likeBtn}</div>}

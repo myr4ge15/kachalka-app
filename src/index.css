@@ -2083,7 +2083,7 @@ img.avatar-lg.has-img {
 .cm-item { display: flex; align-items: flex-end; gap: 8px; margin-top: 2px; }
 .cm-item.first { margin-top: 10px; }
 .cm-item.own { justify-content: flex-end; }
-.cm-item .avatar-sm { width: 28px; height: 28px; align-self: flex-start; }
+.cm-item .avatar-sm { width: 28px; height: 28px; }
 .cm-av-gap { width: 28px; flex: none; }
 .cm-item.pending { opacity: .55; }
 /* Комментарий, к которому привело уведомление (fb_2277554b): пузырь вспыхивает акцентом и гаснет,
@@ -2128,12 +2128,7 @@ button.cm-name { cursor: pointer; padding: 12px 0; margin: -12px 0 -11px; }
 .cm-name.t4 { color: var(--cm-n4); } .cm-name.t5 { color: var(--cm-n5); } .cm-name.t6 { color: var(--cm-n6); }
 .cm-name.t7 { color: var(--cm-n7); }
 .cm-text { font-size: 15px; line-height: 1.38; overflow-wrap: anywhere; white-space: pre-wrap; }
-.cm-meta { display: inline-flex; align-items: center; gap: 5px; font-size: var(--fs-tiny); color: var(--muted); white-space: nowrap; }
-/* Время закреплено в блоке текста, а ::after держит под него место на
-   последней строке: короткий текст — время рядом, длинный — переносится. */
-.cm-message { position: relative; }
-.cm-message > .cm-meta { position: absolute; right: 0; bottom: 0; }
-.cm-text.with-meta::after { content: ''; display: inline-block; width: calc(var(--meta-ch, 5) * 6.2px + 8px); height: 1px; }
+.cm-meta { display: inline-flex; align-items: baseline; gap: 5px; margin-inline-start: 8px; font-size: var(--fs-tiny); color: var(--muted); white-space: nowrap; }
 .cm-time, .cm-edited { font-size: var(--fs-tiny); color: var(--muted); }
 /* ❤️ таблеткой под текстом — только когда лайки есть (первый ставят пунктом меню). Зона тапа 44px — невидимым слоем. */
 .cm-reacts { display: flex; flex-wrap: wrap; align-items: center; gap: 6px; padding: 6px 0 1px; }
@@ -2216,8 +2211,8 @@ button.cm-name { cursor: pointer; padding: 12px 0; margin: -12px 0 -11px; }
   .cm-sheet { animation: cm-enter var(--dur-nav) var(--ease-out); }
   @keyframes cm-enter { from { left: 24px; opacity: 0; } to { left: 0; opacity: 1; } }
 }
-@media (max-width: 599px) and (prefers-reduced-motion: no-preference) {
-  .overlay:has(> .cm-sheet) { overflow: hidden; }
+@media (max-width: 599px) {
+  .overlay:has(> .cm-sheet) { overflow: hidden; background: transparent; }
 }
 .cm-sheet .sheet-scroll {
   background-image: radial-gradient(color-mix(in srgb, var(--acc) 9%, transparent) 1px, transparent 1.2px);
@@ -2774,7 +2769,8 @@ label.act.busy { opacity: .55; pointer-events: none; }
 .menu-row .act-badge { margin-left: 0; }
 .menu-row.is-open { border-color: color-mix(in srgb, var(--acc) 45%, var(--border)); }
 .menu-row:disabled { opacity: .55; cursor: default; }
-.menu-row.push-toggle[aria-busy="true"] { opacity: 1; }
+.menu-row.push-toggle:active { background: var(--surface); }
+.push-types[data-device-off="true"] .push-group .toggle-pill { opacity: .4; }
 .menu-row.danger .act-ico { background: color-mix(in srgb, var(--red) 14%, transparent); color: var(--red-text); }
 /* «Выйти» — красный текст на обычной плашке: выход не удаление, заливка как у «Удалить» пугала. */
 .act.danger.logout { background: var(--surface); border-color: var(--border); }

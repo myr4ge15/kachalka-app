@@ -26,8 +26,8 @@ export default function PushToggle({ availability = null, enabled = false, busy 
 
   return (
     <>
-      <MenuRow className="push-toggle" kind="switch" icon="bell" title={label} checked={enabled} aria-busy={busy} disabled={busy}
-        onClick={() => onToggle?.(!enabled)}
+      <MenuRow className="push-toggle" kind="switch" icon="bell" title={label} checked={enabled} aria-busy={busy} aria-disabled={busy}
+        onClick={() => { if (!busy) onToggle?.(!enabled) }}
         end={(
           <span className="toggle-act-end">
             <span className={'toggle-pill' + (enabled ? ' on' : '') + (busy ? ' pending' : '')} aria-hidden="true">

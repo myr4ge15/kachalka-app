@@ -88,6 +88,17 @@ describe('useAppNav: nestedBack', () => {
     expect(result.current.tab).toBe('feed')
   })
 
+  it('из профиля автора возвращает ту же ветку и позицию прокрутки', () => {
+    const { result } = renderHook(() => useAppNav(ME))
+    act(() => result.current.openFeedWorkout('w1', 'c7'))
+    const first = result.current.feedThread
+    act(() => result.current.openMember('u2', 'feed-w1', { workoutId: 'w1', scrollTop: 320 }))
+    act(() => result.current.nestedBack())
+    expect(result.current.tab).toBe('feed')
+    expect(result.current.feedThread).toMatchObject({ workoutId: 'w1', commentId: null, scrollTop: 320 })
+    expect(result.current.feedThread.seq).not.toBe(first.seq)
+  })
+
   it('на вкладке «назад» ничего не делает; свайп включен только на вложенном экране', () => {
     expect(from('history').current.tab).toBe('history')
     const calls = vi.mocked(useEdgeSwipeBack).mock.calls

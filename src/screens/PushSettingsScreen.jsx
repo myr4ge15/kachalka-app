@@ -32,7 +32,7 @@ export default function PushSettingsScreen({ user, onBack }) {
       </section>
 
       {push.availability === 'ok' && (
-        <section className="sec">
+        <section className="sec push-types" data-device-off={!push.enabled}>
           <p className="sec-title">Какие присылать</p>
           <PushTypes
             prefs={push.prefs}
@@ -41,7 +41,9 @@ export default function PushSettingsScreen({ user, onBack }) {
             disabled={!push.enabled || push.busy}
             onChange={push.setType}
           />
-          <p className="push-note">Настройки действуют на всех твоих устройствах с включёнными пушами.</p>
+          <p className="push-note">{push.enabled
+            ? 'Настройки действуют на всех устройствах с включёнными пушами.'
+            : 'На этом устройстве пуши выключены. Настройки типов сохранены.'}</p>
         </section>
       )}
     </div>

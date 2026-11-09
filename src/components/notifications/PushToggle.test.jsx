@@ -28,8 +28,13 @@ describe('PushToggle', () => {
 
   it('во время переключения кнопка занята, ошибка видна', () => {
     // Тумблер уже в новом положении (оптимистично, v6.7.1) — статус по нему.
-    render(<PushToggle availability="ok" enabled busy error="Нет сети — попробуй позже." onToggle={() => {}} />)
-    expect(screen.getByRole('switch')).toBeDisabled()
+    const onToggle = vi.fn()
+    render(<PushToggle availability="ok" enabled busy error="Нет сети — попробуй позже." onToggle={onToggle} />)
+    const toggle = screen.getByRole('switch')
+    expect(toggle).toHaveAttribute('aria-disabled', 'true')
+    expect(toggle).toBeEnabled()
+    fireEvent.click(toggle)
+    expect(onToggle).not.toHaveBeenCalled()
     expect(screen.getByText('Включаю…')).toBeInTheDocument()
     expect(screen.getByRole('alert')).toHaveTextContent('Нет сети')
   })
