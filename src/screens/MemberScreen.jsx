@@ -39,6 +39,7 @@ const RECENT_STEP = 5
 export default function MemberScreen({ user, memberId, onBack, onOpenMember }) {
   // Режим админа «Видеть всех»: участник вне круга — только просмотр, без «В друзья» (сервер откажет).
   const outside = useViewAllExtra().has(memberId)
+  const observerMembers = useViewAllExtra({ activeOnly: true })
   const snap = useLiveQuery(
     () => getCachedMember(memberId, { id: user.id, name: user.name }),
     [memberId, user.id, user.name],
@@ -268,6 +269,7 @@ export default function MemberScreen({ user, memberId, onBack, onOpenMember }) {
                     onReact={(kind, mine) => onReact(w.id, kind, mine)}
                     onOpenMember={onOpenMember}
                     readOnly={outside}
+                    observerMembers={observerMembers}
                   />
                 </article>
               ))}

@@ -16,7 +16,7 @@ import { summarizeReactions } from '../../lib/reactions.js'
 // комментарии (уведомление о комментарии, ответе или реакции на него, fb_2277554b).
 // me — { id, name, avatar }; authorAvatar — фото автора тренировки для «поста» над веткой.
 // readOnly — только просмотр (режим админа «Видеть всех», 27.10.2026: автор вне круга, сервер действий не примет).
-export default function WorkoutSocial({ workout, me, isMe, onReact, onOpenMember, openThread = false, focusCommentId = null, authorAvatar = null, readOnly = false }) {
+export default function WorkoutSocial({ workout, me, isMe, onReact, onOpenMember, openThread = false, focusCommentId = null, authorAvatar = null, readOnly = false, observerMembers }) {
   const [open, setOpen] = useState(openThread)
   const [composeHost, setComposeHost] = useState(null) // подвал листа под полем ввода
   const comments = workout.comments ?? []
@@ -40,6 +40,7 @@ export default function WorkoutSocial({ workout, me, isMe, onReact, onOpenMember
               open
               onOpenMember={onOpenMember ? (id) => { setOpen(false); onOpenMember(id) } : undefined}
               composeHost={composeHost}
+              observerMembers={observerMembers}
               focusCommentId={focusCommentId}
               readOnly={readOnly}
             />

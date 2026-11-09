@@ -329,7 +329,12 @@ export default function HistoryScreen({
             «+ Новая тренировка» в боковой колонке (App.jsx). Своя кнопка хаба убрана,
             чтобы не дублировать. */}
 
-        <MenuRow icon="template" title="Шаблоны" className="tpl-link" onClick={() => setSelected('templates')} />
+        <div className="menu-group tpl-link">
+          <MenuRow icon="template" title="Шаблоны" onClick={() => setSelected('templates')} />
+          {!loading && list.length > 0 && (
+            <MenuRow icon="download" title="Экспорт тренировок" kind="action" disabled={selectMode} onClick={toggleSelectMode} />
+          )}
+        </div>
 
         {loading && <CardsSkeleton cards={4} />}
 
@@ -429,14 +434,12 @@ export default function HistoryScreen({
           )
         })}
 
-        {/* Экспорт уведен из верхнего слота под список, чтобы верх занимали фильтры.
-            Вне режима выбора — приглушенная ссылка внизу; в режиме выбора — фиксир.
-            бар над таббаром (общий ExportBar). «Все» — по отфильтрованному shown. */}
+        {/* В режиме выбора бар над таббаром. «Все» — по отфильтрованному shown. */}
         <ExportBar
           selectMode={selectMode}
           count={picked.size}
           label="Экспорт тренировок"
-          canShow={!loading && list.length > 0}
+          canShow={false}
           onToggleMode={toggleSelectMode}
           onPickAll={() => pickAll(shown)}
           onExport={() => exportPicked(list)}

@@ -44,7 +44,7 @@ import Icon from '../ui/Icon.jsx'
 // focusCommentId — к этому комментарию привело уведомление (fb_2277554b): при открытии он по центру листа и
 // коротко подсвечен.
 // readOnly — только чтение (режим админа «Видеть всех», 27.10.2026): без поля, ответов и реакций.
-export default function CommentThread({ workoutId, ownerId, comments, me, open, onOpen, focusTick = 0, onOpenMember, composeHost, focusCommentId = null, readOnly = false }) {
+export default function CommentThread({ workoutId, ownerId, comments, me, open, onOpen, focusTick = 0, onOpenMember, composeHost, focusCommentId = null, readOnly = false, observerMembers }) {
   const online = useOnline()
   const live = online && !readOnly // можно писать, отвечать и реагировать
   const aliveRef = useAliveRef()
@@ -418,7 +418,7 @@ export default function CommentThread({ workoutId, ownerId, comments, me, open, 
               onKeyDown={(e) => keyBubble(e, c)} onClick={(e) => clickBubble(e, c)}
               onTouchStart={startBubbleTouch} onTouchEnd={(e) => endBubbleTouch(e, c)}
               onTouchCancel={() => { touchStart.current = null }} {...(c.pending ? {} : hold(c))}>
-              {!own && first && (c.known && onOpenMember && c.user_id
+              {!own && first && ((c.known || observerMembers?.has(c.user_id)) && onOpenMember && c.user_id
                 ? <button type="button" className={`cm-name${tone}`} onClick={() => onOpenMember(c.user_id)}>{c.name}</button>
                 : <span className={`cm-name${tone}`}>{c.name}</span>)}
               {quote && (

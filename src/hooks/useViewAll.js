@@ -9,9 +9,9 @@ export function useViewAll() {
 }
 
 // «Чужие» — Set(userId), кого видно только из-за режима (метка, без действий).
-export function useViewAllExtra() {
+export function useViewAllExtra({ activeOnly = false } = {}) {
   const state = useViewAll()
-  return useMemo(() => viewAllExtra(state), [state])
+  return useMemo(() => viewAllExtra(activeOnly && !viewAllActive(state) ? null : state), [state, activeOnly])
 }
 
 // App ставит один раз на вошедшего админа: сверка с сервером при входе и возврате в

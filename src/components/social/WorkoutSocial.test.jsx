@@ -121,6 +121,18 @@ describe('WorkoutSocial — строка комментариев', () => {
 
 // Режим админа «Видеть всех» (27.10.2026): тренировка человека вне круга — только просмотр.
 describe('WorkoutSocial — только просмотр', () => {
+  it('открывает профиль автора вне круга только при доступе наблюдателя', () => {
+    const comment = { ...COMMENTS[0], known: false }
+    const onOpenMember = vi.fn()
+    const props = { workout: workout([comment]), me, onOpenMember, openThread: true, readOnly: true }
+    const { rerender } = render(<WorkoutSocial {...props} />)
+    expect(screen.queryByRole('button', { name: comment.name })).toBeNull()
+    rerender(<WorkoutSocial {...props} observerMembers={new Set([comment.user_id])} />)
+    fireEvent.click(screen.getByRole('button', { name: comment.name }))
+    expect(onOpenMember).toHaveBeenCalledWith(comment.user_id)
+    expect(screen.queryByRole('dialog', { name: 'Комментарии' })).toBeNull()
+  })
+
   it('реакции без кнопок, в ветке нет поля, ответа и реакций — подпись «Режим просмотра»', () => {
     const w = { ...workout(COMMENTS), reactions: [{ user_id: 'u1', user_name: 'Маша', kind: 'fire' }] }
     const { container } = render(<WorkoutSocial workout={w} me={me} isMe={false} onReact={vi.fn()} readOnly />)

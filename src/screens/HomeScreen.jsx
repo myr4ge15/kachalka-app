@@ -15,6 +15,7 @@ import { labelOf, majorOf } from '../lib/muscles.js'
 import { leadTarget, leadSince, cardioLine } from '../lib/recoveryText.js'
 import { rhythmChart, fmtAvg, avgWord, mondayLabel } from '../lib/rhythmChart.js'
 import { useRevealFocus } from '../hooks/useRevealFocus.js'
+import { useLongPress } from '../hooks/useLongPress.js'
 import CardsSkeleton from '../components/ui/CardsSkeleton.jsx'
 import EmptyHint from '../components/ui/EmptyHint.jsx'
 import { monthOf, shiftMonth } from '../lib/calendar.js'
@@ -32,6 +33,29 @@ const canonIdx = (g) => {
 // Подсказка к цвету полоски (ось восстановления, та же, что у подписи).
 // Сколько групп «В прошлый раз» показать в строке, остальные — «+N» (аудит 16.10).
 const TAGS_SHOWN = 2
+
+function LastWorkoutTags({ tags }) {
+  const [expanded, setExpanded] = useState(false)
+  const { bind, wasLong } = useLongPress(() => setExpanded(true), { onEnd: () => setExpanded(false) })
+  const extra = tags.length - TAGS_SHOWN
+  return (
+    <div className="home-tags">
+      <span className="home-tags-lab">В прошлый раз:</span>
+      {tags.slice(0, TAGS_SHOWN).map((s) => (
+        <span key={s} className={`day-tag tag-${tagSlug(majorOf(s) ?? s)}`}>{labelOf(s)}</span>
+      ))}
+      {extra > 0 && (
+        <button type="button" className="day-tag home-tags-more" aria-label="Все мышцы прошлой тренировки"
+          aria-expanded={expanded} {...bind()} onBlur={() => setExpanded(false)}
+          onKeyDown={(e) => { if (e.key === 'Escape') setExpanded(false) }}
+          onClick={() => { if (!wasLong()) setExpanded((open) => !open) }}>
+          +{extra}
+        </button>
+      )}
+      {expanded && <div className="home-tags-bubble" role="status">{tags.map(labelOf).join(', ')}</div>}
+    </div>
+  )
+}
 const STATE_HINT = { ready: 'можно тренировать', almost: 'почти восстановилась', resting: 'дай отдых', stale: 'давно не тренировал(а)' }
 
 const localDate = (ymd) => new Date(`${ymd}T12:00:00`)
@@ -192,20 +216,7 @@ export default function HomeScreen({ user, onNavigate, onNewWorkout, onOpenProgr
         </span>
         <span className="home-go-ico" aria-hidden="true">+</span>
       </button>
-      {lw?.tags?.length > 0 && (
-        <div className="home-tags">
-          <span className="home-tags-lab">В прошлый раз:</span>
-          {/* Одна строка (аудит 16.10): третья группа уходила на вторую строку одна — дальше «+N». */}
-          {lw.tags.slice(0, TAGS_SHOWN).map((s) => (
-            <span key={s} className={`day-tag tag-${tagSlug(majorOf(s) ?? s)}`}>{labelOf(s)}</span>
-          ))}
-          {lw.tags.length > TAGS_SHOWN && (
-            <span className="day-tag home-tags-more" title={lw.tags.slice(TAGS_SHOWN).map(labelOf).join(', ')}>
-              +{lw.tags.length - TAGS_SHOWN}
-            </span>
-          )}
-        </div>
-      )}
+      {lw?.tags?.length > 0 && <LastWorkoutTags tags={lw.tags} />}
 
       {/* Два блока: серия недель и цифры месяца. */}
       <div className="home-blocks">

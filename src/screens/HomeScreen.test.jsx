@@ -1,6 +1,6 @@
 // @vitest-environment jsdom
 import { beforeEach, describe, expect, it, vi } from 'vitest'
-import { fireEvent, render, screen, waitFor } from '@testing-library/react'
+import { act, fireEvent, render, screen, waitFor } from '@testing-library/react'
 import { dismissMonthlySummary } from '../db/insights.js'
 import { monthKey } from '../lib/monthlySummary.js'
 import { monthOf, shiftMonth } from '../lib/calendar.js'
@@ -76,6 +76,22 @@ describe('HomeScreen', () => {
     render(<HomeScreen user={user} onNavigate={onNavigate} />)
     expect(screen.getByText('середина груди')).toHaveClass('tag-chest')
     expect(screen.getByText('спина')).toHaveClass('tag-back')
+    const more = screen.getByRole('button', { name: 'Все мышцы прошлой тренировки' })
+    fireEvent.click(more)
+    expect(screen.getByRole('status')).toHaveTextContent('середина груди, спина, ноги, пресс, плечи')
+    fireEvent.keyDown(more, { key: 'Escape' })
+    expect(screen.queryByRole('status')).toBeNull()
+    vi.useFakeTimers()
+    try {
+      fireEvent.pointerDown(more)
+      act(() => vi.advanceTimersByTime(450))
+      expect(more).toHaveAttribute('aria-expanded', 'true')
+      fireEvent.pointerUp(more)
+      fireEvent.click(more)
+      expect(more).toHaveAttribute('aria-expanded', 'false')
+    } finally {
+      vi.useRealTimers()
+    }
     expect(screen.getByText(/▼ -10%/)).toBeInTheDocument()
     expect(screen.getByText(/целевой вес взят/)).toBeInTheDocument()
     fireEvent.click(screen.getByRole('button', { name: /Все группы готовы к нагрузке/ }))

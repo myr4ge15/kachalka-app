@@ -51,6 +51,7 @@ export default function FeedScreen({ user, onOpenMember, flashId = null, thread 
   const railHidden = useLiveQuery(() => ratingRailHidden(), [user.id], false) === true
   // Режим админа «Видеть всех»: кого видно только из-за него — метка и без действий.
   const outside = useViewAllExtra()
+  const observerMembers = useViewAllExtra({ activeOnly: true })
   const avatarById = useMemo(() => {
     const m = new Map()
     for (const u of users ?? []) m.set(u.id, u.avatar_url)
@@ -257,6 +258,7 @@ export default function FeedScreen({ user, onOpenMember, flashId = null, thread 
               openThread={w.id === thread?.workoutId}
               focusCommentId={w.id === thread?.workoutId ? thread.commentId : null}
               readOnly={out}
+              observerMembers={observerMembers}
             />
           </div>
         )
