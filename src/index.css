@@ -2213,8 +2213,11 @@ button.cm-name { cursor: pointer; padding: 12px 0; margin: -12px 0 -11px; }
 /* Стена ветки, как в мокапе (fb_afd6d919): чуть темнее фона, редкие точки акцента. Плашки дней — как «Начало обсуждения». */
 .cm-sheet { background: var(--cm-wall); }
 @media (prefers-reduced-motion: no-preference) {
-  .cm-sheet .sheet-scroll, .cm-sheet .cm-foot { animation: cm-enter 180ms var(--ease-out) both; }
-  @keyframes cm-enter { from { opacity: 0; } to { opacity: 1; } }
+  .cm-sheet { animation: cm-enter var(--dur-nav) var(--ease-out); }
+  @keyframes cm-enter { from { left: 24px; opacity: 0; } to { left: 0; opacity: 1; } }
+}
+@media (max-width: 599px) and (prefers-reduced-motion: no-preference) {
+  .overlay:has(> .cm-sheet) { overflow: hidden; }
 }
 .cm-sheet .sheet-scroll {
   background-image: radial-gradient(color-mix(in srgb, var(--acc) 9%, transparent) 1px, transparent 1.2px);
@@ -2720,7 +2723,6 @@ button.cm-name { cursor: pointer; padding: 12px 0; margin: -12px 0 -11px; }
 .toggle-act.busy { opacity: .6; }
 /* v6.7.1: статус переключения — в той же строке, слева от тумблера (высота не прыгает). */
 .toggle-act-end { display: flex; align-items: center; gap: 8px; flex-shrink: 0; }
-.toggle-act-status { color: var(--muted); font-size: var(--fs-small); font-weight: 400; }
 .toggle-pill.pending { opacity: .7; }
 .push-err { color: var(--red); font-size: var(--fs-meta); font-weight: 600; margin: -4px 2px 0; }
 /* Типы пушей (components/PushTypes.jsx) — v7.1.4: на экране «Пуш-уведомления» одной
@@ -2736,6 +2738,7 @@ button.cm-name { cursor: pointer; padding: 12px 0; margin: -12px 0 -11px; }
 }
 .push-row + .push-row { border-top: 1px solid var(--border); }
 .push-row:active:not(:disabled) { background: var(--surface-2); }
+.push-row:disabled { cursor: default; }
 .push-row:focus-visible { outline: 3px solid var(--acc-2); outline-offset: -3px; }
 .push-row .toggle-act-txt { flex: 1; }
 .push-note { margin: 8px 2px 0; font-size: var(--fs-meta); color: var(--muted); }
@@ -2771,6 +2774,7 @@ label.act.busy { opacity: .55; pointer-events: none; }
 .menu-row .act-badge { margin-left: 0; }
 .menu-row.is-open { border-color: color-mix(in srgb, var(--acc) 45%, var(--border)); }
 .menu-row:disabled { opacity: .55; cursor: default; }
+.menu-row.push-toggle[aria-busy="true"] { opacity: 1; }
 .menu-row.danger .act-ico { background: color-mix(in srgb, var(--red) 14%, transparent); color: var(--red-text); }
 /* «Выйти» — красный текст на обычной плашке: выход не удаление, заливка как у «Удалить» пугала. */
 .act.danger.logout { background: var(--surface); border-color: var(--border); }

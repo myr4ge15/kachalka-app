@@ -44,7 +44,7 @@ import Icon from '../ui/Icon.jsx'
 // focusCommentId — к этому комментарию привело уведомление (fb_2277554b): при открытии он по центру листа и
 // коротко подсвечен.
 // readOnly — только чтение (режим админа «Видеть всех», 27.10.2026): без поля, ответов и реакций.
-export default function CommentThread({ workoutId, ownerId, comments, me, open, onOpen, focusTick = 0, onOpenMember, composeHost = null, focusCommentId = null, readOnly = false }) {
+export default function CommentThread({ workoutId, ownerId, comments, me, open, onOpen, focusTick = 0, onOpenMember, composeHost, focusCommentId = null, readOnly = false }) {
   const online = useOnline()
   const live = online && !readOnly // можно писать, отвечать и реагировать
   const aliveRef = useAliveRef()
@@ -59,10 +59,22 @@ export default function CommentThread({ workoutId, ownerId, comments, me, open, 
   const [edits, setEdits] = useState({}) // id → текст, пока правка уходит на сервер
   const [likes, setLikes] = useState({})
   const pendingReactions = useRef(new Set())
+  const reactionToReveal = useRef(null)
   const [reveal, setReveal] = useState(null)
   const boxRef = useRevealFocus(reveal)
   const inputRef = useRef(null)
   const formRef = useRef(null)
+  useLayoutEffect(() => {
+    const id = reactionToReveal.current
+    if (id == null) return
+    reactionToReveal.current = null
+    const pills = boxRef.current?.querySelector(`[data-cm="${CSS.escape(String(id))}"] .cm-reacts`)
+    const scroll = pills?.closest('.sheet-scroll')
+    if (!scroll) return
+    const bottom = scroll.getBoundingClientRect().top + scroll.clientHeight
+    const clipped = pills.getBoundingClientRect().bottom - bottom
+    if (clipped > 0) return settleScroll(scroll, scroll.scrollTop + clipped + 8)
+  }, [likes, boxRef])
   // Фокус в поле (тап по 💬, «Изменить», тап по полю) — поле с кнопкой над клавиатурой (fb_9e892d66).
   const liftAboveKeyboard = useKeyboardLift(formRef)
   // Свайп влево по комментарию — ответить (20.10.2026); кнопка «Ответить» остается.
@@ -240,6 +252,7 @@ export default function CommentThread({ workoutId, ownerId, comments, me, open, 
     const source = comments?.find((item) => item.id === c.id)
     const optimistic = applyReaction(c, kind)
     pendingReactions.current.add(c.id)
+    if (kind && composeHost) reactionToReveal.current = c.id
     setLikes((m) => ({ ...m, [c.id]: { patch: optimistic, pending: true, source } }))
     try {
       const patch = await setCommentReaction({ userId: me.id, comment: c, ownerId, kind })
@@ -432,7 +445,7 @@ export default function CommentThread({ workoutId, ownerId, comments, me, open, 
         </button>
       )}
 
-      {composeHost ? compose && createPortal(compose, composeHost) : compose}
+      {composeHost === undefined ? compose : composeHost && compose && createPortal(compose, composeHost)}
 
       {menu && (
         <CommentMenu anchor={menu.el} itemClass={menuItemClass(menu.c)} align={menu.c.user_id === me.id ? 'right' : 'left'}

@@ -26,19 +26,16 @@ export default function PushToggle({ availability = null, enabled = false, busy 
 
   return (
     <>
-      {/* v6.7.1: без полупрозрачности и без строки-подзаголовка на время
-          переключения — строка не мигает и не меняет высоту. Тумблер уже стоит
-          в новом положении (оптимистично), статус — коротко слева от него. */}
-      <MenuRow kind="switch" icon="bell" title={label} checked={enabled} aria-busy={busy} disabled={busy}
+      <MenuRow className="push-toggle" kind="switch" icon="bell" title={label} checked={enabled} aria-busy={busy} disabled={busy}
         onClick={() => onToggle?.(!enabled)}
         end={(
           <span className="toggle-act-end">
-            {busy && <span className="toggle-act-status">{enabled ? 'Включаю…' : 'Выключаю…'}</span>}
             <span className={'toggle-pill' + (enabled ? ' on' : '') + (busy ? ' pending' : '')} aria-hidden="true">
               <span className="toggle-knob" />
             </span>
           </span>
         )} />
+      <span className="sr-only" role="status">{busy ? (enabled ? 'Включаю…' : 'Выключаю…') : ''}</span>
       {error && <p className="push-err" role="alert">{error}</p>}
     </>
   )

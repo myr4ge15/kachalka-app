@@ -20,6 +20,7 @@ export const GROUP_ORDER = ['грудь', 'спина', 'ноги', 'плечи'
 const GROUP_SLUG = {
   'грудь': 'chest',
   'спина': 'back',
+  'трапеции': 'back',
   'ноги': 'legs',
   'плечи': 'shoulders',
   'бицепс': 'biceps',

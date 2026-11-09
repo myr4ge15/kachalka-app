@@ -22,13 +22,20 @@ describe('PushSettingsScreen (v7.1.4)', () => {
     expect(push.setType).toHaveBeenCalledWith('reaction', false)
   })
 
-  it('выключены: типов нет, подсказка; тумблер включает', () => {
+  it('список типов сохраняется при переключении, а менять типы можно после включения', () => {
     push.enabled = false
-    render(<PushSettingsScreen user={user} onBack={() => {}} />)
-    expect(screen.queryByRole('group', { name: /Какие уведомления/ })).toBeNull()
-    expect(screen.getByText(/Включи/)).toBeInTheDocument()
+    const { rerender } = render(<PushSettingsScreen user={user} onBack={() => {}} />)
+    const reaction = screen.getByRole('switch', { name: /Реакции/ })
+    expect(reaction).toBeDisabled()
     fireEvent.click(screen.getByRole('switch', { name: /на это устройство/ }))
     expect(push.toggle).toHaveBeenCalledWith(true)
+    push = { ...push, enabled: true, busy: true }
+    rerender(<PushSettingsScreen user={user} onBack={() => {}} />)
+    expect(screen.getByRole('switch', { name: /Реакции/ })).toBe(reaction)
+    expect(reaction).toBeDisabled()
+    push.busy = false
+    rerender(<PushSettingsScreen user={user} onBack={() => {}} />)
+    expect(reaction).toBeEnabled()
   })
 
   it('включить нельзя (iPhone во вкладке) — объяснение без типов', () => {

@@ -6,7 +6,7 @@
 import { PUSH_TYPES, isPushTypeOn } from '../../lib/pushSupport.js'
 import Icon from '../ui/Icon.jsx'
 
-export default function PushTypes({ prefs = null, busyType = null, error = '', onChange }) {
+export default function PushTypes({ prefs = null, busyType = null, error = '', disabled = false, onChange }) {
   const loading = prefs === null
   return (
     <>
@@ -22,7 +22,7 @@ export default function PushTypes({ prefs = null, busyType = null, error = '', o
               className="push-row"
               role="switch"
               aria-checked={on}
-              disabled={loading || busyType === t.type}
+              disabled={disabled || loading || busyType === t.type}
               onClick={() => onChange?.(t.type, !on)}
             >
               <span className="act-ico"><Icon name={t.icon} size={19} /></span>
