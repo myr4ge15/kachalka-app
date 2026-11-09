@@ -69,9 +69,10 @@ function OwnerPanel({ api, circle, onChanged, onDeleted }) {
         <span>Принимать по коду сразу<span className="muted fc-sub-inline">{circle.auto_approve ? '' : ' — сейчас каждую заявку решаешь ты'}</span></span>
       </label>
 
-      <p className="fc-sub">Действующие коды приглашения</p>
-      <p className="muted">Здесь коды, выпущенные участниками в разделе «Мой код в круг».</p>
-      {codes === null ? <p className="muted">…</p> : codes.length === 0 ? <p className="muted">Сейчас ни у кого нет живого кода.</p> : (
+      <p className="fc-sub">{codes?.length === 0 ? 'Нет действующих кодов приглашения' : 'Действующие коды приглашения'}</p>
+      {codes === null && <p className="muted">…</p>}
+      {codes?.length > 0 && <>
+        <p className="muted">Коды из раздела «Мой код в круг».</p>
         <ul className="fc-list">
           {codes.map((c) => (
             <li key={c.code_id} className="fc-row">
@@ -89,7 +90,7 @@ function OwnerPanel({ api, circle, onChanged, onDeleted }) {
             </li>
           ))}
         </ul>
-      )}
+      </>}
 
       <CircleDisciplines api={api} circle={circle} />
 

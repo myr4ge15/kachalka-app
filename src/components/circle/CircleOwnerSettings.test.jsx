@@ -63,7 +63,8 @@ describe('CircleOwnerSettings', () => {
     expect(api.revokeCode).not.toHaveBeenCalled() // со второго тапа (UI-ревью 23.10)
     fireEvent.click(screen.getByRole('button', { name: 'Точно отозвать код Маша?' }))
     await waitFor(() => expect(api.revokeCode).toHaveBeenCalledWith('k1'))
-    expect(await screen.findByText('Сейчас ни у кого нет живого кода.')).toBeInTheDocument()
+    expect(await screen.findByText('Нет действующих кодов приглашения')).toBeInTheDocument()
+    expect(screen.queryByText('Коды из раздела «Мой код в круг».')).toBeNull()
   })
 
   it('дисциплины: выключить, «по полу», добавить из общего каталога (без своих и дистанции)', async () => {
