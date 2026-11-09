@@ -3307,6 +3307,8 @@ label.act.busy { opacity: .55; pointer-events: none; }
   color: var(--text); font-size: 15px; min-height: 46px;
 }
 .admin-input:focus { outline: none; border-color: var(--acc); }
+.registration-form input[aria-invalid="true"] { border-color: var(--red); }
+.registration-form input[aria-invalid="true"]:focus-visible { outline: 2px solid var(--red); outline-offset: 2px; }
 .admin-check { display: flex; align-items: center; gap: 9px; font-size: 14px; color: var(--text); }
 .admin-check input { width: 20px; height: 20px; accent-color: var(--acc); }
 

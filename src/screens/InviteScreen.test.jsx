@@ -28,6 +28,28 @@ beforeEach(() => {
 })
 
 describe('InviteScreen', () => {
+  it('после отправки выделяет пустые обязательные поля и снимает выделение при заполнении', async () => {
+    vi.mocked(checkInvite).mockResolvedValue('ok')
+    render(<InviteScreen token={TOKEN} />)
+    const name = await screen.findByLabelText('Имя (как тебя увидят)')
+    const fields = [
+      screen.getByLabelText('Логин (для входа)'),
+      screen.getByLabelText('PIN — 4 цифры'),
+      screen.getByLabelText('PIN еще раз'),
+      name,
+    ]
+    for (const field of fields) {
+      expect(field).toBeRequired()
+      expect(field).not.toHaveAttribute('aria-invalid')
+    }
+    fireEvent.click(screen.getByRole('button', { name: 'Зарегистрироваться' }))
+    for (const field of fields) expect(field).toHaveAttribute('aria-invalid', 'true')
+    fireEvent.change(name, { target: { value: 'Маша' } })
+    expect(name).not.toHaveAttribute('aria-invalid')
+    expect(fields[0]).toHaveAttribute('aria-invalid', 'true')
+    expect(registerByInvite).not.toHaveBeenCalled()
+  })
+
   it('живая ссылка → форма; регистрация отдает пользователя наверх', async () => {
     vi.mocked(checkInvite).mockResolvedValue('ok')
     const user = { id: 'u9', name: 'Маша', role: 'member' }

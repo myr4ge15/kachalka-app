@@ -44,6 +44,7 @@ export default function InviteScreen({ token = null, code = null, friend = null,
   const [pin2, setPin2] = useState('')
   const [sex, setSex] = useState(null)
   const [error, setError] = useState('')
+  const [attempted, setAttempted] = useState(false)
   const [busy, setBusy] = useState(false)
   const [outBusy, setOutBusy] = useState(false)
   // Код восстановления (П1, v6.18.0) — сразу после регистрации, один раз.
@@ -82,6 +83,7 @@ export default function InviteScreen({ token = null, code = null, friend = null,
   async function submit(e) {
     e.preventDefault()
     if (busy) return
+    setAttempted(true)
     const problem = validateRegistration({ name, login, pin, pin2 })
     if (problem) { setError(problem); return }
     setBusy(true)
@@ -177,7 +179,7 @@ export default function InviteScreen({ token = null, code = null, friend = null,
     )
   } else {
     body = (
-      <form className="invite-form" onSubmit={submit} noValidate>
+      <form className="invite-form registration-form" onSubmit={submit} noValidate>
         {preview && friend ? (
           <p className="invite-lead"><b>{preview.inviter_name}</b> зовет тебя в друзья. Придумай логин и PIN для входа и имя, которое увидят другие.</p>
         ) : preview ? (
@@ -185,18 +187,18 @@ export default function InviteScreen({ token = null, code = null, friend = null,
         ) : (
           <p className="invite-lead">Тебя пригласили. Придумай логин и PIN для входа и имя, которое увидят другие.</p>
         )}
-        <LoginField value={login} check={checkLogin} disabled={busy}
+        <LoginField value={login} check={checkLogin} disabled={busy} required invalid={attempted && !normalizeLogin(login)}
           onChange={(v) => { setLogin(v); setError('') }} />
         <label className="field">
           <span className="field-lab">PIN — 4 цифры</span>
           <input className="pin-input" type="password" inputMode="numeric" maxLength={4}
-            autoComplete="new-password" placeholder="••••"
+            autoComplete="new-password" placeholder="••••" required aria-invalid={(attempted && !pin) || undefined}
             value={pin} onChange={(e) => { setPin(onlyDigits(e.target.value).slice(0, 4)); setError('') }} disabled={busy} />
         </label>
         <label className="field">
           <span className="field-lab">PIN еще раз</span>
           <input className="pin-input" type="password" inputMode="numeric" maxLength={4}
-            autoComplete="new-password" placeholder="••••"
+            autoComplete="new-password" placeholder="••••" required aria-invalid={(attempted && !pin2) || undefined}
             value={pin2} onChange={(e) => { setPin2(onlyDigits(e.target.value).slice(0, 4)); setError('') }} disabled={busy} />
         </label>
         {/* Имя — ПОСЛЕ PIN и с явным autoComplete="nickname" (обращение fb_159354b9): между логином и PIN iOS
@@ -205,7 +207,7 @@ export default function InviteScreen({ token = null, code = null, friend = null,
         <label className="field">
           <span className="field-lab">Имя (как тебя увидят)</span>
           <input className="admin-input" type="text" maxLength={30} autoComplete="nickname" name="nickname"
-            autoCapitalize="words"
+            autoCapitalize="words" required aria-invalid={(attempted && !name.trim()) || undefined}
             value={name} onChange={(e) => { setName(e.target.value); setError('') }} disabled={busy} />
         </label>
         <SexPicker value={sex} busy={busy} onChange={setSex} />

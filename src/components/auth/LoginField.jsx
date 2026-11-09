@@ -16,7 +16,7 @@ import CheckIcon from '../ui/CheckIcon.jsx'
 const DEBOUNCE_MS = 600
 const NOTE = 'Латиница, цифры, точка и _. Нужен только для входа — друзья его не видят.'
 
-export default function LoginField({ value, onChange, check, disabled = false, autoFocus = false, label = 'Логин (для входа)' }) {
+export default function LoginField({ value, onChange, check, disabled = false, autoFocus = false, label = 'Логин (для входа)', required = false, invalid = false }) {
   const id = useId()
   const [state, setState] = useState({ kind: 'note' }) // note | checking | ok | bad
   const seq = useRef(0)
@@ -50,7 +50,7 @@ export default function LoginField({ value, onChange, check, disabled = false, a
       <label className="field-lab" htmlFor={id + 'in'}>{label}</label>
       <input id={id + 'in'} className="admin-input" type="text" maxLength={20} autoComplete="username"
         autoCapitalize="none" autoCorrect="off" spellCheck={false} autoFocus={autoFocus}
-        aria-describedby={id} aria-invalid={state.kind === 'bad' ? true : undefined}
+        required={required} aria-describedby={id} aria-invalid={invalid || state.kind === 'bad' || undefined}
         value={value} disabled={disabled} onChange={(e) => onChange(e.target.value)} />
       <span id={id} className={'field-hint' + (state.kind === 'ok' ? ' ok' : state.kind === 'bad' ? ' bad' : '')}
         aria-live="polite">{hint}</span>
