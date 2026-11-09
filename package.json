@@ -1,7 +1,7 @@
 {
   "name": "kachalka-app",
   "private": true,
-  "version": "1.10.12",
+  "version": "1.11.0",
   "type": "module",
   "description": "kachalka-app — приложение для планирования тренировок, отслеживания прогресса и анализа результатов.",
   "scripts": {
@@ -49,5 +49,16 @@
   },
   "allowScripts": {
     "tesseract.js": false
+  },
+  "overrides": {
+    "eslint": {
+      "minimatch": "11.0.1"
+    },
+    "workbox-build": {
+      "glob": {
+        ".": "14.0.2",
+        "minimatch": "11.0.1"
+      }
+    }
   }
 }
