@@ -93,6 +93,7 @@ describe('useAppNav: nestedBack', () => {
     act(() => result.current.openFeedWorkout('w1', 'c7'))
     const first = result.current.feedThread
     act(() => result.current.openMember('u2', 'feed-w1', { workoutId: 'w1', scrollTop: 320 }))
+    expect(vi.mocked(useEdgeSwipeBack).mock.calls.at(-1)[4]).toBe(false)
     act(() => result.current.nestedBack())
     expect(result.current.tab).toBe('feed')
     expect(result.current.feedThread).toMatchObject({ workoutId: 'w1', commentId: null, scrollTop: 320 })

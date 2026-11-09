@@ -66,7 +66,7 @@ export function useAppNav(user) {
   // Откуда ушли в профиль (v6.7.1): якорь прокрутки Ленты — «Назад» возвращает к той
   // же карточке/строке рейтинга, а не в начало Ленты.
   const feedAnchorRef = useRef(null)
-  const feedThreadReturnRef = useRef(null)
+  const [memberThreadReturn, setMemberThreadReturn] = useState(null)
   const memberFromRef = useRef(null) // вкладка, откуда открыли профиль участника
   const [feedRestore, setFeedRestore] = useState(null)
 
@@ -242,7 +242,7 @@ export function useAppNav(user) {
     if (tab !== 'member') {
       memberFromRef.current = tab
       feedAnchorRef.current = tab === 'feed' ? captureAnchor(contentRef.current, anchor) : null
-      feedThreadReturnRef.current = tab === 'feed' ? threadReturn : null
+      setMemberThreadReturn(tab === 'feed' ? threadReturn : null)
     }
     setMemberId(id)
     goTab('member')
@@ -252,8 +252,8 @@ export function useAppNav(user) {
     const from = memberFromRef.current
     if (from && from !== 'feed') { goTab(from); return }
     setFeedRestore(feedAnchorRef.current)
-    const thread = feedThreadReturnRef.current
-    feedThreadReturnRef.current = null
+    const thread = memberThreadReturn
+    setMemberThreadReturn(null)
     if (thread) setFeedThread((previous) => ({ ...nextThread(previous, thread.workoutId), scrollTop: thread.scrollTop }))
     goTab('feed')
   }
@@ -307,7 +307,9 @@ export function useAppNav(user) {
       default: return undefined
     }
   }
-  useEdgeSwipeBack(contentRef, screenRef, nestedBack, edgeSwipeOn && Boolean(user) && isNested(tab) && !innerNav)
+  // Ветка живёт в портале, подложка маршрута показала бы Ленту вместо неё.
+  const previewParent = tab !== 'member' || memberThreadReturn == null
+  useEdgeSwipeBack(contentRef, screenRef, nestedBack, edgeSwipeOn && Boolean(user) && isNested(tab) && !innerNav, previewParent)
 
   // Применяем намерение пуша, когда человек вошел: Лента + прокрутка к оцененной
   // тренировке тем же якорем, что «Назад» из профиля друга. Карточки нет (старше

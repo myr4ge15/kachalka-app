@@ -30,7 +30,7 @@ export default function PushToggle({ availability = null, enabled = false, busy 
         onClick={() => { if (!busy) onToggle?.(!enabled) }}
         end={(
           <span className="toggle-act-end">
-            <span className={'toggle-pill' + (enabled ? ' on' : '') + (busy ? ' pending' : '')} aria-hidden="true">
+            <span className={'toggle-pill' + (enabled ? ' on' : '')} aria-hidden="true">
               <span className="toggle-knob" />
             </span>
           </span>

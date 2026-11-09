@@ -84,7 +84,7 @@ export default function MyFeedbackItem({ row: r, userId, api, online, fresh = fa
             load={api.media} lazy disabled={!online} label="Вложение к обращению" />
             : r.has_screenshot && <span className="admin-ex-meta"><Icon name="clip" size={13} /> со скриншотом</span>}
           {r.additions?.map((a) => (
-            <div key={a.n}>
+            <div key={a.n} className="fb-addition-group">
               <p className="fb-addition">
                 <span aria-hidden="true">➕ </span>{a.body}
                 <span className="admin-ex-meta"> · {fmtFeedbackDate(a.created_at)}</span>

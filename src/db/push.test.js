@@ -46,6 +46,7 @@ describe('enablePush', () => {
     const { pushManager } = setup()
     rpc.mockResolvedValue({ error: null })
     await enablePush('u1')
+    expect(Notification.requestPermission).not.toHaveBeenCalled()
     expect(pushManager.subscribe).toHaveBeenCalledWith(expect.objectContaining({ userVisibleOnly: true }))
     expect(ensureOwnSession).toHaveBeenCalledWith('u1')
     expect(rpc).toHaveBeenCalledWith('push_subscribe', expect.objectContaining({
@@ -97,7 +98,7 @@ describe('enablePush: зависший шаг не держит «Включаю
   it('не отвечает запрос разрешения или вход — тоже отказ, а не вечное ожидание', async () => {
     vi.useFakeTimers()
     try {
-      setup()
+      setup({ permission: 'default' })
       Notification.requestPermission.mockReturnValue(never())
       const p1 = enablePush('u1')
       const c1 = expect(p1).rejects.toThrow(/разрешение/)

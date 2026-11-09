@@ -5,10 +5,10 @@ import { render, fireEvent } from '@testing-library/react'
 import { useRef } from 'react'
 import { useEdgeSwipeBack } from './useEdgeSwipeBack.js'
 
-function Harness({ onBack, enabled = true }) {
+function Harness({ onBack, enabled = true, previewParent = true }) {
   const box = useRef(null)
   const screen = useRef(null)
-  useEdgeSwipeBack(box, screen, onBack, enabled)
+  useEdgeSwipeBack(box, screen, onBack, enabled, previewParent)
   return (
     <main data-testid="box" ref={box}>
       <div className="nav-stack" data-testid="stack">
@@ -31,6 +31,20 @@ beforeEach(() => vi.useFakeTimers())
 afterEach(() => vi.useRealTimers())
 
 describe('useEdgeSwipeBack', () => {
+  it('возвращает в портал без показа подложки маршрута', () => {
+    const onBack = vi.fn()
+    const { getByTestId } = render(<Harness onBack={onBack} previewParent={false} />)
+    const box = getByTestId('box')
+    Object.defineProperty(box, 'clientWidth', { value: 390 })
+    fireEvent.touchStart(box, pt(10))
+    fireEvent.touchMove(box, pt(200))
+    expect(getByTestId('stack').dataset.swiping).toBeUndefined()
+    expect(getByTestId('screen').style.left).toBe('')
+    expect(onBack).not.toHaveBeenCalled()
+    fireEvent.touchEnd(box, { touches: [] })
+    expect(onBack).toHaveBeenCalledTimes(1)
+  })
+
   it('довел от края дальше трети ширины — «Назад»', () => {
     const onBack = vi.fn(() => {
       // До передачи экрана React подложка не скрывается, уходящий не прыгает назад.

@@ -39,7 +39,7 @@ export function edgeSwipeAvailable() {
   } catch { return false }
 }
 
-export function useEdgeSwipeBack(containerRef, screenRef, onBack, enabled) {
+export function useEdgeSwipeBack(containerRef, screenRef, onBack, enabled, previewParent = true) {
   // Свежий onBack без переподписки слушателей на каждый рендер.
   const backRef = useRef(onBack)
   useEffect(() => { backRef.current = onBack }, [onBack])
@@ -160,10 +160,12 @@ export function useEdgeSwipeBack(containerRef, screenRef, onBack, enabled) {
         g.axis = swipeAxis(dx, dy, g.edge)
         if (g.axis === 'y') { g = null; return }
         if (!g.axis) return
-        draggedScreen = screenRef.current
         g.width = box.clientWidth || window.innerWidth
-        g.preview = revealParent()
-        screen()?.classList.add('edge-dragging')
+        if (previewParent) {
+          draggedScreen = screenRef.current
+          g.preview = revealParent()
+          screen()?.classList.add('edge-dragging')
+        }
       }
       // e.cancelable === false — iOS уже отдала палец прокрутке: жест прервут (видно в журнале свайпов).
       if (e.cancelable === false) g.lost = (g.lost ?? 0) + 1
@@ -203,8 +205,10 @@ export function useEdgeSwipeBack(containerRef, screenRef, onBack, enabled) {
         if (!done.preview || reducedMotion()) { finishBack(); return }
         // Экран уехал — дальше обычная «Назад»: смена tab размонтирует этот экран.
         settle(done.dx, done.width, v, done.width, finishBack)
-      } else {
+      } else if (done.preview) {
         settle(done.dx, 0, v, done.width, clear)
+      } else {
+        clear()
       }
     }
 
@@ -215,7 +219,8 @@ export function useEdgeSwipeBack(containerRef, screenRef, onBack, enabled) {
       if (done.axis !== 'x') return
       logSwipe({ kind: 'cancel', p: done.dx / (done.width || 1), v: 0, flick: 0, moves: done.moves,
         why: e?.type === 'touchcancel' ? 'touchcancel от системы' : e?.touches?.length > 1 ? 'второй палец' : 'новое касание' })
-      settle(done.dx, 0, 0, done.width, clear)
+      if (done.preview) settle(done.dx, 0, 0, done.width, clear)
+      else clear()
     }
 
     box.addEventListener('touchstart', onStart, { passive: true })
@@ -230,5 +235,5 @@ export function useEdgeSwipeBack(containerRef, screenRef, onBack, enabled) {
       clearTimeout(settleTimer)
       clear() // Внутренний экран может закрыться без размонтирования обертки.
     }
-  }, [containerRef, screenRef, enabled])
+  }, [containerRef, screenRef, enabled, previewParent])
 }

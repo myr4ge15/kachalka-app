@@ -122,7 +122,9 @@ describe('WorkoutSocial — строка комментариев', () => {
 
   it('после возврата из профиля восстанавливает прокрутку открытой ветки', () => {
     renderSocial({ openThread: true, initialScrollTop: 240 })
-    expect(screen.getByRole('dialog').querySelector('.sheet-scroll').scrollTop).toBe(240)
+    const sheet = screen.getByRole('dialog')
+    expect(sheet).toHaveClass('cm-sheet--restored')
+    expect(sheet.querySelector('.sheet-scroll').scrollTop).toBe(240)
   })
 })
 

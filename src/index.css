@@ -2208,7 +2208,7 @@ button.cm-name { cursor: pointer; padding: 12px 0; margin: -12px 0 -11px; }
 /* Стена ветки, как в мокапе (fb_afd6d919): чуть темнее фона, редкие точки акцента. Плашки дней — как «Начало обсуждения». */
 .cm-sheet { background: var(--cm-wall); }
 @media (prefers-reduced-motion: no-preference) {
-  .cm-sheet { animation: cm-enter var(--dur-nav) var(--ease-out); }
+  .cm-sheet:not(.cm-sheet--restored) { animation: cm-enter var(--dur-nav) var(--ease-out); }
   @keyframes cm-enter { from { left: 24px; opacity: 0; } to { left: 0; opacity: 1; } }
 }
 @media (max-width: 599px) {
@@ -2718,7 +2718,6 @@ button.cm-name { cursor: pointer; padding: 12px 0; margin: -12px 0 -11px; }
 .toggle-act.busy { opacity: .6; }
 /* v6.7.1: статус переключения — в той же строке, слева от тумблера (высота не прыгает). */
 .toggle-act-end { display: flex; align-items: center; gap: 8px; flex-shrink: 0; }
-.toggle-pill.pending { opacity: .7; }
 .push-err { color: var(--red); font-size: var(--fs-meta); font-weight: 600; margin: -4px 2px 0; }
 /* Типы пушей (components/PushTypes.jsx) — v7.1.4: на экране «Пуш-уведомления» одной
    карточкой, строки через разделитель (до этого — «дерево» с отступом в Настройках). */
@@ -2769,7 +2768,10 @@ label.act.busy { opacity: .55; pointer-events: none; }
 .menu-row .act-badge { margin-left: 0; }
 .menu-row.is-open { border-color: color-mix(in srgb, var(--acc) 45%, var(--border)); }
 .menu-row:disabled { opacity: .55; cursor: default; }
+.menu-row.push-toggle { -webkit-tap-highlight-color: transparent; }
 .menu-row.push-toggle:active { background: var(--surface); }
+.push-toggle .toggle-pill, .push-toggle .toggle-knob { transition: none; }
+.push-toggle .toggle-pill.on .toggle-knob { left: 20px; transform: none; }
 .push-types[data-device-off="true"] .push-group .toggle-pill { opacity: .4; }
 .menu-row.danger .act-ico { background: color-mix(in srgb, var(--red) 14%, transparent); color: var(--red-text); }
 /* «Выйти» — красный текст на обычной плашке: выход не удаление, заливка как у «Удалить» пугала. */
@@ -3210,6 +3212,8 @@ label.act.busy { opacity: .55; pointer-events: none; }
 /* Дополнения — каждое отделено чертой от предыдущего и от текста обращения (fb_85c57f78). */
 .fb-addition + .fb-addition, .fb-body + .fb-addition { border-top: 1px solid var(--menu-sep); padding-top: 8px; }
 .fb-addition { margin: 0; font-size: 14px; line-height: 1.45; color: var(--text); white-space: pre-wrap; overflow-wrap: anywhere; }
+.fb-addition-group { display: flex; flex-direction: column; gap: 8px; min-width: 0; }
+.fb-addition-group .fb-photos { margin-top: 0; }
 .fb-reopen-form { display: flex; flex-direction: column; gap: 6px; margin-top: 4px; }
 .fb-photos { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 4px; }
 .fb-photo {

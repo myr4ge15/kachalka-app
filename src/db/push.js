@@ -203,7 +203,10 @@ export async function getPushState(userId) {
 // спрашиваем ПЕРВЫМ делом — Safari показывает запрос только в ответ на нажатие,
 // а после долгих await жест считается «остывшим».
 export async function enablePush(userId) {
-  const permission = await pushStep('permission', Notification.requestPermission())
+  // Повторный системный запрос на iOS может прервать отрисовку строки.
+  const permission = Notification.permission === 'default'
+    ? await pushStep('permission', Notification.requestPermission())
+    : Notification.permission
   if (permission !== 'granted') {
     throw new PushError(permission === 'denied'
       ? 'Уведомления запрещены — разреши их в настройках браузера или телефона.'
