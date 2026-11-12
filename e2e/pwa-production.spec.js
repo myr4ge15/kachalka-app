@@ -53,12 +53,14 @@ test('обновление service worker на собранной PWA сохра
   await page.getByRole('button', { name: 'Назад', exact: true }).click()
   await expect(workout).toBeVisible()
   await page.evaluate(() => document.dispatchEvent(new Event('visibilitychange')))
-  await expect.poll(() => page.evaluate(() => sessionStorage.getItem('gym_app_update_resume')), { timeout: 30_000 }).toBe(next)
   const profile = page.getByRole('button', { name: 'Открыть профиль', exact: true })
   const installed = page.locator('.version-number')
+  // Обновление перезагружает документ. Читаем sessionStorage после появления
+  // новой версии, внутри проверки, которая повторяется при смене контекста.
   await expect(async () => {
     if (!await installed.isVisible()) await profile.click({ timeout: 1500 })
     await expect(installed).toHaveText(`v${next}`, { timeout: 1500 })
+    expect(await page.evaluate(() => sessionStorage.getItem('gym_app_update_resume'))).toBe(next)
   }).toPass({ timeout: 30_000 })
   await openTab(page, 'Тренировки')
   await workout.click()
