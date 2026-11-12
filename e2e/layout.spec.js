@@ -109,6 +109,7 @@ test('кнопки на главных экранах не выходят за �
       day.setDate(day.getDate() - age)
       await saveWorkout({ user_id: userId, performed_at: day.toISOString(), entries: [
         { exercise: E2E_EXERCISES[0], sets: [{ weight, reps: 8 }] },
+        { exercise: { ...E2E_EXERCISES[1], name: 'Подтягивания широким хватом в гравитроне' }, sets: [{ weight: 0, reps: age === 35 ? 8 : 10 }] },
       ] })
     }
   }, user.id)
@@ -119,9 +120,13 @@ test('кнопки на главных экранах не выходят за �
   await expect(tabbar(page)).toBeVisible()
 
   await expectTidy(page, 'Главная')
-  const progress = page.getByRole('button', { name: /Прогресс в 1 из 1 упр\./ })
+  const progress = page.getByRole('button', { name: /Прогресс в 2 из 2 упр\./ })
   await progress.click()
   await expect(page.getByText('50 кг → 65 кг')).toBeVisible()
+  const resultEdges = await page.locator('.home-exercise-progress-list strong').evaluateAll((results) =>
+    results.map((result) => Math.round(result.getBoundingClientRect().right)))
+  expect(resultEdges).toHaveLength(2)
+  expect(resultEdges[0]).toBe(resultEdges[1])
   await expectTidy(page, 'Прогресс на Главной')
 
   await openTab(page, 'Тренировки')

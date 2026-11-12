@@ -246,7 +246,7 @@ export default function HomeScreen({ user, onNavigate, onNewWorkout, onOpenProgr
         <div className="menu-group home-exercise-progress" ref={progressRef}>
           <MenuRow icon="trend" kind="expand" open={progressOpen} onClick={() => setProgressOpen((open) => !open)}
             title={`Прогресс в ${summary.progress.improved.length} из ${summary.progress.total} упр.`}
-            sub="Лучшие подходы за 30 дней и предыдущие 30 дней" />
+            sub="Последние 30 дней в сравнении с предыдущими" />
           {progressOpen && (summary.progress.improved.length > 0 ? (
             <ul className="home-exercise-progress-list">
               {summary.progress.improved.map(({ id, name, metric, before, after }) => (
