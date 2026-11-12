@@ -70,9 +70,10 @@ jobs:
         # Покрытие (19.10.2026) — только в московской ноге, чтобы не платить дважды.
         run: npx vitest run ${{ matrix.tz == 'Europe/Moscow' && '--coverage' || '' }}
 
-      # Итог покрытия — аннотацией прогона: видно в сводке Actions без скачивания артефакта.
+      # Vitest может завершиться до создания отчета. Если отчет есть, сохраняем его
+      # и при падении порога покрытия.
       - name: Coverage summary
-        if: matrix.tz == 'Europe/Moscow' && !cancelled()
+        if: matrix.tz == 'Europe/Moscow' && !cancelled() && hashFiles('coverage/coverage-summary.json') != ''
         # Итог всего src и отдельно src/lib (у него свой порог) — числа для храповика порогов.
         run: |
           node -e "
@@ -89,7 +90,7 @@ jobs:
           "
 
       - name: Upload coverage report
-        if: matrix.tz == 'Europe/Moscow' && !cancelled()
+        if: matrix.tz == 'Europe/Moscow' && !cancelled() && hashFiles('coverage/coverage-summary.json') != ''
         uses: actions/upload-artifact@b7c566a772e6b6bfb58ed0dc250532a479d7789f # v6.0.0 (Node 24; v5 был на Node 20)
         with:
           name: coverage
