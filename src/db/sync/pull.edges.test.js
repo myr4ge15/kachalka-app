@@ -20,16 +20,19 @@ vi.mock('../supabase.js', () => {
       filters: {},
       inIds: null,
       gtFilter: null,
-      select(selection) { this.selection = selection; return this },
+      select(selection, { count } = {}) { this.selection = selection; this.count = count; return this },
       eq(key, value) { this.filters[key] = value; return this },
       gt(key, value) { this.gtFilter = { key, value }; return this },
       in(key, value) { this.inIds = value; return this },
       order() { return this },
-      or() { return this },
+      limit(size) { this.pageSize = size; return this },
+      or(filter) { this.orFilter = filter; return this },
       then(ok, fail) {
-        const call = { table, select: this.selection, filters: this.filters, in: this.inIds, gt: this.gtFilter }
+        const call = { table, select: this.selection, filters: this.filters, in: this.inIds, gt: this.gtFilter, or: this.orFilter, pageSize: this.pageSize }
         server.calls.push(call)
-        return new Promise((resolve) => resolve(server.from(call))).then(ok, fail)
+        return new Promise((resolve) => resolve(server.from(call)))
+          .then((result) => this.count && Array.isArray(result.data) ? { count: result.data.length, ...result } : result)
+          .then(ok, fail)
       },
     }
   }
@@ -294,6 +297,51 @@ describe('флаг приватности', () => {
 })
 
 describe('сверка удалений тренировок', () => {
+  it('читает все страницы ID и дельту с одинаковым updated_at на границе', async () => {
+    const rows = [row('w1'), row('w2')]
+    await seed(localWorkout('w2'))
+    await setMeta('pending_workout_deletes', ['w2'], db)
+    serve(
+      [isIds, (c) => c.gt ? ok([{ id: 'w2' }]) : { ...ok([{ id: 'w1' }]), count: 2 }],
+      [isDelta, (c) => c.or ? ok(rows.slice(1)) : { ...ok(rows.slice(0, 1)), count: 2 }],
+    )
+
+    await pull(userId, new Set(), db, VERIFIED)
+
+    expect(server.calls.filter(isIds)[1].gt).toEqual({ key: 'id', value: 'w1' })
+    expect(server.calls.filter(isDelta)[1].or).toBe(`updated_at.gt.${T3},and(updated_at.eq.${T3},id.gt.w1)`)
+    expect(await db.workouts.count()).toBe(2)
+    expect(await getMeta('pending_workout_deletes', db)).toEqual([])
+    expect(await getMeta('wm_workouts', db)).toBe(T3)
+  })
+
+  it('обрыв второй страницы ID не подтверждает удаление', async () => {
+    await seed(localWorkout('old'))
+    await setMeta('pending_workout_deletes', ['old'], db)
+    serve([isIds, (c) => c.gt ? fail('page timeout') : { ...ok([{ id: 'w1' }]), count: 2 }])
+
+    expect(await pull(userId, new Set(), db, VERIFIED)).toContain('удаления не сверены: page timeout')
+    expect(await db.workouts.get('old')).toBeTruthy()
+  })
+
+  it('список ID без точного счётчика не участвует в удалениях', async () => {
+    await seed(localWorkout('old'))
+    await setMeta('pending_workout_deletes', ['old'], db)
+    serve([isIds, { ...ok([{ id: 'w1' }]), count: null }])
+
+    expect(await pull(userId, new Set(), db, VERIFIED)).toContain('удаления не сверены: Не удалось проверить полноту страницы тренировок')
+    expect(await db.workouts.get('old')).toBeTruthy()
+  })
+
+  it('не двигает watermark по неполной дельте', async () => {
+    await setMeta('wm_workouts', T2, db)
+    serve([isDelta, (c) => c.or ? fail('page timeout') : { ...ok([row('w1')]), count: 2 }])
+
+    await expect(pull(userId, new Set(), db, VERIFIED)).rejects.toMatchObject({ message: 'page timeout' })
+    expect(await getMeta('wm_workouts', db)).toBe(T2)
+    expect(await db.workouts.count()).toBe(0)
+  })
+
   it.each([
     ['ошибка', () => fail('ids timeout')],
     ['сеть', () => { throw new Error('ids timeout') }],

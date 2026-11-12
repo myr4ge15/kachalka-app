@@ -11,6 +11,7 @@
 import { localYmd } from './calendar.js'
 import { exerciseMetric } from './metric.js'
 import { downloadJson } from './exportWorkout.js'
+import { phaseValue } from './workoutPhases.js'
 
 // Число или null (легаси-упражнения без целевого плана).
 function numOrNull(v) {
@@ -39,6 +40,7 @@ export function cleanTemplateForExport(t) {
         sets: numOrNull(e.sets),
         reps: numOrNull(e.reps),
         weight: numOrNull(e.weight),
+        phase: phaseValue(e.phase),
       })),
   }
 }

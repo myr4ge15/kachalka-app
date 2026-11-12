@@ -18,6 +18,7 @@ import { useRevealFocus } from '../hooks/useRevealFocus.js'
 import { useLongPress } from '../hooks/useLongPress.js'
 import CardsSkeleton from '../components/ui/CardsSkeleton.jsx'
 import EmptyHint from '../components/ui/EmptyHint.jsx'
+import MenuRow from '../components/ui/MenuRow.jsx'
 import { monthOf, shiftMonth } from '../lib/calendar.js'
 import { monthKey, monthLabel } from '../lib/monthlySummary.js'
 import MonthlySummary from '../components/progress/MonthlySummary.jsx'
@@ -116,6 +117,8 @@ export default function HomeScreen({ user, onNavigate, onNewWorkout, onOpenProgr
   const home = useLiveQuery(() => getHomeData(user.id, { max: 3 }), [user.id])
   const loading = home === undefined
   const summary = home?.summary
+  const [progressOpen, setProgressOpen] = useState(false)
+  const progressRef = useRevealFocus(progressOpen)
   const insights = home?.insights ?? []
   const freshness = home?.freshness
   const autoAttempt = useRef(null)
@@ -238,6 +241,21 @@ export default function HomeScreen({ user, onNavigate, onNewWorkout, onOpenProgr
           </div>
         </div>
       </div>
+
+      {summary.progress?.total > 0 && (
+        <div className="menu-group home-exercise-progress" ref={progressRef}>
+          <MenuRow icon="trend" kind="expand" open={progressOpen} onClick={() => setProgressOpen((open) => !open)}
+            title={`Прогресс в ${summary.progress.improved.length} из ${summary.progress.total} упр.`}
+            sub="Лучшие подходы за 30 дней и предыдущие 30 дней" />
+          {progressOpen && (summary.progress.improved.length > 0 ? (
+            <ul className="home-exercise-progress-list">
+              {summary.progress.improved.map(({ id, name, metric, before, after }) => (
+                <li key={id}><span>{name}</span><strong>{fmtMetricValue(metric, before)} → {fmtMetricValue(metric, after)}</strong></li>
+              ))}
+            </ul>
+          ) : <p className="home-exercise-progress-list muted">Лучшие результаты пока не выросли.</p>)}
+        </div>
+      )}
 
       {/* готовность мышц — тизер, разворачивается в детальный экран */}
       {strip.length > 0 && (

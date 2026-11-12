@@ -17,6 +17,7 @@ function wk({ id, at, entries }) {
         metric: e.metric ?? 'weight',
       },
       sets: e.sets ?? [],
+      phase: e.phase,
     })),
   }
 }
@@ -29,6 +30,29 @@ const daysAgo = (n) => {
 }
 
 describe('buildHomeSummary', () => {
+  it('сравнивает лучшие рабочие подходы в двух окнах по 30 дней и в одинаковых единицах', () => {
+    const workouts = [
+      wk({ at: daysAgo(29), entries: [
+        { exId: 'bench', sets: [S(65, 8), S(62.5, 10)] },
+        { exId: 'bench', phase: 'warmup', sets: [S(100, 1)] },
+        { exId: 'plank', metric: 'time', sets: [S(0, 45)] },
+        { exId: 'pull', metric: 'reps', sets: [S(0, 10)] },
+        { exId: 'new', sets: [S(10, 8)] },
+      ] }),
+      wk({ at: daysAgo(30), entries: [
+        { exId: 'bench', sets: [S(60, 8)] },
+        { exId: 'plank', metric: 'time', sets: [S(0, 60)] },
+        { exId: 'pull', sets: [S(30, 5)] },
+      ] }),
+      wk({ at: daysAgo(60), entries: [{ exId: 'new', sets: [S(5, 8)] }] }),
+      wk({ at: daysAgo(-1), entries: [{ exId: 'bench', sets: [S(110, 8)] }] }),
+    ]
+    expect(buildHomeSummary({ workouts, now: NOW }).progress).toEqual({
+      total: 2,
+      improved: [{ id: 'bench', name: 'bench', metric: 'weight', before: 60, after: 65 }],
+    })
+  })
+
   it('пустая история → hasData:false и нули', () => {
     const s = buildHomeSummary({ workouts: [], goals: [], now: NOW })
     expect(s.hasData).toBe(false)

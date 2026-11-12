@@ -123,6 +123,8 @@ jobs:
       # Сети тесту не нужно (офлайн-ветка входа), ключи Supabase подставляет
       # playwright.config.js — секреты в CI не требуются.
       - name: Smoke e2e (Playwright)
+        env:
+          E2E_PWA: '1'
         run: npm run test:e2e
 
       - name: Upload e2e report

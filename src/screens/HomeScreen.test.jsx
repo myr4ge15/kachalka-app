@@ -50,6 +50,31 @@ const readyHome = {
 }
 
 describe('HomeScreen', () => {
+  it('раскрывает сравнение лучших подходов на Главной', () => {
+    vi.mocked(useLiveQuery).mockReturnValue({
+      ...readyHome,
+      summary: { ...readyHome.summary, progress: { total: 3, improved: [{ id: 'bench', name: 'Жим', metric: 'weight', before: 60, after: 65 }] } },
+    })
+    render(<HomeScreen user={user} />)
+    const row = screen.getByRole('button', { name: /Прогресс в 1 из 3 упр\./ })
+    expect(row).toHaveAttribute('aria-expanded', 'false')
+    fireEvent.click(row)
+    expect(row).toHaveAttribute('aria-expanded', 'true')
+    expect(screen.getByText('60 кг → 65 кг')).toBeVisible()
+    fireEvent.click(row)
+    expect(screen.queryByText('60 кг → 65 кг')).toBeNull()
+  })
+
+  it('поясняет отсутствие роста при наличии сопоставимых тренировок', () => {
+    vi.mocked(useLiveQuery).mockReturnValue({
+      ...readyHome,
+      summary: { ...readyHome.summary, progress: { total: 2, improved: [] } },
+    })
+    render(<HomeScreen user={user} />)
+    fireEvent.click(screen.getByRole('button', { name: /Прогресс в 0 из 2 упр\./ }))
+    expect(screen.getByText('Лучшие результаты пока не выросли.')).toBeVisible()
+  })
+
   it('показывает одинаковый заголовок при загрузке и после нее', () => {
     vi.mocked(useLiveQuery).mockReturnValue(undefined)
     const { rerender } = render(<HomeScreen user={user} />)

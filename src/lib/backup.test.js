@@ -77,6 +77,10 @@ describe('backupFilename', () => {
 })
 
 describe('parseBackup', () => {
+  it('отклоняет поврежденный список шаблонов до записи в базу', () => {
+    expect(() => parseBackup(JSON.stringify({ schema: BACKUP_SCHEMA, templates: {} }))).toThrow('поврежден список')
+  })
+
   it('разбирает свой файл', () => {
     expect(parseBackup(JSON.stringify(snap())).schema).toBe(BACKUP_SCHEMA)
   })

@@ -99,12 +99,30 @@ test('кнопки на главных экранах не выходят за �
   })
   await page.reload()
 
+  await page.evaluate(async (userId) => {
+    const { E2E_EXERCISES } = await import('/kachalka-app/src/test/e2eSeed.js')
+    const { openUserDb } = await import('/kachalka-app/src/db/local.js')
+    const { saveWorkout } = await import('/kachalka-app/src/db/repo.js')
+    await openUserDb(userId)
+    for (const [age, weight] of [[35, 50], [5, 65]]) {
+      const day = new Date()
+      day.setDate(day.getDate() - age)
+      await saveWorkout({ user_id: userId, performed_at: day.toISOString(), entries: [
+        { exercise: E2E_EXERCISES[0], sets: [{ weight, reps: 8 }] },
+      ] })
+    }
+  }, user.id)
+
   await expectTidy(page, 'вход')
   await page.getByRole('button', { name: user.name }).click()
   await enterPin(page, user.pin)
   await expect(tabbar(page)).toBeVisible()
 
   await expectTidy(page, 'Главная')
+  const progress = page.getByRole('button', { name: /Прогресс в 1 из 1 упр\./ })
+  await progress.click()
+  await expect(page.getByText('50 кг → 65 кг')).toBeVisible()
+  await expectTidy(page, 'Прогресс на Главной')
 
   await openTab(page, 'Тренировки')
   await expectTidy(page, 'Тренировки')

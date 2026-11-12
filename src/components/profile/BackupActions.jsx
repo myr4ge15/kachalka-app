@@ -35,7 +35,7 @@ export default function BackupActions({ userId }) {
     setBkBusy(true)
     try {
       const c = await importAllMyData(userId, await file.text())
-      showToast({ icon: 'upload', title: 'Восстановлено', sub: describeImport(c) })
+      showToast({ icon: 'upload', title: c.failed ? 'Импорт завершён' : 'Восстановлено', sub: describeImport(c) })
       if (c.failed) {
         showToast({ icon: 'alert', title: 'Часть записей пропущена', sub: `Не удалось добавить: ${c.failed}` })
       }
@@ -54,7 +54,7 @@ export default function BackupActions({ userId }) {
   return (
     <>
       <MenuRow kind="action" icon="download" title="Скачать все мои данные"
-        sub="один JSON: тренировки, цели, достижения, настройки" onClick={doExportAll} disabled={bkBusy} />
+        sub="тренировки, шаблоны, личные упражнения и настройки" onClick={doExportAll} disabled={bkBusy} />
       {/* Восстановление — кнопка, которая открывает скрытый выбор файла (UI-ревью 23.10: <label>
           скринридер не читал как кнопку, с клавиатуры не нажимался). */}
       <MenuRow kind="action" icon="upload" title="Восстановить из файла" sub="добавит только то, чего сейчас нет"

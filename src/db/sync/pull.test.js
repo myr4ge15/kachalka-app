@@ -20,7 +20,8 @@ vi.mock('../supabase.js', () => {
       or: builder.orFilter,
     }
     server.calls.push(call)
-    return server.from(call)
+    return Promise.resolve(server.from(call)).then((result) => builder.count && Array.isArray(result.data)
+      ? { count: result.data.length, ...result } : result)
   }
 
   function from(table) {
@@ -30,8 +31,9 @@ vi.mock('../supabase.js', () => {
       filters: {},
       gtFilter: null,
       orFilter: null,
-      select(selection) {
+      select(selection, { count } = {}) {
         this.selection = selection
+        this.count = count
         return this
       },
       eq(key, value) {

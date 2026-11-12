@@ -9,7 +9,7 @@ vi.mock('../lib/exportWorkout.js', async (orig) => ({ ...(await orig()), downloa
 
 import { openUserDb, closeUserDb, db } from './local.js'
 import { uniqueUserId } from '../test/idbHarness.js'
-import { saveWorkout, deleteWorkout, getWorkouts } from './repo.js'
+import { createExercise, saveTemplate, saveWorkout, deleteWorkout, getWorkouts } from './repo.js'
 import { readGoals, writeGoals } from './notifications.js'
 import { exportAllMyData, importAllMyData } from './backup.js'
 
@@ -43,6 +43,59 @@ async function freshDevice() {
 }
 
 describe('бэкап тренировок', () => {
+  it('пропускает поврежденные строки каталога и сообщает о пропусках', async () => {
+    const text = JSON.stringify({
+      schema: 'full-backup/v1', user: { id: userId },
+      exercises: [{ id: 'не UUID', name: 'Тяга' }],
+      templates: [{ id: W2, name: 'Пустой', exercises: [] }, { id: W1, name: 'Битый', exercises: [null] },
+        { id: '33333333-3333-4333-8333-333333333333', name: 'Пустой план', exercises: [{ exercise_id: BENCH.id, set_plan: [] }] }],
+    })
+    expect(await importAllMyData(userId, text)).toMatchObject({ templates: 0, exercises: 0, failed: 4 })
+  })
+
+  it('не запускает импорт, если после выбора файла открылась база другой учётки', async () => {
+    const text = JSON.stringify({ schema: 'full-backup/v1', user: { id: userId } })
+    await openUserDb(uniqueUserId())
+    await expect(importAllMyData(userId, text)).rejects.toThrow('Учетная запись сменилась')
+  })
+
+  it('добавляет цели из файла поверх уже существующих и сворачивает повторы', async () => {
+    await writeGoals(userId, [{ exerciseId: BENCH.id, targetWeight: 70 }])
+    const text = JSON.stringify({ schema: 'full-backup/v1', goals: [
+      { exerciseId: BENCH.id, targetWeight: 100 },
+      { exerciseId: 'other', targetWeight: 40 },
+      { exerciseId: 'other', targetWeight: 60 },
+    ] })
+    expect(await importAllMyData(userId, text)).toMatchObject({ goals: 1 })
+    expect((await readGoals(userId)).map((g) => [g.exerciseId, g.targetWeight])).toEqual([[BENCH.id, 70], ['other', 40]])
+  })
+
+  it('восстанавливает свои шаблоны, упражнения и фазы с прежними ID', async () => {
+    const exercise = await createExercise({ name: 'Моя тяга', owner_id: userId, muscle_group: 'спина', metric: 'reps' })
+    await createExercise({ name: 'Чужое упражнение', owner_id: 'other' })
+    const exercises = [{ exercise, phase: 'warmup', metric: 'reps', set_plan: [{ weight: -20, reps: 8 }] }]
+    const templateId = await saveTemplate({ name: 'Мой шаблон', user_id: userId, exercises })
+    await saveTemplate({ name: 'Чужой общий шаблон', user_id: 'other', exercises, is_public: true })
+    await saveWorkout({ id: W1, user_id: userId, entries: [
+      { exercise, phase: 'warmup', sets: [{ weight: -20, reps: 8 }] },
+      { exercise: BENCH, sets: [{ weight: 50, reps: 10 }] },
+      { exercise, phase: 'cooldown', sets: [{ weight: 0, reps: 5 }] },
+    ] })
+    await exportAllMyData(userId)
+    expect(dl.last.templates.map((t) => t.id)).toEqual([templateId])
+    expect(dl.last.exercises.map((e) => e.id)).toEqual([exercise.id])
+    const file = JSON.stringify(dl.last)
+    await freshDevice()
+
+    expect(await importAllMyData(userId, file)).toMatchObject({ workouts: 1, templates: 1, exercises: 1, failed: 0 })
+    expect(await db.exercises.get(exercise.id)).toMatchObject({ owner_id: userId, name: exercise.name, _dirty: 1 })
+    expect((await db.workouts.get(W1)).entries.map((e) => e.phase)).toEqual(['warmup', undefined, 'cooldown'])
+    expect((await db.templates.get(templateId)).exercises[0]).toMatchObject({ exercise_id: exercise.id, phase: 'warmup', set_plan: [{ weight: -20, reps: 8 }] })
+    expect(await importAllMyData(userId, file)).toMatchObject({ workouts: 0, templates: 0, exercises: 0, failed: 0 })
+    expect(await db.ex_outbox.count()).toBe(1)
+    expect(await db.tpl_outbox.count()).toBe(1)
+  })
+
   it('восстановление на чистом устройстве: тренировки и цель на месте и ждут отправки', async () => {
     const text = await seedAndExport()
     await freshDevice()

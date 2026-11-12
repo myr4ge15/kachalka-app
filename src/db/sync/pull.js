@@ -342,18 +342,44 @@ async function pullPrivacyFlag(userId, d = db) {
 // -------------------------- pull: тренировки -------------------------------
 // Размер пачки для дотягивания тренировок по id (.in('id', …) уходит в URL).
 const HEAL_CHUNK = 100
+const WORKOUT_PAGE_SIZE = 500
+
+async function readWorkoutPages(readPage) {
+  const data = []
+  let cursor = null
+  while (true) {
+    const page = await readPage(cursor)
+    if (page.error || !Array.isArray(page.data)) {
+      return { error: page.error ?? new Error('Сервер не вернул страницу тренировок') }
+    }
+    if (!Number.isInteger(page.count) || page.count < page.data.length || (!page.data.length && page.count > 0)) {
+      return { error: new Error('Не удалось проверить полноту страницы тренировок') }
+    }
+    data.push(...page.data)
+    if (page.data.length === page.count) return { data }
+    cursor = page.data.at(-1)
+  }
+}
 
 async function pullWorkouts(userId, justPushed = new Set(), d = db, { identityVerified = false } = {}) {
   const warnings = []
   // тренировки пользователя — ТОЛЬКО дельта по watermark. Первый прогон (wm пуст)
   // тянет всю историю один раз, дальше — лишь `updated_at > wm` (обычно 0 строк).
-  // Порядок по updated_at asc, чтобы watermark двигался монотонно. Лимита нет:
-  // ограничивать нельзя (отсеченные старше wm строки иначе не доедут никогда).
+  // Порядок по (updated_at, id) сохраняет строки с одинаковой отметкой времени
+  // на границе страниц. Watermark пишется после чтения всей дельты.
   const wmWorkouts = await getMeta(WM_WORKOUTS, d)
-  const wkQuery = (sel) => {
-    let q = supabase.from('workouts').select(sel).eq('user_id', userId)
-    if (wmWorkouts) q = q.gt('updated_at', wmWorkouts)
-    return q.order('updated_at', { ascending: true })
+  const workoutPage = (sel, cursor) => {
+    let q = supabase.from('workouts').select(sel, { count: 'exact' }).eq('user_id', userId)
+    if (cursor) {
+      const { updated_at, id } = cursor
+      q = q.or(`updated_at.gt.${updated_at},and(updated_at.eq.${updated_at},id.gt.${id})`)
+    } else if (wmWorkouts) q = q.gt('updated_at', wmWorkouts)
+    return q.order('updated_at').order('id').limit(WORKOUT_PAGE_SIZE)
+  }
+  const idsPage = (cursor) => {
+    let q = supabase.from('workouts').select('id', { count: 'exact' }).eq('user_id', userId)
+    if (cursor) q = q.gt('id', cursor.id)
+    return withTimeout(q.order('id').limit(WORKOUT_PAGE_SIZE))
   }
   // Оконный запрос дельты (тяжелый join) и ПОЛНЫЙ набор серверных id (без join'ов —
   // дешево, лишь UUID'ы для НАДЕЖНОЙ реконсиляции удалений: контент тянем по
@@ -363,9 +389,8 @@ async function pullWorkouts(userId, justPushed = new Set(), d = db, { identityVe
   // цикле просто пропускаем (не удаляем вслепую), поэтому приводим к форме { error }
   // как у PostgREST, а не даем Promise.all зареджектиться.
   const [wk, idsRes] = await Promise.all([
-    withPhase(SELECT_WORKOUT, wkQuery),
-    withTimeout(supabase.from('workouts').select('id').eq('user_id', userId))
-      .catch((e) => ({ error: e })),
+    readWorkoutPages((cursor) => withPhase(SELECT_WORKOUT, (sel) => workoutPage(sel, cursor))),
+    readWorkoutPages(idsPage).catch((e) => ({ error: e })),
   ])
   if (wk.error) throw wk.error
   const serverRows = wk.data ?? []

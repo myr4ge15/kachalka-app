@@ -67,7 +67,7 @@ vi.mock('./supabase.js', () => {
   function builder(table) {
     return {
       _table: table, _select: null, _delete: false, _upsert: null, _eqUser: false, _gtUpdated: null,
-      select(s) { this._select = s; return this },
+      select(s, { count } = {}) { this._select = s; this._count = count; return this },
       eq(k, _v) { if (k === 'user_id') this._eqUser = true; return this },
       gt(k, v) { if (k === 'updated_at') this._gtUpdated = v; return this },
       in(k, v) { if (k === 'id') this._in = v; return this },
@@ -76,7 +76,11 @@ vi.mock('./supabase.js', () => {
       or() { return this },
       upsert(v) { this._upsert = v; return this },
       delete() { this._delete = true; return this },
-      then(res, rej) { return Promise.resolve(resolveFrom(this)).then(res, rej) },
+      then(res, rej) {
+        return Promise.resolve(resolveFrom(this))
+          .then((result) => this._count && Array.isArray(result.data) ? { count: result.data.length, ...result } : result)
+          .then(res, rej)
+      },
     }
   }
   function rpc(name, args) {

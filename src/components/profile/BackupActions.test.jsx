@@ -82,4 +82,11 @@ describe('BackupActions', () => {
     fireEvent.change(fileInput(container), { target: { files: [] } })
     expect(importAllMyData).not.toHaveBeenCalled()
   })
+
+  it('кнопка восстановления открывает выбор файла', () => {
+    const { container } = render(<BackupActions userId="me" />)
+    const pickFile = vi.spyOn(fileInput(container), 'click')
+    fireEvent.click(screen.getByRole('button', { name: /Восстановить из файла/ }))
+    expect(pickFile).toHaveBeenCalledOnce()
+  })
 })

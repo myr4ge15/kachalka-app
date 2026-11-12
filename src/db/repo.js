@@ -88,7 +88,7 @@ export async function applyExerciseMergeLocal(fromId, intoId = null) {
 // поэтому «свое/чужое» держится только на этой колонке; без нее экран каталога
 // показывал бы всем один и тот же список (так и было до v5.14.0). Экраны передают
 // сюда id вошедшего; отсутствие owner_id (легаси-строки) означает «ничье».
-export async function createExercise({ name, muscle_group, metric, submuscle, secondary, owner_id }) {
+export async function createExercise({ name, muscle_group, metric, submuscle, secondary, owner_id }, { restoreId, d = db } = {}) {
   const clean = cleanExerciseName(name)
   if (!clean) throw new Error('Введи название упражнения.')
   const group = muscle_group ? String(muscle_group).trim() : null
@@ -102,7 +102,7 @@ export async function createExercise({ name, muscle_group, metric, submuscle, se
   const owner = owner_id ?? null
 
   const key = normalizeName(clean)
-  const all = await db.exercises.toArray()
+  const all = restoreId ? [] : await d.exercises.toArray()
   const dup = all.find((e) => normalizeName(e.name) === key)
   if (dup) {
     // Анти-дубль отдает ЧУЖУЮ строку как есть, владельца не переписываем: тот,
@@ -121,9 +121,11 @@ export async function createExercise({ name, muscle_group, metric, submuscle, se
     }
   }
 
-  const id = newId()
-  await db.transaction('rw', db.exercises, db.ex_outbox, async () => {
-    await db.exercises.put({
+  const id = restoreId ?? newId()
+  const added = await d.transaction('rw', d.exercises, d.ex_outbox, async () => {
+    // Бэкап ссылается на исходный UUID из тренировок, шаблонов и целей.
+    if (restoreId && await d.exercises.get(id)) return false
+    await d.exercises.put({
       id,
       name: clean,
       muscle_group: group,
@@ -136,9 +138,11 @@ export async function createExercise({ name, muscle_group, metric, submuscle, se
       owner_id: owner,
       _dirty: 1,
     })
-    await db.ex_outbox.add({ exerciseId: id, createdAt: nowIso(), attempts: 0 })
+    await d.ex_outbox.add({ exerciseId: id, createdAt: nowIso(), attempts: 0 })
+    return true
   })
 
+  if (!added) return null
   return { id, name: clean, muscle_group: group, submuscle: sub, secondary: sec, is_bench_lift: false, metric: mtr, is_custom: true, owner_id: owner }
 }
 
@@ -498,15 +502,16 @@ function cleanEntries(entries) {
 
 // Создать новую или переписать существующую тренировку.
 // Возвращает id. Передай существующий id, чтобы отредактировать.
-export async function saveWorkout({ id, user_id, performed_at, entries }) {
+export async function saveWorkout({ id, user_id, performed_at, entries }, { restore = false, d = db } = {}) {
   const cleaned = cleanEntries(entries)
   if (cleaned.length === 0) throw new Error('Пустая тренировка: добавь хотя бы один подход.')
 
   const wId = id ?? newId()
   const now = nowIso()
 
-  await db.transaction('rw', db.workouts, db.outbox, async () => {
-    const existing = id ? await db.workouts.get(id) : null
+  return d.transaction('rw', d.workouts, d.outbox, async () => {
+    const existing = id ? await d.workouts.get(id) : null
+    if (restore && existing) return null
     const doc = {
       id: wId,
       user_id,
@@ -526,11 +531,10 @@ export async function saveWorkout({ id, user_id, performed_at, entries }) {
       _dirty: 1,
       _deleted: 0,
     }
-    await db.workouts.put(doc)
-    await enqueue('upsert', wId)
+    await d.workouts.put(doc)
+    await enqueue('upsert', wId, d)
+    return wId
   })
-
-  return wId
 }
 
 // Удалить тренировку. Помечаем tombstone и ставим в очередь удаление.
@@ -581,18 +585,18 @@ async function reviveOps(table, pending, type) {
 //  - upsert поверх upsert → одна операция (push всегда читает свежий документ);
 //  - delete отменяет ожидающие upsert той же тренировки;
 //  - upsert после delete (повторное создание) → заменяет delete на upsert.
-async function enqueue(type, workoutId) {
-  const pending = await db.outbox.where('workoutId').equals(workoutId).toArray()
+async function enqueue(type, workoutId, d = db) {
+  const pending = await d.outbox.where('workoutId').equals(workoutId).toArray()
   if (type === 'upsert') {
-    if (await reviveOps(db.outbox, pending, 'upsert')) return
+    if (await reviveOps(d.outbox, pending, 'upsert')) return
     // если был delete — снимаем его, ставим upsert
-    for (const o of pending) if (o.type === 'delete') await db.outbox.delete(o.seq)
-    await db.outbox.add({ workoutId, type, createdAt: nowIso(), attempts: 0 })
+    for (const o of pending) if (o.type === 'delete') await d.outbox.delete(o.seq)
+    await d.outbox.add({ workoutId, type, createdAt: nowIso(), attempts: 0 })
   } else {
     // delete: убираем все upsert этой тренировки
-    for (const o of pending) if (o.type === 'upsert') await db.outbox.delete(o.seq)
-    if (await reviveOps(db.outbox, pending, 'delete')) return
-    await db.outbox.add({ workoutId, type, createdAt: nowIso(), attempts: 0 })
+    for (const o of pending) if (o.type === 'upsert') await d.outbox.delete(o.seq)
+    if (await reviveOps(d.outbox, pending, 'delete')) return
+    await d.outbox.add({ workoutId, type, createdAt: nowIso(), attempts: 0 })
   }
 }
 
@@ -707,7 +711,7 @@ function cleanTemplateExercises(exercises) {
 
 // Создать новый или переписать существующий шаблон. Возвращает id.
 // Передай существующий id, чтобы отредактировать.
-export async function saveTemplate({ id, user_id, name, exercises, is_public }) {
+export async function saveTemplate({ id, user_id, name, exercises, is_public }, { restore = false, d = db } = {}) {
   const clean = String(name ?? '').trim()
   if (!clean) throw new Error('Введи название шаблона.')
   const cleaned = cleanTemplateExercises(exercises)
@@ -716,8 +720,9 @@ export async function saveTemplate({ id, user_id, name, exercises, is_public }) 
   const tId = id ?? newId()
   const now = nowIso()
 
-  await db.transaction('rw', db.templates, db.tpl_outbox, async () => {
-    const existing = id ? await db.templates.get(id) : null
+  return d.transaction('rw', d.templates, d.tpl_outbox, async () => {
+    const existing = id ? await d.templates.get(id) : null
+    if (restore && existing) return null
     const doc = {
       id: tId,
       user_id,
@@ -731,11 +736,10 @@ export async function saveTemplate({ id, user_id, name, exercises, is_public }) 
       _dirty: 1,
       _deleted: 0,
     }
-    await db.templates.put(doc)
-    await enqueueTpl('upsert', tId)
+    await d.templates.put(doc)
+    await enqueueTpl('upsert', tId, d)
+    return tId
   })
-
-  return tId
 }
 
 // Удалить шаблон. Помечаем tombstone и ставим в очередь удаление.
@@ -750,16 +754,16 @@ export async function deleteTemplate(id) {
 
 // Очередь шаблонов (tpl_outbox) — та же логика схлопывания дублей, что у
 // enqueue (тренировки), но по полю templateId.
-async function enqueueTpl(type, templateId) {
-  const pending = await db.tpl_outbox.where('templateId').equals(templateId).toArray()
+async function enqueueTpl(type, templateId, d = db) {
+  const pending = await d.tpl_outbox.where('templateId').equals(templateId).toArray()
   if (type === 'upsert') {
-    if (await reviveOps(db.tpl_outbox, pending, 'upsert')) return
-    for (const o of pending) if (o.type === 'delete') await db.tpl_outbox.delete(o.seq)
-    await db.tpl_outbox.add({ templateId, type, createdAt: nowIso(), attempts: 0 })
+    if (await reviveOps(d.tpl_outbox, pending, 'upsert')) return
+    for (const o of pending) if (o.type === 'delete') await d.tpl_outbox.delete(o.seq)
+    await d.tpl_outbox.add({ templateId, type, createdAt: nowIso(), attempts: 0 })
   } else {
-    for (const o of pending) if (o.type === 'upsert') await db.tpl_outbox.delete(o.seq)
-    if (await reviveOps(db.tpl_outbox, pending, 'delete')) return
-    await db.tpl_outbox.add({ templateId, type, createdAt: nowIso(), attempts: 0 })
+    for (const o of pending) if (o.type === 'upsert') await d.tpl_outbox.delete(o.seq)
+    if (await reviveOps(d.tpl_outbox, pending, 'delete')) return
+    await d.tpl_outbox.add({ templateId, type, createdAt: nowIso(), attempts: 0 })
   }
 }
 

@@ -3,6 +3,7 @@ import {
   cleanTemplateForExport,
   buildTemplatesExport,
   templatesExportFilename,
+  exportTemplates,
 } from './exportTemplate.js'
 
 // Заготовка шаблона (денормализованный вид, как в Dexie templates).
@@ -19,6 +20,12 @@ const ex = (id, name, target = {}, extra = {}) => ({
 })
 
 describe('cleanTemplateForExport', () => {
+  it('сохраняет фазу и точный план, даже когда у плана нет своей метрики', () => {
+    const entry = { ...ex('e1', 'Подтягивания', {}, { metric: 'reps' }), phase: 'warmup', set_plan: [{ weight: '-20', reps: '8' }] }
+    const out = cleanTemplateForExport(tpl('t1', 'Разминка', [entry]))
+    expect(out.exercises[0]).toMatchObject({ phase: 'warmup', metric: 'reps', set_plan: [{ weight: -20, reps: 8 }] })
+    expect(cleanTemplateForExport()).toMatchObject({ id: null, name: '—', exercises: [] })
+  })
   it('отдает имя/видимость/состав без служебных полей синка', () => {
     const out = cleanTemplateForExport(
       tpl('t1', 'День груди', [ex('e1', 'Жим лежа', { sets: 3, reps: 10, weight: 80 })], { is_public: 1 })
@@ -87,5 +94,10 @@ describe('templatesExportFilename', () => {
     expect(templatesExportFilename(tpl('t1', 'Один'), now)).toBe('template-2026-07-09.json')
     expect(templatesExportFilename([tpl('t1', 'a'), tpl('t2', 'b')], now))
       .toBe('templates-2-2026-07-09.json')
+  })
+
+  it('пустой список не выгружает файл, битая дата получает запасное имя', async () => {
+    expect(await exportTemplates([])).toBeUndefined()
+    expect(templatesExportFilename([tpl('t1', 'Один')], 'битая дата')).toBe('template-export.json')
   })
 })

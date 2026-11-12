@@ -20,6 +20,12 @@ import { defineConfig, devices } from '@playwright/test'
 
 const PORT = 5174
 const BASE = `http://127.0.0.1:${PORT}/kachalka-app/`
+const PWA_BASE = 'http://127.0.0.1:5175/kachalka-app/'
+const PWA_SPEC = /pwa-production\.spec\.js$/
+const E2E_ENV = {
+  VITE_SUPABASE_URL: 'https://e2e-offline.supabase.co',
+  VITE_SUPABASE_KEY: 'sb_publishable_e2e_offline',
+}
 
 export default defineConfig({
   testDir: './e2e',
@@ -44,7 +50,8 @@ export default defineConfig({
   },
 
   projects: [
-    { name: 'chromium', use: { ...devices['Desktop Chrome'], viewport: { width: 390, height: 844 } } },
+    { name: 'chromium', testIgnore: PWA_SPEC, use: { ...devices['Desktop Chrome'], viewport: { width: 390, height: 844 } } },
+    ...(process.env.E2E_PWA ? [{ name: 'pwa', testMatch: PWA_SPEC, retries: 0, timeout: 90_000 }] : []),
     // Smoke в WebKit (19.10.2026, задача e2e-webkit в test.yml): только по E2E_WEBKIT=1 —
     // обычный прогон и локальный запуск остаются на одном Chromium.
     // Длинному smoke в WebKit нужен запас на медленный CI, включая перезагрузку.
@@ -53,11 +60,11 @@ export default defineConfig({
       : []),
   ],
 
-  webServer: {
+  webServer: [{
     // --host 127.0.0.1 обязателен: по умолчанию vite слушает `localhost`, который
     // на Windows резолвится в ::1 (IPv6), а Playwright опрашивает url по 127.0.0.1 —
     // соединения нет и прогон падает с «Timed out waiting from config.webServer».
-    command: `npx vite --port ${PORT} --strictPort --host 127.0.0.1`,
+    command: `node node_modules/vite/bin/vite.js --port ${PORT} --strictPort --host 127.0.0.1`,
     url: BASE,
     reuseExistingServer: !process.env.CI,
     // Логи vite не прячем: если сервер не поднялся (занятый порт, ошибка конфига),
@@ -65,9 +72,11 @@ export default defineConfig({
     stdout: 'pipe',
     stderr: 'pipe',
     timeout: 120_000,
-    env: {
-      VITE_SUPABASE_URL: 'https://e2e-offline.supabase.co',
-      VITE_SUPABASE_KEY: 'sb_publishable_e2e_offline',
-    },
-  },
+    env: E2E_ENV,
+  }, ...(process.env.E2E_PWA ? [{
+    command: 'node e2e/pwa-server.mjs',
+    url: PWA_BASE,
+    timeout: 180_000,
+    env: E2E_ENV,
+  }] : [])],
 })

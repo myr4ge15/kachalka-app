@@ -9,6 +9,7 @@
 // ============================================================================
 import { localYmd } from './calendar.js'
 import { exerciseMetric } from './metric.js'
+import { phaseValue } from './workoutPhases.js'
 
 // Один подход → чистый {weight, reps}.
 function cleanSet(s) {
@@ -29,6 +30,7 @@ export function cleanWorkoutForExport(w) {
         metric: exerciseMetric(e.exercise),
       },
       sets: (e.sets ?? []).map(cleanSet),
+      phase: phaseValue(e.phase),
     })),
   }
 }

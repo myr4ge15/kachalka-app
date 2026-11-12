@@ -12,9 +12,8 @@
 // cleanWorkoutForExport), цели, бейджи, настройки автопрогрессии, оценки «как пошло»
 // (RPE, lib/rpe.js), избранные упражнения и выбранный акцент (с v6.7.x — до этого
 // новые роды fav/accent в файл не попадали, РЕВЬЮ-КОДА-2026-10-02) + флаг
-// приватности (справочно). Старые файлы без этих полей импортируются как раньше. Шаблоны и упражнения — НЕ здесь: у шаблонов свой
-// экспорт (exportTemplate.js), а упражнения общие для всех, их импорт плодил бы
-// дубли на весь круг.
+// приватности (справочно), свои шаблоны и личные упражнения. Старые файлы
+// без новых полей импортируются как раньше.
 //
 // СЕМАНТИКА ИМПОРТА — «только добавить недостающее» (см. planImport): ничего
 // существующего не перезаписываем и не удаляем. Повторный импорт того же файла
@@ -26,6 +25,8 @@
 // ============================================================================
 import { localYmd } from './calendar.js'
 import { cleanWorkoutForExport, downloadJson } from './exportWorkout.js'
+import { cleanTemplateForExport } from './exportTemplate.js'
+import { phaseValue } from './workoutPhases.js'
 import { normMetric } from './metric.js'
 import { mergeRpe } from './rpe.js'
 import { normalizeFavs } from './favorites.js'
@@ -64,6 +65,8 @@ export function buildBackup(data, appVersion = 'dev', now = new Date()) {
       badges: Object.keys(d.badges ?? {}).length,
     },
     workouts: (d.workouts ?? []).map(cleanWorkoutForExport),
+    templates: (d.templates ?? []).map(cleanTemplateForExport),
+    exercises: (d.exercises ?? []).map((e) => sanitizeFileExercise(e, e.id)),
     // Цели — без служебного _dirty (он про очередь отправки, не про данные).
     goals: (d.goals ?? [])
       .filter((g) => g && !g._deleted)
@@ -148,6 +151,9 @@ export function parseBackup(text) {
           : ''
     throw new BackupError(`Нужен файл полного бэкапа.${hint}`)
   }
+  for (const field of ['workouts', 'templates', 'exercises', 'goals']) {
+    if (obj[field] != null && !Array.isArray(obj[field])) throw new BackupError('В файле поврежден список записей.')
+  }
   return obj
 }
 
@@ -190,20 +196,63 @@ function sanitizeFileExercise(x, id) {
   }
 }
 
-function importEntry(e, exercises) {
+function importExercise(e, exercises) {
   const id = e?.exercise?.id ?? e?.exercise_id ?? null
   if (!id || typeof id !== 'string' || id.length > 64) return null
-  const sets = (e?.sets ?? [])
+  return lookupExercise(exercises, id) ?? sanitizeFileExercise(e?.exercise, id)
+}
+
+function importEntry(e, exercises) {
+  const exercise = importExercise(e, exercises)
+  if (!exercise || !Array.isArray(e.sets)) return null
+  const sets = e.sets
     .map((s) => ({ weight: Number(s?.weight) || 0, reps: Number(s?.reps) || 0 }))
     // Пустой подход (0×0) роняет тренировку в «пустую» — отсеиваем здесь, чтобы
     // не потерять из-за него всю запись (клампинг значений сделает saveWorkout).
     .filter((s) => s.weight > 0 || s.reps > 0)
   if (sets.length === 0) return null
-  const local = lookupExercise(exercises, id)
-  return { exercise: local ?? sanitizeFileExercise(e?.exercise, id), sets }
+  return { exercise, sets, phase: phaseValue(e.phase) }
 }
 
 const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i
+
+export function backupCatalog(snapshot, exercises, templateIds) {
+  const personal = []
+  const templates = []
+  const catalog = new Map(exercises)
+  const ids = new Set(templateIds)
+  let skipped = 0
+  for (const e of snapshot.exercises ?? []) {
+    if (typeof e?.id !== 'string' || !UUID_RE.test(e.id) || typeof e.name !== 'string' || !e.name.trim()) {
+      skipped++
+      continue
+    }
+    if (catalog.has(e.id)) continue
+    const exercise = sanitizeFileExercise(e, e.id)
+    catalog.set(e.id, exercise)
+    personal.push(exercise)
+  }
+  for (const t of snapshot.templates ?? []) {
+    if (typeof t?.id !== 'string' || !UUID_RE.test(t.id) || typeof t.name !== 'string' || !t.name.trim() || !Array.isArray(t.exercises)) {
+      skipped++
+      continue
+    }
+    if (ids.has(t.id)) continue
+    const entries = t.exercises.map((e) => {
+      const exercise = importExercise(e, catalog)
+      if (!exercise) return null
+      const { sets, reps, weight, set_plan, metric, phase } = e
+      return { exercise, sets, reps, weight, set_plan, metric: normMetric(metric ?? exercise.metric), phase: phaseValue(phase) }
+    })
+    if (!entries.length || entries.some((e) => !e)) {
+      skipped++
+      continue
+    }
+    ids.add(t.id)
+    templates.push({ id: t.id, name: t.name, is_public: t.is_public === true, exercises: entries })
+  }
+  return { personal, templates, skipped }
+}
 const MIN_DATE_MS = Date.UTC(2000, 0, 1)
 
 // Дата тренировки из файла: null — нет даты (как раньше); false — мусор или вне
@@ -226,9 +275,7 @@ function importDate(v, now = Date.now()) {
 // тоста. `workouts` идут в repo.saveWorkout КАК ЕСТЬ, с исходным id — поэтому
 // повторный импорт того же файла ничего не добавит.
 export function planImport(snapshot, current = {}) {
-  const have = current.workoutIds instanceof Set
-    ? current.workoutIds
-    : new Set(current.workoutIds ?? [])
+  const have = new Set(current.workoutIds ?? [])
 
   // ── тренировки ───────────────────────────────────────────────────────────
   const workouts = []
@@ -241,10 +288,11 @@ export function planImport(snapshot, current = {}) {
     const when = importDate(w.performed_at, current.now)
     if (when === false) { workoutsSkipped++; continue }
     if (have.has(w.id)) continue // уже есть — НЕ трогаем (в т.ч. локально измененную)
-    const entries = (w.entries ?? [])
+    const entries = (Array.isArray(w.entries) ? w.entries : [])
       .map((e) => importEntry(e, current.exercises))
       .filter(Boolean)
     if (entries.length === 0) { workoutsSkipped++; continue }
+    have.add(w.id)
     workouts.push({ id: w.id, performed_at: when, entries })
   }
 
@@ -400,6 +448,8 @@ export function describeImport(counts) {
   const c = counts ?? {}
   const parts = []
   if (c.workouts) parts.push(`тренировок: ${c.workouts}`)
+  if (c.templates) parts.push(`шаблонов: ${c.templates}`)
+  if (c.exercises) parts.push(`личных упражнений: ${c.exercises}`)
   if (c.goals) parts.push(`целей: ${c.goals}`)
   if (c.badges) parts.push(`достижений: ${c.badges}`)
   if (c.rpe) parts.push(`оценок «как пошло»: ${c.rpe}`)
@@ -407,6 +457,6 @@ export function describeImport(counts) {
   if (c.body) parts.push(`записей веса и замеров: ${c.body}`)
   if (c.prog) parts.push('настройки прогрессии')
   if (c.accent) parts.push('цвет оформления')
-  if (parts.length === 0) return 'Все из файла уже было в приложении.'
+  if (parts.length === 0) return c.failed ? 'Из файла не добавлено ни одной записи.' : 'Все из файла уже было в приложении.'
   return `Добавлено — ${parts.join(', ')}.`
 }

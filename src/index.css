@@ -3453,6 +3453,11 @@ label.act.busy { opacity: .55; pointer-events: none; }
 .home-block:first-child .home-block-n { color: var(--acc); }
 .home-block-n .u { font-family: inherit; font-size: 15px; font-weight: 600; color: var(--muted); }
 .home-block-l { font-size: var(--fs-tiny); color: var(--muted); margin-top: 6px; line-height: 1.3; }
+.home-exercise-progress { margin-bottom: 16px; }
+.home-exercise-progress-list { list-style: none; margin: 0; padding: 0 14px 10px; }
+.home-exercise-progress-list li { display: flex; flex-wrap: wrap; justify-content: space-between; gap: 4px 12px; padding-block: 7px; }
+.home-exercise-progress-list li span { min-width: 0; overflow-wrap: anywhere; }
+.home-exercise-progress-list strong { color: var(--green); }
 .home .delta { font-weight: 600; }
 .home .delta.up { color: var(--green); }
 .home .delta.down { color: var(--red); }
