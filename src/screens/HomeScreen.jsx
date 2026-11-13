@@ -24,6 +24,12 @@ import { monthKey, monthLabel } from '../lib/monthlySummary.js'
 import MonthlySummary from '../components/progress/MonthlySummary.jsx'
 import '../components/progress/MonthlySummary.css'
 
+function ProgressPeriod({ dates }) {
+  const [start, end] = dates
+  const shortDate = (date) => `${date.slice(8)}.${date.slice(5, 7)}`
+  return <><time dateTime={start}>{shortDate(start)}</time>–<time dateTime={end}>{shortDate(end)}</time></>
+}
+
 // Полоска свежести в тизере — в каноническом порядке групп (стабильно), не по
 // приоритету «пора». Группы вне канона уезжают в конец.
 const canonIdx = (g) => {
@@ -246,14 +252,29 @@ export default function HomeScreen({ user, onNavigate, onNewWorkout, onOpenProgr
         <div className="menu-group home-exercise-progress" ref={progressRef}>
           <MenuRow icon="trend" kind="expand" open={progressOpen} onClick={() => setProgressOpen((open) => !open)}
             title={`Прогресс в ${summary.progress.improved.length} из ${summary.progress.total} упр.`}
-            sub="Последние 30 дней в сравнении с предыдущими" />
+            sub="Лучший рабочий подход за каждый период" />
           {progressOpen && (summary.progress.improved.length > 0 ? (
-            <ul className="home-exercise-progress-list">
-              {summary.progress.improved.map(({ id, name, metric, before, after }) => (
-                <li key={id}><span>{name}</span><strong>{fmtMetricValue(metric, before)} → {fmtMetricValue(metric, after)}</strong></li>
-              ))}
-            </ul>
-          ) : <p className="home-exercise-progress-list muted">Лучшие результаты пока не выросли.</p>)}
+            <div className="home-exercise-progress-content">
+              <table className="home-exercise-progress-table">
+                <thead><tr>
+                  <th scope="col">Упражнение</th>
+                  <th scope="col"><ProgressPeriod dates={summary.progress.previous} /></th>
+                  <th scope="col"><ProgressPeriod dates={summary.progress.latest} /></th>
+                </tr></thead>
+                <tbody>
+                  {summary.progress.improved.map(({ id, name, metric, before, after }) => (
+                    <tr key={id}>
+                      <th scope="row">
+                        {onOpenProgress ? <button type="button" onClick={() => onOpenProgress(id)}>{name}</button> : name}
+                      </th>
+                      <td>{fmtMetricValue(metric, before)}</td>
+                      <td><strong>{fmtMetricValue(metric, after)}</strong></td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          ) : <p className="home-exercise-progress-content muted">Лучшие результаты пока не выросли.</p>)}
         </div>
       )}
 

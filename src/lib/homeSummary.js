@@ -14,6 +14,7 @@ import { daySubTags } from './dayTags.js'
 import { normMetric, leadingValue } from './metric.js'
 import { entryExId, sortDesc, currentExerciseShapes, entryUnitMetric, mainEntries } from './entries.js'
 import { plural } from './plural.js'
+import { toDate } from './calendar.js'
 
 function localDayKey(value) {
   const d = value instanceof Date ? value : new Date(value)
@@ -147,12 +148,15 @@ function nearestGoal(goals, sorted) {
 // Предел осмысленного роста тоннажа к прошлым 30 дням, %.
 export const TONNAGE_PCT_MAX = 300
 
+const PROGRESS_DAYS = 30
+const progressDate = (day) => new Date(day * 86400000).toISOString().slice(0, 10)
+
 function exerciseProgress(sorted, today, shapes) {
   const recent = new Map()
   for (const w of sorted) {
     if (!w.performed_at) continue
-    const age = today - dayIndex(new Date(w.performed_at))
-    if (!(age >= 0 && age < 60)) continue
+    const age = today - dayIndex(toDate(w.performed_at))
+    if (!(age >= 0 && age < PROGRESS_DAYS * 2)) continue
     for (const entry of mainEntries(w)) {
       const id = entryExId(entry)
       if (!id) continue
@@ -160,17 +164,22 @@ function exerciseProgress(sorted, today, shapes) {
       const metric = entryUnitMetric(entry, shape?.metric)
       const value = leadingValue(metric, entry.sets ?? [])
       if (!(value > 0)) continue
-      if (age < 30 && !recent.has(id)) {
+      if (age < PROGRESS_DAYS && !recent.has(id)) {
         recent.set(id, { id, name: shape?.name ?? entry.exercise?.name ?? '—', metric, before: 0, after: 0 })
       }
       const result = recent.get(id)
       if (result?.metric !== metric) continue
-      const period = age < 30 ? 'after' : 'before'
+      const period = age < PROGRESS_DAYS ? 'after' : 'before'
       result[period] = Math.max(result[period], value)
     }
   }
   const compared = [...recent.values()].filter((e) => e.before > 0)
-  return { total: compared.length, improved: compared.filter((e) => e.after > e.before) }
+  return {
+    total: compared.length,
+    improved: compared.filter((e) => e.after > e.before),
+    previous: [progressDate(today - PROGRESS_DAYS * 2 + 1), progressDate(today - PROGRESS_DAYS)],
+    latest: [progressDate(today - PROGRESS_DAYS + 1), progressDate(today)],
+  }
 }
 
 export function buildHomeSummary({ workouts, goals, now = new Date() } = {}) {

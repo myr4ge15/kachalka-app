@@ -50,6 +50,8 @@ describe('buildHomeSummary', () => {
     expect(buildHomeSummary({ workouts, now: NOW }).progress).toEqual({
       total: 2,
       improved: [{ id: 'bench', name: 'bench', metric: 'weight', before: 60, after: 65 }],
+      previous: ['2026-05-12', '2026-06-10'],
+      latest: ['2026-06-11', '2026-07-10'],
     })
   })
 

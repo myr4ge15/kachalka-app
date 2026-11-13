@@ -51,18 +51,27 @@ const readyHome = {
 
 describe('HomeScreen', () => {
   it('раскрывает сравнение лучших подходов на Главной', () => {
+    const openProgress = vi.fn()
     vi.mocked(useLiveQuery).mockReturnValue({
       ...readyHome,
-      summary: { ...readyHome.summary, progress: { total: 3, improved: [{ id: 'bench', name: 'Жим', metric: 'weight', before: 60, after: 65 }] } },
+      summary: { ...readyHome.summary, progress: {
+        total: 3, improved: [{ id: 'bench', name: 'Жим', metric: 'weight', before: 60, after: 65 }],
+        previous: ['2026-09-15', '2026-10-14'], latest: ['2026-10-15', '2026-11-13'],
+      } },
     })
-    render(<HomeScreen user={user} />)
+    render(<HomeScreen user={user} onOpenProgress={openProgress} />)
     const row = screen.getByRole('button', { name: /Прогресс в 1 из 3 упр\./ })
     expect(row).toHaveAttribute('aria-expanded', 'false')
     fireEvent.click(row)
     expect(row).toHaveAttribute('aria-expanded', 'true')
-    expect(screen.getByText('60 кг → 65 кг')).toBeVisible()
+    expect(screen.getByRole('columnheader', { name: '15.09–14.10' })).toBeVisible()
+    expect(screen.getByRole('columnheader', { name: '15.10–13.11' })).toBeVisible()
+    expect(screen.getByRole('cell', { name: '60 кг' })).toBeVisible()
+    expect(screen.getByRole('cell', { name: '65 кг' })).toBeVisible()
+    fireEvent.click(screen.getByRole('button', { name: 'Жим', exact: true }))
+    expect(openProgress).toHaveBeenCalledWith('bench')
     fireEvent.click(row)
-    expect(screen.queryByText('60 кг → 65 кг')).toBeNull()
+    expect(screen.queryByRole('cell', { name: '65 кг' })).toBeNull()
   })
 
   it('поясняет отсутствие роста при наличии сопоставимых тренировок', () => {

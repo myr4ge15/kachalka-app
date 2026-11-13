@@ -122,12 +122,15 @@ test('кнопки на главных экранах не выходят за �
   await expectTidy(page, 'Главная')
   const progress = page.getByRole('button', { name: /Прогресс в 2 из 2 упр\./ })
   await progress.click()
-  await expect(page.getByText('50 кг → 65 кг')).toBeVisible()
-  const resultEdges = await page.locator('.home-exercise-progress-list strong').evaluateAll((results) =>
+  await expect(page.getByRole('cell', { name: '50 кг', exact: true })).toBeVisible()
+  await expect(page.getByRole('cell', { name: '65 кг', exact: true })).toBeVisible()
+  const resultEdges = await page.locator('.home-exercise-progress-table strong').evaluateAll((results) =>
     results.map((result) => Math.round(result.getBoundingClientRect().right)))
   expect(resultEdges).toHaveLength(2)
   expect(resultEdges[0]).toBe(resultEdges[1])
   await expectTidy(page, 'Прогресс на Главной')
+  await page.getByRole('button', { name: EXERCISE, exact: true }).click()
+  await expect(page.locator('.prog-select')).toHaveValue('e2e-ex-bench')
 
   await openTab(page, 'Тренировки')
   await expectTidy(page, 'Тренировки')
