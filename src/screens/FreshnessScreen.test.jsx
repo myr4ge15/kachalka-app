@@ -23,6 +23,25 @@ describe('FreshnessScreen «Восстановление» (v6.3.5)', () => {
   // Второй useLiveQuery (объем по группам) — с дефолтом []; первый (готовность) — без.
   beforeEach(() => vi.mocked(useLiveQuery).mockImplementation((fn, deps, def) => (def === undefined ? data : [])))
 
+  it('до чтения базы показывает каркас, после чтения пустой истории — приглашение записать тренировку', () => {
+    vi.mocked(useLiveQuery).mockImplementation(() => undefined)
+    const { rerender } = render(<FreshnessScreen user={{ id: 'u1' }} />)
+    expect(screen.queryByText(/Запиши тренировку/)).toBeNull()
+    vi.mocked(useLiveQuery).mockImplementation(() => null)
+    rerender(<FreshnessScreen user={{ id: 'u1' }} />)
+    expect(screen.getByText(/Запиши тренировку/)).toBeInTheDocument()
+  })
+
+  it('пустая корзина отдыха объясняет, что сейчас ничего не отдыхает', () => {
+    vi.mocked(useLiveQuery).mockImplementation((fn, deps, def) => def === undefined ? {
+      ...data, recovery: [], cardio: 8, recoverySub: [data.recoverySub[0]],
+    } : [])
+    render(<FreshnessScreen user={{ id: 'u1' }} />)
+    expect(screen.getByText('Кардио не было 8 дней')).toBeInTheDocument()
+    fireEvent.click(screen.getByRole('button', { name: /отдыхают/ }))
+    expect(screen.getByText('Сейчас ничего не отдыхает.')).toBeInTheDocument()
+  })
+
   it('заголовок экрана — «Восстановление»', () => {
     render(<FreshnessScreen user={{ id: 'u1' }} onBack={() => {}} />)
     expect(screen.getByRole('heading', { name: 'Восстановление' })).toBeInTheDocument()

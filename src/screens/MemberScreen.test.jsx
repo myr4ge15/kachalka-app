@@ -44,6 +44,28 @@ describe('MemberScreen', () => {
     mockQueries.next = 0
   })
 
+  it('без ростера и сети показывает нейтральный профиль и не запрашивает сервер', () => {
+    const connection = vi.spyOn(navigator, 'onLine', 'get').mockReturnValue(false)
+    try {
+      mockQueries(null, null)
+      render(<MemberScreen user={viewer} memberId="dima" />)
+      expect(screen.getByText('Участник')).toBeInTheDocument()
+      expect(screen.getByText('Профиль откроется, когда появится сеть.')).toBeInTheDocument()
+      expect(fetchMember).not.toHaveBeenCalled()
+    } finally {
+      connection.mockRestore()
+    }
+  })
+
+  it('сбой обновления профиля показывает ошибку и сохраняет снимок', async () => {
+    vi.mocked(fetchMember).mockRejectedValueOnce('сеть недоступна')
+    mockQueries({ at: 1, total: 1, items: [workout('w1', '2026-10-01', [bench(60, 5)])], source: 'cache' }, null)
+    render(<MemberScreen user={viewer} memberId="dima" />)
+    expect(await screen.findByText('Не удалось обновить профиль: сеть недоступна')).toBeInTheDocument()
+    expect(screen.getByText('Дима')).toBeInTheDocument()
+    expect(screen.getByRole('article')).toBeInTheDocument()
+  })
+
   it('показывает статы, рекорды и последние тренировки участника', () => {
     const items = Array.from({ length: 7 }, (_, i) =>
       workout(`w${i}`, new Date(Date.now() - i * 86400000).toISOString(), [bench(80 + i, 5)],

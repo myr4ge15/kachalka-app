@@ -273,6 +273,25 @@ describe('TemplatesScreen — редактор', () => {
     expect(syncNow).not.toHaveBeenCalled()
   })
 
+  it('старый шаблон без позиции сохраняет порядок относительно элементов с явной позицией', async () => {
+    vi.mocked(getTemplate).mockResolvedValueOnce({
+      ...MY_TPL,
+      exercises: [
+        { exercise: PULL, position: 2, sets: 1, reps: 5 },
+        { exercise: BENCH, sets: 1, reps: 5 },
+        { exercise_id: 'old', position: 3, phase: 'warmup', sets: 1, reps: 5 },
+      ],
+    })
+    renderScreen()
+    fireEvent.click(screen.getByText('Грудь').closest('button'))
+    await screen.findByDisplayValue('Грудь')
+    save()
+    await waitFor(() => expect(saveTemplate).toHaveBeenCalled())
+    const { exercises } = vi.mocked(saveTemplate).mock.lastCall[0]
+    expect(exercises.filter((e) => !e.phase).map((e) => e.exercise.id)).toEqual(['bench', 'pull'])
+    expect(exercises.find((e) => e.phase === 'warmup').exercise.id).toBe('old')
+  })
+
   // UI-ревью 23.10: «убрать» стирает построчный план — есть «Отменить», как в тренировке.
   it('«убрать» упражнение — тост «Отменить» возвращает его на место', async () => {
     online = false

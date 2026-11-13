@@ -20,6 +20,22 @@ function fill(pin = '4826', pin2 = pin) {
 }
 
 describe('ResetPinScreen', () => {
+  it('повторяет проверку ссылки после сбоя, а после смены PIN с отказом входа отправляет ко входу', async () => {
+    vi.mocked(auth.checkPinReset).mockRejectedValueOnce(new Error('сеть')).mockResolvedValueOnce('ok')
+    vi.mocked(auth.applyPinReset).mockRejectedValueOnce(new auth.LoginError('reset_login_failed', 'сессия'))
+    const onDone = vi.fn()
+    const onCancel = vi.fn()
+    render(<ResetPinScreen token={T} onDone={onDone} onCancel={onCancel} />)
+    expect(await screen.findByRole('alert')).toHaveTextContent('Не получилось проверить ссылку')
+    fireEvent.click(screen.getByRole('button', { name: 'Еще раз' }))
+    await screen.findByLabelText('Новый PIN — 4 цифры')
+    fill()
+    fireEvent.click(screen.getByRole('button', { name: 'Сохранить PIN и войти' }))
+    await screen.findByRole('button', { name: 'К входу' })
+    expect(onDone).not.toHaveBeenCalled()
+    fireEvent.click(screen.getByRole('button', { name: 'К входу' }))
+    expect(onCancel).toHaveBeenCalledOnce()
+  })
   it('живая ссылка → новый PIN → вход', async () => {
     vi.mocked(auth.checkPinReset).mockResolvedValue('ok')
     const user = { id: 'u7', name: 'Маша', role: 'member' }

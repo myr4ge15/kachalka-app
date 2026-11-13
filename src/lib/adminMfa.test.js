@@ -1,6 +1,7 @@
 import { describe, it, expect, vi } from 'vitest'
 
 vi.mock('../db/supabase.js', () => ({ supabase: { auth: {} } }))
+import { supabase } from '../db/supabase.js'
 import {
   mfaState, needsCode, cleanCode, verifyCode, startEnroll, disableMfa, groupSecret, MfaError,
 } from './adminMfa.js'
@@ -82,5 +83,44 @@ describe('мелочи', () => {
   it('cleanCode и groupSecret', () => {
     expect(cleanCode('12-34 56 7')).toBe('123456')
     expect(groupSecret('ABCDEFGHIJ')).toBe('ABCD EFGH IJ')
+    expect(cleanCode(null)).toBe('')
+    expect(groupSecret(null)).toBe('')
+    expect(needsCode(null)).toBe(false)
+  })
+})
+
+describe('ответы транспорта MFA', () => {
+  it('использует клиент Supabase по умолчанию и читает состояние без факторов', async () => {
+    const auth = fakeAuth()
+    supabase.auth = auth
+    auth.mfa.listFactors.mockResolvedValueOnce(undefined)
+    auth.mfa.getAuthenticatorAssuranceLevel.mockResolvedValueOnce({ data: null })
+    expect(await mfaState()).toEqual({ enabled: false, factorId: null, level: 'aal1', pending: [] })
+    auth.mfa.listFactors.mockResolvedValueOnce({ data: {} })
+    expect(await mfaState()).toMatchObject({ enabled: false, pending: [] })
+    await expect(verifyCode('f1', '123456')).resolves.toBe(true)
+    await expect(startEnroll(undefined)).resolves.toMatchObject({ factorId: 'f-new' })
+    await expect(disableMfa('f1')).resolves.toBe(true)
+    expect(auth.mfa.unenroll).toHaveBeenCalledExactlyOnceWith({ factorId: 'f1' })
+  })
+
+  it('игнорирует отсутствующие записи и факторы других типов', async () => {
+    const auth = fakeAuth({ factors: [null, { id: 'phone', factor_type: 'phone', status: 'verified' }] })
+    expect(await mfaState(auth)).toMatchObject({ enabled: false, factorId: null, pending: [] })
+  })
+
+  it.each([
+    [new Error('fetch timeout'), 'network', 'Нет сети — попробуй позже.'],
+    [{ message: 'Сбой проверки' }, 'server', 'Сбой проверки'],
+    [undefined, 'server', 'Не получилось. Попробуй еще раз.'],
+  ])('преобразует отклоненный запрос %s в ошибку MFA', async (error, code, message) => {
+    const auth = fakeAuth({ verify: () => Promise.reject(error) })
+    await expect(verifyCode('f1', '123456', auth)).rejects.toMatchObject({ code, message })
+  })
+
+  it.each([undefined, {}])('при неполном ответе регистрации %j сохраняет id фактора', async (totp) => {
+    const auth = fakeAuth({ enroll: () => ok({ id: 'f1', totp }) })
+    expect(await startEnroll({}, auth)).toEqual({ factorId: 'f1', qr: null, secret: '' })
+    expect(auth.mfa.unenroll).not.toHaveBeenCalled()
   })
 })

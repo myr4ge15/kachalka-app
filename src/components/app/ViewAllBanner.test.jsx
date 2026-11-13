@@ -1,7 +1,7 @@
 // @vitest-environment jsdom
 // Плашка «Видно всех» (27.10.2026): остаток и «Выключить»; ошибка — тост, кнопка снова доступна.
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
-import { fireEvent, render, screen, waitFor } from '@testing-library/react'
+import { act, fireEvent, render, screen, waitFor } from '@testing-library/react'
 const api = vi.hoisted(() => ({ disable: vi.fn(), toast: vi.fn() }))
 vi.mock('../../db/adminViewAll.js', () => ({ disableViewAll: (...a) => api.disable(...a) }))
 vi.mock('../ui/Toast.jsx', () => ({ showToast: (...a) => api.toast(...a) }))
@@ -26,5 +26,30 @@ describe('ViewAllBanner', () => {
     fireEvent.click(screen.getByRole('button', { name: 'Выключить' }))
     await waitFor(() => expect(api.toast).toHaveBeenCalledWith(expect.objectContaining({ icon: 'alert', sub: 'Нет сети' })))
     expect(screen.getByRole('button', { name: 'Выключить' })).not.toBeDisabled()
+  })
+
+  it('остаток обновляется каждые 30 секунд', () => {
+    vi.useFakeTimers()
+    const deadline = new Date(Date.now() + 60_000).toISOString()
+    const { unmount } = render(<ViewAllBanner userId="me" until={deadline} />)
+    try {
+      expect(screen.getByRole('status')).toHaveTextContent('еще 1 мин')
+      act(() => vi.advanceTimersByTime(60_000))
+      expect(screen.getByRole('status')).not.toHaveTextContent('еще 1 мин')
+    } finally {
+      unmount()
+      vi.useRealTimers()
+    }
+  })
+
+  it('строковый отказ виден даже после ухода с экрана во время запроса', async () => {
+    const request = Promise.withResolvers()
+    api.disable.mockReturnValueOnce(request.promise)
+    const { unmount } = render(<ViewAllBanner userId="me" until={until()} />)
+    fireEvent.click(screen.getByRole('button', { name: 'Выключить' }))
+    expect(screen.getByRole('button', { name: 'Выключаю…' })).toBeDisabled()
+    unmount()
+    await act(() => request.reject('Нет сети'))
+    expect(api.toast).toHaveBeenCalledWith(expect.objectContaining({ icon: 'alert', sub: 'Нет сети' }))
   })
 })

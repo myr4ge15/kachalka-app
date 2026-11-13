@@ -19,7 +19,9 @@ describe('ViewAllSection', () => {
     fireEvent.click(screen.getByRole('button', { name: /На 2 часа/ }))
     await waitFor(() => expect(api.enable).toHaveBeenCalledWith('me', 120))
     expect(api.toast).toHaveBeenCalledWith(expect.objectContaining({ icon: 'eye', title: 'Режим наблюдателя включен' }))
-    fireEvent.click(screen.getByRole('button', { name: /На 30 минут/ }))
+    const short = screen.getByRole('button', { name: /На 30 минут/ })
+    await waitFor(() => expect(short).toBeEnabled())
+    fireEvent.click(short)
     await waitFor(() => expect(api.enable).toHaveBeenCalledWith('me', 30))
   })
 

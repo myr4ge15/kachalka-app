@@ -1,6 +1,6 @@
 // @vitest-environment jsdom
 import { describe, it, expect, vi } from 'vitest'
-import { fireEvent, render, screen, waitFor } from '@testing-library/react'
+import { act, fireEvent, render, screen, waitFor } from '@testing-library/react'
 import PushAskSheet from './PushAskSheet.jsx'
 
 describe('PushAskSheet', () => {
@@ -31,5 +31,22 @@ describe('PushAskSheet', () => {
     fireEvent.click(screen.getByRole('button', { name: 'Не сейчас' }))
     expect(onClose).toHaveBeenCalledWith(false)
     expect(onEnable).not.toHaveBeenCalled()
+  })
+
+  it('запрос блокирует закрытие, а отказ без сообщения допускает повтор', async () => {
+    const request = Promise.withResolvers()
+    const onEnable = vi.fn(() => request.promise)
+    const onClose = vi.fn()
+    render(<PushAskSheet onEnable={onEnable} onClose={onClose} />)
+    const close = screen.getByRole('button', { name: /закрыть/i })
+    fireEvent.click(screen.getByRole('button', { name: 'Включить' }))
+    expect(screen.getByRole('button', { name: 'Включаю…' })).toBeDisabled()
+    expect(screen.getByRole('button', { name: 'Не сейчас' })).toBeDisabled()
+    fireEvent.click(close)
+    expect(onClose).not.toHaveBeenCalled()
+    await act(() => request.reject())
+    expect(screen.getByRole('alert')).toHaveTextContent('Не получилось. Попробуй еще раз.')
+    fireEvent.click(close)
+    expect(onClose).toHaveBeenCalledExactlyOnceWith(false)
   })
 })

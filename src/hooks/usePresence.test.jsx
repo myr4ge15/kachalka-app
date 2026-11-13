@@ -7,6 +7,7 @@ import { renderHook } from '@testing-library/react'
 import { usePresence, usePresenceHeartbeat, useRosterSex } from './usePresence.js'
 import { refreshPresence, touchPresence } from '../db/presence.js'
 import { touchDomainMigration } from '../db/domainMigrationStatus.js'
+import { getUsers } from '../db/repo.js'
 vi.mock('../db/domainMigrationStatus.js', () => ({ touchDomainMigration: vi.fn() }))
 
 // Снимок — один и тот же объект, как у настоящего стора (иначе useSyncExternalStore зациклится).
@@ -21,7 +22,7 @@ vi.mock('../db/presence.js', () => ({
 }))
 vi.mock('../db/repo.js', () => ({ getUsers: vi.fn() }))
 vi.mock('dexie-react-hooks', () => ({
-  useLiveQuery: () => [{ id: 'u1', sex: 'f' }, { id: 'u2', sex: null }, { id: 'u3', sex: 'm' }],
+  useLiveQuery: (query) => query(),
 }))
 
 let hidden = false
@@ -64,7 +65,13 @@ describe('usePresence / useRosterSex', () => {
     expect(refreshPresence).toHaveBeenCalledTimes(2)
   })
   it('пол — только у кого задан', () => {
+    vi.mocked(getUsers).mockReturnValueOnce([{ id: 'u1', sex: 'f' }, { id: 'u2', sex: null }, { id: 'u3', sex: 'm' }])
     const { result } = renderHook(() => useRosterSex())
     expect([...result.current]).toEqual([['u1', 'f'], ['u3', 'm']])
+  })
+
+  it('пока ростер не загружен, сведения о поле отсутствуют', () => {
+    const { result } = renderHook(() => useRosterSex())
+    expect(result.current.size).toBe(0)
   })
 })

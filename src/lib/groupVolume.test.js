@@ -59,4 +59,32 @@ describe('groupVolumeTrend', () => {
     ], NOW)
     expect(rows.map((r) => r.group)).toEqual(['грудь', 'спина'])
   })
+
+  it('учитывает старый формат записи и отбрасывает неполные подходы и даты', () => {
+    const rows = groupVolumeTrend([
+      null,
+      { performed_at: 'invalid', entries: [ex('ноги', S(6))] },
+      wk(1, { muscle_group: 'грудь', sets: [null, { reps: 5 }] }, { sets: S(3) }, ex('ноги'), ex('спина', [{ reps: 0 }])),
+    ], new Date(NOW))
+    expect(rows).toEqual([
+      { group: 'грудь', weeks: [0, 0, 0, 1], recent: 1, prev: 0, perWeek: 0.5, trend: 'new', pct: null },
+    ])
+    expect(groupVolumeTrend(null)).toEqual([])
+  })
+
+  it('при равном свежем объеме учитывает прошлый, затем название группы', () => {
+    const rows = groupVolumeTrend([
+      wk(1, ex('спина', S(1)), ex('ноги', S(1)), ex('грудь', S(1))),
+      wk(20, ex('ноги', S(2)), ex('грудь', S(1)), ex('спина', S(1))),
+    ], NOW)
+    expect(rows.map((r) => r.group)).toEqual(['ноги', 'грудь', 'спина'])
+  })
+
+  it.each([['flat', '≈ ровно'], ['new', 'новое'], ['gone', 'пауза']])('подписывает тренд %s', (trend, label) => {
+    expect(trendLabel({ trend })).toBe(label)
+  })
+
+  it('для отсутствующего тренда подписи нет', () => {
+    expect(trendLabel(null)).toBe('')
+  })
 })

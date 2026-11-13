@@ -24,6 +24,27 @@ beforeEach(() => {
 afterEach(() => vi.clearAllMocks())
 
 describe('usePushToggle — типы', () => {
+  it('пустой ответ настроек и ошибки без сообщения оставляют возможность повторить', async () => {
+    vi.mocked(getPushPrefs).mockRejectedValueOnce(undefined)
+    vi.mocked(setPushPref).mockRejectedValueOnce(undefined)
+    const { result } = renderHook(() => usePushToggle('me'))
+    await waitFor(() => expect(result.current.prefsError).toBe('Не удалось загрузить настройки.'))
+    await act(() => result.current.setType('comment', false))
+    expect(result.current.prefsError).toBe('Не удалось сохранить.')
+    expect(result.current.prefs.comment).toBe(true)
+  })
+
+  it.each([true, false])('ответ настроек старой учетки игнорируется после переключения (успех: %s)', async (success) => {
+    const previous = Promise.withResolvers()
+    vi.mocked(getPushPrefs).mockReturnValueOnce(previous.promise).mockResolvedValueOnce({ comment: false })
+    const { result, rerender } = renderHook(({ id }) => usePushToggle(id), { initialProps: { id: 'old' } })
+    await waitFor(() => expect(getPushPrefs).toHaveBeenCalledWith('old'))
+    rerender({ id: 'new' })
+    await waitFor(() => expect(result.current.prefs).toEqual({ comment: false }))
+    await act(() => success ? previous.resolve({ comment: true }) : previous.reject(new Error('Старая ошибка')))
+    expect(result.current.prefs).toEqual({ comment: false })
+    expect(result.current.prefsError).toBe('')
+  })
   it('пуши включены — настройки по типам загружаются', async () => {
     const { result } = renderHook(() => usePushToggle('me'))
     await waitFor(() => expect(result.current.prefs).toEqual({ reaction: true, comment: true }))

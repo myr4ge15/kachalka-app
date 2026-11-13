@@ -1,7 +1,7 @@
 // @vitest-environment jsdom
 // «Забыл PIN» (П1, v6.18.0): ссылка в Telegram и код восстановления.
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
-import { fireEvent, render, screen } from '@testing-library/react'
+import { act, fireEvent, render, screen } from '@testing-library/react'
 import ForgotPin from './ForgotPin.jsx'
 import * as auth from '../../lib/auth.js'
 
@@ -24,6 +24,19 @@ function fillCode({ login = 'masha', code = 'abcd efgh jkmn pqrs', pin = '4826',
 }
 
 describe('ForgotPin', () => {
+  it('пока отправляется ссылка, повторная отправка ничего не делает; неизвестный сбой виден', async () => {
+    const request = Promise.withResolvers()
+    vi.mocked(auth.requestPinReset).mockReturnValueOnce(request.promise)
+    render(<ForgotPin initialLogin="masha" onBack={vi.fn()} onLogin={vi.fn()} />)
+    const submit = screen.getByRole('button', { name: 'Прислать ссылку в Telegram' })
+    fireEvent.click(submit)
+    expect(submit).toBeDisabled()
+    fireEvent.submit(submit.form)
+    expect(auth.requestPinReset).toHaveBeenCalledOnce()
+    await act(() => request.reject(new Error('internal')))
+    expect(screen.getByRole('alert')).toHaveTextContent(/попробуй/i)
+    expect(submit).toBeEnabled()
+  })
   it('Telegram: без логина — подсказка; лимит — сколько ждать', async () => {
     render(<ForgotPin onBack={vi.fn()} onLogin={vi.fn()} />)
     fireEvent.click(screen.getByRole('button', { name: 'Прислать ссылку в Telegram' }))

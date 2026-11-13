@@ -5,7 +5,7 @@
 // данные: старую базу НЕ удаляем, чистое не тащим, свежее не затираем, повтор — no-op.
 import 'fake-indexeddb/auto'
 import Dexie from 'dexie'
-import { describe, it, expect, beforeEach, afterEach } from 'vitest'
+import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest'
 import * as local from './local.js'
 import { uniqueUserId } from '../test/idbHarness.js'
 
@@ -46,6 +46,39 @@ beforeEach(async () => {
 afterEach(async () => { await closeUserDb() })
 
 describe('перенос со старой общей базы при первом открытии', () => {
+  it('ошибка чтения одной старой таблицы не мешает переносу доступных данных', async () => {
+    const id = uniqueUserId()
+    await seedOld(async (old) => {
+      await old.workouts.put(w('dirty', id, { _dirty: 1, entries: [] }))
+      await old.meta.put({ key: 'goal_' + id, value: ['старое'] })
+    })
+    const read = IDBObjectStore.prototype.getAll
+    const getAll = vi.spyOn(IDBObjectStore.prototype, 'getAll').mockImplementation(function (...args) {
+      if (this.transaction.db.name === 'gym_app' && ['outbox', 'exercises', 'ex_outbox'].includes(this.name)) {
+        throw new DOMException('Недоступно', 'InvalidStateError')
+      }
+      return read.apply(this, args)
+    })
+    const get = IDBObjectStore.prototype.get
+    const readMeta = vi.spyOn(IDBObjectStore.prototype, 'get').mockImplementation(function (key) {
+      if (this.transaction.db.name === 'gym_app' && this.name === 'meta' &&
+        (key === 'priv_' + id || key === 'notif_seen_at_' + id)) {
+        throw new DOMException('Недоступно', 'InvalidStateError')
+      }
+      return get.call(this, key)
+    })
+    try {
+      await openUserDb(id)
+      expect(await local.db.workouts.get('dirty')).toBeDefined()
+      expect(await getMeta('goal_' + id)).toEqual(['старое'])
+      expect(await local.db.outbox.count()).toBe(0)
+      expect(readMeta).toHaveBeenCalledWith('priv_' + id)
+      expect(readMeta).toHaveBeenCalledWith('notif_seen_at_' + id)
+    } finally {
+      readMeta.mockRestore()
+      getAll.mockRestore()
+    }
+  })
   it('старой базы нет — флаг ставится, повторно не проверяется', async () => {
     const id = uniqueUserId()
     await openUserDb(id)
@@ -128,6 +161,57 @@ describe('перенос со старой общей базы при перво
 })
 
 describe('открытие/закрытие персональной базы', () => {
+  it('удаление аккаунта очищает только его базу, ростер, PIN и настройки устройства', async () => {
+    const removed = uniqueUserId()
+    const retained = uniqueUserId()
+    const removedKey = 'gym_app_push_off_' + removed
+    const retainedKey = 'gym_app_push_off_' + retained
+    const store = new Map([[removedKey, '1'], [retainedKey, '1']])
+    vi.stubGlobal('localStorage', {
+      get length() { return store.size },
+      key: (index) => [...store.keys()][index] ?? null,
+      removeItem: (key) => store.delete(key),
+    })
+    try {
+      await openUserDb(retained)
+      await setMeta('note', 'retained')
+      await openUserDb(removed)
+      await setMeta('note', 'removed')
+      await loginDb.users.bulkPut([{ id: removed }, { id: retained }])
+      await local.setLoginMeta('pin_' + removed, 'removed')
+      await local.setLoginMeta('pin_' + retained, 'retained')
+      await local.wipeLocalAccount(removed)
+      expect(local.db).toBeNull()
+      expect(await Dexie.exists('gym_app_' + removed)).toBe(false)
+      expect(await loginDb.users.get(removed)).toBeUndefined()
+      expect(await getLoginMeta('pin_' + removed)).toBeUndefined()
+      expect([...store]).toEqual([[retainedKey, '1']])
+      expect(await loginDb.users.get(retained)).toEqual({ id: retained })
+      expect(await getLoginMeta('pin_' + retained)).toBe('retained')
+      await openUserDb(retained)
+      expect(await getMeta('note')).toBe('retained')
+    } finally {
+      vi.unstubAllGlobals()
+      await closeUserDb()
+      await Dexie.delete('gym_app_' + retained)
+    }
+  })
+
+  it('без id не стирает данные открытой учетки', async () => {
+    const current = await openUserDb(uniqueUserId())
+    await local.wipeLocalAccount(undefined)
+    expect(local.db).toBe(current)
+  })
+
+  it('без randomUUID сохраняет формат UUID v4', () => {
+    vi.stubGlobal('crypto', {})
+    try {
+      expect(local.newId()).toMatch(/^[a-f0-9]{8}-[a-f0-9]{4}-4[a-f0-9]{3}-[89ab][a-f0-9]{3}-[a-f0-9]{12}$/)
+    } finally {
+      vi.unstubAllGlobals()
+    }
+  })
+
   it('та же учетка — тот же экземпляр; другая — переключение; закрытие — db = null', async () => {
     const a = uniqueUserId(); const b = uniqueUserId()
     const d1 = await openUserDb(a)
@@ -159,6 +243,32 @@ describe('открытие/закрытие персональной базы', 
 })
 
 describe('перенос «загрузочной зоны» (ростер + офлайн-PIN)', () => {
+  it('при недоступном старом ростере переносит PIN, а при недоступном PIN переносит ростер', async () => {
+    await seedOld(async (old) => {
+      await old.users.put({ id: 'u1', name: 'Дима' })
+      await old.meta.put({ key: 'pin_u1', value: { pin_hash: 'hash' } })
+    })
+    const original = IDBObjectStore.prototype.getAll
+    let unavailable = 'users'
+    const read = vi.spyOn(IDBObjectStore.prototype, 'getAll').mockImplementation(function (...args) {
+      if (this.transaction.db.name === 'gym_app' && this.name === unavailable) {
+        throw new DOMException('Недоступно', 'InvalidStateError')
+      }
+      return original.apply(this, args)
+    })
+    try {
+      await migrateLoginZone()
+      expect(await loginDb.users.count()).toBe(0)
+      expect(await getLoginMeta('pin_u1')).toEqual({ pin_hash: 'hash' })
+      await loginDb.meta.clear()
+      unavailable = 'meta'
+      await migrateLoginZone()
+      expect(await loginDb.users.get('u1')).toEqual({ id: 'u1', name: 'Дима' })
+      expect(await getLoginMeta('pin_u1')).toBeUndefined()
+    } finally {
+      read.mockRestore()
+    }
+  })
   it('старой базы нет — только флаг', async () => {
     await migrateLoginZone()
     expect(await getLoginMeta('login_zone_migrated')).toBe(true)

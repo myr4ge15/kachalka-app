@@ -5,17 +5,17 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { fireEvent, render, screen, waitFor, within } from '@testing-library/react'
 import FriendsScreen from './FriendsScreen.jsx'
 import { showToast } from '../components/ui/Toast.jsx'
-import { refreshFriends } from '../db/friends.js'
+import { getFriends, refreshFriends } from '../db/friends.js'
 
 const api = vi.hoisted(() => ({}))
 const live = vi.hoisted(() => ({ rows: [] }))
 const sync = vi.hoisted(() => ({ online: true }))
 vi.mock('../lib/friends.js', async (orig) => ({ ...(await orig()), friendsApi: () => api }))
-vi.mock('../db/friends.js', () => ({ getFriends: vi.fn(), refreshFriends: vi.fn(async () => live.rows) }))
+vi.mock('../db/friends.js', () => ({ getFriends: vi.fn(() => live.rows), refreshFriends: vi.fn(async () => live.rows) }))
 vi.mock('../db/sync.js', () => ({ syncNow: vi.fn(), useSyncStatus: () => ({ online: sync.online }) }))
 vi.mock('../db/disciplines.js', () => ({ invalidateRatingCache: vi.fn(async () => {}) }))
 vi.mock('../hooks/usePresence.js', () => ({ usePresence: () => new Map(), useRosterSex: () => new Map() }))
-vi.mock('dexie-react-hooks', () => ({ useLiveQuery: () => live.rows }))
+vi.mock('dexie-react-hooks', () => ({ useLiveQuery: (query) => query() }))
 vi.mock('../components/ui/Toast.jsx', () => ({ showToast: vi.fn() }))
 
 const ME = { id: 'me', name: 'Сега' }
@@ -55,6 +55,7 @@ describe('FriendsScreen — списки', () => {
     renderScreen()
     expect(screen.getByText('Хотят дружить · 1')).toBeInTheDocument()
     expect(screen.getByText('Друзья · 1')).toBeInTheDocument()
+    expect(getFriends).toHaveBeenCalled()
     expect(screen.getByText('Мои заявки')).toBeInTheDocument()
     expect(screen.getByText('ждет ответа')).toBeInTheDocument()
     expect(screen.getByText('Заблокированные')).toBeInTheDocument()
@@ -75,6 +76,22 @@ describe('FriendsScreen — списки', () => {
     live.rows = undefined
     renderScreen()
     expect(screen.getByRole('status')).toHaveTextContent('Загружаю…')
+  })
+
+  it('без снимка и сети не обещает загрузку', () => {
+    setOnline(false)
+    live.rows = null
+    renderScreen()
+    expect(screen.queryByText('Загружаю…')).toBeNull()
+    expect(screen.getByText('Изменить друзей можно только с интернетом.')).toBeInTheDocument()
+  })
+
+  it('при отсутствии снимка ожидает ответ сервера, а при отказе убирает индикатор', async () => {
+    live.rows = null
+    renderScreen()
+    expect(screen.getByRole('status')).toHaveTextContent('Загружаю…')
+    expect(await screen.findByRole('alert')).toHaveTextContent('Не получилось обновить список')
+    expect(screen.queryByText('Загружаю…')).toBeNull()
   })
 
   it('принять и отклонить заявку → fr_respond, затем синк и сброс кэша рейтингов', async () => {
@@ -140,6 +157,14 @@ describe('FriendsScreen — списки', () => {
 })
 
 describe('FriendsScreen — коды дружбы', () => {
+  it('закрытие листа добавления возвращает к списку', async () => {
+    renderScreen()
+    fireEvent.click(screen.getByRole('button', { name: '+ Добавить друга' }))
+    const dialog = await screen.findByRole('dialog', { name: 'Добавить друга' })
+    fireEvent.keyDown(dialog, { key: 'Escape' })
+    expect(screen.queryByRole('dialog')).toBeNull()
+    expect(screen.getByText('Друзья · 1')).toBeInTheDocument()
+  })
   it('«Добавить друга»: мой код крупно, «Новый код» — с подтверждением', async () => {
     renderScreen()
     fireEvent.click(screen.getByRole('button', { name: '+ Добавить друга' }))

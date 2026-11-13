@@ -21,6 +21,16 @@ function setup(prefix = 'SpeechRecognition', fail = false) {
 afterEach(() => { vi.unstubAllGlobals(); vi.useRealTimers() })
 
 describe('voice in ExercisePicker', () => {
+  it('промежуточный результат игнорируется, пустой финальный показывает ошибку', () => {
+    const { onPick } = setup()
+    act(() => rec.onresult({ results: [Object.assign([{ transcript: 'жим' }], { isFinal: false })] }))
+    expect(screen.queryByRole('alert')).toBeNull()
+    expect(rec.abort).not.toHaveBeenCalled()
+    act(() => rec.onresult({ results: [Object.assign([{}, { transcript: '  ' }], { isFinal: true })] }))
+    expect(screen.getByRole('alert')).toBeInTheDocument()
+    expect(rec.abort).toHaveBeenCalledOnce()
+    expect(onPick).not.toHaveBeenCalled()
+  })
   it.each(['SpeechRecognition', 'webkitSpeechRecognition'])('uses %s and requires explicit confirmation', (prefix) => {
     const { onPick } = setup(prefix)
     expect(screen.queryByText(/iOS PWA|Голос может требовать интернет/)).not.toBeInTheDocument()

@@ -1,7 +1,7 @@
 // @vitest-environment jsdom
-import { describe, it, expect } from 'vitest'
+import { describe, it, expect, vi } from 'vitest'
 import { useRef } from 'react'
-import { render, screen, fireEvent, act } from '@testing-library/react'
+import { render, renderHook, screen, fireEvent, act } from '@testing-library/react'
 import { hasMoreBelow, useScrollMore, MORE_THRESHOLD } from './useScrollMore.js'
 
 describe('hasMoreBelow', () => {
@@ -33,6 +33,42 @@ function size(el, { top, client, height }) {
 }
 
 describe('useScrollMore', () => {
+  it('до появления скроллера обе команды безопасны', () => {
+    const { result } = renderHook(() => useScrollMore({ current: null }, 'k'))
+    act(() => {
+      result.current.scrollMore()
+      result.current.scrollToEnd()
+    })
+    expect(result.current.more).toBe(false)
+  })
+
+  it('следит за ростом содержимого и прокручивает без анимации по настройке системы', () => {
+    const observe = vi.fn()
+    const disconnect = vi.fn()
+    let resize
+    vi.stubGlobal('ResizeObserver', class {
+      constructor(callback) { resize = callback }
+      observe = observe
+      disconnect = disconnect
+    })
+    vi.stubGlobal('matchMedia', () => ({ matches: true }))
+    try {
+      const { unmount } = render(<Probe />)
+      const box = screen.getByTestId('box')
+      expect(observe.mock.calls).toEqual([[box], [box.firstElementChild]])
+      size(box, { top: 0, client: 300, height: 900 })
+      act(() => resize())
+      box.scrollTo = vi.fn()
+      fireEvent.click(screen.getByRole('button', { name: 'ещё' }))
+      expect(box.scrollTo).toHaveBeenCalledWith({ top: 198, behavior: 'auto' })
+      fireEvent.click(screen.getByRole('button', { name: 'в конец' }))
+      expect(box.scrollTo).toHaveBeenLastCalledWith({ top: 600, behavior: 'auto' })
+      unmount()
+      expect(disconnect).toHaveBeenCalledOnce()
+    } finally {
+      vi.unstubAllGlobals()
+    }
+  })
   it('кнопка видна, пока есть хвост, и прячется в конце; «ещё» прокручивает вниз', () => {
     const { rerender } = render(<Probe />)
     const box = screen.getByTestId('box')
@@ -57,6 +93,8 @@ describe('useScrollMore', () => {
     expect(screen.getByRole('button', { name: 'ещё' })).toBeTruthy()
     const calls = []
     box.scrollTo = (opts) => calls.push(opts)
+    fireEvent.click(screen.getByRole('button', { name: 'ещё' }))
+    expect(calls.pop()).toEqual({ top: 198, behavior: 'smooth' })
     fireEvent.click(screen.getByRole('button', { name: 'в конец' }))
     expect(calls[0].top).toBe(600)
     // плавная прокрутка в пути: хвост еще есть, но кнопки нет
@@ -69,6 +107,9 @@ describe('useScrollMore', () => {
     size(box, { top: 0, client: 300, height: 900 })
     act(() => { fireEvent.scroll(box) })
     expect(screen.getByRole('button', { name: 'ещё' })).toBeTruthy()
+    box.scrollTo = undefined
+    fireEvent.click(screen.getByRole('button', { name: 'в конец' }))
+    expect(box.scrollTop).toBe(600)
   })
 })
 

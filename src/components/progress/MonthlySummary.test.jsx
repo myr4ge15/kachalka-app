@@ -1,9 +1,13 @@
 // @vitest-environment jsdom
-import { afterEach, describe, expect, it, vi } from 'vitest'
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { cleanup, fireEvent, render, screen } from '@testing-library/react'
 import MonthlySummary from './MonthlySummary.jsx'
 
-afterEach(cleanup)
+beforeEach(() => vi.setSystemTime(new Date(2026, 10, 15, 12)))
+afterEach(() => {
+  cleanup()
+  vi.useRealTimers()
+})
 const month = { year: 2026, month: 9 }
 const w = { id: '1', performed_at: '2026-10-15T12:00:00', entries: [{ exercise: { id: '1', name: 'Жим', metric: 'weight', muscle_group: 'грудь' }, sets: [{ weight: 60, reps: 5 }] }] }
 describe('MonthlySummary', () => {
@@ -34,5 +38,36 @@ describe('MonthlySummary', () => {
     expect(screen.getByText('За этот месяц пока нет тренировок.')).toBeInTheDocument()
     expect(screen.queryByRole('button', { name: 'Тренировки за месяц' })).toBeNull()
     expect(screen.getByRole('alert')).toBeInTheDocument()
+  })
+
+  it('открывает архив, помечает текущий выбор и передает выбранный месяц', () => {
+    const months = Array.from({ length: 10 }, (_, index) => ({ year: 2026, month: 9 - index }))
+    const onMonthChange = vi.fn()
+    render(<MonthlySummary workouts={[w]} month={month} months={months} onMonthChange={onMonthChange} />)
+    const trigger = screen.getByRole('button', { name: 'Выбрать месяц' })
+    fireEvent.click(trigger)
+    expect(screen.getByRole('button', { name: /октябрь 2026/ })).toHaveAttribute('aria-pressed', 'true')
+    fireEvent.click(screen.getByText('2026', { selector: 'summary' }))
+    fireEvent.click(screen.getByRole('button', { name: /март 2026/ }))
+    expect(onMonthChange).toHaveBeenCalledExactlyOnceWith({ year: 2026, month: 2 })
+    expect(trigger).toHaveAttribute('aria-expanded', 'false')
+  })
+
+  it('по умолчанию выбирает предыдущий месяц и скрывает итоги во время загрузки', () => {
+    render(<MonthlySummary workouts={[w]} loading />)
+    expect(screen.getByText(/октябрь 2026/)).toBeInTheDocument()
+    expect(screen.queryByText('Рабочие подходы')).toBeNull()
+  })
+
+  it.each([
+    [1, 2, 'На 1 тренировку меньше, чем в прошлом месяце'],
+    [2, 1, 'На 1 тренировку больше, чем в прошлом месяце'],
+  ])('сравнивает %i тренировок с %i', (current, previous, message) => {
+    const workouts = [
+      ...Array.from({ length: current }, (_, i) => ({ ...w, id: `current-${i}` })),
+      ...Array.from({ length: previous }, (_, i) => ({ ...w, id: `previous-${i}`, performed_at: '2026-09-15T12:00:00' })),
+    ]
+    render(<MonthlySummary workouts={workouts} month={month} celebrate={false} />)
+    expect(screen.getByText(message)).toBeInTheDocument()
   })
 })

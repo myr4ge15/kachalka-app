@@ -37,6 +37,16 @@ const renderGoals = (goals = []) =>
 const lastWrite = () => vi.mocked(writeGoals).mock.calls.at(-1)[1]
 
 describe('GoalsSection', () => {
+  it('без локального списка целей предлагает первую метрику и показывает сбой чтения при сохранении', async () => {
+    const records = [{ exId: 'pull', name: 'Подтягивания', metric: 'reps' }]
+    render(<GoalsSection userId="me" records={records} workouts={[]} />)
+    fireEvent.click(screen.getByRole('button', { name: 'Добавить цель' }))
+    expect(screen.getByDisplayValue('5')).toBeInTheDocument()
+    vi.mocked(readGoals).mockRejectedValueOnce(new Error('База недоступна'))
+    fireEvent.click(screen.getByRole('button', { name: 'Сохранить' }))
+    expect(await screen.findByRole('alert')).toHaveTextContent('Не получилось сохранить цель.')
+    expect(writeGoals).not.toHaveBeenCalled()
+  })
   it('новая цель: первым — жим (🏅), дистанции в списке нет; сохранение пушит синк', async () => {
     renderGoals()
     fireEvent.click(screen.getByRole('button', { name: 'Добавить цель' }))

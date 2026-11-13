@@ -43,6 +43,26 @@ describe('usePushToggle (v6.7.1)', () => {
     expect(result.current.error).toBe('Разрешение не выдано.')
   })
 
+  it('отказ без сообщения откатывает состояние и показывает общий текст', async () => {
+    vi.mocked(enablePush).mockRejectedValueOnce(undefined)
+    const { result } = renderHook(() => usePushToggle('me'))
+    await waitFor(() => expect(result.current.availability).toBe('ok'))
+    await act(() => result.current.toggle(true))
+    expect(result.current.enabled).toBe(false)
+    expect(result.current.error).toBe('Не получилось. Попробуй еще раз.')
+  })
+
+  it('после закрытия экрана отложенный отказ включения не меняет состояние', async () => {
+    const request = Promise.withResolvers()
+    vi.mocked(enablePush).mockReturnValueOnce(request.promise)
+    const { result, unmount } = renderHook(() => usePushToggle('me'))
+    await waitFor(() => expect(result.current.availability).toBe('ok'))
+    act(() => { result.current.toggle(true) })
+    unmount()
+    await act(() => request.reject(new Error('Нет сети')))
+    expect(enablePush).toHaveBeenCalledExactlyOnceWith('me')
+  })
+
   it('выключение не ждет сервер', async () => {
     vi.mocked(getPushState).mockResolvedValue({ availability: 'ok', enabled: true })
     const { result } = renderHook(() => usePushToggle('me'))

@@ -33,6 +33,14 @@ beforeEach(() => { Object.defineProperty(navigator, 'onLine', { value: true, con
 afterEach(() => vi.clearAllMocks())
 
 describe('ProfileHeader — имя', () => {
+  it('отмена изменения имени закрывает редактор без запроса', () => {
+    render(<ProfileHeader user={{ ...USER, name: undefined }} />)
+    fireEvent.click(screen.getByRole('button', { name: 'Изменить имя' }))
+    expect(screen.getByLabelText('Новое имя')).toHaveValue('')
+    fireEvent.click(screen.getByRole('button', { name: 'Отмена' }))
+    expect(screen.queryByLabelText('Новое имя')).toBeNull()
+    expect(setName).not.toHaveBeenCalled()
+  })
   it('новое имя сохраняется: сервер, кэш, наверх, синк', async () => {
     vi.mocked(setName).mockResolvedValue('Серега')
     const onRenamed = vi.fn()
@@ -78,6 +86,16 @@ describe('ProfileHeader — имя', () => {
 })
 
 describe('ProfileHeader — аватар', () => {
+  it('кнопка открывает выбор файла, отмена выбора не начинает обрезку', () => {
+    const { container } = render(<ProfileHeader user={USER} />)
+    const input = fileInput(container)
+    const click = vi.spyOn(input, 'click')
+    fireEvent.click(screen.getByRole('button', { name: 'Сменить аватар' }))
+    expect(click).toHaveBeenCalledOnce()
+    fireEvent.change(input, { target: { files: [] } })
+    expect(toDecodableFile).not.toHaveBeenCalled()
+    expect(screen.queryByRole('dialog')).toBeNull()
+  })
   it('офлайн — «Нужна сеть», фото не открываем', () => {
     Object.defineProperty(navigator, 'onLine', { value: false, configurable: true })
     const { container } = render(<ProfileHeader user={USER} />)

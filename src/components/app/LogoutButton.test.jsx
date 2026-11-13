@@ -24,11 +24,35 @@ describe('LogoutButton', () => {
 
   it('сорвавшийся выход возвращает кнопку в рабочее состояние', async () => {
     const onLogout = vi.fn(() => Promise.reject(new Error('сеть')))
-    vi.spyOn(console, 'warn').mockImplementation(() => {})
-    render(<LogoutButton onLogout={onLogout} />)
-    await act(async () => {
-      fireEvent.click(screen.getByRole('button', { name: 'Выйти' }))
+    const warn = vi.spyOn(console, 'warn').mockImplementation(() => {})
+    try {
+      render(<LogoutButton onLogout={onLogout} />)
+      await act(async () => {
+        fireEvent.click(screen.getByRole('button', { name: 'Выйти' }))
+      })
+      expect(screen.getByRole('button', { name: 'Выйти' })).toBeEnabled()
+    } finally {
+      warn.mockRestore()
+    }
+  })
+
+  it('защищает от повторного вызова до перерисовки и допускает уход до завершения', async () => {
+    const request = Promise.withResolvers()
+    const onLogout = vi.fn(() => request.promise)
+    const { unmount } = render(<LogoutButton onLogout={onLogout} />)
+    const button = screen.getByRole('button', { name: 'Выйти' })
+    act(() => {
+      fireEvent.click(button)
+      fireEvent.click(button)
     })
+    expect(onLogout).toHaveBeenCalledTimes(1)
+    unmount()
+    await act(() => request.resolve())
+  })
+
+  it('без обработчика кнопка возвращается в исходное состояние', async () => {
+    render(<LogoutButton />)
+    await act(() => { fireEvent.click(screen.getByRole('button', { name: 'Выйти' })) })
     expect(screen.getByRole('button', { name: 'Выйти' })).toBeEnabled()
   })
 })

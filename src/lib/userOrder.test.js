@@ -41,6 +41,17 @@ describe('sortUsersByOrder', () => {
 })
 
 describe('compareUserOrder', () => {
+  it('при одинаковом порядке сравнивает id, включая порядок в строковом формате', () => {
+    expect(compareUserOrder({ id: 'a', sort_order: '2' }, { id: 'b', sort_order: 2 })).toBeLessThan(0)
+  })
+
+  it('отсутствующая запись сравнивается как запись без порядка и id', () => {
+    const unordered = { id: 'a', sort_order: null }
+    expect(compareUserOrder(null, unordered)).toBeLessThan(0)
+    expect(compareUserOrder(unordered, undefined)).toBeGreaterThan(0)
+    expect(compareUserOrder({}, {})).toBe(0)
+  })
+
   it('NaN sort_order трактуется как отсутствие порядка (в конец)', () => {
     const a = { id: 'a', sort_order: 'foo' }
     const b = { id: 'b', sort_order: 1 }

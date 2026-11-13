@@ -26,6 +26,16 @@ const renderSocial = (props = {}) =>
   render(<WorkoutSocial workout={workout(COMMENTS)} me={me} isMe={false} onReact={vi.fn()} {...props} />)
 
 describe('WorkoutSocial — строка комментариев', () => {
+  it('ветка показывает автора, объем и упражнения с отметкой рекорда', () => {
+    renderSocial({ openThread: true, workout: {
+      ...workout(COMMENTS), user_name: 'Олег', tonnage: 500, exCount: 2, setCount: 4,
+      entries: [{ name: 'Жим' }, { name: 'Тяга' }], prs: [{ name: 'Жим' }],
+    } })
+    const sheet = screen.getByRole('dialog', { name: 'Комментарии' })
+    expect(within(sheet).getByText('Олег')).toBeInTheDocument()
+    expect(within(sheet).getByText('500')).toBeInTheDocument()
+    expect(within(sheet).getByText('Тяга', { exact: false })).toBeInTheDocument()
+  })
   it('в карточке — только строка: счетчик и аватарки, текстов комментариев нет', () => {
     const { container } = renderSocial()
     expect(screen.getByRole('button', { name: '4 комментария' })).toBeInTheDocument()

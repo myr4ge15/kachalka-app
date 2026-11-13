@@ -30,8 +30,19 @@ describe('AvatarZoom', () => {
   it('Escape — закрыть', () => {
     render(<AvatarZoom name="Маша" url="https://x/a.jpg" />)
     open()
+    fireEvent.keyDown(document, { key: 'Tab' })
+    expect(screen.getByRole('dialog')).toBeInTheDocument()
     fireEvent.keyDown(document, { key: 'Escape' })
     expect(screen.queryByRole('dialog')).toBeNull()
+  })
+  it('анонимное фото открывается с общей подписью и освобождает прокрутку при уходе', () => {
+    const { unmount } = render(<AvatarZoom url="https://x/a.jpg" />)
+    const button = screen.getByRole('button', { name: 'Аватар — открыть крупно' })
+    button.focus()
+    fireEvent.click(button)
+    expect(screen.getByRole('dialog', { name: 'Аватар' })).toBeInTheDocument()
+    unmount()
+    expect(document.documentElement.dataset.sheetOpen).toBeUndefined()
   })
   it('новые аватары грузятся в 512 px — чтобы крупно было не мыльно', () => {
     expect(AVATAR_UPLOAD_PX).toBe(512)

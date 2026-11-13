@@ -41,4 +41,43 @@ describe('SyncTools — бейдж синка объясняет себя (fb_db
     toast.onAction()
     expect(onOpenProfile).toHaveBeenCalled()
   })
+
+  it('офлайн показывает число правок и объясняет, когда они отправятся', () => {
+    status.value = { ...base, online: false, pending: 3 }
+    render(<SyncTools unread={0} userId="me" />)
+    fireEvent.click(screen.getByRole('button', { name: /Офлайн · 3 в очереди/ }))
+    expect(showToast).toHaveBeenCalledWith(expect.objectContaining({
+      title: 'Нет сети', sub: expect.stringContaining('Изменений в очереди: 3'),
+    }))
+    expect(vi.mocked(showToast).mock.lastCall[0].onAction).toBeUndefined()
+    expect(syncNow).not.toHaveBeenCalled()
+  })
+
+  it('пока очередь отправляется, статус виден, но пояснение еще не требуется', () => {
+    status.value = { ...base, syncing: true, pending: 3 }
+    render(<SyncTools unread={0} userId="me" />)
+    fireEvent.click(screen.getByRole('button', { name: /Синхронизация/ }))
+    expect(showToast).not.toHaveBeenCalled()
+  })
+
+  it.each([
+    [{ pending: 3 }, 'Ждут отправки: 3'],
+    [{ dead: 2 }, 'Не отправилось: 2'],
+  ])('показывает пояснение без недоступного действия (%j)', (state, title) => {
+    status.value = { ...base, ...state }
+    render(<SyncTools unread={0} />)
+    fireEvent.click(screen.getByRole('button', { name: /Что не так/ }))
+    expect(showToast).toHaveBeenCalledWith(expect.objectContaining({ title }))
+    expect(vi.mocked(showToast).mock.lastCall[0].onAction).toBeUndefined()
+  })
+
+  it.each([[3, '3'], [12, '9+']])('в кнопке уведомлений %i новых отображаются как %s', (unread, label) => {
+    status.value = base
+    const onOpenNotif = vi.fn()
+    render(<SyncTools unread={unread} onOpenNotif={onOpenNotif} />)
+    const button = screen.getByRole('button', { name: `Уведомления: ${unread} новых` })
+    expect(button).toHaveTextContent(label)
+    fireEvent.click(button)
+    expect(onOpenNotif).toHaveBeenCalledTimes(1)
+  })
 })

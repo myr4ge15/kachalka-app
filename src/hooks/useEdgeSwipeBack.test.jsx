@@ -5,14 +5,14 @@ import { render, fireEvent } from '@testing-library/react'
 import { useRef } from 'react'
 import { useEdgeSwipeBack } from './useEdgeSwipeBack.js'
 
-function Harness({ onBack, enabled = true, previewParent = true }) {
+function Harness({ onBack, enabled = true, previewParent = true, underlay = true }) {
   const box = useRef(null)
   const screen = useRef(null)
   useEdgeSwipeBack(box, screen, onBack, enabled, previewParent)
   return (
     <main data-testid="box" ref={box}>
       <div className="nav-stack" data-testid="stack">
-        <div className="nav-layer nav-underlay" data-scroll-top="80" inert aria-hidden="true">предыдущий экран</div>
+        {underlay && <div className="nav-layer nav-underlay" data-scroll-top="80" inert aria-hidden="true">предыдущий экран</div>}
         <div className="nav-layer nav-current" data-testid="screen" ref={screen}>экран <input data-testid="field" /></div>
       </div>
     </main>
@@ -31,6 +31,17 @@ beforeEach(() => vi.useFakeTimers())
 afterEach(() => vi.useRealTimers())
 
 describe('useEdgeSwipeBack', () => {
+  it('незаконченный жест сбрасывается при новом касании', () => {
+    const onBack = vi.fn()
+    const { getByTestId } = render(<Harness onBack={onBack} />)
+    const box = getByTestId('box')
+    Object.defineProperty(box, 'clientWidth', { value: 390 })
+    fireEvent.touchStart(box, pt(10))
+    fireEvent.touchMove(box, pt(100))
+    fireEvent.touchStart(box, pt(20))
+    fireEvent.touchEnd(box, { touches: [] })
+    expect(onBack).not.toHaveBeenCalled()
+  })
   it('возвращает в портал без показа подложки маршрута', () => {
     const onBack = vi.fn()
     const { getByTestId } = render(<Harness onBack={onBack} previewParent={false} />)

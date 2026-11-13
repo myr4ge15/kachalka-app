@@ -11,7 +11,7 @@ vi.mock('../db/disciplines.js',()=>({
 vi.mock('../db/circles.js',()=>({ getMyCircles:()=>data.circles, refreshMyCircles:vi.fn() }))
 vi.mock('../db/repo.js',()=>({ getCachedUser:()=>({sex:data.sex}), getUsers:()=>[] }))
 import DisciplineLeaderboard from './DisciplineLeaderboard.jsx'
-import { fetchRatingBoard } from '../db/disciplines.js'
+import { fetchRatingBoard, fetchRatingCatalog } from '../db/disciplines.js'
 const weight={id:'w',name:'Жим',metric:'weight',split_by_sex:true}
 const time={id:'t',name:'Планка',metric:'time',split_by_sex:false}
 beforeEach(()=>{
@@ -25,6 +25,21 @@ beforeEach(()=>{
   ]
 })
 describe('дисциплины в Ленте',()=>{
+  it('при сбое обновления оставляет сохраненные дисциплины и пустую доску с подсказкой', async () => {
+    data.rows = []
+    vi.mocked(fetchRatingBoard).mockRejectedValueOnce(new Error('сеть'))
+    vi.mocked(fetchRatingCatalog).mockRejectedValueOnce(new Error('сеть'))
+    render(<DisciplineLeaderboard user={{ id: 'woman' }} />)
+    expect(await screen.findByText(/Не удалось обновить дисциплины/)).toHaveTextContent('Показан сохраненный список')
+    expect(await screen.findByText(/Не удалось обновить рейтинг/)).toHaveTextContent('Показаны сохраненные результаты')
+    expect(screen.getByText(/Пока нет результатов/)).toBeInTheDocument()
+  })
+
+  it('без локального каталога объясняет, что рейтинг еще не загружен', () => {
+    data.circleCatalog = null
+    render(<DisciplineLeaderboard user={{ id: 'woman' }} />)
+    expect(screen.getByText(/Рейтинг круга еще не загружен/)).toBeInTheDocument()
+  })
   it('выбирает женскую группу и переключает группы/метрики без килограммов у времени',async()=>{
     const user=userEvent.setup();const open=vi.fn()
     render(<DisciplineLeaderboard user={{id:'woman'}} onOpenMember={open} />)

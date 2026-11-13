@@ -30,6 +30,19 @@ const actions = (fns = {}) => [
 ]
 
 describe('CommentMenu', () => {
+  it('стрелки пропускают выключенный пункт, Tab закрывает меню', () => {
+    const { el } = makeAnchor({ top: 100, left: 48 })
+    const onClose = vi.fn()
+    render(<CommentMenu anchor={el} actions={actions()} onClose={onClose} />)
+    const reply = screen.getByRole('menuitem', { name: 'Ответить' })
+    const remove = screen.getByRole('menuitem', { name: 'Удалить' })
+    fireEvent.keyDown(reply, { key: 'ArrowDown' })
+    expect(remove).toHaveFocus()
+    fireEvent.keyDown(remove, { key: 'ArrowUp' })
+    expect(reply).toHaveFocus()
+    fireEvent.keyDown(reply, { key: 'Tab' })
+    expect(onClose).toHaveBeenCalledOnce()
+  })
   it('в листе: копия пузыря на его месте (слева), меню с пунктами, первый в фокусе', () => {
     const { sheet, el } = makeAnchor({ top: 100, left: 48 })
     const reply = vi.fn()

@@ -4,6 +4,7 @@ import { renderHook } from '@testing-library/react'
 import { useLiveQuery } from 'dexie-react-hooks'
 import { useAccentSync } from './useAccentSync.js'
 import { ACCENT_KEY } from '../lib/accent.js'
+import { getAccentPref } from '../db/repo.js'
 
 vi.mock('dexie-react-hooks', () => ({ useLiveQuery: vi.fn() }))
 vi.mock('../db/repo.js', () => ({ getAccentPref: vi.fn() }))
@@ -15,6 +16,23 @@ const mem = (init) => {
 const stored = (s) => JSON.parse(s.m.get(ACCENT_KEY))
 
 describe('useAccentSync (v6.2.4: только свой выбор)', () => {
+  it('читает акцент только после выбора учетки и применяет его к корню документа', () => {
+    vi.mocked(useLiveQuery).mockImplementation((query) => query())
+    vi.mocked(getAccentPref).mockReturnValue({ id: 'peach', by: 'u1' })
+    const root = document.documentElement
+    const accent = root.getAttribute('data-accent')
+    try {
+      const storage = mem()
+      const { rerender } = renderHook(({ id }) => useAccentSync(id, { storage }), { initialProps: { id: null } })
+      expect(getAccentPref).not.toHaveBeenCalled()
+      rerender({ id: 'u1' })
+      expect(getAccentPref).toHaveBeenCalledWith('u1')
+      expect(root.dataset.accent).toBe('peach')
+    } finally {
+      if (accent === null) root.removeAttribute('data-accent')
+      else root.setAttribute('data-accent', accent)
+    }
+  })
   it('свое значение из учетки применяется и запоминается с владельцем', () => {
     vi.mocked(useLiveQuery).mockReturnValue({ id: 'peach', hue: 200, by: 'u1' })
     const storage = mem()

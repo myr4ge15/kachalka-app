@@ -20,10 +20,25 @@ describe('WhatsNewScreen (v6.4.0)', () => {
     expect(screen.queryByText('Ночной фон')).toBeNull()
     fireEvent.click(screen.getByRole('button', { name: /6\.3\.4/ }))
     expect(screen.getByText('Ночной фон')).toBeInTheDocument()
+    fireEvent.click(screen.getByRole('button', { name: /6\.3\.4/ }))
+    expect(screen.queryByText('Ночной фон')).toBeNull()
   })
 
   it('открытие гасит метку «новое» в Настройках', () => {
     render(<WhatsNewScreen onBack={() => {}} entries={entries} />)
     expect(localStorage.getItem(OPENED_KEY)).toBe('6.4.0')
+  })
+
+  it('пустая история не перезаписывает отметку прочтения', () => {
+    localStorage.setItem(OPENED_KEY, '6.3.4')
+    render(<WhatsNewScreen entries={[]} />)
+    expect(screen.getByRole('heading', { name: 'Обновления' })).toBeInTheDocument()
+    expect(localStorage.getItem(OPENED_KEY)).toBe('6.3.4')
+  })
+
+  it('свернутая запись без заголовка показывает первое изменение', () => {
+    render(<WhatsNewScreen entries={[entries[0], { ...entries[1], headline: undefined }]} />)
+    expect(screen.getByText(/Ночной фон/)).toBeInTheDocument()
+    expect(screen.getByRole('button', { name: /6\.3\.4/ })).toHaveAttribute('aria-expanded', 'false')
   })
 })

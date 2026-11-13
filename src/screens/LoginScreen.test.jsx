@@ -3,7 +3,7 @@
 // «Забыть на этом устройстве», статус заявки «Запросить доступ». Список участников
 // экран больше не запрашивает (кто случайно открыл ссылку, круг не видит).
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
-import { fireEvent, render, screen, waitFor } from '@testing-library/react'
+import { act, fireEvent, render, screen, waitFor } from '@testing-library/react'
 import LoginScreen from './LoginScreen.jsx'
 import * as auth from '../lib/auth.js'
 import * as join from '../lib/joinRequest.js'
@@ -43,6 +43,15 @@ afterEach(() => vi.clearAllMocks())
 const typePin = (digits) => { for (const d of digits) fireEvent.click(screen.getByRole('button', { name: d })) }
 
 describe('LoginScreen', () => {
+  it('стертая цифра не попадает в отправленный PIN', async () => {
+    vi.mocked(auth.login).mockResolvedValueOnce(DIMA)
+    render(<LoginScreen onLogin={vi.fn()} />)
+    fireEvent.click(await screen.findByText('Дима'))
+    typePin('123')
+    fireEvent.click(screen.getByRole('button', { name: 'Стереть' }))
+    typePin('45')
+    await waitFor(() => expect(auth.login).toHaveBeenCalledWith('u1', '1245', expect.objectContaining({ timeoutMs: expect.any(Number) })))
+  })
   it('пикер показывает только учетки устройства', async () => {
     render(<LoginScreen onLogin={() => {}} />)
     expect(await screen.findByText('Дима')).toBeInTheDocument()
@@ -133,6 +142,43 @@ describe('LoginScreen', () => {
     expect(screen.getByLabelText('PIN')).toHaveValue('')
   })
 
+  it.each([
+    ['   ', '1234', 'Напиши логин.'],
+    ['Дима', '123', 'PIN — 4 цифры.'],
+  ])('вход с логином %j и PIN %j: ошибка %s без запроса', async (login, pin, message) => {
+    vi.mocked(auth.knownAccounts).mockResolvedValue([])
+    const onLogin = vi.fn()
+    render(<LoginScreen onLogin={onLogin} />)
+    fireEvent.change(await screen.findByLabelText('Логин'), { target: { value: login } })
+    fireEvent.change(screen.getByLabelText('PIN'), { target: { value: pin } })
+    fireEvent.click(screen.getByRole('button', { name: 'Войти' }))
+    expect(screen.getByRole('alert')).toHaveTextContent(message)
+    expect(auth.loginByName).not.toHaveBeenCalled()
+    expect(onLogin).not.toHaveBeenCalled()
+  })
+
+  it('вход по логину: повторная отправка до ответа не запускает второй запрос', async () => {
+    vi.mocked(auth.knownAccounts).mockResolvedValue([])
+    const request = Promise.withResolvers()
+    vi.mocked(auth.loginByName).mockReturnValueOnce(request.promise)
+    const onLogin = vi.fn()
+    render(<LoginScreen onLogin={onLogin} />)
+    const login = await screen.findByLabelText('Логин')
+    const pin = screen.getByLabelText('PIN')
+    fireEvent.change(login, { target: { value: 'дима' } })
+    fireEvent.change(pin, { target: { value: '1234' } })
+    fireEvent.click(screen.getByRole('button', { name: 'Войти' }))
+    const submit = screen.getByRole('button', { name: 'Входим…' })
+    expect(submit).toBeDisabled()
+    expect(login).toBeDisabled()
+    expect(pin).toBeDisabled()
+    fireEvent.submit(submit.form)
+    expect(auth.loginByName).toHaveBeenCalledTimes(1)
+    expect(onLogin).not.toHaveBeenCalled()
+    await act(() => request.resolve(DIMA))
+    expect(onLogin).toHaveBeenCalledExactlyOnceWith(DIMA)
+  })
+
   it('вход по имени офлайн — сразу понятный отказ, без запроса', async () => {
     Object.defineProperty(navigator, 'onLine', { value: false, configurable: true })
     vi.mocked(auth.knownAccounts).mockResolvedValue([])
@@ -183,6 +229,16 @@ describe('LoginScreen', () => {
     render(<LoginScreen onLogin={() => {}} />)
     expect(await screen.findByText(/не принял заявку/)).toBeInTheDocument()
     expect(join.clearPending).toHaveBeenCalled()
+  })
+
+  it('недействительную заявку убирает без приглашения', async () => {
+    vi.mocked(join.loadPending).mockReturnValue({ id: 'r1', secret: 's', name: 'Вася' })
+    vi.mocked(join.pollJoin).mockResolvedValue({ status: 'invalid' })
+    const onInvite = vi.fn()
+    render(<LoginScreen onLogin={vi.fn()} onInvite={onInvite} />)
+    await waitFor(() => expect(join.clearPending).toHaveBeenCalled())
+    expect(screen.getByRole('button', { name: 'Запросить доступ' })).toBeInTheDocument()
+    expect(onInvite).not.toHaveBeenCalled()
   })
 
   it('заявка ждет — экран переспрашивает сам и открывает регистрацию без «Проверить»', async () => {

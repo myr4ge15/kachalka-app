@@ -4,7 +4,7 @@
 // adminSetSex(id, edSex || null), и если серверный admin_list_users отдавал список
 // без колонки sex, любая правка имени физически стирала пол в БД.
 import { beforeEach, describe, expect, it, vi } from 'vitest'
-import { render, screen, waitFor } from '@testing-library/react'
+import { fireEvent, render, screen, waitFor } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import AdminScreen from './AdminScreen.jsx'
 import { mfaState, verifyCode } from '../lib/adminMfa.js'
@@ -70,6 +70,21 @@ beforeEach(() => {
 })
 
 describe('AdminScreen: правка участника', () => {
+  it('сбой проверки 2FA скрывает разделы, повтор открывает настройки защиты и наблюдателя', async () => {
+    vi.mocked(mfaState).mockRejectedValueOnce(new Error('сеть'))
+    render(<AdminScreen user={ME} onBack={vi.fn()} />)
+    expect(await screen.findByRole('alert')).toHaveTextContent('Не получилось проверить защиту')
+    expect(screen.queryByRole('button', { name: 'Защита (2FA)' })).toBeNull()
+    fireEvent.click(screen.getByRole('button', { name: 'Повторить' }))
+    fireEvent.click(await screen.findByRole('button', { name: 'Защита (2FA)' }))
+    expect(screen.getByRole('heading', { name: 'Защита (2FA)' })).toBeInTheDocument()
+    fireEvent.click(screen.getByRole('button', { name: 'Назад в Админку' }))
+    fireEvent.click(screen.getByRole('button', { name: 'Режим наблюдателя' }))
+    expect(screen.getByRole('button', { name: /На 30 минут/ })).toBeInTheDocument()
+    fireEvent.click(screen.getByRole('button', { name: 'Назад в Админку' }))
+    fireEvent.click(screen.getByRole('button', { name: 'Дисциплины рейтинга' }))
+    expect(screen.getByRole('heading', { name: 'Дисциплины рейтинга' })).toBeInTheDocument()
+  })
   it('«Сохранить» без изменений не зовет ни один RPC', async () => {
     const user = userEvent.setup()
     const save = await openDimaEdit(user)

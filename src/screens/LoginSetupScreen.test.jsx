@@ -1,7 +1,7 @@
 // @vitest-environment jsdom
 // «Придумай логин» (П4 «Мой круг», 07.10.2026): обязательный шаг для учеток без логина.
 import { beforeEach, describe, expect, it, vi } from 'vitest'
-import { render, screen, fireEvent, waitFor, renderHook } from '@testing-library/react'
+import { act, render, screen, fireEvent, waitFor, renderHook } from '@testing-library/react'
 import LoginSetupScreen from './LoginSetupScreen.jsx'
 import { useLoginSetup } from '../hooks/useLoginSetup.js'
 import { setMyLogin, getMyLogin, LoginError } from '../lib/auth.js'
@@ -57,6 +57,41 @@ describe('LoginSetupScreen', () => {
     render(<LoginSetupScreen user={SEGA} onDone={vi.fn()} onLogout={onLogout} />)
     fireEvent.click(screen.getByRole('button', { name: 'Это не я — выйти' }))
     expect(onLogout).toHaveBeenCalled()
+  })
+
+  it('пока идет сохранение, повторная отправка не создает второй запрос', async () => {
+    const request = Promise.withResolvers()
+    vi.mocked(setMyLogin).mockReturnValueOnce(request.promise)
+    render(<LoginSetupScreen user={SEGA} onLogout={vi.fn()} />)
+    fireEvent.change(screen.getByLabelText('Логин (для входа)'), { target: { value: 'sega' } })
+    fireEvent.click(screen.getByRole('button', { name: 'Сохранить' }))
+    const submit = screen.getByRole('button', { name: 'Сохраняю…' })
+    expect(submit).toBeDisabled()
+    expect(screen.getByRole('button', { name: 'Это не я — выйти' })).toBeDisabled()
+    fireEvent.submit(submit.form)
+    await act(() => request.resolve('sega'))
+    expect(setMyLogin).toHaveBeenCalledExactlyOnceWith('u1', 'sega')
+  })
+
+  it('неизвестный сбой показывает сообщение и разрешает повторить', async () => {
+    vi.mocked(setMyLogin).mockRejectedValueOnce(new Error('internal'))
+    render(<LoginSetupScreen user={SEGA} />)
+    fireEvent.change(screen.getByLabelText('Логин (для входа)'), { target: { value: 'sega' } })
+    fireEvent.click(screen.getByRole('button', { name: 'Сохранить' }))
+    expect(await screen.findByRole('alert')).toHaveTextContent('Не получилось сохранить')
+    expect(screen.getByRole('button', { name: 'Сохранить' })).toBeEnabled()
+  })
+
+  it('отказ после ухода с экрана не завершает настройку', async () => {
+    const request = Promise.withResolvers()
+    vi.mocked(setMyLogin).mockReturnValueOnce(request.promise)
+    const onDone = vi.fn()
+    const { unmount } = render(<LoginSetupScreen user={SEGA} onDone={onDone} />)
+    fireEvent.change(screen.getByLabelText('Логин (для входа)'), { target: { value: 'sega' } })
+    fireEvent.click(screen.getByRole('button', { name: 'Сохранить' }))
+    unmount()
+    await act(() => request.reject(new Error('internal')))
+    expect(onDone).not.toHaveBeenCalled()
   })
 })
 

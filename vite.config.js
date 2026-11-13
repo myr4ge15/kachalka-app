@@ -75,9 +75,15 @@ const betaHtml = (on) => ({
 // include — только у проектов, не у корня: с `extends: true` списки include складываются, и корневой
 // 'src/**' затягивал в lib-pure весь набор (без изоляции и почти дважды, 26.10.2026).
 const ALL_TESTS = ['src/**/*.test.{js,jsx}']
+const VERSION_FALLBACK_TEST = 'src/lib/appVersion.fallback.test.js'
 const testProjects = (pure) => [
-  { extends: true, test: { name: 'lib-pure', include: pure, isolate: false } },
-  { extends: true, test: { name: 'isolated', include: ALL_TESTS, exclude: pure } },
+  { extends: true, test: { name: 'lib-pure', include: pure.filter((file) => file !== VERSION_FALLBACK_TEST), isolate: false } },
+  { extends: true, test: { name: 'isolated', include: ALL_TESTS, exclude: [...pure, VERSION_FALLBACK_TEST] } },
+  {
+    extends: true,
+    define: { __APP_VERSION__: 'undefined' },
+    test: { name: 'version-fallback', include: [VERSION_FALLBACK_TEST] },
+  },
 ]
 
 // VITE_APP_BASE=/ for the custom domain; keep the existing Pages path by default.

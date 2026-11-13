@@ -30,6 +30,24 @@ afterEach(async () => {
 })
 
 describe('readGoals / writeGoals', () => {
+  it('цель на повторы достигается при переходе через порог, удаленная цель не восстанавливается', async () => {
+    const pullup = { id: 'pullup', name: 'Подтягивания', metric: 'reps', muscle_group: 'спина' }
+    const save = (performed_at, reps) => saveWorkout({
+      user_id: userId, performed_at, entries: [entry(pullup, [{ weight: 0, reps }])],
+    })
+    await writeGoals(userId, [
+      { exerciseId: pullup.id, metric: 'reps', targetWeight: 10 },
+      { exerciseId: 'old', metric: 'time', targetWeight: 60, _deleted: true },
+    ])
+    await save('2026-01-01', 8)
+    const id = await save('2026-02-01', 10)
+    expect(await detectGoalReachedOnSave(userId, id)).toEqual([
+      expect.objectContaining({ exerciseId: pullup.id, metric: 'reps', value: 10 }),
+    ])
+    expect(await readGoals(userId)).toEqual(expect.arrayContaining([
+      expect.objectContaining({ exerciseId: pullup.id, achievedAt: expect.any(String) }),
+    ]))
+  })
   it('нет цели → пустой массив', async () => {
     expect(await readGoals(userId)).toEqual([])
   })

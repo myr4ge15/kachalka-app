@@ -1,4 +1,4 @@
-import { describe, expect, it } from 'vitest'
+import { describe, expect, it, vi } from 'vitest'
 import { centerTop, scrollToTop, settleScroll } from './scrollBox.js'
 
 function fakeRaf() {
@@ -28,6 +28,37 @@ describe('settleScroll', () => {
     expect(box.scrollTop).toBe(120)
     raf.flush()
     expect(box.scrollTop).toBe(120)
+  })
+
+  it('после завершения отмена не сбрасывает новую позицию пользователя', () => {
+    const box = { style: { overflowY: '' }, scrollTop: 300 }
+    const raf = fakeRaf()
+    const cancel = settleScroll(box, 120, raf)
+    raf.flush()
+    box.scrollTop = 200
+    cancel()
+    expect(box.scrollTop).toBe(200)
+  })
+
+  it.each([true, false])('отменяет кадр и возвращает прокрутку (браузерный RAF: %s)', (native) => {
+    const raf = fakeRaf()
+    vi.useFakeTimers()
+    vi.stubGlobal('requestAnimationFrame', native ? raf.request : undefined)
+    vi.stubGlobal('cancelAnimationFrame', native ? raf.cancel : undefined)
+    try {
+      const box = { style: { overflowY: '' }, scrollTop: 300 }
+      const cancel = settleScroll(box)
+      cancel()
+      expect(box.style.overflowY).toBe('')
+      expect(box.scrollTop).toBe(0)
+      box.scrollTop = 100
+      raf.flush()
+      vi.runAllTimers()
+      expect(box.scrollTop).toBe(100)
+    } finally {
+      vi.unstubAllGlobals()
+      vi.useRealTimers()
+    }
   })
 
   it('нет скроллера или мусор в позиции — без падений, позиция 0', () => {
@@ -93,6 +124,31 @@ describe('scrollToTop', () => {
     box.fire('touchstart')
     timers.run(900)
     expect(box.scrollTop).toBe(800)
+  })
+
+  it('отмена между проверкой и кадром возвращает прокрутку и снимает обработчики', () => {
+    const box = fakeBox(800); const timers = fakeTimers(); const raf = fakeRaf()
+    const cancel = scrollToTop(box, { timers, raf })
+    timers.run(150)
+    expect(box.style.overflowY).toBe('hidden')
+    cancel()
+    expect(box.style.overflowY).toBe('')
+    expect(timers.size()).toBe(0)
+    expect(box.ls).toEqual({})
+  })
+
+  it('скроллер без DOM-событий поддерживает отмену с таймерами по умолчанию', () => {
+    vi.useFakeTimers()
+    try {
+      const box = { scrollTop: 100, scrollTo: vi.fn() }
+      const cancel = scrollToTop(box)
+      expect(box.scrollTo).toHaveBeenCalledExactlyOnceWith({ top: 0, behavior: 'smooth' })
+      cancel()
+      vi.runAllTimers()
+      expect(box.scrollTop).toBe(100)
+    } finally {
+      vi.useRealTimers()
+    }
   })
 
   it('уже наверху, без анимации и без скроллера', () => {

@@ -33,6 +33,16 @@ function setup() {
 }
 
 describe('HoldButton', () => {
+  it('правая кнопка и движение без начатого удержания не меняют значение', () => {
+    vi.useFakeTimers()
+    const { onTrigger, button } = setup()
+    fireEvent.pointerMove(button, { pointerId: 1, clientX: 100, clientY: 100 })
+    fireEvent.pointerUp(button, { pointerId: 1 })
+    fireEvent.pointerDown(button, { pointerId: 2, button: 2 })
+    act(() => vi.advanceTimersByTime(HOLD_START * 3))
+    expect(onTrigger).not.toHaveBeenCalled()
+    expect(button.setPointerCapture).not.toHaveBeenCalled()
+  })
   it.each(['pointerup', 'pointercancel', 'touchend', 'touchcancel', 'blur'])('останавливает повтор при %s вне кнопки', (event) => {
     vi.useFakeTimers()
     const { onTrigger, button } = setup()

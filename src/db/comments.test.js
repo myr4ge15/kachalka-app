@@ -38,6 +38,16 @@ const feedComments = async () => (await db.feed.get('w1')).comments
 const memberComments = async () => (await getMeta('member_owner', db)).items.find((i) => i.id === 'w1').comments
 
 describe('db/comments', () => {
+  it('новый комментарий попадает в старые снимки без поля comments', async () => {
+    await db.feed.put({ id: 'w1', user_id: 'owner' })
+    await setMeta('member_owner', { items: [{ id: 'w1' }] }, db)
+    await postComment({ userId: 'me', workoutId: 'w1', ownerId: 'owner', text: 'новый' })
+    expect(await feedComments()).toEqual([NEW])
+    expect(await memberComments()).toEqual([NEW])
+    const late = [{ id: 'w1' }]
+    overlayRecentComments(late)
+    expect(late[0].comments).toEqual([NEW])
+  })
   it('отправка: комментарий сразу в Ленте и в профиле автора тренировки', async () => {
     const c = await postComment({ userId: 'me', workoutId: 'w1', ownerId: 'owner', text: 'новый', replyTo: { id: 'c0' } })
     expect(c).toBe(NEW)
