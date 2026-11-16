@@ -6,8 +6,8 @@ import { useState, useMemo, useEffect, useRef } from 'react'
 import { useLiveQuery } from 'dexie-react-hooks'
 import { getWorkouts, saveTemplate } from '../db/repo.js'
 import { syncNow } from '../db/sync.js'
-import { daySubTags, tagSlug, matchesGroup, availableGroups } from '../lib/dayTags.js'
-import { labelOf, majorOf } from '../lib/muscles.js'
+import { matchesGroup, availableGroups } from '../lib/dayTags.js'
+import MuscleTags from '../components/workout/MuscleTags.jsx'
 import { exerciseMetric } from '../lib/metric.js'
 import SetsCells from '../components/workout/SetsCells.jsx'
 import { exportWorkouts } from '../lib/exportWorkout.js'
@@ -379,7 +379,6 @@ export default function HistoryScreen({
 
         {shown.map((w) => {
           const { exCount, setCount } = summarize(w)
-          const tags = daySubTags(w.entries)
           const unsynced = Boolean(w._dirty)
           const isOpen = !selectMode && selected === w.id
           return (
@@ -412,13 +411,7 @@ export default function HistoryScreen({
                 )}
               </div>
 
-              {tags.length > 0 && (
-                <div className="day-tags" aria-label="Мышцы. Цвет соответствует крупной группе" title="Цвет чипа соответствует крупной группе мышц" role="group">
-                  {tags.map((s) => (
-                    <span key={s} className={`day-tag tag-${tagSlug(majorOf(s) ?? s)}`}>{labelOf(s)}</span>
-                  ))}
-                </div>
-              )}
+              <MuscleTags entries={w.entries} />
 
               <ul className="history-list">
                 {(w.entries ?? []).map((e, i) => (

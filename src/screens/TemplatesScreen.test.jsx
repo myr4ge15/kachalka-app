@@ -111,6 +111,23 @@ describe('TemplatesScreen — список', () => {
     expect(theirs).not.toHaveTextContent('виден всем')
   })
 
+  it('показывает метки мышц без чисел в своих и общих шаблонах', () => {
+    const glutes = { ...BENCH, muscle_group: 'ягодицы', submuscle: 'glute_max' }
+    const exercise = { exercise: glutes, sets: 3 }
+    mocks.templates = [
+      { ...MY_TPL, exercises: [exercise, exercise] },
+      { ...THEIR_TPL, exercises: [{ exercise: { ...PULL, muscle_group: 'спина' }, sets: 3 }] },
+    ]
+    expand = true
+    renderScreen()
+    const tags = screen.getAllByRole('group', { name: /Мышцы/ })
+    expect(tags).toHaveLength(2)
+    expect(tags[0].children).toHaveLength(1)
+    expect(tags[0]).toHaveTextContent('большая ягодичная')
+    expect(tags[1]).not.toBeEmptyDOMElement()
+    for (const tag of tags) expect(tag.textContent).not.toMatch(/\d/)
+  })
+
   it('экспорт: выбор карточек вместо открытия, «Скачать» отдает выбранные', () => {
     mocks.templates = [MY_TPL, THEIR_TPL]
     expand = true

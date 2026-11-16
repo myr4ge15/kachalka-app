@@ -1,4 +1,5 @@
 import PhaseTag from '../workout/PhaseTag.jsx'
+import MuscleTags from '../workout/MuscleTags.jsx'
 import { useEffect, useState } from 'react'
 import { useRevealFocus } from '../../hooks/useRevealFocus.js'
 import { useLiveQuery } from 'dexie-react-hooks'
@@ -57,6 +58,8 @@ function TemplateCard({ t, mine, onOpen, selectMode = false, picked = false, onP
           <Chevron className="history-chevron" />
         ) : null}
       </div>
+
+      <MuscleTags entries={exs} />
 
       {/* Состав (v1.4.4 э2, fb_966c7e2b): название на всю ширину, справа число подходов, под ним
           подходы таблетками — вместо серой строки «60×10 · 70×8 · …» в правой половине. */}

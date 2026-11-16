@@ -65,6 +65,24 @@ describe('WorkoutSocial — строка комментариев', () => {
     expect(screen.queryByRole('dialog', { name: 'Комментарии' })).toBeNull()
   })
 
+  it('открывает ветку снизу, сохраняя позицию при обновлении комментариев', () => {
+    const height = vi.spyOn(Element.prototype, 'scrollHeight', 'get').mockReturnValue(900)
+    const viewport = vi.spyOn(Element.prototype, 'clientHeight', 'get').mockReturnValue(300)
+    try {
+      const { rerender } = renderSocial()
+      const strip = screen.getByRole('button', { name: '4 комментария' })
+      fireEvent.click(strip)
+      const scroll = screen.getByRole('dialog', { name: 'Комментарии' }).querySelector('.sheet-scroll')
+      expect(scroll.scrollTop).toBe(600)
+      scroll.scrollTop = 200
+      rerender(<WorkoutSocial workout={workout([...COMMENTS, c('c5', 'u4', 'Ира')])} me={me} />)
+      expect(scroll.scrollTop).toBe(200)
+    } finally {
+      height.mockRestore()
+      viewport.mockRestore()
+    }
+  })
+
   // fb_ad51c03b, fb_fbbf5381 (26.10.2026): поле внутри прокрутки ездило с перепиской («пружина» у края) и
   // на фокус iOS уводила переписку за экран. Теперь листается только .sheet-scroll, поле — в подвале под ней.
   it('в листе блок ввода — одним узлом в подвале листа, вне прокрутки переписки; без подписи «Видят все…»', () => {

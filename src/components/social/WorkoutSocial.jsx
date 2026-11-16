@@ -78,11 +78,16 @@ export default function WorkoutSocial({ workout, me, isMe, onReact, onOpenMember
     }
   }, [open, me.id, workout.id, workout.user_id])
   useLayoutEffect(() => {
-    if (!open || !composeHost || returnTop.current == null) return
-    const top = returnTop.current
-    returnTop.current = null
-    return settleScroll(scrollRef.current, top)
-  }, [open, composeHost])
+    const scroll = scrollRef.current
+    if (!open || !composeHost || !scroll) return
+    if (returnTop.current != null) {
+      const top = returnTop.current
+      returnTop.current = null
+      return settleScroll(scroll, top)
+    }
+    if (focusCommentId != null || restored) return
+    return settleScroll(scroll, scroll.scrollHeight - scroll.clientHeight)
+  }, [open, composeHost, focusCommentId, restored])
   const comments = workout.comments ?? []
   // Клавиатуру сами не открываем, и в пустой ветке тоже (27.10.2026, fb_55c046c8): курсор — по тапу в поле.
   const openSheet = () => { setRestored(false); setMentionFriends(null); setOpen(true) }
