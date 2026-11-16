@@ -184,6 +184,26 @@ describe('CommentThread', () => {
     expect(showToast).toHaveBeenCalledWith(expect.objectContaining({ sub: 'Нет сети.' }))
   })
 
+  it('прокручивает к новому комментарию сразу после нажатия «Отправить»', async () => {
+    let done
+    postComment.mockReturnValue(new Promise((resolve) => { done = resolve }))
+    const existing = c('a', 'x')
+    const saved = c('sent', 'me', { body: 'новое сообщение' })
+    const thread = (comments) => <div className="sheet-scroll">
+      <CommentThread workoutId="w1" ownerId="owner" comments={comments} me={me} open />
+    </div>
+    const { container, rerender } = render(thread([existing]))
+    const scroll = container.querySelector('.sheet-scroll')
+    Object.defineProperties(scroll, { scrollHeight: { value: 900 }, clientHeight: { value: 300 } })
+    fireEvent.change(screen.getByRole('textbox', { name: 'Комментарий' }), { target: { value: saved.body } })
+    fireEvent.click(screen.getByRole('button', { name: 'Отправить' }))
+    expect(scroll.scrollTop).toBe(600)
+    expect(screen.getByText(saved.body).closest('.cm-item')).toHaveClass('pending')
+    await act(async () => { done(saved) })
+    rerender(thread([existing, saved]))
+    expect(screen.getAllByText(saved.body)).toHaveLength(1)
+  })
+
   it('счетчик знаков — только ближе к пределу', () => {
     renderThread({ open: true })
     const box = screen.getByRole('textbox')

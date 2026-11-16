@@ -52,6 +52,7 @@ export default function CommentThread({ workoutId, ownerId, authorName, comments
   const [text, setText] = useState('')
   const [caret, setCaret] = useState(null)
   const [pending, setPending] = useState([])
+  const scrollAfterSend = useRef(false)
   const [menu, setMenu] = useState(null) // { c, el } — меню по удержанию пузыря (CommentMenu)
   const [asking, setAsking] = useState(null) // комментарий, который спрашиваем удалить
   const [deleting, setDeleting] = useState(false)
@@ -64,6 +65,12 @@ export default function CommentThread({ workoutId, ownerId, authorName, comments
   const reactionToReveal = useRef(null)
   const [reveal, setReveal] = useState(null)
   const boxRef = useRevealFocus(reveal)
+  useLayoutEffect(() => {
+    if (!open || !scrollAfterSend.current) return
+    scrollAfterSend.current = false
+    const scroll = boxRef.current?.closest('.sheet-scroll')
+    if (scroll) return settleScroll(scroll, scroll.scrollHeight - scroll.clientHeight)
+  }, [boxRef, open, pending])
   const inputRef = useRef(null)
   const formRef = useRef(null)
   const suggestionsRef = useRef(null)
@@ -209,6 +216,7 @@ export default function CommentThread({ workoutId, ownerId, authorName, comments
     const tmp = { id: `tmp-${Date.now()}`, workout_id: workoutId, user_id: me.id, name: me.name || 'Я',
       known: true, avatar_url: me.avatar ?? null, body, created_at: new Date().toISOString(), pending: true,
       reply_to: replyTo?.id ?? null, reply_to_user: replyTo?.user_id ?? null, reply_to_name: replyTo?.name ?? null }
+    scrollAfterSend.current = true
     setPending((p) => [...p, tmp])
     setCaret(null)
     setText('')
