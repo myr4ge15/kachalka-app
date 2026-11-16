@@ -19,7 +19,7 @@ vi.mock('../lib/comments.js', async (orig) => ({
   reactComment: (...a) => api.reactComment(...a),
   deleteComment: (...a) => api.deleteComment(...a),
 }))
-const { postComment, updateComment, setCommentReaction, removeComment, overlayRecentComments, resetRecentComments, refreshCommentThread } =
+const { postComment, updateComment, setCommentReaction, removeComment, overlayRecentComments, resetRecentComments, refreshCommentThread, loadCommentMentionFriends } =
   await import('./comments.js')
 
 const OLD = { id: 'c0', workout_id: 'w1', body: 'старый', created_at: '2026-10-19T09:00:00Z', like_count: 0, liked: false }
@@ -43,6 +43,21 @@ const feedComments = async () => (await db.feed.get('w1')).comments
 const memberComments = async () => (await getMeta('member_owner', db)).items.find((i) => i.id === 'w1').comments
 
 describe('db/comments', () => {
+  it('загружает друзей для данной тренировки и переживает старый сервер', async () => {
+    vi.stubGlobal('navigator', { onLine: true })
+    try {
+      const friends = [{ user_id: 'friend', name: 'Кира' }]
+      api.rpc = vi.fn().mockResolvedValueOnce({ data: friends }).mockResolvedValueOnce({ error: { code: 'PGRST202' } })
+      expect(await loadCommentMentionFriends('me', 'w1')).toEqual(friends)
+      expect(api.rpc).toHaveBeenCalledExactlyOnceWith('comment_mention_friends', { p_workout_id: 'w1' })
+      expect(await loadCommentMentionFriends('me', 'w1')).toEqual([])
+      navigator.onLine = false
+      expect(await loadCommentMentionFriends('me', 'w1')).toEqual([])
+      expect(api.rpc).toHaveBeenCalledTimes(2)
+    } finally {
+      vi.unstubAllGlobals()
+    }
+  })
   it('обновляет открытую ветку в обоих кэшах, а пустой ответ без подтвержденной сессии оставляет прежние данные', async () => {
     vi.stubGlobal('navigator', { onLine: true })
     try {

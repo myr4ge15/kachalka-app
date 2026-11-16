@@ -76,6 +76,12 @@ export async function loadComments(workoutIds) {
   return !res.error && Array.isArray(res.data) ? groupComments(res.data) : null
 }
 
+export async function loadCommentMentionFriends(userId, workoutId) {
+  if (!navigator.onLine || !await hasSession(userId)) return []
+  const res = await withTimeout(supabase.rpc('comment_mention_friends', { p_workout_id: workoutId }))
+  return !res.error && Array.isArray(res.data) ? res.data : []
+}
+
 export async function refreshCommentThread({ userId, workoutId, ownerId, signal }) {
   const d = db
   if (!d || signal.aborted || !navigator.onLine || !await hasSession(userId)) return

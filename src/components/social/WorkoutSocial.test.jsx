@@ -4,11 +4,12 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { act, fireEvent, render, screen, within } from '@testing-library/react'
 import WorkoutSocial, { lastCommenters } from './WorkoutSocial.jsx'
-import { refreshCommentThread } from '../../db/comments.js'
+import { loadCommentMentionFriends, refreshCommentThread } from '../../db/comments.js'
 
 vi.mock('../../db/comments.js', () => ({
   postComment: vi.fn(), removeComment: vi.fn(), setCommentLike: vi.fn(), updateComment: vi.fn(),
   refreshCommentThread: vi.fn(),
+  loadCommentMentionFriends: vi.fn(),
 }))
 
 const me = { id: 'me', name: 'Сега' }
@@ -19,6 +20,7 @@ const COMMENTS = [c('c1', 'u1', 'Маша', 'первый'), c('c2', 'u2', 'Ди
 const workout = (comments) => ({ id: 'w1', user_id: 'owner', reactions: [], comments })
 
 beforeEach(() => {
+  vi.mocked(loadCommentMentionFriends).mockResolvedValue([])
   Object.defineProperty(navigator, 'onLine', { value: true, configurable: true })
   Element.prototype.scrollIntoView = vi.fn()
 })
@@ -98,6 +100,20 @@ describe('WorkoutSocial — строка комментариев', () => {
   it('пуш о комментарии — лист открыт сразу', () => {
     renderSocial({ openThread: true })
     expect(screen.getByRole('dialog', { name: 'Комментарии' })).toBeInTheDocument()
+  })
+
+  it('предлагает друга, которому видна тренировка, даже если он не писал в ветке', async () => {
+    vi.mocked(loadCommentMentionFriends).mockResolvedValue([{ user_id: 'friend', name: 'Кира' }])
+    const onOpenMember = vi.fn()
+    const comments = [...COMMENTS, c('c5', 'u4', 'Ира', 'Привет, @Кира!')]
+    renderSocial({ openThread: true, onOpenMember, workout: workout(comments) })
+    const input = screen.getByLabelText('Комментарий')
+    fireEvent.change(input, { target: { value: 'Привет, @Ки' } })
+    expect(loadCommentMentionFriends).toHaveBeenCalledWith('me', 'w1')
+    fireEvent.click(await screen.findByRole('button', { name: 'Кира' }))
+    expect(input).toHaveValue('Привет, @Кира ')
+    fireEvent.click(screen.getByRole('button', { name: '@Кира' }))
+    expect(onOpenMember).toHaveBeenCalledWith('friend', 0)
   })
 
   it('закрытие ветки из уведомления погашает запрос на открытие', () => {

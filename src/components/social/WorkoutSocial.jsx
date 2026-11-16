@@ -9,7 +9,7 @@ import { fmtWhen } from '../../lib/dates.js'
 import { summarizeReactions } from '../../lib/reactions.js'
 import { settleScroll } from '../../lib/scrollBox.js'
 import { onOnline, onResume } from '../../lib/appEvents.js'
-import { refreshCommentThread } from '../../db/comments.js'
+import { loadCommentMentionFriends, refreshCommentThread } from '../../db/comments.js'
 
 const THREAD_REFRESH_MS = 5000
 
@@ -25,8 +25,29 @@ export default function WorkoutSocial({ workout, me, isMe, onReact, onOpenMember
   const [open, setOpen] = useState(openThread)
   const [restored, setRestored] = useState(initialScrollTop != null)
   const [composeHost, setComposeHost] = useState(null) // подвал листа под полем ввода
+  const [mentionFriends, setMentionFriends] = useState(null)
   const scrollRef = useRef(null)
   const returnTop = useRef(initialScrollTop)
+  useEffect(() => {
+    if (!open || readOnly) return
+    let current = true
+    let request = 0
+    async function refreshFriends() {
+      const revision = ++request
+      const friends = await loadCommentMentionFriends(me.id, workout.id).catch(() => [])
+      if (current && revision === request) {
+        setMentionFriends(friends.length ? { userId: me.id, workoutId: workout.id, friends } : null)
+      }
+    }
+    refreshFriends()
+    const offOnline = onOnline(refreshFriends)
+    const offResume = onResume(refreshFriends)
+    return () => {
+      current = false
+      offOnline()
+      offResume()
+    }
+  }, [open, readOnly, me.id, workout.id])
   useEffect(() => {
     if (!open) return
     const controller = new AbortController()
@@ -64,7 +85,7 @@ export default function WorkoutSocial({ workout, me, isMe, onReact, onOpenMember
   }, [open, composeHost])
   const comments = workout.comments ?? []
   // Клавиатуру сами не открываем, и в пустой ветке тоже (27.10.2026, fb_55c046c8): курсор — по тапу в поле.
-  const openSheet = () => { setRestored(false); setOpen(true) }
+  const openSheet = () => { setRestored(false); setMentionFriends(null); setOpen(true) }
   const closeSheet = () => { setOpen(false); onDismissThread?.() }
   return (
     <>
@@ -83,6 +104,7 @@ export default function WorkoutSocial({ workout, me, isMe, onReact, onOpenMember
               authorName={authorName}
               comments={comments}
               me={me}
+              mentionFriends={!readOnly && mentionFriends?.userId === me.id && mentionFriends.workoutId === workout.id ? mentionFriends.friends : undefined}
               open
               onOpenMember={onOpenMember ? (id) => {
                 const top = scrollRef.current?.scrollTop ?? 0

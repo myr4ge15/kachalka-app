@@ -45,7 +45,7 @@ import Icon from '../ui/Icon.jsx'
 // focusCommentId — к этому комментарию привело уведомление (fb_2277554b): при открытии он по центру листа и
 // коротко подсвечен.
 // readOnly — только чтение (режим админа «Видеть всех», 27.10.2026): без поля, ответов и реакций.
-export default function CommentThread({ workoutId, ownerId, authorName, comments, me, open, onOpen, focusTick = 0, onOpenMember, composeHost, focusCommentId = null, readOnly = false, observerMembers }) {
+export default function CommentThread({ workoutId, ownerId, authorName, comments, me, mentionFriends = [], open, onOpen, focusTick = 0, onOpenMember, composeHost, focusCommentId = null, readOnly = false, observerMembers }) {
   const online = useOnline()
   const live = online && !readOnly // можно писать, отвечать и реагировать
   const aliveRef = useAliveRef()
@@ -187,6 +187,7 @@ export default function CommentThread({ workoutId, ownerId, authorName, comments
   const body = cleanBody(text)
   const canSend = online && body.length > 0 && body.length <= COMMENT_MAX
   const people = mentionCandidates([
+    ...mentionFriends.map((person) => ({ ...person, known: true })),
     ...(comments ?? []), { user_id: me.id, name: me.name, known: true },
   ], { user_id: ownerId, name: authorName, known: !readOnly })
   const mention = caret == null ? null : mentionAt(text, caret)
