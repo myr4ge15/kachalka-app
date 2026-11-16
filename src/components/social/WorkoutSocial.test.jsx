@@ -2,11 +2,13 @@
 // Комментарии одной строкой (20.10.2026, fb_152f36fc): в карточке — одна строка с
 // аватарками последних комментаторов и счетчиком; ветка — листом во весь экран.
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
-import { fireEvent, render, screen, within } from '@testing-library/react'
+import { act, fireEvent, render, screen, within } from '@testing-library/react'
 import WorkoutSocial, { lastCommenters } from './WorkoutSocial.jsx'
+import { refreshCommentThread } from '../../db/comments.js'
 
 vi.mock('../../db/comments.js', () => ({
   postComment: vi.fn(), removeComment: vi.fn(), setCommentLike: vi.fn(), updateComment: vi.fn(),
+  refreshCommentThread: vi.fn(),
 }))
 
 const me = { id: 'me', name: 'Сега' }
@@ -96,6 +98,52 @@ describe('WorkoutSocial — строка комментариев', () => {
   it('пуш о комментарии — лист открыт сразу', () => {
     renderSocial({ openThread: true })
     expect(screen.getByRole('dialog', { name: 'Комментарии' })).toBeInTheDocument()
+  })
+
+  it('закрытие ветки из уведомления погашает запрос на открытие', () => {
+    const onDismissThread = vi.fn()
+    renderSocial({ openThread: true, onDismissThread })
+    fireEvent.click(screen.getByRole('button', { name: 'закрыть' }))
+    expect(onDismissThread).toHaveBeenCalledOnce()
+  })
+
+  it('опрашивает одну ветку до закрытия листа', async () => {
+    vi.useFakeTimers()
+    try {
+      renderSocial()
+      expect(refreshCommentThread).not.toHaveBeenCalled()
+      fireEvent.click(screen.getByRole('button', { name: '4 комментария' }))
+      expect(refreshCommentThread).toHaveBeenCalledWith(expect.objectContaining({ workoutId: 'w1', userId: 'me' }))
+      await act(() => vi.advanceTimersByTimeAsync(5000))
+      expect(refreshCommentThread).toHaveBeenCalledTimes(2)
+      const signal = refreshCommentThread.mock.lastCall[0].signal
+      fireEvent.click(screen.getByRole('button', { name: 'закрыть' }))
+      expect(signal.aborted).toBe(true)
+      await act(() => vi.advanceTimersByTimeAsync(5000))
+      expect(refreshCommentThread).toHaveBeenCalledTimes(2)
+    } finally {
+      vi.useRealTimers()
+    }
+  })
+
+  it('аватар автора открывает его профиль', () => {
+    const onOpenMember = vi.fn()
+    renderSocial({ openThread: true, onOpenMember })
+    fireEvent.click(screen.getAllByRole('button', { name: 'Профиль: Маша' })[0])
+    expect(onOpenMember).toHaveBeenCalledWith('u1', 0)
+  })
+
+  it('предлагает участника при вводе @ и открывает профиль по упоминанию', () => {
+    const onOpenMember = vi.fn()
+    const comments = [...COMMENTS, c('c5', 'u4', 'Ира', 'Спасибо, @Маша!')]
+    renderSocial({ openThread: true, onOpenMember, workout: workout(comments) })
+    const input = screen.getByLabelText('Комментарий')
+    fireEvent.change(input, { target: { value: 'Привет, @Ма' } })
+    const list = screen.getByRole('list', { name: 'Кого упомянуть' })
+    fireEvent.click(within(list).getByRole('button', { name: 'Маша' }))
+    expect(input).toHaveValue('Привет, @Маша ')
+    fireEvent.click(screen.getByRole('button', { name: '@Маша' }))
+    expect(onOpenMember).toHaveBeenCalledWith('u1', 0)
   })
 
   it('уведомление о комментарии — лист открыт на нем: подсвечен и по центру прокрутки (fb_2277554b)', () => {

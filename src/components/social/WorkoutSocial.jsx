@@ -1,4 +1,4 @@
-import { useLayoutEffect, useRef, useState } from 'react'
+import { useEffect, useLayoutEffect, useRef, useState } from 'react'
 import ReactionBar from './ReactionBar.jsx'
 import CommentThread from './CommentThread.jsx'
 import Avatar from '../ui/Avatar.jsx'
@@ -8,6 +8,10 @@ import { pluralize } from '../../lib/plural.js'
 import { fmtWhen } from '../../lib/dates.js'
 import { summarizeReactions } from '../../lib/reactions.js'
 import { settleScroll } from '../../lib/scrollBox.js'
+import { onOnline, onResume } from '../../lib/appEvents.js'
+import { refreshCommentThread } from '../../db/comments.js'
+
+const THREAD_REFRESH_MS = 5000
 
 // Низ карточки тренировки в Ленте и в профиле участника: реакции + комментарии.
 // 20.10.2026 (fb_152f36fc): вместо двух последних комментариев в карточке —
@@ -17,12 +21,41 @@ import { settleScroll } from '../../lib/scrollBox.js'
 // комментарии (уведомление о комментарии, ответе или реакции на него, fb_2277554b).
 // me — { id, name, avatar }; authorAvatar — фото автора тренировки для «поста» над веткой.
 // readOnly — только просмотр (режим админа «Видеть всех», 27.10.2026: автор вне круга, сервер действий не примет).
-export default function WorkoutSocial({ workout, me, isMe, onReact, onOpenMember, openThread = false, focusCommentId = null, initialScrollTop, authorAvatar = null, readOnly = false, observerMembers }) {
+export default function WorkoutSocial({ workout, me, isMe, onReact, onOpenMember, openThread = false, onDismissThread, focusCommentId = null, initialScrollTop, authorName = workout.user_name, authorAvatar = null, readOnly = false, observerMembers }) {
   const [open, setOpen] = useState(openThread)
   const [restored, setRestored] = useState(initialScrollTop != null)
   const [composeHost, setComposeHost] = useState(null) // подвал листа под полем ввода
   const scrollRef = useRef(null)
   const returnTop = useRef(initialScrollTop)
+  useEffect(() => {
+    if (!open) return
+    const controller = new AbortController()
+    let timer
+    let running = false
+    async function refresh() {
+      if (running || controller.signal.aborted) return
+      clearTimeout(timer)
+      running = true
+      try {
+        if (!document.hidden) {
+          await refreshCommentThread({ userId: me.id, workoutId: workout.id, ownerId: workout.user_id, signal: controller.signal })
+        }
+      } catch { /* при сбое оставляем кэш и повторяем опрос */ }
+      finally {
+        running = false
+        if (!controller.signal.aborted) timer = setTimeout(refresh, THREAD_REFRESH_MS)
+      }
+    }
+    refresh()
+    const offOnline = onOnline(refresh)
+    const offResume = onResume(refresh)
+    return () => {
+      controller.abort()
+      clearTimeout(timer)
+      offOnline()
+      offResume()
+    }
+  }, [open, me.id, workout.id, workout.user_id])
   useLayoutEffect(() => {
     if (!open || !composeHost || returnTop.current == null) return
     const top = returnTop.current
@@ -32,12 +65,13 @@ export default function WorkoutSocial({ workout, me, isMe, onReact, onOpenMember
   const comments = workout.comments ?? []
   // Клавиатуру сами не открываем, и в пустой ветке тоже (27.10.2026, fb_55c046c8): курсор — по тапу в поле.
   const openSheet = () => { setRestored(false); setOpen(true) }
+  const closeSheet = () => { setOpen(false); onDismissThread?.() }
   return (
     <>
       <ReactionBar reactions={workout.reactions} myId={me.id} isMe={isMe || readOnly} onReact={onReact} />
       {(!readOnly || comments.length > 0) && <CommentStrip comments={comments} onOpen={openSheet} />}
       {open && (
-        <SheetDialog title="Комментарии" actionLabel="закрыть" onDismiss={() => setOpen(false)} swipeBack
+        <SheetDialog title="Комментарии" actionLabel="закрыть" onDismiss={closeSheet} swipeBack
           className={restored ? 'cm-sheet cm-sheet--restored' : 'cm-sheet'}>
           {/* data-sheet-bounce: у края ветка пружинит, как родной список, а не «упирается» (fb_4cbd8655). */}
           <div className="sheet-scroll" data-sheet-bounce="" ref={scrollRef}>
@@ -46,12 +80,13 @@ export default function WorkoutSocial({ workout, me, isMe, onReact, onOpenMember
             <CommentThread
               workoutId={workout.id}
               ownerId={workout.user_id}
+              authorName={authorName}
               comments={comments}
               me={me}
               open
               onOpenMember={onOpenMember ? (id) => {
                 const top = scrollRef.current?.scrollTop ?? 0
-                setOpen(false)
+                closeSheet()
                 onOpenMember(id, top)
               } : undefined}
               composeHost={composeHost}

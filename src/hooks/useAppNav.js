@@ -94,6 +94,7 @@ export function useAppNav(user) {
   // seq — каждый переход открывает ветку заново (Лента в стеке не перемонтируется, а лист
   // с прошлого раза мог быть закрыт). Переход без ветки (реакция) запрос снимает.
   const [feedThread, setFeedThread] = useState(null)
+  const dismissFeedThread = (thread) => setFeedThread((current) => current === thread ? null : current)
   // Обращение, к которому привел пуш с ответом разработчика (v6.11.0).
   const [feedbackFocus, setFeedbackFocus] = useState(null)
   useEffect(() => {
@@ -385,7 +386,7 @@ export function useAppNav(user) {
   return {
     tab, setTab, routeAnim, contentRef, screenRef, edgeSwipeOn, setInnerNav,
     memberId, feedRestore, progressExId, setProgressExId, openNewWorkout, setOpenNewWorkout,
-    calendarIntent, setCalendarIntent, feedFlashId, feedThread, feedbackFocus, openFeedback, backFromFeedback, lastMainTab,
+    calendarIntent, setCalendarIntent, feedFlashId, feedThread, dismissFeedThread, feedbackFocus, openFeedback, backFromFeedback, lastMainTab,
     focusRhythm, setFocusRhythm, openSettings, setOpenSettings,
     goTab, openNotif, backFromNotif, openProgressFor, openCalendarAt, openMember, backFromMember,
     backToRhythm, backToSettings, backToParent, nestedBack, startNewWorkout, setPushIntent, openFeedWorkout

@@ -96,7 +96,7 @@ export default function ExerciseEditForm({
               return (
                 <button key={s} type="button" className={on ? 'chip active' : 'chip'} aria-pressed={on}
                   onClick={() => setSecondary((sec) => (on ? sec.filter((x) => x !== s) : [...sec, s]))}>
-                  {labelOf(s)}<span className="chip-major"> · {majorOf(s)}</span>
+                  {labelOf(s)}{' '}<span className="chip-major">{majorOf(s)}</span>
                 </button>
               )
             })}

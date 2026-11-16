@@ -88,6 +88,19 @@ describe('useAppNav: nestedBack', () => {
     expect(result.current.tab).toBe('feed')
   })
 
+  it('закрытая ветка из уведомления не открывается после смены вкладки', () => {
+    const { result } = renderHook(() => useAppNav(ME))
+    act(() => result.current.openFeedWorkout('w1', 'c7'))
+    const thread = result.current.feedThread
+    act(() => result.current.dismissFeedThread(thread))
+    act(() => result.current.goTab('history'))
+    act(() => result.current.goTab('feed'))
+    expect(result.current.feedThread).toBeNull()
+    act(() => result.current.openFeedWorkout('w1', 'c8'))
+    act(() => result.current.dismissFeedThread(thread))
+    expect(result.current.feedThread).toMatchObject({ commentId: 'c8' })
+  })
+
   it('из профиля автора возвращает ту же ветку и позицию прокрутки', () => {
     const { result } = renderHook(() => useAppNav(ME))
     act(() => result.current.openFeedWorkout('w1', 'c7'))

@@ -11,7 +11,9 @@
 // уже пришедший комментарий (recentPatches), не подменяя остальное.
 // ============================================================================
 import { db, getMeta, setMeta } from './local.js'
-import { addComment, deleteComment, editComment, reactComment, upsertComment } from '../lib/comments.js'
+import { hasSession, serverIdentity, supabase } from './supabase.js'
+import { withTimeout } from '../lib/withTimeout.js'
+import { addComment, deleteComment, editComment, groupComments, reactComment, upsertComment } from '../lib/comments.js'
 
 const RECENT_MS = 2 * 60 * 1000
 const recentAdds = new Map() // id → { c, at }
@@ -52,16 +54,42 @@ export function resetRecentComments() {
 
 async function patchCaches(workoutId, ownerId, fn, d = db) {
   if (!d) return
-  try {
+  await d.transaction('rw', d.feed, d.meta, async () => {
+    function patch(item) {
+      const comments = fn(item.comments ?? [])
+      return JSON.stringify(comments) === JSON.stringify(item.comments ?? []) ? item : { ...item, comments }
+    }
     const item = await d.feed.get(workoutId)
-    if (item) await d.feed.put({ ...item, comments: fn(item.comments ?? []) })
-  } catch { /* кэш Ленты недоступен — обновится опросом */ }
-  if (!ownerId) return
-  const key = `member_${ownerId}`
-  const cached = await getMeta(key, d)
-  if (!cached?.items?.some((i) => i.id === workoutId)) return
-  const items = cached.items.map((i) => (i.id === workoutId ? { ...i, comments: fn(i.comments ?? []) } : i))
-  await setMeta(key, { ...cached, items }, d)
+    const updated = item && patch(item)
+    if (updated && updated !== item) await d.feed.put(updated)
+    if (!ownerId) return
+    const key = `member_${ownerId}`
+    const cached = await getMeta(key, d)
+    if (!cached?.items) return
+    const items = cached.items.map((i) => (i.id === workoutId ? patch(i) : i))
+    if (items.some((i, index) => i !== cached.items[index])) await setMeta(key, { ...cached, items }, d)
+  }).catch(() => { /* кэш недоступен — обновится опросом */ })
+}
+
+export async function loadComments(workoutIds) {
+  const res = await withTimeout(supabase.rpc('comments_for', { p_workout_ids: workoutIds }))
+  return !res.error && Array.isArray(res.data) ? groupComments(res.data) : null
+}
+
+export async function refreshCommentThread({ userId, workoutId, ownerId, signal }) {
+  const d = db
+  if (!d || signal.aborted || !navigator.onLine || !await hasSession(userId)) return
+  const grouped = await loadComments([workoutId])
+  if (!grouped || signal.aborted || d !== db) return
+  const comments = grouped.get(workoutId) ?? []
+  if (comments.length === 0 && (await serverIdentity()).id !== userId) return
+  if (signal.aborted || d !== db) return
+  await patchCaches(workoutId, ownerId, (current) => {
+    if (signal.aborted || d !== db) return current
+    const item = { id: workoutId, comments }
+    overlayRecentComments([item])
+    return item.comments
+  }, d)
 }
 
 // Отправить (replyTo — исходный комментарий, если это ответ) → комментарий с сервера

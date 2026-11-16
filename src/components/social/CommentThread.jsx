@@ -18,6 +18,7 @@ import {
   reactionPills, replyQuote,
 } from '../../lib/comments.js'
 import { postComment, removeComment, setCommentReaction, updateComment } from '../../db/comments.js'
+import { mentionAt, mentionCandidates, mentionParts } from '../../lib/commentMentions.js'
 import Icon from '../ui/Icon.jsx'
 
 // Ветка комментариев под тренировкой (19.10.2026, PLAN-comments.md; мокап prototypes/comments).
@@ -44,11 +45,12 @@ import Icon from '../ui/Icon.jsx'
 // focusCommentId — к этому комментарию привело уведомление (fb_2277554b): при открытии он по центру листа и
 // коротко подсвечен.
 // readOnly — только чтение (режим админа «Видеть всех», 27.10.2026): без поля, ответов и реакций.
-export default function CommentThread({ workoutId, ownerId, comments, me, open, onOpen, focusTick = 0, onOpenMember, composeHost, focusCommentId = null, readOnly = false, observerMembers }) {
+export default function CommentThread({ workoutId, ownerId, authorName, comments, me, open, onOpen, focusTick = 0, onOpenMember, composeHost, focusCommentId = null, readOnly = false, observerMembers }) {
   const online = useOnline()
   const live = online && !readOnly // можно писать, отвечать и реагировать
   const aliveRef = useAliveRef()
   const [text, setText] = useState('')
+  const [caret, setCaret] = useState(null)
   const [pending, setPending] = useState([])
   const [menu, setMenu] = useState(null) // { c, el } — меню по удержанию пузыря (CommentMenu)
   const [asking, setAsking] = useState(null) // комментарий, который спрашиваем удалить
@@ -64,6 +66,7 @@ export default function CommentThread({ workoutId, ownerId, comments, me, open, 
   const boxRef = useRevealFocus(reveal)
   const inputRef = useRef(null)
   const formRef = useRef(null)
+  const suggestionsRef = useRef(null)
   useLayoutEffect(() => {
     const id = reactionToReveal.current
     if (id == null) return
@@ -183,6 +186,20 @@ export default function CommentThread({ workoutId, ownerId, comments, me, open, 
 
   const body = cleanBody(text)
   const canSend = online && body.length > 0 && body.length <= COMMENT_MAX
+  const people = mentionCandidates([
+    ...(comments ?? []), { user_id: me.id, name: me.name, known: true },
+  ], { user_id: ownerId, name: authorName, known: !readOnly })
+  const mention = caret == null ? null : mentionAt(text, caret)
+  const suggestions = mention ? people.filter((person) => person.id !== me.id && person.name.toLowerCase().startsWith(mention.query)) : []
+
+  function chooseMention(person) {
+    const prefix = `${text.slice(0, mention.start)}@${person.name} `
+    setText(prefix + text.slice(mention.end))
+    setCaret(null)
+    const input = inputRef.current
+    input?.focus({ preventScroll: true })
+    requestAnimationFrame(() => input?.setSelectionRange(prefix.length, prefix.length))
+  }
 
   async function send() {
     if (!canSend) return
@@ -192,6 +209,7 @@ export default function CommentThread({ workoutId, ownerId, comments, me, open, 
       known: true, avatar_url: me.avatar ?? null, body, created_at: new Date().toISOString(), pending: true,
       reply_to: replyTo?.id ?? null, reply_to_user: replyTo?.user_id ?? null, reply_to_name: replyTo?.name ?? null }
     setPending((p) => [...p, tmp])
+    setCaret(null)
     setText('')
     setReplying(null)
     try {
@@ -210,6 +228,7 @@ export default function CommentThread({ workoutId, ownerId, comments, me, open, 
   async function saveEdit() {
     const c = editing
     setEditing(null)
+    setCaret(null)
     setText('')
     if (body === c.body) return // ничего не поменялось — не трогаем сервер и метку
     setEdits((m) => ({ ...m, [c.id]: body }))
@@ -235,6 +254,7 @@ export default function CommentThread({ workoutId, ownerId, comments, me, open, 
     setMenu(null)
     setReplying(null)
     setEditing(c)
+    setCaret(null)
     setText(c.body)
     if (!open) onOpen?.()
     setReveal({})
@@ -334,6 +354,17 @@ export default function CommentThread({ workoutId, ownerId, comments, me, open, 
           <button type="button" onClick={() => setReplying(null)} aria-label="Отменить ответ"><Icon name="close" size={16} /></button>
         </div>
       )}
+      {suggestions.length > 0 && (
+        <ul className="cm-mentions" ref={suggestionsRef} aria-label="Кого упомянуть">
+          {suggestions.map((person) => (
+            <li key={person.id}>
+              <button type="button" onMouseDown={(e) => e.preventDefault()} onClick={() => chooseMention(person)}>
+                {person.name}
+              </button>
+            </li>
+          ))}
+        </ul>
+      )}
       <div className="cm-form" ref={formRef}>
         {/* key по подсказке: iOS не перерисовывает ширину смененного placeholder — после ответа
             оставалось «Написать комм» (fb_244e1492). Текст в состоянии, фокус вернет эффект ответа. */}
@@ -346,7 +377,19 @@ export default function CommentThread({ workoutId, ownerId, comments, me, open, 
           maxLength={COMMENT_MAX + 50}
           placeholder={replying ? 'Написать ответ' : 'Написать комментарий'}
           aria-label="Комментарий"
-          onChange={(e) => setText(e.target.value)}
+          onChange={(e) => { setText(e.target.value); setCaret(e.target.selectionStart) }}
+          onSelect={(e) => setCaret(e.target.selectionStart)}
+          onKeyDown={(e) => {
+            if (!suggestions.length) return
+            if (e.key === 'Escape') {
+              e.stopPropagation()
+              setCaret(null)
+            }
+            if (e.key === 'ArrowDown') {
+              e.preventDefault()
+              suggestionsRef.current?.querySelector('button')?.focus()
+            }
+          }}
           onFocus={liftAboveKeyboard}
         />
         <button type="button" className={`cm-send${canSend ? '' : ' off'}`} onClick={send} disabled={!canSend}
@@ -397,6 +440,8 @@ export default function CommentThread({ workoutId, ownerId, comments, me, open, 
           </span>
         )
         const tone = c.known ? ` link t${nameTone(c.user_id ?? c.name)}` : ' plain'
+        const canOpenAuthor = (c.known || observerMembers?.has(c.user_id)) && onOpenMember && c.user_id
+        const avatar = <Avatar name={c.name} url={c.known ? c.avatar_url : null} className={`avatar-sm${c.known ? '' : ' unknown'}`} />
         return (
           <Fragment key={c.id}>
           {days[i] && <div className="cm-day"><span>{days[i]}</span></div>}
@@ -409,7 +454,9 @@ export default function CommentThread({ workoutId, ownerId, comments, me, open, 
               </span>
             )}
             {!own && (last
-              ? <Avatar name={c.name} url={c.known ? c.avatar_url : null} className={`avatar-sm${c.known ? '' : ' unknown'}`} />
+              ? (canOpenAuthor
+                ? <button type="button" className="cm-avatar-link" aria-label={`Профиль: ${c.name}`} onClick={() => onOpenMember(c.user_id)}>{avatar}</button>
+                : avatar)
               : <span className="cm-av-gap" aria-hidden="true" />)}
             <div className={`cm-bub${menu?.c.id === c.id ? ' held' : ''}`}
               tabIndex={c.pending ? undefined : 0} aria-haspopup={c.pending ? undefined : 'menu'}
@@ -417,7 +464,7 @@ export default function CommentThread({ workoutId, ownerId, comments, me, open, 
               onKeyDown={(e) => keyBubble(e, c)} onClick={(e) => clickBubble(e, c)}
               onTouchStart={startBubbleTouch} onTouchEnd={(e) => endBubbleTouch(e, c)}
               onTouchCancel={() => { touchStart.current = null }} {...(c.pending ? {} : hold(c))}>
-              {!own && first && ((c.known || observerMembers?.has(c.user_id)) && onOpenMember && c.user_id
+              {!own && first && (canOpenAuthor
                 ? <button type="button" className={`cm-name${tone}`} onClick={() => onOpenMember(c.user_id)}>{c.name}</button>
                 : <span className={`cm-name${tone}`}>{c.name}</span>)}
               {quote && (
@@ -427,7 +474,11 @@ export default function CommentThread({ workoutId, ownerId, comments, me, open, 
                 </div>
               )}
               <div className="cm-message" data-time-label={likeBtn ? undefined : `${edited ? 'изм. ' : ''}${time}`}>
-                <span className="cm-text">{c.body}</span>
+                <span className="cm-text">{mentionParts(c.body, people).map((part, index) => typeof part === 'string'
+                  ? part
+                  : onOpenMember && part.id !== me.id
+                    ? <button key={index} type="button" className="cm-mention-link" onClick={() => onOpenMember(part.id)}>{part.text}</button>
+                    : <span key={index} className="cm-mention-link">{part.text}</span>)}</span>
                 {!likeBtn && meta}
               </div>
               {likeBtn && (

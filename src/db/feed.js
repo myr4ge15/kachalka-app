@@ -20,8 +20,7 @@ import { cmpIsoAsc, cmpIsoDesc } from '../lib/cmp.js'
 import { leadingValue, normMetric, setTonnage } from '../lib/metric.js'
 import { applyReactionQueue } from '../lib/reactions.js'
 import { rosterSignature } from '../lib/pullWatermark.js'
-import { groupComments } from '../lib/comments.js'
-import { overlayRecentComments } from './comments.js'
+import { loadComments, overlayRecentComments } from './comments.js'
 import { refreshCommentReactions } from './commentReactions.js'
 
 // Сколько последних тренировок показываем в ленте.
@@ -130,9 +129,8 @@ export async function attachComments(items) {
   if (items.length === 0) return true
   let ok = false
   try {
-    const res = await withTimeout(supabase.rpc('comments_for', { p_workout_ids: items.map((i) => i.id) }))
-    if (!res.error && Array.isArray(res.data)) {
-      const byWorkout = groupComments(res.data)
+    const byWorkout = await loadComments(items.map((i) => i.id))
+    if (byWorkout) {
       for (const item of items) item.comments = byWorkout.get(item.id) ?? []
       ok = true
     }

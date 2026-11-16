@@ -1250,7 +1250,8 @@ button.link-btn { min-height: 44px; display: inline-flex; align-items: center; j
 /* Многострочный ряд чипов (для длинных списков — напр. вторичные мышцы) */
 .chips.wrap { flex-wrap: wrap; overflow: visible; }
 /* Приглушенная приписка группы у чипа вторичной мышцы (напр. «трицепс · трицепс») */
-.chip-major { opacity: .6; font-size: var(--fs-small); }
+.chip-major { display: inline-flex; align-items: center; opacity: .6; font-size: var(--fs-small); }
+.chip-major::before { content: ''; width: .23em; height: .23em; margin-inline: .42em; border-radius: 50%; background: currentColor; }
 .chip.active .chip-major { opacity: .85; }
 .picker-list {
   flex: 1; min-height: 0; overflow-y: auto; display: flex; flex-direction: column;
@@ -2096,6 +2097,8 @@ img.avatar-lg.has-img {
 .cm-item.first { margin-top: 10px; }
 .cm-item.own { justify-content: flex-end; }
 .cm-item .avatar-sm { width: 28px; height: 28px; }
+.cm-avatar-link { flex: none; position: relative; padding: 0; border: 0; background: none; cursor: pointer; }
+.cm-avatar-link::before { content: ''; position: absolute; inset: -8px -4px; }
 .cm-av-gap { width: 28px; flex: none; }
 .cm-item.pending { opacity: .55; }
 /* Комментарий, к которому привело уведомление (fb_2277554b): пузырь вспыхивает акцентом и гаснет,
@@ -2141,6 +2144,11 @@ button.cm-name { cursor: pointer; padding: 12px 0; margin: -12px 0 -11px; }
 .cm-name.t7 { color: var(--cm-n7); }
 .cm-message { position: relative; font-size: 15px; line-height: 1.38; }
 .cm-text { overflow-wrap: anywhere; white-space: pre-wrap; }
+.cm-mention-link { display: inline; padding: 0; border: 0; background: none; color: var(--acc-2); font: inherit; text-align: inherit; overflow-wrap: anywhere; }
+button.cm-mention-link { text-decoration: underline; cursor: pointer; }
+.cm-mentions { list-style: none; margin: 0; padding: 0; max-height: 132px; overflow: auto; }
+.cm-mentions button { width: 100%; min-height: 44px; padding: 0 12px; border: 0; background: var(--surface); color: var(--text); text-align: left; cursor: pointer; }
+.cm-mentions button:focus-visible { outline: 2px solid var(--acc-2); outline-offset: -2px; }
 /* Резерв на последней строке равен ширине подписи, в том числе у «изм.» и «отправка…». */
 .cm-message[data-time-label]::after {
   content: attr(data-time-label); display: inline-block; visibility: hidden;

@@ -370,7 +370,7 @@ export default function ExercisePicker({
                         setNewSecondary((sec) => (on ? sec.filter((x) => x !== s) : [...sec, s]))
                       }
                     >
-                      {labelOf(s)}<span className="chip-major"> · {majorOf(s)}</span>
+                      {labelOf(s)}{' '}<span className="chip-major">{majorOf(s)}</span>
                     </button>
                   )
                 })}

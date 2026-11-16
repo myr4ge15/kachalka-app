@@ -266,6 +266,7 @@ export default function MemberScreen({ user, memberId, onBack, onOpenMember }) {
                     me={me}
                     isMe={w.user_id === user.id}
                     authorAvatar={roster?.avatar_url ?? null}
+                    authorName={roster?.name}
                     onReact={(kind, mine) => onReact(w.id, kind, mine)}
                     onOpenMember={onOpenMember}
                     readOnly={outside}

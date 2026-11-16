@@ -42,7 +42,7 @@ const OFFLINE_EMPTY = 'Лента недоступна офлайн. Подкл�
 
 // thread — { workoutId, commentId, seq }: пуш или уведомление о комментарии (19.10.2026) — у этой тренировки
 // ветка открыта, на комментарии commentId (fb_2277554b); новый seq — открыть заново.
-export default function FeedScreen({ user, onOpenMember, flashId = null, thread = null, onOpenCircle, onOpenFriends }) {
+export default function FeedScreen({ user, onOpenMember, flashId = null, thread = null, onDismissThread, onOpenCircle, onOpenFriends }) {
   // Кэш ленты (офлайн-доступен, обновляется мгновенно при фоновой подтяжке).
   const feed = useLiveQuery(() => getCachedFeed(), [], undefined)
 
@@ -256,6 +256,7 @@ export default function FeedScreen({ user, onOpenMember, flashId = null, thread 
               onReact={(kind, mine) => onReact(w.id, kind, mine)}
               onOpenMember={onOpenMember ? (uid, scrollTop) => onOpenMember(uid, `feed-${w.id}`, { workoutId: w.id, scrollTop }) : undefined}
               openThread={w.id === thread?.workoutId}
+              onDismissThread={w.id === thread?.workoutId ? () => onDismissThread?.(thread) : undefined}
               focusCommentId={w.id === thread?.workoutId ? thread.commentId : null}
               initialScrollTop={w.id === thread?.workoutId ? thread.scrollTop : undefined}
               readOnly={out}

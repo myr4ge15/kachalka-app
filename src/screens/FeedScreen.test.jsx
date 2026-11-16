@@ -83,6 +83,19 @@ describe('FeedScreen', () => {
     await waitFor(() => expect(syncNow).toHaveBeenCalledWith('me'))
   })
 
+  it('закрытие листа передает в навигацию именно открывший его запрос', async () => {
+    mocks.feed = [post({ comments: [
+      { id: 'c1', workout_id: 'w1', user_id: 'petya', name: 'Петя', body: 'Первый комментарий' },
+    ] })]
+    const thread = { workoutId: 'w1', commentId: 'c1', seq: 1 }
+    const onDismissThread = vi.fn()
+    renderFeed({ thread, onDismissThread })
+    expect(await screen.findByText('Первый комментарий')).toBeInTheDocument()
+    fireEvent.click(screen.getByRole('button', { name: 'закрыть' }))
+    expect(onDismissThread).toHaveBeenCalledExactlyOnceWith(thread)
+    expect(screen.queryByRole('dialog', { name: 'Комментарии' })).not.toBeInTheDocument()
+  })
+
   it('снятие своей реакции — без вибро; офлайн — без синка', async () => {
     online = false
     mocks.feed = [post({ reactions: [{ user_id: 'me', name: 'Саня', kind: 'clap' }] })]

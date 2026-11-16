@@ -7,6 +7,11 @@ import { closeUserDb, openUserDb, db, getMeta, setMeta } from './local.js'
 import { uniqueUserId } from '../test/idbHarness.js'
 
 const api = vi.hoisted(() => ({}))
+vi.mock('./supabase.js', () => ({
+  hasSession: async () => true,
+  serverIdentity: () => api.identity(),
+  supabase: { rpc: (...args) => api.rpc(...args) },
+}))
 vi.mock('../lib/comments.js', async (orig) => ({
   ...(await orig()),
   addComment: (...a) => api.addComment(...a),
@@ -14,7 +19,7 @@ vi.mock('../lib/comments.js', async (orig) => ({
   reactComment: (...a) => api.reactComment(...a),
   deleteComment: (...a) => api.deleteComment(...a),
 }))
-const { postComment, updateComment, setCommentReaction, removeComment, overlayRecentComments, resetRecentComments } =
+const { postComment, updateComment, setCommentReaction, removeComment, overlayRecentComments, resetRecentComments, refreshCommentThread } =
   await import('./comments.js')
 
 const OLD = { id: 'c0', workout_id: 'w1', body: 'старый', created_at: '2026-10-19T09:00:00Z', like_count: 0, liked: false }
@@ -38,6 +43,22 @@ const feedComments = async () => (await db.feed.get('w1')).comments
 const memberComments = async () => (await getMeta('member_owner', db)).items.find((i) => i.id === 'w1').comments
 
 describe('db/comments', () => {
+  it('обновляет открытую ветку в обоих кэшах, а пустой ответ без подтвержденной сессии оставляет прежние данные', async () => {
+    vi.stubGlobal('navigator', { onLine: true })
+    try {
+      api.rpc = vi.fn().mockResolvedValueOnce({ data: [OLD, NEW] }).mockResolvedValueOnce({ data: [] })
+      api.identity = vi.fn(async () => ({ id: null, known: true }))
+      const params = { userId: 'me', workoutId: 'w1', ownerId: 'owner', signal: new AbortController().signal }
+      await refreshCommentThread(params)
+      expect(api.rpc).toHaveBeenCalledWith('comments_for', { p_workout_ids: ['w1'] })
+      expect((await feedComments()).map((c) => c.id)).toEqual(['c0', 'c1'])
+      expect((await memberComments()).map((c) => c.id)).toEqual(['c0', 'c1'])
+      await refreshCommentThread(params)
+      expect((await feedComments()).map((c) => c.id)).toEqual(['c0', 'c1'])
+    } finally {
+      vi.unstubAllGlobals()
+    }
+  })
   it('новый комментарий попадает в старые снимки без поля comments', async () => {
     await db.feed.put({ id: 'w1', user_id: 'owner' })
     await setMeta('member_owner', { items: [{ id: 'w1' }] }, db)
