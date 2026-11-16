@@ -213,7 +213,8 @@ export async function reopenFeedback(id, note) {
 export async function appendFeedback(id, note) {
   const problem = appendProblem(note)
   if (problem) throw new FeedbackError(problem)
-  const res = await callFn({ action: 'append', id, note: cleanBody(note) })
+  const version = typeof __APP_VERSION__ !== 'undefined' ? __APP_VERSION__ : undefined
+  const res = await callFn({ action: 'append', id, note: cleanBody(note), version })
   return { delivered: res.delivered !== false }
 }
 

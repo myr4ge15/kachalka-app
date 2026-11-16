@@ -196,7 +196,7 @@ describe('Telegram: переоткрытие и картинки (v6.12.0)', () 
   it('append (v8.6.0): текст обрезан, пустой — до сети не доходит; лимит и закрытое — коды', async () => {
     fetch.mockImplementationOnce(() => ok({ ok: true, delivered: true }))
     await expect(appendFeedback('f1', '  и еще  ')).resolves.toEqual({ delivered: true })
-    expect(JSON.parse(fetch.mock.calls[0][1].body)).toEqual({ action: 'append', id: 'f1', note: 'и еще' })
+    expect(JSON.parse(fetch.mock.calls[0][1].body)).toEqual({ action: 'append', id: 'f1', note: 'и еще', version: __APP_VERSION__ })
     await expect(appendFeedback('f1', ' ')).rejects.toMatchObject({ code: 'empty' })
     expect(fetch).toHaveBeenCalledTimes(1)
     fetch.mockImplementationOnce(() => ok({ error: 'append_limit' }, 429))

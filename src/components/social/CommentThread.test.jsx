@@ -200,8 +200,11 @@ describe('CommentThread', () => {
     expect(scroll.scrollTop).toBe(600)
     expect(screen.getByText(saved.body).closest('.cm-item')).toHaveClass('pending')
     await act(async () => { done(saved) })
+    expect(screen.getByText(saved.body).closest('.cm-item')).not.toHaveClass('pending')
     rerender(thread([existing, saved]))
     expect(screen.getAllByText(saved.body)).toHaveLength(1)
+    rerender(thread([existing]))
+    expect(screen.queryByText(saved.body)).toBeNull()
   })
 
   it('счетчик знаков — только ближе к пределу', () => {

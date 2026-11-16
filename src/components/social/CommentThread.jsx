@@ -181,7 +181,10 @@ export default function CommentThread({ workoutId, ownerId, authorName, comments
     el.style.height = `${el.scrollHeight}px`
   }, [text, open])
 
-  const all = [...(comments ?? []), ...pending].map((c) => {
+  // Ответ отправки приходит раньше, чем подписка на кэш успевает обновить ветку.
+  const unsynced = pending.filter((c) => c.pending || !comments?.some((comment) => comment.id === c.id))
+  if (unsynced.length !== pending.length) setPending(unsynced)
+  const all = [...(comments ?? []), ...unsynced].map((c) => {
     let x = c
     if (edits[c.id] != null) x = { ...x, body: edits[c.id], edited_at: x.edited_at ?? 'pending' }
     const reaction = likes[c.id]
@@ -222,15 +225,15 @@ export default function CommentThread({ workoutId, ownerId, authorName, comments
     setText('')
     setReplying(null)
     try {
-      await postComment({ userId: me.id, workoutId, ownerId, text: body, replyTo })
+      const saved = await postComment({ userId: me.id, workoutId, ownerId, text: body, replyTo })
+      if (aliveRef.current) setPending((p) => p.map((c) => c.id === tmp.id ? saved : c))
     } catch (e) {
       if (aliveRef.current) {
+        setPending((p) => p.filter((c) => c.id !== tmp.id))
         setText((cur) => cur || body)
         setReplying((cur) => cur ?? replyTo)
       }
       showToast({ icon: 'alert', title: 'Комментарий не отправлен', sub: e?.message })
-    } finally {
-      if (aliveRef.current) setPending((p) => p.filter((x) => x.id !== tmp.id))
     }
   }
 
@@ -242,7 +245,8 @@ export default function CommentThread({ workoutId, ownerId, authorName, comments
     if (body === c.body) return // ничего не поменялось — не трогаем сервер и метку
     setEdits((m) => ({ ...m, [c.id]: body }))
     try {
-      await updateComment({ userId: me.id, comment: c, ownerId, text: body })
+      const patch = await updateComment({ userId: me.id, comment: c, ownerId, text: body })
+      if (aliveRef.current) setPending((p) => p.map((entry) => entry.id === c.id ? { ...entry, ...patch } : entry))
     } catch (e) {
       if (aliveRef.current) { setEditing(c); setText((cur) => cur || body) }
       showToast({ icon: 'alert', title: 'Не удалось изменить', sub: e?.message })
@@ -300,6 +304,7 @@ export default function CommentThread({ workoutId, ownerId, authorName, comments
     try {
       await removeComment({ userId: me.id, comment: c, ownerId })
       if (aliveRef.current) {
+        setPending((p) => p.filter((entry) => entry.id !== c.id))
         setAsking(null)
         if (editing?.id === c.id) cancelEdit()
         if (replying?.id === c.id) setReplying(null)
