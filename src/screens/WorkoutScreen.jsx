@@ -342,10 +342,7 @@ export default function WorkoutScreen({ user, workoutId = null, onBack, onSaved,
 
   // Применение шаблона (только новая тренировка): добавляем упражнения шаблона,
   // которых еще нет (анти-дубль по exercise.id), каждому — подходы по целевому
-  // плану шаблона (подходы × повторы × вес), либо один дефолтный, если плана нет.
-  // Рекомендацию автопрогрессии показываем СПРАВОЧНО (applied:false): план шаблона
-  // в подходах остается, панель лишь подсказывает «прошлая → рекомендуем сегодня»
-  // с кнопкой «Применить рекомендацию» (перебивает план шаблона по желанию).
+  // плану шаблона. Веса подставляем из истории, рекомендацию применяет пользователь.
   async function applyTemplate(tpl) {
     setTplPickerOpen(false)
     const have = new Set(entries.map((e) => e.exercise.id))
@@ -361,15 +358,14 @@ export default function WorkoutScreen({ user, workoutId = null, onBack, onSaved,
     const toAdd = []
     for (const item of items) {
       const ex = { ...(item.exercise ?? { id: item.exercise_id, name: '—' }), ...(item.metric ? { metric: item.metric } : {}) }
-      const sets = setsFromTemplate(ex, item)
-      // Рекомендация справочно: план шаблона в sets не подменяем, панель — не
-      // примененная (applied:false). Нет истории/выключено → панели нет (meta:null).
+      let sessions = []
       let meta = null
       try {
-        const sessions = await getRecentSessionsForExercise(user.id, ex.id, 5)
+        sessions = await getRecentSessionsForExercise(user.id, ex.id, 5)
         const built = buildRecommendation(ex, sessions, prog)
         meta = built.meta ? { ...built.meta, applied: built.meta.muted ? undefined : false } : null
-      } catch { /* рекомендация необязательна */ }
+      } catch { /* локальная история или рекомендация недоступна */ }
+      const sets = setsFromTemplate(ex, item, sessions)
       toAdd.push({ exercise: ex, sets, prog: meta, fromTemplate: true, ...(phaseValue(item.phase) ? { phase: phaseValue(item.phase) } : {}) })
     }
     // Пока читали историю, состав мог измениться — анти-дубль на свежем состоянии.

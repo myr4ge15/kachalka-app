@@ -14,7 +14,7 @@
 import { exerciseMetric, isCountMetric, hasExtraWeight, hasLoadWeight } from './metric.js'
 import { WEIGHT_MAX, repsMax, weightMin, savableSet } from './setLimits.js'
 import { templatePlan } from './templatePlan.js'
-import { defaultSet, sk } from './progressionCard.js'
+import { defaultSet, sessionsForMetric, sk } from './progressionCard.js'
 
 // Добавить упражнение в конец (анти-дубль по exercise.id). Уже есть → массив без
 // изменений (по ссылке). progMeta — панель автопрогрессии (или null).
@@ -127,8 +127,8 @@ export function insertSetIn(entries, exId, si, set) {
   })
 }
 
-// Откат к чистой копии прошлой сессии («вернуть как в прошлый раз»): подходы =
-// prog.prev со свежими ключами, панель помечается applied:false.
+// Отмена рекомендации восстанавливает подходы до ее применения. Если она
+// подставилась автоматически, возвращаем прошлую сессию.
 export function revertProgIn(entries, ei) {
   return entries.map((e, i) => {
     if (i !== ei || !e.prog) return e
@@ -161,9 +161,15 @@ export function toggleProgSettingsIn(entries, ei) {
 }
 
 // Подходы из целевого плана упражнения шаблона: `sets` подходов по `reps` повторов
-// (× weight у весовых). Нет плана (легаси-шаблон) → один дефолтный подход.
-export function setsFromTemplate(ex, item) {
-  return templatePlan(ex, item).map((s) => ({ ...s, _k: sk() }))
+// Вес берем из соответствующей строки последней совместимой сессии.
+// Дистанция и строки без веса в истории сохраняют значения плана.
+export function setsFromTemplate(ex, item, sessions) {
+  const metric = exerciseMetric(ex)
+  const previous = metric === 'distance' ? undefined : sessionsForMetric(sessions, metric)[0]?.sets
+  return templatePlan(ex, item).map((set, index) => {
+    const weight = previous?.[index]?.weight
+    return { ...set, weight: Number.isFinite(weight) ? weight : set.weight, _k: sk() }
+  })
 }
 
 // Сколько подходов реально уйдет в запись и сколько строк будет пропущено

@@ -1,7 +1,7 @@
 import { test, expect } from '@playwright/test'
 import { enterPin, tabbar, openTab } from './helpers.js'
 
-test('точный шаблон: редактор → перезагрузка → новая тренировка', async ({ page, context }) => {
+test('шаблон после перезагрузки подставляет веса из истории в новую тренировку', async ({ page, context }) => {
   await context.addInitScript(() => {
     Object.defineProperty(navigator, 'onLine', { get: () => false, configurable: true })
   })
@@ -9,12 +9,15 @@ test('точный шаблон: редактор → перезагрузка �
   await page.goto('/kachalka-app/')
   const user = await page.evaluate(async () => {
     const { seedE2E, E2E_EXERCISES } = await import('/kachalka-app/src/test/e2eSeed.js')
-    const { saveTemplate } = await import('/kachalka-app/src/db/repo.js')
+    const { saveTemplate, saveWorkout } = await import('/kachalka-app/src/db/repo.js')
     const { templateExercisesFromWorkout } = await import('/kachalka-app/src/lib/templateFromWorkout.js')
     const user = await seedE2E()
     await saveTemplate({ user_id: user.id, name: 'Точный план', exercises: templateExercisesFromWorkout([{
       exercise: E2E_EXERCISES[0], sets: [{ weight: 20, reps: 15 }, { weight: 80, reps: 8 }, { weight: 70, reps: 10 }],
     }]) })
+    await saveWorkout({ user_id: user.id, performed_at: '2026-01-01T12:00:00Z', entries: [{
+      exercise: E2E_EXERCISES[0], sets: [{ weight: 25, reps: 12 }, { weight: 85, reps: 6 }],
+    }] })
     return user
   })
   await page.reload()
@@ -43,7 +46,7 @@ test('точный шаблон: редактор → перезагрузка �
   await plan.click()
   const sets = page.locator('.exercise-card--active .set-row')
   await expect(sets).toHaveCount(3)
-  for (const [i, weight, reps] of [[0, '20', '15'], [1, '82.5', '8'], [2, '70', '10']]) {
+  for (const [i, weight, reps] of [[0, '25', '15'], [1, '85', '8'], [2, '70', '10']]) {
     await expect(sets.nth(i).locator('input').nth(0)).toHaveValue(weight)
     await expect(sets.nth(i).locator('input').nth(1)).toHaveValue(reps)
   }

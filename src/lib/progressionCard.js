@@ -76,17 +76,18 @@ export function fmtProgStep(step, metric) {
 
 // ── Оркестрация рекомендации ────────────────────────────────────────────────
 
-// Собрать предзаполнение подходов + метаданные панели по недавним сессиям и
-// настройкам. Нет истории/выключено/ручной/выкл → sets = копия прошлого или
-// дефолт, meta = null (панель не показываем). Иначе — рекомендация + панель.
-//
 // Сессии с полем `metric` в другой единице отбрасываем: после смены типа
 // упражнения старый снимок в тренировке остается прежним, и «10 кг × 8» иначе
 // читался бы как 8 повторов/секунд (РЕВЬЮ-КОДА-2026-10-02, п. 17). Сессии без
 // `metric` (старый вызывающий код) берем как есть.
+export function sessionsForMetric(allSessions, metric) {
+  return (allSessions ?? []).filter((s) => s?.metric == null || normMetric(s.metric) === metric)
+}
+
+// Собираем предзаполнение подходов и панель по недавним сессиям и настройкам.
 export function buildRecommendation(ex, allSessions, progState) {
   const metric = exerciseMetric(ex)
-  const sessions = (allSessions ?? []).filter((s) => s?.metric == null || normMetric(s.metric) === metric)
+  const sessions = sessionsForMetric(allSessions, metric)
   const last = sessions[0]?.sets ?? null
   const copyOrDefault = () =>
     last?.length ? last.map((s) => ({ weight: Number(s.weight), reps: Number(s.reps), _k: sk() })) : [defaultSet(ex)]

@@ -215,6 +215,28 @@ describe('setsFromTemplate', () => {
     const out = setsFromTemplate(rEx(), { sets: 2, reps: 12, weight: 40 })
     expect(out.every((x) => x.weight === 0 && x.reps === 12)).toBe(true)
   })
+  it('берет вес по номеру подхода из последней сессии в тех же единицах', () => {
+    const item = { set_plan: [s(5, 10), s(10, 8), s(15, 6)] }
+    const sessions = [
+      { metric: 'distance', sets: [s(2, 1200)] },
+      { metric: 'weight', sets: [s(20, 12), s(30, 10)] },
+      { metric: 'weight', sets: [s(40, 9), s(35, 9), s(25, 9)] },
+    ]
+    expect(setsFromTemplate(wEx(), item, sessions)).toMatchObject([
+      { weight: 20, reps: 10 }, { weight: 30, reps: 8 }, { weight: 15, reps: 6 },
+    ])
+    expect(item.set_plan.map((set) => set.weight)).toEqual([5, 10, 15])
+  })
+  it('подставляет помощь и нулевой доп. вес, сохраняет дистанцию из плана', () => {
+    const item = { set_plan: [s(3, 35), s(4, 45)] }
+    expect(setsFromTemplate(rEx(), item, [{ metric: 'reps', sets: [s(-15, 10), s(0, 15)] }])).toMatchObject([
+      { weight: -15, reps: 35 }, { weight: 0, reps: 45 },
+    ])
+    const run = wEx('run', { metric: 'distance' })
+    expect(setsFromTemplate(run, item, [{ metric: 'distance', sets: [s(5, 50)] }])).toMatchObject([
+      { weight: 3, reps: 35 }, { weight: 4, reps: 45 },
+    ])
+  })
 })
 
 describe('countSavable — число на кнопке «Сохранить» равно записанному', () => {

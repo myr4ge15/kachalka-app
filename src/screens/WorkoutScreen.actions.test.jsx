@@ -152,7 +152,7 @@ describe('замена упражнения', () => {
 })
 
 describe('шаблон', () => {
-  it('добавляет упражнения шаблона с его планом; рекомендация — справочно, не применена', async () => {
+  it('добавляет шаблон с весами из истории и предлагает рекомендацию отдельно', async () => {
     vi.mocked(getRecentSessionsForExercise).mockImplementation(async (_u, id) => (id === 'bench' ? history : []))
     pickTemplate = {
       exercises: [
@@ -167,12 +167,27 @@ describe('шаблон', () => {
 
     await screen.findByText('Жим лежа')
     expect(screen.queryByRole('dialog', { name: 'Шаблоны' })).not.toBeInTheDocument()
-    expect(weights()).toEqual(['70', '70'])
-    // Панель есть, но план шаблона не подменен — кнопка «Применить», а не «вернуть».
+    expect(weights()).toEqual(['60', '60'])
+    expect(screen.getAllByLabelText(/^Повторения, подход/).map((input) => input.value)).toEqual(['5', '5'])
     expect(screen.getByText(/Рекомендуем сегодня/)).toBeInTheDocument()
     expect(screen.getByRole('button', { name: 'Применить рекомендацию' })).toBeInTheDocument()
     // Черновик пишет эффект после отрисовки (hooks/useWorkoutDraft) — ждем его, а не первый кадр.
     await waitFor(() => expect(readDraft(DRAFT).map((e) => e.exercise.id)).toEqual(['bench', 'ghost']))
+  })
+
+  it('подставляет актуальный вес при отключенной автопрогрессии', async () => {
+    prog.enabled = false
+    vi.mocked(getRecentSessionsForExercise).mockResolvedValue([
+      { metric: 'weight', sets: [{ weight: 20, reps: 10 }] },
+    ])
+    pickTemplate = { exercises: [{ exercise: bench, sets: 1, reps: 8, weight: 5 }] }
+    render(<WorkoutScreen user={user} />)
+    fireEvent.click(screen.getByRole('button', { name: 'Выбрать шаблон' }))
+    fireEvent.click(screen.getByRole('button', { name: 'выбрать шаблон' }))
+
+    await screen.findByText('Жим лежа')
+    expect(weights()).toEqual(['20'])
+    expect(screen.queryByText(/Рекомендуем сегодня/)).not.toBeInTheDocument()
   })
 
   it('все упражнения шаблона уже в составе — сообщение, ничего не добавляется', async () => {

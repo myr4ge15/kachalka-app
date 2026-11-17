@@ -99,7 +99,7 @@ describe('WorkoutScreen', () => {
     })
   })
 
-  it('шаблон сохраняет разные подходы, прогрессия применяется вручную и отменяется к плану', async () => {
+  it('отмена рекомендации восстанавливает план с подставленным из истории весом', async () => {
     vi.mocked(getRecentSessionsForExercise).mockResolvedValue([
       { performed_at: '2026-10-01', sets: [{ weight: 60, reps: 10 }] },
     ])
@@ -107,20 +107,20 @@ describe('WorkoutScreen', () => {
     fireEvent.click(screen.getByRole('button', { name: 'Выбрать шаблон' }))
     fireEvent.click(screen.getByRole('button', { name: 'Точный шаблон' }))
     await screen.findByDisplayValue('80')
-    expect(screen.getByDisplayValue('20')).toBeInTheDocument()
+    expect(screen.getByDisplayValue('60')).toBeInTheDocument()
     expect(screen.getByDisplayValue('15')).toBeInTheDocument()
     fireEvent.click(screen.getByRole('button', { name: 'Применить рекомендацию' }))
     expect(screen.queryByDisplayValue('80')).toBeNull()
-    fireEvent.click(screen.getByRole('button', { name: 'вернуть план шаблона' }))
+    fireEvent.click(screen.getByRole('button', { name: 'отменить рекомендацию' }))
     expect(screen.getByDisplayValue('80')).toBeInTheDocument()
-    expect(screen.getByDisplayValue('20')).toBeInTheDocument()
+    expect(screen.getByDisplayValue('60')).toBeInTheDocument()
     fireEvent.click(screen.getByRole('button', { name: 'Настройки прогрессии' }))
     fireEvent.click(screen.getByRole('button', { name: 'ручной' }))
     await waitFor(() => expect(screen.getByText(/Прогрессия: ручной/)).toBeInTheDocument())
     fireEvent.click(screen.getByRole('button', { name: '+вес' }))
     await waitFor(() => expect(screen.getByRole('button', { name: 'Применить рекомендацию' })).toBeInTheDocument())
     expect(screen.getByDisplayValue('80')).toBeInTheDocument()
-    expect(screen.getByDisplayValue('20')).toBeInTheDocument()
+    expect(screen.getByDisplayValue('60')).toBeInTheDocument()
   })
 
   it('черновик переживает перезапуск страницы (выгрузку PWA в фоне)', () => {
