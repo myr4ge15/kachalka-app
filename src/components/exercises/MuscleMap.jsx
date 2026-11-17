@@ -22,6 +22,7 @@
 // Пропсы: bySub ({submuscle→status}), selected (region|null), selectedSub (submuscle|null), onSelect(region).
 // ============================================================================
 import { BODY_OUTLINE, NEUTRAL_PARTS, FRONT_REGIONS, BACK_REGIONS } from './muscleBodyPaths.js'
+import { labelOf } from '../../lib/muscles.js'
 
 // Цвета — токены --fr-*/--mm-* из index.css (красная линия «никакого хардкода в
 // JSX»). В SVG-атрибут fill var() не подставить, поэтому зона получает КЛАСС
@@ -54,7 +55,7 @@ const REGION_LABEL = {
   chest: 'грудь', abs: 'пресс', obliques: 'косые', deltoids: 'дельты',
   biceps: 'бицепс', forearm: 'предплечья', triceps: 'трицепс', trapezius: 'трапеция',
   'upper-back': 'широчайшие', 'lower-back': 'поясница', gluteal: 'ягодичные',
-  quadriceps: 'квадрицепс', adductors: 'приводящие', hamstring: 'бицепс бедра', calves: 'икры',
+  quadriceps: 'квадрицепс', adductors: 'приводящие', hamstring: labelOf('hamstrings'), calves: 'икры',
 }
 const BUCKET_RANK = { resting: 5, almost: 4, ready: 3, stale: 2, never: 1 }
 

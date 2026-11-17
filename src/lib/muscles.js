@@ -50,7 +50,7 @@ export const SUBMUSCLES = {
   traps_lower:  { major: 'трапеции', label: 'середина и низ трапеции', labelAccusative: 'середину и низ трапеции', recoveryHours: 48 },
   // ноги
   quads:        { major: 'ноги',     label: 'квадрицепс',         labelAccusative: 'квадрицепс',         recoveryHours: 72 },
-  hamstrings:   { major: 'ноги',     label: 'бицепс бедра',       labelAccusative: 'бицепс бедра',       recoveryHours: 72 },
+  hamstrings:   { major: 'ноги',     label: 'задняя поверхность бедра', labelAccusative: 'заднюю поверхность бедра', recoveryHours: 72 },
   calves:       { major: 'ноги',     label: 'икры',               labelAccusative: 'икры',               recoveryHours: 48 },
   adductors:    { major: 'ноги',     label: 'приводящие',         labelAccusative: 'приводящие',         recoveryHours: 48 },
   // ягодицы (в реальной базе — отдельная группа; делим на большую/среднюю)

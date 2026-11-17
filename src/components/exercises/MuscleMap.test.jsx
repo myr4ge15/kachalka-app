@@ -1,7 +1,7 @@
 // @vitest-environment jsdom
 import { describe, expect, it, vi } from 'vitest'
 import { fireEvent, render, screen } from '@testing-library/react'
-import MuscleMap, { bucketClass, regionOf } from './MuscleMap.jsx'
+import MuscleMap, { bucketClass, regionLabel, regionOf } from './MuscleMap.jsx'
 
 describe('MuscleMap — чистые хелперы', () => {
   it('bucketClass: известный статус → класс, прочее → «без данных»', () => {
@@ -42,6 +42,9 @@ describe('MuscleMap', () => {
     render(<MuscleMap />)
     expect(screen.getByRole('group', { name: /спереди/ })).toBeInTheDocument()
     expect(screen.getByRole('group', { name: /сзади/ })).toBeInTheDocument()
+    const label = regionLabel(regionOf('hamstrings'))
+    expect(label).toBe('задняя поверхность бедра')
+    expect(screen.getByRole('button', { name: label })).toBeInTheDocument()
   })
 
   it('выбор зоны кликом и с клавиатуры (Enter/пробел); выбранная — aria-pressed', () => {

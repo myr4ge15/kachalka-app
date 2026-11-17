@@ -127,6 +127,8 @@ describe('muscles — хелперы', () => {
   it('подписи: известный → label, неизвестный → сам слаг', () => {
     expect(labelOf('glute_max')).toBe('большая ягодичная')
     expect(labelOf('traps')).toBe('верх трапеции')
+    expect(labelOf('hamstrings')).toBe('задняя поверхность бедра')
+    expect(labelAccusativeOf('hamstrings')).toBe('заднюю поверхность бедра')
     expect(labelAccusativeOf('traps_lower')).toBe('середину и низ трапеции')
     expect(labelAccusativeOf('rotator_cuff')).toBe('вращательную манжету')
     expect(labelOf('xxx')).toBe('xxx')
