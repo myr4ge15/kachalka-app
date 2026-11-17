@@ -2,9 +2,8 @@ import { useState } from 'react'
 import { useLiveQuery } from 'dexie-react-hooks'
 import { getFreshness } from '../db/insights.js'
 import { getWorkouts } from '../db/repo.js'
-import { groupVolumeTrend, trendLabel, WEEKS } from '../lib/groupVolume.js'
+import { groupVolumeTrend } from '../lib/groupVolume.js'
 import { plural } from '../lib/plural.js'
-import { fmtNum } from '../lib/metric.js'
 import { readinessView, recoveryLead, fmtHoursLeft, regionTarget } from '../lib/freshness.js'
 import { fmtDaysAgo } from '../lib/homeSummary.js'
 import { LEAD_TARGET, leadSince, cardioLine } from '../lib/recoveryText.js'
@@ -14,6 +13,7 @@ import { byGender } from '../lib/gender.js'
 import MuscleMap, { regionOf, regionSubs, regionLabel } from '../components/exercises/MuscleMap.jsx'
 import CardsSkeleton from '../components/ui/CardsSkeleton.jsx'
 import BackButton from '../components/ui/BackButton.jsx'
+import GroupVolume from '../components/freshness/GroupVolume.jsx'
 
 // Экран «Готовность мышц» (v6.2.5, макет — prototypes/freshness.html, «А · компактнее»).
 // Раньше: карта + длинный список «Когда снова тренировать» (по строке на подмышцу,
@@ -69,37 +69,6 @@ function detailText(item, sex) {
   const ago = item.daysSince == null ? null : fmtDaysAgo(item.daysSince)
   const major = item.major && item.major.toLowerCase() !== String(labelOf(item.submuscle)).toLowerCase() ? item.major : null
   return [major, ago, when].filter(Boolean).join(' · ')
-}
-
-// Динамика объема по группам (v6.5.0): строка = группа · мини-столбики по неделям ·
-// подходов в неделю · тренд «последние 2 недели против 2 предыдущих». Не новый
-// экран, а разрез под картой готовности (BACKLOG «Прогресс… и динамика по группам»).
-function GroupVolume({ rows }) {
-  if (!rows?.length) return null
-  const max = Math.max(1, ...rows.flatMap((r) => r.weeks))
-  return (
-    <section className="gv" aria-labelledby="gv-title">
-      <h3 className="sec-title gv-title" id="gv-title">Объем по группам</h3>
-      <p className="gv-sub muted">Рабочие подходы за {WEEKS} недели; тренд — две последние против двух прошлых.</p>
-      <ul className="gv-list">
-        {rows.map((r) => (
-          <li key={r.group} className="gv-row">
-            <span className="gv-name">{cap(r.group)}</span>
-            <span className="gv-bars" aria-hidden="true">
-              {r.weeks.map((n, i) => (
-                <i key={i} className={i === r.weeks.length - 1 ? 'now' : ''} style={{ height: `${Math.max(8, (n / max) * 100)}%`, opacity: n ? 1 : 0.35 }} />
-              ))}
-            </span>
-            <span className="gv-num">
-              {/* Дробь — «0,5 подхода» (род. падеж ед. ч.), целое — по числу (UI-ревью 23.10). */}
-              <b>{fmtNum(r.perWeek)}</b> {Number.isInteger(r.perWeek) ? plural(r.perWeek, 'подход', 'подхода', 'подходов') : 'подхода'}/нед.
-            </span>
-            <span className={`gv-trend gv-trend--${r.trend}`}>{trendLabel(r)}</span>
-          </li>
-        ))}
-      </ul>
-    </section>
-  )
 }
 
 export default function FreshnessScreen({ user, onBack }) {

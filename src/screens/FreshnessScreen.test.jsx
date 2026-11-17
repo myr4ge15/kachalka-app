@@ -1,7 +1,9 @@
 // @vitest-environment jsdom
 import { beforeEach, describe, expect, it, vi } from 'vitest'
-import { fireEvent, render, screen } from '@testing-library/react'
+import { fireEvent, render, screen, within } from '@testing-library/react'
 import { useLiveQuery } from 'dexie-react-hooks'
+import { getFreshness } from '../db/insights.js'
+import { getWorkouts } from '../db/repo.js'
 import FreshnessScreen from './FreshnessScreen.jsx'
 
 vi.mock('dexie-react-hooks', () => ({ useLiveQuery: vi.fn() }))
@@ -107,10 +109,28 @@ describe('FreshnessScreen «Восстановление» (v6.3.5)', () => {
 
 describe('FreshnessScreen — объём по группам (v6.5.0)', () => {
   const rows = [
-    { group: 'грудь', weeks: [3, 4, 6, 6], recent: 12, prev: 7, perWeek: 6, trend: 'up', pct: 71 },
-    { group: 'спина', weeks: [5, 5, 2, 2], recent: 4, prev: 10, perWeek: 2, trend: 'down', pct: -60 },
+    { group: 'грудь', weeks: [3, 4, 6, 6], recent: 12, prev: 7, perWeek: 6, trend: 'up', pct: 71,
+      muscles: [{ submuscle: 'chest_middle', perWeek: 5.5 }, { submuscle: null, perWeek: 0.5 }] },
+    { group: 'спина', weeks: [5, 5, 2, 2], recent: 4, prev: 10, perWeek: 2, trend: 'down', pct: -60,
+      muscles: [{ submuscle: 'lats', perWeek: 2 }] },
+    { group: 'кардио', weeks: [0, 0, 0, 1], recent: 1, prev: 0, perWeek: 0.5, trend: 'new', pct: null, muscles: [] },
   ]
   beforeEach(() => vi.mocked(useLiveQuery).mockImplementation((fn, deps, def) => (def === undefined ? data : rows)))
+
+  it('считает разбивку из локальной истории выбранной учётки', async () => {
+    vi.mocked(getFreshness).mockReturnValue(data)
+    vi.mocked(getWorkouts).mockResolvedValue([{ performed_at: new Date().toISOString(), entries: [
+      { exercise: { muscle_group: 'ягодицы', submuscle: 'glute_max' }, sets: [{ reps: 8 }, { reps: 10 }] },
+    ] }])
+    vi.mocked(useLiveQuery).mockClear()
+    render(<FreshnessScreen user={{ id: 'u1' }} />)
+    const [[readFreshness], [readVolume]] = vi.mocked(useLiveQuery).mock.calls
+    expect(readFreshness()).toBe(data)
+    await expect(readVolume()).resolves.toMatchObject([
+      { group: 'ягодицы', perWeek: 1, muscles: [{ submuscle: 'glute_max', perWeek: 1 }] },
+    ])
+    expect(getWorkouts).toHaveBeenCalledWith('u1')
+  })
 
   it('строка на группу: подходы в неделю и тренд', () => {
     render(<FreshnessScreen user={{ id: 'u1' }} onBack={() => {}} />)
@@ -118,5 +138,26 @@ describe('FreshnessScreen — объём по группам (v6.5.0)', () => {
     const items = [...document.querySelectorAll('.gv-row')].map((el) => el.textContent)
     expect(items[0]).toMatch(/Грудь.*6 подходов\/нед\..*▲ \+71%/)
     expect(items[1]).toMatch(/Спина.*2 подхода\/нед\..*▼ −60%/)
+  })
+
+  it('раскрывает основные мышцы и неточную часть объема, закрывает предыдущую группу', () => {
+    render(<FreshnessScreen user={{ id: 'u1' }} />)
+    const volume = within(screen.getByRole('region', { name: 'Объем по группам' }))
+    const chest = volume.getByRole('button', { name: /^Грудь/ })
+    const back = volume.getByRole('button', { name: /^Спина/ })
+    const detail = document.getElementById(chest.getAttribute('aria-controls'))
+    expect(detail).not.toBeVisible()
+    expect(volume.queryByRole('button', { name: /^Кардио/ })).toBeNull()
+
+    fireEvent.click(chest)
+    expect(chest).toHaveAttribute('aria-expanded', 'true')
+    expect(detail).toBeVisible()
+    expect(within(detail).getByText('Середина груди').closest('li')).toHaveTextContent('5.5 подхода/нед.')
+    expect(within(detail).getByText('Без уточнения мышцы').closest('li')).toHaveTextContent('0.5 подхода/нед.')
+    fireEvent.click(back)
+    expect(chest).toHaveAttribute('aria-expanded', 'false')
+    expect(volume.getByText('Широчайшие')).toBeVisible()
+    fireEvent.click(back)
+    expect(back).toHaveAttribute('aria-expanded', 'false')
   })
 })

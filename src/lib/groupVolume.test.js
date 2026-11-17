@@ -60,6 +60,24 @@ describe('groupVolumeTrend', () => {
     expect(rows.map((r) => r.group)).toEqual(['грудь', 'спина'])
   })
 
+  it('раскладывает свежий объем группы только по основным мышцам, сохраняя остаток', () => {
+    const glutes = (submuscle, sets, extra = {}) => ({
+      exercise: { muscle_group: 'ягодицы', submuscle, secondary: ['glute_med'] }, sets, ...extra,
+    })
+    const [row] = groupVolumeTrend([
+      wk(1, glutes('glute_max', S(5)), glutes('glute_med', S(2)), glutes(null, S(2))),
+      wk(11, glutes('glute_max', S(2)), glutes('lats', S(1)), glutes('glute_max', S(4), { phase: 'warmup' })),
+      wk(18, glutes('glute_max', S(10))),
+    ], NOW)
+    expect(row.weeks).toEqual([0, 10, 3, 9])
+    expect(row.muscles).toEqual([
+      { submuscle: 'glute_max', perWeek: 3.5 },
+      { submuscle: 'glute_med', perWeek: 1 },
+      { submuscle: null, perWeek: 1.5 },
+    ])
+    expect(row.muscles.reduce((sum, item) => sum + item.perWeek, 0)).toBe(row.perWeek)
+  })
+
   it('учитывает старый формат записи и отбрасывает неполные подходы и даты', () => {
     const rows = groupVolumeTrend([
       null,
@@ -67,7 +85,7 @@ describe('groupVolumeTrend', () => {
       wk(1, { muscle_group: 'грудь', sets: [null, { reps: 5 }] }, { sets: S(3) }, ex('ноги'), ex('спина', [{ reps: 0 }])),
     ], new Date(NOW))
     expect(rows).toEqual([
-      { group: 'грудь', weeks: [0, 0, 0, 1], recent: 1, prev: 0, perWeek: 0.5, trend: 'new', pct: null },
+      { group: 'грудь', weeks: [0, 0, 0, 1], recent: 1, prev: 0, perWeek: 0.5, muscles: [], trend: 'new', pct: null },
     ])
     expect(groupVolumeTrend(null)).toEqual([])
   })
