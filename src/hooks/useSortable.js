@@ -29,6 +29,7 @@ import { flushSync } from 'react-dom'
 
 const DROP_MS = 180 // = --dur-base; «подъем» (scale, тень) — в index.css, .sort-lifted
 const TRASH_SLOP = 16 // px вокруг корзины, которые еще считаются «над ней»
+const SCROLL_SPEED = 0.48 // px/ms, до 8 px за кадр при 60 Гц
 
 // Корзина рисуется вне React (во время жеста экран не перерисовывается — см. выше): иконка — тот же
 // штрих, что `trash` в components/ui/Icon.jsx.
@@ -88,13 +89,17 @@ export function useSortable(onMove, { attr, handle, holdMs = 0, onLift, onDrop, 
 
     function lift() {
       g.active = true
-      const before = rows().find(el => idOf(el) === g.id)?.getBoundingClientRect()
+      const oldRows = rows()
+      const oldRects = cb.current.onLift && !reduced()
+        ? new Map(oldRows.map(el => [idOf(el), el.getBoundingClientRect()]))
+        : null
+      const before = oldRects?.get(g.id) ?? oldRows.find(el => idOf(el) === g.id)?.getBoundingClientRect()
       if (cb.current.onLift) flushSync(() => cb.current.onLift(g.id))
       const list = rows()
       const d = list.findIndex(el => idOf(el) === g.id)
       if (d < 0) { reset(); return }
       g.scroller = scrollerOf()
-      g.startScroll = scrollTop()
+      g.startScroll = g.lastScroll = scrollTop()
       // Раскладка в координатах содержимого скроллера: переживает автопрокрутку.
       g.list = list
       g.d = d
@@ -110,16 +115,29 @@ export function useSortable(onMove, { attr, handle, holdMs = 0, onLift, onDrop, 
       g.t = d
       root.classList.add('sort-active')
       list.forEach((el, i) => el.classList.add(i === d ? 'sort-lifted' : 'sort-shift'))
+      // При сворачивании высокой карточки соседи доезжают из прежних позиций.
+      // Независимый translate оставляет transform в распоряжении сортировки.
+      g.layoutAnimations = []
+      list.forEach((el, i) => {
+        const oldTop = oldRects?.get(idOf(el))?.top
+        const dy = oldTop - (g.rects[i].top - g.startScroll)
+        if (i !== d && Number.isFinite(dy) && dy && el.animate) {
+          g.layoutAnimations.push(el.animate([{ translate: `0 ${dy}px` }, { translate: '0 0' }], {
+            duration: DROP_MS, easing: 'ease-out',
+          }))
+        }
+      })
       try { navigator.vibrate?.(8) } catch { /* нет вибро — ок */ }
       showTrash()
       apply()
       frame = requestAnimationFrame(autoscroll)
     }
 
-    function apply() {
+    function apply(scroll = scrollTop()) {
       const { rects, d, list } = g
       const first = rects[0], last = rects.at(-1), me = rects[d]
-      let dy = g.offset + (g.y - g.startY) + (scrollTop() - g.startScroll)
+      g.lastScroll = scroll
+      let dy = g.offset + (g.y - g.startY) + (scroll - g.startScroll)
       // Не выпускаем строку за края списка.
       dy = Math.max(first.top - me.top, Math.min(last.top + last.h - me.top - me.h, dy))
       list[d].style.transform = `translate3d(0, ${dy}px, 0)`
@@ -131,6 +149,7 @@ export function useSortable(onMove, { attr, handle, holdMs = 0, onLift, onDrop, 
         if (i > d && me.top + me.h + dy > mid) t++
         if (i < d && me.top + dy < mid) t--
       })
+      if (t === g.t) return
       g.t = t
       const step = me.h + g.gap
       list.forEach((el, i) => {
@@ -140,21 +159,30 @@ export function useSortable(onMove, { attr, handle, holdMs = 0, onLift, onDrop, 
       })
     }
 
-    function autoscroll() {
+    function autoscroll(now) {
       if (!g?.active || g.dropping) return
       const sc = g.scroller
+      const elapsed = Math.min(now - (g.lastFrame ?? now), 32)
+      g.lastFrame = now
+      if (g.pending) markTrash()
       // Над корзиной (она у нижнего края) список не листаем — иначе он уезжал бы, пока палец ждет.
-      if (sc && !g.hot) {
+      if (sc && g.moved && !g.hot) {
         const r = sc === document.scrollingElement ? { top: 0, bottom: window.innerHeight } : sc.getBoundingClientRect()
-        const delta = g.y < r.top + 64 ? -8 : g.y > r.bottom - 88 ? 8 : 0
-        if (delta) { sc.scrollTop += delta; apply() }
+        const above = Math.max(0, (r.top + 64 - g.y) / 64)
+        const below = Math.max(0, (g.y - r.bottom + 88) / 88)
+        const speed = Math.max(-1, Math.min(1, below - above)) * SCROLL_SPEED
+        if (speed) sc.scrollTop += speed * elapsed
       }
+      const scroll = scrollTop()
+      if (g.pending || scroll !== g.lastScroll) apply(scroll)
+      g.pending = false
       frame = requestAnimationFrame(autoscroll)
     }
 
     function clear() {
       root.classList.remove('sort-active')
       hideTrash()
+      g?.layoutAnimations?.forEach(animation => animation.cancel())
       for (const el of [...(g?.list ?? []), ...rows()]) {
         el.classList.remove('sort-lifted', 'sort-shift', 'sort-dropping', 'sort-trashing')
         el.style.transform = ''
@@ -195,6 +223,11 @@ export function useSortable(onMove, { attr, handle, holdMs = 0, onLift, onDrop, 
       cancelAnimationFrame(frame)
       detach()
       suppressUntil = Date.now() + 500
+      // Палец мог отпуститься между кадрами: сохраняем последнюю позицию.
+      if (commit && g.pending) {
+        markTrash()
+        apply()
+      }
       // Отпустили над корзиной — строка уходит из списка, соседи возвращаются на места.
       if (commit && g.hot && cb.current.onRemove) {
         const id = g.id
@@ -257,8 +290,7 @@ export function useSortable(onMove, { attr, handle, holdMs = 0, onLift, onDrop, 
       if (e.cancelable) e.preventDefault()
       g.y = y
       g.cx = x
-      apply()
-      markTrash()
+      g.moved = g.pending = true
     }
 
     const touchStart = e => {

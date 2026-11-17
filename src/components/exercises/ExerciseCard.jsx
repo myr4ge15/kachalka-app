@@ -32,8 +32,7 @@ import Icon from '../ui/Icon.jsx'
 // тренировки. Оценка необязательна, поэтому строка ничего не требует и не
 // блокирует, а повторный тап по выбранной кнопке снимает выбор.
 // `onTechnique` (v8.0.0) — открыть подсказку «Как выполнять»; нет подсказки для
-// упражнения — нет и кнопки. «i» стоит сразу за названием (внутри ручки
-// перестановки, но с data-no-sort — удержание на ней строку не поднимает). Кнопка
+// упражнения — нет и кнопки. «i» стоит сразу за названием. Кнопка
 // только у раскрытой карточки: она уже активна, pointerdown корня reveal не дает.
 // `onVoiceSet(ei, si, {weight,reps})` (v8.7.0) — подход голосом: микрофон рядом с
 // «+ подход» (только «вес × повторы» и «свой вес»), `voiceCursor` — строка, которую
@@ -42,7 +41,7 @@ import Icon from '../ui/Icon.jsx'
 // карточке упражнения, а не в шапке тренировки (длинную тренировку не листать наверх);
 // WorkoutScreen передает ее только раскрытой карточке новой тренировки за сегодня.
 export default function ExerciseCard({
-  entry, ei, prog, active = true, cardRef = null, onActivate = () => {},
+  entry, ei, prog, active = true, reorderable = false, cardRef = null, onActivate = () => {},
   feel = null, onSetFeel = () => {},
   onTechnique = null,
   onReplace, onRemove,
@@ -81,6 +80,14 @@ export default function ExerciseCard({
   const apFoldable = Boolean(live) && apEdited
   const apCompact = apFoldable && !apOpen && !live.settingsOpen
 
+  // Ручка остается тем же DOM-узлом при сворачивании под пальцем.
+  const grip = reorderable && (
+    <button type="button" className="exercise-grip" data-no-swipe-back=""
+      aria-label={`Перетащить «${entry.exercise.name}»`} title="Перетащить (или Alt + ↑/↓)">
+      <Icon name="grip" size={20} />
+    </button>
+  )
+
   // Свернутое упражнение доступно одной крупной кнопкой со сводкой подходов.
   if (!active) {
     return (
@@ -89,6 +96,7 @@ export default function ExerciseCard({
         data-exercise-id={entry.exercise.id}
         data-active="false"
       >
+        {grip}
         <button
           type="button"
           className="exercise-compact-toggle"
@@ -115,8 +123,9 @@ export default function ExerciseCard({
       onPointerDown={() => onActivate(entry.exercise.id)}
       onFocusCapture={() => onActivate(entry.exercise.id)}
     >
+      {grip}
       <div className="exercise-head">
-        <span className="exercise-title" tabIndex={0} aria-label={`${entry.exercise.name}. Изменить порядок: Alt и стрелки вверх или вниз`}>
+        <span className="exercise-title">
           <TitleWithTechnique name={entry.exercise.name} onTechnique={onTechnique} />
         </span>
         <span className="exercise-actions">

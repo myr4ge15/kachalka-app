@@ -28,9 +28,9 @@ test('свайп из тренировки ведет к списку, пере�
   const rows = page.locator('.exercise-card')
   await expect(rows).toHaveCount(2)
 
-  // 1) Удержание названия и ведение пальца вправо-вниз — сортировка, экран на месте.
+  // 1) Ведение пальца за ручку вправо-вниз — сортировка, экран на месте.
   const session = await context.newCDPSession(page)
-  const first = page.getByLabel(/^Жим лежа \(e2e\)\. Изменить порядок/)
+  const first = page.getByRole('button', { name: /^Перетащить «Жим лежа/ })
   const b = await first.boundingBox()
   const x = b.x + 30, y = b.y + b.height / 2
   await session.send('Input.dispatchTouchEvent', { type: 'touchStart', touchPoints: [{ x, y }] })

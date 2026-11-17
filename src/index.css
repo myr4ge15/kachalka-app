@@ -952,6 +952,11 @@ button.link-btn { min-height: 44px; display: inline-flex; align-items: center; j
 .exercise-compact-chevron { flex: none; color: var(--muted); }
 .exercise-reorder-hint { font-size: var(--fs-meta); margin: 12px 0; }
 .exercise-title, .exercise-compact-toggle { -webkit-user-select: none; user-select: none; -webkit-touch-callout: none; }
+.exercise-card:has(> .exercise-grip) { position: relative; }
+.exercise-grip { position: absolute; inset-inline-start: 0; top: 7px; }
+.exercise-card--active > .exercise-grip { top: 10px; inset-inline-start: 5px; }
+.exercise-grip + .exercise-head { padding-inline-start: 36px; }
+.exercise-grip + .exercise-compact-toggle { padding-inline-start: 44px; }
 
 /* Перестановка перетаскиванием (v7.1.2, hooks/useSortable) — одна для тренировки,
    шаблонов и порядка учеток. Взятая строка «поднимается» (scale + тень + обводка
@@ -1630,12 +1635,12 @@ button.link-btn { min-height: 44px; display: inline-flex; align-items: center; j
    touch-action:none держим ТОЛЬКО на ручке (.tpl-handle): иначе вся строка
    перехватывала тач, и страница не скроллилась пальцем по упражнениям (скролл
    ловился лишь в пустых зонах). Drag и так идет через setPointerCapture на ручке. */
-.tpl-handle {
+.tpl-handle, .exercise-grip {
   flex-shrink: 0; width: 44px; height: 44px; font-size: 20px;
   background: none; border: none; color: var(--muted);
   cursor: grab; touch-action: none;
 }
-.tpl-handle:active { cursor: grabbing; }
+.tpl-handle:active, .exercise-grip:active { cursor: grabbing; }
 .tpl-name { flex: 1; min-width: 0; font-size: 15px; }
 
 /* Карточка шаблона в пикере: имя + «N упр.» + краткий состав */
@@ -2595,7 +2600,7 @@ button.cm-mention-link { text-decoration: underline; cursor: pointer; }
 .ui-icon { flex: none; }
 .tpl-badge .ui-icon, .fb-shot-tag .ui-icon, .admin-ex-meta .ui-icon, .fb-item-marks .ui-icon { vertical-align: -2px; }
 .fb-item-marks > span { display: inline-flex; align-items: center; gap: 3px; }
-.tpl-handle, .update-banner-close, .cm-editing button { display: inline-grid; place-items: center; }
+.tpl-handle, .exercise-grip, .update-banner-close, .cm-editing button { display: inline-grid; place-items: center; }
 /* В ссылке-тексте («Подробнее ›»): цвет текста, по центру строки, без своей высоты строки. */
 .ui-chevron--inline { color: inherit; vertical-align: -0.2em; margin-left: 1px; }
 @media (prefers-reduced-motion: reduce) { .ui-chevron { transition: none; } }

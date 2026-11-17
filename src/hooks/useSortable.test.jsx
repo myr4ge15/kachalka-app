@@ -40,6 +40,7 @@ function setup(props = {}) {
   return { ...r, onMove, onLift, onDrop, row, grip, order }
 }
 const touch = (x, y) => ({ touches: [{ clientX: x, clientY: y }] })
+const nextFrame = () => act(() => vi.advanceTimersByTime(16))
 const mouse = (target, type, clientY) => {
   const e = new MouseEvent(type, { bubbles: true, cancelable: true, clientY, button: 0 })
   Object.defineProperty(e, 'pointerType', { value: 'mouse' })
@@ -57,7 +58,10 @@ describe('useSortable — удержание (тренировка)', () => {
     expect(onLift).toHaveBeenCalledWith('c')
     expect(row('c')).toHaveClass('sort-lifted')
     expect(row('a')).toHaveClass('sort-shift')
-    fireEvent.touchMove(grip('c'), touch(20, 25)) // палец наверху списка
+    fireEvent.touchMove(grip('c'), touch(20, 145))
+    fireEvent.touchMove(grip('c'), touch(20, 25)) // последний из двух событий до кадра
+    expect(row('c').style.transform).toBe('translate3d(0, 0px, 0)')
+    nextFrame()
     expect(row('c').style.transform).toBe('translate3d(0, -200px, 0)')
     // место открывается сверху: a и b уехали вниз на высоту строки + зазор
     expect(row('a').style.transform).toBe('translate3d(0, 100px, 0)')
@@ -80,6 +84,7 @@ describe('useSortable — удержание (тренировка)', () => {
     fireEvent.touchStart(grip('a'), touch(20, 45))
     act(() => vi.advanceTimersByTime(350))
     fireEvent.touchMove(grip('a'), touch(20, 600)) // ниже последней
+    nextFrame()
     expect(row('a').style.transform).toBe('translate3d(0, 200px, 0)')
     expect(row('b').style.transform).toBe('translate3d(0, -100px, 0)')
     fireEvent.touchEnd(grip('a'))
@@ -152,15 +157,20 @@ describe('useSortable — удержание (тренировка)', () => {
         row('c').getBoundingClientRect = () => ({ top: 300, height: 40, bottom: 340 })
       },
     })
+    const cancel = vi.fn()
+    row('a').animate = vi.fn(() => ({ cancel }))
     fireEvent.touchStart(grip('c'), touch(20, 245)) // взяли на 45px от верха — ниже новой высоты
     act(() => vi.advanceTimersByTime(350))
+    expect(row('a').animate).toHaveBeenCalledWith([{ translate: '0 -100px' }, { translate: '0 0' }], expect.any(Object))
     // Сразу после подъема: середина строки (300 − 75 + 20 = 245) — под пальцем.
     expect(row('c').style.transform).toBe('translate3d(0, -75px, 0)')
     fireEvent.touchMove(grip('c'), touch(20, 225))
+    nextFrame()
     expect(row('c').style.transform).toBe('translate3d(0, -95px, 0)')
     fireEvent.touchEnd(grip('c'))
     act(() => vi.advanceTimersByTime(180))
     expect(onMove).toHaveBeenCalledWith('c', 'b')
+    expect(cancel).toHaveBeenCalledOnce()
   })
 
   it('список прокрутился во время жеста — строка доезжает ровно на свое место (fb_6c3de081)', () => {
@@ -215,6 +225,27 @@ describe('useSortable — за ручку (шаблоны, админка)', () 
     act(() => vi.advanceTimersByTime(180))
     expect(onMove).toHaveBeenCalledWith('c', 'b')
     expect(order()).toEqual(['a', 'c', 'b'])
+  })
+
+  it('автопрокрутка начинается после движения и ускоряется у края', () => {
+    const { grip, container } = setup({ holdMs: 0 })
+    const scroller = container.firstElementChild
+    scroller.classList.add('content')
+    scroller.getBoundingClientRect = () => ({ top: 100, bottom: 800 })
+    scroller.scrollTop = 40
+    fireEvent.touchStart(grip('c'), touch(20, 765))
+    nextFrame()
+    expect(scroller.scrollTop).toBe(40)
+
+    fireEvent.touchMove(grip('c'), touch(20, 755))
+    nextFrame()
+    const nearEdge = scroller.scrollTop - 40
+    expect(nearEdge).toBeGreaterThan(0)
+    const before = scroller.scrollTop
+    fireEvent.touchMove(grip('c'), touch(20, 800))
+    nextFrame()
+    expect(scroller.scrollTop - before).toBeGreaterThan(nearEdge)
+    fireEvent.touchEnd(grip('c'))
   })
 })
 
@@ -297,9 +328,11 @@ describe('useSortable — корзина (fb_df0b21b6)', () => {
     expect(trashEl()).not.toBeNull()
     placeTrash()
     fireEvent.touchMove(grip('b'), touch(180, 720))
+    nextFrame()
     expect(trashEl()).toHaveClass('hot')
     expect(row('b')).toHaveClass('sort-trashing')
     fireEvent.touchMove(grip('b'), touch(180, 400)) // ушел с корзины — снова обычная перестановка
+    nextFrame()
     expect(trashEl()).not.toHaveClass('hot')
     expect(row('b')).not.toHaveClass('sort-trashing')
     fireEvent.touchMove(grip('b'), touch(180, 720))

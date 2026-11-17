@@ -496,7 +496,7 @@ describe('TemplatesScreen — редактор', () => {
     fireEvent.touchStart(handle, { touches: [{ clientX: 5, clientY: 10 }] })
     expect(rows[0]).toHaveClass('sort-lifted')
     fireEvent.touchMove(handle, { touches: [{ clientX: 5, clientY: 150 }] })
-    expect(rows[1].style.transform).toBe('translate3d(0, -110px, 0)') // соседка уступила место
+    await waitFor(() => expect(rows[1].style.transform).toBe('translate3d(0, -110px, 0)'))
     fireEvent.touchEnd(handle)
     expect(document.querySelector('.tpl-ex.sort-lifted')).toBeNull()
     save()

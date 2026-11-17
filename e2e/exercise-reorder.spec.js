@@ -2,7 +2,7 @@ import { test, expect } from '@playwright/test'
 import { enterPin } from './helpers.js'
 
 test.use({ hasTouch: true, viewport: { width: 390, height: 844 } })
-test('удержание → новый порядок → черновик после перезагрузки', async ({ page, context }) => {
+test('перетаскивание за ручку → новый порядок → черновик после перезагрузки', async ({ page, context }) => {
   await context.addInitScript(() => {
     Object.defineProperty(navigator, 'onLine', { get: () => false, configurable: true })
   })
@@ -24,14 +24,14 @@ test('удержание → новый порядок → черновик по
   const rows = page.locator('.exercise-card')
   await expect(rows).toHaveCount(2)
   const original = await rows.evaluateAll(items => items.map(el => el.dataset.exerciseId))
-  const last = page.getByRole('button', { name: /^Открыть Подтягивания/ })
+  const last = page.getByRole('button', { name: /^Перетащить «Подтягивания/ })
   await last.scrollIntoViewIfNeeded()
   const box = await last.boundingBox()
   const firstBox = await rows.first().boundingBox()
   const session = await context.newCDPSession(page)
   const x = box.x + box.width / 2, y = box.y + box.height / 2
   await session.send('Input.dispatchTouchEvent', { type: 'touchStart', touchPoints: [{ x, y }] })
-  // Удержание → строка «поднялась» (тень, крупнее) и едет за пальцем.
+  // Захват за ручку поднимает строку сразу.
   await expect(rows.last()).toHaveClass(/sort-lifted/)
   const ty = Math.max(130, firstBox.y + 15)
   await session.send('Input.dispatchTouchEvent', { type: 'touchMove', touchPoints: [{ x, y: ty }] })
@@ -45,8 +45,8 @@ test('удержание → новый порядок → черновик по
   await expect(page.locator('.sort-lifted, .sort-shift')).toHaveCount(0)
 
   // Раскрытую карточку на время перетаскивания сворачиваем в строку, после — снова раскрыта.
-  const title = page.locator('.exercise-card--active .exercise-title')
-  const tb = await title.boundingBox()
+  const activeGrip = page.getByRole('button', { name: /^Перетащить «Жим лежа/ })
+  const tb = await activeGrip.boundingBox()
   const tx = tb.x + 20, tyy = tb.y + tb.height / 2
   await session.send('Input.dispatchTouchEvent', { type: 'touchStart', touchPoints: [{ x: tx, y: tyy }] })
   await expect(page.locator(`[data-exercise-id="${original[0]}"]`)).toHaveClass(/exercise-card--compact/)

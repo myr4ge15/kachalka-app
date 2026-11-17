@@ -84,8 +84,7 @@ export default function WorkoutScreen({ user, workoutId = null, onBack, onSaved,
     onLoadError: (text) => setMessage({ type: 'error', text }),
   })
   const { entries, setEntries, feels, setFeels, performedAt, setPerformedAt, loading, editRestored } = draft
-  // Перестановка (v7.1.2, общий hooks/useSortable): удержание заголовка → строка
-  // поднимается и едет за пальцем. Раскрытая карточка на время жеста сворачивается
+  // Перестановка за ручку, как в редакторе шаблонов. Раскрытая карточка на время жеста сворачивается
   // в строку — тащить высокую карточку неудобно; активной она остается.
   const [dragFolded, setDragFolded] = useState(null)
   const reorderRef = useSortable((id, beforeId) => {
@@ -93,8 +92,7 @@ export default function WorkoutScreen({ user, workoutId = null, onBack, onSaved,
     setEntries(prev => reorderWithPhase(prev, id, beforeId)) // блок — по соседу (разминка/заминка, 23.10.2026)
   }, {
     attr: 'data-exercise-id',
-    handle: '.exercise-compact-toggle, .exercise-title',
-    holdMs: 350,
+    handle: '.exercise-grip',
     onLift: id => { if (id === activeExerciseId) setDragFolded(id) },
     onDrop: () => setDragFolded(null),
     // Корзина (fb_df0b21b6): бросил в «Убрать» — то же удаление, что ✕ на карточке, с «Отменить».
@@ -658,7 +656,7 @@ export default function WorkoutScreen({ user, workoutId = null, onBack, onSaved,
             </div>
           )}
 
-          {entries.length > 1 && <p className="muted exercise-reorder-hint">Зажми название упражнения и перетащи — поменять порядок или убрать в корзину внизу.</p>}
+          {entries.length > 1 && <p className="muted exercise-reorder-hint">Перетащи упражнение за ручку, чтобы поменять порядок или убрать в корзину.</p>}
           {entries.map((entry, ei) => (
             <Fragment key={entry.exercise.id}>
             {phaseHeading(entries, ei) && <p className="sec-title wk-phase-title">{phaseHeading(entries, ei)}</p>}
@@ -666,6 +664,7 @@ export default function WorkoutScreen({ user, workoutId = null, onBack, onSaved,
               entry={entry}
               ei={ei}
               prog={prog}
+              reorderable={entries.length > 1}
               active={entry.exercise.id === activeExerciseId && dragFolded !== entry.exercise.id}
               cardRef={entry.exercise.id === activeExerciseId && dragFolded !== entry.exercise.id ? activeCardRef : null}
               onActivate={activateExercise}
