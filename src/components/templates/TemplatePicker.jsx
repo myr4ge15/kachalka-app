@@ -51,7 +51,7 @@ export default function TemplatePicker({ user, onPick, onClose }) {
   // и палец тянется закрыть его так же, как вложенный экран.
   return (
     <SheetDialog title="Выбрать шаблон" onDismiss={onClose} swipeBack swipeDown>
-        <div className="picker-list" data-sheet-bounce="">
+        <div className="picker-list tpl-picker-list" data-sheet-bounce="">
           {loading && <p className="muted">Загрузка…</p>}
 
           {!loading && list.length === 0 && (

@@ -1638,6 +1638,8 @@ button.link-btn { min-height: 44px; display: inline-flex; align-items: center; j
 .tpl-name { flex: 1; min-width: 0; font-size: 15px; }
 
 /* Карточка шаблона в пикере: имя + «N упр.» + краткий состав */
+/* iOS рисует индикатор прокрутки поверх списка (fb_be0030b1). */
+.tpl-picker-list { padding-inline-end: 12px; }
 .tpl-pick { flex-wrap: wrap; }
 .tpl-pick-name { font-weight: 600; }
 .tpl-pick-sub { flex-basis: 100%; display: flex; flex-direction: column; gap: 3px; font-size: var(--fs-meta); font-weight: 400; line-height: 1.35; margin-top: 6px; text-align: left; }

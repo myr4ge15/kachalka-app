@@ -34,7 +34,13 @@ test('точный шаблон: редактор → перезагрузка �
   await page.reload()
   await page.getByRole('button', { name: 'Записать тренировку' }).click()
   await page.getByRole('button', { name: 'Выбрать шаблон' }).click()
-  await page.getByRole('button', { name: /Точный план/ }).click()
+  const plan = page.getByRole('dialog', { name: 'Выбрать шаблон' }).getByRole('button', { name: /Точный план/ })
+  const gutter = await plan.evaluate((row) => {
+    const list = row.parentElement
+    return list.getBoundingClientRect().left + list.clientWidth - row.getBoundingClientRect().right
+  })
+  expect(gutter).toBeGreaterThanOrEqual(10)
+  await plan.click()
   const sets = page.locator('.exercise-card--active .set-row')
   await expect(sets).toHaveCount(3)
   for (const [i, weight, reps] of [[0, '20', '15'], [1, '82.5', '8'], [2, '70', '10']]) {
