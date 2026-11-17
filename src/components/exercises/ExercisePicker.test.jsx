@@ -31,6 +31,31 @@ function renderPicker(over = {}) {
 
 const type = (input, value) => fireEvent.change(input, { target: { value } })
 
+describe('ExercisePicker — мышцы в строке упражнения', () => {
+  it('показывает группу, основную и дополнительные мышцы до выбора', () => {
+    const { onPick } = renderPicker({ favorites: ['bench'], onToggleFavorite: vi.fn() })
+    const row = screen.getByRole('button', { name: 'Жим лежа', exact: true })
+    expect(row).toHaveAccessibleDescription('Грудь · середина груди Также — трицепс')
+    expect(onPick).not.toHaveBeenCalled()
+    fireEvent.click(row)
+    expect(onPick).toHaveBeenCalledWith(CATALOG[0])
+  })
+
+  it('оставляет группу у старых и кардио-упражнений, пропускает неизвестные и дубли', () => {
+    renderPicker({ exercises: [
+      { id: 'old', name: 'Старое упражнение', muscle_group: 'ноги', submuscle: 'unrecognized' },
+      { id: 'run', name: 'Бег', muscle_group: 'кардио', submuscle: 'cardio', secondary: ['quads'] },
+      { id: 'triceps', name: 'Разгибание рук', submuscle: 'triceps',
+        secondary: ['triceps', 'cardio', 'missing', 'forearms', 'forearms'] },
+      { id: 'empty', name: 'Упражнение без группы' },
+    ] })
+    expect(screen.getByRole('button', { name: 'Старое упражнение' })).toHaveAccessibleDescription('Ноги')
+    expect(screen.getByRole('button', { name: 'Бег' })).toHaveAccessibleDescription('Кардио')
+    expect(screen.getByRole('button', { name: 'Разгибание рук' })).toHaveAccessibleDescription('Трицепс Также — предплечья')
+    expect(screen.getByRole('button', { name: 'Упражнение без группы' })).not.toHaveAttribute('aria-describedby')
+  })
+})
+
 describe('ExercisePicker — умный поиск', () => {
   it('при открытии поиск не в фокусе — клавиатура не закрывает справочник (v6.12.0)', () => {
     const { search } = renderPicker()
@@ -135,13 +160,13 @@ describe('ExercisePicker — ⭐ избранные (v6.5.0)', () => {
       const rows = []
       let el = screen.getByText('Избранные').nextElementSibling
       while (el && !el.classList.contains('group-title')) { rows.push(el); el = el.nextElementSibling }
-      return rows.map((r) => r.textContent)
+      return rows.map((r) => r.querySelector('.picker-exercise-name').textContent)
     }
-    expect(favBlock()).toEqual(['Тяга верхнего блокаспина', 'Жим лежагрудь'])
+    expect(favBlock()).toEqual(['Тяга верхнего блока', 'Жим лежа'])
 
     // Снимаем звезду с первой строки — она на месте, звезда пустая, жим не съехал.
     fireEvent.click(screen.getAllByRole('button', { name: 'Убрать из избранного' })[0])
-    expect(favBlock()).toEqual(['Тяга верхнего блокаспина', 'Жим лежагрудь'])
+    expect(favBlock()).toEqual(['Тяга верхнего блока', 'Жим лежа'])
     const firstStar = () => screen.getByText('Избранные').nextElementSibling.querySelector('.picker-star')
     expect(firstStar()).toHaveAttribute('aria-pressed', 'false')
     // И не задваивается в «Недавних»/«Все».
@@ -150,7 +175,7 @@ describe('ExercisePicker — ⭐ избранные (v6.5.0)', () => {
     // Вернули звезду — строка все там же, а не наверху «свежих».
     fireEvent.click(firstStar())
     expect(firstStar()).toHaveAttribute('aria-pressed', 'true')
-    expect(favBlock()).toEqual(['Тяга верхнего блокаспина', 'Жим лежагрудь'])
+    expect(favBlock()).toEqual(['Тяга верхнего блока', 'Жим лежа'])
 
     // Сняли снова и сменили запрос — блок пересобирается по факту.
     fireEvent.click(screen.getAllByRole('button', { name: 'Убрать из избранного' })[0])
@@ -158,7 +183,7 @@ describe('ExercisePicker — ⭐ избранные (v6.5.0)', () => {
     type(search, 'x')
     type(search, '')
     expect(await screen.findByText('Избранные')).toBeInTheDocument()
-    expect(favBlock()).toEqual(['Жим лежагрудь'])
+    expect(favBlock()).toEqual(['Жим лежа'])
   })
 })
 

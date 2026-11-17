@@ -23,12 +23,15 @@ test('телефон лежа: в пикере упражнений виден �
     await page.getByRole('button', { name: 'Добавить упражнение' }).click()
     const list = page.locator('.picker-list')
     await expect(list).toBeVisible()
-    // Минимум две строки упражнений (56 px каждая) — не щель между шапкой и кнопкой.
+    // Под список остается место, даже когда строка содержит подписи мышц.
     await expect.poll(async () => (await list.boundingBox())?.height ?? 0).toBeGreaterThan(150)
     // Лист не выходит за экран: «+ свое» внизу целиком видно.
     const add = page.getByRole('button', { name: 'Добавить свое упражнение' })
     await expect(add).toBeInViewport({ ratio: 1 })
-    await list.locator('.picker-item').filter({ hasText: 'Жим лежа (e2e)' }).click()
+    const exercise = list.getByRole('button', { name: 'Жим лежа (e2e)', exact: true })
+    await expect(exercise.getByText('середина груди', { exact: false })).toBeVisible()
+    await expect(exercise).toContainText('Также — трицепс, передняя дельта')
+    await exercise.click()
     await expect(page.getByRole('dialog')).toHaveCount(0)
     await openTab(page, 'Главная')
   }

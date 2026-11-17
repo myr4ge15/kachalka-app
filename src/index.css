@@ -1383,6 +1383,13 @@ button.link-btn { min-height: 44px; display: inline-flex; align-items: center; j
   height: calc(100% + 2px); pointer-events: none;
 }
 .picker-group { color: var(--muted); font-size: var(--fs-small); }
+.picker-item.picker-item--muscles { display: block; padding-block: 11px; }
+.picker-exercise-name { display: block; line-height: 1.3; overflow-wrap: anywhere; }
+.picker-muscles-line {
+  display: block; margin-top: 3px; overflow-wrap: anywhere;
+  font-size: var(--fs-meta); font-weight: 400; line-height: 1.35; color: var(--muted);
+}
+.picker-muscle-group { font-weight: 600; }
 
 /* Voice stays inside the picker scroll area and uses its list rhythm. */
 .exercise-voice { padding: 16px 0; }
@@ -1605,17 +1612,27 @@ button.link-btn { min-height: 44px; display: inline-flex; align-items: center; j
   border: 1px solid var(--border); background: var(--surface-2); color: var(--muted);
 }
 /* Цвет на группу мышц (темная тема: мягкий фон-тинт + рамка + светлый текст). */
-.day-tag.tag-chest     { background: var(--tag-chest-bg); border-color: var(--tag-chest-line); color: var(--tag-chest-text); }
-.day-tag.tag-back      { background: var(--tag-back-bg); border-color: var(--tag-back-line); color: var(--tag-back-text); }
-.day-tag.tag-legs      { background: var(--tag-legs-bg); border-color: var(--tag-legs-line); color: var(--tag-legs-text); }
-.day-tag.tag-shoulders { background: var(--tag-shoulders-bg); border-color: var(--tag-shoulders-line); color: var(--tag-shoulders-text); }
-.day-tag.tag-biceps    { background: var(--tag-biceps-bg); border-color: var(--tag-biceps-line); color: var(--tag-biceps-text); }
-.day-tag.tag-triceps   { background: var(--tag-triceps-bg); border-color: var(--tag-triceps-line); color: var(--tag-triceps-text); }
-.day-tag.tag-abs       { background: var(--tag-abs-bg); border-color: var(--tag-abs-line); color: var(--tag-abs-text); }
-.day-tag.tag-glutes { background: var(--tag-glutes-bg); border-color: var(--tag-glutes-line); color: var(--tag-glutes-text); }
-.day-tag.tag-cardio { background: var(--tag-cardio-bg); border-color: var(--tag-cardio-line); color: var(--tag-cardio-text); }
+.day-tag.tag-chest     { background: var(--tag-chest-bg); border-color: var(--tag-chest-line); }
+.day-tag.tag-back      { background: var(--tag-back-bg); border-color: var(--tag-back-line); }
+.day-tag.tag-legs      { background: var(--tag-legs-bg); border-color: var(--tag-legs-line); }
+.day-tag.tag-shoulders { background: var(--tag-shoulders-bg); border-color: var(--tag-shoulders-line); }
+.day-tag.tag-biceps    { background: var(--tag-biceps-bg); border-color: var(--tag-biceps-line); }
+.day-tag.tag-triceps   { background: var(--tag-triceps-bg); border-color: var(--tag-triceps-line); }
+.day-tag.tag-abs       { background: var(--tag-abs-bg); border-color: var(--tag-abs-line); }
+.day-tag.tag-glutes    { background: var(--tag-glutes-bg); border-color: var(--tag-glutes-line); }
+.day-tag.tag-cardio    { background: var(--tag-cardio-bg); border-color: var(--tag-cardio-line); }
 .day-tag.tag-warmup { background: var(--surface-2); border-color: var(--border); color: var(--text); }
 .day-tag.tag-other     { background: var(--surface-2); border-color: var(--border); color: var(--muted); }
+
+:is(.day-tag, .picker-muscle-group).tag-chest     { color: var(--tag-chest-text); }
+:is(.day-tag, .picker-muscle-group).tag-back      { color: var(--tag-back-text); }
+:is(.day-tag, .picker-muscle-group).tag-legs      { color: var(--tag-legs-text); }
+:is(.day-tag, .picker-muscle-group).tag-shoulders { color: var(--tag-shoulders-text); }
+:is(.day-tag, .picker-muscle-group).tag-biceps    { color: var(--tag-biceps-text); }
+:is(.day-tag, .picker-muscle-group).tag-triceps   { color: var(--tag-triceps-text); }
+:is(.day-tag, .picker-muscle-group).tag-abs       { color: var(--tag-abs-text); }
+:is(.day-tag, .picker-muscle-group).tag-glutes    { color: var(--tag-glutes-text); }
+:is(.day-tag, .picker-muscle-group).tag-cardio    { color: var(--tag-cardio-text); }
 
 /* Строка фильтра по группам над списком тренировок/ленты. */
 .tag-filter { padding-top: 0; margin-bottom: 4px; }

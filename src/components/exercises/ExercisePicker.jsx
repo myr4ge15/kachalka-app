@@ -1,7 +1,8 @@
-import { Fragment, useState, useMemo, useDeferredValue, useLayoutEffect, useRef } from 'react'
+import { Fragment, useState, useMemo, useDeferredValue, useLayoutEffect, useRef, useId } from 'react'
 import { findSimilar, findExactDuplicate } from '../../lib/similar.js'
 import { searchExercises } from '../../lib/exerciseSearch.js'
-import { submusclesOf, secondaryOptionsFor, labelOf, majorOf, defaultSubmuscleFor } from '../../lib/muscles.js'
+import { submusclesOf, secondaryOptionsFor, labelOf, majorOf, defaultSubmuscleFor, isKnownSub, isNonMuscleSub, isNonMuscleGroup } from '../../lib/muscles.js'
+import { tagSlug } from '../../lib/dayTags.js'
 import SheetDialog from '../ui/SheetDialog.jsx'
 import { settleScroll } from '../../lib/scrollBox.js'
 import ExerciseScanner from './ExerciseScanner.jsx'
@@ -41,6 +42,7 @@ export default function ExercisePicker({
   title = 'Упражнение',
   replacing = false, // замена упражнения: подписи «Заменить», а не «добавить» (UI-ревью 23.10)
 }) {
+  const pickerId = useId()
   const [technique, setTechnique] = useState(null) // { slug, name } открытой подсказки
   const [query, setQuery] = useState('')
   const searchRef = useRef(null)
@@ -161,10 +163,29 @@ export default function ExercisePicker({
   // включено избранное) звезда справа. onStar — свой обработчик звезды (блок избранного),
   // иначе просто переключение.
   function row(e, keyPrefix = '', onStar = null) {
+    const nameId = `${pickerId}-${keyPrefix}${e.id}`
+    const primaryId = `${nameId}-primary`
+    const secondaryId = `${nameId}-secondary`
+    const muscleGroup = e.muscle_group || majorOf(e.submuscle)
+    const muscular = !isNonMuscleGroup(muscleGroup)
+    const primary = muscular && isKnownSub(e.submuscle) && !isNonMuscleSub(e.submuscle) ? labelOf(e.submuscle) : null
+    const secondary = muscular && Array.isArray(e.secondary)
+      ? [...new Set(e.secondary)]
+          .filter((sub) => sub !== e.submuscle && isKnownSub(sub) && !isNonMuscleSub(sub))
+          .map(labelOf)
+      : []
+    const descriptionIds = [muscleGroup && primaryId, secondary.length > 0 && secondaryId].filter(Boolean).join(' ')
     const item = (
-      <button className="picker-item" onClick={() => onPick(e)}>
-        <span>{e.name}</span>
-        <span className="picker-group">{e.muscle_group}</span>
+      <button type="button" className="picker-item picker-item--muscles" onClick={() => onPick(e)}
+        aria-labelledby={nameId} aria-describedby={descriptionIds || undefined}>
+        <span id={nameId} className="picker-exercise-name">{e.name}</span>
+        {muscleGroup && (
+          <span id={primaryId} className="picker-muscles-line">
+            <strong className={`picker-muscle-group tag-${tagSlug(muscleGroup)}`}>{muscleGroup[0].toUpperCase() + muscleGroup.slice(1)}</strong>
+            {primary && primary !== muscleGroup && ` · ${primary}`}
+          </span>
+        )}
+        {secondary.length > 0 && <span id={secondaryId} className="picker-muscles-line">Также — {secondary.join(', ')}</span>}
       </button>
     )
     const slug = techniqueSlugOf?.(e) ?? null
