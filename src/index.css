@@ -843,7 +843,7 @@ a.btn { display: flex; text-decoration: none; }
 /* Липкая кнопка «Сохранить» в композере тренировки: плавает над таббаром, чтобы
    при длинной тренировке не приходилось скроллить до самого низа. Паттерн — как у
    тоста/бара шаблона (fixed + отступ снизу под таббар и home-индикатор). */
-.wk-save-bar {
+.wk-save-bar, .tpl-save-bar {
   position: fixed; left: 50%; transform: translateX(-50%); z-index: 6;
   width: calc(100% - 24px); max-width: 536px;
   bottom: calc(72px + env(safe-area-inset-bottom));
@@ -852,7 +852,8 @@ a.btn { display: flex; text-decoration: none; }
 /* Предупреждение о строках, которые не попадут в запись (в потоке, над спейсером). */
 .wk-skip-note { margin: 12px 4px 0; color: var(--yellow); font-size: var(--fs-meta); line-height: 1.35; }
 /* Резерв, чтобы последний контент прокручивался выше плавающей кнопки. */
-.wk-save-spacer { height: 76px; }
+.wk-save-spacer, .tpl-save-spacer { height: 76px; }
+.tpl-save-bar .save-btn:disabled { background: var(--surface-solid); }
 
 .link-btn { background: none; border: none; color: var(--acc-2); font-size: 14px; font-weight: var(--fw-strong); padding: 4px; }
 /* Зона тапа ≥ 44px у ссылок-кнопок («Отвязать», «Новый код», «Отозвать», «Экспорт»; UI-ревью 23.10). */
@@ -3087,7 +3088,7 @@ label.act.busy { opacity: .55; pointer-events: none; }
   /* Плавающие панели центрировались по всему вьюпорту и висели над таббаром
      (bottom:72px). На десктопе таббара снизу нет и слева сайдбар 232px —
      сдвигаем их в центр контент-колонки и ближе к низу. */
-  .wk-save-bar, .export-bar--fixed, .toast {
+  .wk-save-bar, .tpl-save-bar, .export-bar--fixed, .toast {
     left: calc(232px + (100vw - 232px) / 2);
     bottom: 24px;
   }
@@ -4338,10 +4339,11 @@ html[data-sheet-open] .content { overflow-y: hidden; }
 
   /* Плавающие панели — по центру контента, а не всего экрана, и у нижнего края
      (снизу меню больше нет). */
-  .wk-save-bar, .export-bar--fixed, .toast {
+  .wk-save-bar, .tpl-save-bar, .export-bar--fixed, .toast {
     left: calc(var(--rail-w) + (100vw - var(--rail-w)) / 2);
     bottom: calc(12px + env(safe-area-inset-bottom));
   }
+  .tpl-save-bar { width: calc(100% - var(--rail-w) - 24px - 2 * env(safe-area-inset-right)); }
   .update-banner { left: calc(var(--rail-w) + (100vw - var(--rail-w)) / 2); top: calc(8px + env(safe-area-inset-top)); }
   /* Композер (v6.3.8, отзыв: пустая тренировка не влезала, «Сохранить» наезжала на
      кнопки). Масштаб не трогаем — зоны тапа остаются ≥44px; ужимаем только
@@ -4847,8 +4849,13 @@ img.has-img, .avatar-lightbox-img { -webkit-touch-callout: none; -webkit-user-dr
   cursor: pointer;
 }
 .scroll-top:active { color: var(--acc-2); }
+.tpl-editor:has(.tpl-save-bar) .scroll-top { bottom: calc(132px + env(safe-area-inset-bottom)); }
 @media (min-width: 900px) {
   .scroll-top { bottom: 24px; right: 24px; }
+  .tpl-editor:has(.tpl-save-bar) .scroll-top { bottom: 84px; }
+}
+@media (orientation: landscape) and (max-height: 520px) {
+  .tpl-editor:has(.tpl-save-bar) .scroll-top { bottom: calc(72px + env(safe-area-inset-bottom)); }
 }
 
 /* ================= Таймер отдыха (v8.8.0, prototypes/rest-timer.html) ================= */

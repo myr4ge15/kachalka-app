@@ -2,6 +2,8 @@ import { test, expect } from '@playwright/test'
 import { enterPin, tabbar, openTab } from './helpers.js'
 
 test('шаблон после перезагрузки подставляет веса из истории в новую тренировку', async ({ page, context }) => {
+  await page.setViewportSize({ width: 375, height: 812 })
+  await page.emulateMedia({ reducedMotion: 'reduce' })
   await context.addInitScript(() => {
     Object.defineProperty(navigator, 'onLine', { get: () => false, configurable: true })
   })
@@ -14,6 +16,8 @@ test('шаблон после перезагрузки подставляет в
     const user = await seedE2E()
     await saveTemplate({ user_id: user.id, name: 'Точный план', exercises: templateExercisesFromWorkout([{
       exercise: E2E_EXERCISES[0], sets: [{ weight: 20, reps: 15 }, { weight: 80, reps: 8 }, { weight: 70, reps: 10 }],
+    }, {
+      exercise: E2E_EXERCISES[1], sets: Array.from({ length: 18 }, () => ({ weight: 0, reps: 8 })),
     }]) })
     await saveWorkout({ user_id: user.id, performed_at: '2026-01-01T12:00:00Z', entries: [{
       exercise: E2E_EXERCISES[0], sets: [{ weight: 25, reps: 12 }, { weight: 85, reps: 6 }],
@@ -28,11 +32,33 @@ test('шаблон после перезагрузки подставляет в
   await page.getByRole('button', { name: /Шаблоны/ }).click()
   await page.getByRole('button', { name: /Мои шаблоны/ }).click()
   await page.getByRole('button', { name: /Точный план/ }).click()
-  await page.getByLabel('Вес или дистанция подхода 2').fill('82.5')
-  await expect(page.getByLabel('Вес или дистанция подхода 2')).toHaveValue('82.5')
+  const save = page.getByRole('button', { name: 'Сохранить', exact: true })
+  const addExercise = page.getByRole('button', { name: 'Добавить упражнение', exact: true })
+  const content = page.locator('.content')
+  await expect(save).toBeInViewport({ ratio: 1 })
+  const portraitSave = await save.boundingBox()
+  expect(portraitSave.y + portraitSave.height).toBeLessThan((await tabbar(page).boundingBox()).y)
+  for (const viewport of [{ width: 568, height: 320 }, { width: 375, height: 812 }]) {
+    await page.setViewportSize(viewport)
+    await content.evaluate((node) => { node.scrollTop = 0 })
+    await expect(save).toBeInViewport({ ratio: 1 })
+    const before = await save.boundingBox()
+    await content.evaluate((node) => { node.scrollTop = node.scrollHeight })
+    expect(await content.evaluate((node) => node.scrollTop)).toBeGreaterThan(500)
+    expect((await save.boundingBox()).y).toBeCloseTo(before.y)
+    const add = await addExercise.boundingBox()
+    expect(add.y + add.height).toBeLessThan(before.y)
+    await expect(addExercise).toBeInViewport({ ratio: 1 })
+    await save.click({ trial: true })
+  }
+  await content.evaluate((node) => { node.scrollTop = 0 })
+  const bench = page.locator('.tpl-ex').filter({ hasText: 'Жим лежа (e2e)' })
+  const secondWeight = bench.getByLabel('Вес или дистанция подхода 2', { exact: true })
+  await secondWeight.fill('82.5')
+  await expect(secondWeight).toHaveValue('82.5')
   expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true)
   await page.screenshot({ path: 'work/template-editor-mobile.png', fullPage: true })
-  await page.getByRole('button', { name: 'Сохранить', exact: true }).click()
+  await save.click()
   await expect(page.getByRole('button', { name: '+ Новый шаблон' })).toBeVisible()
   await page.reload()
   await page.getByRole('button', { name: 'Записать тренировку' }).click()

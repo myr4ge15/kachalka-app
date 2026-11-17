@@ -146,7 +146,7 @@ export default function TemplateEditor({ user, templateId, onBack, backGuardRef 
     setItems(items.filter((_, i) => i !== idx))
     if (!removed) return
     showToast({
-      icon: 'trash', kind: 'undo', title: 'Упражнение убрано', sub: removed.exercise?.name,
+      icon: 'trash', kind: 'undo', title: 'Упражнение убрано', sub: removed.exercise?.name, raised: true,
       actionLabel: 'Отменить', duration: 4000,
       onAction: () => setItems((prev) => (prev.some((it) => it.exercise.id === removed.exercise.id)
         ? prev
@@ -210,7 +210,7 @@ export default function TemplateEditor({ user, templateId, onBack, backGuardRef 
   }
 
   return (
-    <div className="screen">
+    <div className="screen tpl-editor">
       <div className="detail-head">
         <BackButton onClick={tryBack} />
         <h2 className="screen-title detail-title">
@@ -358,9 +358,12 @@ export default function TemplateEditor({ user, templateId, onBack, backGuardRef 
             <Icon name="plus" size={17} strokeWidth={2.4} />Добавить упражнение
           </button>
 
-          <button className="btn primary full save-btn" disabled={!canSave} onClick={save}>
-            {saving ? 'Сохранение…' : 'Сохранить'}
-          </button>
+          <div className="tpl-save-spacer" aria-hidden="true" />
+          <div className="btn-row tpl-save-bar">
+            <button type="button" className="btn primary save-btn" disabled={!canSave} onClick={save}>
+              {saving ? 'Сохранение…' : 'Сохранить'}
+            </button>
+          </div>
 
         </>
       )}
