@@ -37,26 +37,21 @@ export function insertExerciseIn(entries, idx, entry) {
   return next
 }
 
-// Замена упражнения в записи: подходы сохраняем (не вводить заново). Для не-весового
-// нового упражнения обнуляем weight — инвариант «вес=0 у не-весовых». Валидацию
-// (тот же id / дубль) держит вызывающий; здесь — только трансформация.
+// Общая замена для записи и шаблона. Килограммы и километры не переносятся
+// между метриками. Доп. вес и вес снаряда сохраняются внутри своей метрики.
+export function setsForExerciseReplacement(sets, prev, next) {
+  const unitChanged = prev !== next && (prev === 'distance' || next === 'distance')
+  const keepExtra = (hasExtraWeight(next) && hasExtraWeight(prev)) || (hasLoadWeight(next) && hasLoadWeight(prev))
+  const zero = isCountMetric(next) && !keepExtra
+  return zero || unitChanged ? sets.map((s) => ({ ...s, weight: zero ? 0 : '' })) : sets
+}
+
+// Валидацию (тот же id / дубль) держит вызывающий.
 export function replaceExerciseIn(entries, idx, ex) {
   const next = exerciseMetric(ex)
-  const count = isCountMetric(next)
-  return entries.map((e, i) => {
-    if (i !== idx) return e
-    // Килограммы ≠ километры (v6.12.0): при смене весового на дистанцию и обратно
-    // поле weight тоже обнуляем, иначе «80 кг» становились «80 км».
-    const prev = exerciseMetric(e.exercise)
-    const unitChanged = prev !== next && (prev === 'distance' || next === 'distance')
-    // Доп. вес «своего веса» переживает замену только на такое же упражнение
-    // (брусья → подтягивания); 60 кг жима не должны стать «+60 кг» на брусьях.
-    // Вес снаряда «На время» — так же: планка с блином → боковая планка.
-    const keepExtra = (hasExtraWeight(next) && hasExtraWeight(prev)) || (hasLoadWeight(next) && hasLoadWeight(prev))
-    const zero = count && !keepExtra
-    const sets = zero || unitChanged ? e.sets.map((s) => ({ ...s, weight: zero ? 0 : '' })) : e.sets
-    return { exercise: ex, sets }
-  })
+  return entries.map((e, i) => i === idx
+    ? { exercise: ex, sets: setsForExerciseReplacement(e.sets, exerciseMetric(e.exercise), next) }
+    : e)
 }
 
 // Правка поля подхода (свободный ввод из инпута — значение как есть, строкой).

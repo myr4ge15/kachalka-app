@@ -1,5 +1,5 @@
 import { test, expect } from '@playwright/test'
-import { enterPin, tabbar, openTab } from './helpers.js'
+import { enterPin, tabbar, openTab, layoutProblems } from './helpers.js'
 
 test('шаблон после перезагрузки подставляет веса из истории в новую тренировку', async ({ page, context }) => {
   await page.setViewportSize({ width: 375, height: 812 })
@@ -13,7 +13,8 @@ test('шаблон после перезагрузки подставляет в
     const { seedE2E, E2E_EXERCISES } = await import('/kachalka-app/src/test/e2eSeed.js')
     const { saveTemplate, saveWorkout } = await import('/kachalka-app/src/db/repo.js')
     const { templateExercisesFromWorkout } = await import('/kachalka-app/src/lib/templateFromWorkout.js')
-    const user = await seedE2E()
+    const dips = { ...E2E_EXERCISES[1], id: 'e2e-ex-dips', name: 'Брусья (e2e)' }
+    const user = await seedE2E({ exercises: [...E2E_EXERCISES, dips] })
     await saveTemplate({ user_id: user.id, name: 'Точный план', exercises: templateExercisesFromWorkout([{
       exercise: E2E_EXERCISES[0], sets: [{ weight: 20, reps: 15 }, { weight: 80, reps: 8 }, { weight: 70, reps: 10 }],
     }, {
@@ -56,6 +57,7 @@ test('шаблон после перезагрузки подставляет в
     expect(add.y + add.height).toBeLessThan(before.y)
     await expect(addExercise).toBeInViewport({ ratio: 1 })
     await save.click({ trial: true })
+    expect(await layoutProblems(page)).toEqual([])
   }
   await content.evaluate((node) => { node.scrollTop = 0 })
   const bench = page.locator('.tpl-ex').filter({ hasText: 'Жим лежа (e2e)' })
@@ -63,10 +65,23 @@ test('шаблон после перезагрузки подставляет в
   await secondWeight.fill('82.5')
   await expect(secondWeight).toHaveValue('82.5')
   expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true)
+  await page.getByRole('button', { name: 'Заменить «Подтягивания (e2e)»' }).click()
+  const replace = page.getByRole('dialog', { name: 'Заменить упражнение' })
+  await replace.getByRole('button', { name: 'Брусья (e2e)', exact: true }).click()
+  const dips = page.locator('.tpl-ex').nth(1)
+  await expect(dips.getByText('Брусья (e2e)', { exact: true })).toBeVisible()
+  await expect(dips.getByRole('group', { name: /^Подход / })).toHaveCount(18)
   await page.screenshot({ path: 'work/template-editor-mobile.png', fullPage: true })
   await save.click()
   await expect(page.getByRole('button', { name: '+ Новый шаблон' })).toBeVisible()
   await page.reload()
+  await expect(tabbar(page)).toBeVisible()
+  const saved = await page.evaluate(async (userId) => {
+    const { getTemplates } = await import('/kachalka-app/src/db/repo.js')
+    return (await getTemplates(userId)).find((template) => template.name === 'Точный план').exercises
+  }, user.id)
+  expect(saved.map((entry) => entry.exercise_id)).toEqual(['e2e-ex-bench', 'e2e-ex-dips'])
+  expect(saved[1].set_plan).toEqual(Array.from({ length: 18 }, () => ({ weight: 0, reps: 8 })))
   await page.getByRole('button', { name: 'Записать тренировку' }).click()
   await page.getByRole('button', { name: 'Выбрать шаблон' }).click()
   const plan = page.getByRole('dialog', { name: 'Выбрать шаблон' }).getByRole('button', { name: /Точный план/ })

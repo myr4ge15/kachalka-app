@@ -2921,7 +2921,7 @@ label.act.busy { opacity: .55; pointer-events: none; }
 .tpl-ex .exercise-head { min-height: 44px; }
 .tpl-ex-title { display: flex; align-items: center; gap: 4px; min-width: 0; }
 .tpl-ex-title .tpl-handle { width: 36px; height: 44px; margin-left: -8px; }
-.tpl-ex .tpl-name { font-size: var(--fs-title); font-weight: 600; }
+.tpl-ex .tpl-name { font-size: var(--fs-title); font-weight: 600; overflow-wrap: anywhere; }
 .btn.danger { background: color-mix(in srgb, var(--red) 16%, transparent); border: 1px solid color-mix(in srgb, var(--red) 50%, transparent); color: var(--red-text); }
 
 /* Форма «Сделать шаблон из тренировки» — нейтральная (не «опасная») коробка. */

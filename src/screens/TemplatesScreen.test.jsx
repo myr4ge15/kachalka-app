@@ -29,8 +29,8 @@ const swipe = vi.hoisted(() => ({ back: null }))
 vi.mock('../hooks/useEdgeSwipeBack.js', () => ({ useEdgeSwipeBack: (_c, _r, back) => { swipe.back = back } }))
 vi.mock('../lib/exportTemplate.js', () => ({ exportTemplates: vi.fn() }))
 vi.mock('../components/exercises/ExercisePicker.jsx', () => ({
-  default: ({ exercises, onPick, onPickMany, onClose }) => (
-    <div data-testid="picker">
+  default: ({ exercises, onPick, onPickMany, onClose, title }) => (
+    <div data-testid="picker" role="dialog" aria-label={title}>
       {exercises.map((e) => <button key={e.id} onClick={() => onPick(e)}>выбрать {e.name}</button>)}
       {onPickMany && <button onClick={() => onPickMany([...exercises].reverse())}>набор сканером</button>}
       <button onClick={onClose}>закрыть пикер</button>
@@ -228,6 +228,60 @@ describe('TemplatesScreen — редактор', () => {
     expect(vi.mocked(saveTemplate).mock.calls[0][0].exercises[0].set_plan.map(({ weight, reps }) => ({ weight, reps }))).toEqual([
       { weight: 21.25, reps: 15 }, { weight: '82.5', reps: '7' }, { weight: '82.5', reps: '7' },
     ])
+  })
+
+  it('замена сохраняет место, блок и исправленные вручную подходы', async () => {
+    const press = { id: 'press', name: 'Жим гантелей', metric: 'weight' }
+    mocks.exercises = [BENCH, PULL, PLANK, press]
+    vi.mocked(getTemplate).mockResolvedValueOnce({ ...MY_TPL, exercises: [
+      { exercise: PULL, sets: 1, reps: 10, phase: 'warmup' },
+      { exercise: BENCH, position: 1, phase: 'warmup', set_plan: [{ weight: 20, reps: 15 }, { weight: 60, reps: 8 }] },
+      { exercise: PLANK, position: 2, sets: 1, reps: 60 },
+    ] })
+    render(<Toast />)
+    renderScreen()
+    fireEvent.click(screen.getByText('Грудь').closest('button'))
+    await screen.findByDisplayValue('Грудь')
+    fireEvent.change(screen.getByLabelText('Вес или дистанция подхода 2'), { target: { value: '62.5' } })
+    const replace = () => fireEvent.click(screen.getByRole('button', { name: 'Заменить «Жим лежа»' }))
+
+    replace()
+    expect(screen.getByRole('dialog', { name: 'Заменить упражнение' })).toBeInTheDocument()
+    expect(screen.queryByRole('button', { name: 'набор сканером' })).not.toBeInTheDocument()
+    fireEvent.click(screen.getByRole('button', { name: 'закрыть пикер' }))
+    replace()
+    fireEvent.click(screen.getByRole('button', { name: 'выбрать Жим лежа' }))
+    replace()
+    fireEvent.click(screen.getByRole('button', { name: 'выбрать Подтягивания' }))
+    expect(await screen.findByRole('status')).toHaveTextContent('Это упражнение уже в шаблоне')
+    replace()
+    fireEvent.click(screen.getByRole('button', { name: 'выбрать Жим гантелей' }))
+    expect(screen.getByRole('button', { name: 'Заменить «Жим гантелей»' })).toBeInTheDocument()
+    expect(screen.queryByRole('button', { name: 'Заменить «Жим лежа»' })).not.toBeInTheDocument()
+
+    save()
+    await waitFor(() => expect(saveTemplate).toHaveBeenCalled())
+    const { exercises } = vi.mocked(saveTemplate).mock.lastCall[0]
+    expect(exercises.map((item) => item.exercise.id)).toEqual(['pull', 'press', 'plank'])
+    expect(exercises[1]).toMatchObject({ phase: 'warmup', metric: 'weight', set_plan: [
+      { weight: 20, reps: 15 }, { weight: '62.5', reps: 8 },
+    ] })
+  })
+
+  it('замена в новом шаблоне сбрасывает несовместимый вес и сохраняет подходы', async () => {
+    renderScreen()
+    fireEvent.click(screen.getByRole('button', { name: '+ Новый шаблон' }))
+    fireEvent.change(screen.getByPlaceholderText(/Понедельник/), { target: { value: 'Верх' } })
+    fireEvent.click(screen.getByRole('button', { name: 'Добавить упражнение' }))
+    fireEvent.click(screen.getByRole('button', { name: 'выбрать Жим лежа' }))
+    fireEvent.change(screen.getByLabelText('Вес или дистанция подхода 1'), { target: { value: '60' } })
+    fireEvent.click(screen.getByRole('button', { name: 'Заменить «Жим лежа»' }))
+    fireEvent.click(screen.getByRole('button', { name: 'выбрать Подтягивания' }))
+    save()
+    await waitFor(() => expect(saveTemplate).toHaveBeenCalled())
+    expect(vi.mocked(saveTemplate).mock.lastCall[0].exercises[0]).toMatchObject({
+      exercise: PULL, metric: 'reps', set_plan: Array.from({ length: 3 }, () => ({ weight: 0, reps: 10 })),
+    })
   })
 
   it('время каждого подхода меняется в минутах и секундах', async () => {

@@ -13,6 +13,7 @@ import BackButton from '../ui/BackButton.jsx'
 import ScrollTopButton from '../ui/ScrollTopButton.jsx'
 import TemplateSets from './TemplateSets.jsx'
 import { templatePlan } from '../../lib/templatePlan.js'
+import { setsForExerciseReplacement } from '../../lib/workoutEntries.js'
 import { sk } from '../../lib/progressionCard.js'
 import { showToast, hideToast } from '../ui/Toast.jsx'
 import Icon from '../ui/Icon.jsx'
@@ -53,7 +54,9 @@ export default function TemplateEditor({ user, templateId, onBack, backGuardRef 
   const [readOnly, setReadOnly] = useState(false)
   const [authorName, setAuthorName] = useState(null)
   const [loading, setLoading] = useState(!isNew)
-  const [pickerOpen, setPickerOpen] = useState(false)
+  const [picker, setPicker] = useState(null)
+  const replaceId = picker?.replaceId
+  const replacing = replaceId != null
   const [saving, setSaving] = useState(false)
   const [message, setMessage] = useState(null)
   useEffect(() => {
@@ -112,7 +115,6 @@ export default function TemplateEditor({ user, templateId, onBack, backGuardRef 
   }, [isNew, templateId, user.id])
 
   function addExercise(ex) {
-    setPickerOpen(false)
     if (items.some((it) => it.exercise.id === ex.id)) {
       // Короткая подсказка, а не «ошибка навсегда» (v6.3.0): гаснет сама через
       // пару секунд и при следующем удачном добавлении.
@@ -123,13 +125,34 @@ export default function TemplateEditor({ user, templateId, onBack, backGuardRef 
     setItems([...items, newItem(ex)])
   }
 
+  function pickExercise(ex) {
+    setPicker(null)
+    if (!replacing) {
+      addExercise(ex)
+      return
+    }
+    if (replaceId === ex.id) return
+    if (items.some((it) => it.exercise.id === ex.id)) {
+      showToast({ icon: 'alert', title: 'Это упражнение уже в шаблоне', raised: true })
+      return
+    }
+    const metric = exerciseMetric(ex)
+    setMessage((m) => (m?.transient ? null : m))
+    setItems((prev) => prev.map((it) => it.exercise.id === replaceId ? {
+      ...it,
+      exercise: ex,
+      metric,
+      set_plan: setsForExerciseReplacement(it.set_plan, it.metric, metric),
+    } : it))
+  }
+
   function newItem(ex) {
     return { exercise: ex, metric: exerciseMetric(ex), set_plan: templatePlan(ex, { sets: ex.metric === 'distance' ? 1 : 3, reps: ex.metric === 'time' ? 60 : ex.metric === 'distance' ? 1800 : 10, weight: 0 }).map((s) => ({ ...s, _k: sk() })) }
   }
 
   // Набор сканером (8.4.0): все разом, уже стоящие в шаблоне пропускаем.
   function addExercises(list) {
-    setPickerOpen(false)
+    setPicker(null)
     const fresh = list.filter((ex) => !items.some((it) => it.exercise.id === ex.id))
     const skipped = list.length - fresh.length
     setMessage((m) => (skipped
@@ -308,7 +331,7 @@ export default function TemplateEditor({ user, templateId, onBack, backGuardRef 
           <div className="tpl-rows" ref={sortRef}>
           {items.map((it, idx) => {
             const metric = exerciseMetric(it.exercise)
-            // Карточка — как упражнение в тренировке (fb_58cbb46a): заголовок + «убрать»,
+            // Карточка — как упражнение в тренировке (fb_58cbb46a): действия в заголовке,
             // под ним подходы со степперами. ☰ — ручка перестановки упражнений.
             return (
             <Fragment key={it.exercise.id}>
@@ -341,6 +364,10 @@ export default function TemplateEditor({ user, templateId, onBack, backGuardRef 
                       </button>
                     ))}
                   </MoreMenu>
+                  <button type="button" className="link-btn" aria-label={`Заменить «${it.exercise.name}»`}
+                    onClick={() => setPicker({ replaceId: it.exercise.id })}>
+                    заменить
+                  </button>
                   <button className="link-btn danger" onClick={() => removeExercise(idx)}>
                     убрать
                   </button>
@@ -354,7 +381,7 @@ export default function TemplateEditor({ user, templateId, onBack, backGuardRef 
           })}
           </div>
 
-          <button className="add-btn tpl-add-ex" onClick={() => setPickerOpen(true)}>
+          <button className="add-btn tpl-add-ex" onClick={() => setPicker({})}>
             <Icon name="plus" size={17} strokeWidth={2.4} />Добавить упражнение
           </button>
 
@@ -371,15 +398,17 @@ export default function TemplateEditor({ user, templateId, onBack, backGuardRef 
       <ScrollTopButton />
 
       {/* onCreate: владелец нового упражнения — вошедший (см. WorkoutScreen). */}
-      {pickerOpen && (
+      {picker && (
         <ExercisePicker
           exercises={exercises}
           favorites={favorites}
           onToggleFavorite={(id) => toggleFavorite(user.id, id)}
-          onPick={addExercise}
-          onPickMany={addExercises}
+          title={replacing ? 'Заменить упражнение' : 'Упражнение'}
+          replacing={replacing}
+          onPick={pickExercise}
+          onPickMany={replacing ? undefined : addExercises}
           onCreate={(p) => createExercise({ ...p, owner_id: user.id })}
-          onClose={() => setPickerOpen(false)}
+          onClose={() => setPicker(null)}
         />
       )}
     </div>
