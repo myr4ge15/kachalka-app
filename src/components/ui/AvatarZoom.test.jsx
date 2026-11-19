@@ -1,11 +1,20 @@
 // @vitest-environment jsdom
 // Аватар крупно (v6.18.0): по центру поверх размытого экрана, закрыть — тап или Escape.
-import { describe, expect, it } from 'vitest'
+import { afterAll, beforeAll, describe, expect, it } from 'vitest'
 import { fireEvent, render, screen } from '@testing-library/react'
 import AvatarZoom from './AvatarZoom.jsx'
 import { AVATAR_UPLOAD_PX } from '../../lib/avatar.js'
 
 const open = () => fireEvent.click(screen.getByRole('button', { name: /Аватар Маша — открыть крупно/ }))
+
+beforeAll(() => {
+  HTMLDialogElement.prototype.showModal = function () { this.open = true }
+  HTMLDialogElement.prototype.close = function () { this.open = false }
+})
+afterAll(() => {
+  delete HTMLDialogElement.prototype.showModal
+  delete HTMLDialogElement.prototype.close
+})
 
 describe('AvatarZoom', () => {
   it('без картинки — просто инициал, не кнопка', () => {
@@ -32,7 +41,7 @@ describe('AvatarZoom', () => {
     open()
     fireEvent.keyDown(document, { key: 'Tab' })
     expect(screen.getByRole('dialog')).toBeInTheDocument()
-    fireEvent.keyDown(document, { key: 'Escape' })
+    fireEvent(screen.getByRole('dialog'), new Event('cancel', { cancelable: true }))
     expect(screen.queryByRole('dialog')).toBeNull()
   })
   it('анонимное фото открывается с общей подписью и освобождает прокрутку при уходе', () => {
@@ -43,6 +52,14 @@ describe('AvatarZoom', () => {
     expect(screen.getByRole('dialog', { name: 'Аватар' })).toBeInTheDocument()
     unmount()
     expect(document.documentElement.dataset.sheetOpen).toBeUndefined()
+  })
+  it('закрытие фото сохраняет блокировку прокрутки нижнего листа', () => {
+    document.documentElement.dataset.sheetOpen = '1'
+    render(<AvatarZoom name="Маша" url="https://x/a.jpg" />)
+    open()
+    fireEvent.click(screen.getByRole('button', { name: 'Закрыть фото' }))
+    expect(document.documentElement.dataset.sheetOpen).toBe('1')
+    delete document.documentElement.dataset.sheetOpen
   })
   it('новые аватары грузятся в 512 px — чтобы крупно было не мыльно', () => {
     expect(AVATAR_UPLOAD_PX).toBe(512)

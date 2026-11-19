@@ -31,28 +31,39 @@ export default function CommentMenu({ anchor, itemClass = '', align = 'left', ac
     clone.setAttribute('aria-hidden', 'true')
     clone.setAttribute('inert', '')
     clone.classList.remove('held') // оригинал под слоем спрятан этим классом
-    const r = anchor.getBoundingClientRect()
-    if (r.width) clone.style.width = `${r.width}px`
     bubbleRef.current?.replaceChildren(clone)
-    const hr = host === document.body
-      ? { top: 0, left: 0, right: window.innerWidth, height: window.innerHeight }
-      : host.getBoundingClientRect()
-    // Поля листа — это вырез и полоска «Домой» (safe-area), а с клавиатурой — и она (kb-fit): группа
-    // держится внутри них, иначе меню у нижнего пузыря уходило под край экрана (fb_4cbd8655).
-    const cs = host === document.body ? null : getComputedStyle(host)
-    const padTop = Math.max(MENU_PAD, parseFloat(cs?.paddingTop) || 0)
-    const padBottom = Math.max(MENU_PAD, parseFloat(cs?.paddingBottom) || 0)
-    const menuH = menuRef.current?.offsetHeight ?? 0
-    const strip = stripRef.current ? stripRef.current.offsetHeight + MENU_GAP : 0
-    const maxTop = hr.height - padBottom - menuH - MENU_GAP - r.height - strip
-    const top = Math.max(padTop, Math.min(r.top - hr.top - strip, maxTop))
-    setPos({ top, left: r.left - hr.left, right: hr.right - r.right })
-  }, [anchor, host])
+    const placeMenu = () => {
+      const rect = anchor.getBoundingClientRect()
+      if (rect.width) clone.style.width = `${rect.width}px`
+      const frame = host === document.body
+        ? { top: 0, left: 0, right: window.innerWidth, height: window.innerHeight }
+        : host.getBoundingClientRect()
+      const style = host === document.body ? null : getComputedStyle(host)
+      const padTop = Math.max(MENU_PAD, parseFloat(style?.paddingTop) || 0)
+      const padBottom = Math.max(MENU_PAD, parseFloat(style?.paddingBottom) || 0)
+      const menuHeight = menuRef.current?.offsetHeight ?? 0
+      const strip = stripRef.current ? stripRef.current.offsetHeight + MENU_GAP : 0
+      const maxTop = frame.height - padBottom - menuHeight - MENU_GAP - rect.height - strip
+      const top = Math.max(padTop, Math.min(rect.top - frame.top - strip, maxTop))
+      const side = align === 'right' ? frame.right - rect.right : rect.left - frame.left
+      setPos({ top, [align]: Math.max(0, side), maxHeight: Math.max(0, frame.height - padBottom - top) })
+    }
+    placeMenu()
+    const observer = typeof ResizeObserver !== 'undefined' ? new ResizeObserver(placeMenu) : null
+    observer?.observe(host)
+    observer?.observe(anchor)
+    window.addEventListener('resize', placeMenu)
+    return () => {
+      observer?.disconnect()
+      window.removeEventListener('resize', placeMenu)
+    }
+  }, [anchor, host, align])
 
+  const placed = Boolean(pos)
   useEffect(() => {
-    if (!pos) return
+    if (!placed) return
     menuRef.current?.querySelector('[role="menuitem"]:not(:disabled)')?.focus({ preventScroll: true })
-  }, [pos])
+  }, [placed])
 
   useEffect(() => {
     // Esc закрывает; стрелки — по пунктам по кругу; Tab уводит фокус — меню закрывается (UI-ревью 23.10).
@@ -65,12 +76,12 @@ export default function CommentMenu({ anchor, itemClass = '', align = 'left', ac
       }
       if (e.key === 'Tab') { closeRef.current?.(); return }
       if (e.key !== 'ArrowDown' && e.key !== 'ArrowUp') return
-      const items = [...(menuRef.current?.querySelectorAll('[role="menuitem"]:not(:disabled)') ?? [])]
+      const items = [...(stripRef.current?.querySelectorAll('button') ?? []), ...(menuRef.current?.querySelectorAll('[role="menuitem"]:not(:disabled)') ?? [])]
       if (!items.length) return
       e.preventDefault()
       const i = items.indexOf(document.activeElement)
       const next = e.key === 'ArrowDown' ? (i + 1) % items.length : (i - 1 + items.length) % items.length
-      items[next].focus({ preventScroll: true })
+      items[next].focus()
     }
     window.addEventListener('keydown', key, true)
     return () => {
@@ -79,9 +90,7 @@ export default function CommentMenu({ anchor, itemClass = '', align = 'left', ac
     }
   }, [anchor])
 
-  const place = pos
-    ? { top: pos.top, ...(align === 'right' ? { right: pos.right } : { left: pos.left }) }
-    : { top: 0, visibility: 'hidden' }
+  const place = pos ?? { top: 0, visibility: 'hidden' }
   return createPortal(
     <div className={`cmm${host === document.body ? ' fixed' : ''}`} data-no-swipe-back
       onClick={(e) => { if (!menuRef.current?.contains(e.target) && !stripRef.current?.contains(e.target)) onClose?.() }}>

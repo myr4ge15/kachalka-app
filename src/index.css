@@ -2243,12 +2243,13 @@ button.cm-mention-link { text-decoration: underline; cursor: pointer; }
   position: absolute; inset: 0; background: color-mix(in srgb, var(--bg) 55%, transparent);
   -webkit-backdrop-filter: blur(16px) saturate(1.2); backdrop-filter: blur(16px) saturate(1.2);
 }
-.cmm-group { position: absolute; display: flex; flex-direction: column; gap: 8px; max-width: calc(100% - 24px); }
+.cmm-group { position: absolute; display: flex; flex-direction: column; gap: 8px; max-width: calc(100% - 24px); overflow-y: auto; overscroll-behavior: contain; }
+.cmm-group > :is(.cmm-menu, .cmm-reacts) { flex: none; }
 .cmm-group.left { align-items: flex-start; }
 .cmm-group.right { align-items: flex-end; }
 /* Обертка копии несет классы строки (cm-item first/last) ради вида пузыря, но не ее отступ сверху: с ним
    копия стояла на 10 px ниже оригинала, и меню у нижнего края не влезало (fb_4cbd8655). */
-.cmm-bubble, .cmm-bubble.cm-item, .cmm-bubble.cm-item.first { display: block; margin: 0; }
+.cmm-bubble, .cmm-bubble.cm-item, .cmm-bubble.cm-item.first { display: block; margin: 0; min-height: 0; overflow: hidden; }
 /* Полоска реакций над пузырем (fb_4cbd8655): пять эмодзи в капсуле, выбранная — на подложке акцента. */
 .cmm-reacts {
   display: flex; gap: 2px; padding: 4px; border-radius: 26px;
@@ -4494,15 +4495,17 @@ html[data-sheet-open] .content { overflow-y: hidden; }
 .avatar-zoom-btn:focus-visible { outline: 2px solid var(--acc); outline-offset: 3px; }
 .avatar-lightbox {
   position: fixed; inset: 0; z-index: 200;
+  width: 100%; height: 100%; max-width: none; max-height: none; margin: 0; border: 0;
   display: flex; align-items: center; justify-content: center; padding: 24px;
   background: rgba(0, 0, 0, .3);
   -webkit-backdrop-filter: blur(10px); backdrop-filter: blur(10px);
   cursor: zoom-out; outline: none;
   animation: avatar-lb-fade .18s ease-out;
 }
-.avatar-lightbox-fig { margin: 0; display: flex; flex-direction: column; align-items: center; gap: 14px; }
+.avatar-lightbox::backdrop { background: transparent; }
+.avatar-lightbox-fig { margin: 0; padding: 0; border: 0; background: none; cursor: zoom-out; display: flex; flex-direction: column; align-items: center; gap: 14px; }
 .avatar-lightbox-img {
-  display: block; width: min(78vw, 340px); aspect-ratio: 1; object-fit: cover;
+  display: block; width: min(78vw, 68dvh, 340px); aspect-ratio: 1; object-fit: cover;
   border-radius: 50%; box-shadow: 0 24px 60px rgba(0, 0, 0, .55);
   animation: avatar-lb-pop .22s cubic-bezier(.2, .9, .3, 1.2);
 }

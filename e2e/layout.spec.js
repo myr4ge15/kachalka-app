@@ -10,6 +10,32 @@ import { enterPin, tabbar, openTab, pickerItem, layoutProblems } from './helpers
 const APP = '/kachalka-app/'
 const EXERCISE = 'Жим лежа (e2e)'
 
+test('крупное фото вмещается лёжа, закрывается тапом и не отдаёт фокус профилю', async ({ page }) => {
+  await page.setViewportSize({ width: 740, height: 360 })
+  await page.route(/supabase\.co/, (route) => route.abort())
+  await page.goto(APP)
+  await page.evaluate(async () => {
+    const { default: React } = await import('/kachalka-app/node_modules/.vite/deps/react.js')
+    const { default: ReactDOM } = await import('/kachalka-app/node_modules/.vite/deps/react-dom_client.js')
+    const { default: AvatarZoom } = await import('/kachalka-app/src/components/ui/AvatarZoom.jsx')
+    const host = document.createElement('div')
+    document.getElementById('root').style.display = 'none'
+    document.body.append(host)
+    ReactDOM.createRoot(host).render(React.createElement(AvatarZoom, { name: 'Маша', url: 'data:image/svg+xml,<svg xmlns="http://www.w3.org/2000/svg"/>' }))
+  })
+  const open = page.getByRole('button', { name: /открыть крупно/ })
+  await open.click()
+  const photo = page.getByRole('dialog', { name: 'Аватар Маша' })
+  await expect(photo.locator('img')).toBeInViewport({ ratio: 1 })
+  await expect(photo.getByText('Маша')).toBeInViewport({ ratio: 1 })
+  expect(await photo.evaluate((dialog) => { document.querySelector('.avatar-zoom-btn').focus(); return dialog.contains(document.activeElement) })).toBe(true)
+  await photo.locator('img').click()
+  await expect(open).toBeFocused()
+  await open.click()
+  await page.keyboard.press('Escape')
+  await expect(photo).toHaveCount(0)
+})
+
 test('занятый тумблер остаётся видимым, задержка показа действует на скелетон', async ({ page }) => {
   await page.setContent(`
     <button class="act menu-row push-toggle" role="switch" aria-checked="false">Присылать на это устройство</button>
