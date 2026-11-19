@@ -130,18 +130,17 @@ export default function ExerciseCard({
         </span>
         <span className="exercise-actions">
           {/* Блок: разминка / основная часть / заминка (23.10.2026, fb_c2774110). */}
-          {onPhase && (
+
             <MoreMenu label={`Блок «${entry.exercise.name}»`} open={phaseMenu} onToggle={() => setPhaseMenu((v) => !v)}
               onClose={() => setPhaseMenu(false)} btnClassName="link-btn exercise-phase-btn">
-              {PHASES.filter((p) => p !== phase).map((p) => (
+              {onPhase && PHASES.filter((p) => p !== phase).map((p) => (
                 <button key={p} type="button" role="menuitem" onClick={() => { setPhaseMenu(false); onPhase(p) }}>
                   {PHASE_MOVE_LABEL[p]}
                 </button>
               ))}
+              <button type="button" role="menuitem" onClick={() => { setPhaseMenu(false); onReplace(ei) }}>Заменить упражнение</button>
+              <button type="button" role="menuitem" className="danger" onClick={() => { setPhaseMenu(false); onRemove(ei) }}>Убрать из тренировки</button>
             </MoreMenu>
-          )}
-          <button className="link-btn" onClick={() => onReplace(ei)}>заменить</button>
-          <button className="link-btn danger" onClick={() => onRemove(ei)}>убрать</button>
         </span>
       </div>
 

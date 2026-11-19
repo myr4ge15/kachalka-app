@@ -31,6 +31,17 @@ function renderPicker(over = {}) {
 
 const type = (input, value) => fireEvent.change(input, { target: { value } })
 
+it('добавляет отмеченные в порядке выбора после смены поиска и группы', () => {
+  const onPickMany = vi.fn()
+  const { search } = renderPicker({ selectMany: true, onPickMany })
+  fireEvent.click(screen.getByRole('checkbox', { name: 'Тяга верхнего блока' }))
+  fireEvent.click(screen.getByRole('button', { name: 'грудь' }))
+  type(search, 'жим')
+  fireEvent.click(screen.getByRole('checkbox', { name: 'Жим лежа' }))
+  fireEvent.click(screen.getByRole('button', { name: 'Добавить · 2' }))
+  expect(onPickMany).toHaveBeenCalledWith([CATALOG[1], CATALOG[0]])
+})
+
 describe('ExercisePicker — мышцы в строке упражнения', () => {
   it('показывает группу, основную и дополнительные мышцы до выбора', () => {
     const { onPick } = renderPicker({ favorites: ['bench'], onToggleFavorite: vi.fn() })

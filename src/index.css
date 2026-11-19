@@ -924,7 +924,8 @@ button.link-btn { min-height: 44px; display: inline-flex; align-items: center; j
   font-size: var(--fs-meta); font-weight: 600; color: var(--acc-2);
   min-height: 44px; margin-block: -4px; padding: 0 4px;
 }
-.exercise-actions .link-btn.danger { color: var(--red-text); }
+.exercise-actions .more-menu > .danger { border-top: 1px solid var(--border); }
+.picker-exercise-name input[type="checkbox"] { margin-inline-end: 8px; }
 /* Разминка и заминка (23.10.2026): «⋯» блока у карточки и заголовок блока в списке тренировки. */
 /* «⋯» по центру строки: обертка MoreMenu — блочная, и символ садился выше «заменить» (fb_f284d134). */
 .exercise-actions .more-wrap { display: flex; align-items: center; }

@@ -154,13 +154,15 @@ describe('ExerciseCard — колбэки шапки/подходов перед
 
   it('«заменить» → onReplace(ei)', () => {
     const { cbs } = renderCard(weightEntry())
-    fireEvent.click(screen.getByText('заменить'))
+    fireEvent.click(screen.getAllByRole('button', { name: /^Блок «/ })[0])
+    fireEvent.click(screen.getByRole('menuitem', { name: 'Заменить упражнение' }))
     expect(cbs.onReplace).toHaveBeenCalledWith(0)
   })
 
   it('«убрать» → onRemove(ei)', () => {
     const { cbs } = renderCard(weightEntry())
-    fireEvent.click(screen.getByText('убрать'))
+    fireEvent.click(screen.getAllByRole('button', { name: /^Блок «/ })[0])
+    fireEvent.click(screen.getByRole('menuitem', { name: 'Убрать из тренировки' }))
     expect(cbs.onRemove).toHaveBeenCalledWith(0)
   })
 

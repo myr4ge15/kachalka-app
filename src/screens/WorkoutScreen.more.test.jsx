@@ -85,7 +85,8 @@ describe('WorkoutScreen — убрать и сохранить', () => {
   it('«убрать» — сразу, но с «Отменить» в тосте: упражнение возвращается на место', async () => {
     writeDraft(KEY, [{ exercise: BENCH, sets: [{ weight: 60, reps: 8, _k: 's1' }] }, { exercise: PULL, sets: [{ weight: 0, reps: 10, _k: 's2' }] }])
     renderScreen()
-    fireEvent.click(screen.getAllByRole('button', { name: 'убрать' })[0])
+    fireEvent.click(screen.getAllByRole('button', { name: /^Блок «/ })[0])
+    fireEvent.click(screen.getByRole('menuitem', { name: 'Убрать из тренировки' }))
     await waitFor(() => expect(readDraft(KEY).map((e) => e.exercise.id)).toEqual(['pull']))
     expect(screen.getByText('Упражнение убрано')).toBeInTheDocument()
     fireEvent.click(screen.getByRole('button', { name: 'Отменить' }))

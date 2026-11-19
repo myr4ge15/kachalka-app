@@ -178,13 +178,15 @@ describe('WorkoutScreen', () => {
     const card = (id) => container.querySelector(`[data-exercise-id="${id}"]`)
 
     fireEvent.click(screen.getByRole('button', { name: /Открыть Подтягивания/ }))
-    fireEvent.click(screen.getByRole('button', { name: 'убрать' }))
+    fireEvent.click(screen.getAllByRole('button', { name: /^Блок «/ })[0])
+    fireEvent.click(screen.getByRole('menuitem', { name: 'Убрать из тренировки' }))
     expect(card('pullup')).toBeNull()
     expect(card('squat')).toHaveAttribute('data-active', 'true')
     expect(card('bench')).toHaveAttribute('data-active', 'false')
 
     // Последняя карточка — фокус уходит на предыдущую.
-    fireEvent.click(screen.getByRole('button', { name: 'убрать' }))
+    fireEvent.click(screen.getAllByRole('button', { name: /^Блок «/ })[0])
+    fireEvent.click(screen.getByRole('menuitem', { name: 'Убрать из тренировки' }))
     expect(card('squat')).toBeNull()
     expect(card('bench')).toHaveAttribute('data-active', 'true')
   })

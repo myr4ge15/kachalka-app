@@ -105,7 +105,8 @@ describe('замена упражнения', () => {
     writeDraft(DRAFT, [entry(bench, [{ weight: 60, reps: 8 }])])
     writeDraft(FEEL, { bench: 'hard' })
     render(<WorkoutScreen user={user} />)
-    fireEvent.click(screen.getByRole('button', { name: 'заменить' }))
+    fireEvent.click(screen.getAllByRole('button', { name: /^Блок «/ })[0])
+    fireEvent.click(screen.getByRole('menuitem', { name: 'Заменить упражнение' }))
     expect(screen.getByRole('dialog', { name: 'Заменить упражнение' })).toBeInTheDocument()
     pickExercise = squat
     fireEvent.click(screen.getByRole('button', { name: 'выбрать упражнение' }))
@@ -121,13 +122,15 @@ describe('замена упражнения', () => {
   it('на не-весовое — вес обнуляется; на уже добавленное — ошибка, состав прежний', () => {
     writeDraft(DRAFT, [entry(bench, [{ weight: 60, reps: 8 }]), entry(squat, [{ weight: 100, reps: 5 }])])
     render(<WorkoutScreen user={user} />)
-    fireEvent.click(screen.getAllByRole('button', { name: 'заменить' })[0])
+    fireEvent.click(screen.getAllByRole('button', { name: /^Блок «/ })[0])
+    fireEvent.click(screen.getByRole('menuitem', { name: 'Заменить упражнение' }))
     pickExercise = squat
     fireEvent.click(screen.getByRole('button', { name: 'выбрать упражнение' }))
     expect(screen.getByText('Это упражнение уже добавлено')).toBeInTheDocument()
     expect(screen.getByText('Жим лежа')).toBeInTheDocument()
 
-    fireEvent.click(screen.getAllByRole('button', { name: 'заменить' })[0])
+    fireEvent.click(screen.getAllByRole('button', { name: /^Блок «/ })[0])
+    fireEvent.click(screen.getByRole('menuitem', { name: 'Заменить упражнение' }))
     pickExercise = pullup
     fireEvent.click(screen.getByRole('button', { name: 'выбрать упражнение' }))
     expect(screen.queryByText('Это упражнение уже добавлено')).not.toBeInTheDocument()
@@ -139,12 +142,14 @@ describe('замена упражнения', () => {
   it('замена на то же самое — ничего не меняет; закрытие пикера сбрасывает режим замены', () => {
     writeDraft(DRAFT, [entry(bench, [{ weight: 60, reps: 8 }])])
     render(<WorkoutScreen user={user} />)
-    fireEvent.click(screen.getByRole('button', { name: 'заменить' }))
+    fireEvent.click(screen.getAllByRole('button', { name: /^Блок «/ })[0])
+    fireEvent.click(screen.getByRole('menuitem', { name: 'Заменить упражнение' }))
     pickExercise = bench
     fireEvent.click(screen.getByRole('button', { name: 'выбрать упражнение' }))
     expect(weights()).toEqual(['60'])
 
-    fireEvent.click(screen.getByRole('button', { name: 'заменить' }))
+    fireEvent.click(screen.getAllByRole('button', { name: /^Блок «/ })[0])
+    fireEvent.click(screen.getByRole('menuitem', { name: 'Заменить упражнение' }))
     fireEvent.click(screen.getByRole('button', { name: 'закрыть пикер' }))
     fireEvent.click(screen.getByRole('button', { name: 'Добавить упражнение' }))
     expect(screen.getByRole('dialog', { name: 'Упражнение' })).toBeInTheDocument()

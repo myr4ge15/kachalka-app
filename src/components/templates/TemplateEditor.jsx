@@ -67,6 +67,8 @@ export default function TemplateEditor({ user, templateId, onBack, backGuardRef 
   const [delArm, setDelArm] = useState(false) // in-app подтверждение удаления (единый паттерн)
   const [leaveAsk, setLeaveAsk] = useState(null) // { at } — «Выйти без сохранения?»
   const leaveRef = useRevealFocus(leaveAsk)
+  const [added, setAdded] = useState(null)
+  const addedRef = useRevealFocus(added)
   // Исходное состояние формы: пустое для нового, загруженное — для существующего.
   const baseRef = useRef(formSnapshot('', [], false))
   const dirty = !readOnly && !loading && formSnapshot(name, items, isPublic) !== baseRef.current
@@ -123,6 +125,7 @@ export default function TemplateEditor({ user, templateId, onBack, backGuardRef 
     }
     setMessage((m) => (m?.transient ? null : m))
     setItems([...items, newItem(ex)])
+    setAdded({ id: ex.id })
   }
 
   function pickExercise(ex) {
@@ -154,6 +157,7 @@ export default function TemplateEditor({ user, templateId, onBack, backGuardRef 
   function addExercises(list) {
     setPicker(null)
     const fresh = list.filter((ex) => !items.some((it) => it.exercise.id === ex.id))
+    if (fresh.length) setAdded({ id: fresh[0].id })
     const skipped = list.length - fresh.length
     setMessage((m) => (skipped
       ? { type: 'error', text: skipped === list.length ? 'Эти упражнения уже в шаблоне' : `Уже были в шаблоне: ${skipped}`, transient: true }
@@ -337,6 +341,7 @@ export default function TemplateEditor({ user, templateId, onBack, backGuardRef 
             <Fragment key={it.exercise.id}>
             {phaseHeading(items, idx) && <p className="sec-title wk-phase-title">{phaseHeading(items, idx)}</p>}
             <div
+              ref={added?.id === it.exercise.id ? addedRef : undefined}
               data-tpl-id={it.exercise.id}
               className={'card exercise-card tpl-ex' + (metric === 'time' ? ' count' : '')}
             >
@@ -363,14 +368,9 @@ export default function TemplateEditor({ user, templateId, onBack, backGuardRef 
                         {PHASE_MOVE_LABEL[p]}
                       </button>
                     ))}
+                    <button type="button" role="menuitem" onClick={() => { setPhaseMenu(null); setPicker({ replaceId: it.exercise.id }) }}>Заменить упражнение</button>
+                    <button type="button" role="menuitem" className="danger" onClick={() => { setPhaseMenu(null); removeExercise(idx) }}>Убрать из шаблона</button>
                   </MoreMenu>
-                  <button type="button" className="link-btn" aria-label={`Заменить «${it.exercise.name}»`}
-                    onClick={() => setPicker({ replaceId: it.exercise.id })}>
-                    заменить
-                  </button>
-                  <button className="link-btn danger" onClick={() => removeExercise(idx)}>
-                    убрать
-                  </button>
                 </span>
               </div>
               <TemplateSets metric={metric} sets={it.set_plan}
@@ -405,6 +405,7 @@ export default function TemplateEditor({ user, templateId, onBack, backGuardRef 
           onToggleFavorite={(id) => toggleFavorite(user.id, id)}
           title={replacing ? 'Заменить упражнение' : 'Упражнение'}
           replacing={replacing}
+          selectMany={!replacing}
           onPick={pickExercise}
           onPickMany={replacing ? undefined : addExercises}
           onCreate={(p) => createExercise({ ...p, owner_id: user.id })}

@@ -243,7 +243,10 @@ describe('TemplatesScreen — редактор', () => {
     fireEvent.click(screen.getByText('Грудь').closest('button'))
     await screen.findByDisplayValue('Грудь')
     fireEvent.change(screen.getByLabelText('Вес или дистанция подхода 2'), { target: { value: '62.5' } })
-    const replace = () => fireEvent.click(screen.getByRole('button', { name: 'Заменить «Жим лежа»' }))
+    const replace = () => {
+      fireEvent.click(screen.getByRole('button', { name: 'Блок «Жим лежа»' }))
+      fireEvent.click(screen.getByRole('menuitem', { name: 'Заменить упражнение' }))
+    }
 
     replace()
     expect(screen.getByRole('dialog', { name: 'Заменить упражнение' })).toBeInTheDocument()
@@ -256,8 +259,8 @@ describe('TemplatesScreen — редактор', () => {
     expect(await screen.findByRole('status')).toHaveTextContent('Это упражнение уже в шаблоне')
     replace()
     fireEvent.click(screen.getByRole('button', { name: 'выбрать Жим гантелей' }))
-    expect(screen.getByRole('button', { name: 'Заменить «Жим гантелей»' })).toBeInTheDocument()
-    expect(screen.queryByRole('button', { name: 'Заменить «Жим лежа»' })).not.toBeInTheDocument()
+    expect(screen.getByRole('button', { name: 'Блок «Жим гантелей»' })).toBeInTheDocument()
+    expect(screen.queryByRole('button', { name: 'Блок «Жим лежа»' })).not.toBeInTheDocument()
 
     save()
     await waitFor(() => expect(saveTemplate).toHaveBeenCalled())
@@ -275,7 +278,8 @@ describe('TemplatesScreen — редактор', () => {
     fireEvent.click(screen.getByRole('button', { name: 'Добавить упражнение' }))
     fireEvent.click(screen.getByRole('button', { name: 'выбрать Жим лежа' }))
     fireEvent.change(screen.getByLabelText('Вес или дистанция подхода 1'), { target: { value: '60' } })
-    fireEvent.click(screen.getByRole('button', { name: 'Заменить «Жим лежа»' }))
+    fireEvent.click(screen.getByRole('button', { name: 'Блок «Жим лежа»' }))
+    fireEvent.click(screen.getByRole('menuitem', { name: 'Заменить упражнение' }))
     fireEvent.click(screen.getByRole('button', { name: 'выбрать Подтягивания' }))
     save()
     await waitFor(() => expect(saveTemplate).toHaveBeenCalled())
@@ -335,7 +339,8 @@ describe('TemplatesScreen — редактор', () => {
     expect(screen.getAllByDisplayValue('60')).toHaveLength(4)
     fireEvent.click(screen.getByRole('button', { name: 'Добавить упражнение' }))
     fireEvent.click(screen.getByRole('button', { name: 'выбрать Подтягивания' }))
-    fireEvent.click(screen.getAllByRole('button', { name: 'убрать' })[0])
+    fireEvent.click(screen.getAllByRole('button', { name: /^Блок «/ })[0])
+    fireEvent.click(screen.getByRole('menuitem', { name: 'Убрать из шаблона' }))
     save()
     await waitFor(() => expect(saveTemplate).toHaveBeenCalled())
     const doc = vi.mocked(saveTemplate).mock.calls[0][0]
@@ -370,11 +375,12 @@ describe('TemplatesScreen — редактор', () => {
     renderScreen()
     fireEvent.click(screen.getByText('Грудь').closest('button'))
     expect(await screen.findByDisplayValue('Грудь')).toBeInTheDocument()
-    const before = screen.getAllByRole('button', { name: 'убрать' }).length
-    fireEvent.click(screen.getAllByRole('button', { name: 'убрать' })[0])
-    expect(screen.queryAllByRole('button', { name: 'убрать' })).toHaveLength(before - 1)
+    const before = screen.getAllByRole('button', { name: /^Блок «/ }).length
+    fireEvent.click(screen.getAllByRole('button', { name: /^Блок «/ })[0])
+    fireEvent.click(screen.getByRole('menuitem', { name: 'Убрать из шаблона' }))
+    expect(screen.queryAllByRole('button', { name: /^Блок «/ })).toHaveLength(before - 1)
     fireEvent.click(await screen.findByRole('button', { name: 'Отменить' }))
-    expect(screen.getAllByRole('button', { name: 'убрать' })).toHaveLength(before)
+    expect(screen.getAllByRole('button', { name: /^Блок «/ })).toHaveLength(before)
     save()
     await waitFor(() => expect(saveTemplate).toHaveBeenCalled())
     expect(vi.mocked(saveTemplate).mock.calls[0][0].exercises).toHaveLength(before)
@@ -476,10 +482,10 @@ describe('TemplatesScreen — редактор', () => {
     document.querySelector('.sort-trash').getBoundingClientRect = () => ({ left: 100, right: 260, top: 700, bottom: 756 })
     fireEvent.touchMove(handle, { touches: [{ clientX: 180, clientY: 720 }] })
     fireEvent.touchEnd(handle)
-    expect(screen.getAllByRole('button', { name: 'убрать' })).toHaveLength(1)
+    expect(screen.getAllByRole('button', { name: /^Блок «/ })).toHaveLength(1)
     expect(document.querySelector('.tpl-name')).toHaveTextContent('Подтягивания')
     fireEvent.click(await screen.findByRole('button', { name: 'Отменить' }))
-    expect(screen.getAllByRole('button', { name: 'убрать' })).toHaveLength(2)
+    expect(screen.getAllByRole('button', { name: /^Блок «/ })).toHaveLength(2)
     delete window.matchMedia
   })
 

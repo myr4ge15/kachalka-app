@@ -36,6 +36,7 @@ export default function ExercisePicker({
   onToggleFavorite,
   techniqueSlugOf,
   onPick,
+  selectMany = false,
   onPickMany, // набор сканером (8.4.0); нет — сканер в одиночном режиме (замена)
   onClose,
   onCreate,
@@ -43,6 +44,15 @@ export default function ExercisePicker({
   replacing = false, // замена упражнения: подписи «Заменить», а не «добавить» (UI-ревью 23.10)
 }) {
   const pickerId = useId()
+  const [selected, setSelected] = useState([])
+  const batch = selectMany && !replacing && Boolean(onPickMany)
+  function finish(extra) {
+    onPickMany([...new Map([...selected, ...extra].map(ex => [ex.id, ex])).values()])
+  }
+  function pickOne(ex) {
+    if (batch) finish([ex])
+    else onPick(ex)
+  }
   const [technique, setTechnique] = useState(null) // { slug, name } открытой подсказки
   const [query, setQuery] = useState('')
   const searchRef = useRef(null)
@@ -175,10 +185,14 @@ export default function ExercisePicker({
           .map(labelOf)
       : []
     const descriptionIds = [muscleGroup && primaryId, secondary.length > 0 && secondaryId].filter(Boolean).join(' ')
+    const Item = batch ? 'label' : 'button'
     const item = (
-      <button type="button" className="picker-item picker-item--muscles" onClick={() => onPick(e)}
+      <Item {...(batch ? {} : { type: 'button', onClick: () => onPick(e) })} className="picker-item picker-item--muscles"
         aria-labelledby={nameId} aria-describedby={descriptionIds || undefined}>
-        <span id={nameId} className="picker-exercise-name">{e.name}</span>
+        <span className="picker-exercise-name">{batch && <input type="checkbox" aria-labelledby={nameId}
+          aria-describedby={descriptionIds || undefined} checked={selected.some(ex => ex.id === e.id)}
+          onChange={() => setSelected(prev => prev.some(ex => ex.id === e.id)
+            ? prev.filter(ex => ex.id !== e.id) : [...prev, e])} />}<span id={nameId}>{e.name}</span></span>
         {muscleGroup && (
           <span id={primaryId} className="picker-muscles-line">
             <strong className={`picker-muscle-group tag-${tagSlug(muscleGroup)}`}>{muscleGroup[0].toUpperCase() + muscleGroup.slice(1)}</strong>
@@ -186,7 +200,7 @@ export default function ExercisePicker({
           </span>
         )}
         {secondary.length > 0 && <span id={secondaryId} className="picker-muscles-line">Также — {secondary.join(', ')}</span>}
-      </button>
+      </Item>
     )
     const slug = techniqueSlugOf?.(e) ?? null
     // «i» — слева от названия (v8.0.0). Когда подсказки в пикере включены, у строк
@@ -261,7 +275,7 @@ export default function ExercisePicker({
     setError(null)
     try {
       const ex = await onCreate({ name, muscle_group: newGroup, metric: newMetric, submuscle: newSub, secondary: newSecondary })
-      onPick(ex) // добавляем в тренировку; родитель закроет пикер
+      pickOne(ex)
     } catch (err) {
       setError('Не удалось сохранить: ' + (err?.message ?? err))
       setBusy(false)
@@ -272,7 +286,7 @@ export default function ExercisePicker({
   // Пикер рендерим порталом в <body>: оверлей position:fixed гарантированно
   // относительно вьюпорта (а не застревает внутри прокручиваемой .content под
   // шапкой/таббаром). Это и есть фикс «модалка не на весь экран».
-  if (scanning) return <ExerciseScanner exercises={exercises} onPick={onPick} onPickMany={onPickMany} replacing={replacing}
+  if (scanning) return <ExerciseScanner exercises={exercises} onPick={pickOne} onPickMany={batch ? finish : onPickMany} replacing={replacing}
     onClose={() => setScanning(false)} onManual={(text) => {
       changeQuery(text); changeGroup('все'); setScanning(false)
     }} />
@@ -306,7 +320,7 @@ export default function ExercisePicker({
             <div className="create-similar">
               <span className="muted">Возможно, уже есть — нажми, чтобы выбрать:</span>
               {similar.map((e) => (
-                <button key={e.id} className="similar-item" onClick={() => onPick(e)}>
+                <button key={e.id} className="similar-item" onClick={() => pickOne(e)}>
                   <span>{e.name}</span>
                   <span className="picker-group">{e.muscle_group}</span>
                 </button>
@@ -455,7 +469,7 @@ export default function ExercisePicker({
         </div>
 
         <div className="picker-list" ref={listRef} data-sheet-bounce="">
-          {VOICE_ENABLED && <ExerciseVoice exercises={exercises} onPick={onPick} onSearch={changeQuery} />}
+          {VOICE_ENABLED && <ExerciseVoice exercises={exercises} onPick={pickOne} onSearch={changeQuery} />}
           {showShortcuts && shortcuts.fav.length > 0 && (
             <>
               <div className="group-title">Избранные</div>
@@ -505,6 +519,8 @@ export default function ExercisePicker({
           </button>
 
         )}
+        {batch && <button type="button" className="btn primary full" disabled={!selected.length}
+          onClick={() => finish([])}>Добавить · {selected.length}</button>}
     </SheetDialog>
     {technique && (
       <TechniqueSheet slug={technique.slug} name={technique.name} onClose={() => setTechnique(null)} />
