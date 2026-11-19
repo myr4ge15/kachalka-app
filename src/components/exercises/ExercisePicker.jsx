@@ -189,10 +189,11 @@ export default function ExercisePicker({
     const item = (
       <Item {...(batch ? {} : { type: 'button', onClick: () => onPick(e) })} className="picker-item picker-item--muscles"
         aria-labelledby={nameId} aria-describedby={descriptionIds || undefined}>
-        <span className="picker-exercise-name">{batch && <input type="checkbox" aria-labelledby={nameId}
+        {batch && <input type="checkbox" aria-labelledby={nameId}
           aria-describedby={descriptionIds || undefined} checked={selected.some(ex => ex.id === e.id)}
           onChange={() => setSelected(prev => prev.some(ex => ex.id === e.id)
-            ? prev.filter(ex => ex.id !== e.id) : [...prev, e])} />}<span id={nameId}>{e.name}</span></span>
+            ? prev.filter(ex => ex.id !== e.id) : [...prev, e])} />}
+        <span className="picker-exercise-name" id={nameId}>{e.name}</span>
         {muscleGroup && (
           <span id={primaryId} className="picker-muscles-line">
             <strong className={`picker-muscle-group tag-${tagSlug(muscleGroup)}`}>{muscleGroup[0].toUpperCase() + muscleGroup.slice(1)}</strong>

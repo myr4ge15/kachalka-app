@@ -82,7 +82,7 @@ export default function CircleMembers({ api, circle, me, onChanged, onOpenMember
                 <span className="frd-who">
                   <span className="frd-name">{m.name}{m.user_id === me && <span className="feed-me">я</span>}</span>
                   {m.is_owner && <span className="frd-sub">владелец</span>}
-                  {m.user_id !== me && <span className={'frd-sub' + (isOnline(presence.get(m.user_id)) ? ' frd-sub-on' : '')}>
+                  {m.user_id !== me && !isOnline(presence.get(m.user_id)) && <span className="frd-sub">
                     {presenceLabel(presence.get(m.user_id), { sex: sexOf.get(m.user_id) ?? null })}
                   </span>}
                 </span>
@@ -90,7 +90,7 @@ export default function CircleMembers({ api, circle, me, onChanged, onOpenMember
               <MoreMenu label={'Действия: ' + m.name} btnClassName="frd-more" open={menu === m.user_id}
                 onToggle={() => { setArm(null); setMenu(menu === m.user_id ? null : m.user_id) }} onClose={closeMenu}>
                 <button type="button" role="menuitem" onClick={() => { closeMenu(); onOpenMember?.(m.user_id) }}>Открыть профиль</button>
-                {m.invited_by_name && !m.is_owner && <span className="more-menu-note">Пришел(а) по коду {m.invited_by_name}</span>}
+                {m.invited_by_name && !m.is_owner && <span className="more-menu-note">Код приглашения: {m.invited_by_name}</span>}
                 {m.user_id !== me && <FriendButton me={me} memberId={m.user_id} compact />}
                 {isOwner && !m.is_owner && <>
                   <button type="button" role="menuitem" disabled={!!busy}

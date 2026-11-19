@@ -253,10 +253,10 @@ describe('countSavable — число на кнопке «Сохранить» �
       ] },
       { exercise: repsEx, sets: [{ weight: 0, reps: 12 }, { weight: 0, reps: '' }] },
     ]
-    expect(countSavable(entries)).toEqual({ sets: 3, skipped: 4 })
+    expect(countSavable(entries)).toEqual({ sets: 3, skipped: 4, missingWeights: 0 })
   })
   it('пусто → нули', () => {
-    expect(countSavable([])).toEqual({ sets: 0, skipped: 0 })
-    expect(countSavable(undefined)).toEqual({ sets: 0, skipped: 0 })
+    expect(countSavable([])).toEqual({ sets: 0, skipped: 0, missingWeights: 0 })
+    expect(countSavable(undefined)).toEqual({ sets: 0, skipped: 0, missingWeights: 0 })
   })
 })

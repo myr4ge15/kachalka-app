@@ -203,7 +203,7 @@ describe('TemplatesScreen — редактор', () => {
     const doc = vi.mocked(saveTemplate).mock.calls[0][0]
     expect(doc).toMatchObject({ id: undefined, user_id: 'me', name: 'Фулбоди', is_public: true })
     expect(doc.exercises.map((e) => [e.exercise.id, e.set_plan.length])).toEqual([['bench', 3], ['pull', 3], ['plank', 3]])
-    expect(doc.exercises[0].set_plan.map((s) => [s.weight, s.reps])).toEqual([['62.5', 10], [0, 10], [0, 10]])
+    expect(doc.exercises[0].set_plan.map((s) => [s.weight, s.reps])).toEqual([['62.5', 10], ['', 10], ['', 10]])
     expect(doc.exercises[2].set_plan.every((s) => s.reps === 60)).toBe(true)
     expect(syncNow).toHaveBeenCalledWith('me')
     expect(await screen.findByRole('button', { name: '+ Новый шаблон' })).toBeInTheDocument()

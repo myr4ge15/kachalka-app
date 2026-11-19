@@ -111,6 +111,20 @@ describe('HomeScreen', () => {
     expect(screen.getByText('середина груди')).toHaveClass('tag-chest')
     expect(screen.getByText('спина')).toHaveClass('tag-back')
     const more = screen.getByRole('button', { name: 'Все мышцы прошлой тренировки' })
+    const row = more.closest('.home-tags')
+    let width = 180
+    Object.defineProperty(row, 'clientWidth', { get: () => width })
+    for (const node of row.querySelectorAll('span')) {
+      vi.spyOn(node, 'getBoundingClientRect').mockReturnValue({ width: node.matches('[data-muscle-chip]') ? 80 : 40 })
+    }
+    fireEvent(window, new Event('resize'))
+    expect(more).toHaveTextContent('+4')
+    width = 120
+    fireEvent(window, new Event('resize'))
+    expect(more).toHaveTextContent('+5')
+    width = 320
+    fireEvent(window, new Event('resize'))
+    expect(more).toHaveTextContent('+3')
     fireEvent.click(more)
     expect(screen.getByRole('status')).toHaveTextContent('середина груди, спина, ноги, пресс, плечи')
     fireEvent.keyDown(more, { key: 'Escape' })

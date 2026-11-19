@@ -87,5 +87,10 @@ export function toNum(v) {
 // для счетчика на кнопке «Сохранить»: раньше кнопка считала все строки, а запись
 // отбрасывала незаполненные — «Сохранить (5)» записывало 4 без единого слова.
 export function savableSet(set, metric = 'weight') {
+  if (needsSetWeight(set, metric)) return null
   return clampSet(toNum(set?.weight), toNum(set?.reps), metric)
+}
+
+export function needsSetWeight(set, metric) {
+  return normMetric(metric) === 'weight' && String(set?.weight ?? '').trim() === ''
 }

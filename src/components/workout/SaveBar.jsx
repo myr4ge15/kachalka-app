@@ -7,10 +7,11 @@ import { plural } from '../../lib/plural.js'
 // skippedSets — строки, которые в запись не попадут (нет повторов / нечисловой вес).
 // Число на кнопке их не включает, а строка-предупреждение стоит в потоке над
 // спейсером: так видно, ЧТО будет записано, до нажатия.
-export default function SaveBar({ canSave, saving, totalSets, skippedSets = 0, onSave }) {
+export default function SaveBar({ canSave, saving, totalSets, skippedSets = 0, missingWeights = 0, onSave }) {
   return (
     <>
-      {skippedSets > 0 && (
+      {missingWeights > 0 && <p className="wk-skip-note" role="status">Впиши вес в силовых подходах или удали лишние.</p>}
+      {!missingWeights && skippedSets > 0 && (
         <p className="wk-skip-note" role="status">
           {skippedSets} {plural(skippedSets, 'незаполненный подход', 'незаполненных подхода', 'незаполненных подходов')}{' '}
           не {plural(skippedSets, 'сохранится', 'сохранятся', 'сохранятся')} — впиши повторения или удали

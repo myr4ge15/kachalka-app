@@ -6,6 +6,7 @@ import 'fake-indexeddb/auto'
 import { describe, it, expect, beforeEach, afterEach } from 'vitest'
 import { openUserDb, closeUserDb, db, loginDb, getMeta } from './local.js'
 import { uniqueUserId } from '../test/idbHarness.js'
+import { setsFromTemplate, countSavable } from '../lib/workoutEntries.js'
 import {
   saveTemplate, deleteTemplate, getTemplates, getTemplate, pendingCount,
   getAllExercisesForAdmin, applyExerciseEditLocal, applyExerciseMergeLocal, getExercises,
@@ -23,6 +24,17 @@ beforeEach(async () => { userId = uniqueUserId(); await openUserDb(userId) })
 afterEach(async () => { await closeUserDb() })
 
 describe('шаблоны: запись и очередь', () => {
+  it('незаданный вес переживает сохранение и заполняется по строкам истории', async () => {
+    const id = await saveTemplate({ user_id: userId, name: 'Без веса', exercises: [{
+      exercise: bench, set_plan: ['', '', 0].map(weight => ({ weight, reps: 10 })),
+    }] })
+    const item = (await getTemplate(id)).exercises[0]
+    const sets = setsFromTemplate(bench, item, [{ metric: 'weight', sets: [{ weight: 45, reps: 8 }] }])
+    expect(sets.map(set => set.weight)).toEqual([45, '', 0])
+    expect(countSavable([{ exercise: bench, sets }])).toEqual({ sets: 2, skipped: 1, missingWeights: 1 })
+    sets[1].weight = '40'
+    expect(countSavable([{ exercise: bench, sets }]).sets).toBe(3)
+  })
   it('детальный план хранит все подходы, метрику и очередь без UI-ключей', async () => {
     const set_plan = [{ weight: -20, reps: 12 }, { weight: 10, reps: 8 }]
     const id = await saveTemplate({ user_id: userId, name: 'Точный', exercises: [

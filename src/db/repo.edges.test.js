@@ -265,7 +265,7 @@ describe('cleanEntries: что запишется — то и посчитано
     const [row] = await saved(entries)
 
     expect(row.sets).toEqual([{ weight: 50, reps: 5 }])
-    expect(countSavable(entries)).toEqual({ sets: 1, skipped: 4 })
+    expect(countSavable(entries)).toEqual({ sets: 1, skipped: 4, missingWeights: 0 })
   })
 
   it('десятичная запятая, границы и пробелы — как у savableSet', async () => {

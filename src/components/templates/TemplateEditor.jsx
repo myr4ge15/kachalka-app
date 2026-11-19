@@ -12,7 +12,7 @@ import CardsSkeleton from '../ui/CardsSkeleton.jsx'
 import BackButton from '../ui/BackButton.jsx'
 import ScrollTopButton from '../ui/ScrollTopButton.jsx'
 import TemplateSets from './TemplateSets.jsx'
-import { templatePlan } from '../../lib/templatePlan.js'
+import { templateInputPlan } from '../../lib/templatePlan.js'
 import { setsForExerciseReplacement } from '../../lib/workoutEntries.js'
 import { sk } from '../../lib/progressionCard.js'
 import { showToast, hideToast } from '../ui/Toast.jsx'
@@ -25,7 +25,7 @@ import Icon from '../ui/Icon.jsx'
 function toItems(tpl) {
   return [...(tpl?.exercises ?? [])].sort((a, b) => (a.position ?? 0) - (b.position ?? 0)).map((e) => {
     const exercise = { ...(e.exercise ?? { id: e.exercise_id, name: '—' }), ...(e.metric ? { metric: e.metric } : {}) }
-    const item = { exercise, metric: exerciseMetric(exercise), set_plan: templatePlan(exercise, e).map((s) => ({ ...s, _k: sk() })) }
+    const item = { exercise, metric: exerciseMetric(exercise), set_plan: templateInputPlan(exercise, e).map((s) => ({ ...s, _k: sk() })) }
     return phaseValue(e.phase) ? { ...item, phase: phaseValue(e.phase) } : item // разминка/заминка
   })
 }
@@ -150,7 +150,13 @@ export default function TemplateEditor({ user, templateId, onBack, backGuardRef 
   }
 
   function newItem(ex) {
-    return { exercise: ex, metric: exerciseMetric(ex), set_plan: templatePlan(ex, { sets: ex.metric === 'distance' ? 1 : 3, reps: ex.metric === 'time' ? 60 : ex.metric === 'distance' ? 1800 : 10, weight: 0 }).map((s) => ({ ...s, _k: sk() })) }
+    const metric = exerciseMetric(ex)
+    const set_plan = Array.from({ length: metric === 'distance' ? 1 : 3 }, () => ({
+      weight: metric === 'weight' ? '' : 0,
+      reps: metric === 'time' ? 60 : metric === 'distance' ? 1800 : 10,
+      _k: sk(),
+    }))
+    return { exercise: ex, metric, set_plan }
   }
 
   // Набор сканером (8.4.0): все разом, уже стоящие в шаблоне пропускаем.

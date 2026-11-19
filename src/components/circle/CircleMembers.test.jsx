@@ -5,7 +5,7 @@ import userEvent from '@testing-library/user-event'
 import CircleMembers from './CircleMembers.jsx'
 // «Друг» был в сети час назад, в ростере — женский пол (fb_242bb1bb: «была», а не «был(а)»).
 vi.mock('../../hooks/usePresence.js', () => ({
-  usePresence: () => new Map([['other', new Date(Date.now() - 3600e3).toISOString()]]),
+  usePresence: () => new Map([['other', new Date(Date.now() - 3600e3).toISOString()], ['me', new Date().toISOString()]]),
   useRosterSex: () => new Map([['other', 'f']]),
 }))
 vi.mock('../friends/FriendButton.jsx', () => ({ default: () => <button>В друзья</button> }))
@@ -28,6 +28,8 @@ describe('участники как друзья', () => {
   it('участнику не показываются действия владельца', async () => {
     render(<CircleMembers api={{ members: async () => rows }} circle={{ circle_id: 'c', is_owner: false }} me="other" />)
     await userEvent.click(await screen.findByRole('button', { name: 'Действия: Я' }))
+    expect(screen.getByRole('img', { name: 'в сети' })).toBeInTheDocument()
+    expect(screen.queryByText('в сети')).toBeNull()
     expect(screen.queryByRole('menuitem', { name: 'Передать круг' })).toBeNull()
     expect(screen.queryByRole('menuitem', { name: 'Убрать' })).toBeNull()
   })

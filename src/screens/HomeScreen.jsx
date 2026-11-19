@@ -1,6 +1,6 @@
 import { settleScroll } from '../lib/scrollBox.js'
 import Chevron from '../components/ui/Chevron.jsx'
-import { useEffect, useRef, useState } from 'react'
+import { useEffect, useLayoutEffect, useRef, useState } from 'react'
 import { fmtHomeTitle } from '../lib/dates.js'
 import { useLiveQuery } from 'dexie-react-hooks'
 import { getHomeData, dismissMonthlySummary, markMonthlySummaryOpened } from '../db/insights.js'
@@ -42,14 +42,42 @@ const canonIdx = (g) => {
 const TAGS_SHOWN = 2
 
 function LastWorkoutTags({ tags }) {
+  const rowRef = useRef(null)
+  const [shown, setShown] = useState(TAGS_SHOWN)
   const [expanded, setExpanded] = useState(false)
   const { bind, wasLong } = useLongPress(() => setExpanded(true), { onEnd: () => setExpanded(false) })
-  const extra = tags.length - TAGS_SHOWN
+  useLayoutEffect(() => {
+    const row = rowRef.current
+    const label = row.querySelector('.home-tags-lab')
+    const chips = [...row.querySelectorAll('[data-muscle-chip]')]
+    const counter = row.querySelector('.home-tags-measure')
+    function measure() {
+      if (!row.clientWidth) return
+      const gap = parseFloat(getComputedStyle(row).columnGap) || 0
+      const available = row.clientWidth - label.getBoundingClientRect().width - (parseFloat(getComputedStyle(label).marginRight) || 0)
+      const widths = chips.map(chip => chip.getBoundingClientRect().width + gap)
+      const reserve = counter.getBoundingClientRect().width + gap
+      let used = widths.reduce((total, width) => total + width, 0)
+      let count = widths.length
+      while (count && used + (count < tags.length ? reserve : 0) > available) {
+        used -= widths[--count]
+      }
+      setShown(count)
+    }
+    measure()
+    const observer = typeof ResizeObserver === 'function' ? new ResizeObserver(measure) : null
+    for (const node of [row, label, counter, ...chips]) observer?.observe(node)
+    window.addEventListener('resize', measure)
+    return () => { observer?.disconnect(); window.removeEventListener('resize', measure) }
+  }, [tags])
+  const extra = Math.max(0, tags.length - shown)
   return (
-    <div className="home-tags">
+    <div className="home-tags" ref={rowRef}>
       <span className="home-tags-lab">В прошлый раз:</span>
-      {tags.slice(0, TAGS_SHOWN).map((s) => (
-        <span key={s} className={`day-tag tag-${tagSlug(majorOf(s) ?? s)}`}>{labelOf(s)}</span>
+      <span aria-hidden="true" className="day-tag home-tags-more home-tags-measure">+{tags.length}</span>
+      {tags.slice(0, TAGS_SHOWN).map((s, index) => (
+        <span key={s} data-muscle-chip="" aria-hidden={index >= shown || undefined}
+          className={`day-tag tag-${tagSlug(majorOf(s) ?? s)}${index >= shown ? ' home-tags-measure' : ''}`}>{labelOf(s)}</span>
       ))}
       {extra > 0 && (
         <button type="button" className="day-tag home-tags-more" aria-label="Все мышцы прошлой тренировки"
@@ -59,7 +87,7 @@ function LastWorkoutTags({ tags }) {
           +{extra}
         </button>
       )}
-      {expanded && <div className="home-tags-bubble" role="status">{tags.map(labelOf).join(', ')}</div>}
+      {expanded && extra > 0 && <div className="home-tags-bubble" role="status">{tags.map(labelOf).join(', ')}</div>}
     </div>
   )
 }

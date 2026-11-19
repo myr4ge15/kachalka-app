@@ -36,10 +36,10 @@ export function cleanTemplateForExport(t) {
           metric: exerciseMetric(e.exercise),
         },
         // Целевой план: подходы × повторы (у time — секунды) × вес.
-        ...(Array.isArray(e.set_plan) ? { metric: e.metric ?? exerciseMetric(e.exercise), set_plan: e.set_plan.map((s) => ({ weight: Number(s.weight), reps: Number(s.reps) })) } : {}),
+        ...(Array.isArray(e.set_plan) ? { metric: e.metric ?? exerciseMetric(e.exercise), set_plan: e.set_plan.map((s) => ({ weight: s.weight_unset ? null : Number(s.weight), reps: Number(s.reps) })) } : {}),
         sets: numOrNull(e.sets),
         reps: numOrNull(e.reps),
-        weight: numOrNull(e.weight),
+        weight: e.set_plan?.[0]?.weight_unset ? null : numOrNull(e.weight),
         phase: phaseValue(e.phase),
       })),
   }

@@ -12,8 +12,8 @@
 // подхода (общий с progressionCard), поэтому новые подходы получают уникальный _k.
 // ============================================================================
 import { exerciseMetric, isCountMetric, hasExtraWeight, hasLoadWeight } from './metric.js'
-import { WEIGHT_MAX, repsMax, weightMin, savableSet } from './setLimits.js'
-import { templatePlan } from './templatePlan.js'
+import { WEIGHT_MAX, repsMax, weightMin, savableSet, needsSetWeight } from './setLimits.js'
+import { templateInputPlan } from './templatePlan.js'
 import { defaultSet, sessionsForMetric, sk } from './progressionCard.js'
 
 // Добавить упражнение в конец (анти-дубль по exercise.id). Уже есть → массив без
@@ -161,7 +161,7 @@ export function toggleProgSettingsIn(entries, ei) {
 export function setsFromTemplate(ex, item, sessions) {
   const metric = exerciseMetric(ex)
   const previous = metric === 'distance' ? undefined : sessionsForMetric(sessions, metric)[0]?.sets
-  return templatePlan(ex, item).map((set, index) => {
+  return templateInputPlan(ex, item).map((set, index) => {
     const weight = previous?.[index]?.weight
     return { ...set, weight: Number.isFinite(weight) ? weight : set.weight, _k: sk() }
   })
@@ -173,12 +173,16 @@ export function setsFromTemplate(ex, item, sessions) {
 export function countSavable(entries) {
   let sets = 0
   let skipped = 0
+  let missingWeights = 0
   for (const e of entries ?? []) {
     const metric = exerciseMetric(e?.exercise)
     for (const s of e?.sets ?? []) {
       if (savableSet(s, metric)) sets++
-      else skipped++
+      else {
+        skipped++
+        if (needsSetWeight(s, metric) && Number(s?.reps) > 0) missingWeights++
+      }
     }
   }
-  return { sets, skipped }
+  return { sets, skipped, missingWeights }
 }

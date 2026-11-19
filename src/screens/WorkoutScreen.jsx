@@ -429,10 +429,11 @@ export default function WorkoutScreen({ user, workoutId = null, onBack, onSaved,
   const entriesToSave = entries.filter((e) => e.sets.length > 0)
   // Считаем ровно то, что запишется: строка без повторов (или с нечисловым весом)
   // в запись не попадает — о таких говорим прямо под кнопкой, а не молча теряем.
-  const { sets: totalSets, skipped: skippedSets } = countSavable(entriesToSave)
-  const canSave = totalSets > 0 && !saving
+  const { sets: totalSets, skipped: skippedSets, missingWeights } = countSavable(entriesToSave)
+  const canSave = totalSets > 0 && !missingWeights && !saving
 
   async function save() {
+    if (!canSave) return
     setSaving(true)
     setMessage(null)
     try {
@@ -707,7 +708,7 @@ export default function WorkoutScreen({ user, workoutId = null, onBack, onSaved,
 
           {!isNew && workoutActions}
 
-          <SaveBar canSave={canSave} saving={saving} totalSets={totalSets} skippedSets={skippedSets} onSave={save} />
+          <SaveBar canSave={canSave} saving={saving} totalSets={totalSets} skippedSets={skippedSets} missingWeights={missingWeights} onSave={save} />
         </>
       )}
 

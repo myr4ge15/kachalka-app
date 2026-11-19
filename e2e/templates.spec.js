@@ -40,6 +40,12 @@ test('шаблон после перезагрузки подставляет в
   const exercise = picker.locator('label').filter({ has: page.getByRole('checkbox', { name: 'Жим лежа (e2e)', exact: true }) })
   await expect(exercise.getByText('середина груди', { exact: false })).toBeVisible()
   await expect(exercise).toContainText('Также — трицепс, передняя дельта')
+  const checkbox = await exercise.getByRole('checkbox').boundingBox()
+  const title = await exercise.locator('.picker-exercise-name').boundingBox()
+  expect(title.x - (checkbox.x + checkbox.width)).toBeGreaterThanOrEqual(8)
+  for (const line of await exercise.locator('.picker-muscles-line').all()) {
+    expect((await line.boundingBox()).x).toBeCloseTo(title.x)
+  }
   await picker.getByRole('checkbox', { name: 'Брусья (e2e)' }).check()
   await picker.getByRole('button', { name: 'Добавить · 1' }).click()
   const added = page.locator('.tpl-ex').filter({ hasText: 'Брусья (e2e)' })
@@ -70,6 +76,7 @@ test('шаблон после перезагрузки подставляет в
   const secondWeight = bench.getByLabel('Вес или дистанция подхода 2', { exact: true })
   await secondWeight.fill('82.5')
   await expect(secondWeight).toHaveValue('82.5')
+  await bench.getByLabel('Вес или дистанция подхода 3', { exact: true }).fill('')
   expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true)
   await page.getByRole('button', { name: 'Блок «Подтягивания (e2e)»' }).click()
   await page.getByRole('menuitem', { name: 'Заменить упражнение' }).click()
@@ -100,8 +107,12 @@ test('шаблон после перезагрузки подставляет в
   await plan.click()
   const sets = page.locator('.exercise-card--active .set-row')
   await expect(sets).toHaveCount(3)
-  for (const [i, weight, reps] of [[0, '25', '15'], [1, '85', '8'], [2, '70', '10']]) {
+  for (const [i, weight, reps] of [[0, '25', '15'], [1, '85', '8'], [2, '', '10']]) {
     await expect(sets.nth(i).locator('input').nth(0)).toHaveValue(weight)
     await expect(sets.nth(i).locator('input').nth(1)).toHaveValue(reps)
   }
+  const saveWorkout = page.getByRole('button', { name: /^Сохранить \(/ })
+  await expect(saveWorkout).toBeDisabled()
+  await sets.nth(2).locator('input').first().fill('70')
+  await expect(saveWorkout).toBeEnabled()
 })

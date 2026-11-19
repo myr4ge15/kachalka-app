@@ -46,7 +46,7 @@ describe('CircleMembers — владелец', () => {
     api.transfer.mockResolvedValueOnce('has_own')
     renderOwner()
     fireEvent.click(await screen.findByRole('button', { name: 'Действия: Маша' }))
-    expect(screen.getByText('Пришел(а) по коду Я')).toBeInTheDocument()
+    expect(screen.getByText('Код приглашения: Я')).toBeInTheDocument()
     fireEvent.click(screen.getByRole('menuitem', { name: 'Передать круг' }))
     expect(api.transfer).not.toHaveBeenCalled()
     fireEvent.click(screen.getByRole('menuitem', { name: 'Точно передать?' }))
