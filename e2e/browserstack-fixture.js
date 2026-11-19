@@ -1,6 +1,6 @@
 import { test as base } from '@playwright/test'
 import { createRequire } from 'node:module'
-import { appendFile } from 'node:fs/promises'
+import { appendFile, writeFile } from 'node:fs/promises'
 import process from 'node:process'
 
 const env = process.env
@@ -37,8 +37,12 @@ export const test = env.BROWSERSTACK_ANDROID === '1' ? base.extend({
       const info = await context.newPage()
       try {
         const details = JSON.parse(await info.evaluate(() => {}, 'browserstack_executor: {"action":"getSessionDetails"}'))
-        if (/^[0-9a-f]+$/i.test(details.hashed_id)) {
-          await appendFile(env.GITHUB_STEP_SUMMARY, `Android: [сессия и видео](https://automate.browserstack.com/sessions/${details.hashed_id})\n`)
+        if (/^[0-9a-f]{40}$/i.test(details.hashed_id)) {
+          await writeFile('session-id', details.hashed_id)
+          if (details.browser_url?.startsWith('https://automate.browserstack.com/')) {
+            const link = new URL(details.browser_url)
+            await appendFile(env.GITHUB_STEP_SUMMARY, `Android: [сессия и видео](${link.origin}${link.pathname})\n`)
+          }
         }
         await use(context)
       } finally {

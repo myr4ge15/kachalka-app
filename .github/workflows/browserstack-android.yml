@@ -24,7 +24,20 @@ jobs:
       - run: npm ci
       # Версия протокола для реального Android в BrowserStack. Обычный CI использует
       # Playwright из package-lock. Браузерные бинарники на раннере не нужны.
-      - run: npm install --no-save --no-package-lock --ignore-scripts @playwright/test@1.58.1
+      - name: Подготовить отдельный раннер Playwright для Android
+        run: |
+          suite="$RUNNER_TEMP/android-suite"
+          mkdir -p "$suite/e2e"
+          cp playwright.config.js "$suite/"
+          cp e2e/{exercise-reorder.spec,browserstack-fixture,helpers}.js "$suite/e2e/"
+          echo '{"private":true,"type":"module"}' > "$suite/package.json"
+          npm install --prefix "$suite" --no-package-lock --ignore-scripts @playwright/test@1.58.1
+      - name: Проверить весь сценарий в Chrome раннера до подключения телефона
+        env:
+          BROWSERSTACK_PREFLIGHT: '1'
+        run: |
+          cd "$RUNNER_TEMP/android-suite"
+          ./node_modules/.bin/playwright test e2e/exercise-reorder.spec.js --project=android-preflight --workers=1 --retries=0
       - name: Открыть туннель к тестовому серверу раннера
         id: tunnel
         uses: browserstack/github-actions/setup-local@e1ceb209003b8bf050dac07c9038347259fed39c
@@ -39,7 +52,9 @@ jobs:
           BROWSERSTACK_ACCESS_KEY: ${{ secrets.BROWSERSTACK_ACCESS_KEY }}
           BROWSERSTACK_ANDROID: '1'
           __VITE_ADDITIONAL_SERVER_ALLOWED_HOSTS: bs-local.com
-        run: npx --no-install playwright test e2e/exercise-reorder.spec.js --project=android-cloud --workers=1 --retries=0
+        run: |
+          cd "$RUNNER_TEMP/android-suite"
+          ./node_modules/.bin/playwright test e2e/exercise-reorder.spec.js --project=android-cloud --workers=1 --retries=0
       - name: Закрыть туннель
         if: always() && steps.tunnel.outcome == 'success'
         uses: browserstack/github-actions/setup-local@e1ceb209003b8bf050dac07c9038347259fed39c
@@ -48,3 +63,31 @@ jobs:
         with:
           local-testing: stop
           local-identifier: workout-${{ github.run_id }}-${{ github.run_attempt }}
+      - name: Получить запись тестового телефона
+        if: always() && steps.tunnel.outcome == 'success'
+        env:
+          BROWSERSTACK_USERNAME: ${{ secrets.BROWSERSTACK_USERNAME }}
+          BROWSERSTACK_ACCESS_KEY: ${{ secrets.BROWSERSTACK_ACCESS_KEY }}
+        run: |
+          cd "$RUNNER_TEMP/android-suite"
+          test -s session-id || { echo "::error::BrowserStack не вернул ID для получения записи"; exit 1; }
+          id=$(cat session-id)
+          [[ "$id" =~ ^[0-9a-f]{40}$ ]]
+          for attempt in {1..10}; do
+            details=$(curl -fsS --max-time 15 -u "$BROWSERSTACK_USERNAME:$BROWSERSTACK_ACCESS_KEY" "https://api.browserstack.com/automate/sessions/$id.json") || details='{}'
+            video=$(jq -r '.automation_session.video_url // empty' <<< "$details")
+            if [[ "$video" == https://automate.browserstack.com/* ]] && curl -fsSL --max-time 30 "$video" -o recording.tmp && file -b --mime-type recording.tmp | grep -q '^video/'; then
+              mv recording.tmp workout-android.mp4
+              exit 0
+            fi
+            sleep 6
+          done
+          echo "::error::Запись жеста не получена через BrowserStack API"
+          exit 1
+      - uses: actions/upload-artifact@b7c566a772e6b6bfb58ed0dc250532a479d7789f
+        if: always() && steps.tunnel.outcome == 'success'
+        with:
+          name: workout-android-video
+          path: ${{ runner.temp }}/android-suite/workout-android.mp4
+          if-no-files-found: ignore
+          retention-days: 3

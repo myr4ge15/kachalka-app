@@ -18,7 +18,7 @@
 // ============================================================================
 import { defineConfig, devices } from '@playwright/test'
 
-const PORT = 5174
+const PORT = process.env.BROWSERSTACK_PREFLIGHT === '1' ? 5184 : 5174
 const BASE = `http://127.0.0.1:${PORT}/kachalka-app/`
 const PWA_BASE = 'http://127.0.0.1:5175/kachalka-app/'
 const PWA_SPEC = /pwa-production\.spec\.js$/
@@ -51,6 +51,10 @@ export default defineConfig({
 
   projects: [
     { name: 'chromium', testIgnore: PWA_SPEC, use: { ...devices['Desktop Chrome'], viewport: { width: 390, height: 844 } } },
+    ...(process.env.BROWSERSTACK_PREFLIGHT === '1' ? [{
+      name: 'android-preflight', testMatch: /exercise-reorder\.spec\.js$/,
+      use: { channel: 'chrome', trace: 'off', video: 'off' },
+    }] : []),
     ...(process.env.BROWSERSTACK_ANDROID === '1' ? [{
       name: 'android-cloud', timeout: 180_000, expect: { timeout: 15_000 },
       testMatch: /exercise-reorder\.spec\.js$/, use: { trace: 'off', video: 'off' },
@@ -69,6 +73,7 @@ export default defineConfig({
     // на Windows резолвится в ::1 (IPv6), а Playwright опрашивает url по 127.0.0.1 —
     // соединения нет и прогон падает с «Timed out waiting from config.webServer».
     command: `node node_modules/vite/bin/vite.js --port ${PORT} --strictPort --host 127.0.0.1`,
+    cwd: process.env.GITHUB_WORKSPACE,
     url: BASE,
     reuseExistingServer: !process.env.CI,
     // Логи vite не прячем: если сервер не поднялся (занятый порт, ошибка конфига),
