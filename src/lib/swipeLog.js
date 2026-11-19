@@ -2,11 +2,14 @@
 // понять, почему жест не доходит). Последние SWIPE_LOG_MAX жестов: исход, сдвиг в % ширины, скорость (средняя и
 // пик броска, px/мс), сколько было точек и почему вернулся. Только localStorage — на сервер не уходит; смотреть —
 // Админка → «Журнал свайпов (это устройство)». Ошибки хранилища молчат: журнал — отладка, не данные.
+import { recordDiagnostic } from '../db/diagnostics.js'
+
 export const SWIPE_LOG_KEY = 'gym_app_swipe_log'
 export const SWIPE_LOG_MAX = 30
 
 export function logSwipe(entry, storage = globalThis.localStorage) {
   try {
+    recordDiagnostic('swipe.' + entry.kind)
     const list = readSwipeLog(storage)
     list.unshift({ at: new Date().toISOString(), ...entry })
     storage.setItem(SWIPE_LOG_KEY, JSON.stringify(list.slice(0, SWIPE_LOG_MAX)))

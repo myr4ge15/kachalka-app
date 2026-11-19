@@ -1,3 +1,4 @@
+import { recordDiagnostic, recordFailure } from '../db/diagnostics.js'
 import { useCallback, useEffect, useRef, useState } from 'react'
 import { supabase } from '../db/supabase.js'
 import { logout as authLogout, getCachedProfile } from '../lib/auth.js'
@@ -45,7 +46,10 @@ export function useSession(onLoggedIn) {
     })()
       // Не глушим молча: человек окажется на экране входа, и без следа в консоли
       // такие случаи (напр. не открылась персональная база) не разобрать.
-      .catch((err) => console.error('Не удалось восстановить сессию:', err))
+      .catch((err) => {
+        recordFailure('session.restore.failed', err, id)
+        console.error('Не удалось восстановить сессию:', err)
+      })
       .finally(markAppReady)
   }, [])
 
@@ -66,6 +70,7 @@ export function useSession(onLoggedIn) {
       if (event === 'SIGNED_IN' && userIdRef.current) reconcilePushOwner(userIdRef.current)
       // Свой выход уже все снял, а его событие может прийти, когда вошел следующий.
       if (event === 'SIGNED_OUT' && !logoutRef.current) {
+        recordDiagnostic('session.signed-out', { owner: userIdRef.current, error: true })
         storageRemove('localStorage', SESSION_KEY)
         setUser(null)
         closeUserDb()

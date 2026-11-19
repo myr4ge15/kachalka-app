@@ -1,8 +1,5 @@
-// Журналы устройства в обращении (23.10.2026, fb_39b706ad к fb_d5c13f18): журналы свайпов и пушей лежат
-// только на телефоне и видны лишь в Админке, а «свайп прыгает» жалуются участники. Галочка в форме
-// «Написать разработчику» кладет последние строки обоих журналов в context обращения (ctx.logs = { swipe, push },
-// свежие сверху). Предел context на сервере — 4000 байт его jsonb-текста (submit_feedback), поэтому строки
-// берем по очереди из двух журналов, пока влезают. Edge feedback присылает их в Telegram файлом под карточкой.
+// Фрагмент диагностики ограничен бюджетом context. Старый формат свайпов и пушей
+// поддерживается для ранее отправленных обращений.
 import { swipeLogLine } from './swipeLog.js'
 
 export const CONTEXT_MAX_BYTES = 3800 // сервер режет на 4000, запас — на неточность оценки
@@ -29,7 +26,19 @@ export function pushLogLine(r) {
 
 // ctx + журналы → новый ctx с logs, не больше maxBytes. swipes — свежие сверху (readSwipeLog),
 // pushes — старые сверху (readPushLog). Пустые журналы — ctx без logs.
-export function withDeviceLogs(ctx, { swipes = [], pushes = [] } = {}, maxBytes = CONTEXT_MAX_BYTES) {
+export function withDeviceLogs(ctx, { swipes = [], pushes = [], diagnostics = [] } = {}, maxBytes = CONTEXT_MAX_BYTES) {
+  if (diagnostics.length) {
+    const selected = []
+    for (const row of diagnostics) {
+      const candidate = [...selected, row]
+      if (jsonbBytes({ ...ctx, logs: { diagnostic: candidate.map((r) => r.line) } }) > maxBytes) break
+      selected.push(row)
+    }
+    if (selected.length) {
+      selected.sort((a, b) => b.index - a.index)
+      return { ...ctx, logs: { diagnostic: selected.map((r) => r.line) } }
+    }
+  }
   const queues = {
     swipe: swipes.map((e) => swipeLogLine(e).slice(0, LOG_LINE_MAX)),
     push: [...pushes].reverse().map((r) => pushLogLine(r).slice(0, LOG_LINE_MAX)),
@@ -56,6 +65,6 @@ export function logsText(logs) {
   if (!logs || typeof logs !== 'object') return null
   const part = (title, lines) => (Array.isArray(lines) && lines.length
     ? `${title} (${lines.length}, свежие сверху):\n${lines.map(String).join('\n')}` : null)
-  const text = [part('Свайпы «назад»', logs.swipe), part('Пуши', logs.push)].filter(Boolean).join('\n\n')
+  const text = [part('Диагностика', logs.diagnostic), part('Свайпы «назад»', logs.swipe), part('Пуши', logs.push)].filter(Boolean).join('\n\n')
   return text || null
 }

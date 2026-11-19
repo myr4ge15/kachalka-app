@@ -1,3 +1,4 @@
+import { recordDiagnostic } from '../db/diagnostics.js'
 // Куда вести по нажатию на пуш (v6.7.2). Service worker (public/push-sw.js)
 // кладет tag уведомления в параметр `push` адреса приложения — и при холодном
 // старте (openWindow), и сообщением в уже открытое окно. Здесь tag превращается
@@ -118,6 +119,7 @@ export const PUSH_LOG_PREFIX = '/__push-log/'
 export const PUSH_LOG_MAX = 40
 
 export async function appendPushLog(ev, detail = '', store = globalThis.caches, now = Date.now()) {
+  recordDiagnostic('push.' + ev)
   if (!store) return
   try {
     const c = await store.open(PUSH_INTENT_CACHE)

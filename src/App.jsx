@@ -1,3 +1,4 @@
+import { recordDiagnostic, recordFailure, setDiagnosticOwner } from './db/diagnostics.js'
 import { useState, useEffect, useRef, Suspense } from 'react'
 import { useLiveQuery } from 'dexie-react-hooks'
 import { isConfigured, warmup } from './db/supabase.js'
@@ -94,6 +95,21 @@ export default function App() {
     goTab, openNotif, backFromNotif, openProgressFor, openCalendarAt, openMember, backFromMember,
     backToRhythm, backToSettings, backToParent, startNewWorkout, openFeedWorkout,
   } = useAppNav(user)
+  const owner = user?.id
+  useEffect(() => {
+    setDiagnosticOwner(owner)
+    if (!owner) return
+    const onError = (event) => recordFailure('runtime.error', event.error, owner)
+    const onReject = (event) => recordFailure('runtime.rejection', event.reason, owner)
+    window.addEventListener('error', onError)
+    window.addEventListener('unhandledrejection', onReject)
+    return () => {
+      setDiagnosticOwner(null)
+      window.removeEventListener('error', onError)
+      window.removeEventListener('unhandledrejection', onReject)
+    }
+  }, [owner])
+  useEffect(() => { recordDiagnostic('screen.' + tab, { owner }) }, [owner, tab])
   // Ссылка-приглашение (v6.8.0): токен из #invite=… живет только в памяти —
   // из адреса стираем сразу (эффект ниже), чтобы он не остался в истории и закладках.
   // Пока токен есть, вместо входа показываем регистрацию.

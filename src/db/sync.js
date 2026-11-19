@@ -1,3 +1,4 @@
+import { recordDiagnostic, recordFailure } from './diagnostics.js'
 // ============================================================================
 // Движок синхронизации между локальной базой (Dexie) и Supabase — оркестрация.
 //
@@ -76,7 +77,9 @@ async function reviveSession(userId, put) {
   const now = Date.now()
   if (now - lastReviveAt < REVIVE_EVERY_MS) return false
   lastReviveAt = now
-  if (!(await refreshSessionSilently(userId))) return false
+  const refreshed = await refreshSessionSilently(userId)
+  recordDiagnostic(refreshed ? 'session.refresh.ok' : 'session.refresh.failed', { owner: userId, error: !refreshed })
+  if (!refreshed) return false
   return hasSession(userId)
 }
 
@@ -167,6 +170,7 @@ async function runOnce(userId) {
     // останутся в персональной базе и уедут после входа.
     const who = await serverIdentity()
     if (who.known && who.id !== String(userId)) {
+      recordDiagnostic('sync.identity-mismatch', { owner: userId, error: true })
       put({ lastError: 'Сессия завершена на сервере — войди заново', netError: true })
       try { await supabase.auth.signOut({ scope: 'local' }) } catch { /* уже вышли */ }
       return false
@@ -227,6 +231,7 @@ async function runOnce(userId) {
   } catch (err) {
     // Прогон упал целиком (push/pull бросили) → netError=true: шапка покажет
     // предупреждение вместо ложной галочки «синхронизировано».
+    recordFailure('sync.failed', err, userId)
     put({ lastError: String(err?.message ?? err), netError: true })
     // Сбой прогона → false: поллинг растянет интервал (см. lib/backoff.js).
     return false

@@ -20,14 +20,13 @@ import {
 import { useAttachments, NOT_READY } from '../hooks/useAttachments.js'
 import { readDraft, writeDraft, clearDraft } from '../lib/draftStore.js'
 import { withDeviceLogs } from '../lib/deviceLogs.js'
-import { readPushLog } from '../lib/pushIntent.js'
-import { readSwipeLog } from '../lib/swipeLog.js'
+import { readDiagnostics } from '../db/diagnostics.js'
 
 // Вложения грузятся сразу после выбора (upload/discard, 20.10.2026); submit и attach получают пути.
 const defaultApi = {
   submit: defaultSubmit, list: listMyFeedback, ack: ackMyFeedback, reopen: reopenFeedback, media: feedbackMedia,
   append: appendFeedback, attach: attachUploadedScreenshots, upload: uploadAttachment, discard: discardAttachments,
-  readLogs: async () => ({ swipes: readSwipeLog(), pushes: await readPushLog() }),
+  readLogs: async (owner) => ({ diagnostics: await readDiagnostics(owner) }),
 }
 
 // «Написать разработчику» (v6.11.0, Профиль → Настройки). Обращение уходит
@@ -42,7 +41,7 @@ export default function FeedbackScreen({ user, onBack, focusId = null, fromScree
   const draftKey = `feedback_text_${user.id}`
   const [text, setTextState] = useState(() => (typeof readDraft(draftKey) === 'string' ? readDraft(draftKey) : ''))
   const setText = (v) => { setTextState(v); if (v) writeDraft(draftKey, v); else clearDraft(draftKey) }
-  // Приложить журналы свайпов и пушей этого телефона (23.10.2026, lib/deviceLogs.js).
+  // Диагностику читаем только при отправке с отмеченной галочкой.
   const [withLogs, setWithLogs] = useState(false)
   const att = useAttachments(user.id, api, { stash: `feedback_${user.id}` })
   const [busy, setBusy] = useState(false)
@@ -139,7 +138,7 @@ export default function FeedbackScreen({ user, onBack, focusId = null, fromScree
         via: viaScreen,
         online: navigator.onLine,
       })
-      const context = withLogs ? withDeviceLogs(base, await api.readLogs().catch(() => ({}))) : base
+      const context = withLogs ? withDeviceLogs(base, await api.readLogs(user.id).catch(() => ({}))) : base
       setWaiting(true)
       const paths = await att.readyPaths() // ждем догрузки выбранного (кольца на миниатюрах)
       if (alive.current) setWaiting(false)
@@ -201,11 +200,11 @@ export default function FeedbackScreen({ user, onBack, focusId = null, fromScree
 
         <label className="fb-logs">
           <input type="checkbox" checked={withLogs} disabled={busy} onChange={(e) => setWithLogs(e.target.checked)} />
-          <span>Приложить журналы свайпов и уведомлений</span>
+          <span>Приложить диагностику</span>
         </label>
         <p className="admin-hint">
           К сообщению приложим версию приложения и модель телефона — так быстрее разобраться.
-          {withLogs && ' Журналы — последние свайпы «назад» и шаги уведомлений на этом телефоне, без данных тренировок.'}
+          {withLogs && ' Приложим события этой учётной записи вокруг последнего сбоя. Если сбоев не было — последние действия.'}
         </p>
         {!online && <p className="admin-offline" role="status">Нет связи. Отправить можно будет онлайн.</p>}
         {busy && att.progress && <UploadProgress progress={att.progress} />}

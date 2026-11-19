@@ -1,5 +1,6 @@
 // Отправка отчетов об ошибках (чистая часть — lib/errorReport.js). Онлайн-модуль вне очередей синка:
 // ничего не пишет в Dexie, сбои тихие, офлайн отчеты не копятся. Без токена — пустышка.
+import { recordFailure } from '../db/diagnostics.js'
 import { parseHawkToken, collectorUrl, buildEvent, toHawkMessage, createLimiter } from './errorReport.js'
 
 const DEVICE_KEY = 'gym_app_diag_id'
@@ -79,6 +80,7 @@ export function initErrorReporter({
 
 // Ручной отчет (ErrorBoundary и т. п.). Не подключено — ничего не делает.
 export function captureError(error, opts) {
+  recordFailure('runtime.caught', error)
   sender?.(error, opts)
 }
 
