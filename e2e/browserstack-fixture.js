@@ -2,7 +2,6 @@ import { test as base } from '@playwright/test'
 import { createRequire } from 'node:module'
 import { appendFile } from 'node:fs/promises'
 import process from 'node:process'
-import { join } from 'node:path'
 
 const env = process.env
 const origin = 'http://bs-local.com:5174'
@@ -10,10 +9,8 @@ const origin = 'http://bs-local.com:5174'
 // В обычном CI остаются стандартные fixtures. Облачному тесту нужны page и
 // context одного Chrome на телефоне, в том числе для реальных touch-событий CDP.
 export const test = env.BROWSERSTACK_ANDROID === '1' ? base.extend({
-  context: async ({ browserName }, use, testInfo) => {
-    const client = createRequire(join(env.RUNNER_TEMP, 'bs-client/package.json'))
-    const { _android } = client('playwright-core')
-    const { version } = client('playwright-core/package.json')
+  context: async ({ browserName, playwright }, use, testInfo) => {
+    const { version } = createRequire(import.meta.url)('@playwright/test/package.json')
     const caps = {
       browserName: browserName === 'chromium' ? 'chrome' : browserName, deviceName: 'Samsung Galaxy S25 Ultra', osVersion: '15.0',
       realMobile: 'true', project: 'kachalka-app', name: 'Workout drag, undo and persistence',
@@ -30,7 +27,7 @@ export const test = env.BROWSERSTACK_ANDROID === '1' ? base.extend({
     // закодированный набор caps до открытия соединения.
     const encoded = encodeURIComponent(JSON.stringify(caps))
     console.log(`::add-mask::${encoded}`)
-    const device = await _android.connect(`wss://cdp.browserstack.com/playwright?caps=${encoded}`, { timeout: 90000 })
+    const device = await playwright._android.connect(`wss://cdp.browserstack.com/playwright?caps=${encoded}`, { timeout: 90000 })
     try {
       await device.shell('am force-stop com.android.chrome')
       const context = await device.launchBrowser({
