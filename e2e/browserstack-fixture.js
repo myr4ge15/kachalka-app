@@ -34,20 +34,10 @@ export const test = env.BROWSERSTACK_ANDROID === '1' ? base.extend({
         baseURL: origin,
         args: [`--unsafely-treat-insecure-origin-as-secure=${origin}`],
       })
-      const info = await context.newPage()
       try {
-        const details = JSON.parse(await info.evaluate(() => {}, 'browserstack_executor: {"action":"getSessionDetails"}'))
-        if (/^[0-9a-f]{40}$/i.test(details.hashed_id)) {
-          await writeFile('session-id', details.hashed_id)
-          if (details.browser_url?.startsWith('https://automate.browserstack.com/')) {
-            const link = new URL(details.browser_url)
-            await appendFile(env.GITHUB_STEP_SUMMARY, `Android: [сессия и видео](${link.origin}${link.pathname})\n`)
-          }
-        }
         await use(context)
       } finally {
-        const status = testInfo.status === 'passed' ? 'passed' : 'failed'
-        await info.evaluate(() => {}, `browserstack_executor: ${JSON.stringify({ action: 'setSessionStatus', arguments: { status, reason: testInfo.status } })}`).catch(() => {})
+        await recordSession(context, testInfo.status)
       }
     } finally {
       await device.close()
@@ -59,3 +49,22 @@ export const test = env.BROWSERSTACK_ANDROID === '1' ? base.extend({
     await use(page)
   },
 }) : base
+
+async function recordSession(context, outcome) {
+  try {
+    const info = await context.newPage()
+    const status = outcome === 'passed' ? 'passed' : 'failed'
+    await info.evaluate(() => {}, `browserstack_executor: ${JSON.stringify({ action: 'setSessionStatus', arguments: { status, reason: outcome } })}`).catch(() => {})
+    const response = await info.evaluate(() => {}, 'browserstack_executor: {"action":"getSessionDetails"}')
+    const details = typeof response === 'string' ? JSON.parse(response) : response
+    if (/^[0-9a-f]{40}$/i.test(details?.hashed_id)) {
+      await writeFile('session-id', details.hashed_id)
+      if (details.browser_url?.startsWith('https://automate.browserstack.com/')) {
+        const link = new URL(details.browser_url)
+        await appendFile(env.GITHUB_STEP_SUMMARY, `Android: [сессия и видео](${link.origin}${link.pathname})\n`)
+      }
+    }
+  } catch {
+    console.warn('::warning::Не удалось получить сведения о сессии BrowserStack')
+  }
+}

@@ -70,7 +70,7 @@ jobs:
           BROWSERSTACK_ACCESS_KEY: ${{ secrets.BROWSERSTACK_ACCESS_KEY }}
         run: |
           cd "$RUNNER_TEMP/android-suite"
-          test -s session-id || { echo "::error::BrowserStack не вернул ID для получения записи"; exit 1; }
+          test -s session-id || { echo "::warning::Запись пропущена: нет ID сессии BrowserStack"; exit 0; }
           id=$(cat session-id)
           [[ "$id" =~ ^[0-9a-f]{40}$ ]]
           for attempt in {1..10}; do
