@@ -1,6 +1,40 @@
 import { expect } from '@playwright/test'
 import { test } from './browserstack-fixture.js'
 import { enterPin } from './helpers.js'
+import { setTimeout as delay } from 'node:timers/promises'
+
+// Кольцо показывает полученное телефоном касание в записи. На события и раскладку не влияет.
+async function showTouches(page) {
+  await page.evaluate(() => {
+    const ring = document.createElement('div')
+    ring.ariaHidden = 'true'
+    ring.style.cssText = 'position:fixed;z-index:9999;pointer-events:none;width:22px;height:22px;border:3px solid cyan;border-radius:50%;box-shadow:0 0 0 1px black;transform:translate(-50%,-50%)'
+    ring.hidden = true
+    document.body.append(ring)
+    const update = event => {
+      const point = event.touches[0]
+      ring.hidden = !point
+      if (point) {
+        ring.style.left = point.clientX + 'px'
+        ring.style.top = point.clientY + 'px'
+      }
+    }
+    for (const type of ['touchstart', 'touchmove', 'touchend', 'touchcancel']) {
+      window.addEventListener(type, update, { capture: true, passive: true })
+    }
+  })
+}
+
+async function moveFinger(session, start, end, checkPosition) {
+  const steps = 40
+  for (let step = 1; step <= steps; step++) {
+    const t = step / steps
+    const point = { x: start.x + (end.x - start.x) * t, y: start.y + (end.y - start.y) * t }
+    await session.send('Input.dispatchTouchEvent', { type: 'touchMove', touchPoints: [point] })
+    if (checkPosition && step % 8 === 0) await checkPosition(point)
+    await delay(32)
+  }
+}
 
 test.use({ hasTouch: true, viewport: { width: 390, height: 844 } })
 test('перетаскивание за ручку → новый порядок → черновик после перезагрузки', async ({ page, context }) => {
@@ -30,13 +64,24 @@ test('перетаскивание за ручку → новый порядок
   const box = await last.boundingBox()
   const firstBox = await rows.first().boundingBox()
   const session = await context.newCDPSession(page)
+  await showTouches(page)
   const x = box.x + box.width / 2, y = box.y + box.height / 2
   await session.send('Input.dispatchTouchEvent', { type: 'touchStart', touchPoints: [{ x, y }] })
   // Захват за ручку поднимает строку сразу.
   await expect(rows.last()).toHaveClass(/sort-lifted/)
   await expect(page.locator('.sort-chip')).toHaveText(/^Подтягивания/)
   const ty = Math.max(130, firstBox.y + 15)
-  await session.send('Input.dispatchTouchEvent', { type: 'touchMove', touchPoints: [{ x: 220, y: ty }] })
+  const chip = page.locator('.sort-chip')
+  const { width } = await chip.boundingBox()
+  const viewportWidth = await page.evaluate(() => window.innerWidth)
+  const grabOffset = Math.max(12, Math.min(width / 2, x - firstBox.x))
+  await moveFinger(session, { x, y }, { x: 220, y: ty }, async point => {
+    const left = Math.max(0, Math.min(viewportWidth - width, point.x - grabOffset))
+    await expect.poll(async () => {
+      const rect = await chip.boundingBox()
+      return Math.hypot(rect.x - left, rect.y + rect.height / 2 - point.y)
+    }, { message: 'Плашка упражнения следует за касанием по обеим осям' }).toBeLessThan(4)
+  })
   await expect.poll(() => rows.last().evaluate(el => new DOMMatrix(getComputedStyle(el).transform).m42)).toBeLessThan(-50)
   await expect.poll(async () => (await page.locator('.sort-chip').boundingBox()).x).toBeGreaterThan(100)
   // Первая карточка расступилась вниз — место видно до отпускания, порядок еще прежний.
@@ -67,7 +112,7 @@ test('перетаскивание за ручку → новый порядок
   await expect(trash).toHaveClass(/show/)
   await trash.evaluate(el => Promise.all(el.getAnimations().map(animation => animation.finished)))
   const bin = await trash.boundingBox()
-  await session.send('Input.dispatchTouchEvent', { type: 'touchMove', touchPoints: [{ x: bin.x + bin.width / 2, y: bin.y + bin.height / 2 }] })
+  await moveFinger(session, { x: grip.x + 10, y: grip.y + 10 }, { x: bin.x + bin.width / 2, y: bin.y + bin.height / 2 })
   await expect(trash).toHaveClass(/hot/)
   await session.send('Input.dispatchTouchEvent', { type: 'touchEnd', touchPoints: [] })
   await expect(rows).toHaveCount(1)
