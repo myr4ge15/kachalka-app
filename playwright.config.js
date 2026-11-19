@@ -51,6 +51,10 @@ export default defineConfig({
 
   projects: [
     { name: 'chromium', testIgnore: PWA_SPEC, use: { ...devices['Desktop Chrome'], viewport: { width: 390, height: 844 } } },
+    ...(process.env.BROWSERSTACK_ANDROID === '1' ? [{
+      name: 'android-cloud', timeout: 180_000, expect: { timeout: 15_000 },
+      testMatch: /exercise-reorder\.spec\.js$/, use: { trace: 'off', video: 'off' },
+    }] : []),
     ...(process.env.E2E_PWA ? [{ name: 'pwa', testMatch: PWA_SPEC, retries: 0, timeout: 90_000 }] : []),
     // Smoke в WebKit (19.10.2026, задача e2e-webkit в test.yml): только по E2E_WEBKIT=1 —
     // обычный прогон и локальный запуск остаются на одном Chromium.

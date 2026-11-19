@@ -983,17 +983,16 @@ button.link-btn { min-height: 44px; display: inline-flex; align-items: center; j
   scale: 1; box-shadow: none; border: 1px dashed var(--acc);
   background: var(--acc-soft); transition: transform var(--dur-base) var(--ease-out);
 }
+/* Пунктир сразу отмечает новое место: при интерполяции он пересекал
+   открытую карточку и на несколько кадров подсвечивал её подходы. */
+.sort-with-chip .sort-slot, .sort-with-chip .sort-shift { transition: none; }
 .sort-slot > * { visibility: hidden; }
 .sort-chip {
   position: fixed; z-index: 161; left: 0; top: 0; pointer-events: none;
   max-width: min(65vw, 18rem); padding: 8px 14px; border-radius: var(--r-md);
-  isolation: isolate; color: var(--on-acc);
+  overflow: hidden; white-space: nowrap; text-overflow: ellipsis;
+  background: var(--acc); color: var(--on-acc); box-shadow: var(--shadow-pop);
   font-weight: 700; transform-origin: top left;
-}
-.sort-chip-name { display: block; overflow: hidden; white-space: nowrap; text-overflow: ellipsis; }
-.sort-chip-surface {
-  position: absolute; inset: 0; z-index: -1; transform-origin: top left;
-  background: var(--acc); border-radius: inherit; box-shadow: var(--shadow-pop);
 }
 .sort-chip--landing {
   transition: transform var(--dur-base) var(--ease-out), opacity var(--dur-base) ease-in;

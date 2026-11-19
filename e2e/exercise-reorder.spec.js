@@ -1,4 +1,5 @@
-import { test, expect } from '@playwright/test'
+import { expect } from '@playwright/test'
+import { test } from './browserstack-fixture.js'
 import { enterPin } from './helpers.js'
 
 test.use({ hasTouch: true, viewport: { width: 390, height: 844 } })
@@ -40,6 +41,8 @@ test('перетаскивание за ручку → новый порядок
   await expect.poll(async () => (await page.locator('.sort-chip').boundingBox()).x).toBeGreaterThan(100)
   // Первая карточка расступилась вниз — место видно до отпускания, порядок еще прежний.
   await expect.poll(() => rows.first().evaluate(el => new DOMMatrix(getComputedStyle(el).transform).m42)).toBeGreaterThan(30)
+  await expect(rows.last()).toHaveCSS('transition-duration', '0s')
+  await expect(rows.first()).toHaveCSS('transition-duration', '0s')
   await expect(rows.first()).toHaveAttribute('data-exercise-id', original[0])
   await session.send('Input.dispatchTouchEvent', { type: 'touchEnd', touchPoints: [] })
   await expect(rows.first()).toHaveAttribute('data-exercise-id', original[1])
@@ -59,15 +62,14 @@ test('перетаскивание за ручку → новый порядок
   // Бросаем в корзину и возвращаем упражнение вместе с подходом.
   await activeGrip.scrollIntoViewIfNeeded()
   const grip = await activeGrip.boundingBox()
-  await page.mouse.move(grip.x + 10, grip.y + 10)
-  await page.mouse.down()
+  await session.send('Input.dispatchTouchEvent', { type: 'touchStart', touchPoints: [{ x: grip.x + 10, y: grip.y + 10 }] })
   const trash = page.locator('.sort-trash')
   await expect(trash).toHaveClass(/show/)
   await trash.evaluate(el => Promise.all(el.getAnimations().map(animation => animation.finished)))
   const bin = await trash.boundingBox()
-  await page.mouse.move(bin.x + bin.width / 2, bin.y + bin.height / 2)
+  await session.send('Input.dispatchTouchEvent', { type: 'touchMove', touchPoints: [{ x: bin.x + bin.width / 2, y: bin.y + bin.height / 2 }] })
   await expect(trash).toHaveClass(/hot/)
-  await page.mouse.up()
+  await session.send('Input.dispatchTouchEvent', { type: 'touchEnd', touchPoints: [] })
   await expect(rows).toHaveCount(1)
   await expect(page.locator('.sort-chip')).toHaveCount(0)
   await page.getByRole('button', { name: 'Отменить', exact: true }).click()

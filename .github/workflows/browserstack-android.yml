@@ -1,0 +1,50 @@
+name: BrowserStack — перетаскивание на Android
+
+on: workflow_dispatch
+
+permissions:
+  contents: read
+
+concurrency:
+  group: browserstack-workout-android
+  cancel-in-progress: false
+
+jobs:
+  reorder:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 12
+    steps:
+      - uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@a0853c24544627f65ddf259abe73b1d18a591444
+        with:
+          node-version: 22
+          cache: npm
+      - run: npm ci
+      # Версия протокола для реального Android в BrowserStack. Обычный CI использует
+      # Playwright из package-lock. Браузерные бинарники на раннере не нужны.
+      - run: npm install --prefix "$RUNNER_TEMP/bs-client" --no-package-lock --ignore-scripts playwright-core@1.61.1
+      - name: Открыть туннель к тестовому серверу раннера
+        id: tunnel
+        uses: browserstack/github-actions/setup-local@e1ceb209003b8bf050dac07c9038347259fed39c
+        env:
+          BROWSERSTACK_ACCESS_KEY: ${{ secrets.BROWSERSTACK_ACCESS_KEY }}
+        with:
+          local-testing: start
+          local-identifier: workout-${{ github.run_id }}-${{ github.run_attempt }}
+      - name: Перестановка, сброс в корзину, отмена и сохранение
+        env:
+          BROWSERSTACK_USERNAME: ${{ secrets.BROWSERSTACK_USERNAME }}
+          BROWSERSTACK_ACCESS_KEY: ${{ secrets.BROWSERSTACK_ACCESS_KEY }}
+          BROWSERSTACK_ANDROID: '1'
+          __VITE_ADDITIONAL_SERVER_ALLOWED_HOSTS: bs-local.com
+        run: npx --no-install playwright test e2e/exercise-reorder.spec.js --project=android-cloud --workers=1 --retries=0
+      - name: Закрыть туннель
+        if: always() && steps.tunnel.outcome == 'success'
+        uses: browserstack/github-actions/setup-local@e1ceb209003b8bf050dac07c9038347259fed39c
+        env:
+          BROWSERSTACK_ACCESS_KEY: ${{ secrets.BROWSERSTACK_ACCESS_KEY }}
+        with:
+          local-testing: stop
+          local-identifier: workout-${{ github.run_id }}-${{ github.run_attempt }}

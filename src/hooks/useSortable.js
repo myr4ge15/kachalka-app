@@ -95,10 +95,18 @@ export function useSortable(onMove, { attr, handle, holdMs = 0, onLift, onDrop, 
         ? new Map(oldRows.map(el => [idOf(el), el.getBoundingClientRect()]))
         : null
       const before = oldRects?.get(g.id) ?? oldRows.find(el => idOf(el) === g.id)?.getBoundingClientRect()
+      // При сворачивании раскрытой карточки iOS ограничивает scrollTop новой высотой
+      // списка. Держим место до восстановления карточки, чтобы экран не прыгал к шапке.
+      const dragged = oldRows.find(el => idOf(el) === g.id)
+      if (cb.current.chipLabel && dragged?.classList.contains('exercise-card--active')) {
+        const container = dragged.parentElement
+        g.reserved = { container, minHeight: container.style.minHeight }
+        container.style.minHeight = container.getBoundingClientRect().height + 'px'
+      }
       if (cb.current.onLift) flushSync(() => cb.current.onLift(g.id))
       const list = rows()
       const d = list.findIndex(el => idOf(el) === g.id)
-      if (d < 0) { reset(); return }
+      if (d < 0) { clear(); reset(); return }
       g.scroller = scrollerOf()
       g.startScroll = g.lastScroll = scrollTop()
       // Раскладка в координатах содержимого скроллера: переживает автопрокрутку.
@@ -117,7 +125,8 @@ export function useSortable(onMove, { attr, handle, holdMs = 0, onLift, onDrop, 
       root.classList.add('sort-active')
       list.forEach((el, i) => el.classList.add(i === d ? 'sort-lifted' : 'sort-shift'))
       if (cb.current.chipLabel && before) {
-        g.chip = createSortChip(cb.current.chipLabel(g.id), before, g.x, g.y, reduced())
+        g.chip = createSortChip(cb.current.chipLabel(g.id), before, g.x, g.y)
+        root.classList.add('sort-with-chip')
         list[d].classList.add('sort-slot')
       }
       // При сворачивании высокой карточки соседи доезжают из прежних позиций.
@@ -192,6 +201,8 @@ export function useSortable(onMove, { attr, handle, holdMs = 0, onLift, onDrop, 
     function clear() {
       root.classList.remove('sort-active')
       hideTrash()
+      root.classList.remove('sort-with-chip')
+      if (g?.reserved) g.reserved.container.style.minHeight = g.reserved.minHeight
       g?.chip?.remove()
       g?.layoutAnimations?.forEach(animation => animation.cancel())
       for (const el of [...(g?.list ?? []), ...rows()]) {
@@ -255,11 +266,7 @@ export function useSortable(onMove, { attr, handle, holdMs = 0, onLift, onDrop, 
       g.dropping = true
       list[d].classList.add('sort-dropping')
       list[d].style.transform = `translate3d(0, ${y}px, 0)`
-      if (g.chip) {
-        const r = list[d].getBoundingClientRect()
-        g.chip.land(bin || { left: r.left, width: r.width,
-          top: rects[d].top + y - scrollTop(), height: rects[d].h }, remove)
-      }
+      if (g.chip && bin) g.chip.landInTrash(bin)
       if (!commit || remove) list.forEach((el, i) => { if (i !== d) el.style.transform = '' })
       const done = () => {
         const id = g.id
@@ -271,8 +278,8 @@ export function useSortable(onMove, { attr, handle, holdMs = 0, onLift, onDrop, 
         clear()
         g = null
       }
-      const ms = reduced() || (remove && !g.chip) ? 0 : DROP_MS
-      if (ms) dropTimer = setTimeout(done, ms)
+      const animateDrop = g.chip ? remove : !remove
+      if (animateDrop && !reduced()) dropTimer = setTimeout(done, DROP_MS)
       else done()
     }
 

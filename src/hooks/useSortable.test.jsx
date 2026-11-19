@@ -324,13 +324,22 @@ describe('useSortable — корзина (fb_df0b21b6)', () => {
       nextFrame()
       if (cancel) fireEvent.touchCancel(grip('b'))
       else fireEvent.touchEnd(grip('b'))
-      expect(chip).toHaveClass('sort-chip--landing')
+      if (cancel) expect(chip).not.toBeInTheDocument()
+      else expect(chip).toHaveClass('sort-chip--landing')
       expect(onRemove).not.toHaveBeenCalled()
       act(() => vi.advanceTimersByTime(180))
       expect(chip).not.toBeInTheDocument()
       expect(order()).toEqual(cancel ? ['a', 'b', 'c'] : ['a', 'c'])
     }
     expect(onRemove).toHaveBeenCalledExactlyOnceWith('b')
+  })
+
+  it('раскрывает карточку при отпускании, до следующего кадра', () => {
+    const { grip, onDrop } = setup({ chipLabel: id => id, holdMs: 0 })
+    fireEvent.touchStart(grip('b'), touch(20, 145))
+    fireEvent.touchEnd(grip('b'))
+    expect(onDrop).toHaveBeenCalledOnce()
+    expect(document.querySelector('.sort-chip')).toBeNull()
   })
 
   it('без onRemove корзины нет', () => {
