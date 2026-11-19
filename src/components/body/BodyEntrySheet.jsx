@@ -1,4 +1,5 @@
 import { useState } from 'react'
+import { useFieldViewport } from '../../hooks/useFieldViewport.js'
 import SheetDialog from '../ui/SheetDialog.jsx'
 import HoldButton from '../ui/HoldButton.jsx'
 import { showToast } from '../ui/Toast.jsx'
@@ -21,6 +22,7 @@ const START_WEIGHT = 70
 const clampW = (n) => String(Math.min(WEIGHT_MAX, Math.max(WEIGHT_MIN, Math.round(n * 10) / 10)))
 
 export default function BodyEntrySheet({ userId, body, mode = 'weight', entry = null, last = null, onClose }) {
+  const revealField = useFieldViewport()
   const aliveRef = useAliveRef()
   const today = localYmd(new Date())
   const hide = body.hide && !entry
@@ -80,7 +82,7 @@ export default function BodyEntrySheet({ userId, body, mode = 'weight', entry = 
   const title = entry ? 'Правка записи' : mode === 'measures' ? 'Замеры' : 'Вес'
   return (
     <SheetDialog title={title} actionLabel="отмена" onDismiss={onClose} swipeDown className="body-sheet">
-      <div className="sheet-scroll body-sheet-scroll">
+      <div className="sheet-scroll body-sheet-scroll" onFocus={revealField}>
         <DateField performedAt={dateIso} onChange={setDateIso} label="Дата записи" />
 
         {showWeight && (

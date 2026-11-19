@@ -32,6 +32,7 @@ import ExerciseCard from '../components/exercises/ExerciseCard.jsx'
 import DateField from '../components/ui/DateField.jsx'
 import WorkoutActions from '../components/workout/WorkoutActions.jsx'
 import SaveBar from '../components/workout/SaveBar.jsx'
+import { useFieldViewport } from '../hooks/useFieldViewport.js'
 import RestPill from '../components/workout/RestPill.jsx'
 import RestSheet from '../components/workout/RestSheet.jsx'
 import { AppMarkGlyph } from '../components/app/AppMark.jsx'
@@ -44,6 +45,7 @@ import Icon from '../components/ui/Icon.jsx'
 // onCopy — открыть новую тренировку после «Копировать тренировку» (родитель — HistoryScreen).
 export default function WorkoutScreen({ user, workoutId = null, onBack, onSaved, onCopy }) {
   const isNew = workoutId == null
+  const revealField = useFieldViewport()
   // Справочник — из локальной базы (офлайн-доступен).
   const exercises = useLiveQuery(() => getExercises(), [], [])
   // Подсказка карточки — по ТЕКУЩЕЙ записи каталога (не по снимку в тренировке):
@@ -612,7 +614,7 @@ export default function WorkoutScreen({ user, workoutId = null, onBack, onSaved,
   )
 
   return (
-    <div className="screen workout-screen" ref={reorderRef}>
+    <div className="screen workout-screen" ref={reorderRef} onFocus={revealField}>
       {/* Шапка (v6.1.0): круглая «назад», заголовок, дата чипом под ним (тап —
           пикер, так начинается запись задним числом), «Очистить» справа — только
           у новой тренировки с составом; подтверждение раскрывается под шапкой. */}

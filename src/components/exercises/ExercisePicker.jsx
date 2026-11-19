@@ -5,6 +5,7 @@ import { submusclesOf, secondaryOptionsFor, labelOf, majorOf, defaultSubmuscleFo
 import { tagSlug } from '../../lib/dayTags.js'
 import SheetDialog from '../ui/SheetDialog.jsx'
 import { settleScroll } from '../../lib/scrollBox.js'
+import { useFieldViewport } from '../../hooks/useFieldViewport.js'
 import ExerciseScanner from './ExerciseScanner.jsx'
 import ExerciseVoice from './ExerciseVoice.jsx'
 import { VOICE_ENABLED } from '../../lib/features.js'
@@ -103,6 +104,7 @@ export default function ExercisePicker({
   // settleScroll ставит позицию наверняка, гася инерцию. Первый показ не трогаем;
   // запрос — по отложенному значению, тем же, по которому фильтруется список.
   const listRef = useRef(null)
+  const revealSearch = useFieldViewport()
   const filterKey = group + '\n' + deferredQuery
   const lastFilterKey = useRef(filterKey)
   useLayoutEffect(() => {
@@ -438,6 +440,7 @@ export default function ExercisePicker({
         <div className={`scanner-search-row${query ? ' has-query' : ''}`}>
           <input
             ref={searchRef}
+            onFocus={revealSearch}
             className="search"
             placeholder="Поиск по названию…"
             aria-label="Поиск упражнения"
