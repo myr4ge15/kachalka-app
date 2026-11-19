@@ -1,8 +1,8 @@
 import { test as base } from '@playwright/test'
+import { createRequire } from 'node:module'
 import { appendFile } from 'node:fs/promises'
 import process from 'node:process'
 import { join } from 'node:path'
-import { pathToFileURL } from 'node:url'
 
 const env = process.env
 const origin = 'http://bs-local.com:5174'
@@ -11,14 +11,17 @@ const origin = 'http://bs-local.com:5174'
 // context одного Chrome на телефоне, в том числе для реальных touch-событий CDP.
 export const test = env.BROWSERSTACK_ANDROID === '1' ? base.extend({
   context: async ({ browserName }, use, testInfo) => {
-    const { _android } = await import(pathToFileURL(join(env.RUNNER_TEMP, 'bs-client/node_modules/playwright-core/index.mjs')).href)
+    const client = createRequire(join(env.RUNNER_TEMP, 'bs-client/package.json'))
+    const { _android } = client('playwright-core')
+    const { version } = client('playwright-core/package.json')
     const caps = {
       browserName: browserName === 'chromium' ? 'chrome' : browserName, deviceName: 'Samsung Galaxy S25 Ultra', osVersion: '15.0',
       realMobile: 'true', project: 'kachalka-app', name: 'Workout drag, undo and persistence',
       build: `workout-${env.GITHUB_RUN_ID}-${env.GITHUB_RUN_ATTEMPT}`,
       'browserstack.local': true,
       'browserstack.localIdentifier': `workout-${env.GITHUB_RUN_ID}-${env.GITHUB_RUN_ATTEMPT}`,
-      'browserstack.playwrightVersion': '1.61',
+      'browserstack.playwrightVersion': version,
+      'client.playwrightVersion': version,
       'browserstack.video': true,
       'browserstack.username': env.BROWSERSTACK_USERNAME,
       'browserstack.accessKey': env.BROWSERSTACK_ACCESS_KEY,

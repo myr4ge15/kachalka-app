@@ -24,7 +24,7 @@ jobs:
       - run: npm ci
       # Версия протокола для реального Android в BrowserStack. Обычный CI использует
       # Playwright из package-lock. Браузерные бинарники на раннере не нужны.
-      - run: npm install --prefix "$RUNNER_TEMP/bs-client" --no-package-lock --ignore-scripts playwright-core@1.61.1
+      - run: npm install --prefix "$RUNNER_TEMP/bs-client" --no-package-lock --ignore-scripts playwright-core@1.58.1
       - name: Открыть туннель к тестовому серверу раннера
         id: tunnel
         uses: browserstack/github-actions/setup-local@e1ceb209003b8bf050dac07c9038347259fed39c
