@@ -69,6 +69,7 @@ const two = () => [
 describe('перетаскивание и корзина', () => {
   it('отпустил на новом месте — порядок в черновике меняется', () => {
     renderWith(two())
+    expect(sortable.opts.chipLabel('bench')).toBeTruthy()
     act(() => sortable.onMove('pull', 'bench'))
     expect(ids()).toEqual(['pull', 'bench'])
     expect(screen.getAllByTestId(/^card-/).map((el) => el.dataset.testid)).toEqual(['card-pull', 'card-bench'])

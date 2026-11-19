@@ -9,11 +9,11 @@ function layout(container) {
   container.querySelectorAll('[data-id]').forEach(el => {
     el.getBoundingClientRect = () => {
       const i = [...el.parentNode.children].indexOf(el)
-      return { top: i * 100, height: 90, bottom: i * 100 + 90 }
+      return { left: 0, width: 320, top: i * 100, height: 90, bottom: i * 100 + 90 }
     }
   })
 }
-function Harness({ onMove, onLift, onDrop, onRemove, holdMs, ids = ['a', 'b', 'c'] }) {
+function Harness({ onMove, onLift, onDrop, onRemove, chipLabel, holdMs, ids = ['a', 'b', 'c'] }) {
   const [order, setOrder] = useState(ids)
   const ref = useSortable((id, beforeId) => {
     onMove(id, beforeId)
@@ -23,7 +23,7 @@ function Harness({ onMove, onLift, onDrop, onRemove, holdMs, ids = ['a', 'b', 'c
       return rest
     })
   }, {
-    attr: 'data-id', handle: '.grip', holdMs, onLift, onDrop,
+    attr: 'data-id', handle: '.grip', holdMs, onLift, onDrop, chipLabel,
     onRemove: onRemove && (id => { onRemove(id); setOrder(prev => prev.filter(x => x !== id)) }),
   })
   return <div ref={ref}>{order.map(id => <div key={id} data-id={id}>
@@ -311,6 +311,27 @@ describe('useSortable — корзина (fb_df0b21b6)', () => {
   const trashEl = () => document.querySelector('.sort-trash')
   // Корзина внизу экрана: 100..260 по x, 700..756 по y.
   const placeTrash = () => { trashEl().getBoundingClientRect = () => ({ left: 100, right: 260, top: 700, bottom: 756 }) }
+
+  it('плашка возвращается при отмене, а удаление выполняется после приземления', () => {
+    const onRemove = vi.fn()
+    const { grip, order } = setup({ onRemove, chipLabel: id => id, holdMs: 0 })
+    for (const cancel of [true, false]) {
+      fireEvent.touchStart(grip('b'), touch(20, 145))
+      const chip = document.querySelector('.sort-chip')
+      expect(chip).toHaveTextContent('b')
+      placeTrash()
+      fireEvent.touchMove(grip('b'), touch(180, 720))
+      nextFrame()
+      if (cancel) fireEvent.touchCancel(grip('b'))
+      else fireEvent.touchEnd(grip('b'))
+      expect(chip).toHaveClass('sort-chip--landing')
+      expect(onRemove).not.toHaveBeenCalled()
+      act(() => vi.advanceTimersByTime(180))
+      expect(chip).not.toBeInTheDocument()
+      expect(order()).toEqual(cancel ? ['a', 'b', 'c'] : ['a', 'c'])
+    }
+    expect(onRemove).toHaveBeenCalledExactlyOnceWith('b')
+  })
 
   it('без onRemove корзины нет', () => {
     const { grip } = setup()

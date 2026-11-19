@@ -93,6 +93,7 @@ export default function WorkoutScreen({ user, workoutId = null, onBack, onSaved,
   }, {
     attr: 'data-exercise-id',
     handle: '.exercise-grip',
+    chipLabel: id => entries.find(entry => String(entry.exercise.id) === id)?.exercise.name,
     onLift: id => { if (id === activeExerciseId) setDragFolded(id) },
     onDrop: () => setDragFolded(null),
     // Корзина (fb_df0b21b6): бросил в «Убрать» — то же удаление, что ✕ на карточке, с «Отменить».

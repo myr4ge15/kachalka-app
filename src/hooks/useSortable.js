@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState } from 'react'
 import { flushSync } from 'react-dom'
+import { createSortChip } from './sortChip.js'
 
 // Сортировка списка перетаскиванием (v7.1.2) — одна механика для тренировки,
 // шаблонов и порядка учеток в Админке.
@@ -43,11 +44,11 @@ export function overTrash(rect, x, y, slop = TRASH_SLOP) {
   return x >= rect.left - slop && x <= rect.right + slop && y >= rect.top - slop && y <= rect.bottom + slop
 }
 
-export function useSortable(onMove, { attr, handle, holdMs = 0, onLift, onDrop, onRemove } = {}) {
+export function useSortable(onMove, { attr, handle, holdMs = 0, onLift, onDrop, onRemove, chipLabel } = {}) {
   // callback-ref: корень списка может появиться позже экрана (редактор шаблона).
   const [root, setRoot] = useState(null)
-  const cb = useRef({ onMove, onLift, onDrop, onRemove })
-  cb.current = { onMove, onLift, onDrop, onRemove }
+  const cb = useRef({ onMove, onLift, onDrop, onRemove, chipLabel })
+  cb.current = { onMove, onLift, onDrop, onRemove, chipLabel }
   const withTrash = Boolean(onRemove)
   useEffect(() => {
     if (!root) return undefined
@@ -115,6 +116,10 @@ export function useSortable(onMove, { attr, handle, holdMs = 0, onLift, onDrop, 
       g.t = d
       root.classList.add('sort-active')
       list.forEach((el, i) => el.classList.add(i === d ? 'sort-lifted' : 'sort-shift'))
+      if (cb.current.chipLabel && before) {
+        g.chip = createSortChip(cb.current.chipLabel(g.id), before, g.x, g.y, reduced())
+        list[d].classList.add('sort-slot')
+      }
       // При сворачивании высокой карточки соседи доезжают из прежних позиций.
       // Независимый translate оставляет transform в распоряжении сортировки.
       g.layoutAnimations = []
@@ -140,7 +145,8 @@ export function useSortable(onMove, { attr, handle, holdMs = 0, onLift, onDrop, 
       let dy = g.offset + (g.y - g.startY) + (scroll - g.startScroll)
       // Не выпускаем строку за края списка.
       dy = Math.max(first.top - me.top, Math.min(last.top + last.h - me.top - me.h, dy))
-      list[d].style.transform = `translate3d(0, ${dy}px, 0)`
+      if (g.chip) g.chip.move(g.cx ?? g.x, g.y)
+      else list[d].style.transform = `translate3d(0, ${dy}px, 0)`
       // Сосед уступает место, когда край взятой строки переходит его середину:
       // нижний край — для строк ниже, верхний — для строк выше.
       let t = d
@@ -151,6 +157,10 @@ export function useSortable(onMove, { attr, handle, holdMs = 0, onLift, onDrop, 
       })
       if (t === g.t) return
       g.t = t
+      if (g.chip) {
+        const offset = rects[t].top - me.top + (t > d ? rects[t].h - me.h : 0)
+        list[d].style.transform = `translate3d(0, ${offset}px, 0)`
+      }
       const step = me.h + g.gap
       list.forEach((el, i) => {
         if (i === d) return
@@ -182,9 +192,10 @@ export function useSortable(onMove, { attr, handle, holdMs = 0, onLift, onDrop, 
     function clear() {
       root.classList.remove('sort-active')
       hideTrash()
+      g?.chip?.remove()
       g?.layoutAnimations?.forEach(animation => animation.cancel())
       for (const el of [...(g?.list ?? []), ...rows()]) {
-        el.classList.remove('sort-lifted', 'sort-shift', 'sort-dropping', 'sort-trashing')
+        el.classList.remove('sort-lifted', 'sort-shift', 'sort-dropping', 'sort-trashing', 'sort-slot')
         el.style.transform = ''
       }
     }
@@ -229,21 +240,11 @@ export function useSortable(onMove, { attr, handle, holdMs = 0, onLift, onDrop, 
         apply()
       }
       // Отпустили над корзиной — строка уходит из списка, соседи возвращаются на места.
-      if (commit && g.hot && cb.current.onRemove) {
-        const id = g.id
-        g.dropping = true
-        g.list.forEach((el, i) => { if (i !== g.d) el.style.transform = '' })
-        flushSync(() => {
-          cb.current.onRemove(id)
-          cb.current.onDrop?.()
-        })
-        clear()
-        g = null
-        return
-      }
-      hideTrash()
+      const remove = commit && g.hot && cb.current.onRemove
+      const bin = remove && trash.getBoundingClientRect()
+      if (!remove) hideTrash()
       const { rects, d, list } = g
-      const t = commit ? g.t : d
+      const t = commit && !remove ? g.t : d
       let y = 0
       if (t > d) y = rects[t].top + rects[t].h - (rects[d].top + rects[d].h)
       else if (t < d) y = rects[t].top - rects[d].top
@@ -254,17 +255,23 @@ export function useSortable(onMove, { attr, handle, holdMs = 0, onLift, onDrop, 
       g.dropping = true
       list[d].classList.add('sort-dropping')
       list[d].style.transform = `translate3d(0, ${y}px, 0)`
-      if (!commit) list.forEach((el, i) => { if (i !== d) el.style.transform = '' })
+      if (g.chip) {
+        const r = list[d].getBoundingClientRect()
+        g.chip.land(bin || { left: r.left, width: r.width,
+          top: rects[d].top + y - scrollTop(), height: rects[d].h }, remove)
+      }
+      if (!commit || remove) list.forEach((el, i) => { if (i !== d) el.style.transform = '' })
       const done = () => {
         const id = g.id
         flushSync(() => {
-          if (commit && beforeId !== undefined) cb.current.onMove(id, beforeId)
+          if (remove) cb.current.onRemove(id)
+          else if (commit && beforeId !== undefined) cb.current.onMove(id, beforeId)
           cb.current.onDrop?.()
         })
         clear()
         g = null
       }
-      const ms = reduced() ? 0 : DROP_MS
+      const ms = reduced() || (remove && !g.chip) ? 0 : DROP_MS
       if (ms) dropTimer = setTimeout(done, ms)
       else done()
     }

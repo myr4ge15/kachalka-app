@@ -979,6 +979,26 @@ button.link-btn { min-height: 44px; display: inline-flex; align-items: center; j
     box-shadow var(--dur-base) var(--ease-out);
 }
 
+.sort-lifted.sort-slot {
+  scale: 1; box-shadow: none; border: 1px dashed var(--acc);
+  background: var(--acc-soft); transition: transform var(--dur-base) var(--ease-out);
+}
+.sort-slot > * { visibility: hidden; }
+.sort-chip {
+  position: fixed; z-index: 161; left: 0; top: 0; pointer-events: none;
+  max-width: min(65vw, 18rem); padding: 8px 14px; border-radius: var(--r-md);
+  isolation: isolate; color: var(--on-acc);
+  font-weight: 700; transform-origin: top left;
+}
+.sort-chip-name { display: block; overflow: hidden; white-space: nowrap; text-overflow: ellipsis; }
+.sort-chip-surface {
+  position: absolute; inset: 0; z-index: -1; transform-origin: top left;
+  background: var(--acc); border-radius: inherit; box-shadow: var(--shadow-pop);
+}
+.sort-chip--landing {
+  transition: transform var(--dur-base) var(--ease-out), opacity var(--dur-base) ease-in;
+}
+
 /* Корзина перетаскивания (28.10.2026, fb_df0b21b6, hooks/useSortable onRemove): пока строка поднята,
    внизу экрана — зона «Убрать» (над таббаром и «Сохранить»). Палец над ней (.hot) — красная, строка
    бледнеет (.sort-trashing). Плотная подложка — это плавающий оверлей. */
@@ -1765,7 +1785,8 @@ html[data-update]:not([data-composer]) .content { padding-top: 64px; }
   background: var(--acc); box-shadow: 0 0 0 3px color-mix(in srgb, var(--acc) 25%, transparent);
 }
 .update-banner-txt { flex: 1; min-width: 0; }
-.update-banner-txt b { display: block; font-size: var(--fs-label); font-weight: var(--fw-strong); white-space: nowrap; }
+.update-banner-txt b { display: block; font-size: var(--fs-label); font-weight: var(--fw-strong); }
+.update-banner-txt .version-number { white-space: nowrap; }
 .update-banner-txt small {
   display: block; font-size: var(--fs-small); color: var(--muted);
   white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
