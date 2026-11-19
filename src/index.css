@@ -1001,6 +1001,13 @@ button.link-btn { min-height: 44px; display: inline-flex; align-items: center; j
 /* Корзина перетаскивания (28.10.2026, fb_df0b21b6, hooks/useSortable onRemove): пока строка поднята,
    внизу экрана — зона «Убрать» (над таббаром и «Сохранить»). Палец над ней (.hot) — красная, строка
    бледнеет (.sort-trashing). Плотная подложка — это плавающий оверлей. */
+.sort-scroll-cue {
+  position: fixed; z-index: 159; pointer-events: none; box-sizing: border-box;
+  border-top: 2px dashed var(--acc); color: var(--text);
+  text-align: end; padding: 3px 12px; font-size: var(--fs-small);
+  background: var(--surface-solid);
+}
+.sort-scroll-cue.active { border-top-style: solid; color: var(--on-acc); background: var(--acc); }
 .sort-trash {
   position: fixed; z-index: 160; left: 50%; bottom: calc(24px + env(safe-area-inset-bottom));
   transform: translate(-50%, 140%); opacity: 0;
