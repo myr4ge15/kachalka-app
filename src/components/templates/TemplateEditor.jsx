@@ -1,6 +1,7 @@
 import { Fragment, useState, useEffect, useRef } from 'react'
 import { useRevealFocus } from '../../hooks/useRevealFocus.js'
 import { useSortable } from '../../hooks/useSortable.js'
+import { createPhaseSortLayout } from '../../hooks/phaseSortLayout.js'
 import { PHASES, PHASE_MOVE_LABEL, orderByPhase, phaseHeading, phaseOf, phaseValue, reorderWithPhase, setEntryPhase } from '../../lib/workoutPhases.js'
 import MoreMenu from '../ui/MoreMenu.jsx'
 import { useLiveQuery } from 'dexie-react-hooks'
@@ -214,7 +215,7 @@ export default function TemplateEditor({ user, templateId, onBack, backGuardRef 
   const sortRef = useSortable((id, beforeId) => {
     setItems((prev) => reorderWithPhase(prev, id, beforeId)) // блок — по соседу (разминка/заминка)
   }, {
-    attr: 'data-tpl-id', handle: '.tpl-handle',
+    attr: 'data-tpl-id', handle: '.tpl-handle', createLayout: createPhaseSortLayout,
     // Корзина (fb_df0b21b6): бросил в «Убрать» — как «Убрать» в меню строки, с «Отменить».
     onRemove: (id) => { const i = items.findIndex((it) => String(it.exercise.id) === id); if (i >= 0) removeExercise(i) },
   })
@@ -353,14 +354,14 @@ export default function TemplateEditor({ user, templateId, onBack, backGuardRef 
             <p className="muted empty">В шаблоне пока нет упражнений</p>
           )}
 
-          <div className="tpl-rows" ref={sortRef}>
+          <div className="phase-sort-list" ref={sortRef}>
           {items.map((it, idx) => {
             const metric = exerciseMetric(it.exercise)
             // Карточка — как упражнение в тренировке (fb_58cbb46a): действия в заголовке,
             // под ним подходы со степперами. ☰ — ручка перестановки упражнений.
             return (
             <Fragment key={it.exercise.id}>
-            {phaseHeading(items, idx) && <p className="sec-title wk-phase-title">{phaseHeading(items, idx)}</p>}
+            {phaseHeading(items, idx) && <p className="sec-title wk-phase-title" data-sort-phase={phaseOf(it)}>{phaseHeading(items, idx)}</p>}
             <div
               ref={expandedId === it.exercise.id ? expandedRef : added?.id === it.exercise.id ? addedRef : undefined}
               data-tpl-id={it.exercise.id}

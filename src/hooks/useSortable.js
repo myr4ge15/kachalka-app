@@ -11,8 +11,8 @@ import { createSortChip } from './sortChip.js'
 // (beforeId = id строки, перед которой встать; null — в конец). Отмена (второй
 // палец, touchcancel, уход окна) — все возвращается на место без onMove.
 //
-// Во время жеста React не перерисовывается: двигаем строки transform'ом по
-// раскладке, снятой в момент подъема. Новый порядок применяется через flushSync
+// Позицию вставки определяем по замерам при подъеме. В группированном списке
+// createLayout раскладывает строки и заголовки, в обычном соседи сдвигаются transform'ом. Новый порядок применяется через flushSync
 // и только потом снимаются transform'ы — без кадра со старым порядком.
 //
 // Опции:
@@ -44,7 +44,7 @@ export function overTrash(rect, x, y, slop = TRASH_SLOP) {
   return x >= rect.left - slop && x <= rect.right + slop && y >= rect.top - slop && y <= rect.bottom + slop
 }
 
-export function useSortable(onMove, { attr, handle, holdMs = 0, onLift, onDrop, onRemove, chipLabel } = {}) {
+export function useSortable(onMove, { attr, handle, holdMs = 0, onLift, onDrop, onRemove, chipLabel, createLayout } = {}) {
   // callback-ref: корень списка может появиться позже экрана (редактор шаблона).
   const [root, setRoot] = useState(null)
   const cb = useRef({ onMove, onLift, onDrop, onRemove, chipLabel })
@@ -113,6 +113,8 @@ export function useSortable(onMove, { attr, handle, holdMs = 0, onLift, onDrop, 
       g.list = list
       g.d = d
       g.rects = list.map(el => { const r = el.getBoundingClientRect(); return { top: r.top + g.startScroll, h: r.height } })
+      g.layout = createLayout?.(root, list, idOf)
+      g.originTop = list[d].offsetTop
       const gaps = g.rects.slice(1).map((r, i) => r.top - (g.rects[i].top + g.rects[i].h)).filter(x => x >= 0)
       g.gap = gaps.length ? gaps.sort((a, b) => a - b)[gaps.length >> 1] : 0
       // Строка остается под пальцем, даже если onLift поменял раскладку (fb_856a3a4e): свернутая
@@ -135,7 +137,7 @@ export function useSortable(onMove, { attr, handle, holdMs = 0, onLift, onDrop, 
       list.forEach((el, i) => {
         const oldTop = oldRects?.get(idOf(el))?.top
         const dy = oldTop - (g.rects[i].top - g.startScroll)
-        if (i !== d && Number.isFinite(dy) && dy && el.animate) {
+        if (!g.layout && i !== d && Number.isFinite(dy) && dy && el.animate) {
           g.layoutAnimations.push(el.animate([{ translate: `0 ${dy}px` }, { translate: '0 0' }], {
             duration: DROP_MS, easing: 'ease-out',
           }))
@@ -147,6 +149,13 @@ export function useSortable(onMove, { attr, handle, holdMs = 0, onLift, onDrop, 
       frame = requestAnimationFrame(autoscroll)
     }
 
+    // Индекс вставки в список без поднятой строки.
+    function beforeAt(t) {
+      if (t === g.d) return undefined
+      const next = g.list[t > g.d ? t + 1 : t]
+      return next ? idOf(next) : null
+    }
+
     function apply(scroll = scrollTop()) {
       const { rects, d, list } = g
       const first = rects[0], last = rects.at(-1), me = rects[d]
@@ -155,7 +164,7 @@ export function useSortable(onMove, { attr, handle, holdMs = 0, onLift, onDrop, 
       // Не выпускаем строку за края списка.
       dy = Math.max(first.top - me.top, Math.min(last.top + last.h - me.top - me.h, dy))
       if (g.chip) g.chip.move(g.cx ?? g.x, g.y)
-      else list[d].style.transform = `translate3d(0, ${dy}px, 0)`
+
       // Сосед уступает место, когда край взятой строки переходит его середину:
       // нижний край — для строк ниже, верхний — для строк выше.
       let t = d
@@ -164,6 +173,16 @@ export function useSortable(onMove, { attr, handle, holdMs = 0, onLift, onDrop, 
         if (i > d && me.top + me.h + dy > mid) t++
         if (i < d && me.top + dy < mid) t--
       })
+      if (g.layout) {
+        if (t !== g.t) {
+          g.layout.preview(g.id, beforeAt(t))
+          g.layoutOffset = list[d].offsetTop - g.originTop
+        }
+        g.t = t
+        if (!g.chip) list[d].style.transform = `translate3d(0, ${dy - (g.layoutOffset ?? 0)}px, 0)`
+        return
+      }
+      if (!g.chip) list[d].style.transform = `translate3d(0, ${dy}px, 0)`
       if (t === g.t) return
       g.t = t
       if (g.chip) {
@@ -206,6 +225,7 @@ export function useSortable(onMove, { attr, handle, holdMs = 0, onLift, onDrop, 
     }
 
     function clear() {
+      g?.layout?.reset()
       root.classList.remove('sort-active')
       hideTrash()
       root.classList.remove('sort-with-chip')
@@ -264,12 +284,13 @@ export function useSortable(onMove, { attr, handle, holdMs = 0, onLift, onDrop, 
       const { rects, d, list } = g
       const t = commit && !remove ? g.t : d
       let y = 0
-      if (t > d) y = rects[t].top + rects[t].h - (rects[d].top + rects[d].h)
+      if (g.layout) {
+        if (t === d) g.layout.reset()
+      } else if (t > d) y = rects[t].top + rects[t].h - (rects[d].top + rects[d].h)
       else if (t < d) y = rects[t].top - rects[d].top
       // Прокрутку не вычитаем (fb_6c3de081): вместе с ней едет и строка, и ее новое место.
       // Вычет уводил строку на высоту автопрокрутки ниже места — она «улетала» и прыгала назад.
-      const others = list.filter((_, i) => i !== d)
-      const beforeId = t === d ? undefined : (others[t] ? idOf(others[t]) : null)
+      const beforeId = beforeAt(t)
       g.dropping = true
       list[d].classList.add('sort-dropping')
       list[d].style.transform = `translate3d(0, ${y}px, 0)`
@@ -380,6 +401,6 @@ export function useSortable(onMove, { attr, handle, holdMs = 0, onLift, onDrop, 
       root.removeEventListener('contextmenu', context)
       root.removeEventListener('keydown', key)
     }
-  }, [root, attr, handle, holdMs, withTrash])
+  }, [root, attr, handle, holdMs, withTrash, createLayout])
   return setRoot
 }

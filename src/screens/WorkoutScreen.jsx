@@ -22,6 +22,7 @@ import { useWorkoutDraft, hasNewDraft, startNewDraftFrom } from '../hooks/useWor
 import { useRestTimer } from '../hooks/useRestTimer.js'
 import { localYmd } from '../lib/calendar.js'
 import { useSortable } from '../hooks/useSortable.js'
+import { createPhaseSortLayout } from '../hooks/phaseSortLayout.js'
 import { reorderWithPhase, setEntryPhase, phaseHeading, phaseOf, phaseValue, orderByPhase } from '../lib/workoutPhases.js'
 import CardsSkeleton from '../components/ui/CardsSkeleton.jsx'
 import ExercisePicker from '../components/exercises/ExercisePicker.jsx'
@@ -94,6 +95,7 @@ export default function WorkoutScreen({ user, workoutId = null, onBack, onSaved,
     setEntries(prev => reorderWithPhase(prev, id, beforeId)) // блок — по соседу (разминка/заминка, 23.10.2026)
   }, {
     attr: 'data-exercise-id',
+    createLayout: createPhaseSortLayout,
     handle: '.exercise-grip',
     chipLabel: id => entries.find(entry => String(entry.exercise.id) === id)?.exercise.name,
     onLift: id => { if (id === activeExerciseId) setDragFolded(id) },
@@ -614,7 +616,7 @@ export default function WorkoutScreen({ user, workoutId = null, onBack, onSaved,
   )
 
   return (
-    <div className="screen workout-screen" ref={reorderRef} onFocus={revealField}>
+    <div className="screen workout-screen" onFocus={revealField}>
       {/* Шапка (v6.1.0): круглая «назад», заголовок, дата чипом под ним (тап —
           пикер, так начинается запись задним числом), «Очистить» справа — только
           у новой тренировки с составом; подтверждение раскрывается под шапкой. */}
@@ -661,42 +663,44 @@ export default function WorkoutScreen({ user, workoutId = null, onBack, onSaved,
           )}
 
           {entries.length > 1 && <p className="muted exercise-reorder-hint">Перетащи упражнение за ручку, чтобы поменять порядок или убрать в корзину.</p>}
-          {entries.map((entry, ei) => (
-            <Fragment key={entry.exercise.id}>
-            {phaseHeading(entries, ei) && <p className="sec-title wk-phase-title">{phaseHeading(entries, ei)}</p>}
-            <ExerciseCard
-              entry={entry}
-              ei={ei}
-              prog={prog}
-              reorderable={entries.length > 1}
-              active={entry.exercise.id === activeExerciseId && dragFolded !== entry.exercise.id}
-              cardRef={entry.exercise.id === activeExerciseId && dragFolded !== entry.exercise.id ? activeCardRef : null}
-              onActivate={activateExercise}
-              feel={feels[entry.exercise.id] ?? null}
-              onSetFeel={setFeel}
-              onTechnique={techniqueById.has(String(entry.exercise.id))
-                ? () => setTechnique(techniqueById.get(String(entry.exercise.id)))
-                : null}
-              onReplace={openReplacePicker}
-              onRemove={removeExercise}
-              onRevertProg={revertProg}
-              onApplyProg={applyProg}
-              onToggleProgSettings={toggleProgSettings}
-              onChangeProgSettings={changeProgSettings}
-              onUpdateSet={updateSet}
-              onStep={step}
-              onAddSet={addSet}
-              onRemoveSet={removeSet}
-              onVoiceSet={voiceSet}
-              voiceCursor={voiceCursor[entry.exercise.id] ?? 0}
-              restSlot={restVisible && entry.exercise.id === activeExerciseId
-                ? <RestPill state={rest.state} idleSec={rest.idleSec} onTap={tapRest} />
-                : null}
-              phase={phaseOf(entry)}
-              onPhase={(phase) => setEntries((prev) => setEntryPhase(prev, prev.indexOf(entry), phase))}
-            />
-            </Fragment>
-          ))}
+          <div className="phase-sort-list" ref={reorderRef}>
+            {entries.map((entry, ei) => (
+              <Fragment key={entry.exercise.id}>
+                {phaseHeading(entries, ei) && <p className="sec-title wk-phase-title" data-sort-phase={phaseOf(entry)}>{phaseHeading(entries, ei)}</p>}
+                <ExerciseCard
+                  entry={entry}
+                  ei={ei}
+                  prog={prog}
+                  reorderable={entries.length > 1}
+                  active={entry.exercise.id === activeExerciseId && dragFolded !== entry.exercise.id}
+                  cardRef={entry.exercise.id === activeExerciseId && dragFolded !== entry.exercise.id ? activeCardRef : null}
+                  onActivate={activateExercise}
+                  feel={feels[entry.exercise.id] ?? null}
+                  onSetFeel={setFeel}
+                  onTechnique={techniqueById.has(String(entry.exercise.id))
+                    ? () => setTechnique(techniqueById.get(String(entry.exercise.id)))
+                    : null}
+                  onReplace={openReplacePicker}
+                  onRemove={removeExercise}
+                  onRevertProg={revertProg}
+                  onApplyProg={applyProg}
+                  onToggleProgSettings={toggleProgSettings}
+                  onChangeProgSettings={changeProgSettings}
+                  onUpdateSet={updateSet}
+                  onStep={step}
+                  onAddSet={addSet}
+                  onRemoveSet={removeSet}
+                  onVoiceSet={voiceSet}
+                  voiceCursor={voiceCursor[entry.exercise.id] ?? 0}
+                  restSlot={restVisible && entry.exercise.id === activeExerciseId
+                    ? <RestPill state={rest.state} idleSec={rest.idleSec} onTap={tapRest} />
+                    : null}
+                  phase={phaseOf(entry)}
+                  onPhase={(phase) => setEntries((prev) => setEntryPhase(prev, prev.indexOf(entry), phase))}
+                />
+              </Fragment>
+            ))}
+          </div>
 
           <div className={`wk-adds${isNew ? '' : ' one'}`}>
             <button className="wk-add" onClick={openAddPicker} aria-label="Добавить упражнение">
