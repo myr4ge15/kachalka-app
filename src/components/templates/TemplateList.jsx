@@ -1,4 +1,4 @@
-import MuscleTags from '../workout/MuscleTags.jsx'
+import TemplateCard from './TemplateCard.jsx'
 import { useEffect, useState } from 'react'
 import { useRevealFocus } from '../../hooks/useRevealFocus.js'
 import { useLiveQuery } from 'dexie-react-hooks'
@@ -9,28 +9,10 @@ import CardsSkeleton from '../ui/CardsSkeleton.jsx'
 import ExportBar from '../workout/ExportBar.jsx'
 import BackButton from '../ui/BackButton.jsx'
 import Chevron from '../ui/Chevron.jsx'
-import CheckIcon from '../ui/CheckIcon.jsx'
 import ScrollTopButton from '../ui/ScrollTopButton.jsx'
 
 // Список шаблонов: «Мои» и «Общие» сворачиваемыми группами, экспорт выбранных в JSON
 // (вынесено из screens/TemplatesScreen.jsx, аудит 14.10). Открытие — onOpen(id | 'new').
-
-function TemplateCard({ t, onOpen, selectMode = false, picked = false, onPick }) {
-  return (
-    <button type="button" className={'card history-card tpl-card history-tap' + (selectMode && picked ? ' picked' : '')}
-      onClick={() => selectMode ? onPick(t.id) : onOpen(t.id)}>
-      <span className="history-head">
-        <span className="history-date">{t.name}</span>
-        {selectMode ? (
-          <span className={'history-check' + (picked ? ' on' : '')} aria-hidden="true">
-            {picked && <CheckIcon size={16} strokeWidth={3} />}
-          </span>
-        ) : <Chevron className="history-chevron" />}
-      </span>
-      <MuscleTags entries={t.exercises ?? []} />
-    </button>
-  )
-}
 
 // Заголовок сворачиваемой группы: тап переключает раскрытие. Строка-карточка, как пункты
 // Настроек (.act): название, счетчик таблеткой, шеврон раскрытия справа. Голые строки с
@@ -85,10 +67,9 @@ export default function TemplateList({ user, onBack, onOpen, onSelectModeChange 
     <TemplateCard
       key={t.id}
       t={t}
-      onOpen={onOpen}
+      onClick={() => selectMode ? togglePick(t.id) : onOpen(t.id)}
       selectMode={selectMode}
       picked={picked.has(t.id)}
-      onPick={togglePick}
     />
   )
 

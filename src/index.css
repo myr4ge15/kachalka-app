@@ -1000,9 +1000,7 @@ button.link-btn { min-height: 44px; display: inline-flex; align-items: center; j
 
 .next-plan-list { list-style: none; margin: 0 0 12px; padding: 0; }
 .next-plan-row { display: grid; grid-template-columns: minmax(0, 1fr) 44px; align-items: center; gap: 12px; padding: 6px 0; }
-.tpl-ex-summary { display: flex; align-items: center; min-width: 0; gap: 4px; }
 .next-plan-exercise { overflow-wrap: anywhere; }
-.tpl-ex-summary { flex: 1; }
 .next-plan-row + .next-plan-row { border-top: 1px solid var(--border); }
 .next-plan-row .btn { width: 44px; height: 44px; margin: 0; padding: 0; }
 .next-plan > .btn-row { margin-top: 12px; }
@@ -1701,9 +1699,10 @@ button.picker-star:active { background: var(--surface); }
 /* Карточка шаблона в пикере: имя + «N упр.» + краткий состав */
 /* iOS рисует индикатор прокрутки поверх списка (fb_be0030b1). */
 .tpl-picker-list { padding-inline-end: 12px; }
-.tpl-pick { flex-wrap: wrap; }
-.tpl-pick-name { font-weight: 600; }
-.tpl-pick-sub { flex-basis: 100%; display: flex; flex-direction: column; gap: 3px; font-size: var(--fs-meta); font-weight: 400; line-height: 1.35; margin-top: 6px; text-align: left; }
+.tpl-pick-card { background: var(--glass); border: 1px solid var(--stroke); border-radius: var(--r-xl); margin-bottom: 12px; }
+.tpl-pick-card > .tpl-card { margin: 0; border: 0; }
+.tpl-pick-card > .menu-row { margin: 0; border: 0; border-top: 1px solid var(--border); border-radius: 0 0 var(--r-xl) var(--r-xl); background: transparent; }
+.tpl-pick-sub { list-style: none; margin: 0; padding: 0 14px 14px; display: grid; gap: 6px; font-size: var(--fs-meta); }
 /* Строка состава в «Выбрать шаблон» (fb_966c7e2b): название — текстом, подходы — серым после него. */
 .tpl-pick-line { color: var(--text); overflow-wrap: anywhere; }
 .tpl-pick-sets { color: var(--muted); }
@@ -2962,8 +2961,11 @@ label.act.busy { opacity: .55; pointer-events: none; }
 .tpl-del-confirm, .tpl-leave-confirm { margin-bottom: 14px; }
 /* Карточка упражнения шаблона — как в тренировке; ☰ слева от названия. */
 .tpl-ex .exercise-head { min-height: 44px; }
-.tpl-ex-toggle { display: flex; align-items: center; justify-content: space-between; gap: 8px; min-width: 0; min-height: 44px; flex: 1; padding: 0; border: 0; background: none; color: inherit; font: inherit; text-align: left; }
-.tpl-view-ex .tpl-ex-toggle { width: 100%; }
+.tpl-ex-summary { position: relative; display: flex; align-items: center; flex: 1; min-width: 0; gap: 8px; }
+.tpl-ex-toggle { display: grid; place-items: center; flex: none; width: 44px; min-height: 44px; padding: 0; border: 0; background: none; color: inherit; cursor: pointer; }
+/* Название и шеврон раскрывают подходы. Кнопка техники поверх этой зоны открывает подсказку. */
+.tpl-ex-toggle::before { content: ''; position: absolute; inset: 0; }
+.tpl-ex-summary .technique-btn { z-index: 1; }
 .tpl-view-ex { padding: 6px 0; }
 .tpl-ex-title { flex: 1; display: flex; align-items: center; gap: 4px; min-width: 0; }
 .tpl-ex-title .tpl-handle { width: 36px; height: 44px; margin-left: -8px; }

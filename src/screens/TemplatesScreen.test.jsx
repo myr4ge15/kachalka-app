@@ -26,7 +26,7 @@ vi.mock('../db/repo.js', () => ({
 vi.mock('../db/sync.js', () => ({ syncNow: vi.fn() }))
 // Свайп «назад» (iOS) — ловим колбэк, который экран отдает жесту.
 const swipe = vi.hoisted(() => ({ back: null }))
-vi.mock('../hooks/useEdgeSwipeBack.js', () => ({ useEdgeSwipeBack: (_c, _r, back) => { swipe.back = back } }))
+vi.mock('../hooks/useEdgeSwipeBack.js', () => ({ edgeSwipeAvailable: () => false, useEdgeSwipeBack: (_c, _r, back) => { swipe.back = back } }))
 vi.mock('../lib/exportTemplate.js', () => ({ exportTemplates: vi.fn() }))
 vi.mock('../components/exercises/ExercisePicker.jsx', () => ({
   default: ({ exercises, onPick, onPickMany, onClose, title }) => (
@@ -388,6 +388,10 @@ describe('TemplatesScreen — редактор', () => {
     renderScreen()
     fireEvent.click(screen.getByRole('button', { name: 'Спина' }))
     const row = await screen.findByRole('button', { name: PULL.name })
+    expect(row).toHaveAttribute('aria-expanded', 'false')
+    fireEvent.click(screen.getByRole('button', { name: 'Как выполнять: ' + PULL.name }))
+    expect(await screen.findByRole('dialog', { name: PULL.name })).toBeInTheDocument()
+    fireEvent.click(screen.getByRole('button', { name: 'закрыть' }))
     expect(row).toHaveAttribute('aria-expanded', 'false')
     fireEvent.click(row)
     expect(row).toHaveAttribute('aria-expanded', 'true')

@@ -400,13 +400,26 @@ describe('HistoryScreen — фильтр по мышцам и экспорт', (
     expect(names()).toEqual(['Жим лежа', 'Подтягивания'])
   })
 
+  it('план и шаблоны скрыты во время экспорта и возвращаются после отмены', () => {
+    render(<HistoryScreen user={user} />)
+    const shortcuts = () => screen.queryAllByRole('button', { name: /^(Шаблоны|Запланировать тренировку)$/ })
+    expect(shortcuts()).toHaveLength(2)
+    fireEvent.click(screen.getByRole('button', { name: 'Экспорт тренировок' }))
+    expect(shortcuts()).toHaveLength(0)
+    fireEvent.click(screen.getByRole('button', { name: 'Отмена' }))
+    expect(shortcuts()).toHaveLength(2)
+  })
+
   it('экспорт: «Все» берет отфильтрованные, «Скачать» отдает только их', () => {
     render(<HistoryScreen user={user} />)
     fireEvent.click(chips().getByRole('button', { name: 'грудь' }))
+    expect(screen.getByRole('button', { name: 'Шаблоны' })).toBeInTheDocument()
     fireEvent.click(screen.getByRole('button', { name: /Экспорт тренировок/ }))
+    expect(screen.queryByRole('button', { name: 'Шаблоны' })).toBeNull()
     fireEvent.click(screen.getByRole('button', { name: 'Все' }))
     expect(screen.getByText('Выбрано: 1')).toBeInTheDocument()
     fireEvent.click(screen.getByRole('button', { name: 'Скачать' }))
+    expect(screen.getByRole('button', { name: 'Шаблоны' })).toBeInTheDocument()
     expect(exportWorkouts).toHaveBeenCalledOnce()
     expect(vi.mocked(exportWorkouts).mock.calls[0][0].map((w) => w.id)).toEqual(['w1'])
   })

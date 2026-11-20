@@ -54,12 +54,13 @@ export default function TemplateEditor({ user, templateId, onBack, backGuardRef 
   const expandedRef = useRevealFocus(expandedId)
   function exerciseToggle(ex) {
     const open = expandedId === ex.id
-    return <div className="tpl-ex-summary"><button type="button" className="tpl-ex-toggle" aria-expanded={open}
-      onClick={() => setExpandedId(open ? null : ex.id)}>
-      <span className="exercise-title tpl-name">{ex.name}</span><Chevron toggle open={open} />
-    </button>
-      <ExerciseTechnique exercise={exercises.find(item => item.id === ex.id)} />
-    </div>
+    return <span className="tpl-ex-summary">
+      <ExerciseTechnique name={ex.name} className="tpl-name" exercise={exercises.find(item => item.id === ex.id)} />
+      <button type="button" className="tpl-ex-toggle" aria-label={ex.name} aria-expanded={open}
+        onClick={() => setExpandedId(open ? null : ex.id)}>
+        <Chevron toggle open={open} />
+      </button>
+    </span>
   }
   const [phaseMenu, setPhaseMenu] = useState(null) // id упражнения с открытым меню блока
   const [isPublic, setIsPublic] = useState(false)

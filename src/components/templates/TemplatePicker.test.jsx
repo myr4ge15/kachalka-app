@@ -9,7 +9,7 @@ vi.mock('dexie-react-hooks', () => ({ useLiveQuery: () => mocks.templates }))
 vi.mock('../../db/repo.js', () => ({ getTemplates: vi.fn() }))
 
 const ME = { id: 'me' }
-const BENCH = { id: 'bench', name: 'Жим лежа', metric: 'weight' }
+const BENCH = { id: 'bench', name: 'Жим лежа', submuscle: 'chest_middle', metric: 'weight' }
 const PULL = { id: 'pull', name: 'Подтягивания', metric: 'reps' }
 
 function open() {
@@ -41,17 +41,20 @@ describe('TemplatePicker', () => {
     const { onPick } = open()
     const titles = [...document.querySelectorAll('.group-title')].map((n) => n.textContent)
     expect(titles).toEqual(['Мои', 'Общие'])
-    const items = screen.getAllByRole('button', { name: /упр\./ })
-    expect(items[0]).toHaveTextContent('Грудь')
-    expect(items[0]).toHaveTextContent('виден всем')
-    expect(items[0]).toHaveTextContent('2 упр.')
-    expect(items[0].querySelector('.tpl-pick-sub').textContent).toMatch(/^Жим лежа /) // пустое упражнение пропущено
-    // fb_966c7e2b: по строке на упражнение, а не одним абзацем через запятую
-    expect([...items[0].querySelectorAll('.tpl-pick-line')].map((n) => n.textContent)).toEqual(['Жим лежа 3×8×60 кг'])
-    expect(items[1].querySelectorAll('.tpl-pick-line')).toHaveLength(1)
-    expect(items[1]).toHaveTextContent('· от Петя')
-    expect(items[1]).not.toHaveTextContent('виден всем')
-    fireEvent.click(items[1])
+    const myCard = screen.getByRole('button', { name: /Грудь.*виден всем/ })
+    const otherCard = screen.getByRole('button', { name: /Спина.*от Петя/ })
+    expect(myCard).toHaveTextContent('середина груди')
+    expect(otherCard).not.toHaveTextContent('виден всем')
+    expect(screen.queryByText('3×8×60 кг')).toBeNull()
+    const details = screen.getByRole('button', { name: 'Состав шаблона «Грудь»' })
+    expect(details).toHaveTextContent('2 упр.')
+    fireEvent.click(details)
+    expect(details).toHaveAttribute('aria-expanded', 'true')
+    expect(screen.getAllByRole('listitem').map(el => el.textContent.trim())).toEqual(['Жим лежа 3×8×60 кг'])
+    fireEvent.click(details)
+    expect(screen.queryByText('3×8×60 кг')).toBeNull()
+    expect(onPick).not.toHaveBeenCalled()
+    fireEvent.click(otherCard)
     expect(onPick).toHaveBeenCalledWith(theirs)
   })
 })

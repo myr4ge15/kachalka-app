@@ -103,9 +103,15 @@ test('шаблон после перезагрузки подставляет в
   expect(saved[1].set_plan).toEqual(Array.from({ length: 18 }, () => ({ weight: 0, reps: 8 })))
   await page.getByRole('button', { name: 'Записать тренировку' }).click()
   await page.getByRole('button', { name: 'Выбрать шаблон' }).click()
-  const plan = page.getByRole('dialog', { name: 'Выбрать шаблон' }).getByRole('button', { name: /Точный план/ })
+  const chooser = page.getByRole('dialog', { name: 'Выбрать шаблон' })
+  const plan = chooser.getByRole('button', { name: /^Точный план/ })
+  const details = chooser.getByRole('button', { name: 'Состав шаблона «Точный план»' })
+  await expect(plan.getByText('середина груди')).toBeVisible()
+  await expect(details).toHaveAttribute('aria-expanded', 'false')
+  await details.click()
+  await expect(chooser.getByRole('listitem').first()).toContainText('Жим лежа (e2e)')
   const gutter = await plan.evaluate((row) => {
-    const list = row.parentElement
+    const list = row.closest('.tpl-picker-list')
     return list.getBoundingClientRect().left + list.clientWidth - row.getBoundingClientRect().right
   })
   expect(gutter).toBeGreaterThanOrEqual(10)
@@ -120,4 +126,56 @@ test('шаблон после перезагрузки подставляет в
   await expect(saveWorkout).toBeDisabled()
   await sets.nth(2).locator('input').first().fill('70')
   await expect(saveWorkout).toBeEnabled()
+})
+
+test('в шаблоне подсказка рядом с последним словом, название и стрелка раскрывают подходы', async ({ page, context }) => {
+  await page.setViewportSize({ width: 393, height: 793 })
+  await page.emulateMedia({ reducedMotion: 'reduce' })
+  await context.route(/supabase\.co/, route => route.abort())
+  await page.goto('/kachalka-app/')
+  const name = 'Сведения в тренажере Бабочка (Pec Deck)'
+  const user = await page.evaluate(async name => {
+    const { seedE2E, E2E_EXERCISES } = await import('/kachalka-app/src/test/e2eSeed.js')
+    const { saveTemplate } = await import('/kachalka-app/src/db/repo.js')
+    const exercise = { ...E2E_EXERCISES[0], name }
+    const user = await seedE2E({ exercises: [exercise] })
+    await saveTemplate({ user_id: user.id, name: 'Проверка техники', exercises: [{ exercise, sets: 2, reps: 10 }] })
+    return user
+  }, name)
+  await page.reload()
+  await page.getByRole('button', { name: user.name }).click()
+  await enterPin(page, user.pin)
+  await openTab(page, 'Тренировки')
+  await page.getByRole('button', { name: /Шаблоны/ }).click()
+  await page.getByRole('button', { name: /Мои шаблоны/ }).click()
+  await page.getByRole('button', { name: 'Проверка техники' }).click()
+
+  const toggle = page.getByRole('button', { name, exact: true })
+  const hint = page.getByRole('button', { name: 'Как выполнять: ' + name })
+  const menu = page.getByRole('button', { name: 'Блок «' + name + '»' })
+  for (const width of [393, 320]) {
+    await page.setViewportSize({ width, height: 793 })
+    const word = await hint.evaluate(button => {
+      const range = document.createRange()
+      range.selectNodeContents(button.previousSibling)
+      return range.getBoundingClientRect().toJSON()
+    })
+    const icon = await hint.boundingBox()
+    expect(Math.abs(word.y + word.height / 2 - (icon.y + icon.height / 2))).toBeLessThan(6)
+    expect(icon.x - word.right).toBeLessThan(6)
+    const arrow = await toggle.boundingBox()
+    expect(icon.x + icon.width).toBeLessThanOrEqual(arrow.x)
+    expect(arrow.x + arrow.width).toBeLessThanOrEqual((await menu.boundingBox()).x)
+    await hint.click()
+    const sheet = page.getByRole('dialog', { name })
+    await sheet.getByRole('button', { name: 'закрыть' }).click()
+    await expect(toggle).toHaveAttribute('aria-expanded', 'false')
+    await page.mouse.click(word.x + word.width / 2, word.y + word.height / 2)
+    await expect(toggle).toHaveAttribute('aria-expanded', 'true')
+    await toggle.click()
+    await expect(toggle).toHaveAttribute('aria-expanded', 'false')
+  }
+  await menu.click()
+  await expect(page.getByRole('menuitem', { name: 'Заменить упражнение' })).toBeVisible()
+  await expect(toggle).toHaveAttribute('aria-expanded', 'false')
 })

@@ -1,40 +1,38 @@
+import { useState } from 'react'
+import { useRevealFocus } from '../../hooks/useRevealFocus.js'
+import TemplateCard from './TemplateCard.jsx'
+import MenuRow from '../ui/MenuRow.jsx'
 import { useLiveQuery } from 'dexie-react-hooks'
 import { getTemplates } from '../../db/repo.js'
 import { exerciseMetric, fmtTemplateTarget } from '../../lib/metric.js'
 import SheetDialog from '../ui/SheetDialog.jsx'
 import Icon from '../ui/Icon.jsx'
 
-// Шит выбора шаблона при создании новой тренировки. onPick(template) →
-// родитель (WorkoutScreen) применяет состав к entries. Стиль — как ExercisePicker.
-// Карточка шаблона в пикере. mine → бейдж 🌐 у общих; чужой → пометка автора.
 function PickItem({ t, mine, onPick }) {
-  const exs = t.exercises ?? []
-  // Состав — по строке на упражнение (v1.4.4 э2, fb_966c7e2b): одним абзацем через запятую
-  // названия и подходы сливались, и было не понять, где кончается одно упражнение.
-  const lines = exs
-    .filter((e) => e.exercise?.name)
-    .map((e) => ({ name: e.exercise.name, target: fmtTemplateTarget(exerciseMetric(e.exercise), e) }))
+  const [open, setOpen] = useState(false)
+  const revealRef = useRevealFocus(open)
+  const entries = t.exercises ?? []
+  const named = entries.filter(entry => entry.exercise?.name)
+  const note = mine && t.is_public
+    ? <span className="tpl-badge"><Icon name="globe" size={12} /> виден всем</span>
+    : !mine && t.author_name && <span className="tpl-author">от {t.author_name}</span>
+
   return (
-    <button className="picker-item tpl-pick" onClick={() => onPick(t)}>
-      <span className="tpl-pick-name">
-        {t.name}
-        {mine && Boolean(t.is_public) && (
-          <span className="tpl-badge" title="Виден всем"><Icon name="globe" size={12} /> виден всем</span>
-        )}
-        {!mine && t.author_name && <span className="tpl-author"> · от {t.author_name}</span>}
-      </span>
-      <span className="picker-group">{exs.length} упр.</span>
-      {lines.length > 0 && (
-        <span className="tpl-pick-sub">
-          {lines.map((l, i) => (
-            <span key={i} className="tpl-pick-line">
-              {l.name}
-              {l.target && <span className="tpl-pick-sets"> {l.target}</span>}
-            </span>
+    <div className="tpl-pick-card" ref={revealRef}>
+      <TemplateCard t={t} onClick={() => onPick(t)} note={note} />
+      {named.length > 0 && <>
+        <MenuRow kind="expand" title="Состав" badge={`${entries.length} упр.`} open={open}
+          aria-label={`Состав шаблона «${t.name}»`} onClick={() => setOpen(!open)} />
+        {open && <ul className="tpl-pick-sub">
+          {named.map((entry, i) => (
+            <li key={i} className="tpl-pick-line">
+              {entry.exercise.name}{' '}
+              <span className="tpl-pick-sets">{fmtTemplateTarget(exerciseMetric(entry.exercise), entry)}</span>
+            </li>
           ))}
-        </span>
-      )}
-    </button>
+        </ul>}
+      </>}
+    </div>
   )
 }
 

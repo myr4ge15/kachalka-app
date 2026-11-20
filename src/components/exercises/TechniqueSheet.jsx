@@ -213,13 +213,12 @@ function PlayIcon() {
 
 // Кнопка «i» рядом с названием упражнения. Отдельная кнопка, а не часть строки:
 // нажатие не выбирает упражнение и не трогает тренировку.
-export function ExerciseTechnique({ exercise }) {
+export function ExerciseTechnique({ exercise, name = exercise?.name, className }) {
   const [open, setOpen] = useState(false)
   const slug = techniqueSlugFor(exercise)
-  if (!slug) return null
   return <>
-    <TechniqueButton name={exercise.name} onClick={() => setOpen(true)} />
-    {open && <TechniqueSheet slug={slug} name={exercise.name} onClose={() => setOpen(false)} />}
+    <TitleWithTechnique name={name} className={className} onTechnique={slug ? () => setOpen(true) : undefined} />
+    {open && slug && <TechniqueSheet slug={slug} name={name} onClose={() => setOpen(false)} />}
   </>
 }
 
