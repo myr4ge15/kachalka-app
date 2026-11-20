@@ -2,7 +2,7 @@ import { useEffect, useRef, useState } from 'react'
 import { getWorkout, getWorkoutFeels } from '../db/repo.js'
 import { readDraft, writeDraft, clearDraft as dropDraft } from '../lib/draftStore.js'
 import { sk } from '../lib/progressionCard.js'
-import { phaseValue } from '../lib/workoutPhases.js'
+import { orderByPhase, phaseValue } from '../lib/workoutPhases.js'
 
 // Состав тренировки в форме и его черновик (вынесено из WorkoutScreen, аудит 14.10).
 //
@@ -30,7 +30,7 @@ import { phaseValue } from '../lib/workoutPhases.js'
 // lib/progressionCard.js).
 // phase (разминка/заминка) — тоже: без него правка тренировки снимала пометку при сохранении.
 export function toEntries(workout) {
-  return (workout?.entries ?? []).map((e) => ({
+  return orderByPhase(workout?.entries).map((e) => ({
     exercise: e.exercise ?? { id: e.exercise_id, name: '—' },
     sets: (e.sets ?? []).map((s) => ({ weight: s.weight, reps: s.reps, _k: sk() })),
     ...(phaseValue(e.phase) ? { phase: phaseValue(e.phase) } : {}),
@@ -70,7 +70,7 @@ export function startNewDraftFrom(userId, entries) {
 // Отпечаток формы для сравнения с документом: id упражнений, подходы строками, дата, оценки.
 function snapshotOf(entries, performedAt, feels) {
   return JSON.stringify({
-    e: entries.map((x) => ({ id: x.exercise?.id, s: x.sets.map((s) => [String(s.weight), String(s.reps)]) })),
+    e: entries.map((x) => ({ id: x.exercise?.id, phase: phaseValue(x.phase), s: x.sets.map((s) => [String(s.weight), String(s.reps)]) })),
     p: performedAt,
     f: feels,
   })
@@ -94,7 +94,7 @@ export function useWorkoutDraft({ userId, workoutId = null, onLoadError }) {
   const FOCUS_KEY = isNew ? k.focus : null // раскрытое упражнение (useWorkoutFocus)
   const EDIT_KEY = isNew ? null : `workout_edit_${userId}_${workoutId}`
 
-  const [entries, setEntries] = useState(() => (isNew ? readDraft(DRAFT_KEY) ?? [] : []))
+  const [entries, setEntries] = useState(() => (isNew ? orderByPhase(readDraft(DRAFT_KEY)) : []))
   // { [exerciseId]: 'easy'|'ok'|'hard' } — только за эту тренировку.
   const [feels, setFeels] = useState(() => (isNew ? readDraft(FEEL_KEY) ?? {} : {}))
   const [performedAt, setPerformedAtState] = useState(
@@ -163,7 +163,7 @@ export function useWorkoutDraft({ userId, workoutId = null, onLoadError }) {
         editOrigRef.current = { entries: loaded, performedAt: at, feels: feelsLoaded }
         const draft = readDraft(EDIT_KEY)
         if (draft && draft.base === editBaseRef.current && Array.isArray(draft.entries)) {
-          setEntries(draft.entries)
+          setEntries(orderByPhase(draft.entries))
           setPerformedAtState(draft.performedAt ?? at)
           setFeels(draft.feels ?? feelsLoaded)
           setEditRestored(true)

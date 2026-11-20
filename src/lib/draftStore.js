@@ -69,7 +69,7 @@ export function hasWorkoutDrafts(userId) {
     if (key?.startsWith(PREFIX)) keys.add(key.slice(PREFIX.length))
   }
   return [...keys].some((key) => {
-    if (key !== `workout_draft_new_${userId}` && !key.startsWith(`workout_edit_${userId}_`)) return false
+    if (key !== `workout_draft_new_${userId}` && key !== `workout_plan_${userId}` && !key.startsWith(`workout_edit_${userId}_`)) return false
     const value = memory.has(key) ? memory.get(key) : JSON.parse(s.getItem(PREFIX + key))
     return !isEmpty(value)
   })

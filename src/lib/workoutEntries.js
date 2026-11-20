@@ -15,12 +15,13 @@ import { exerciseMetric, isCountMetric, hasExtraWeight, hasLoadWeight } from './
 import { WEIGHT_MAX, repsMax, weightMin, savableSet, needsSetWeight } from './setLimits.js'
 import { templateInputPlan } from './templatePlan.js'
 import { defaultSet, sessionsForMetric, sk } from './progressionCard.js'
+import { orderByPhase, phaseValue } from './workoutPhases.js'
 
-// Добавить упражнение в конец (анти-дубль по exercise.id). Уже есть → массив без
+// Добавить упражнение в конец основной части (анти-дубль по exercise.id). Уже есть → массив без
 // изменений (по ссылке). progMeta — панель автопрогрессии (или null).
 export function appendExerciseIn(entries, ex, sets, progMeta = null) {
   if (entries.some((e) => e.exercise.id === ex.id)) return entries
-  return [...entries, { exercise: ex, sets, prog: progMeta }]
+  return orderByPhase([...entries, { exercise: ex, sets, prog: progMeta }])
 }
 
 // Убрать упражнение по индексу.
@@ -34,7 +35,7 @@ export function insertExerciseIn(entries, idx, entry) {
   if (entries.some((e) => e.exercise.id === entry.exercise.id)) return entries
   const next = entries.slice()
   next.splice(Math.min(idx, next.length), 0, entry)
-  return next
+  return orderByPhase(next)
 }
 
 // Общая замена для записи и шаблона. Килограммы и километры не переносятся
@@ -50,7 +51,7 @@ export function setsForExerciseReplacement(sets, prev, next) {
 export function replaceExerciseIn(entries, idx, ex) {
   const next = exerciseMetric(ex)
   return entries.map((e, i) => i === idx
-    ? { exercise: ex, sets: setsForExerciseReplacement(e.sets, exerciseMetric(e.exercise), next) }
+    ? { ...(phaseValue(e.phase) ? { phase: e.phase } : {}), exercise: ex, sets: setsForExerciseReplacement(e.sets, exerciseMetric(e.exercise), next) }
     : e)
 }
 

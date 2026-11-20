@@ -51,6 +51,15 @@ describe('workoutPhases', () => {
   })
 })
 
+it('в последний слот основной части перед заминкой можно перенести упражнение и оставить его там', () => {
+  const a = e('a'), b = e('b'), cooldown = e('c', 'cooldown')
+  const out = reorderWithPhase([a, b, cooldown], 'a', 'c')
+  expect(out).toEqual([b, a, cooldown])
+  expect(reorderWithPhase(out, 'a', 'c')).toBe(out)
+  const single = [e('w', 'warmup'), a, cooldown]
+  expect(reorderWithPhase(single, 'a', 'c')).toBe(single)
+})
+
 it('перетаскивание — блок по соседу: перед разминкой — в разминку, в конец — в блок последнего', () => {
   const list = [e('w', 'warmup'), e('a'), e('b'), e('c', 'cooldown')]
   const r1 = reorderWithPhase(list, 'b', 'w')

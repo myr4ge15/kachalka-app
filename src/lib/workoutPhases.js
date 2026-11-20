@@ -52,16 +52,19 @@ export function phaseHeading(entries, i) {
 }
 
 // Перетаскивание (useSortable): упражнение встает перед beforeId и переходит в блок того, рядом с кем легло
-// (перед первым разминки — в разминку; в конец — в блок последнего). Порядок блоков сохраняется.
+// На границе своего блока упражнение сохраняет фазу. Внутри другого блока принимает его фазу.
 export function reorderWithPhase(entries, id, beforeId, keyOf = (e) => e.exercise.id) {
   const list = entries ?? []
   const item = list.find((x) => keyOf(x) === id)
   if (!item || id === beforeId) return list
   const rest = list.filter((x) => x !== item)
   const to = beforeId === null ? rest.length : rest.findIndex((x) => keyOf(x) === beforeId)
-  if (to < 0) return list
-  const neighbor = rest[to] ?? rest[to - 1]
-  const value = neighbor ? phaseValue(phaseOf(neighbor)) : phaseValue(phaseOf(item))
+  if (to < 0 || list[to] === item) return list
+  const left = rest[to - 1]
+  const right = rest[to]
+  // Одно место между карточками означает и конец левого блока, и начало правого.
+  const neighbor = left && phaseOf(left) === phaseOf(item) ? left : right ?? left ?? item
+  const value = phaseValue(phaseOf(neighbor))
   let moved = item
   if (phaseOf(item) !== phaseOf({ phase: value })) {
     moved = { ...item }

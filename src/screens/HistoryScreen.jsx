@@ -19,6 +19,7 @@ import ExportBar from '../components/workout/ExportBar.jsx'
 import CheckIcon from '../components/ui/CheckIcon.jsx'
 import Icon from '../components/ui/Icon.jsx'
 import WorkoutFinishSheet from '../components/workout/WorkoutFinishSheet.jsx'
+import NextWorkoutPlan from '../components/workout/NextWorkoutPlan.jsx'
 import WorkoutCalendar from '../components/workout/WorkoutCalendar.jsx'
 import { defaultTemplateName, templateExercisesFromWorkout } from '../lib/templateFromWorkout.js'
 import { HAPTIC, vibrate } from '../lib/haptics.js'
@@ -330,6 +331,7 @@ export default function HistoryScreen({
             чтобы не дублировать. */}
 
         <div className="menu-group tpl-link">
+          {selected === null && !selectMode && <NextWorkoutPlan key={user.id} userId={user.id} onStart={openCopied} />}
           <MenuRow icon="template" title="Шаблоны" onClick={() => setSelected('templates')} />
           {!loading && list.length > 0 && (
             <MenuRow icon="download" title="Экспорт тренировок" kind="action" disabled={selectMode} onClick={toggleSelectMode} />

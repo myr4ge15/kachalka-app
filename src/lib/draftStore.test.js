@@ -9,6 +9,10 @@ beforeEach(() => {
 
 describe('draftStore', () => {
   it('переезд учитывает новые и редактируемые черновики своей учетки, включая память', () => {
+    writeDraft('workout_plan_other', ['y'])
+    writeDraft('workout_plan_u1', ['x'])
+    expect(hasWorkoutDrafts('u1')).toBe(true)
+    clearDraft('workout_plan_u1')
     writeDraft('workout_draft_new_other', ['x'])
     expect(hasWorkoutDrafts('u1')).toBe(false)
     writeDraft('workout_draft_new_u1', ['x'])

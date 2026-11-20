@@ -5,10 +5,25 @@
 // Вход и сеть — как в smoke.spec.js: офлайн, сид src/test/e2eSeed.js.
 // ============================================================================
 import { test, expect } from '@playwright/test'
-import { enterPin, tabbar, openTab, pickerItem, layoutProblems } from './helpers.js'
+import { enterPin, tabbar, openTab, pickerItem, layoutProblems, seedAndLogin, switchableOnline } from './helpers.js'
 
 const APP = '/kachalka-app/'
 const EXERCISE = 'Жим лежа (e2e)'
+
+test('офлайн-план на телефоне открывается из истории и начинает отдельную тренировку', async ({ page, context }) => {
+  await switchableOnline(context)
+  await seedAndLogin(page)
+  await openTab(page, 'Тренировки')
+  await page.getByRole('button', { name: 'Запланировать тренировку' }).click()
+  await page.getByRole('button', { name: 'Добавить упражнения' }).click()
+  await page.getByRole('checkbox', { name: EXERCISE }).check()
+  await page.getByRole('button', { name: 'Добавить · 1' }).click()
+  const plan = page.getByRole('dialog', { name: 'Запланировать тренировку' })
+  await expect(plan.getByRole('button', { name: 'Начать' })).toBeInViewport()
+  await plan.getByRole('button', { name: 'Начать' }).click()
+  await expect(page.getByRole('heading', { name: 'Новая тренировка' })).toBeVisible()
+  await expect(page.getByText(EXERCISE, { exact: true })).toBeVisible()
+})
 
 test('крупное фото вмещается лёжа, закрывается тапом и не отдаёт фокус профилю', async ({ page }) => {
   await page.setViewportSize({ width: 740, height: 360 })

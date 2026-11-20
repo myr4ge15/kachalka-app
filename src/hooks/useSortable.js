@@ -108,12 +108,6 @@ export function useSortable(onMove, { attr, handle, holdMs = 0, onLift, onDrop, 
       const d = list.findIndex(el => idOf(el) === g.id)
       if (d < 0) { clear(); reset(); return }
       g.scroller = scrollerOf()
-      g.scrollCue = document.createElement('div')
-      g.scrollCue.className = 'sort-scroll-cue'
-      g.scrollCue.hidden = true
-      g.scrollCue.setAttribute('aria-hidden', 'true')
-      g.scrollCue.textContent = 'Прокрутка вниз'
-      document.body.append(g.scrollCue)
       g.startScroll = g.lastScroll = scrollTop()
       // Раскладка в координатах содержимого скроллера: переживает автопрокрутку.
       g.list = list
@@ -193,20 +187,12 @@ export function useSortable(onMove, { attr, handle, holdMs = 0, onLift, onDrop, 
       // Над корзиной (она у нижнего края) список не листаем — иначе он уезжал бы, пока палец ждет.
       if (sc) {
         const r = sc === document.scrollingElement
-          ? { top: 0, bottom: window.innerHeight, left: 0, width: window.innerWidth }
+          ? { top: 0, bottom: window.innerHeight }
           : sc.getBoundingClientRect()
         const depth = Math.min(BOTTOM_SCROLL_ZONE, (r.bottom - r.top) / 3)
         const threshold = r.bottom - depth
         const canScrollDown = depth > 0 && sc.scrollHeight - sc.clientHeight - sc.scrollTop > 1
         const down = canScrollDown && g.moved && !g.hot && g.y >= threshold
-        const cue = g.scrollCue
-        cue.hidden = !canScrollDown || g.hot
-        if (!cue.hidden) {
-          cue.style.top = threshold + 'px'
-          cue.style.left = r.left + 'px'
-          cue.style.width = r.width + 'px'
-          cue.classList.toggle('active', down)
-        }
         if (g.moved && !g.hot) {
           const up = Math.min(1, Math.max(0, (r.top + 64 - g.y) / 64))
           const speed = down ? 0.38 + 1.12 * Math.min(1, (g.y - threshold) / depth) : -0.48 * up
@@ -222,7 +208,6 @@ export function useSortable(onMove, { attr, handle, holdMs = 0, onLift, onDrop, 
     function clear() {
       root.classList.remove('sort-active')
       hideTrash()
-      g?.scrollCue?.remove()
       root.classList.remove('sort-with-chip')
       if (g?.reserved) g.reserved.container.style.minHeight = g.reserved.minHeight
       g?.chip?.remove()

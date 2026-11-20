@@ -14,6 +14,14 @@ const s = (weight, reps, _k = 'k') => ({ weight, reps, _k })
 const entry = (ex, sets, prog) => ({ exercise: ex, sets, ...(prog !== undefined ? { prog } : {}) })
 
 describe('appendExerciseIn', () => {
+  it('после шаблона добавляет упражнения перед заминкой и сохраняет порядок при замене и отмене удаления', () => {
+    const cooldown = { ...entry(tEx(), [s(0, 30)]), phase: 'cooldown' }
+    const main = entry(wEx('a'), [s(60, 5)])
+    const out = appendExerciseIn([main, cooldown], wEx('b'), [s(20, 8)])
+    expect(out.map(e => e.exercise.id)).toEqual(['a', 'b', cooldown.exercise.id])
+    expect(insertExerciseIn([cooldown], 2, main)).toEqual([main, cooldown])
+    expect(replaceExerciseIn(out, 2, tEx('c'))[2].phase).toBe('cooldown')
+  })
   it('добавляет новое упражнение с панелью прогрессии', () => {
     const meta = { kind: 'up' }
     const out = appendExerciseIn([], wEx(), [s(60, 10)], meta)

@@ -67,6 +67,7 @@ describe('techniqueSlugFor — привязка к упражнению ката
   it('общее упражнение — по точному названию', () => {
     expect(techniqueSlugFor({ name: 'Жим лежа со штангой', is_custom: false })).toBe('bench-press')
     expect(techniqueSlugFor({ name: '  Жим ногами ' })).toBe('leg-press')
+    expect(techniqueSlugFor({ name: 'Балансборд', is_custom: false })).toBe('balance-board')
   })
 
   it('свое, скрытое и похожее по названию — без подсказки', () => {

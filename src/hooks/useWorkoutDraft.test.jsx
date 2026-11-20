@@ -20,6 +20,13 @@ const KEYS = ['workout_focus_new_u1', 'workout_draft_new_u1', 'workout_feel_new_
 afterEach(() => { for (const k of KEYS) clearDraft(k); vi.mocked(getWorkout).mockReset(); vi.useRealTimers() })
 
 describe('useWorkoutDraft — новая тренировка', () => {
+  it('возвращает основную часть перед заминкой в черновике старой версии', () => {
+    const cooldown = { exercise: { id: 'run' }, sets: [], phase: 'cooldown' }
+    const main = { exercise: BENCH, sets: [{ weight: 60, reps: 5 }] }
+    writeDraft('workout_draft_new_u1', [cooldown, main])
+    const { result } = renderHook(() => useWorkoutDraft({ userId: U }))
+    expect(result.current.entries).toEqual([main, cooldown])
+  })
   it('состав, оценки и выбранная дата ложатся в черновик и поднимаются заново', () => {
     const { result, unmount } = renderHook(() => useWorkoutDraft({ userId: U }))
     expect(result.current.loading).toBe(false)
@@ -128,6 +135,17 @@ describe('useWorkoutDraft — правка существующей', () => {
     expect(readDraft('workout_edit_u1_w1')).toBeUndefined()
   })
 
+  it('перенос в другой блок переживает закрытие и повторное открытие правки', async () => {
+    vi.mocked(getWorkout).mockResolvedValue(doc)
+    const first = renderHook(() => useWorkoutDraft({ userId: U, workoutId: 'w1' }))
+    await waitFor(() => expect(first.result.current.loading).toBe(false))
+    act(() => first.result.current.setEntries(([entry]) => [{ ...entry, phase: 'cooldown' }]))
+    first.unmount()
+    const again = renderHook(() => useWorkoutDraft({ userId: U, workoutId: 'w1' }))
+    await waitFor(() => expect(again.result.current.editRestored).toBe(true))
+    expect(again.result.current.entries[0]).toMatchObject({ phase: 'cooldown', exercise: BENCH })
+  })
+
   it('черновик от прежней версии документа не накатывается', async () => {
     vi.mocked(getWorkout).mockResolvedValue({ ...doc, updated_at: 'v2' })
     const { result } = renderHook(() => useWorkoutDraft({ userId: U, workoutId: 'w1' }))
@@ -179,7 +197,7 @@ describe('«Копировать тренировку» (26.10.2026)', () => {
   })
   it('toEntries сохраняет разминку/заминку — правка тренировки не снимает пометку', () => {
     const e = toEntries({ entries: [{ exercise: BENCH, sets: [{ weight: 1, reps: 2 }], phase: 'cooldown' }, { exercise: BENCH, sets: [], phase: 'x' }] })
-    expect(e[0].phase).toBe('cooldown')
-    expect('phase' in e[1]).toBe(false)
+    expect(e[1]).toMatchObject({ phase: 'cooldown', sets: [{ weight: 1, reps: 2 }] })
+    expect('phase' in e[0]).toBe(false)
   })
 })

@@ -1,7 +1,7 @@
 import { Fragment, useState, useEffect, useRef } from 'react'
 import { useRevealFocus } from '../../hooks/useRevealFocus.js'
 import { useSortable } from '../../hooks/useSortable.js'
-import { PHASES, PHASE_MOVE_LABEL, phaseHeading, phaseOf, phaseValue, reorderWithPhase, setEntryPhase } from '../../lib/workoutPhases.js'
+import { PHASES, PHASE_MOVE_LABEL, orderByPhase, phaseHeading, phaseOf, phaseValue, reorderWithPhase, setEntryPhase } from '../../lib/workoutPhases.js'
 import MoreMenu from '../ui/MoreMenu.jsx'
 import { useLiveQuery } from 'dexie-react-hooks'
 import { getExercises, getTemplate, saveTemplate, deleteTemplate, createExercise, getFavorites, toggleFavorite } from '../../db/repo.js'
@@ -96,7 +96,7 @@ export default function TemplateEditor({ user, templateId, onBack, backGuardRef 
     getTemplate(templateId).then((t) => {
       if (!alive) return
       if (t) {
-        const loaded = toItems(t)
+        const loaded = orderByPhase(toItems(t))
         setName(t.name ?? '')
         setItems(loaded)
         setIsPublic(Boolean(t.is_public))
@@ -124,7 +124,7 @@ export default function TemplateEditor({ user, templateId, onBack, backGuardRef 
       return
     }
     setMessage((m) => (m?.transient ? null : m))
-    setItems([...items, newItem(ex)])
+    setItems(orderByPhase([...items, newItem(ex)]))
     setAdded({ id: ex.id })
   }
 
@@ -168,7 +168,7 @@ export default function TemplateEditor({ user, templateId, onBack, backGuardRef 
     setMessage((m) => (skipped
       ? { type: 'error', text: skipped === list.length ? 'Эти упражнения уже в шаблоне' : `Уже были в шаблоне: ${skipped}`, transient: true }
       : m?.transient ? null : m))
-    setItems((prev) => [...prev, ...fresh.filter((ex) => !prev.some((it) => it.exercise.id === ex.id)).map(newItem)])
+    setItems((prev) => orderByPhase([...prev, ...fresh.filter((ex) => !prev.some((it) => it.exercise.id === ex.id)).map(newItem)]))
   }
 
   // «Убрать» стирает и построчный план упражнения — даем окно отмены, как в тренировке (UI-ревью 23.10).
@@ -183,7 +183,7 @@ export default function TemplateEditor({ user, templateId, onBack, backGuardRef 
       actionLabel: 'Отменить', duration: 4000,
       onAction: () => setItems((prev) => (prev.some((it) => it.exercise.id === removed.exercise.id)
         ? prev
-        : [...prev.slice(0, idx), removed, ...prev.slice(idx)])),
+        : orderByPhase([...prev.slice(0, idx), removed, ...prev.slice(idx)]))),
     })
   }
 

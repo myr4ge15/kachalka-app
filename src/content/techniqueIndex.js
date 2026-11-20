@@ -15,6 +15,7 @@
 // ============================================================================
 
 export const TECHNIQUE_INDEX = [
+  { slug: 'balance-board', names: ['Балансборд'] },
   { slug: 'bench-press', names: ['Жим лежа со штангой'] },
   { slug: 'dumbbell-bench-press', names: ['Жим гантелей лежа'] },
   { slug: 'back-squat', names: ['Приседания со штангой'] },
