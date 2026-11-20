@@ -1,6 +1,6 @@
 // @vitest-environment jsdom
 import { beforeEach, expect, it, vi } from 'vitest'
-import { fireEvent, render, screen } from '@testing-library/react'
+import { fireEvent, render, screen, within } from '@testing-library/react'
 import NextWorkoutPlan from './NextWorkoutPlan.jsx'
 import { readDraft, resetDraftMemory, writeDraft } from '../../lib/draftStore.js'
 
@@ -45,9 +45,22 @@ it('показывает избранные, недавние, частые уп
   click('Запланировать тренировку')
   click('Добавить упражнения')
   for (const section of ['Избранные', 'Недавние', 'Частые']) expect(screen.getByText(section)).toBeInTheDocument()
-  click('Убрать из избранного')
-  expect(star).toHaveBeenCalledWith('me', 'press')
+  expect(screen.queryByRole('button', { name: /избранное|избранного/i })).toBeNull()
+  fireEvent.click(screen.getByRole('img', { name: 'В избранном' }))
+  expect(screen.queryByRole('img', { name: 'Не в избранном' })).toBeNull()
+  expect(screen.getByRole('checkbox', { name: 'Жим', exact: true }).closest('.picker-row')).toBeNull()
+  expect(star).not.toHaveBeenCalled()
+  expect(screen.queryByRole('checkbox', { checked: true })).toBeNull()
   expect(screen.getByRole('button', { name: 'Как выполнять: Жим Арнольда' })).toBeInTheDocument()
+  const picker = screen.getByRole('dialog', { name: 'Упражнения для плана' })
+  const exercise = within(picker).getByRole('checkbox', { name: 'Жим Арнольда' })
+  fireEvent.click(exercise)
+  fireEvent.click(exercise)
+  expect(exercise).not.toBeChecked()
+  fireEvent.click(within(picker).getByRole('button', { name: 'закрыть' }))
+  const plan = screen.getByRole('dialog', { name: 'Запланировать тренировку' })
+  fireEvent.click(within(plan).getByRole('button', { name: 'закрыть' }))
+  expect(readDraft('workout_plan_me')).toBeUndefined()
 })
 
 it('возврат к начатой тренировке сохраняет и план, и текущие подходы', () => {

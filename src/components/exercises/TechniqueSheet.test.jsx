@@ -100,15 +100,15 @@ describe('TechniqueSheet', () => {
 
   it('жим Арнольда показывает обе позы из справочника Everkinetic', async () => {
     render(<TechniqueSheet slug="arnold-press" name="Жим Арнольда" onClose={vi.fn()} />)
-    for (const [i, pose] of ['Гантели у плеч', 'Гантели над головой'].entries()) {
+    for (const [pose, file] of [['Гантели у плеч', 'arnold-press-1-aligned.png'], ['Гантели над головой', 'arnold-press-2.png']]) {
       fireEvent.click(await screen.findByRole('button', { name: pose }))
-      expect(screen.getByAltText('Жим Арнольда: ' + pose)).toHaveAttribute('src', expect.stringContaining(`arnold-press-${i + 1}.png`))
+      expect(screen.getByAltText('Жим Арнольда: ' + pose)).toHaveAttribute('src', expect.stringContaining(file))
     }
     expect(screen.getByRole('link', { name: 'CC BY-SA 4.0' })).toHaveAttribute('href', 'https://creativecommons.org/licenses/by-sa/4.0/')
   })
 
   it('без кадров — только текст и без строки об источниках рисунков', async () => {
-    render(<TechniqueSheet slug="lat-pulldown" name="Тяга верхнего блока" onClose={vi.fn()} />)
+    render(<TechniqueSheet slug="balance-board" name="Балансборд" onClose={vi.fn()} />)
     expect(await screen.findByText('Частые ошибки')).toBeInTheDocument()
     expect(screen.queryByRole('img')).toBeNull()
     expect(screen.queryByText('Источники рисунков')).toBeNull()

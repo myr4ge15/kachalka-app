@@ -10,6 +10,18 @@
 // ============================================================================
 
 export const TECHNIQUE_INDEX = [
+  { slug: 'seated-dumbbell-press', ids: ['b65d8e0e-ac68-4e0c-8cb1-9d05dcaee92a'], names: ['Жим гантелей сидя'] },
+  { slug: 'machine-shoulder-press', ids: ['0840af99-b4af-4a73-8ebd-8c856c4da040'], names: ['Жим плечами в тренажере', 'Жим плечами в тренажере (Shoulder Press)'] },
+  { slug: 'standing-barbell-press', ids: ['b18e2f66-dcdb-4a77-9aa4-fa392e9764ee'], names: ['Жим штанги стоя'] },
+  { slug: 'floor-glute-bridge', ids: ['1ab645b4-6a43-48c4-ad49-3ef9444219e7'], names: ['Ягодичный мостик на полу'] },
+  { slug: 'bulgarian-split-squat', ids: ['5aa0bcd4-45a7-4eaf-bb24-36cad614e380'], names: ['Болгарские выпады'] },
+  { slug: 'plie-squat', ids: ['2d573df5-9581-4cba-97bf-8ee067290f75'], names: ['Приседания плие'] },
+  { slug: 'seated-overhead-extension', ids: ['9dbc68fc-8f2e-4961-99cb-eed1ddf5a5e6'], names: ['Жим гантелей из-за головы на трицепс сидя'] },
+  { slug: 'face-pull', ids: ['e1e41231-e8e8-45e6-b876-7eb14e4a603d'], names: ['Тяга к лицу'] },
+  { slug: 'hanging-leg-raise', ids: ['5e6263fd-346a-4ab7-9d09-ca57bbdccb66'], names: ['Подъем ног в висе'] },
+  { slug: 'side-lying-leg-raise', ids: ['f44f0168-1913-4a8e-8f60-86a6fc0dde9e'], names: ['Махи прямой ногой в сторону лежа на боку'] },
+  { slug: 'standing-hip-abduction', ids: ['f7cf98d0-a813-4a1b-ae03-a14dcb1a9d0b'], names: ['Отведение ноги в сторону'] },
+  { slug: 'one-arm-dumbbell-row', ids: ['b3521b45-2339-4ac5-8309-b4073585e032'], names: ['Тяга гантели одной рукой'] },
   { slug: 'balance-board', ids: ['ec04bddb-78c2-4bf3-8483-4e864fbf6d16'], names: ['Балансборд'] },
   { slug: 'bench-press', ids: ['82180eee-db4e-448d-9a46-52a717972c25'], names: ['Жим лежа со штангой'] },
   { slug: 'dumbbell-bench-press', ids: ['f3e89ec0-64e9-468c-8af7-b21dc894563c'], names: ['Жим гантелей лежа'] },

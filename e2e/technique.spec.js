@@ -1,6 +1,32 @@
 import { test, expect } from '@playwright/test'
 import { enterPin } from './helpers.js'
 
+test('в жиме Арнольда стопы остаются на месте при смене кадров', async ({ page }) => {
+  await page.goto('/kachalka-app/')
+  const drift = await page.evaluate(async () => {
+    const { TECHNIQUE } = await import('/kachalka-app/src/content/technique.js')
+    const bottoms = await Promise.all(TECHNIQUE['arnold-press'].frames.map(async ({ file }) => {
+      const image = new Image()
+      image.src = '/kachalka-app/technique/' + file
+      await image.decode()
+      // Тот же contain, что в сцене высотой 240 px с полями по 8 px.
+      const canvas = document.createElement('canvas')
+      canvas.width = 224
+      canvas.height = 224
+      const ctx = canvas.getContext('2d')
+      const width = image.naturalWidth * canvas.height / image.naturalHeight
+      ctx.drawImage(image, (canvas.width - width) / 2, 0, width, canvas.height)
+      const { data } = ctx.getImageData(0, 0, canvas.width, canvas.height)
+      for (let pixel = canvas.width * canvas.height - 1; pixel >= 0; pixel--) {
+        if (data[pixel * 4 + 3] > 200 && data[pixel * 4] < 128) return Math.floor(pixel / canvas.width)
+      }
+      throw new Error('В кадре нет контура фигуры')
+    }))
+    return Math.abs(bottoms[0] - bottoms[1])
+  })
+  expect(drift).toBeLessThanOrEqual(1)
+})
+
 // Подсказка «Как выполнять» (v8.0.0): открывается из карточки и из пикера, ничего
 // не меняет в тренировке, закрывается без потери введенного и места в пикере.
 test('подсказка по технике: карточка и пикер, данные тренировки не меняются', async ({ page, context }) => {

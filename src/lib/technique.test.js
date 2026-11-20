@@ -91,8 +91,9 @@ describe('techniqueSlugFor — привязка к упражнению ката
     expect(techniqueSlugFor({ name: 'Жим лежа со штангой', is_custom: true })).toBeNull()
     expect(techniqueSlugFor({ name: 'Жим лежа со штангой', is_hidden: true })).toBeNull()
     // Другой вариант упражнения — не та же демонстрация (нечеткого сравнения нет).
-    expect(techniqueSlugFor({ name: 'Жим гантелей сидя' })).toBeNull()
-    expect(techniqueSlugFor({ name: 'Ягодичный мостик на полу' })).toBeNull()
+    expect(techniqueSlugFor({ name: 'Отведение ноги в сторону в кроссовере' })).toBeNull()
+    expect(techniqueSlugFor({ name: 'Ягодичный мостик на одной ноге' })).toBeNull()
+    expect(techniqueSlugFor({ name: 'Тяга гантели одной рукой' })).toBe('one-arm-dumbbell-row')
     // Сгибание ног — подсказки только у «лежа»/«сидя» (до разделения упражнения — без нее).
     expect(techniqueSlugFor({ name: 'Сгибание ног в тренажере' })).toBeNull()
     expect(techniqueSlugFor({ name: 'Сгибание ног лежа в тренажере' })).toBe('lying-leg-curl')

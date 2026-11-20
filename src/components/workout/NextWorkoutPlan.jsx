@@ -1,6 +1,6 @@
 import { useMemo, useState } from 'react'
 import { useLiveQuery } from 'dexie-react-hooks'
-import { getExercises, getFavorites, toggleFavorite } from '../../db/repo.js'
+import { getExercises, getFavorites } from '../../db/repo.js'
 import { hasNewDraft, startNewDraftFrom } from '../../hooks/useWorkoutDraft.js'
 import { readDraft, writeDraft } from '../../lib/draftStore.js'
 import { defaultSet } from '../../lib/progressionCard.js'
@@ -64,7 +64,7 @@ export default function NextWorkoutPlan({ userId, workouts, onStart }) {
       </>}
     </SheetDialog>}
     {picking && <ExercisePicker exercises={exercises} title="Упражнения для плана" selectMany
-      usage={usage} favorites={favorites} onToggleFavorite={id => toggleFavorite(userId, id)}
+      usage={usage} favorites={favorites}
       techniqueSlugOf={techniqueSlugFor} techniqueAtName
       onPick={ex => add([ex])} onPickMany={add} onClose={() => setPicking(false)} />}
   </>

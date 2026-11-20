@@ -22,8 +22,8 @@ const BASE_GROUPS = ['грудь', 'спина', 'ноги', 'плечи', 'би
 // сразу добавляется в тренировку.
 //
 // Избранные (v6.5.0): favorites — массив id (свежие сверху), onToggleFavorite(id)
-// — переключить звезду. Без onToggleFavorite звезд нет (пикер остается простым
-// списком). Звезда — ОТДЕЛЬНАЯ кнопка рядом со строкой, а не внутри нее: вложенные
+// — переключить звезду. Один favorites отмечает только избранные упражнения.
+// Интерактивная звезда — отдельная кнопка рядом со строкой: вложенные
 // кнопки невалидны, и тап по звезде не должен добавлять упражнение.
 //
 // Подсказки по технике (v8.0.0): techniqueSlugOf(ex) → slug или null. Без него
@@ -33,7 +33,7 @@ const BASE_GROUPS = ['грудь', 'спина', 'ноги', 'плечи', 'би
 export default function ExercisePicker({
   exercises,
   usage = { recent: [], frequent: [] },
-  favorites = [],
+  favorites,
   onToggleFavorite,
   techniqueSlugOf,
   techniqueAtName = false,
@@ -217,27 +217,29 @@ export default function ExercisePicker({
     const info = inline || !techniqueSlugOf ? null : slug ? (
       <TechniqueButton name={e.name} onClick={() => setTechnique({ slug, name: e.name })} />
     ) : <span className="technique-slot" aria-hidden="true" />
-    if (!onToggleFavorite) {
+    const on = favSet.has(String(e.id))
+    if (!on && !onToggleFavorite) {
       if (!info) return <Fragment key={keyPrefix + e.id}>{item}</Fragment>
       return <div key={keyPrefix + e.id} className="picker-row">{info}{item}</div>
     }
-    const on = favSet.has(String(e.id))
+    const star = <svg viewBox="0 0 24 24" width="20" height="20" aria-hidden="true"
+      fill={on ? 'currentColor' : 'none'} stroke="currentColor" strokeWidth="2"
+      strokeLinejoin="round"><path d="M12 3.5l2.6 5.3 5.9.9-4.3 4.1 1 5.8L12 16.9l-5.2 2.7 1-5.8-4.3-4.1 5.9-.9z" /></svg>
+    const starClass = 'picker-star' + (on ? ' on' : '')
     return (
       <div key={keyPrefix + e.id} className="picker-row">
         {info}
         {item}
-        <button
+        {onToggleFavorite ? <button
           type="button"
-          className={'picker-star' + (on ? ' on' : '')}
+          className={starClass}
           aria-pressed={on}
           aria-label={on ? 'Убрать из избранного' : 'В избранное'}
           title={on ? 'Убрать из избранного' : 'В избранное'}
           onClick={() => (onStar ? onStar() : onToggleFavorite(e.id))}
         >
-          <svg viewBox="0 0 24 24" width="20" height="20" aria-hidden="true"
-            fill={on ? 'currentColor' : 'none'} stroke="currentColor" strokeWidth="2"
-            strokeLinejoin="round"><path d="M12 3.5l2.6 5.3 5.9.9-4.3 4.1 1 5.8L12 16.9l-5.2 2.7 1-5.8-4.3-4.1 5.9-.9z" /></svg>
-        </button>
+          {star}
+        </button> : <span className={starClass} role="img" aria-label="В избранном">{star}</span>}
       </div>
     )
   }

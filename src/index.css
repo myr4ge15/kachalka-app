@@ -1485,12 +1485,13 @@ label.picker-item--muscles > span, .picker-item--inline-technique > span { grid-
 .picker-row > .picker-item { flex: 1; min-width: 0; border-bottom: 0; }
 .picker-star {
   flex: none; width: 44px; display: grid; place-items: center;
-  background: none; border: 0; padding: 0; color: var(--muted); cursor: pointer;
+  background: none; border: 0; padding: 0; color: var(--muted);
 }
+button.picker-star { cursor: pointer; }
 .picker-star.on { color: var(--acc); }
 .picker-row > .technique-btn, .picker-row > .technique-slot { flex: none; align-self: stretch; width: 40px; height: auto; margin-right: -4px; }
 .picker-row > .technique-btn + .picker-item, .picker-row > .technique-slot + .picker-item { padding-left: 0; }
-.picker-star:active { background: var(--surface); }
+button.picker-star:active { background: var(--surface); }
 /* Строка каталога, которую нельзя править (чужое упражнение): та же геометрия,
    но не кнопка — приглушаем, чтобы отсутствие реакции на тап было ожидаемым. */
 .picker-item.is-static { width: 100%; opacity: .6; cursor: default; }
