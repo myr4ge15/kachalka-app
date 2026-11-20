@@ -1,11 +1,8 @@
-import PhaseTag from '../workout/PhaseTag.jsx'
 import MuscleTags from '../workout/MuscleTags.jsx'
 import { useEffect, useState } from 'react'
 import { useRevealFocus } from '../../hooks/useRevealFocus.js'
 import { useLiveQuery } from 'dexie-react-hooks'
 import { getTemplates } from '../../db/repo.js'
-import { exerciseMetric, templateSetChips } from '../../lib/metric.js'
-import { pluralize } from '../../lib/plural.js'
 import { exportTemplates } from '../../lib/exportTemplate.js'
 import { useExportSelection } from '../../hooks/useExportSelection.js'
 import CardsSkeleton from '../ui/CardsSkeleton.jsx'
@@ -14,74 +11,24 @@ import BackButton from '../ui/BackButton.jsx'
 import Chevron from '../ui/Chevron.jsx'
 import CheckIcon from '../ui/CheckIcon.jsx'
 import ScrollTopButton from '../ui/ScrollTopButton.jsx'
-import Icon from '../ui/Icon.jsx'
 
 // Список шаблонов: «Мои» и «Общие» сворачиваемыми группами, экспорт выбранных в JSON
 // (вынесено из screens/TemplatesScreen.jsx, аудит 14.10). Открытие — onOpen(id | 'new').
 
-// Карточка шаблона в списке. mine → бейдж 🌐 у видимых всем; чужой → пометка автора.
-// В режиме экспорта (selectMode) тап переключает галочку вместо открытия.
-// Чужой шаблон не открывается (16.10, fb_150a4d25): карточка и так показывает весь
-// состав с целями, а внутри был тот же список только для чтения.
-function TemplateCard({ t, mine, onOpen, selectMode = false, picked = false, onPick }) {
-  const exs = t.exercises ?? []
-  const tappable = mine || selectMode
-  const Tag = tappable ? 'button' : 'div'
+function TemplateCard({ t, onOpen, selectMode = false, picked = false, onPick }) {
   return (
-    <Tag
-      className={
-        'card history-card tpl-card' + (tappable ? ' history-tap' : '') + (selectMode && picked ? ' picked' : '')
-      }
-      onClick={tappable ? () => (selectMode ? onPick?.(t.id) : onOpen(t.id)) : undefined}
-    >
-      <div className="history-head">
-        <div>
-          <div className="history-date">
-            {t.name}
-            {mine && Boolean(t.is_public) && (
-              <span className="tpl-badge" title="Виден всем"><Icon name="globe" size={12} /> виден всем</span>
-            )}
-            {Boolean(t._dirty) && (
-              <span className="dot-unsynced" title="Ждет синхронизации">●</span>
-            )}
-          </div>
-          <div className="muted history-sub">
-            {exs.length} упр.
-            {!mine && t.author_name && <span className="tpl-author"> · от {t.author_name}</span>}
-          </div>
-        </div>
+    <button type="button" className={'card history-card tpl-card history-tap' + (selectMode && picked ? ' picked' : '')}
+      onClick={() => selectMode ? onPick(t.id) : onOpen(t.id)}>
+      <span className="history-head">
+        <span className="history-date">{t.name}</span>
         {selectMode ? (
           <span className={'history-check' + (picked ? ' on' : '')} aria-hidden="true">
             {picked && <CheckIcon size={16} strokeWidth={3} />}
           </span>
-        ) : mine ? (
-          <Chevron className="history-chevron" />
-        ) : null}
-      </div>
-
-      <MuscleTags entries={exs} />
-
-      {/* Состав (v1.4.4 э2, fb_966c7e2b): название на всю ширину, справа число подходов, под ним
-          подходы таблетками — вместо серой строки «60×10 · 70×8 · …» в правой половине. */}
-      <ul className="history-list">
-        {exs.map((e, i) => {
-          const { count, chips } = templateSetChips(exerciseMetric(e.exercise), e)
-          return (
-            <li key={i} className="tpl-li">
-              <div className="tpl-li-head">
-                <span className="tpl-li-name"><PhaseTag entry={e} />{e.exercise?.name ?? '—'}</span>
-                {count > 0 && <span className="tpl-li-count">{pluralize(count, 'подход', 'подхода', 'подходов')}</span>}
-              </div>
-              {chips.length > 0 && (
-                <div className="tpl-li-sets">
-                  {chips.map((c, k) => <span key={k} className="tpl-set">{c}</span>)}
-                </div>
-              )}
-            </li>
-          )
-        })}
-      </ul>
-    </Tag>
+        ) : <Chevron className="history-chevron" />}
+      </span>
+      <MuscleTags entries={t.exercises ?? []} />
+    </button>
   )
 }
 
@@ -134,11 +81,10 @@ export default function TemplateList({ user, onBack, onOpen, onSelectModeChange 
     return () => onSelectModeChange?.(false)
   }, [selectMode, onSelectModeChange])
 
-  const renderCard = (t, isMine) => (
+  const renderCard = (t) => (
     <TemplateCard
       key={t.id}
       t={t}
-      mine={isMine}
       onOpen={onOpen}
       selectMode={selectMode}
       picked={picked.has(t.id)}
@@ -184,7 +130,7 @@ export default function TemplateList({ user, onBack, onOpen, onSelectModeChange 
             btnRef={revealGroup?.key === 'mine' ? groupRevealRef : null} />
           {/* В режиме «Скачать» карточки видны и в свернутой группе: иначе выбирать не из чего
               (UI-ревью 23.10). */}
-          {(mineOpen || selectMode) && mine.map((t) => renderCard(t, true))}
+          {(mineOpen || selectMode) && mine.map(renderCard)}
         </>
       )}
 
@@ -192,7 +138,7 @@ export default function TemplateList({ user, onBack, onOpen, onSelectModeChange 
         <>
           <GroupHeader title="Общие шаблоны" count={shared.length} open={sharedOpen} onToggle={toggleShared}
             btnRef={revealGroup?.key === 'shared' ? groupRevealRef : null} />
-          {(sharedOpen || selectMode) && shared.map((t) => renderCard(t, false))}
+          {(sharedOpen || selectMode) && shared.map(renderCard)}
         </>
       )}
 

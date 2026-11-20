@@ -4,16 +4,18 @@
 
 import { TECHNIQUE_INDEX } from '../content/techniqueIndex.js'
 
+const SLUG_BY_ID = new Map()
 const SLUG_BY_NAME = new Map()
-for (const { slug, names } of TECHNIQUE_INDEX) {
+for (const { slug, ids, names } of TECHNIQUE_INDEX) {
+  for (const id of ids) SLUG_BY_ID.set(id, slug)
   for (const name of names) SLUG_BY_NAME.set(name, slug)
 }
 
 // Slug подсказки для упражнения каталога или null. Только общие (не свои) и не
-// скрытые упражнения; название сравнивается целиком, без нечеткого поиска.
+// скрытые упражнения. Для неизвестного ID сравниваем полное название.
 export function techniqueSlugFor(exercise) {
   if (!exercise || exercise.is_custom || exercise.is_hidden) return null
-  return SLUG_BY_NAME.get(String(exercise.name ?? '').trim()) ?? null
+  return SLUG_BY_ID.get(exercise.id) ?? SLUG_BY_NAME.get(String(exercise.name ?? '').trim()) ?? null
 }
 
 // Адрес кадра из public/technique относительно base сборки.

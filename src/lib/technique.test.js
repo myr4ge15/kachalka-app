@@ -64,6 +64,18 @@ describe('справочник техники — целостность', () =>
 })
 
 describe('techniqueSlugFor — привязка к упражнению каталога', () => {
+  it('переименование сохраняет подсказку у каждого известного ID', () => {
+    const ids = TECHNIQUE_INDEX.flatMap(entry => entry.ids)
+    expect(new Set(ids).size).toBe(ids.length)
+    for (const { ids, slug } of TECHNIQUE_INDEX) {
+      expect(ids.length).toBeGreaterThan(0)
+      for (const id of ids) {
+        expect(techniqueSlugFor({ id, name: 'Новое имя' })).toBe(slug)
+        expect(techniqueSlugFor({ id, is_hidden: true })).toBeNull()
+      }
+    }
+  })
+
   it('общее упражнение — по точному названию', () => {
     expect(techniqueSlugFor({ name: 'Жим лежа со штангой', is_custom: false })).toBe('bench-press')
     expect(techniqueSlugFor({ name: '  Жим ногами ' })).toBe('leg-press')

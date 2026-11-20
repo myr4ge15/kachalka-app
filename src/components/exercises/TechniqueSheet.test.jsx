@@ -4,7 +4,7 @@
 // reduced-motion, сбой загрузки кадра и остановка смены после закрытия.
 import { describe, it, expect, vi, afterEach } from 'vitest'
 import { render, screen, fireEvent, act } from '@testing-library/react'
-import TechniqueSheet from './TechniqueSheet.jsx'
+import TechniqueSheet, { ExerciseTechnique } from './TechniqueSheet.jsx'
 
 // Свайп листа — только iOS «на экране Домой»; в jsdom включаем подменой.
 const swipeEnv = vi.hoisted(() => ({ on: false }))
@@ -24,6 +24,17 @@ afterEach(() => {
 })
 
 describe('TechniqueSheet', () => {
+  it('значок в списке открывает и закрывает карточку, у личного упражнения его нет', async () => {
+    const exercise = { name: 'Балансборд' }
+    const view = render(<ExerciseTechnique exercise={exercise} />)
+    fireEvent.click(screen.getByRole('button', { name: 'Как выполнять: Балансборд' }))
+    expect(await screen.findByText('Как выполнять')).toBeInTheDocument()
+    fireEvent.click(screen.getByRole('button', { name: 'закрыть' }))
+    expect(screen.queryByRole('dialog')).toBeNull()
+    view.rerender(<ExerciseTechnique exercise={{ ...exercise, is_custom: true }} />)
+    expect(screen.queryByRole('button')).toBeNull()
+  })
+
   it('показывает разделы по порядку и источник рисунков', async () => {
     render(<TechniqueSheet slug="bench-press" name="Жим лежа со штангой" onClose={vi.fn()} />)
     expect(await screen.findByText('Как выполнять')).toBeInTheDocument()

@@ -28,8 +28,11 @@ export function voiceCandidates(text, exercises) {
   if (!phrase) return []
   const aliases = VOICE_ALIASES.filter((entry) => entry.aliases.includes(phrase))
   const named = new Set(aliases.flatMap((entry) => entry.names.map(normalizeName)))
+  const matches = exercises.filter((ex) => normalizeName(ex.name) === phrase)
+  // Одно написание может отличаться от другого только дефисом.
   const exact = [
-    ...exercises.filter((ex) => normalizeName(ex.name) === phrase),
+    ...matches.filter(ex => ex.name === text),
+    ...matches.filter(ex => ex.name !== text),
     ...exercises.filter((ex) => normalizeName(ex.name) !== phrase && named.has(normalizeName(ex.name))),
   ]
   // An alias never creates an exercise or silently substitutes a missing variant.

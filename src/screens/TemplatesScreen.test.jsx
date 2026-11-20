@@ -1,6 +1,6 @@
 // @vitest-environment jsdom
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
-import { act, fireEvent, render, screen, waitFor, within } from '@testing-library/react'
+import { act, fireEvent, render, screen, waitFor } from '@testing-library/react'
 import TemplatesScreen from './TemplatesScreen.jsx'
 import Toast from '../components/ui/Toast.jsx'
 import { deleteTemplate, getTemplate, saveTemplate } from '../db/repo.js'
@@ -94,21 +94,14 @@ describe('TemplatesScreen — список', () => {
     expect(screen.getByRole('button', { name: /Общие/ })).toHaveAttribute('aria-expanded', 'false')
   })
 
-  it('карточки: свой общий — 🌐 и «ждет синка», чужой — автор; план упражнения', () => {
+  it('карточки своих и общих шаблонов показывают только название и мышцы', () => {
     mocks.templates = [MY_TPL, THEIR_TPL]
     expand = true
     renderScreen()
-    const mine = screen.getByText('Грудь').closest('button')
-    expect(mine).toHaveTextContent('виден всем')
-    expect(within(mine).getByTitle('Ждет синхронизации')).toBeInTheDocument()
-    // Состав таблетками (fb_966c7e2b): число подходов отдельно, одинаковые подходы — одной таблеткой.
-    expect(within(mine).getByText('4 подхода')).toBeInTheDocument()
-    expect(within(mine).getAllByText('60×8')).toHaveLength(1)
-    // Чужой шаблон не открывается (fb_150a4d25): карточка — не кнопка, весь состав виден в ней.
-    const theirs = screen.getByText('Спина').closest('.tpl-card')
-    expect(theirs.tagName).toBe('DIV')
-    expect(theirs).toHaveTextContent('· от Петя')
-    expect(theirs).not.toHaveTextContent('виден всем')
+    expect(screen.getByRole('button', { name: 'Грудь' })).toBeInTheDocument()
+    expect(screen.getByRole('button', { name: 'Спина' })).toBeInTheDocument()
+    expect(screen.queryByText(BENCH.name)).toBeNull()
+    expect(screen.queryByText(PULL.name)).toBeNull()
   })
 
   it('показывает метки мышц без чисел в своих и общих шаблонах', () => {
@@ -192,11 +185,11 @@ describe('TemplatesScreen — редактор', () => {
       fireEvent.click(screen.getByRole('button', { name: 'Добавить упражнение' }))
       fireEvent.click(screen.getByRole('button', { name: `выбрать ${n}` }))
     }
-    // подписи столбцов — один раз на упражнение, как в тренировке; у времени нет «кг»
-    expect(screen.getAllByText('кг')).toHaveLength(1)
-    expect(screen.getAllByText('±кг')).toHaveLength(1)
-    expect(screen.getAllByText('мин:сек')).toHaveLength(1)
-    fireEvent.change(screen.getAllByRole('textbox')[1], { target: { value: '62,5' } }) // вес жима
+    for (const [exercise, label] of [[PULL, '±кг'], [PLANK, 'мин:сек'], [BENCH, 'кг']]) {
+      fireEvent.click(screen.getByRole('button', { name: exercise.name }))
+      expect(screen.getByText(label)).toBeInTheDocument()
+    }
+    fireEvent.change(screen.getByLabelText('Вес или дистанция подхода 1'), { target: { value: '62,5' } })
     fireEvent.click(screen.getByRole('checkbox', { name: 'Виден всем' }))
     save()
     await waitFor(() => expect(saveTemplate).toHaveBeenCalledTimes(1))
@@ -215,6 +208,7 @@ describe('TemplatesScreen — редактор', () => {
     renderScreen()
     fireEvent.click(screen.getByText('Грудь').closest('button'))
     await screen.findByDisplayValue('Грудь')
+    fireEvent.click(screen.getByRole('button', { name: BENCH.name }))
     fireEvent.change(screen.getByLabelText('Вес или дистанция подхода 2'), { target: { value: '82,5' } })
     fireEvent.change(screen.getByLabelText('Повторы подхода 2'), { target: { value: '7' } })
     // Степпер как в тренировке: + к весу первого подхода — шаг 1,25 кг.
@@ -242,6 +236,7 @@ describe('TemplatesScreen — редактор', () => {
     renderScreen()
     fireEvent.click(screen.getByText('Грудь').closest('button'))
     await screen.findByDisplayValue('Грудь')
+    fireEvent.click(screen.getByRole('button', { name: BENCH.name }))
     fireEvent.change(screen.getByLabelText('Вес или дистанция подхода 2'), { target: { value: '62.5' } })
     const replace = () => {
       fireEvent.click(screen.getByRole('button', { name: 'Блок «Жим лежа»' }))
@@ -277,6 +272,7 @@ describe('TemplatesScreen — редактор', () => {
     fireEvent.change(screen.getByPlaceholderText(/Понедельник/), { target: { value: 'Верх' } })
     fireEvent.click(screen.getByRole('button', { name: 'Добавить упражнение' }))
     fireEvent.click(screen.getByRole('button', { name: 'выбрать Жим лежа' }))
+    fireEvent.click(screen.getByRole('button', { name: BENCH.name }))
     fireEvent.change(screen.getByLabelText('Вес или дистанция подхода 1'), { target: { value: '60' } })
     fireEvent.click(screen.getByRole('button', { name: 'Блок «Жим лежа»' }))
     fireEvent.click(screen.getByRole('menuitem', { name: 'Заменить упражнение' }))
@@ -294,6 +290,7 @@ describe('TemplatesScreen — редактор', () => {
     renderScreen()
     fireEvent.click(screen.getByText('Грудь').closest('button'))
     await screen.findByDisplayValue('Грудь')
+    fireEvent.click(screen.getByRole('button', { name: PLANK.name }))
     fireEvent.change(screen.getByLabelText('Время подхода 2'), { target: { value: '2:15' } })
     save()
     await waitFor(() => expect(saveTemplate).toHaveBeenCalled())
@@ -336,6 +333,7 @@ describe('TemplatesScreen — редактор', () => {
     fireEvent.click(screen.getByText('Грудь').closest('button'))
     expect(await screen.findByDisplayValue('Грудь')).toBeInTheDocument()
     expect(screen.getByRole('checkbox', { name: 'Виден всем' })).toBeChecked()
+    fireEvent.click(screen.getByRole('button', { name: BENCH.name }))
     expect(screen.getAllByDisplayValue('60')).toHaveLength(4)
     fireEvent.click(screen.getByRole('button', { name: 'Добавить упражнение' }))
     fireEvent.click(screen.getByRole('button', { name: 'выбрать Подтягивания' }))
@@ -386,13 +384,15 @@ describe('TemplatesScreen — редактор', () => {
     expect(vi.mocked(saveTemplate).mock.calls[0][0].exercises).toHaveLength(before)
   })
 
-  // fb_150a4d25: внутри был тот же состав только для чтения — теперь он весь в карточке.
-  it('чужой общий шаблон не открывается: состав виден в карточке', async () => {
+  it('чужой шаблон открывается для просмотра, подходы сначала свернуты', async () => {
     renderScreen()
-    fireEvent.click(screen.getByText('Спина').closest('.tpl-card'))
-    expect(within(screen.getByText('Спина').closest('.tpl-card')).getByText('3 подхода')).toBeInTheDocument()
-    expect(screen.queryByRole('heading', { name: 'Шаблон' })).toBeNull()
-    expect(getTemplate).not.toHaveBeenCalled()
+    fireEvent.click(screen.getByRole('button', { name: 'Спина' }))
+    const row = await screen.findByRole('button', { name: PULL.name })
+    expect(row).toHaveAttribute('aria-expanded', 'false')
+    fireEvent.click(row)
+    expect(row).toHaveAttribute('aria-expanded', 'true')
+    expect(document.querySelector('.history-ex-sets')).toHaveTextContent('10')
+    expect(screen.queryByRole('button', { name: 'Сохранить' })).toBeNull()
   })
 
   // fb_ae7bdcb1: список не пересоздается на время редактора — после «назад» он на том же месте.
@@ -448,7 +448,7 @@ describe('TemplatesScreen — редактор', () => {
     fireEvent.click(screen.getByText('Грудь').closest('button'))
     expect(await screen.findByText(/только просмотр/)).toBeInTheDocument()
     expect(screen.getByText('от Петя')).toBeInTheDocument()
-    expect(document.querySelector('.history-ex')).toHaveTextContent('Подтягивания')
+    expect(document.querySelector('.tpl-view-ex')).toHaveTextContent('Подтягивания')
     expect(screen.queryByRole('button', { name: 'Сохранить' })).toBeNull()
   })
 

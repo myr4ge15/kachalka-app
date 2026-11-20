@@ -331,7 +331,7 @@ export default function HistoryScreen({
             чтобы не дублировать. */}
 
         <div className="menu-group tpl-link">
-          {selected === null && !selectMode && <NextWorkoutPlan key={user.id} userId={user.id} onStart={openCopied} />}
+          {selected === null && !selectMode && <NextWorkoutPlan key={user.id} userId={user.id} workouts={list} onStart={openCopied} />}
           <MenuRow icon="template" title="Шаблоны" onClick={() => setSelected('templates')} />
           {!loading && list.length > 0 && (
             <MenuRow icon="download" title="Экспорт тренировок" kind="action" disabled={selectMode} onClick={toggleSelectMode} />

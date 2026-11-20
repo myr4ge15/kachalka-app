@@ -226,7 +226,7 @@ describe('ExercisePicker — позиция списка (v7.1.7)', () => {
 describe('ExercisePicker — подсказка «Как выполнять» (v8.0.0)', () => {
   const slugOf = (e) => (e.id === 'pulldown' ? 'lat-pulldown' : null)
 
-  it('без techniqueSlugOf кнопок «i» нет (пикер шаблонов)', () => {
+  it('без techniqueSlugOf кнопок «i» нет', () => {
     renderPicker()
     expect(screen.queryByRole('button', { name: /Как выполнять/ })).toBeNull()
   })

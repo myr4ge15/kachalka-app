@@ -25,6 +25,43 @@ test('офлайн-план на телефоне открывается из и
   await expect(page.getByText(EXERCISE, { exact: true })).toBeVisible()
 })
 
+test('строки плана на телефоне оставляют место названию и кнопке удаления', async ({ page, context }) => {
+  await switchableOnline(context)
+  const user = await seedAndLogin(page)
+  await page.evaluate(async id => {
+    const { writeDraft } = await import('/kachalka-app/src/lib/draftStore.js')
+    const names = ['Жим лежа на наклонной скамье', 'Жим лежа со штангой', 'Молотковые сгибания', 'Жим Арнольда', 'Шраги со штангой стоя']
+    const plan = names.map((name, i) => ({ id: 'plan-' + i, name, metric: 'weight' }))
+    const { db } = await import('/kachalka-app/src/db/local.js')
+    await db.exercises.bulkPut(plan)
+    writeDraft('workout_plan_' + id, plan)
+    writeDraft('workout_draft_new_' + id, [{ exercise: plan[0], sets: [{ weight: 30, reps: 8 }] }])
+  }, user.id)
+  await openTab(page, 'Тренировки')
+  await page.getByRole('button', { name: /Запланировать тренировку/ }).click()
+  const plan = page.getByRole('dialog', { name: 'Запланировать тренировку' })
+  for (const size of [{ width: 320, height: 568 }, { width: 390, height: 844 }, { width: 740, height: 360 }]) {
+    await page.setViewportSize(size)
+    const rows = plan.getByRole('listitem')
+    await expect(rows).toHaveCount(5)
+    await expect(plan.getByRole('button', { name: /^Как выполнять/ })).toHaveCount(5)
+    for (const row of await rows.all()) {
+      const bounds = await row.boundingBox()
+      const remove = await row.getByRole('button', { name: /Убрать/ }).boundingBox()
+      expect(remove.width).toBe(44)
+      expect(remove.height).toBe(44)
+      expect(Math.abs((remove.y - bounds.y) - (bounds.height - remove.height) / 2)).toBeLessThanOrEqual(1)
+    }
+    await expect(plan.getByRole('button', { name: /Вернуться/ })).toBeInViewport({ ratio: 1 })
+    if (size.width === 390) {
+      const add = await plan.getByRole('button', { name: 'Добавить упражнения' }).boundingBox()
+      const last = await rows.last().boundingBox()
+      expect(add.y - last.y - last.height).toBeGreaterThanOrEqual(8)
+      await page.screenshot({ path: 'work/next-plan-mobile.png' })
+    }
+  }
+})
+
 test('крупное фото вмещается лёжа, закрывается тапом и не отдаёт фокус профилю', async ({ page }) => {
   await page.setViewportSize({ width: 740, height: 360 })
   await page.route(/supabase\.co/, (route) => route.abort())

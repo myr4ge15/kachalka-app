@@ -49,7 +49,7 @@ export default function WorkoutScreen({ user, workoutId = null, onBack, onSaved,
   // Справочник — из локальной базы (офлайн-доступен).
   const exercises = useLiveQuery(() => getExercises(), [], [])
   // Подсказка карточки — по ТЕКУЩЕЙ записи каталога (не по снимку в тренировке):
-  // переименованное, скрытое или удаленное упражнение подсказку не получает.
+  // после переименования берём актуальное имя, скрытые и удалённые пропускаем.
   const techniqueById = useMemo(() => {
     const map = new Map()
     for (const ex of exercises) {

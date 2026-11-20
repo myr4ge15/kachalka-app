@@ -7,6 +7,7 @@ import { useLiveQuery } from 'dexie-react-hooks'
 import { getExercises, getTemplate, saveTemplate, deleteTemplate, createExercise, getFavorites, toggleFavorite } from '../../db/repo.js'
 import { syncNow } from '../../db/sync.js'
 import { exerciseMetric, fmtTemplateTarget } from '../../lib/metric.js'
+import { ExerciseTechnique } from '../exercises/TechniqueSheet.jsx'
 import ExercisePicker from '../exercises/ExercisePicker.jsx'
 import CardsSkeleton from '../ui/CardsSkeleton.jsx'
 import BackButton from '../ui/BackButton.jsx'
@@ -16,6 +17,8 @@ import { templateInputPlan } from '../../lib/templatePlan.js'
 import { setsForExerciseReplacement } from '../../lib/workoutEntries.js'
 import { sk } from '../../lib/progressionCard.js'
 import { showToast, hideToast } from '../ui/Toast.jsx'
+import Chevron from '../ui/Chevron.jsx'
+import { techniqueSlugFor } from '../../lib/technique.js'
 import Icon from '../ui/Icon.jsx'
 
 // Редактор шаблона: состав, построчные подходы (TemplateSets), перестановка, общий/личный,
@@ -47,6 +50,17 @@ export default function TemplateEditor({ user, templateId, onBack, backGuardRef 
 
   const [name, setName] = useState('')
   const [items, setItems] = useState([])
+  const [expandedId, setExpandedId] = useState(null)
+  const expandedRef = useRevealFocus(expandedId)
+  function exerciseToggle(ex) {
+    const open = expandedId === ex.id
+    return <div className="tpl-ex-summary"><button type="button" className="tpl-ex-toggle" aria-expanded={open}
+      onClick={() => setExpandedId(open ? null : ex.id)}>
+      <span className="exercise-title tpl-name">{ex.name}</span><Chevron toggle open={open} />
+    </button>
+      <ExerciseTechnique exercise={exercises.find(item => item.id === ex.id)} />
+    </div>
+  }
   const [phaseMenu, setPhaseMenu] = useState(null) // id упражнения с открытым меню блока
   const [isPublic, setIsPublic] = useState(false)
   // Чужой общий шаблон открывается в режиме просмотра (read-only): править
@@ -297,9 +311,9 @@ export default function TemplateEditor({ user, templateId, onBack, backGuardRef 
             {items.map((it, idx) => {
               const target = fmtTemplateTarget(exerciseMetric(it.exercise), it)
               return (
-                <li key={idx} className="history-ex">
-                  <span className="history-ex-name">{it.exercise.name}</span>
-                  {target && <span className="history-ex-sets">{target}</span>}
+                <li key={idx} className="tpl-view-ex" ref={expandedId === it.exercise.id ? expandedRef : undefined}>
+                  {exerciseToggle(it.exercise)}
+                  {expandedId === it.exercise.id && target && <span className="history-ex-sets">{target}</span>}
                 </li>
               )
             })}
@@ -347,7 +361,7 @@ export default function TemplateEditor({ user, templateId, onBack, backGuardRef 
             <Fragment key={it.exercise.id}>
             {phaseHeading(items, idx) && <p className="sec-title wk-phase-title">{phaseHeading(items, idx)}</p>}
             <div
-              ref={added?.id === it.exercise.id ? addedRef : undefined}
+              ref={expandedId === it.exercise.id ? expandedRef : added?.id === it.exercise.id ? addedRef : undefined}
               data-tpl-id={it.exercise.id}
               className={'card exercise-card tpl-ex' + (metric === 'time' ? ' count' : '')}
             >
@@ -361,7 +375,7 @@ export default function TemplateEditor({ user, templateId, onBack, backGuardRef 
                   >
                     <Icon name="grip" size={20} />
                   </button>
-                  <span className="exercise-title tpl-name">{it.exercise.name}</span>
+                  {exerciseToggle(it.exercise)}
                 </span>
                 <span className="exercise-actions">
                   {/* Блок: разминка / основная часть / заминка (23.10.2026, fb_c2774110) — переносится в тренировку. */}
@@ -379,8 +393,8 @@ export default function TemplateEditor({ user, templateId, onBack, backGuardRef 
                   </MoreMenu>
                 </span>
               </div>
-              <TemplateSets metric={metric} sets={it.set_plan}
-                onChange={(plan) => updateTarget(idx, 'set_plan', plan)} />
+              {expandedId === it.exercise.id && <TemplateSets metric={metric} sets={it.set_plan}
+                onChange={(plan) => updateTarget(idx, 'set_plan', plan)} />}
             </div>
             </Fragment>
             )
@@ -407,6 +421,7 @@ export default function TemplateEditor({ user, templateId, onBack, backGuardRef 
       {picker && (
         <ExercisePicker
           exercises={exercises}
+          techniqueSlugOf={techniqueSlugFor}
           favorites={favorites}
           onToggleFavorite={(id) => toggleFavorite(user.id, id)}
           title={replacing ? 'Заменить упражнение' : 'Упражнение'}

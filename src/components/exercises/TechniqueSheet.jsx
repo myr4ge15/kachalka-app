@@ -3,7 +3,7 @@ import { useEffect, useRef, useState } from 'react'
 import SheetDialog from '../ui/SheetDialog.jsx'
 import { useScrollMore } from '../../hooks/useScrollMore.js'
 import { labelOf } from '../../lib/muscles.js'
-import { techniqueFrameUrl } from '../../lib/technique.js'
+import { techniqueFrameUrl, techniqueSlugFor } from '../../lib/technique.js'
 
 // Подсказка «Как выполнять» (v8.0.0, PLAN-exercise-technique-hints.md): лист поверх
 // пикера или тренировки. Справочник грузится лениво — в стартовый бандл не входит,
@@ -213,6 +213,16 @@ function PlayIcon() {
 
 // Кнопка «i» рядом с названием упражнения. Отдельная кнопка, а не часть строки:
 // нажатие не выбирает упражнение и не трогает тренировку.
+export function ExerciseTechnique({ exercise }) {
+  const [open, setOpen] = useState(false)
+  const slug = techniqueSlugFor(exercise)
+  if (!slug) return null
+  return <>
+    <TechniqueButton name={exercise.name} onClick={() => setOpen(true)} />
+    {open && <TechniqueSheet slug={slug} name={exercise.name} onClose={() => setOpen(false)} />}
+  </>
+}
+
 export function TechniqueButton({ name, onClick, className = '' }) {
   return (
     <button
