@@ -6,8 +6,7 @@
 //
 // Кадры — штриховые рисунки Everkinetic (CC BY-SA 4.0), хранятся в
 // public/technique/ (там же SOURCES.md с атрибуцией). Порядок кадров — по ходу
-// движения, подпись — поза на кадре. Для сопоставимых ракурсов кадры сменяются
-// мягким растворением. separatePoses оставляет обе фазы рядом.
+// движения, подпись — поза на кадре. Кадры сменяются мягким растворением.
 //
 // Мышцы — слаги lib/muscles.js. Состав и длины списков держит technique.test.js.
 // ============================================================================
@@ -24,8 +23,8 @@ const ek = (slug, a, b, extension = 'svg') => [
   { file: `${slug}-2.${extension}`, caption: b },
 ]
 
-// Отдельная версия URL обновляет только исправленные PNG в офлайн-кэше CacheFirst.
-const aligned = (slug, a, b) => ek(slug, a, b, 'png').map(frame => ({ ...frame, revision: 2 }))
+// Отдельная версия URL обновляет только исправленные кадры в офлайн-кэше CacheFirst.
+const aligned = (slug, a, b, extension = 'png') => ek(slug, a, b, extension).map(frame => ({ ...frame, revision: 2 }))
 
 export const TECHNIQUE = {
   'seated-dumbbell-press': {
@@ -127,8 +126,7 @@ export const TECHNIQUE = {
     primary: ['glute_max'],
     secondary: ['quads', 'adductors'],
     equipment: 'Одна гантель',
-    separatePoses: true,
-    frames: ek('plie-squat', 'Ноги выпрямлены', 'Бёдра опущены', 'png'),
+    frames: ek('plie-squat', 'Ноги выпрямлены', 'Бёдра опущены'),
     steps: [
       'Поставьте ноги шире плеч и разверните носки наружу на удобный угол. Удерживайте гантель двумя руками между ног.',
       'Сгибая ноги, опустите таз между бёдрами. Колени направляйте туда же, куда носки.',
@@ -204,8 +202,7 @@ export const TECHNIQUE = {
     primary: ['glute_med'],
     secondary: [],
     equipment: 'Коврик',
-    separatePoses: true,
-    frames: ek('side-lying-leg-raise', 'Ноги вместе', 'Верхняя нога поднята', 'png'),
+    frames: aligned('side-lying-leg-raise', 'Ноги вместе', 'Верхняя нога поднята'),
     steps: [
       'Лягте на бок и удобно поддержите голову. Выпрямите ноги, расположите плечи и таз друг над другом.',
       'Плавно поднимите верхнюю ногу в сторону, сохраняя таз неподвижным.',
@@ -1359,7 +1356,6 @@ export const TECHNIQUE = {
     primary: ['glute_max'],
     secondary: ['hamstrings'],
     equipment: 'Нижний блок кроссовера, манжета на лодыжку',
-    separatePoses: true,
     frames: ek('cable-kickback', 'Ноги вместе', 'Нога отведена'),
     steps: [
       'Наденьте манжету, встаньте лицом к блоку, держитесь за стойку.',
@@ -1477,8 +1473,7 @@ export const TECHNIQUE = {
     primary: ['core'],
     secondary: ['abs_rectus', 'lats'],
     equipment: 'Ролик для пресса (на рисунке — штанга с блинами, движение то же)',
-    separatePoses: true,
-    frames: ek('ab-rollout', 'На коленях', 'Тело вытянуто'),
+    frames: aligned('ab-rollout', 'На коленях', 'Тело вытянуто', 'svg'),
     steps: [
       'Встаньте на колени, ролик под плечами на прямых руках.',
       'Напрягите пресс и катите ролик вперед, вытягиваясь.',

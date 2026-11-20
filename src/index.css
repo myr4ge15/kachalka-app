@@ -4886,8 +4886,8 @@ img.has-img, .avatar-lightbox-img { -webkit-touch-callout: none; -webkit-user-dr
   flex: none; width: 44px; height: 44px; display: grid; place-items: center;
   border: 0; border-radius: var(--r-md); background: var(--surface-2); color: var(--text); cursor: pointer;
 }
-.technique-frames--static { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
-.technique-frames--static .technique-paper { height: 180px; padding: 6px; }
+.technique-frames--static { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 8px; }
+.technique-frames--static .technique-paper { height: 180px; padding: 6px; grid-template: minmax(0, 1fr) / minmax(0, 1fr); }
 .technique-frame-fig { margin: 0; display: flex; flex-direction: column; gap: 4px; text-align: center; }
 .technique-frame-fig figcaption { font-size: var(--fs-meta); }
 .technique-sec h3 { font-size: var(--fs-title); font-weight: var(--fw-strong); margin: 0 0 6px; }

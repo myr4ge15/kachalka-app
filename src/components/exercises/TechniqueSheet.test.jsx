@@ -86,18 +86,22 @@ describe('TechniqueSheet', () => {
     expect(await screen.findByAltText('Жим лежа со штангой: Руки выпрямлены')).toBeInTheDocument()
     expect(screen.getByAltText('Жим лежа со штангой: Гриф у груди')).toBeInTheDocument()
     expect(screen.queryByRole('button', { name: /смену кадров/ })).toBeNull()
-  })
-
-  it('позы с разным ракурсом показаны рядом и при обычных настройках движения', async () => {
-    mockReducedMotion(false)
-    render(<TechniqueSheet slug="ab-rollout" name="Ролик" onClose={vi.fn()} />)
-    expect(await screen.findByAltText('Ролик: На коленях')).toBeInTheDocument()
-    expect(screen.getByAltText('Ролик: Тело вытянуто')).toBeInTheDocument()
-    expect(screen.queryByRole('button', { name: /смену кадров/ })).toBeNull()
-    fireEvent.error(screen.getByAltText('Ролик: Тело вытянуто'))
+    fireEvent.error(screen.getByAltText('Жим лежа со штангой: Гриф у груди'))
     expect(screen.queryByRole('img')).toBeNull()
     expect(screen.getByText('Частые ошибки')).toBeInTheDocument()
   })
+
+  it.each(['ab-rollout', 'side-lying-leg-raise', 'cable-kickback', 'plie-squat'])(
+    '%s показывает обе фазы по очереди', async (slug) => {
+      mockReducedMotion(false)
+      vi.useFakeTimers({ toFake: ['setInterval', 'clearInterval'] })
+      render(<TechniqueSheet slug={slug} name={slug} onClose={vi.fn()} />)
+      await screen.findByRole('button', { name: 'Остановить смену кадров' })
+      const first = screen.getByRole('img').getAttribute('src')
+      await act(async () => { vi.advanceTimersByTime(1200) })
+      expect(screen.getByRole('img').getAttribute('src')).not.toBe(first)
+    },
+  )
 
   it('кадр не загрузился — блок кадров пропадает, текст остается', async () => {
     mockReducedMotion(false)

@@ -46,7 +46,7 @@ export default function TechniqueSheet({ slug, name, onClose }) {
         )}
         {card && (
           <>
-            {card.frames.length > 0 && <TechniqueFrames frames={card.frames} name={name} separatePoses={card.separatePoses} />}
+            {card.frames.length > 0 && <TechniqueFrames frames={card.frames} name={name} />}
 
             <section className="technique-sec">
               <h3>Мышцы и оборудование</h3>
@@ -122,23 +122,22 @@ function prefersReducedMotion() {
 // Два кадра «по ходу движения» с одного ракурса: смена — мягким растворением
 // (index.css .technique-stage), с подписью позы. При reduced-motion — оба кадра рядом,
 // без смены. Пауза останавливает смену; выбор позы — тоже пауза.
-function TechniqueFrames({ frames, name, separatePoses }) {
+function TechniqueFrames({ frames, name }) {
   const [reduced] = useState(prefersReducedMotion)
   const [idx, setIdx] = useState(0)
-  const staticView = reduced || separatePoses
-  const [playing, setPlaying] = useState(!staticView)
+  const [playing, setPlaying] = useState(!reduced)
   const [failed, setFailed] = useState(false)
   const base = import.meta.env.BASE_URL ?? '/'
 
   useEffect(() => {
-    if (!playing || staticView) return undefined
+    if (!playing || reduced) return undefined
     const t = setInterval(() => setIdx((i) => (i + 1) % frames.length), FRAME_MS)
     return () => clearInterval(t)
-  }, [playing, staticView, frames.length])
+  }, [playing, reduced, frames.length])
 
   if (failed) return null
 
-  if (staticView) {
+  if (reduced) {
     return (
       <div className="technique-frames technique-frames--static">
         {frames.map((f) => (

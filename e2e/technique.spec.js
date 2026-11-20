@@ -4,6 +4,7 @@ import { enterPin } from './helpers.js'
 // Координаты неподвижных деталей на сцене 320 × 224. Цвет и толщина штриха
 // слегка различаются между позами, поэтому допускаем один пиксель вокруг линии.
 const anchors = {
+  'plie-squat': [107, 204, 225, 222], // стопы в обеих полных фазах
   'standing-barbell-press': [134, 172, 198, 223], // стопы
   'seated-dumbbell-press': [101, 165, 223, 222], // низ скамьи и стопы
   'machine-shoulder-press': [94, 157, 237, 222],
@@ -151,4 +152,47 @@ test('подсказка по технике: карточка и пикер, д
   await expect(picker.getByPlaceholder('Поиск по названию…')).toHaveValue('жим лежа')
   await picker.getByRole('button', { name: 'закрыть' }).click()
   await expect(page.locator('.exercise-card')).toHaveCount(1)
+})
+
+test('на мобильном обе фазы плие целиком помещаются в область показа', async ({ page, context }) => {
+  await page.setViewportSize({ width: 393, height: 793 })
+  await context.route(/supabase\.co/, route => route.abort())
+  await page.goto('/kachalka-app/')
+  const name = 'Приседания плие'
+  const user = await page.evaluate(async name => {
+    const { seedE2E } = await import('/kachalka-app/src/test/e2eSeed.js')
+    const exercise = { id: 'e2e-plie', name, muscle_group: 'ноги', metric: 'weight' }
+    const user = await seedE2E({ exercises: [exercise] })
+    const { writeDraft } = await import('/kachalka-app/src/lib/draftStore.js')
+    writeDraft(`workout_draft_new_${user.id}`, [{ exercise, sets: [{ weight: 10, reps: 5, _k: 's1' }] }])
+    return user
+  }, name)
+  await page.reload()
+  await page.getByRole('button', { name: user.name }).click()
+  await enterPin(page, user.pin)
+  await page.getByRole('button', { name: 'Записать тренировку' }).click()
+
+  for (const preference of ['no-preference', 'reduce']) {
+    await page.emulateMedia({ reducedMotion: preference })
+    await page.getByRole('button', { name: 'Как выполнять: ' + name }).click()
+    const sheet = page.getByRole('dialog', { name })
+    if (preference === 'no-preference') {
+      await expect(sheet.getByRole('img', { name: /Бёдра опущены/ })).toBeVisible()
+      await sheet.getByRole('button', { name: 'Остановить смену кадров' }).click()
+    }
+    const frames = sheet.locator('.technique-paper img')
+    await expect(frames).toHaveCount(2)
+    for (const img of await frames.all()) {
+      const fits = await img.evaluate(async img => {
+        await img.decode()
+        const box = img.getBoundingClientRect()
+        const paper = img.parentElement.getBoundingClientRect()
+        return box.width > 0 && box.height > 0 && box.top >= paper.top && box.left >= paper.left
+          && box.bottom <= paper.bottom + 1 && box.right <= paper.right + 1
+          && getComputedStyle(img).objectFit === 'contain'
+      })
+      expect(fits).toBe(true)
+    }
+    await sheet.getByRole('button', { name: 'закрыть' }).click()
+  }
 })
