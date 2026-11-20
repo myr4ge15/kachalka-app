@@ -113,5 +113,6 @@ describe('techniqueSlugFor — привязка к упражнению ката
     expect(techniqueFrameUrl('a-1.svg', '/kachalka-app/')).toBe('/kachalka-app/technique/a-1.svg')
     expect(techniqueFrameUrl('a-1.svg', '/')).toBe('/technique/a-1.svg')
     expect(techniqueFrameUrl('a-1.svg', '/x')).toBe('/x/technique/a-1.svg')
+    expect(techniqueFrameUrl('step-up-2.png', '/x/', 2)).toBe('/x/technique/step-up-2.png?v=2')
   })
 })

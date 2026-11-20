@@ -88,6 +88,17 @@ describe('TechniqueSheet', () => {
     expect(screen.queryByRole('button', { name: /смену кадров/ })).toBeNull()
   })
 
+  it('позы с разным ракурсом показаны рядом и при обычных настройках движения', async () => {
+    mockReducedMotion(false)
+    render(<TechniqueSheet slug="ab-rollout" name="Ролик" onClose={vi.fn()} />)
+    expect(await screen.findByAltText('Ролик: На коленях')).toBeInTheDocument()
+    expect(screen.getByAltText('Ролик: Тело вытянуто')).toBeInTheDocument()
+    expect(screen.queryByRole('button', { name: /смену кадров/ })).toBeNull()
+    fireEvent.error(screen.getByAltText('Ролик: Тело вытянуто'))
+    expect(screen.queryByRole('img')).toBeNull()
+    expect(screen.getByText('Частые ошибки')).toBeInTheDocument()
+  })
+
   it('кадр не загрузился — блок кадров пропадает, текст остается', async () => {
     mockReducedMotion(false)
     render(<TechniqueSheet slug="bench-press" name="Жим лежа со штангой" onClose={vi.fn()} />)

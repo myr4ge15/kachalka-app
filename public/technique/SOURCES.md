@@ -50,10 +50,10 @@ https://github.com/everkinetic/data, лицензия **CC BY-SA 4.0**
 | lunges-1/2 | 0115 | Lunges: Dumbbell |
 | seated-calf-raise-1/2 | 0279 | Seated Calf Raise using Machine |
 | standing-calf-raise-1/2 | 0282 | Standing Calf Raises using Machine |
-| hack-squat-1/2 | 0123 | Hack Squat: Machine |
+| hack-squat-1/2.png | 0123 | Hack Squat: Machine · [внизу](https://github.com/everkinetic/data/blob/446bb9a3d0c3beb6b84f7c9d77dfc8af707a2ab6/src/images-ai/0123-S.ai.png) · [ноги выпрямлены](https://github.com/everkinetic/data/blob/446bb9a3d0c3beb6b84f7c9d77dfc8af707a2ab6/src/images-ai/0123-F.ai.png) |
 | hip-adductor-1/2 | 0157 | Thigh Adductor |
 | box-squat-1/2 | 0136 | Squats: Dumbbells (to Bench) |
-| step-up-1/2 | 0137 | Step Ups: Dumbbell |
+| step-up-1/2.png | 0137 | Step Ups: Dumbbell · [одна стопа на тумбе](https://github.com/everkinetic/data/blob/446bb9a3d0c3beb6b84f7c9d77dfc8af707a2ab6/src/images-web/step-ups-with-dumbbells-2.png) · [стоя на тумбе](https://github.com/everkinetic/data/blob/446bb9a3d0c3beb6b84f7c9d77dfc8af707a2ab6/src/images-web/step-ups-with-dumbbells-3.png) |
 | hip-abductor-1/2 | 0156 | Thigh Abductor |
 | cable-kickback-1/2 | 0112 | One Legged Cable Kickback |
 | glute-hyperextension-1/2 | 0103 | Hyperextensions |
@@ -80,5 +80,7 @@ https://github.com/everkinetic/data, лицензия **CC BY-SA 4.0**
 
 У жима Арнольда первый кадр поставляется как `arnold-press-1-aligned.png`. Рисунок сдвинут вниз на 78 пикселей внутри белого поля, чтобы скамья и стопы совпадали со второй позой. Адаптация распространяется по CC BY-SA 4.0.
 
-Номер `-1`/`-2` — порядок показа по ходу движения (у источника — `relaxation`/`tension`).
+У 14 пар от 20.11.2026 изменены поля, масштаб и размещение оригиналов. Кадры сведены по неподвижной части рисунка. Это `seated-dumbbell-press`, `machine-shoulder-press`, `standing-barbell-press`, `floor-glute-bridge`, `bulgarian-split-squat`, `seated-overhead-extension`, `face-pull`, `hanging-leg-raise`, `standing-hip-abduction`, `lat-pulldown`, `pec-deck`, `seated-leg-curl`, `hack-squat` и `step-up`. Оба полных кадра гакк-приседаний дополнительно повёрнуты на 35° против часовой стрелки. Адаптации распространяются по CC BY-SA 4.0.
+
+Номер `-1`/`-2` — порядок показа начала и конца выбранного движения.
 Изменил файл (цвет, обрезка) — отметь это здесь: изменённый файл тоже идёт под CC BY-SA 4.0.

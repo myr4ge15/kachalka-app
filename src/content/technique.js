@@ -6,8 +6,8 @@
 //
 // Кадры — штриховые рисунки Everkinetic (CC BY-SA 4.0), хранятся в
 // public/technique/ (там же SOURCES.md с атрибуцией). Порядок кадров — по ходу
-// движения, подпись — поза на кадре. Ракурс у пары один, поэтому кадры сменяются
-// мягким растворением (полсекунды) — переход позы, но не покадровая анимация.
+// движения, подпись — поза на кадре. Для сопоставимых ракурсов кадры сменяются
+// мягким растворением. separatePoses оставляет обе фазы рядом.
 //
 // Мышцы — слаги lib/muscles.js. Состав и длины списков держит technique.test.js.
 // ============================================================================
@@ -24,12 +24,15 @@ const ek = (slug, a, b, extension = 'svg') => [
   { file: `${slug}-2.${extension}`, caption: b },
 ]
 
+// Отдельная версия URL обновляет только исправленные PNG в офлайн-кэше CacheFirst.
+const aligned = (slug, a, b) => ek(slug, a, b, 'png').map(frame => ({ ...frame, revision: 2 }))
+
 export const TECHNIQUE = {
   'seated-dumbbell-press': {
     primary: ['delt_front'],
     secondary: ['delt_side', 'triceps'],
     equipment: 'Две гантели, скамья со спинкой',
-    frames: ek('seated-dumbbell-press', 'Гантели у плеч', 'Гантели над головой', 'png'),
+    frames: aligned('seated-dumbbell-press', 'Гантели у плеч', 'Гантели над головой'),
     steps: [
       'Сядьте, обопритесь спиной на спинку и поставьте стопы на пол. Поднимите гантели к плечам ладонями вперёд.',
       'Выжмите гантели над головой, удерживая кисти над локтями.',
@@ -48,7 +51,7 @@ export const TECHNIQUE = {
     primary: ['delt_front'],
     secondary: ['delt_side', 'triceps'],
     equipment: 'Тренажёр для жима вверх сидя',
-    frames: ek('machine-shoulder-press', 'Рукоятки у плеч', 'Руки подняты', 'png'),
+    frames: aligned('machine-shoulder-press', 'Рукоятки у плеч', 'Руки подняты'),
     steps: [
       'Настройте сиденье так, чтобы в начале жима рукоятки были примерно на уровне плеч.',
       'Прижмите спину к спинке, поставьте стопы на пол и обхватите рукоятки.',
@@ -67,7 +70,7 @@ export const TECHNIQUE = {
     primary: ['delt_front'],
     secondary: ['delt_side', 'triceps', 'traps'],
     equipment: 'Штанга, стойки',
-    frames: ek('standing-barbell-press', 'Гриф у плеч', 'Гриф над головой', 'png'),
+    frames: aligned('standing-barbell-press', 'Гриф у плеч', 'Гриф над головой'),
     steps: [
       'Снимите гриф со стоек хватом чуть шире плеч. Удерживайте его перед собой у верхней части груди.',
       'Поставьте стопы на ширине таза и напрягите пресс. Слегка отведите подбородок, освобождая путь грифу.',
@@ -86,7 +89,7 @@ export const TECHNIQUE = {
     primary: ['glute_max'],
     secondary: ['hamstrings'],
     equipment: 'Коврик',
-    frames: ek('floor-glute-bridge', 'Таз на полу', 'Таз поднят', 'png'),
+    frames: aligned('floor-glute-bridge', 'Таз на полу', 'Таз поднят'),
     steps: [
       'Лягте на спину, согните колени и поставьте стопы на ширине таза.',
       'Упритесь стопами в пол и поднимите таз до одной линии с плечами и коленями.',
@@ -105,7 +108,7 @@ export const TECHNIQUE = {
     primary: ['glute_max'],
     secondary: ['quads', 'hamstrings'],
     equipment: 'Устойчивая скамья. На рисунке вариант со штангой на плечах.',
-    frames: ek('bulgarian-split-squat', 'Верхняя точка', 'Нижняя точка', 'png'),
+    frames: aligned('bulgarian-split-squat', 'Верхняя точка', 'Нижняя точка'),
     steps: [
       'Встаньте спиной к скамье. Одну стопу положите на скамью, другую целиком поставьте на пол впереди.',
       'Сгибая переднюю ногу, опустите таз. Заднее колено движется к полу.',
@@ -124,6 +127,7 @@ export const TECHNIQUE = {
     primary: ['glute_max'],
     secondary: ['quads', 'adductors'],
     equipment: 'Одна гантель',
+    separatePoses: true,
     frames: ek('plie-squat', 'Ноги выпрямлены', 'Бёдра опущены', 'png'),
     steps: [
       'Поставьте ноги шире плеч и разверните носки наружу на удобный угол. Удерживайте гантель двумя руками между ног.',
@@ -143,7 +147,7 @@ export const TECHNIQUE = {
     primary: ['triceps'],
     secondary: [],
     equipment: 'Одна гантель, скамья',
-    frames: ek('seated-overhead-extension', 'Гантель за головой', 'Гантель над головой', 'png'),
+    frames: aligned('seated-overhead-extension', 'Гантель за головой', 'Гантель над головой'),
     steps: [
       'Сядьте устойчиво и возьмите одну гантель двумя руками. Поднимите её над головой.',
       'Сгибая локти, плавно опустите гантель за голову на комфортную глубину.',
@@ -162,7 +166,7 @@ export const TECHNIQUE = {
     primary: ['delt_rear'],
     secondary: ['traps_lower', 'rotator_cuff', 'rhomboids'],
     equipment: 'Верхний блок, канатная рукоять',
-    frames: ek('face-pull', 'Руки вытянуты', 'Канат у лица', 'png'),
+    frames: aligned('face-pull', 'Руки вытянуты', 'Канат у лица'),
     steps: [
       'Возьмитесь за концы каната, отступите от блока и вытяните руки перед собой.',
       'Потяните канат к лицу. Разводите концы в стороны, чтобы кисти оказались по бокам головы.',
@@ -181,7 +185,7 @@ export const TECHNIQUE = {
     primary: ['hip_flexors'],
     secondary: ['abs_rectus', 'abs_obliques', 'forearms'],
     equipment: 'Перекладина',
-    frames: ek('hanging-leg-raise', 'Ноги опущены', 'Ноги подняты перед собой', 'png'),
+    frames: aligned('hanging-leg-raise', 'Ноги опущены', 'Ноги подняты перед собой'),
     steps: [
       'Повисните на перекладине и дождитесь, пока тело перестанет раскачиваться.',
       'Напрягите живот и поднимите прямые ноги перед собой до высоты, которую контролируете.',
@@ -200,6 +204,7 @@ export const TECHNIQUE = {
     primary: ['glute_med'],
     secondary: [],
     equipment: 'Коврик',
+    separatePoses: true,
     frames: ek('side-lying-leg-raise', 'Ноги вместе', 'Верхняя нога поднята', 'png'),
     steps: [
       'Лягте на бок и удобно поддержите голову. Выпрямите ноги, расположите плечи и таз друг над другом.',
@@ -219,7 +224,7 @@ export const TECHNIQUE = {
     primary: ['glute_med'],
     secondary: ['glute_max'],
     equipment: 'Устойчивая опора',
-    frames: ek('standing-hip-abduction', 'Стопы рядом', 'Нога отведена в сторону', 'png'),
+    frames: aligned('standing-hip-abduction', 'Стопы рядом', 'Нога отведена в сторону'),
     steps: [
       'Встаньте боком к опоре и придерживайтесь за неё рукой. Перенесите вес на ближнюю к опоре ногу.',
       'Отведите свободную ногу в сторону, сохраняя корпус вертикальным и носок направленным вперёд.',
@@ -563,7 +568,7 @@ export const TECHNIQUE = {
     primary: ['lats'],
     secondary: ['biceps', 'rhomboids', 'delt_rear'],
     equipment: 'Тренажер верхней тяги, широкая рукоять',
-    frames: ek('lat-pulldown', 'Руки вытянуты вверх', 'Рукоять у груди', 'png'),
+    frames: aligned('lat-pulldown', 'Руки вытянуты вверх', 'Рукоять у груди'),
     steps: [
       'Настройте валик так, чтобы бедра были плотно прижаты. Возьмите рукоять хватом сверху шире плеч.',
       'Сядьте, корпус слегка отклонен назад, руки прямые.',
@@ -585,7 +590,7 @@ export const TECHNIQUE = {
     primary: ['chest_middle'],
     secondary: ['delt_front'],
     equipment: 'Тренажер «бабочка» (pec deck)',
-    frames: ek('pec-deck', 'Руки разведены', 'Руки сведены', 'png'),
+    frames: aligned('pec-deck', 'Руки разведены', 'Руки сведены'),
     steps: [
       'Настройте высоту сиденья так, чтобы руки сводились перед серединой груди.',
       'Сядьте и прижмите спину к спинке. Возьмитесь за рукоятки или упритесь предплечьями в подушки — в зависимости от модели.',
@@ -1176,7 +1181,7 @@ export const TECHNIQUE = {
     primary: ['hamstrings'],
     secondary: [],
     equipment: 'Тренажер для сгибания ног сидя',
-    frames: ek('seated-leg-curl', 'Ноги вытянуты', 'Колени согнуты', 'png'),
+    frames: aligned('seated-leg-curl', 'Ноги вытянуты', 'Колени согнуты'),
     steps: [
       'Настройте спинку: колено на оси тренажера, нижний валик — над пятками.',
       'Опустите верхний валик на бедра и зафиксируйте.',
@@ -1257,7 +1262,7 @@ export const TECHNIQUE = {
     primary: ['quads'],
     secondary: ['glute_max', 'adductors'],
     equipment: 'Гакк-тренажер',
-    frames: ek('hack-squat', 'Внизу', 'Ноги выпрямлены'),
+    frames: aligned('hack-squat', 'Внизу', 'Ноги выпрямлены'),
     steps: [
       'Встаньте спиной к спинке, плечи под подушками, стопы на платформе на ширине плеч.',
       'Снимите с упоров.',
@@ -1315,12 +1320,12 @@ export const TECHNIQUE = {
     primary: ['glute_max'],
     secondary: ['quads', 'hamstrings'],
     equipment: 'Тумба или скамья; гантели',
-    frames: ek('step-up', 'Стоя у тумбы', 'На тумбе'),
+    frames: aligned('step-up', 'Одна стопа на тумбе', 'Стоя на тумбе'),
     steps: [
       'Встаньте лицом к тумбе, гантели в руках.',
       'Поставьте одну ногу на тумбу целиком.',
-      'Поднимитесь, отталкиваясь стоящей на тумбе ногой.',
-      'Медленно опуститесь той же ногой. Повторите на другую.',
+      'Надавите на тумбу всей стопой и выпрямите рабочую ногу. Поднимитесь и поставьте рядом вторую стопу.',
+      'Первой верните на пол ногу, которую приставили. Рабочей ногой контролируйте спуск. После подхода смените сторону.',
     ],
     tips: [
       'Работает нога на тумбе — нижней не подпрыгивайте.',
@@ -1354,6 +1359,7 @@ export const TECHNIQUE = {
     primary: ['glute_max'],
     secondary: ['hamstrings'],
     equipment: 'Нижний блок кроссовера, манжета на лодыжку',
+    separatePoses: true,
     frames: ek('cable-kickback', 'Ноги вместе', 'Нога отведена'),
     steps: [
       'Наденьте манжету, встаньте лицом к блоку, держитесь за стойку.',
@@ -1471,6 +1477,7 @@ export const TECHNIQUE = {
     primary: ['core'],
     secondary: ['abs_rectus', 'lats'],
     equipment: 'Ролик для пресса (на рисунке — штанга с блинами, движение то же)',
+    separatePoses: true,
     frames: ek('ab-rollout', 'На коленях', 'Тело вытянуто'),
     steps: [
       'Встаньте на колени, ролик под плечами на прямых руках.',

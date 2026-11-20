@@ -19,6 +19,6 @@ export function techniqueSlugFor(exercise) {
 }
 
 // Адрес кадра из public/technique относительно base сборки.
-export function techniqueFrameUrl(file, base = '/') {
-  return `${base.endsWith('/') ? base : base + '/'}technique/${file}`
+export function techniqueFrameUrl(file, base = '/', revision) {
+  return `${base.endsWith('/') ? base : base + '/'}technique/${file}${revision ? `?v=${revision}` : ''}`
 }

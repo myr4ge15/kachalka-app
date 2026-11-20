@@ -1,6 +1,82 @@
 import { test, expect } from '@playwright/test'
 import { enterPin } from './helpers.js'
 
+// Координаты неподвижных деталей на сцене 320 × 224. Цвет и толщина штриха
+// слегка различаются между позами, поэтому допускаем один пиксель вокруг линии.
+const anchors = {
+  'standing-barbell-press': [134, 172, 198, 223], // стопы
+  'seated-dumbbell-press': [101, 165, 223, 222], // низ скамьи и стопы
+  'machine-shoulder-press': [94, 157, 237, 222],
+  'seated-overhead-extension': [91, 139, 222, 218],
+  'pec-deck': [107, 163, 238, 221],
+  'seated-leg-curl': [173, 1, 216, 55], // верх спинки
+  'lat-pulldown': [113, 170, 196, 218], // сиденье
+  'face-pull': [103, 177, 179, 215], // пояс
+  'hanging-leg-raise': [86, 5, 222, 21], // перекладина
+  'standing-hip-abduction': [185, 102, 271, 210], // стул
+  'floor-glute-bridge': [4, 137, 128, 195], // затылок и рука на полу
+  'bulgarian-split-squat': [59, 187, 110, 207], // опора задней ноги
+  'hack-squat': [39, 175, 88, 208], // платформа для стоп
+  'step-up': [187, 158, 217, 189], // правая ножка тумбы
+}
+
+test('кадры всех карточек открываются, опоры исправленных пар совпадают', async ({ page }) => {
+  await page.goto('/kachalka-app/')
+  const scores = await page.evaluate(async anchors => {
+    const { TECHNIQUE } = await import('/kachalka-app/src/content/technique.js')
+    const { techniqueFrameUrl } = await import('/kachalka-app/src/lib/technique.js')
+    const scores = {}
+    for (const [slug, card] of Object.entries(TECHNIQUE)) {
+      const region = anchors[slug]
+      const images = await Promise.all(card.frames.map(async frame => {
+        const img = new Image()
+        img.src = techniqueFrameUrl(frame.file, '/kachalka-app/', frame.revision)
+        await img.decode()
+        return img
+      }))
+      if (!region) continue
+      const [left, top, right, bottom] = region
+      const width = right - left
+      const height = bottom - top
+      const masks = images.map(img => {
+        const canvas = document.createElement('canvas')
+        canvas.width = 320
+        canvas.height = 224
+        const ctx = canvas.getContext('2d')
+        ctx.fillStyle = 'white'
+        ctx.fillRect(0, 0, 320, 224)
+        const scale = Math.min(320 / img.naturalWidth, 224 / img.naturalHeight)
+        const w = img.naturalWidth * scale
+        const h = img.naturalHeight * scale
+        ctx.drawImage(img, (320 - w) / 2, (224 - h) / 2, w, h)
+        const { data } = ctx.getImageData(left, top, width, height)
+        return Uint8Array.from({ length: width * height }, (_, i) => data[i * 4] < 175)
+      })
+      function overlap(a, b) {
+        let ink = 0
+        let matched = 0
+        for (let i = 0; i < a.length; i++) {
+          if (!a[i]) continue
+          ink++
+          const x = i % width
+          const y = Math.floor(i / width)
+          let found = false
+          for (let row = Math.max(0, y - 1); row <= Math.min(height - 1, y + 1); row++) {
+            for (let col = Math.max(0, x - 1); col <= Math.min(width - 1, x + 1); col++) {
+              if (b[row * width + col]) found = true
+            }
+          }
+          if (found) matched++
+        }
+        return ink >= 30 ? matched / ink : 0
+      }
+      scores[slug] = Math.min(overlap(masks[0], masks[1]), overlap(masks[1], masks[0]))
+    }
+    return scores
+  }, anchors)
+  for (const slug of Object.keys(anchors)) expect(scores[slug], slug).toBeGreaterThan(0.85)
+})
+
 test('в жиме Арнольда стопы остаются на месте при смене кадров', async ({ page }) => {
   await page.goto('/kachalka-app/')
   const drift = await page.evaluate(async () => {

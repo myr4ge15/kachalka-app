@@ -46,7 +46,7 @@ export default function TechniqueSheet({ slug, name, onClose }) {
         )}
         {card && (
           <>
-            {card.frames.length > 0 && <TechniqueFrames frames={card.frames} name={name} />}
+            {card.frames.length > 0 && <TechniqueFrames frames={card.frames} name={name} separatePoses={card.separatePoses} />}
 
             <section className="technique-sec">
               <h3>Мышцы и оборудование</h3>
@@ -122,28 +122,29 @@ function prefersReducedMotion() {
 // Два кадра «по ходу движения» с одного ракурса: смена — мягким растворением
 // (index.css .technique-stage), с подписью позы. При reduced-motion — оба кадра рядом,
 // без смены. Пауза останавливает смену; выбор позы — тоже пауза.
-function TechniqueFrames({ frames, name }) {
+function TechniqueFrames({ frames, name, separatePoses }) {
   const [reduced] = useState(prefersReducedMotion)
   const [idx, setIdx] = useState(0)
-  const [playing, setPlaying] = useState(!reduced)
+  const staticView = reduced || separatePoses
+  const [playing, setPlaying] = useState(!staticView)
   const [failed, setFailed] = useState(false)
   const base = import.meta.env.BASE_URL ?? '/'
 
   useEffect(() => {
-    if (!playing || reduced) return undefined
+    if (!playing || staticView) return undefined
     const t = setInterval(() => setIdx((i) => (i + 1) % frames.length), FRAME_MS)
     return () => clearInterval(t)
-  }, [playing, reduced, frames.length])
+  }, [playing, staticView, frames.length])
 
   if (failed) return null
 
-  if (reduced) {
+  if (staticView) {
     return (
       <div className="technique-frames technique-frames--static">
         {frames.map((f) => (
           <figure key={f.file} className="technique-frame-fig">
             <div className="technique-paper">
-              <img src={techniqueFrameUrl(f.file, base)} alt={`${name}: ${f.caption}`} onError={() => setFailed(true)} />
+              <img src={techniqueFrameUrl(f.file, base, f.revision)} alt={`${name}: ${f.caption}`} onError={() => setFailed(true)} />
             </div>
             <figcaption className="muted">{f.caption}</figcaption>
           </figure>
@@ -158,7 +159,7 @@ function TechniqueFrames({ frames, name }) {
         {frames.map((f, i) => (
           <img
             key={f.file}
-            src={techniqueFrameUrl(f.file, base)}
+            src={techniqueFrameUrl(f.file, base, f.revision)}
             alt={i === idx ? `${name}: ${f.caption}` : ''}
             aria-hidden={i === idx ? undefined : 'true'}
             className={i === idx ? 'is-on' : ''}
