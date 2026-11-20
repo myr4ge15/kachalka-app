@@ -98,6 +98,15 @@ describe('TechniqueSheet', () => {
     expect(screen.getByText('Частые ошибки')).toBeInTheDocument()
   })
 
+  it('жим Арнольда показывает обе позы из справочника Everkinetic', async () => {
+    render(<TechniqueSheet slug="arnold-press" name="Жим Арнольда" onClose={vi.fn()} />)
+    for (const [i, pose] of ['Гантели у плеч', 'Гантели над головой'].entries()) {
+      fireEvent.click(await screen.findByRole('button', { name: pose }))
+      expect(screen.getByAltText('Жим Арнольда: ' + pose)).toHaveAttribute('src', expect.stringContaining(`arnold-press-${i + 1}.png`))
+    }
+    expect(screen.getByRole('link', { name: 'CC BY-SA 4.0' })).toHaveAttribute('href', 'https://creativecommons.org/licenses/by-sa/4.0/')
+  })
+
   it('без кадров — только текст и без строки об источниках рисунков', async () => {
     render(<TechniqueSheet slug="lat-pulldown" name="Тяга верхнего блока" onClose={vi.fn()} />)
     expect(await screen.findByText('Частые ошибки')).toBeInTheDocument()

@@ -1263,7 +1263,10 @@ export const TECHNIQUE = {
     primary: ['delt_front'],
     secondary: ['delt_side', 'triceps'],
     equipment: 'Гантели, скамья со спинкой',
-    frames: [],
+    frames: [
+      { file: 'arnold-press-1.png', caption: 'Гантели у плеч' },
+      { file: 'arnold-press-2.png', caption: 'Гантели над головой' },
+    ],
     steps: [
       'Сядьте, спина прижата к спинке. Гантели у плеч, ладони смотрят на вас, локти впереди.',
       'Выжимая гантели вверх, разворачивайте кисти ладонями вперед, локти уходят в стороны.',

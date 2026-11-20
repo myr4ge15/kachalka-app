@@ -54,7 +54,12 @@ describe('справочник техники — целостность', () =>
         expect(existsSync(publicFile(f.file)), f.file).toBe(true)
         expect(f.caption, f.file).toBeTruthy()
         // Файл — без скриптов и внешних ссылок: SVG показывается как <img>, но лишнего не тащим.
-        expect(readFileSync(publicFile(f.file), 'utf-8')).not.toMatch(/<script|href=|<image/)
+        if (f.file.endsWith('.svg')) {
+          expect(readFileSync(publicFile(f.file), 'utf-8')).not.toMatch(/<script|href=|<image/)
+        } else {
+          expect(f.file).toMatch(/\.png$/)
+          expect(readFileSync(publicFile(f.file)).subarray(0, 8).toString('hex')).toBe('89504e470d0a1a0a')
+        }
       }
       expect(sources, slug).toContain(`${slug}-1/2`)
     }

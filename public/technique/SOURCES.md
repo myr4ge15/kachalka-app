@@ -1,6 +1,6 @@
 # Кадры подсказок по технике — источники
 
-Все файлы `*.svg` в этой папке — иллюстрации проекта **Everkinetic** (автор — Greg Priday),
+Все рисунки в этой папке — иллюстрации проекта **Everkinetic** (автор — Greg Priday),
 https://github.com/everkinetic/data, лицензия **CC BY-SA 4.0**
 (https://creativecommons.org/licenses/by-sa/4.0/). Файлы не изменялись, только переименованы.
 Проверено 13.10.2026 (партия 2 — 14.10.2026); тексты подсказок (`src/content/technique.js`) — собственные, не перевод.
@@ -60,6 +60,7 @@ https://github.com/everkinetic/data, лицензия **CC BY-SA 4.0**
 | crunch-1/2 | 0291 | Crunches |
 | side-plank-1/2 | 0113 | Side Plank |
 | side-bend-1/2 | 0294 | Side Bend with Dumbbell |
+| arnold-press-1/2.png | 0006 | Arnold Press · [гантели у плеч](https://github.com/everkinetic/data/blob/446bb9a3d0c3beb6b84f7c9d77dfc8af707a2ab6/src/images-web/arnold-press-1.png) · [гантели над головой](https://github.com/everkinetic/data/blob/446bb9a3d0c3beb6b84f7c9d77dfc8af707a2ab6/src/images-web/arnold-press-2.png) |
 | ab-rollout-1/2 | 0286 | Ab Rollout on Knees with Barbell |
 
 Номер `-1`/`-2` — порядок показа по ходу движения (у источника — `relaxation`/`tension`).
