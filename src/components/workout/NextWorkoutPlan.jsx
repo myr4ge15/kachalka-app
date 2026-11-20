@@ -6,7 +6,6 @@ import { readDraft, writeDraft } from '../../lib/draftStore.js'
 import { defaultSet } from '../../lib/progressionCard.js'
 import { exerciseUsageSections } from '../../lib/exerciseUsage.js'
 import { techniqueSlugFor } from '../../lib/technique.js'
-import { ExerciseTechnique } from '../exercises/TechniqueSheet.jsx'
 import ExercisePicker from '../exercises/ExercisePicker.jsx'
 import MenuRow from '../ui/MenuRow.jsx'
 import SheetDialog from '../ui/SheetDialog.jsx'
@@ -17,7 +16,7 @@ export default function NextWorkoutPlan({ userId, workouts, onStart }) {
   const [plan, setPlan] = useState(() => readDraft(key) ?? [])
   const [open, setOpen] = useState(false)
   const [picking, setPicking] = useState(false)
-  const exercises = useLiveQuery(() => open ? getExercises() : [], [open, userId], [])
+  const exercises = useLiveQuery(() => picking ? getExercises() : [], [picking, userId], [])
   const favorites = useLiveQuery(() => picking ? getFavorites(userId) : [], [picking, userId], [])
   const usage = useMemo(() => picking ? exerciseUsageSections(workouts ?? []) : undefined, [picking, workouts])
   const occupied = open && hasNewDraft(userId)
@@ -49,9 +48,7 @@ export default function NextWorkoutPlan({ userId, workouts, onStart }) {
       <div className="sheet-scroll">
         {plan.length === 0 && <p className="muted">Добавь упражнения для следующей тренировки. План сохранится на этом устройстве.</p>}
         {plan.length > 0 && <ul className="next-plan-list">{plan.map(ex => <li className="next-plan-row" key={ex.id}>
-          <div className="next-plan-exercise"><span>{ex.name}</span>
-            <ExerciseTechnique exercise={exercises.find(item => item.id === ex.id)} />
-          </div>
+          <span className="next-plan-exercise">{ex.name}</span>
           <button type="button" className="btn ghost btn--sm" aria-label={`Убрать «${ex.name}» из плана`}
             onClick={() => save(plan.filter(item => item.id !== ex.id))}><Icon name="trash" /></button>
         </li>)}</ul>}
@@ -68,7 +65,7 @@ export default function NextWorkoutPlan({ userId, workouts, onStart }) {
     </SheetDialog>}
     {picking && <ExercisePicker exercises={exercises} title="Упражнения для плана" selectMany
       usage={usage} favorites={favorites} onToggleFavorite={id => toggleFavorite(userId, id)}
-      techniqueSlugOf={techniqueSlugFor}
+      techniqueSlugOf={techniqueSlugFor} techniqueAtName
       onPick={ex => add([ex])} onPickMany={add} onClose={() => setPicking(false)} />}
   </>
 }

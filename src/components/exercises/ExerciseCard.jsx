@@ -16,7 +16,7 @@ import {
 } from '../../lib/progressionCard.js'
 import { exerciseFocusSummary } from '../../lib/workoutFocus.js'
 import { FEELS, FEEL_LABELS } from '../../lib/rpe.js'
-import { TechniqueButton } from './TechniqueSheet.jsx'
+import { TitleWithTechnique } from './TechniqueSheet.jsx'
 import Icon from '../ui/Icon.jsx'
 
 // Карточка одного упражнения в композере тренировки (шапка, панель автопрогрессии
@@ -367,19 +367,6 @@ function AddSetButton({ onClick, short = false }) {
 function SetInput(props) {
   const select = useSelectOnFocus()
   return <input type="text" autoComplete="off" {...props} {...select} />
-}
-
-function TitleWithTechnique({ name, onTechnique }) {
-  if (!onTechnique) return <span className="exercise-name">{name}</span>
-  const i = name.lastIndexOf(' ')
-  const head = i > 0 ? name.slice(0, i + 1) : ''
-  const last = i > 0 ? name.slice(i + 1) : name
-  return (
-    <span className="exercise-name">
-      {head}
-      <span className="exercise-name-tail">{last}<TechniqueButton name={name} onClick={onTechnique} className="tb-after" /></span>
-    </span>
-  )
 }
 
 // Подходы совпадают с предложенными (рекомендация или прошлая) — значит, их еще не правили.

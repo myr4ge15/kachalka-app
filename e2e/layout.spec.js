@@ -44,7 +44,7 @@ test('строки плана на телефоне оставляют мест�
     await page.setViewportSize(size)
     const rows = plan.getByRole('listitem')
     await expect(rows).toHaveCount(5)
-    await expect(plan.getByRole('button', { name: /^Как выполнять/ })).toHaveCount(5)
+    await expect(plan.getByRole('button', { name: /^Как выполнять/ })).toHaveCount(0)
     for (const row of await rows.all()) {
       const bounds = await row.boundingBox()
       const remove = await row.getByRole('button', { name: /Убрать/ }).boundingBox()
@@ -60,6 +60,35 @@ test('строки плана на телефоне оставляют мест�
       await page.screenshot({ path: 'work/next-plan-mobile.png' })
     }
   }
+  await page.setViewportSize({ width: 320, height: 568 })
+  await plan.getByRole('button', { name: 'Добавить упражнения' }).click()
+  const picker = page.getByRole('dialog', { name: 'Упражнения для плана' })
+  const name = 'Жим лежа на наклонной скамье'
+  const checkbox = picker.getByRole('checkbox', { name, exact: true })
+  const info = picker.getByRole('button', { name: 'Как выполнять: ' + name })
+  const tail = info.locator('..')
+  await expect(tail).toHaveText('скамье')
+  const placement = await tail.evaluate(el => {
+    const word = document.createRange()
+    word.selectNodeContents(el.firstChild)
+    const text = word.getBoundingClientRect()
+    const icon = el.querySelector('svg').getBoundingClientRect()
+    return icon.left >= text.right && icon.top < text.bottom && icon.bottom > text.top
+  })
+  expect(placement).toBe(true)
+  await info.click()
+  await page.getByRole('dialog', { name, exact: true }).getByRole('button', { name: 'закрыть' }).click()
+  await expect(checkbox).not.toBeChecked()
+  const startOfName = await info.locator('..').locator('..').evaluate(el => {
+    const range = document.createRange()
+    range.setStart(el.firstChild, 0)
+    range.setEnd(el.firstChild, 3)
+    const box = range.getBoundingClientRect()
+    return { x: box.x + box.width / 2, y: box.y + box.height / 2 }
+  })
+  await page.mouse.click(startOfName.x, startOfName.y)
+  await expect(checkbox).toBeChecked()
+  await page.screenshot({ path: 'work/fb_ae00bf41-picker.png' })
 })
 
 test('крупное фото вмещается лёжа, закрывается тапом и не отдаёт фокус профилю', async ({ page }) => {

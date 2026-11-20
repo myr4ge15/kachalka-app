@@ -1000,8 +1000,8 @@ button.link-btn { min-height: 44px; display: inline-flex; align-items: center; j
 
 .next-plan-list { list-style: none; margin: 0 0 12px; padding: 0; }
 .next-plan-row { display: grid; grid-template-columns: minmax(0, 1fr) 44px; align-items: center; gap: 12px; padding: 6px 0; }
-.next-plan-exercise, .tpl-ex-summary { display: flex; align-items: center; min-width: 0; gap: 4px; }
-.next-plan-exercise span { overflow-wrap: anywhere; }
+.tpl-ex-summary { display: flex; align-items: center; min-width: 0; gap: 4px; }
+.next-plan-exercise { overflow-wrap: anywhere; }
 .tpl-ex-summary { flex: 1; }
 .next-plan-row + .next-plan-row { border-top: 1px solid var(--border); }
 .next-plan-row .btn { width: 44px; height: 44px; margin: 0; padding: 0; }
@@ -1413,11 +1413,14 @@ button.link-btn { min-height: 44px; display: inline-flex; align-items: center; j
 }
 .picker-group { color: var(--muted); font-size: var(--fs-small); }
 .picker-item.picker-item--muscles { display: block; padding-block: 11px; }
-label.picker-item.picker-item--muscles {
+label.picker-item.picker-item--muscles, .picker-item.picker-item--inline-technique {
   display: grid; grid-template-columns: auto minmax(0, 1fr); column-gap: 10px;
   align-items: start; cursor: pointer;
 }
-label.picker-item--muscles > span { grid-column: 2; }
+label.picker-item--muscles > span, .picker-item--inline-technique > span { grid-column: 2; }
+.picker-item--inline-technique { position: relative; isolation: isolate; }
+.picker-select-area { position: absolute; inset: 0; z-index: 1; cursor: pointer; }
+.picker-item--inline-technique > input, .picker-item--inline-technique .technique-btn { position: relative; z-index: 2; }
 .picker-exercise-name { display: block; line-height: 1.3; overflow-wrap: anywhere; }
 .picker-muscles-line {
   display: block; margin-top: 3px; overflow-wrap: anywhere;

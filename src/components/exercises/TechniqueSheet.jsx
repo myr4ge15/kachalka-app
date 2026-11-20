@@ -223,6 +223,19 @@ export function ExerciseTechnique({ exercise }) {
   </>
 }
 
+export function TitleWithTechnique({ name, onTechnique, className = 'exercise-name' }) {
+  if (!onTechnique) return <span className={className}>{name}</span>
+  const i = name.lastIndexOf(' ')
+  const head = i > 0 ? name.slice(0, i + 1) : ''
+  const last = i > 0 ? name.slice(i + 1) : name
+  return (
+    <span className={className}>
+      {head}
+      <span className="exercise-name-tail">{last}<TechniqueButton name={name} onClick={onTechnique} className="tb-after" /></span>
+    </span>
+  )
+}
+
 export function TechniqueButton({ name, onClick, className = '' }) {
   return (
     <button

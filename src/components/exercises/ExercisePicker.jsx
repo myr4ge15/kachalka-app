@@ -9,7 +9,7 @@ import { useFieldViewport } from '../../hooks/useFieldViewport.js'
 import ExerciseScanner from './ExerciseScanner.jsx'
 import ExerciseVoice from './ExerciseVoice.jsx'
 import { VOICE_ENABLED } from '../../lib/features.js'
-import TechniqueSheet, { TechniqueButton } from './TechniqueSheet.jsx'
+import TechniqueSheet, { TechniqueButton, TitleWithTechnique } from './TechniqueSheet.jsx'
 import Icon from '../ui/Icon.jsx'
 
 // Канонические группы мышц из ТЗ (Приложение A / п. 3.2). К ним добавляем
@@ -36,6 +36,7 @@ export default function ExercisePicker({
   favorites = [],
   onToggleFavorite,
   techniqueSlugOf,
+  techniqueAtName = false,
   onPick,
   selectMany = false,
   onPickMany, // набор сканером (8.4.0); нет — сканер в одиночном режиме (замена)
@@ -187,15 +188,21 @@ export default function ExercisePicker({
           .map(labelOf)
       : []
     const descriptionIds = [muscleGroup && primaryId, secondary.length > 0 && secondaryId].filter(Boolean).join(' ')
-    const Item = batch ? 'label' : 'button'
+    const slug = techniqueSlugOf?.(e) ?? null
+    const inline = batch && techniqueAtName
+    const Item = inline ? 'div' : batch ? 'label' : 'button'
     const item = (
-      <Item {...(batch ? {} : { type: 'button', onClick: () => onPick(e) })} className="picker-item picker-item--muscles"
-        aria-labelledby={nameId} aria-describedby={descriptionIds || undefined}>
-        {batch && <input type="checkbox" aria-labelledby={nameId}
+      <Item {...(batch ? {} : { type: 'button', onClick: () => onPick(e) })} className={`picker-item picker-item--muscles${inline ? ' picker-item--inline-technique' : ''}`}
+        aria-labelledby={inline ? undefined : nameId} aria-describedby={descriptionIds || undefined}>
+        {batch && <input type="checkbox" id={nameId + '-check'} aria-label={inline ? e.name : undefined} aria-labelledby={inline ? undefined : nameId}
           aria-describedby={descriptionIds || undefined} checked={selected.some(ex => ex.id === e.id)}
           onChange={() => setSelected(prev => prev.some(ex => ex.id === e.id)
             ? prev.filter(ex => ex.id !== e.id) : [...prev, e])} />}
-        <span className="picker-exercise-name" id={nameId}>{e.name}</span>
+        {inline ? <>
+          <label className="picker-select-area" htmlFor={nameId + '-check'} aria-label={e.name} />
+          <TitleWithTechnique className="picker-exercise-name" name={e.name}
+            onTechnique={slug ? () => setTechnique({ slug, name: e.name }) : undefined} />
+        </> : <span className="picker-exercise-name" id={nameId}>{e.name}</span>}
         {muscleGroup && (
           <span id={primaryId} className="picker-muscles-line">
             <strong className={`picker-muscle-group tag-${tagSlug(muscleGroup)}`}>{muscleGroup[0].toUpperCase() + muscleGroup.slice(1)}</strong>
@@ -205,10 +212,9 @@ export default function ExercisePicker({
         {secondary.length > 0 && <span id={secondaryId} className="picker-muscles-line">Также — {secondary.join(', ')}</span>}
       </Item>
     )
-    const slug = techniqueSlugOf?.(e) ?? null
     // «i» — слева от названия (v8.0.0). Когда подсказки в пикере включены, у строк
     // без подсказки на ее месте пустое место: названия стоят ровной колонкой.
-    const info = !techniqueSlugOf ? null : slug ? (
+    const info = inline || !techniqueSlugOf ? null : slug ? (
       <TechniqueButton name={e.name} onClick={() => setTechnique({ slug, name: e.name })} />
     ) : <span className="technique-slot" aria-hidden="true" />
     if (!onToggleFavorite) {
