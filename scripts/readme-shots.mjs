@@ -1,7 +1,7 @@
 // ============================================================================
 // Скриншоты для README (docs/screenshots/*.png) одной командой:
 //
-//   npm run shots:readme            — все 14 экранов
+//   npm run shots:readme            — все экраны
 //   npm run shots:readme -- feed run — только перечисленные
 //
 // Что делает: поднимает vite dev-сервер (с фиктивными ключами Supabase, как e2e),
@@ -38,7 +38,7 @@ const OUT = path.join(ROOT, 'docs', 'screenshots')
 const VIEWPORT = { width: 393, height: 769 }
 const SCALE = 2
 const ACCENT = { id: 'custom', hue: 205 } // бирюзовый, как на прежних скриншотах
-const ALL = ['home', 'recovery', 'workout', 'progress-overview', 'progress-chart',
+const ALL = ['home', 'recovery', 'recovery-volume', 'workout', 'progress-overview', 'progress-chart',
   'feed', 'rating', 'run', 'achievements', 'login', 'forgot-pin', 'join-form', 'join-pending', 'circle', 'friends']
 const only = process.argv.slice(2)
 for (const n of only) if (!ALL.includes(n)) throw new Error(`Неизвестный экран «${n}». Есть: ${ALL.join(', ')}`)
@@ -315,9 +315,15 @@ async function main() {
     console.log(`Снимаю в ${path.relative(ROOT, OUT)}:`)
     await shot('home')
 
-    if (want('recovery')) {
+    if (want('recovery') || want('recovery-volume')) {
       await page.getByText('Подробнее', { exact: true }).first().click() // стрелка — SVG (v9.4.0)
       await shot('recovery')
+      if (want('recovery-volume')) {
+        const volume = page.getByRole('region', { name: 'Объем по группам' })
+        await volume.getByRole('button', { name: /^Грудь/ }).click()
+        await volume.evaluate(el => el.scrollIntoView({ block: 'start', behavior: 'instant' }))
+        await shot('recovery-volume')
+      }
       await tab('Главная')
     }
 

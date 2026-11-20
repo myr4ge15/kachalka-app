@@ -88,6 +88,8 @@
 
 <p align="center">
   <a href="#восстановление"><img src="docs/screenshots/recovery.png" width="320" alt="Карта восстановления"></a>
+  &nbsp;&nbsp;
+  <a href="#восстановление"><img src="docs/screenshots/recovery-volume.png" width="320" alt="Объем по группам: рабочие подходы в неделю по мышцам груди"></a>
 </p>
 
 Она помогает быстро увидеть, какие мышцы недавно тренировались, какие уже можно нагружать, а какие давно не получали нагрузки.
@@ -175,7 +177,7 @@ kachalka-app можно добавить на главный экран теле
 
 - Карта тела: SVG-пути адаптированы из [react-native-body-highlighter](https://github.com/HichamELBSI/react-native-body-highlighter), MIT, © 2022 ELABBASSI Hicham.
 - Шрифты: [Onest](https://github.com/RTDeluxe/onest) и [Sofia Sans Condensed](https://github.com/lettersoup/Sofia-Sans), SIL Open Font License 1.1.
-- Рисунки в подсказках «Как выполнять»: [Everkinetic](https://github.com/everkinetic/data) (Greg Priday), [CC BY-SA 4.0](https://creativecommons.org/licenses/by-sa/4.0/). Оригиналы и сведения о выравнивании кадров — в `public/technique/SOURCES.md`. Тексты подсказок написаны для kachalka-app.
+- Рисунки в подсказках «Как выполнять»: [Everkinetic](https://github.com/everkinetic/data) (Greg Priday), [CC BY-SA 4.0](https://creativecommons.org/licenses/by-sa/4.0/). Тексты подсказок написаны для kachalka-app.
 
 ---
 
