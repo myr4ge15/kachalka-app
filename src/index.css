@@ -2234,6 +2234,9 @@ button.cm-mention-link { text-decoration: underline; cursor: pointer; }
 /* Меню по удержанию (components/social/CommentMenu.jsx): размытый фон, пузырь поверх, меню
    с иконками под ним. Слой — внутри листа ветки (.cm-sheet), без листа — на весь экран. */
 .cm-sheet { position: relative; }
+/* При повороте Chromium может прокрутить overflow:hidden вслед за фокусом
+   и увести реакции за верхний край. У ветки есть отдельный .sheet-scroll. */
+.cm-sheet:has(> .cmm) { overflow: clip; }
 .cmm { position: absolute; inset: 0; z-index: 40; -webkit-touch-callout: none; -webkit-user-select: none; user-select: none; }
 .cmm.fixed { position: fixed; z-index: 140; }
 .cmm-scrim {

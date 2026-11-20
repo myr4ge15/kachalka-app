@@ -20,14 +20,22 @@ test('действия длинного комментария доступны 
     const mount = document.createElement('div')
     host.append(mount)
     const actions = ['Ответить', 'Копировать'].map((label) => ({ key: label, label, onSelect: () => { host.dataset.picked = label } }))
-    ReactDOM.createRoot(mount).render(React.createElement(CommentMenu, { anchor: bubble, actions, reactions: {} }))
+    const reactions = { onPick: kind => { host.dataset.picked = kind } }
+    ReactDOM.createRoot(mount).render(React.createElement(CommentMenu, { anchor: bubble, actions, reactions }))
   })
   const copy = page.getByRole('menuitem', { name: 'Копировать' })
+  const fire = page.getByRole('button', { name: 'Огонь' })
+  const sheet = page.locator('.sheet.cm-sheet')
   for (const size of [{ width: 360, height: 640 }, { width: 740, height: 360 }]) {
     await page.setViewportSize(size)
+    // Имитируем прокрутку внешнего листа за фокусом при повороте Chromium.
+    // У длинного комментария содержимое выше листа в обеих ориентациях.
+    await sheet.evaluate(el => { el.scrollTop = el.scrollHeight })
     await expect(copy).toBeInViewport({ ratio: 1 })
-    await expect(page.getByRole('button', { name: 'Огонь' })).toBeInViewport({ ratio: 1 })
+    await expect(fire).toBeInViewport({ ratio: 1 })
+    await fire.tap()
+    await expect(sheet).toHaveAttribute('data-picked', 'fire')
     await copy.tap()
-    await expect(page.locator('.sheet.cm-sheet')).toHaveAttribute('data-picked', 'Копировать')
+    await expect(sheet).toHaveAttribute('data-picked', 'Копировать')
   }
 })
