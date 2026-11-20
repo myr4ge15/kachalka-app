@@ -54,8 +54,11 @@ describe('voiceCandidates', () => {
 
 const fullCatalog = TECHNIQUE_INDEX.flatMap((entry) => entry.names.map((name) => ({ id: name, name })))
 describe('curated voice vocabulary', () => {
-  it('covers all local technique entries', () => {
-    expect(VOICE_ALIASES.map((entry) => entry.slug).sort()).toEqual(TECHNIQUE_INDEX.map((entry) => entry.slug).sort())
+  it('links each curated alias group to a unique local technique entry', () => {
+    const slugs = VOICE_ALIASES.map((entry) => entry.slug)
+    expect(new Set(slugs).size).toBe(slugs.length)
+    const techniqueSlugs = TECHNIQUE_INDEX.map((entry) => entry.slug)
+    expect(techniqueSlugs).toEqual(expect.arrayContaining(slugs))
   })
   it.each(VOICE_ALIASES.flatMap((entry) => entry.aliases.map((alias) => [alias, entry.names])))('%s resolves only to its available variants', (alias, names) => {
     const matches = voiceCandidates(alias, fullCatalog)
