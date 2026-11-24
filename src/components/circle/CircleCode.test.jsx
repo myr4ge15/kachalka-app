@@ -29,8 +29,8 @@ describe('CircleCode', () => {
     await waitFor(() => expect(writeText).toHaveBeenCalled())
     const text = writeText.mock.calls[0][0]
     expect(text).toMatch(/«Зал»/)
-    expect(text).toMatch(/Код: 7F3Q-9XWD/)
-    expect(text).toMatch(/#join=7F3Q9XWD$/)
+    expect(text).toMatch(/Код для раздела «Мой круг»: 7F3Q-9XWD/)
+    expect(text.split('\n')[1]).toMatch(/#join=7F3Q9XWD$/)
     expect(showToast).toHaveBeenCalledWith(expect.objectContaining({ title: 'Скопировано' }))
   })
 
@@ -54,7 +54,7 @@ describe('CircleCode', () => {
     navigator.share = share
     render(<CircleCode api={api} circle={CIRCLE} />)
     fireEvent.click(await screen.findByRole('button', { name: 'Поделиться' }))
-    await waitFor(() => expect(share).toHaveBeenCalledWith(expect.objectContaining({ text: expect.stringMatching(/Код: 7F3Q-9XWD/) })))
+    await waitFor(() => expect(share).toHaveBeenCalledWith(expect.objectContaining({ text: expect.stringMatching(/Код для раздела «Мой круг»: 7F3Q-9XWD/) })))
   })
 
   it('«Новый код» — с подтверждением, старый сразу гаснет', async () => {

@@ -263,12 +263,12 @@ export default function ProfileScreen({ user, onLogout, onAccountDeleted, onOpen
           {/* любимое упражнение */}
           {summary.favExercise && (
             <section className="sec">
-              <p className="sec-title">Любимое</p>
+              <p className="sec-title">Чаще всего</p>
               <div className="info-row">
                 <Icon name="repeat" size={22} />
                 <div>
                   <div className="v">{summary.favExercise.name}</div>
-                  <div className="k">чаще всего · {summary.favExercise.sets} {plural(summary.favExercise.sets, 'подход', 'подхода', 'подходов')}</div>
+                  <div className="k">{summary.favExercise.workouts} {plural(summary.favExercise.workouts, 'тренировка', 'тренировки', 'тренировок')}</div>
                 </div>
               </div>
             </section>
@@ -287,7 +287,7 @@ export default function ProfileScreen({ user, onLogout, onAccountDeleted, onOpen
 
       {/* Настройки — отдельный экран (v6.3.3): раньше это был свернутый блок в самом
           низу, и после «раскрыть» список оставался за краем — на экране висело
-          «Любимое». Выход — на виду в Профиле, как раньше. */}
+          «Чаще всего». Выход — на виду в Профиле, как раньше. */}
       <section className="sec settings-sec">
         {/* Проблема с отправкой — важный алерт: виден всегда, даже когда свернуто. */}
         <DeadLetterAlert userId={user.id} />

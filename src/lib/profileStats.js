@@ -137,29 +137,24 @@ export function fmtTonnage(kg) {
   return { value: t >= 100 ? String(Math.round(t)) : fmtNum(Math.round(t * 10) / 10), unit: 'т' }
 }
 
-// Любимое упражнение = с наибольшим числом подходов за всю историю.
-// { exId, name, sets } или null, если подходов нет.
+// Упражнение встречалось минимум в двух тренировках. Повторные блоки внутри одной считаем один раз.
 export function favExercise(workouts) {
-  // Имя — из свежего снимка: переименованное упражнение в старых тренировках
-  // хранит старое имя (РЕВЬЮ-КОДА-2026-10-02, п. 17).
   const shapes = currentExerciseShapes(workouts)
-  const byId = new Map() // exId → { exId, name, sets }
-  for (const w of workouts ?? []) {
-    for (const e of mainEntries(w)) {
-      const exId = entryExId(e)
-      if (!exId) continue
-      const cnt = (e.sets ?? []).length
-      if (cnt === 0) continue
-      const rec = byId.get(exId) ?? { exId, name: e.exercise?.name ?? '—', sets: 0 }
-      rec.sets += cnt
-      if (e.exercise?.name) rec.name = e.exercise.name
-      if (shapes.get(exId)?.name) rec.name = shapes.get(exId).name
-      byId.set(exId, rec)
+  const counts = new Map()
+  for (const workout of workouts ?? []) {
+    const seen = new Set()
+    for (const entry of mainEntries(workout)) {
+      const id = entryExId(entry)
+      if (!id || !entry.sets?.length || seen.has(id)) continue
+      seen.add(id)
+      counts.set(id, (counts.get(id) ?? 0) + 1)
     }
   }
   let top = null
-  for (const rec of byId.values()) {
-    if (!top || rec.sets > top.sets) top = rec
+  for (const [exId, count] of counts) {
+    if (count >= 2 && (!top || count > top.workouts)) {
+      top = { exId, name: shapes.get(exId)?.name ?? '—', workouts: count }
+    }
   }
   return top
 }

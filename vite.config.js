@@ -69,7 +69,7 @@ const betaHtml = (on) => ({
     .replace('name="apple-mobile-web-app-title" content="kachalka-app"', 'name="apple-mobile-web-app-title" content="kachalka-beta"')
     .replace('name="application-name" content="kachalka-app"', 'name="application-name" content="kachalka-beta"')
     .replace('<p class="splash-title">kachalka-app</p>', '<p class="splash-title">kachalka-beta</p>')
-    .replace('<title>Журнал тренировок</title>', '<title>Журнал тренировок · бета</title>')),
+    .replace('<title>kachalka-app</title>', '<title>kachalka-app · бета</title>')),
 })
 
 // include — только у проектов, не у корня: с `extends: true` списки include складываются, и корневой

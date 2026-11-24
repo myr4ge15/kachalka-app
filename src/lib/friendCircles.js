@@ -48,14 +48,13 @@ export function joinUrl(code, origin, base = '/') {
   return `${origin}${b}#join=${normCode(code) ?? ''}`
 }
 
-// Текст для «Поделиться» / «Скопировать»: код + ссылка последней строкой.
+// Текст для «Поделиться» / «Скопировать»: ссылка и запасной код.
 export function joinMessage({ circle = '', code = '', url = '' } = {}) {
   const lines = [
-    `Зову тебя в наш круг${circle ? ` «${circle}»` : ''} в журнале тренировок 💪`,
-    'Открой ссылку — или в приложении: Профиль → «Мой круг» → «Вступить по коду».',
+    `Зову тебя в наш круг${circle ? ` «${circle}»` : ''} в kachalka-app 💪`,
   ]
-  if (code) lines.push(`Код: ${fmtCode(code)}`)
   if (url) lines.push(url)
+  if (code) lines.push(`Код для раздела «Мой круг»: ${fmtCode(code)}`)
   return lines.join('\n')
 }
 

@@ -216,7 +216,7 @@ export default function LoginScreen({ onLogin, onInvite }) {
             <div className="login-pin-head"><BackButton onClick={goPick} label="К списку" /></div>
           )}
           {mark}
-          <h1 className="title">Журнал тренировок</h1>
+          <h1 className="title">kachalka-app</h1>
           <p className="muted login-sub">Введи логин и PIN</p>
           {joinCard}
           <NameLoginForm onLogin={onLogin} showError={showError} error={error} setError={setError} />
@@ -234,7 +234,7 @@ export default function LoginScreen({ onLogin, onInvite }) {
       <div className="screen center">
         <div className="card login-card">
           {mark}
-          <h1 className="title">Журнал тренировок</h1>
+          <h1 className="title">kachalka-app</h1>
           {joinCard}
           <div className="user-list">
             {known.map((u) => (

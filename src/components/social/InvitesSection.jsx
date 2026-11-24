@@ -64,7 +64,7 @@ export default function InvitesSection({ online, errMsg, api = adminApi, limit =
     try {
       // Ссылка — внутри текста, без отдельного url (v6.16.1): Телеграм, WhatsApp и др. при
       // заданном url берут только его и выкидывают text — друг получал голую ссылку.
-      await navigator.share({ title: 'Журнал тренировок', text: inviteMessage(fresh) })
+      await navigator.share({ title: 'kachalka-app', text: inviteMessage(fresh) })
     } catch { /* закрыли меню «Поделиться» — ничего не делаем */ }
   }
 

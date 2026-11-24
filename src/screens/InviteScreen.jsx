@@ -114,7 +114,7 @@ export default function InviteScreen({ token = null, code = null, friend = null,
   const head = (
     <>
       <AppMark />
-      <h1 className="title">Журнал тренировок</h1>
+      <h1 className="title">kachalka-app</h1>
     </>
   )
 

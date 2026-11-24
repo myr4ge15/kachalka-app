@@ -26,11 +26,15 @@ describe('код', () => {
     expect(fc.stripJoin(url)).toBe('https://x.io/kachalka-app/')
     expect(fc.stripJoin('https://x.io/#invite=1')).toBe(null)
   })
-  it('текст приглашения: круг, код, ссылка последней строкой', () => {
+  it('текст приглашения: круг, код, ссылка перед кодом', () => {
     const t = fc.joinMessage({ circle: 'Зал', code: '7F3Q9XWD', url: 'https://x' }).split('\n')
     expect(t[0]).toMatch(/«Зал»/)
-    expect(t).toContain('Код: 7F3Q-9XWD')
-    expect(t.at(-1)).toBe('https://x')
+    expect(t).toContain('Код для раздела «Мой круг»: 7F3Q-9XWD')
+    expect(t[1]).toBe('https://x')
+  })
+  it('можно отправить код без ссылки или короткое приглашение без кода', () => {
+    expect(fc.joinMessage({ code: '7F3Q9XWD' })).toBe('Зову тебя в наш круг в kachalka-app 💪\nКод для раздела «Мой круг»: 7F3Q-9XWD')
+    expect(fc.joinMessage({ url: 'https://x' })).toBe('Зову тебя в наш круг в kachalka-app 💪\nhttps://x')
   })
   it('статусы и срок', () => {
     expect(fc.joinStatusText('pending')).toMatch(/владелец/)

@@ -65,7 +65,7 @@ describe('personalRecords', () => {
 })
 
 describe('favExercise', () => {
-  it('упражнение с наибольшим числом подходов', () => {
+  it('упражнение с наибольшим числом разных тренировок', () => {
     const workouts = [
       wk('w1', '2026-01-01', [
         { exercise_id: 'a', exercise: { id: 'a', name: 'A' }, sets: [{}, {}, {}] },
@@ -75,7 +75,18 @@ describe('favExercise', () => {
         { exercise_id: 'b', exercise: { id: 'b', name: 'B' }, sets: [{}, {}, {}] },
       ]),
     ]
-    expect(favExercise(workouts)).toMatchObject({ exId: 'b', sets: 4 })
+    workouts[0].entries.push(...workouts[0].entries, ...workouts[0].entries)
+    expect(favExercise([workouts[0]])).toBeNull()
+    expect(favExercise(workouts)).toMatchObject({ exId: 'b', workouts: 2 })
+  })
+  it('пустые блоки и блоки без упражнения не добавляют тренировку к счетчику', () => {
+    const performed = { exercise_id: 'a', sets: [{}] }
+    const empty = wk('first', '2026-01-01', [{ exercise_id: 'a' }, { sets: [{}] }])
+    const next = wk('second', '2026-01-02', [performed])
+    expect(favExercise()).toBeNull()
+    expect(favExercise([empty, next])).toBeNull()
+    expect(favExercise([next, wk('third', '2026-01-03', [performed])]))
+      .toEqual({ exId: 'a', name: '—', workouts: 2 })
   })
   it('нет подходов → null', () => {
     expect(favExercise([])).toBeNull()

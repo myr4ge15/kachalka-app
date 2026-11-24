@@ -63,7 +63,7 @@ function CodePanel({ api, circle }) {
     } catch { /* выделение все равно работает */ }
   }
   async function share() {
-    try { await navigator.share({ title: 'Журнал тренировок', text }) } catch { /* отменил */ }
+    try { await navigator.share({ title: 'kachalka-app', text }) } catch { /* отменил */ }
   }
 
   return (

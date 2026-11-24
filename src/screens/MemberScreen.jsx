@@ -231,12 +231,12 @@ export default function MemberScreen({ user, memberId, onBack, onOpenMember }) {
 
           {view.fav && (
             <section className="sec">
-              <p className="sec-title">Любимое</p>
+              <p className="sec-title">Чаще всего</p>
               <div className="info-row">
                 <Icon name="repeat" size={22} />
                 <div>
                   <div className="v">{view.fav.name}</div>
-                  <div className="k">чаще всего · {view.fav.sets} {plural(view.fav.sets, 'подход', 'подхода', 'подходов')}</div>
+                  <div className="k">{view.fav.workouts} {plural(view.fav.workouts, 'тренировка', 'тренировки', 'тренировок')}</div>
                 </div>
               </div>
             </section>

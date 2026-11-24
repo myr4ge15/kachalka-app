@@ -34,7 +34,7 @@ describe('buildMemberView', () => {
     expect(v.recent.map((w) => w.id)).toEqual(['c', 'b', 'a'])
     expect(v.records[0]).toMatchObject({ exId: 'bench', value: 85, isBench: true })
     expect(v.records.find((r) => r.exId === 'pull').value).toBe(12)
-    expect(v.fav).toMatchObject({ exId: 'pull', name: 'Подтягивания', sets: 6 })
+    expect(v.fav).toMatchObject({ exId: 'pull', name: 'Подтягивания', workouts: 3 })
     expect(v.thisMonth).toBe(1)
     expect(v.lastAt).toBe('2026-10-01T09:00:00')
     expect(v.windowFull).toBe(false)

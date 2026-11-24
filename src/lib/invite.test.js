@@ -95,11 +95,18 @@ describe('тексты', () => {
   })
 })
 
+it.each([
+  ['bad_name', 'Имя'], ['bad_pin', 'PIN'], ['network', 'Нет сети'],
+  ['limited', 'подожди час'], ['busy', 'попробуй завтра'], ['full', 'нет мест'],
+])('регистрация по приглашению объясняет ответ %s', (code, hint) => {
+  expect(inviteErrorText(code)).toContain(hint)
+})
+
 describe('inviteMessage', () => {
   it('со ссылкой — текст, срок и ссылка последней строкой', () => {
     const url = `${BASE}#invite=${TOKEN}`
     const lines = inviteMessage({ url, expiresAt: new Date(2026, 9, 9, 15) }).split('\n')
-    expect(lines[0]).toMatch(/журнал тренировок/)
+    expect(lines[0]).toMatch(/kachalka-app/)
     expect(lines).toContain('Ссылка одноразовая, работает до 09.10.')
     expect(lines.at(-1)).toBe(url)
   })

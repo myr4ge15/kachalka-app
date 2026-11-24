@@ -41,11 +41,10 @@ export function friendUrl(code, origin, base = '/') {
 // Текст для «Поделиться» / «Скопировать».
 export function friendMessage({ name = '', code = '', url = '' } = {}) {
   const lines = [
-    `${name ? `${name} зовет` : 'Зову'} тебя в друзья в журнале тренировок 💪`,
-    'Открой ссылку — или в приложении: Профиль → «Друзья» → «Ввести код».',
+    `${name ? `${name} зовет` : 'Зову'} тебя в друзья в kachalka-app 💪`,
   ]
-  if (code) lines.push(`Код: ${String(code)}`)
   if (url) lines.push(url)
+  if (code) lines.push(`Код для раздела «Друзья»: ${code}`)
   return lines.join('\n')
 }
 

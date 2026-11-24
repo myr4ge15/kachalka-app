@@ -518,7 +518,7 @@ export default function App() {
           <span className="side-logo" aria-hidden="true">
             <AppMarkGlyph width="24" height="15" />
           </span>
-          <span className="side-brand-txt">Журнал тренировок</span>
+          <span className="side-brand-txt">kachalka-app</span>
           {IS_BETA && <span className="beta-badge">БЕТА</span>}
         </button>
         {/* Десктоп (≥900px, v6.2.3): явная «+ Новая тренировка» — круглой «+» меню там

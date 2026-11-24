@@ -45,8 +45,7 @@ export function inviteUrl(token, origin, base = '/') {
 // в navigator.share ее не передаем — многие приложения тогда теряют текст.
 export function inviteMessage({ url = '', expiresAt = null } = {}) {
   const lines = [
-    'Привет! Зову тебя в наш журнал тренировок 💪',
-    'Открой ссылку, придумай логин, имя и PIN из 4 цифр — и ты в деле.',
+    'Зову тебя в kachalka-app 💪',
   ]
   const until = expiresAt ? new Date(expiresAt) : null
   lines.push(until && !Number.isNaN(until.getTime())
