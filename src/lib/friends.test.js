@@ -15,13 +15,13 @@ describe('friends: ссылка #friend=', () => {
     expect(stripFriend('https://x.ru/app/#join=7F3Q9XWD')).toBeNull()
   })
   it('без имени, ссылки или кода остаются только доступные способы', () => {
-    expect(friendMessage({ code: 'TEST-CODE' })).toBe('Зову тебя в друзья в kachalka-app 💪\nКод для раздела «Друзья»: TEST-CODE')
-    expect(friendMessage({ url: 'https://x' })).toBe('Зову тебя в друзья в kachalka-app 💪\nhttps://x')
+    expect(friendMessage({ code: 'TEST-CODE' })).toBe('Зову тебя в друзья в kachalka-app 💪\n\nКод для раздела «Друзья»: TEST-CODE')
+    expect(friendMessage({ url: 'https://x' })).toBe('Зову тебя в друзья в kachalka-app 💪\n\nhttps://x')
   })
   it('ссылка и текст для «Поделиться»', () => {
     expect(friendUrl('7f3q-9xwd', 'https://x.ru', '/kachalka-app')).toBe('https://x.ru/kachalka-app/#friend=7F3Q9XWD')
     const t = friendMessage({ name: 'Сега', code: '7F3Q-9XWD', url: 'https://x.ru/#friend=7F3Q9XWD' })
-    expect(t.split('\n')).toEqual([
+    expect(t.split('\n\n')).toEqual([
       'Сега зовет тебя в друзья в kachalka-app 💪',
       'https://x.ru/#friend=7F3Q9XWD',
       'Код для раздела «Друзья»: 7F3Q-9XWD',

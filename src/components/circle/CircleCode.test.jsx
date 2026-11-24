@@ -30,7 +30,7 @@ describe('CircleCode', () => {
     const text = writeText.mock.calls[0][0]
     expect(text).toMatch(/«Зал»/)
     expect(text).toMatch(/Код для раздела «Мой круг»: 7F3Q-9XWD/)
-    expect(text.split('\n')[1]).toMatch(/#join=7F3Q9XWD$/)
+    expect(text.split('\n\n')[1]).toMatch(/#join=7F3Q9XWD$/)
     expect(showToast).toHaveBeenCalledWith(expect.objectContaining({ title: 'Скопировано' }))
   })
 

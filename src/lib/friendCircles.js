@@ -55,7 +55,7 @@ export function joinMessage({ circle = '', code = '', url = '' } = {}) {
   ]
   if (url) lines.push(url)
   if (code) lines.push(`Код для раздела «Мой круг»: ${fmtCode(code)}`)
-  return lines.join('\n')
+  return lines.join('\n\n')
 }
 
 // Статус вступления → текст.

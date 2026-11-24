@@ -105,7 +105,7 @@ it.each([
 describe('inviteMessage', () => {
   it('со ссылкой — текст, срок и ссылка последней строкой', () => {
     const url = `${BASE}#invite=${TOKEN}`
-    const lines = inviteMessage({ url, expiresAt: new Date(2026, 9, 9, 15) }).split('\n')
+    const lines = inviteMessage({ url, expiresAt: new Date(2026, 9, 9, 15) }).split('\n\n')
     expect(lines[0]).toMatch(/kachalka-app/)
     expect(lines).toContain('Ссылка одноразовая, работает до 09.10.')
     expect(lines.at(-1)).toBe(url)

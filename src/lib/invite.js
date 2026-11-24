@@ -52,7 +52,7 @@ export function inviteMessage({ url = '', expiresAt = null } = {}) {
     ? `Ссылка одноразовая, работает до ${String(until.getDate()).padStart(2, '0')}.${String(until.getMonth() + 1).padStart(2, '0')}.`
     : 'Ссылка одноразовая и работает 7 дней.')
   if (url) lines.push(url)
-  return lines.join('\n')
+  return lines.join('\n\n')
 }
 
 // Проверка формы до запроса. Пустая строка — все в порядке.

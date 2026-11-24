@@ -45,7 +45,7 @@ export function friendMessage({ name = '', code = '', url = '' } = {}) {
   ]
   if (url) lines.push(url)
   if (code) lines.push(`Код для раздела «Друзья»: ${code}`)
-  return lines.join('\n')
+  return lines.join('\n\n')
 }
 
 // Статус принятия кода → текст.

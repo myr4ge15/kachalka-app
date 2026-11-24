@@ -65,6 +65,7 @@ const reportCsp = (token) => ({
 const betaHtml = (on) => ({
   name: 'beta-html',
   transformIndexHtml: (html) => (!on ? html : html
+    .replace('https://kachalka-app.ru/app/share-card.png', 'https://kachalka-beta.pages.dev/share-card.png')
     .replace('href="./apple-touch-icon.png"', 'href="./beta-apple-touch-icon.png"')
     .replace('name="apple-mobile-web-app-title" content="kachalka-app"', 'name="apple-mobile-web-app-title" content="kachalka-beta"')
     .replace('name="application-name" content="kachalka-app"', 'name="application-name" content="kachalka-beta"')
