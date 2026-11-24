@@ -3,12 +3,12 @@ import { beforeEach, describe, expect, it, vi } from 'vitest'
 import { fireEvent, render, screen, within } from '@testing-library/react'
 import { useLiveQuery } from 'dexie-react-hooks'
 import { getFreshness } from '../db/insights.js'
-import { getWorkouts } from '../db/repo.js'
+import { getExercises, getWorkouts } from '../db/repo.js'
 import FreshnessScreen from './FreshnessScreen.jsx'
 
 vi.mock('dexie-react-hooks', () => ({ useLiveQuery: vi.fn() }))
 vi.mock('../db/insights.js', () => ({ getFreshness: vi.fn() }))
-vi.mock('../db/repo.js', () => ({ getWorkouts: vi.fn() }))
+vi.mock('../db/repo.js', () => ({ getWorkouts: vi.fn(), getExercises: vi.fn() }))
 
 // Бицепс давно не тренирован (группа-цель), широчайшие отдыхают.
 const data = {
@@ -23,7 +23,9 @@ const data = {
 
 describe('FreshnessScreen «Восстановление» (v6.3.5)', () => {
   // Второй useLiveQuery (объем по группам) — с дефолтом []; первый (готовность) — без.
-  beforeEach(() => vi.mocked(useLiveQuery).mockImplementation((fn, deps, def) => (def === undefined ? data : [])))
+  beforeEach(() => {
+    vi.mocked(useLiveQuery).mockImplementation((fn, deps, def) => (def === undefined ? data : []))
+  })
 
   it('до чтения базы показывает каркас, после чтения пустой истории — приглашение записать тренировку', () => {
     vi.mocked(useLiveQuery).mockImplementation(() => undefined)
@@ -104,6 +106,25 @@ describe('FreshnessScreen «Восстановление» (v6.3.5)', () => {
     render(<FreshnessScreen user={{ id: 'u1' }} onBack={() => {}} />)
     fireEvent.click(screen.getAllByRole('button', { name: 'трапеция' })[0])
     expect(document.querySelector('.fr-detail')).toHaveTextContent('Трапеция · нет данных: не тренировал ни разу')
+  })
+
+  it('открывает упражнения с карты и сбрасывает раскрытие при смене мышцы и корзины', () => {
+    const catalog = [{ id: 'curl', name: 'Сгибание рук', submuscle: 'biceps' }]
+    vi.mocked(useLiveQuery).mockImplementation((read, deps, fallback) =>
+      read === getExercises ? catalog : fallback === undefined ? data : [])
+    render(<FreshnessScreen user={{ id: 'u1' }} />)
+    const show = () => screen.queryByRole('button', { name: 'Показать упражнения' })
+    expect(show()).toBeNull()
+    fireEvent.click(document.querySelector('.fr-chip'))
+    fireEvent.click(show())
+    expect(screen.getByText('Сгибание рук')).toBeVisible()
+    fireEvent.click(screen.getAllByRole('button', { name: 'широчайшие' })[0])
+    expect(show()).toHaveAttribute('aria-expanded', 'false')
+    expect(screen.queryByText('Сгибание рук')).toBeNull()
+    fireEvent.click(screen.getByRole('button', { name: /давно/ }))
+    expect(show()).toBeNull()
+    fireEvent.click(screen.getAllByRole('button', { name: 'предплечья' })[0])
+    expect(show()).toBeVisible()
   })
 })
 

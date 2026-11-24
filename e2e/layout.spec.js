@@ -235,6 +235,11 @@ test('кнопки на главных экранах не выходят за �
 
   await expectTidy(page, 'Главная')
   await page.getByText('Подробнее', { exact: true }).first().click()
+  await page.getByRole('button', { name: 'середина груди', exact: true }).click()
+  await page.getByRole('button', { name: 'Показать упражнения' }).click()
+  await expect(page.getByRole('listitem').filter({ hasText: EXERCISE })).toBeVisible()
+  await expectTidy(page, 'упражнения для выбранной мышцы')
+  await page.getByRole('button', { name: 'Скрыть упражнения' }).click()
   const volume = page.getByRole('region', { name: 'Объем по группам' })
   const chest = volume.getByRole('button', { name: /^Грудь/ })
   await chest.click()

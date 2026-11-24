@@ -3810,6 +3810,9 @@ label.act.busy { opacity: .55; pointer-events: none; }
 .fr-chip:focus-visible, .fr-tab:focus-visible { outline: 2px solid var(--acc-2); outline-offset: 2px; }
 .fr-detail { margin: 10px 2px 0; min-height: 38px; font-size: var(--fs-meta); line-height: 1.45; color: var(--muted); }
 .fr-detail b { color: var(--text); }
+.fr-exercises ul { list-style: none; margin: 0; padding: 0 14px; }
+.fr-exercises li { padding: 10px 0; border-top: 1px solid var(--border); overflow-wrap: anywhere; }
+.fr-exercises p { margin: 0; padding: 10px 14px; font-size: var(--fs-small); }
 .fr-none { margin: 12px 2px 0; font-size: var(--fs-meta); }
 /* Объем по группам (v6.5.0): строка — имя · столбики недель · подходов/нед · тренд. */
 .gv { margin-top: 18px; }

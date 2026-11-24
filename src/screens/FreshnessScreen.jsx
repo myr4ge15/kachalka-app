@@ -14,6 +14,7 @@ import MuscleMap, { regionOf, regionSubs, regionLabel } from '../components/exer
 import CardsSkeleton from '../components/ui/CardsSkeleton.jsx'
 import BackButton from '../components/ui/BackButton.jsx'
 import GroupVolume from '../components/freshness/GroupVolume.jsx'
+import MuscleExercises from '../components/freshness/MuscleExercises.jsx'
 
 // Экран «Готовность мышц» (v6.2.5, макет — prototypes/freshness.html, «А · компактнее»).
 // Раньше: карта + длинный список «Когда снова тренировать» (по строке на подмышцу,
@@ -107,6 +108,8 @@ export default function FreshnessScreen({ user, onBack }) {
     if (hit?.items.length === 1) { setSel(hit.items[0].submuscle); setRegion(null) } else { setSel(null); setRegion(r) }
   }
   const regionHit = !selected && region ? regionTarget(view, TABS.map((t) => t.id), tab, regionSubs(region)) : null
+  const untrackedSubs = region && !regionHit ? regionSubs(region) : []
+  const exerciseSub = selected?.submuscle ?? (untrackedSubs.length === 1 ? untrackedSubs[0] : null)
   const focusOn = (g) => { setFocusPick(g); setTabPick(null); setSel(null); setRegion(null) }
 
   return (
@@ -186,6 +189,7 @@ export default function FreshnessScreen({ user, onBack }) {
               : `Нажми на мышцу — покажу, когда ${byGender(data?.sex, 'тренировал', 'тренировала')} и когда снова можно.`}
           </p>
 
+          {exerciseSub && <MuscleExercises key={exerciseSub} submuscle={exerciseSub} />}
           <GroupVolume rows={volume} />
         </>
       )}

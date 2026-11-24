@@ -38,7 +38,7 @@ const OUT = path.join(ROOT, 'docs', 'screenshots')
 const VIEWPORT = { width: 393, height: 769 }
 const SCALE = 2
 const ACCENT = { id: 'custom', hue: 205 } // бирюзовый, как на прежних скриншотах
-const ALL = ['home', 'recovery', 'recovery-volume', 'workout', 'progress-overview', 'progress-chart',
+const ALL = ['home', 'recovery', 'recovery-exercises', 'recovery-volume', 'workout', 'progress-overview', 'progress-chart',
   'feed', 'rating', 'run', 'achievements', 'login', 'forgot-pin', 'join-form', 'join-pending', 'circle', 'friends']
 const only = process.argv.slice(2)
 for (const n of only) if (!ALL.includes(n)) throw new Error(`Неизвестный экран «${n}». Есть: ${ALL.join(', ')}`)
@@ -58,6 +58,8 @@ const ex = (id, name, muscle_group, submuscle, secondary, metric, is_bench_lift 
   ({ id, name, muscle_group, submuscle, secondary, metric, is_bench_lift, is_hidden: false })
 const EXERCISES = [
   ex('bench', 'Жим лежа со штангой', 'грудь', 'chest_middle', ['triceps', 'delt_front'], 'weight', true),
+  ex('wrist-curl', 'Сгибание кистей со штангой сидя', 'предплечья', 'forearms', [], 'weight'),
+  ex('wrist-ext', 'Разгибание кистей со штангой сидя', 'предплечья', 'forearms', [], 'weight'),
   ex('incline', 'Жим гантелей на наклонной', 'грудь', 'chest_upper', ['delt_front', 'triceps'], 'weight'),
   ex('squat', 'Приседания со штангой', 'ноги', 'quads', ['glute_max'], 'weight'),
   ex('legpress', 'Жим ногами', 'ноги', 'quads', ['glute_max'], 'weight'),
@@ -315,9 +317,16 @@ async function main() {
     console.log(`Снимаю в ${path.relative(ROOT, OUT)}:`)
     await shot('home')
 
-    if (want('recovery') || want('recovery-volume')) {
+    if (want('recovery') || want('recovery-exercises') || want('recovery-volume')) {
       await page.getByText('Подробнее', { exact: true }).first().click() // стрелка — SVG (v9.4.0)
       await shot('recovery')
+      if (want('recovery-exercises')) {
+        await page.getByRole('button', { name: 'предплечья', exact: true }).first().press('Enter')
+        await page.getByRole('button', { name: 'Показать упражнения' }).click()
+        await page.getByText('Сгибание кистей со штангой сидя', { exact: true }).waitFor()
+        await shot('recovery-exercises')
+        await page.getByRole('button', { name: 'Скрыть упражнения' }).click()
+      }
       if (want('recovery-volume')) {
         const volume = page.getByRole('region', { name: 'Объем по группам' })
         await volume.getByRole('button', { name: /^Грудь/ }).click()
