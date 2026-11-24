@@ -121,7 +121,7 @@ describe('CommentThread', () => {
   })
 
   it('пузыри: свои справа без имени, чужие сериями — имя у первого, аватар у последнего', () => {
-    const t = (min) => new Date(Date.now() - (60 - min) * 60000).toISOString()
+    const t = (minute) => new Date(2026, 10, 24, 12, minute).toISOString()
     renderThread({ open: true, comments: [
       c('a', 'x', { created_at: t(0) }), c('b', 'x', { created_at: t(1) }), c('d', 'me', { created_at: t(2) }),
     ] })
