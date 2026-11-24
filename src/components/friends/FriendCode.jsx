@@ -1,3 +1,4 @@
+import ShareInviteButton from '../social/ShareInviteButton.jsx'
 import { useEffect, useRef, useState } from 'react'
 import { fmtCode, friendMessage, friendUrl } from '../../lib/friends.js'
 import { showToast } from '../ui/Toast.jsx'
@@ -45,10 +46,6 @@ export default function FriendCode({ api, myName }) {
       showToast({ icon: 'copy', title: 'Код скопирован' })
     } catch { /* выделение все равно работает */ }
   }
-  async function share() {
-    try { await navigator.share({ title: 'kachalka-app', text }) } catch { /* отменил */ }
-  }
-
   return (
     <div className="card fc-code-card">
       <h3 className="fc-h">Мой код</h3>
@@ -57,7 +54,7 @@ export default function FriendCode({ api, myName }) {
           <p className="fc-code" data-testid="fr-code" role="button" tabIndex={0} aria-label={`Код ${fmtCode(code.code)} — нажми, чтобы скопировать`}
             onClick={copyCode} onKeyDown={(e) => { if (e.key === 'Enter') copyCode() }}>{fmtCode(code.code)}</p>
           <div className="fc-actions">
-            {canShare && <button type="button" className="btn primary" onClick={share}>Поделиться</button>}
+            {canShare && <ShareInviteButton className="btn primary" text={text} />}
             <button type="button" className={canShare ? 'btn ghost' : 'btn primary'} onClick={copy}>Скопировать</button>
           </div>
           {confirmNew ? (

@@ -15,6 +15,7 @@ beforeEach(() => {
   api = { myCode: vi.fn(async () => ({ code: '7F3Q9XWD', expires_at: '2026-10-25T12:00:00Z', uses: 3, max_uses: 10 })) }
   writeText = vi.fn(async () => {})
   Object.defineProperty(navigator, 'clipboard', { value: { writeText }, configurable: true })
+  delete navigator.canShare
   delete navigator.share
 })
 afterEach(() => vi.clearAllMocks())
@@ -50,11 +51,15 @@ describe('CircleCode', () => {
   })
 
   it('есть Web Share — «Поделиться» отдает тот же текст; отмена не ломает', async () => {
-    const share = vi.fn(async () => { throw new Error('AbortError') })
+    const share = vi.fn(async () => { throw new DOMException('cancelled', 'AbortError') })
     navigator.share = share
+    navigator.canShare = () => true
     render(<CircleCode api={api} circle={CIRCLE} />)
     fireEvent.click(await screen.findByRole('button', { name: 'Поделиться' }))
-    await waitFor(() => expect(share).toHaveBeenCalledWith(expect.objectContaining({ text: expect.stringMatching(/Код для раздела «Мой круг»: 7F3Q-9XWD/) })))
+    await waitFor(() => expect(share).toHaveBeenCalledWith(expect.objectContaining({
+      files: [expect.objectContaining({ type: 'image/png' })],
+      text: expect.stringMatching(/#join=7F3Q9XWD\n\nКод для раздела «Мой круг»: 7F3Q-9XWD/),
+    })))
   })
 
   it('«Новый код» — с подтверждением, старый сразу гаснет', async () => {

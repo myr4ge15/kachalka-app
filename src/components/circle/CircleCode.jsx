@@ -1,3 +1,4 @@
+import ShareInviteButton from '../social/ShareInviteButton.jsx'
 import { useEffect, useRef, useState } from 'react'
 import { codeMeta, fmtCode, joinMessage, joinUrl } from '../../lib/friendCircles.js'
 import { showToast } from '../ui/Toast.jsx'
@@ -62,10 +63,6 @@ function CodePanel({ api, circle }) {
       showToast({ icon: 'copy', title: 'Код скопирован' })
     } catch { /* выделение все равно работает */ }
   }
-  async function share() {
-    try { await navigator.share({ title: 'kachalka-app', text }) } catch { /* отменил */ }
-  }
-
   return (
     <div className="card fc-code-card">
       {code ? (
@@ -74,7 +71,7 @@ function CodePanel({ api, circle }) {
             onClick={copyCode} onKeyDown={(e) => { if (e.key === 'Enter') copyCode() }}>{fmtCode(code.code)}</p>
           <p className="muted fc-code-meta">{codeMeta(code)}</p>
           <div className="fc-actions">
-            {canShare && <button type="button" className="btn primary" onClick={share}>Поделиться</button>}
+            {canShare && <ShareInviteButton className="btn primary" text={text} />}
             <button type="button" className={canShare ? 'btn ghost' : 'btn primary'} onClick={copy}>Скопировать</button>
           </div>
           {confirmNew ? (

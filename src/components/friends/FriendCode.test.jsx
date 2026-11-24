@@ -14,6 +14,7 @@ beforeEach(() => {
   api = { myCode: vi.fn(async () => ({ code: '7F3Q9XWD' })) }
   writeText = vi.fn(async () => {})
   Object.defineProperty(navigator, 'clipboard', { value: { writeText }, configurable: true })
+  delete navigator.canShare
   delete navigator.share
 })
 afterEach(() => vi.clearAllMocks())
@@ -50,10 +51,14 @@ describe('FriendCode', () => {
   })
 
   it('Web Share есть — «Поделиться» главная, отмена не ломает', async () => {
-    navigator.share = vi.fn(async () => { throw new Error('AbortError') })
+    navigator.canShare = () => true
+    navigator.share = vi.fn(async () => { throw new DOMException('cancelled', 'AbortError') })
     render(<FriendCode api={api} myName="Сега" />)
     fireEvent.click(await screen.findByRole('button', { name: 'Поделиться' }))
-    await waitFor(() => expect(navigator.share).toHaveBeenCalled())
+    await waitFor(() => expect(navigator.share).toHaveBeenCalledWith(expect.objectContaining({
+      files: [expect.objectContaining({ type: 'image/png' })],
+      text: expect.stringContaining('#friend=7F3Q9XWD'),
+    })))
     expect(screen.getByRole('button', { name: 'Скопировать' })).toHaveClass('ghost')
   })
 

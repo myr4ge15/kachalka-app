@@ -1,3 +1,4 @@
+import ShareInviteButton from './ShareInviteButton.jsx'
 import Chevron from '../ui/Chevron.jsx'
 import { useEffect, useRef, useState } from 'react'
 import { adminCreateInvite, adminListInvites, adminRevokeInvite } from '../../lib/admin.js'
@@ -58,14 +59,6 @@ export default function InvitesSection({ online, errMsg, api = adminApi, limit =
     } catch {
       showToast({ icon: 'alert', title: 'Не скопировалось', sub: 'Выдели ссылку и скопируй вручную.' })
     }
-  }
-
-  async function share() {
-    try {
-      // Ссылка — внутри текста, без отдельного url (v6.16.1): Телеграм, WhatsApp и др. при
-      // заданном url берут только его и выкидывают text — друг получал голую ссылку.
-      await navigator.share({ title: 'kachalka-app', text: inviteMessage(fresh) })
-    } catch { /* закрыли меню «Поделиться» — ничего не делаем */ }
   }
 
   // Отзыв — со второго тапа (UI-ревью 23.10): ссылку не вернуть, а ⛔ легко задеть.
@@ -137,7 +130,7 @@ export default function InvitesSection({ online, errMsg, api = adminApi, limit =
           </p>
           <div className="invite-fresh-actions">
             <button className="btn primary" onClick={copy}>Скопировать</button>
-            {canShare && <button className="btn ghost" onClick={share}>Поделиться</button>}
+            {canShare && <ShareInviteButton className="btn ghost" text={inviteMessage(fresh)} />}
             <button className="btn ghost" onClick={() => setFresh(null)}>Готово</button>
           </div>
         </div>
