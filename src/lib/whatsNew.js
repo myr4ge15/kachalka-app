@@ -50,13 +50,26 @@ export function pendingWhatsNew(entries, seen, current, { knownDevice = false } 
   return { show, markSeen: show.length ? null : (cmpVersion(current, seen) > 0 ? current : null) }
 }
 
-// Свести несколько пропущенных записей в один лист: главное из всех (по порядку,
-// свежие первыми), остальное — в «мелочи». Версия/дата — самой свежей.
+// При равном приоритете сохраняем порядок выпусков (свежие сверху) и пунктов.
 export function mergeForSheet(show, { maxMain = 4 } = {}) {
   if (!show?.length) return null
-  const all = show.flatMap((e) => e.main ?? [])
-  const main = all.slice(0, maxMain)
-  const minor = [...all.slice(maxMain), ...show.flatMap((e) => e.minor ?? [])]
+  const groups = { high: [], normal: [], low: [] }
+  const seenTopics = new Set()
+  for (const release of show) {
+    for (const [items, defaultPriority] of [[release.main, 'normal'], [release.minor, 'low']]) {
+      for (const item of items ?? []) {
+        if (item.topic && seenTopics.has(item.topic)) continue
+        if (item.topic) seenTopics.add(item.topic)
+        groups[item.priority ?? defaultPriority].push(item)
+      }
+    }
+  }
+  const highlights = [...groups.high, ...groups.normal]
+  const all = [...highlights, ...groups.low]
+  // Даже если выпуск состоит из мелочей, первый пункт сразу виден.
+  const limit = Math.min(maxMain, highlights.length || 1)
+  const main = all.slice(0, limit)
+  const minor = all.slice(limit)
   return { version: show[0].version, date: show[0].date, main, minor, count: show.length }
 }
 

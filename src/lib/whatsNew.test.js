@@ -44,6 +44,30 @@ describe('mergeForSheet', () => {
     expect(m.count).toBe(2)
   })
   it('пусто → null', () => expect(mergeForSheet([])).toBeNull())
+  it('для перехода с 1.17.0 сначала показывает возможности, блик упоминает один раз', () => {
+    const { show } = pendingWhatsNew(WHATS_NEW, '1.17.0', '1.18.3')
+    const sheet = mergeForSheet(show)
+    expect(sheet.main.map(item => item.t)).toEqual([
+      'В «Восстановлении» выбери мышцу и посмотри упражнения для нее',
+      'В профиле видно, какое упражнение ты повторяешь в разных тренировках',
+      '«Поделиться» отправляет карточку и текст приглашения со ссылкой',
+    ])
+    const shine = show[0].main[0]
+    expect(sheet.minor.filter(item => item.topic === 'splash-shine')).toEqual([shine])
+    expect(sheet.count).toBe(3)
+    expect(mergeForSheet([show[0]]).main).toEqual([shine])
+  })
+  it('сначала выбирает свежую формулировку темы, даже если раньше она была важнее', () => {
+    const detail = { t: 'Уточнили подпись', topic: 'share' }
+    const old = { t: 'Первая подпись', topic: 'share', priority: 'high' }
+    const important = { t: 'Вернули доступ к истории', priority: 'high', sub: ['Как открыть'] }
+    const other = { t: 'Новый фильтр' }
+    const releases = [{ main: [other], minor: [detail] }, { main: [old, important] }]
+    const sheet = mergeForSheet(releases, { maxMain: 1 })
+    expect(sheet.main).toEqual([important])
+    expect(sheet.minor).toEqual([other, detail])
+    expect(releases[1].main).toEqual([old, important])
+  })
 })
 
 describe('versionJson (v7.5.0)', () => {
@@ -93,6 +117,8 @@ describe('content/whatsNew — правила записей', () => {
       expect(e.main.length).toBeLessThanOrEqual(4)
       expect((e.headline ?? '').length).toBeLessThanOrEqual(45)
       for (const it of [...e.main, ...e.minor]) {
+        if (it.priority !== undefined) expect(['high', 'low']).toContain(it.priority)
+        if (it.topic !== undefined) expect(it.topic).toMatch(/^[a-z0-9-]+$/)
         expect(it.t.length).toBeLessThanOrEqual(70)
         // Уточнения (v8.0.0): строки до 60 символов, не больше 5 на пункт.
         if (it.sub !== undefined) {
