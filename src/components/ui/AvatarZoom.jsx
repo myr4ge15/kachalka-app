@@ -26,7 +26,9 @@ function AvatarLightbox({ url, name, label, triggerRef, onClose }) {
   useLayoutEffect(() => {
     const back = triggerRef.current
     const dialog = boxRef.current
+    // При открытии фокус на самом диалоге. Tab переводит его на «Закрыть фото».
     dialog.showModal()
+    dialog.focus({ preventScroll: true })
     const root = document.documentElement
     const previous = root.dataset.sheetOpen
     root.dataset.sheetOpen = '1' // фон не прокручивается (как под листами)
