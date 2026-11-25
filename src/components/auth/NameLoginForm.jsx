@@ -5,10 +5,9 @@ import { onlyDigits } from '../../lib/text.js'
 // Вход по логину + PIN (новое устройство). Только онлайн: хэша учетки тут еще нет.
 // П4 (07.10.2026): поле одно — «Логин». Сервер ищет точный логин, а у учеток, где
 // логина еще нет, — старое имя (переходный период; потом этот путь выключат).
-export default function NameLoginForm({ onLogin, showError, error, setError }) {
+export default function NameLoginForm({ onLogin, showError, error, setError, busy, setBusy }) {
   const [name, setName] = useState('')
   const [pin, setPin] = useState('')
-  const [busy, setBusy] = useState(false)
 
   async function submit(e) {
     e.preventDefault()
@@ -20,7 +19,7 @@ export default function NameLoginForm({ onLogin, showError, error, setError }) {
     setError('')
     try {
       const user = await loginByName(name, pin)
-      onLogin(user)
+      await onLogin(user)
     } catch (err) {
       showError(err)
       setPin('')

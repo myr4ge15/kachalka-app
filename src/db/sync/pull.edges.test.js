@@ -131,6 +131,14 @@ afterEach(async () => {
 })
 
 describe('документ из серверной строки', () => {
+  it('чистое устройство читает исторические единицы восстановленной тренировки', async () => {
+    const w = row('w1')
+    w.workout_exercises[0].historical_metric = 'time'
+    serve([isDelta, ok([w])], [isIds, ok([{ id: 'w1' }])])
+    await pull(userId, new Set(), db)
+    expect(await db.workouts.get('w1')).toMatchObject({ created_at: w.created_at, entries: [{ exercise: { metric: 'time' } }] })
+  })
+
   it('после восстановления сохраняет дату и единицы неизмененных подходов при pull', async () => {
     const original = localWorkout('w1', { _restored: true })
     original.entries[0].exercise.metric = 'time'
@@ -671,13 +679,17 @@ describe('перечитывание тренировок после правк�
 
   it('сетевой сбой — предупреждение, снимок прежний, прогон идет дальше', async () => {
     await seed(localWorkout('w1'))
-    await renamedOnServer(() => { throw new Error('offline') })
+    let offline = true
+    await renamedOnServer((call) => { if (offline) throw new Error('offline'); return renamed(call) })
 
     const warnings = await pull(userId, new Set(), db, VERIFIED)
 
     expect(warnings).toContain('история не обновлена после правки упражнения: offline')
     expect(await nameOf('w1')).toBe('Жим лежа')
     expect((await db.exercises.get('ex1')).name).toBe(NEW_NAME) // справочник принят
+    offline = false
+    await pull(userId, new Set(), db, VERIFIED)
+    expect(await nameOf('w1')).toBe(NEW_NAME)
   })
 
   it('ошибка без message читается, пустой ответ ничего не ломает', async () => {
@@ -688,7 +700,7 @@ describe('перечитывание тренировок после правк�
     await db.meta.delete('sig_exercises')
     await setMeta('wm_exercises', T1, db)
     await renamedOnServer({ data: null, error: null })
-    expect(await pull(userId, new Set(), db, VERIFIED)).toEqual([])
+    expect(await pull(userId, new Set(), db, VERIFIED)).toContain('история не обновлена после правки упражнения: сервер вернул неполный список')
     expect(await nameOf('w1')).toBe('Жим лежа')
   })
 
@@ -941,8 +953,24 @@ describe('шаблоны: края реконсиляции', () => {
   })
 })
 
+it.each(['exercises', 'workout_templates'])('читает обе страницы %s перед сверкой удалений', async (table) => {
+  const page = (c) => c.gt ? ok([{ id: 'b', user_id: userId, name: 'Вторая', updated_at: T2 }])
+    : { ...ok([{ id: 'a', user_id: userId, name: 'Первая', updated_at: T1 }]), count: 2 }
+  serve([(c) => c.table === table, page])
+  await pull(userId, new Set(), db, VERIFIED)
+  const local = table === 'exercises' ? db.exercises : db.templates
+  expect((await local.get('b')).name).toBe('Вторая')
+})
+
 describe('pullGoal: края', () => {
   const goals = (rows) => serve([(c) => c.table === 'goals', ok(rows)])
+
+  it('после повышения цели прежняя дата достижения сбрасывается', async () => {
+    await writeGoals(userId, [local({ targetWeight: 80, achievedAt: T1 })], db)
+    goals([{ exercise_id: 'ex1', target_weight: 100, metric: 'weight', achieved_at: null }])
+    await pullGoal(userId, db)
+    expect((await readGoals(userId, db))[0]).toMatchObject({ targetWeight: 100, achievedAt: null })
+  })
   const local = (patch) => ({ exerciseId: 'ex1', exerciseName: 'Жим', metric: 'weight', targetWeight: 100, targetReps: null, achievedAt: null, _dirty: 0, ...patch })
 
   it('оба варианта выборки упали: локальные цели целы', async () => {

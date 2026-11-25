@@ -66,7 +66,7 @@ describe('WorkoutScreen: таймер отдыха', () => {
     fireEvent.click(p)
     expect(pill()).toHaveAccessibleName(/^Отдых, осталось 1:30/)
     expect(scheduleRestPush).toHaveBeenCalledWith('u1', {
-      inSec: 90, title: 'Отдых закончился', body: 'Жим лежа — пора к следующему подходу',
+      inSec: 90, endsAt: JSON.parse(localStorage.getItem('gym_app_rest_run_u1')).endsAt, title: 'Отдых закончился', body: 'Жим лежа — пора к следующему подходу',
     })
     expect(JSON.parse(localStorage.getItem('gym_app_rest_run_u1'))).toMatchObject({ durMs: 90_000, exerciseId: 'bench' })
   })

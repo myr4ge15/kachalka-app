@@ -9,6 +9,7 @@ import { onAppReady } from './lib/splash.js'
 import { runLaunchUpdate } from './lib/launchUpdate.js'
 import { startSplash } from './lib/splashBoot.js'
 import { startPushListener } from './lib/pushIntent.js'
+import { resetFromUrl } from './lib/recovery.js'
 import { initErrorReporter } from './lib/errorReporter.js'
 import './index.css'
 
@@ -50,6 +51,7 @@ if (storedUserId) {
 startPushListener()
 // ===================================================
 
+const recoveringPin = Boolean(resetFromUrl(window.location.href))
 ReactDOM.createRoot(document.getElementById('root')).render(
   <React.StrictMode>
     <ErrorBoundary>
@@ -65,7 +67,7 @@ startSplash({
   splash,
   reduce: window.matchMedia?.('(prefers-reduced-motion: reduce)').matches ?? false,
   onReady: onAppReady,
-  runUpdate: (ui) => runLaunchUpdate({
+  runUpdate: (ui) => recoveringPin ? 'skip' : runLaunchUpdate({
     versionUrl: `${import.meta.env.BASE_URL}version.json`,
     currentVersion: __APP_VERSION__,
     ui,

@@ -28,6 +28,7 @@ vi.mock('../db/local.js', () => ({
   setLoginMeta: async (k, v) => { meta.set(k, v) },
   listLoginMeta: async (prefix) => [...meta].filter(([k]) => k.startsWith(prefix)).map(([key, value]) => ({ key, value })),
   deleteLoginMeta: async (k) => { meta.delete(k) },
+  clearLoginHashIfCurrent: async (k, snapshot) => { if (meta.get(k) === snapshot) meta.set(k, { ...snapshot, pin_hash: null, pin_salt: null }) },
 }))
 vi.mock('./hash.js', async (orig) => {
   const real = await orig()
@@ -82,6 +83,14 @@ describe('офлайн-кэш: обходится только недоступ�
     expect(await auth.verifyPinOffline('u1', '4826')).toBeNull() // null = «нужна сеть», а не вход
     expect(meta.get('pin_u1')).toMatchObject({ pin_hash: null, pin_salt: null, name: 'u1' })
     expect(auth.canRefreshSilently('u1')).toBe(false)
+  })
+
+  it('опечатка сохраняет офлайн-вход, отказ на совпавший PIN гасит устаревший хэш', async () => {
+    await unlock('u1', '4826')
+    await auth.rejectCachedPin('u1', '4825')
+    expect(await auth.verifyPinOffline('u1', '4826')).toMatchObject({ id: 'u1' })
+    await auth.rejectCachedPin('u1', '4826')
+    expect(await auth.verifyPinOffline('u1', '4826')).toBeNull()
   })
 
   it('лок сервера — свой код (экран не идет в кэш), кэш и PIN в памяти целы', async () => {
@@ -196,8 +205,10 @@ describe('вход: края', () => {
 
   it('вышли, пока поднималась сессия: PIN в память не кладем', async () => {
     fetchMock.mockResolvedValueOnce(res(200, OK))
-    setSession.mockImplementationOnce(async () => { await auth.logout(); return { error: null } })
+    let leaving
+    setSession.mockImplementationOnce(async () => { leaving = auth.logout(); return { error: null } })
     await expect(auth.login('u1', '4826')).rejects.toMatchObject({ code: 'cancelled' })
+    await leaving
     expect(auth.getSessionPin()).toBeNull()
   })
 
@@ -279,6 +290,13 @@ describe('«Забыл PIN»: края', () => {
     expect(setSession).not.toHaveBeenCalled()
   })
 
+  it('после подтвержденного сброса сбой установки сессии ведет к обычному входу', async () => {
+    fetchMock.mockResolvedValueOnce(res(200, OK))
+    setSession.mockResolvedValueOnce({ error: { message: 'storage' } })
+    await expect(auth.applyPinReset('T', '4826')).rejects.toMatchObject({ code: 'reset_login_failed' })
+    expect(meta.get('pin_u1').pin_hash).toBe(OK.pin_hash)
+  })
+
   it('по коду: пустые поля уходят пустой строкой', async () => {
     fetchMock.mockResolvedValueOnce(res(401, {}))
     await expect(auth.resetPinByCode(null, undefined, '4826')).rejects.toMatchObject({ code: 'invalid' })
@@ -304,10 +322,20 @@ describe('смена PIN: края', () => {
 
   it('старый сервер без новой сессии: кэш обновлен, текущая сессия не трогается', async () => {
     fetchMock.mockResolvedValueOnce(res(200, { ok: true, pin_hash: 'h2', session: { access_token: 'only-access' } }))
-    expect(await auth.setPin('u1', '4826', '5091')).toBe(true)
+    await expect(auth.setPin('u1', '4826', '5091')).rejects.toMatchObject({ code: 'session' })
     expect(setSession).not.toHaveBeenCalled()
     expect(meta.get('pin_u1')).toEqual({ pin_hash: 'h2', pin_salt: null })
     expect(auth.getSessionPin()).toBe('5091')
+  })
+
+  it('запоздавшая смена PIN после выхода не устанавливает токены A', async () => {
+    fetchMock.mockImplementationOnce(async () => {
+      await auth.logout()
+      return res(200, { ok: true, pin_hash: 'changed', session: OK.session })
+    })
+    await expect(auth.setPin('u1', '4826', '5091')).rejects.toMatchObject({ code: 'cancelled' })
+    expect(setSession).not.toHaveBeenCalled()
+    expect(auth.getSessionPin()).toBeNull()
   })
 
   it('ответ без подтверждения или без JSON — ошибка, кэш хэша не тронут', async () => {

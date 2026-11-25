@@ -495,7 +495,7 @@ function cleanEntries(entries) {
 
 // Создать новую или переписать существующую тренировку.
 // Возвращает id. Передай существующий id, чтобы отредактировать.
-export async function saveWorkout({ id, user_id, performed_at, created_at, entries }, { restore = false, d = db } = {}) {
+export async function saveWorkout({ id, user_id, performed_at, created_at, entries, expectedVersion }, { restore = false, d = db } = {}) {
   const cleaned = cleanEntries(entries)
   if (cleaned.length === 0) throw new Error('Пустая тренировка: добавь хотя бы один подход.')
 
@@ -505,6 +505,9 @@ export async function saveWorkout({ id, user_id, performed_at, created_at, entri
   return d.transaction('rw', d.workouts, d.outbox, async () => {
     const existing = id ? await d.workouts.get(id) : null
     if (restore && existing) return null
+    if (expectedVersion !== undefined && (!existing || existing._deleted || (existing.updated_at ?? null) !== expectedVersion)) {
+      throw new Error('Тренировка изменилась. Правки ещё в форме. Открой свежую запись перед сохранением.')
+    }
     const doc = {
       id: wId,
       user_id,
@@ -512,6 +515,7 @@ export async function saveWorkout({ id, user_id, performed_at, created_at, entri
       // created_at: при создании = now; при правке сохраняем существующий.
       created_at: existing?.created_at ?? (restore ? created_at : null) ?? now,
       ...(restore || existing?._restored ? { _restored: true } : {}),
+      ...(restore || existing?._restorePending ? { _restorePending: true } : {}),
       // updated_at — клиентское время правки (для UI-очереди и тай-брейка
       // конфликта). Истинные merge-часы ведет сервер (PLAN-merge-clock).
       updated_at: now,

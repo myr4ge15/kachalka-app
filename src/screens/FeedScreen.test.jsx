@@ -56,7 +56,7 @@ describe('FeedScreen', () => {
   it('кэша еще нет — каркас; при входе тянет свежую ленту и пишет «обновлено»', async () => {
     renderFeed()
     expect(screen.getByLabelText('Загрузка')).toBeInTheDocument()
-    expect(fetchFeed).toHaveBeenCalledWith('me')
+    expect(fetchFeed).toHaveBeenCalledWith('me', undefined, { refreshRecords: true })
     expect(await screen.findByText(/^обновлено /)).toBeInTheDocument()
     expect(screen.getByTestId('leaderboard')).toBeInTheDocument()
   })

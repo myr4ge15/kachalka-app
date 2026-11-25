@@ -17,12 +17,13 @@ import { templatePlan } from '../../lib/templatePlan.js'
 import { exerciseMetric } from '../../lib/metric.js'
 import { supabase } from '../supabase.js'
 import { withTimeout } from '../../lib/withTimeout.js'
-import { db, nowIso } from '../local.js'
+import { fetchWorkoutVersion } from './pull.js'
+import { db, nowIso, getMeta, setMeta } from '../local.js'
 import { readGoals, writeGoals } from '../notifications.js'
 import { getUserMetaState, setUserMetaState, readSyncedMeta } from '../userMeta.js'
 import { SYNCED_KINDS } from '../../lib/userMeta.js'
 import { normMetric } from '../../lib/metric.js'
-import { isTransientSyncError } from '../../lib/syncErrors.js'
+import { isTransientSyncError, RetryableSyncError } from '../../lib/syncErrors.js'
 
 // После стольких неудачных попыток операция считается «отравленной» и
 // откладывается в dead-letter (флаг _dead): она больше не блокирует очередь,
@@ -203,7 +204,7 @@ export const TEMPLATE_WAIT_SERVER = 'Шаблон сохранен на устр
 
 // Отправляем очередь по порядку. На первой же ошибке прекращаем — сохранится
 // порядок и не словим частичную отправку при недоступной сети.
-export async function push(d = db) {
+export async function push(d = db, warnings = []) {
   // id'шники только что отправленных (upsert) тренировок — отдаем наверх, чтобы
   // последующий pull в этом же цикле не «удалил» их, если read-replica сервера
   // еще не показывает свежую запись в SELECT (push идет ДО pull).
@@ -218,36 +219,54 @@ export async function push(d = db) {
       // phase — блок разминки/заминки (23.10.2026); старый сервер лишнее поле просто не читает.
       const payload = doc.entries.map((e) => ({
         exercise_id: e.exercise_id,
+        ...(doc._restored && { historical_metric: exerciseMetric(e.exercise) }),
         sets: e.sets.map((s) => ({ weight: Number(s.weight), reps: Number(s.reps) })),
         ...(phaseValue(e.phase) ? { phase: phaseValue(e.phase) } : {}),
       }))
-      const { error } = await withTimeout(
-        supabase.rpc('upsert_workout', {
+      const { data: result, error } = await withTimeout(
+        supabase.rpc('upsert_workout_checked', {
           p_workout_id: doc.id,
           p_user_id: doc.user_id,
           p_performed_at: doc.performed_at,
           p_entries: payload,
+          p_base: doc._base_updated_at ?? null,
+          p_edited_at: doc.updated_at ?? null,
+          p_restore: doc._restorePending ?? Boolean(doc._restored && !doc._base_updated_at),
+          p_created_at: doc.created_at ?? null,
         })
       )
+      if (['PGRST202', '42883'].includes(error?.code)) throw new RetryableSyncError('Для отправки тренировок требуется обновление сервера')
       if (error) throw error
+      if (!result?.updated_at || !['saved', 'server', 'local', 'existing'].includes(result.outcome)) {
+        throw new RetryableSyncError('Сервер не подтвердил версию тренировки')
+      }
+      const authoritative = ['server', 'existing'].includes(result.outcome)
+        ? await fetchWorkoutVersion(doc.user_id, doc.id, result.updated_at) : null
       justPushed.add(doc.id)
-      await d.transaction('rw', d.workouts, d.outbox, async () => {
+      await d.transaction('rw', d.workouts, d.outbox, d.meta, async () => {
+        if (!(await d.outbox.get(op.seq))) return
         const cur = await d.workouts.get(doc.id)
+        if (['server', 'local'].includes(result.outcome)) {
+          const conflicts = (await getMeta('merge_conflicts', d)) ?? []
+          conflicts.push({ id: doc.id, at: nowIso(), winner: result.outcome, base: doc._base_updated_at,
+            local: doc.updated_at, server: result.previous })
+          await setMeta('merge_conflicts', conflicts.slice(-50), d)
+          warnings.push('Конфликт правок тренировки: сохранена более поздняя версия.')
+        }
         if (cur && !cur._deleted && cur.updated_at !== doc.updated_at) {
           // Тренировку правили, пока шел upsert: saveWorkout видит еще живую
           // операцию и новую не ставит. Снять _dirty здесь = pull этого же цикла
           // возьмет серверную (уже устаревшую) версию, и правка молча пропадет.
           // Оставляем _dirty и операцию — свежую версию дошлет следующий прогон.
-          // Базис обнуляем: серверная версия теперь НАША (только что отправленная),
-          // сравнение с прежним базисом дало бы ложный конфликт merge-часов.
-          await d.workouts.update(doc.id, { _base_updated_at: null })
+          if (!authoritative) await d.workouts.update(doc.id, { _base_updated_at: result.updated_at, _restorePending: false })
           return
         }
-        // Снимаем _dirty и базис merge-часов: запись уехала, серверный updated_at
-        // (истинное время правки) подтянет следующий pull в этом же цикле как
-        // чистую (take-server). Базис заново захватит первая локальная правка.
+        // Ответ RPC уже содержит серверное время для следующей локальной правки.
         // Удаленную за время запроса не трогаем: у нее своя delete-операция.
-        if (cur && !cur._deleted) await d.workouts.update(doc.id, { _dirty: 0, _base_updated_at: null })
+        if (cur && !cur._deleted) {
+          if (authoritative) await d.workouts.put(authoritative)
+          else await d.workouts.update(doc.id, { _dirty: 0, _base_updated_at: null, _restorePending: false, updated_at: result.updated_at })
+        }
         await d.outbox.delete(op.seq)
       })
     } else if (op.type === 'delete') {

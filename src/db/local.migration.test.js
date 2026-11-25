@@ -46,6 +46,16 @@ beforeEach(async () => {
 afterEach(async () => { await closeUserDb() })
 
 describe('перенос со старой общей базы при первом открытии', () => {
+  it('ошибка открытия базы допускает повтор для той же учетки', async () => {
+    const id = uniqueUserId()
+    const first = vi.spyOn(Dexie.prototype, 'open').mockRejectedValueOnce(new Error('storage'))
+    try {
+      await expect(openUserDb(id)).rejects.toThrow('storage')
+      expect(local.db).toBeNull()
+      expect((await openUserDb(id)).isOpen()).toBe(true)
+    } finally { first.mockRestore() }
+  })
+
   it('ошибка чтения одной старой таблицы не мешает переносу доступных данных', async () => {
     const id = uniqueUserId()
     await seedOld(async (old) => {
@@ -265,6 +275,11 @@ describe('перенос «загрузочной зоны» (ростер + о�
       await migrateLoginZone()
       expect(await loginDb.users.get('u1')).toEqual({ id: 'u1', name: 'Дима' })
       expect(await getLoginMeta('pin_u1')).toBeUndefined()
+      expect(await getLoginMeta('login_zone_migrated')).toBeUndefined()
+      unavailable = null
+      await migrateLoginZone()
+      expect(await getLoginMeta('pin_u1')).toEqual({ pin_hash: 'hash' })
+      expect(await getLoginMeta('login_zone_migrated')).toBe(true)
     } finally {
       read.mockRestore()
     }

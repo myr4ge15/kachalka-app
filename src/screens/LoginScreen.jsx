@@ -2,8 +2,8 @@ import { useState, useEffect, useRef } from 'react'
 import { getUsers } from '../db/repo.js'
 import { migrateLoginZone } from '../db/local.js'
 import {
-  login as authLogin, verifyPinOffline, dropForeignSession, noteLoginFailure,
-  knownAccounts, forgetAccount, LoginError,
+  login as authLogin, verifyPinOffline, dropForeignSession,
+  knownAccounts, forgetAccount, rejectCachedPin, LoginError,
 } from '../lib/auth.js'
 import { useJoinRequest } from '../hooks/useJoinRequest.js'
 import AppMark from '../components/app/AppMark.jsx'
@@ -110,11 +110,13 @@ export default function LoginScreen({ onLogin, onInvite }) {
       if (navigator.onLine) {
         try {
           const user = await authLogin(selected.id, pin, { timeoutMs: LOGIN_ONLINE_TIMEOUT_MS })
-          onLogin(user)
+          await onLogin(user)
           return
         } catch (e) {
+          if (e instanceof LoginError && e.code === 'invalid') {
+            await rejectCachedPin(selected.id, pin).catch(() => {})
+          }
           if (!(e instanceof LoginError) || !SERVER_DOWN.has(e.code)) {
-            noteLoginFailure(e) // неверный PIN — стереть устаревший кэш хэша
             throw e
           }
           // сервер недоступен — ниже вход по кэшу, как офлайн
@@ -127,7 +129,7 @@ export default function LoginScreen({ onLogin, onInvite }) {
         // Чужую сессию снимаем ДО входа (ее SIGNED_OUT должен отработать здесь).
         await dropForeignSession(selected.id)
         // Сессию синк поднимет сам, когда сервер ответит (refreshSessionSilently).
-        onLogin(offline)
+        await onLogin(offline)
         return
       }
       setError(offline === false
@@ -213,16 +215,16 @@ export default function LoginScreen({ onLogin, onInvite }) {
       <div className="screen center">
         <div className="card login-card invite-card">
           {known.length > 0 && (
-            <div className="login-pin-head"><BackButton onClick={goPick} label="К списку" /></div>
+            <div className="login-pin-head"><BackButton disabled={busy} onClick={goPick} label="К списку" /></div>
           )}
           {mark}
           <h1 className="title">kachalka-app</h1>
           <p className="muted login-sub">Введи логин и PIN</p>
-          {joinCard}
-          <NameLoginForm onLogin={onLogin} showError={showError} error={error} setError={setError} />
+          {!busy && joinCard}
+          <NameLoginForm busy={busy} setBusy={setBusy} onLogin={onLogin} showError={showError} error={error} setError={setError} />
           <div className="login-alt">
-            <button className="link-btn" onClick={() => { setError(''); setMode('forgot') }}>Забыл PIN?</button>
-            {!join.pending && <button className="link-btn" onClick={() => { setError(''); setMode('join') }}>Запросить доступ</button>}
+            <button className="link-btn" disabled={busy} onClick={() => { setError(''); setMode('forgot') }}>Забыл PIN?</button>
+            {!join.pending && <button className="link-btn" disabled={busy} onClick={() => { setError(''); setMode('join') }}>Запросить доступ</button>}
           </div>
         </div>
       </div>
@@ -246,7 +248,7 @@ export default function LoginScreen({ onLogin, onInvite }) {
           </div>
           <div className="login-alt">
             <button className="link-btn" onClick={() => { setError(''); setMode('name') }}>Войти в другую учетку</button>
-            {!join.pending && <button className="link-btn" onClick={() => { setError(''); setMode('join') }}>Запросить доступ</button>}
+            {!join.pending && <button className="link-btn" disabled={busy} onClick={() => { setError(''); setMode('join') }}>Запросить доступ</button>}
           </div>
         </div>
       </div>
@@ -258,7 +260,7 @@ export default function LoginScreen({ onLogin, onInvite }) {
     <div className="screen center">
       <div className="card login-card">
         <div className="login-pin-head">
-          <BackButton onClick={goPick} label="Выбрать другого" />
+          <BackButton disabled={busy} onClick={goPick} label="Выбрать другого" />
         </div>
         <h2 className="title">{selected.name}</h2>
         <p className="muted login-sub">Введи PIN</p>

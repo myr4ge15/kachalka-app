@@ -62,21 +62,33 @@ export default function ForgotPin({ initialLogin = '', onBack, onLogin }) {
     try {
       user = await resetPinByCode(normalizeLogin(login), code, pin)
     } catch (err) {
-      if (alive.current) { setError(errText(err)); setBusy(false) }
+      if (alive.current) {
+        if (err?.code === 'reset_login_failed') setWay('login-failed')
+        setError(errText(err)); setBusy(false)
+      }
       return
     }
     // Старый код погашен — выдаем новый. Не вышло — не страшно: выпустит в Профиле.
     let next = null
     try { next = await createRecoveryCode(user.id) } catch { /* позже в Профиле */ }
     if (!alive.current) return
-    if (next) { setFresh({ user, code: next }); setWay('new-code'); setBusy(false) } else onLogin(user)
+    if (next) { setFresh({ user, code: next }); setWay('new-code'); setBusy(false) } else await finish(user)
   }
+
+  async function finish(user) {
+    try { await onLogin(user) } catch { if (alive.current) setWay('login-failed') }
+  }
+
+  if (way === 'login-failed') return <>
+    <p role="alert">{resetErrorText('reset_login_failed')}</p>
+    <button type="button" className="btn primary" onClick={onBack}>К входу</button>
+  </>
 
   if (way === 'new-code' && fresh) {
     return (
       <>
         <p className="invite-lead">PIN сменен. Старый код больше не действует — вот новый.</p>
-        <RecoveryCodeView code={fresh.code} doneLabel="Сохранил, войти" onDone={() => onLogin(fresh.user)} />
+        <RecoveryCodeView code={fresh.code} doneLabel="Сохранил, войти" onDone={() => finish(fresh.user)} />
       </>
     )
   }

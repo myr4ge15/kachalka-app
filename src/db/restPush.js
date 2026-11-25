@@ -28,15 +28,19 @@ async function ready(userId) {
 
 // true — пуш поставлен; false — нечего ставить (нет подписки/сети/сессии) или сбой.
 export function scheduleRestPush(userId, args) {
-  return queue(() => setNow(userId, args))
+  const seconds = Math.max(1, Math.min(900, Math.round(Number(args.inSec) || 0)))
+  const endsAt = args.endsAt ?? Date.now() + seconds * 1000
+  return queue(() => setNow(userId, args, endsAt))
 }
 
-async function setNow(userId, { inSec, title, body }) {
+async function setNow(userId, { title, body }, endsAt) {
   try {
     if (!(await ready(userId))) return false
     const endpoint = await deviceSubscriptionEndpoint(userId)
     if (!endpoint) return false
-    const sec = Math.max(1, Math.min(900, Math.round(Number(inSec) || 0)))
+    const left = endsAt - Date.now()
+    if (left <= 0) { await clearNow(userId); return false }
+    const sec = Math.max(1, Math.min(900, Math.round(left / 1000)))
     const res = await withTimeout(supabase.rpc('rest_push_set', {
       p_endpoint: endpoint, p_in_sec: sec, p_title: title, p_body: body,
     }), RPC_MS)

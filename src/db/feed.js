@@ -45,7 +45,7 @@ const EXERCISES_SIG = 'sig_exercises'
 export const SELECT_FEED =
   'id, performed_at, created_at, user_id, ' +
   'user:users!workouts_user_id_fkey(id, name), ' +
-  'workout_exercises(id, position, exercise_id, phase, ' +
+  'workout_exercises(id, position, exercise_id, historical_metric, phase, ' +
   'exercise:exercises(id, name, muscle_group, is_bench_lift, is_female_lift, metric), ' +
   'sets(id, set_number, weight, reps))'
 
@@ -64,7 +64,7 @@ export function rowToItem(w) {
         muscle_group: we.exercise?.muscle_group ?? null,
         is_bench_lift: Boolean(we.exercise?.is_bench_lift),
         is_female_lift: Boolean(we.exercise?.is_female_lift),
-        metric: normMetric(we.exercise?.metric),
+        metric: normMetric(we.historical_metric ?? we.exercise?.metric),
         sets,
         ...(phaseValue(we.phase) ? { phase: phaseValue(we.phase) } : {}), // разминка/заминка (23.10.2026)
       }
@@ -190,6 +190,7 @@ export function computePrs(items, baseline = null) {
   }
   const chronological = [...items].sort(workoutChronology)
   for (const item of chronological) {
+    item.prs = []
     let best = byUser.get(item.user_id)
     if (!best) {
       best = new Map()
@@ -238,7 +239,7 @@ export function baselineMap(rows) {
 // иначе при смене учетки посреди сетевого запроса снимок ленты A мог бы записаться
 // в базу B (кросс-протечка ленты). При свопе d уже закрыт → transaction бросит,
 // вызов обернут в try/catch в syncNow.
-export async function fetchFeed(userId, d = db) {
+export async function fetchFeed(userId, d = db, { refreshRecords = false } = {}) {
   if (!isConfigured || !navigator.onLine) return
   // Не читаем `workouts`, пока не поднята настоящая сессия: иначе запрос уходит
   // ролью `anon` (после auth-harden у нее нет грантов) → «permission denied for
@@ -255,7 +256,7 @@ export async function fetchFeed(userId, d = db) {
   const probe = await withTimeout(
     supabase
       .from('workouts')
-      .select('id, updated_at')
+      .select('id, updated_at, user:users!workouts_user_id_fkey(name)')
       .order('performed_at', { ascending: false })
       .order('created_at', { ascending: false })
       .order('id', { ascending: false })
@@ -263,7 +264,8 @@ export async function fetchFeed(userId, d = db) {
   )
   if (probe.error) throw probe.error
   // |pr:3 — версия правила кубков (16.10, база до окна): после обновления кэш пересчитается один раз.
-  const sig = rosterSignature(probe.data ?? []) + '|ex:' + ((await getMeta(EXERCISES_SIG, d)) ?? '') + '|pr:3'
+  const names = JSON.stringify((probe.data ?? []).map((w) => [w.id, w.user?.name]))
+  const sig = names + '|' + rosterSignature(probe.data ?? []) + '|ex:' + ((await getMeta(EXERCISES_SIG, d)) ?? '') + '|pr:3'
   const changed = sig !== (await getMeta(FEED_SIG, d))
 
   let items
@@ -277,7 +279,6 @@ export async function fetchFeed(userId, d = db) {
       .limit(FEED_LIMIT))
     if (res.error) throw res.error
     items = (res.data ?? []).map(rowToItem)
-    computePrs(items, await fetchPrBaseline(items))
     carryComments(items, await d.feed.toArray())
   } else {
     // Окно ленты не изменилось — берем готовый кэш (тот же порядок «свежее сверху»,
@@ -289,6 +290,19 @@ export async function fetchFeed(userId, d = db) {
   // Снимок реакций кэша ДО переналожения (attachReactions мутирует элементы): при
   // неизменном окне по нему решаем, есть ли что писать вообще.
   const reactionsBefore = changed ? null : reactionsKey(items)
+  let recordsChanged = false
+  let baselineReady = false
+  const readySig = await getMeta('feed_pr_ready', d)
+  if (changed || refreshRecords || readySig !== sig) {
+    const baseline = await fetchPrBaseline(items)
+    baselineReady = Boolean(baseline) || !items.length
+    if (changed || baselineReady) {
+      const before = JSON.stringify(items.map((item) => item.prs))
+      computePrs(items, baseline)
+      recordsChanged = before !== JSON.stringify(items.map((item) => item.prs))
+    }
+    if (!baselineReady && !changed && readySig === sig) await setMeta('feed_pr_ready', null, d)
+  }
   const opsBefore = await readReactionOps(d)
   // Реакции на МОИ комментарии (для «Уведомлений», 26.10.2026) — тем же заходом, свой кэш в meta.
   await Promise.all([attachReactions(items), attachComments(items), refreshCommentReactions(userId, d)])
@@ -300,21 +314,22 @@ export async function fetchFeed(userId, d = db) {
   // Окно не изменилось и реакции те же — кэш не трогаем. Иначе clear+bulkPut на
   // каждом поллинге (20–60 c) будил все useLiveQuery по ленте, включая счетчик
   // уведомлений в шапке с пересчетом инсайтов по всей истории.
-  if (!changed && reactionsKey(finalItems) === reactionsBefore) return
+  if (!changed && !recordsChanged && reactionsKey(finalItems) === reactionsBefore) {
+    if (baselineReady && readySig !== sig) await setMeta('feed_pr_ready', sig, d)
+    return
+  }
 
   // Успешный ответ (в т.ч. ПУСТОЙ) применяем целиком: сетевые/серверные сбои
   // уходят в throw выше и сюда не доходят, поэтому пустой список здесь —
   // это легитимно «нечего показывать» (например, у приватного пользователя,
   // которому RLS отдает только свои тренировки). Раньше пустой ответ не
   // затирал кэш, и приватный видел устаревший снимок общей ленты.
-  await d.transaction('rw', d.feed, async () => {
+  await d.transaction('rw', d.feed, d.meta, async () => {
     await d.feed.clear()
     await d.feed.bulkPut(finalItems)
+    await setMeta(FEED_SIG, sig, d)
+    if (changed || baselineReady) await setMeta('feed_pr_ready', baselineReady ? sig : null, d)
   })
-  // Запоминаем сигнатуру окна ПОСЛЕ успешной записи: следующий прогон пропустит
-  // тяжелый join, пока окно не изменится. Сетевые/серверные сбои уходят в throw
-  // выше и сюда не доходят, поэтому метку не двигают.
-  await setMeta(FEED_SIG, sig, d)
 }
 
 // Очередь реакций до запроса снимка: операция, которую push отправил и удалил,

@@ -21,7 +21,7 @@ vi.mock('./supabase.js', () => {
           res = { data: server.reactions, error: null }
           // гонка: снимок реакций уже снят, а push тем временем отправил и удалил операцию
           if (server.onReactions) return server.onReactions().then(() => res).then(ok, fail)
-        } else if (b.selection === 'id, updated_at') res = { data: server.workouts.map(({ id, updated_at }) => ({ id, updated_at })), error: null }
+        } else if (b.selection === 'id, updated_at, user:users!workouts_user_id_fkey(name)') res = { data: server.workouts.map(({ id, updated_at, user }) => ({ id, updated_at, user })), error: null }
         else res = { data: server.workouts, error: null }
         return Promise.resolve(res).then(ok, fail)
       },
@@ -90,6 +90,13 @@ describe('fetchFeed — запись кэша только при изменен
     await setMeta('sig_exercises', 'e1,e2|2026-10-14T08:00:00Z', db) // pull справочника увидел правку
     await fetchFeed(userId, db)
     expect((await db.feed.get('w1')).entries[0].name).toBe('Приседания на опору')
+  })
+
+  it('переименование через админку обновляет имя в закэшированной карточке', async () => {
+    await fetchFeed(userId, db)
+    server.workouts[0].user.name = 'Дашуля 🌸'
+    await fetchFeed(userId, db)
+    expect((await db.feed.get('w1')).user_name).toBe('Дашуля 🌸')
   })
 
   it('новая реакция при том же окне — записывается', async () => {
@@ -187,6 +194,18 @@ describe('fetchFeed — кубки с учетом результатов до �
 
     expect((await db.feed.get('w1')).prs).toEqual([{ name: 'Жим', metric: 'weight', value: 70 }])
     expect((await db.feed.get('w2')).prs).toEqual([{ name: 'Жим', metric: 'weight', value: 80 }])
+  })
+
+  it('после сбоя повторяет расчет, а явное обновление замечает правку до окна', async () => {
+    await fetchFeed(userId, db)
+    expect((await db.feed.get('w2')).prs).toHaveLength(1)
+    let best = 90
+    server.rpc = (name) => ({ data: name === 'feed_pr_baseline' ? [{ user_id: 'friend', exercise_id: 'e1', best }] : [], error: null })
+    await fetchFeed(userId, db)
+    expect((await db.feed.get('w2')).prs).toHaveLength(0)
+    best = 70
+    await fetchFeed(userId, db, { refreshRecords: true })
+    expect((await db.feed.get('w2')).prs).toHaveLength(1)
   })
 
   it('сервер без функции — кубки по окну, как раньше', async () => {

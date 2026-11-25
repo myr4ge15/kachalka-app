@@ -184,6 +184,15 @@ describe('reloadForUpdatePush', () => {
     expect(args.reload).not.toHaveBeenCalled()
   })
 
+  it('возврат на экран восстановления сохраняет одноразовую ссылку в памяти', async () => {
+    vi.stubGlobal('document', { querySelector: () => ({}) })
+    try {
+      const reload = vi.fn()
+      expect(await reloadForUpdatePush({ reload, resume: true })).toBe('recovery')
+      expect(reload).not.toHaveBeenCalled()
+    } finally { vi.unstubAllGlobals() }
+  })
+
   it('возврат из фона — перезагрузка одна на версию за сессию, флаг сплэша не трогаем', async () => {
     const { store, args } = base({ resume: true })
     expect(await reloadForUpdatePush(args)).toBe('reload')

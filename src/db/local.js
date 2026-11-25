@@ -157,10 +157,18 @@ async function openUserDbUnsafe(userId) {
   if (!userId) return db
   if (currentUserId === userId && db) return db
   if (db) { try { db.close() } catch { /* ignore */ } }
+  db = null
+  currentUserId = null
+  const next = defineSchema(new Dexie('gym_app_' + userId))
+  try {
+    await next.open()
+    await migrateUserFromOldDb(userId, next)
+  } catch (err) {
+    next.close()
+    throw err
+  }
   currentUserId = userId
-  db = defineSchema(new Dexie('gym_app_' + userId))
-  await db.open()
-  await migrateUserFromOldDb(userId, db)
+  db = next
   return db
 }
 
@@ -234,6 +242,15 @@ export async function setLoginMeta(key, value) {
 export async function listLoginMeta(prefix) {
   return loginDb.meta.where('key').startsWith(prefix).toArray()
 }
+export async function clearLoginHashIfCurrent(key, snapshot) {
+  await loginDb.transaction('rw', loginDb.meta, async () => {
+    const current = await getLoginMeta(key)
+    if (current?.pin_hash === snapshot.pin_hash && current.pin_salt === snapshot.pin_salt) {
+      await setLoginMeta(key, { ...current, pin_hash: null, pin_salt: null })
+    }
+  })
+}
+
 export async function deleteLoginMeta(key) {
   await loginDb.meta.delete(key)
 }
@@ -328,23 +345,23 @@ export async function migrateLoginZone() {
     await old.open()
     try {
       const [users, metas] = await Promise.all([
-        old.users.toArray().catch(() => []),
-        old.meta.toArray().catch(() => []),
+        old.users.toArray().catch(() => null),
+        old.meta.toArray().catch(() => null),
       ])
       await loginDb.transaction('rw', loginDb.users, loginDb.meta, async () => {
-        if (users.length && !(await loginDb.users.count())) {
+        if (users?.length && !(await loginDb.users.count())) {
           await loginDb.users.bulkPut(users)
         }
-        for (const m of metas) {
+        for (const m of metas ?? []) {
           if (typeof m.key === 'string' && m.key.startsWith('pin_')) {
             if (!(await loginDb.meta.get(m.key))) await loginDb.meta.put(m)
           }
         }
+        if (users !== null && metas !== null) await setLoginMeta(flag, true)
       })
     } finally {
       try { old.close() } catch { /* ignore */ }
     }
-    await setLoginMeta(flag, true)
   } catch {
     // Не критично: онлайн-пикер все равно подтянет ростер из login_users.
   }

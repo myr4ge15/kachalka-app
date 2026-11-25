@@ -34,7 +34,10 @@ vi.mock('../supabase.js', () => {
   const rpc = (name, args) => ({
     then(ok, fail) {
       server.calls.push({ kind: 'rpc', name, args })
-      return new Promise((resolve) => resolve(server.rpc(name, args))).then(ok, fail)
+      return new Promise((resolve) => resolve(server.rpc(name, args))).then((response) =>
+        name === 'upsert_workout_checked' && !response.error && !response.data
+          ? { data: { outcome: 'saved', updated_at: T2 }, error: null } : response
+      ).then(ok, fail)
     },
   })
   return { supabase: { from, rpc } }
@@ -488,7 +491,7 @@ describe('push тренировок: края', () => {
     }
 
     await push(db)
-    expect(await db.workouts.get('w1')).toMatchObject({ _dirty: 1, _base_updated_at: null })
+    expect(await db.workouts.get('w1')).toMatchObject({ _dirty: 1, _base_updated_at: T2 })
 
     await push(db)
     expect(server.calls.at(-1).args.p_entries[0].sets).toEqual([{ weight: 85, reps: 5 }])

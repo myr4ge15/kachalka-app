@@ -181,7 +181,8 @@ async function runOnce(userId) {
     // Шаблоны после упражнений (FK), до/после тренировок неважно. Ожидание обновления
     // сервера (v2) — предупреждение, а не сбой прогона: тренировки все равно уходят.
     const tplWarn = await pushTemplates(d)
-    const justPushed = await push(d)
+    const pushWarnings = []
+    const justPushed = await push(d, pushWarnings)
     // Реакции (виш BACKLOG) — необязательная соц-часть: ошибка/отсутствие таблицы
     // не должна ронять синк тренировок, поэтому отдельный try/catch.
     try { await pushReactions(userId, d) } catch { /* реакции не критичны для синка */ }
@@ -219,6 +220,7 @@ async function runOnce(userId) {
     // прошедшим — lastSyncAt обновлен.
     const allWarn = [
       ...(tplWarn ?? []),
+      ...pushWarnings,
       ...(warnings ?? []),
       ...(goalWarn ? [goalWarn] : []),
       ...(metaWarn ? [metaWarn] : []),

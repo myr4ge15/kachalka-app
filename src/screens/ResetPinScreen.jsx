@@ -41,7 +41,7 @@ export default function ResetPinScreen({ token, signedInAs = null, onDone, onCan
     setBusy(true); setError('')
     try {
       const user = await applyPinReset(token, pin)
-      onDone?.(user)
+      try { await onDone?.(user) } catch { if (alive.current) setPhase('login-failed') }
     } catch (err) {
       if (!alive.current) return
       const code = err instanceof LoginError ? err.code : 'server'
@@ -60,8 +60,7 @@ export default function ResetPinScreen({ token, signedInAs = null, onDone, onCan
         <p className="muted invite-note">Если ссылка для другой учетки — сначала выйди из этой.</p>
         <div className="invite-actions">
           <button className="btn ghost" onClick={onCancel}>Остаться</button>
-          <button className="btn primary" disabled={busy}
-            onClick={() => { setBusy(true); onSignOut?.() }}>{busy ? 'Выхожу…' : 'Выйти и продолжить'}</button>
+          <button className="btn primary" onClick={onSignOut}>Выйти и продолжить</button>
         </div>
       </>
     )
@@ -104,7 +103,7 @@ export default function ResetPinScreen({ token, signedInAs = null, onDone, onCan
   }
 
   return (
-    <div className="screen center">
+    <div className="screen center" data-pin-recovery>
       <div className="card login-card invite-card">
         <AppMark />
         <h1 className="title">Новый PIN</h1>

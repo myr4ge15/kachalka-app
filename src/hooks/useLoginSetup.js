@@ -7,7 +7,7 @@ import { getMyLogin } from '../lib/auth.js'
 // может не быть неделями). Офлайн — пускаем: шаг ждет сети (повторим на 'online').
 // Сбой проверки (нет своей сессии, сервер) — не блокируем, спросим в другой раз.
 export function useLoginSetup(user) {
-  const [needed, setNeeded] = useState(false)
+  const [neededFor, setNeededFor] = useState(null)
   const userId = user?.id ?? null
 
   useEffect(() => {
@@ -17,7 +17,7 @@ export function useLoginSetup(user) {
       if (!navigator.onLine) return
       try {
         const login = await getMyLogin(userId)
-        if (alive) setNeeded(login === null)
+        if (alive) setNeededFor(login === null ? userId : null)
       } catch { /* нет сети/сессии — проверим при следующем онлайне */ }
     }
     run()
@@ -25,6 +25,6 @@ export function useLoginSetup(user) {
     return () => { alive = false; window.removeEventListener('online', run) }
   }, [userId])
 
-  const done = useCallback(() => setNeeded(false), [])
-  return { needed: Boolean(userId) && needed, done }
+  const done = useCallback(() => setNeededFor(null), [])
+  return { needed: Boolean(userId) && neededFor === userId, done }
 }

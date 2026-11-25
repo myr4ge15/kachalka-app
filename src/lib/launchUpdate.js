@@ -215,6 +215,8 @@ export async function reloadForUpdatePush({
   href = typeof window !== 'undefined' ? window.location.href : '',
   resume = false,
 } = {}) {
+  const recoveryOpen = () => Boolean(globalThis.document?.querySelector?.('[data-pin-recovery]'))
+  if (recoveryOpen()) return 'recovery'
   if (composerOpen) return 'composer'
   if (!fetchFn) return 'none'
   let server = null
@@ -222,6 +224,7 @@ export async function reloadForUpdatePush({
     server = await serverVersion(fetchFn, versionUrl)
   } catch { /* офлайн/таймаут — остаемся, плашка догонит */ }
   if (!server || !isRealUpdate(currentVersion, server)) return 'none'
+  if (recoveryOpen()) return 'recovery'
   if (resume) {
     let done = null
     try { done = storage?.getItem(RESUME_KEY) } catch { /* приватный режим */ }

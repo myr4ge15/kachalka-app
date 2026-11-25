@@ -58,7 +58,10 @@ vi.mock('../supabase.js', () => {
     server.calls.push({ kind: 'rpc', name, args })
     return {
       then(resolvePromise, rejectPromise) {
-        return Promise.resolve(server.rpc(name, args)).then(resolvePromise, rejectPromise)
+        return Promise.resolve(server.rpc(name, args)).then((response) =>
+          name === 'upsert_workout_checked' && !response.error && !response.data
+            ? { data: { outcome: 'saved', updated_at: '2026-07-28T20:00:01Z' }, error: null } : response
+        ).then(resolvePromise, rejectPromise)
       },
     }
   }
@@ -265,7 +268,7 @@ describe('push тренировок и реакций', () => {
     const justPushed = await push(db)
 
     expect([...justPushed]).toEqual(['w-up'])
-    expect(server.calls.find((call) => call.name === 'upsert_workout').args).toMatchObject({
+    expect(server.calls.find((call) => call.name === 'upsert_workout_checked').args).toMatchObject({
       p_workout_id: 'w-up',
       p_user_id: userId,
       p_performed_at: '2026-07-28',
@@ -313,7 +316,7 @@ describe('push тренировок и реакций', () => {
 // не ставит. Push не должен снимать _dirty и удалять операцию — иначе pull того же
 // цикла перезапишет правку серверной версией.
 describe('push — правка во время отправки не теряется', () => {
-  it('тренировка: остается dirty с операцией, базис обнулен', async () => {
+  it('тренировка: остается dirty с операцией и подтвержденным сервером базисом', async () => {
     await db.workouts.put({
       id: 'w1', user_id: userId, performed_at: '2026-07-28',
       updated_at: '2026-07-28T20:00:00.000Z', _base_updated_at: '2026-07-27T20:00:00.000Z',
@@ -332,7 +335,7 @@ describe('push — правка во время отправки не теряе
     const justPushed = await push(db)
 
     expect([...justPushed]).toEqual(['w1'])
-    expect(await db.workouts.get('w1')).toMatchObject({ _dirty: 1, _base_updated_at: null })
+    expect(await db.workouts.get('w1')).toMatchObject({ _dirty: 1, _base_updated_at: '2026-07-28T20:00:01Z' })
     expect(await db.outbox.count()).toBe(1)
   })
 

@@ -119,7 +119,7 @@ export default function FeedScreen({ user, onOpenMember, flashId = null, thread 
     setRefreshing(true)
     setError(null)
     try {
-      await fetchFeed(user.id)
+      await fetchFeed(user.id, undefined, { refreshRecords: true })
       if (!aliveRef.current) return
       setUpdatedAt(Date.now())
       setNowTick(Date.now())

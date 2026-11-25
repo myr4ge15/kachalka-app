@@ -22,8 +22,11 @@ const TRANSIENT_PGRST = /^PGRST(0|3)/
 // Тексты сетевых сбоев fetch в разных браузерах.
 const NETWORK_TEXT = /failed to fetch|networkerror|network request failed|load failed|fetch failed|превышено время ожидания/i
 
+export class RetryableSyncError extends Error {}
+
 export function isTransientSyncError(err) {
   if (err == null) return false
+  if (err instanceof RetryableSyncError) return true
   const name = String(err.name ?? '')
   if (name === 'AbortError' || name === 'TimeoutError') return true
   const message = String(err.message ?? err)

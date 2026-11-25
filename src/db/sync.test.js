@@ -69,6 +69,7 @@ vi.mock('./supabase.js', () => {
       _table: table, _select: null, _delete: false, _upsert: null, _eqUser: false, _gtUpdated: null,
       select(s, { count } = {}) { this._select = s; this._count = count; return this },
       eq(k, _v) { if (k === 'user_id') this._eqUser = true; return this },
+      gte() { return this },
       gt(k, v) { if (k === 'updated_at') this._gtUpdated = v; return this },
       in(k, v) { if (k === 'id') this._in = v; return this },
       order() { return this },
@@ -86,7 +87,9 @@ vi.mock('./supabase.js', () => {
   function rpc(name, args) {
     const run = () => {
       if (name === 'my_is_private') return { data: false, error: null }
-      if (name === 'upsert_workout') return state.upsertWorkout(args)
+      if (name === 'upsert_workout_checked') return Promise.resolve(state.upsertWorkout(args)).then((response) => ({
+        data: { outcome: 'saved', updated_at: args.p_edited_at ?? '2026-07-28T20:00:00Z' }, ...response,
+      }))
       if (name === 'upsert_template' || name === 'upsert_template_v2') return state.upsertTemplate(name, args)
       return { data: null, error: null }
     }
@@ -189,6 +192,25 @@ describe('push: слив очереди outbox', () => {
     const doc = await db.workouts.get(id)
     expect(doc._dirty).toBe(0)
     expect(doc._base_updated_at).toBe(null)
+  })
+
+  it.each(['server', 'existing'])('push принимает сохраненный серверный состав при результате %s', async (outcome) => {
+    const existing = outcome === 'existing'
+    const base = '2026-01-01T00:00:00Z'
+    const newer = '2026-01-03T00:00:00Z'
+    const id = await saveWorkout({ user_id: userId, entries: [{ exercise: bench, sets: [{ weight: 70, reps: 1 }] }] },
+      { restore: existing })
+    await db.workouts.update(id, { _base_updated_at: existing ? null : base, updated_at: '2026-01-02T00:00:00Z' })
+    const row = serverRow({ id, user_id: userId, updated_at: newer, weight: 95 })
+    srv.state.workoutIds = [id]
+    srv.state.workoutsAll = [row]
+    const checked = vi.fn(() => ({ data: { outcome, previous: newer, updated_at: newer }, error: null }))
+    srv.state.upsertWorkout = checked
+    await syncNow(userId)
+    expect(checked).toHaveBeenCalledWith(expect.objectContaining({ p_restore: existing, p_base: existing ? null : base }))
+    expect((await db.workouts.get(id)).entries[0].sets[0].weight).toBe(95)
+    expect(await db.outbox.count()).toBe(0)
+    if (!existing) expect((await db.meta.get('merge_conflicts')).value.at(-1).winner).toBe('server')
   })
 
   it('dead-letter: после MAX_ATTEMPTS ошибок upsert операция помечается _dead, документ остается _dirty', async () => {

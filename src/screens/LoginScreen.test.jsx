@@ -19,7 +19,7 @@ vi.mock('../lib/auth.js', () => {
     loginByName: vi.fn(),
     verifyPinOffline: vi.fn(),
     dropForeignSession: vi.fn(async () => {}),
-    noteLoginFailure: vi.fn(),
+    rejectCachedPin: vi.fn(async () => {}),
     knownAccounts: vi.fn(),
     forgetAccount: vi.fn(async () => {}),
     requestPinReset: vi.fn(async () => true),
@@ -70,6 +70,20 @@ describe('LoginScreen', () => {
     expect(auth.verifyPinOffline).not.toHaveBeenCalled()
   })
 
+  it('возврат к выбору учетки ждет конца входа и открытия личной базы', async () => {
+    const opening = Promise.withResolvers()
+    vi.mocked(auth.login).mockResolvedValueOnce(DIMA)
+    const onLogin = vi.fn(() => opening.promise)
+    render(<LoginScreen onLogin={onLogin} />)
+    fireEvent.click(await screen.findByText('Дима'))
+    typePin('1234')
+    await waitFor(() => expect(onLogin).toHaveBeenCalledWith(DIMA))
+    expect(screen.getByRole('button', { name: 'Выбрать другого' })).toBeDisabled()
+    opening.reject(new Error('Хранилище недоступно'))
+    expect(await screen.findByText(/Хранилище недоступно/)).toBeInTheDocument()
+    expect(screen.getByRole('button', { name: 'Выбрать другого' })).toBeEnabled()
+  })
+
   it('онлайн, старый PIN из кэша: сервер отказал — приложение НЕ открывается', async () => {
     // ревью 06.10.2026, п. 6: раньше кэш пускал до ответа сервера
     vi.mocked(auth.verifyPinOffline).mockResolvedValue(DIMA)
@@ -82,7 +96,7 @@ describe('LoginScreen', () => {
     expect(await screen.findByText('Неверный PIN')).toBeInTheDocument()
     expect(onLogin).not.toHaveBeenCalled()
     expect(auth.verifyPinOffline).not.toHaveBeenCalled()
-    expect(auth.noteLoginFailure).toHaveBeenCalledWith(err)
+    expect(auth.rejectCachedPin).toHaveBeenCalledWith('u1', '1234')
   })
 
   it('онлайн, сервер запер попытки — кэш блокировку не обходит', async () => {

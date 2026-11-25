@@ -68,10 +68,14 @@ describe('ResetPinScreen', () => {
 
   it('на устройстве открыта учетка — сначала выйти, ссылку не проверяем', async () => {
     const onSignOut = vi.fn()
-    render(<ResetPinScreen token={T} signedInAs="Дима" onDone={vi.fn()} onCancel={vi.fn()} onSignOut={onSignOut} />)
+    const { rerender } = render(<ResetPinScreen token={T} signedInAs="Дима" onDone={vi.fn()} onCancel={vi.fn()} onSignOut={onSignOut} />)
     expect(screen.getByText('Дима')).toBeInTheDocument()
     fireEvent.click(screen.getByRole('button', { name: 'Выйти и продолжить' }))
     expect(onSignOut).toHaveBeenCalled()
     expect(auth.checkPinReset).not.toHaveBeenCalled()
+    vi.mocked(auth.checkPinReset).mockResolvedValueOnce('ok')
+    rerender(<ResetPinScreen token={T} onDone={vi.fn()} onCancel={vi.fn()} />)
+    expect(await screen.findByLabelText('Новый PIN — 4 цифры')).toBeEnabled()
+    expect(screen.getByRole('button', { name: 'Сохранить PIN и войти' })).toBeEnabled()
   })
 })

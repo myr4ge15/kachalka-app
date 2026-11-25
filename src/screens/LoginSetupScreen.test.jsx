@@ -104,6 +104,16 @@ describe('useLoginSetup', () => {
     await waitFor(() => expect(result.current.needed).toBe(false))
   })
 
+  it('после выхода из A офлайн-вход B не требует логина A', async () => {
+    vi.mocked(getMyLogin).mockResolvedValue(null)
+    const { result, rerender } = renderHook(({ user }) => useLoginSetup(user), { initialProps: { user: SEGA } })
+    await waitFor(() => expect(result.current.needed).toBe(true))
+    rerender({ user: null })
+    vi.stubGlobal('navigator', { ...globalThis.navigator, onLine: false })
+    rerender({ user: { id: 'another-user' } })
+    expect(result.current.needed).toBe(false)
+  })
+
   it('логин есть — шаг не нужен', async () => {
     vi.mocked(getMyLogin).mockResolvedValue('sega')
     const { result } = renderHook(() => useLoginSetup(SEGA))

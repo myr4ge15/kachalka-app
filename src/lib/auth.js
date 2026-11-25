@@ -15,8 +15,9 @@
 // запасной путь молчаливого перевыпуска сессии.
 // ============================================================================
 import { supabase, isSessionOf, hasSession } from '../db/supabase.js'
-import { getLoginMeta, setLoginMeta, listLoginMeta, deleteLoginMeta } from '../db/local.js'
+import { getLoginMeta, setLoginMeta, listLoginMeta, deleteLoginMeta, clearLoginHashIfCurrent } from '../db/local.js'
 import { verifyPin } from './hash.js'
+import { createSerialQueue } from './serialQueue.js'
 import { WEAK_PIN_TEXT } from './pinPolicy.js'
 import { normalizeLogin, loginProblem, loginStatusText } from './login.js'
 import { DB_TIMEOUT_MS, withTimeout } from './withTimeout.js'
@@ -71,7 +72,7 @@ let lastLoginUserId = null
 // должен — иначе он возвращал в хранилище сессию вышедшего и подменял PIN в памяти
 // (РЕВЬЮ-КОДА-2026-10-02, п. 21).
 let authGeneration = 0
-let logoutDone = Promise.resolve()
+const sessionWrites = createSerialQueue()
 // Вход, который сейчас в полете: фоновый перевыпуск не дублирует его.
 let inFlight = null // { userId, promise }
 
@@ -162,27 +163,31 @@ async function postLogin(payload, timeoutMs = DB_TIMEOUT_MS) {
 
 // Ответ сервера вида { session, user, pin_hash, pin_salt } (auth-login и
 // invite-redeem) → поднять сессию, закэшировать свой хэш для офлайн-входа, PIN в память.
-async function adoptSession(body, userId, pin, stale) {
+async function adoptSession(body, userId, pin, stale, pinChanged = false) {
+  return sessionWrites(() => installLogin(body, userId, pin, stale, pinChanged))
+}
+
+async function installLogin(body, userId, pin, stale, pinChanged) {
   // Пока ждали ответ, человек вышел (или вошел другой): сессию не поднимаем.
   if (stale()) throw new LoginError('cancelled', 'Вход отменен.')
 
-  // Экран входа открывается сразу, а выход дорабатывает в фоне: его signOut не должен снести новую сессию.
-  await logoutDone
-  if (stale()) throw new LoginError('cancelled', 'Вход отменен.')
-
-  const { error } = await supabase.auth.setSession({
-    access_token: body.session.access_token,
-    refresh_token: body.session.refresh_token,
-  })
-  if (error) throw new LoginError('server', error.message)
-
-  // Кэш офлайн-разблокировки — только свои значения текущего пользователя.
-  await setLoginMeta(pinCacheKey(userId), {
+  const cachePin = () => setLoginMeta(pinCacheKey(userId), {
     pin_hash: body.pin_hash,
     pin_salt: body.pin_salt ?? null,
     name: body.user.name,
     role: body.user.role,
   })
+  // После подтвержденного сброса прежний хэш устарел даже при сбое установки сессии.
+  if (pinChanged) {
+    await cachePin()
+    if (stale()) throw new LoginError('cancelled', 'Вход отменен.')
+  }
+  const { error } = await supabase.auth.setSession({
+    access_token: body.session.access_token,
+    refresh_token: body.session.refresh_token,
+  })
+  if (error) throw new LoginError('server', error.message)
+  if (!pinChanged) await cachePin()
   // Вышли за те миллисекунды, что поднималась сессия: PIN в память не кладем.
   // Саму сессию здесь не гасим — SIGNED_OUT выкинул бы уже вошедшего следующего;
   // чужую сессию синк не использует (hasSession(userId)).
@@ -307,7 +312,12 @@ async function adoptReset(res, body, pin, stale) {
   if (res.status === 401) throw new LoginError('invalid', 'invalid')
   if (!res.ok || !body?.session) throw new LoginError(body?.error ?? 'server', body?.error ?? 'server')
   lastLoginUserId = body.user.id
-  return adoptSession(body, body.user.id, pin, stale)
+  try {
+    return await adoptSession(body, body.user.id, pin, stale, true)
+  } catch (err) {
+    if (err?.code === 'cancelled') throw err
+    throw new LoginError('reset_login_failed', 'PIN сменен. Войди с новым PIN.')
+  }
 }
 
 // Новый PIN по ссылке из бота → сразу вход ({ id, name, role }).
@@ -374,6 +384,15 @@ export const createRecoveryCode = (userId) => myRpc(userId, 'create_my_recovery_
 export const createTgLinkToken = (userId) => myRpc(userId, 'create_my_tg_link_token')
 export const unlinkTg = (userId) => myRpc(userId, 'unlink_my_tg')
 
+// При ручном входе сервер мог отвергнуть просто опечатку.
+export async function rejectCachedPin(userId, pin) {
+  const key = pinCacheKey(userId)
+  const cached = await getLoginMeta(key)
+  if (!cached?.pin_hash || !(await verifyPin(pin, cached))) return
+  if (sessionPinUserId === userId && sessionPin === pin) { sessionPin = null; sessionPinUserId = null }
+  await clearLoginHashIfCurrent(key, cached)
+}
+
 // Офлайн-проверка PIN по локальному кэшу. Возвращает:
 //   { id, name, role } — кэш есть и PIN верный (можно открыть UI);
 //   false              — кэш есть, но PIN неверный;
@@ -431,6 +450,7 @@ export async function getCachedProfile(userId) {
 // проверки владельца). На успех обновляем офлайн-кэш своими новыми хэш/солью,
 // чтобы офлайн-разблокировка сразу принимала новый PIN. Ошибки — LoginError.
 export async function setPin(userId, currentPin, newPin) {
+  const generation = authGeneration
   // Реальный токен сессии (логин-мост уже положил его через setSession).
   let accessToken = null
   try {
@@ -479,6 +499,24 @@ export async function setPin(userId, currentPin, newPin) {
   }
 
   // Обновляем офлайн-кэш своими новыми значениями (имя/роль сохраняем).
+  return sessionWrites(async () => {
+    if (generation !== authGeneration) {
+      // Сервер уже принял смену. На общем устройстве прежний PIN этой учетки устарел.
+      await rejectCachedPin(userId, currentPin).catch(() => {})
+      throw new LoginError('cancelled', 'Учетка сменилась.')
+    }
+    try {
+      await installChangedPin(body, userId, newPin, () => generation !== authGeneration)
+    } catch (err) {
+      if (err?.code === 'cancelled') throw err
+      throw new LoginError('session', 'PIN сменен. Войди заново с новым PIN.')
+    }
+    if (generation !== authGeneration) throw new LoginError('cancelled', 'Учетка сменилась.')
+    return true
+  })
+}
+
+async function installChangedPin(body, userId, newPin, stale) {
   const cached = (await getLoginMeta(pinCacheKey(userId))) ?? {}
   await setLoginMeta(pinCacheKey(userId), {
     ...cached,
@@ -486,17 +524,13 @@ export async function setPin(userId, currentPin, newPin) {
     pin_salt: body.pin_salt ?? null,
   })
   // Сразу: дальше может быть выход с ошибкой, а старый PIN в памяти тихий перевыпуск отправил бы на сервер.
+  if (stale()) throw new LoginError('cancelled', 'Учетка сменилась.')
   rememberPin(userId, newPin)
   // Сервер отозвал все прежние сессии (v6.8.0) и выдал свежую — поднимаем ее, иначе
   // текущая сессия этого устройства уже мертва и синк попросил бы войти заново.
-  if (body.session?.access_token && body.session?.refresh_token) {
-    const { error } = await supabase.auth.setSession({
-      access_token: body.session.access_token,
-      refresh_token: body.session.refresh_token,
-    })
-    if (error) throw new LoginError('session', 'PIN сменен. Войди заново с новым PIN.')
-  }
-  return true
+  if (!body.session?.access_token || !body.session?.refresh_token) throw new Error('missing session')
+  const { error } = await supabase.auth.setSession(body.session)
+  if (error) throw error
 }
 
 // Удалить СВОЙ аккаунт насовсем (П7, 07.10.2026; Edge account-delete). Только онлайн,
@@ -674,14 +708,16 @@ function sessionFailureMessage() {
 // (общий телефон, выход не дождался signOut). Фоновый перевыпуск сессии B может не
 // пройти, и до тех пор все сетевое шло бы под JWT A. Синк такую сессию уже не
 // использует (hasSession(userId)), а здесь ее снимаем совсем — локально, без сети.
-export async function dropForeignSession(userId) {
-  try {
-    const { data } = await supabase.auth.getSession()
-    const session = data?.session
-    if (session && !isSessionOf(session, userId)) {
-      await withTimeout(supabase.auth.signOut({ scope: 'local' }), 3000)
-    }
-  } catch { /* не критично: синк все равно не пойдет под чужой сессией */ }
+export function dropForeignSession(userId) {
+  return sessionWrites(async () => {
+    try {
+      const { data } = await supabase.auth.getSession()
+      const session = data?.session
+      if (session && !isSessionOf(session, userId)) {
+        await withTimeout(supabase.auth.signOut({ scope: 'local' }), 3000)
+      }
+    } catch { /* не критично: синк все равно не пойдет под чужой сессией */ }
+  })
 }
 
 // Молчаливый перевыпуск сессии (сеть появилась, UI уже открыт офлайн).
@@ -717,8 +753,7 @@ export function logout(beforeSignOut) {
   sessionPin = null
   sessionPinUserId = null
   authGeneration++
-  logoutDone = finishLogout(beforeSignOut)
-  return logoutDone
+  return sessionWrites(() => finishLogout(beforeSignOut))
 }
 
 async function finishLogout(beforeSignOut) {

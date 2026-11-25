@@ -76,7 +76,7 @@ export function useRestTimer(userId, { exercise = null, ready = true, active = t
   const pushFor = useCallback((r, inSec) => {
     if (!settingsRef.current.push || !r) return
     cancelledRef.current = null
-    scheduleRestPush(userId, { inSec, ...restPushText(r.exerciseName) })
+    scheduleRestPush(userId, { inSec, endsAt: r.endsAt, ...restPushText(r.exerciseName) })
   }, [userId])
 
   const start = useCallback((sec) => {

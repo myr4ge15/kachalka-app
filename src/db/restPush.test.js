@@ -58,6 +58,18 @@ describe('пуш таймера отдыха: сессия, подписка и 
     }
   })
 
+  it('вычитает ожидание подписки из оставшегося отдыха', async () => {
+    const clock = vi.spyOn(Date, 'now').mockReturnValue(1000)
+    vi.mocked(deviceSubscriptionEndpoint).mockImplementationOnce(async () => {
+      clock.mockReturnValue(16000)
+      return 'endpoint'
+    })
+    try {
+      await scheduleRestPush('u1', { inSec: 60 })
+      expect(supabase.rpc).toHaveBeenCalledWith('rest_push_set', expect.objectContaining({ p_in_sec: 45 }))
+    } finally { clock.mockRestore() }
+  })
+
   it('без подписки RPC постановки не вызывается', async () => {
     vi.mocked(deviceSubscriptionEndpoint).mockResolvedValueOnce(null)
     expect(await scheduleRestPush('u1', { inSec: 90 })).toBe(false)

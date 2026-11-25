@@ -30,6 +30,17 @@ afterEach(async () => {
 })
 
 describe('saveWorkout / outbox', () => {
+  it('устаревшая форма сохраняет новую запись в базе и не создает операцию', async () => {
+    const entries = [entry(bench, [{ weight: 100, reps: 5 }])]
+    const id = await saveWorkout({ user_id: userId, entries })
+    await db.outbox.clear()
+    await db.workouts.update(id, { _dirty: 0, updated_at: 'новая версия' })
+    await expect(saveWorkout({ id, user_id: userId, entries, expectedVersion: 'версия формы' }))
+      .rejects.toThrow('Тренировка изменилась')
+    expect((await db.workouts.get(id)).updated_at).toBe('новая версия')
+    expect(await db.outbox.count()).toBe(0)
+  })
+
   it('создание: пишет документ _dirty=1 и ставит один upsert в очередь', async () => {
     const id = await saveWorkout({
       user_id: userId,

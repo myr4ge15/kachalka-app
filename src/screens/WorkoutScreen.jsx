@@ -258,9 +258,13 @@ export default function WorkoutScreen({ user, workoutId = null, onBack, onSaved,
 
   // Сохранить пер-упражненческую настройку (стратегия/шаг) и пересобрать
   // рекомендацию карточки, не дожидаясь обновления live-query prog.
+  const progRequests = useRef(new Map())
   async function changeProgSettings(ei, patch) {
     const entry = entries[ei]
     if (!entry) return
+    const exId = entry.exercise.id
+    const request = Symbol()
+    progRequests.current.set(exId, request)
     await setProgForExercise(user.id, entry.exercise.id, patch)
     const nextProg = {
       enabled: prog.enabled,
@@ -272,8 +276,9 @@ export default function WorkoutScreen({ user, workoutId = null, onBack, onSaved,
     let sessions = []
     try { sessions = await getRecentSessionsForExercise(user.id, entry.exercise.id, 5) } catch { /* локальное чтение */ }
     const built = buildRecommendation(entry.exercise, sessions, nextProg)
-    setEntries((prev) => prev.map((e, i) => {
-      if (i !== ei) return e
+    if (progRequests.current.get(exId) !== request) return
+    setEntries((prev) => prev.map((e) => {
+      if (e.exercise.id !== exId) return e
       const wasApplied = !e.fromTemplate && e.prog?.applied !== false
       if (!built.meta) {
         // нет панели (активная стратегия без истории / глобально выкл) — убираем;
@@ -303,6 +308,7 @@ export default function WorkoutScreen({ user, workoutId = null, onBack, onSaved,
       return
     }
     setMessage((m) => (m?.transient ? null : m))
+    progRequests.current.delete(cur.exercise.id)
     setEntries((prev) => replaceExerciseIn(prev, idx, ex))
     // Оценка привязана к тому же id и переезжает вместе с подходами: усилие было
     // то же самое, поменялась только запись о том, каким упражнением оно названо.
@@ -319,6 +325,7 @@ export default function WorkoutScreen({ user, workoutId = null, onBack, onSaved,
     const removed = entries[idx]
     setEntries((prev) => removeExerciseIn(prev, idx))
     if (!removed) return
+    progRequests.current.delete(removed.exercise.id)
     // Убрали открытую карточку — раскрываем соседнюю (ту, что встала на ее место,
     // а у последней — предыдущую), а не первую в списке: иначе экран уезжал к
     // началу тренировки (v6.7.2).
@@ -447,6 +454,7 @@ export default function WorkoutScreen({ user, workoutId = null, onBack, onSaved,
         user_id: user.id,
         performed_at: performedAt,
         entries: entriesToSave,
+        ...(!isNew && { expectedVersion: draft.getEditBase() }),
       })
       // Итог строится из уже записанного локального документа. Если чтение
       // неожиданно не удалось, успешное сохранение все равно не блокируем:

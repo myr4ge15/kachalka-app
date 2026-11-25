@@ -20,6 +20,7 @@ import { SYNCED_KINDS, planMetaSync } from '../../lib/userMeta.js'
 import { normMetric } from '../../lib/metric.js'
 import { cmpIsoAsc } from '../../lib/cmp.js'
 import { protectedFromPull } from '../../lib/outboxProtect.js'
+import { RetryableSyncError } from '../../lib/syncErrors.js'
 import { mergeDecision } from '../../lib/mergeClock.js'
 import { reconcileStaleWorkouts } from '../../lib/pullReconcile.js'
 import { maxUpdatedAt, changedSince, rosterSignature } from '../../lib/pullWatermark.js'
@@ -55,7 +56,7 @@ const PENDING_DELETES = 'pending_workout_deletes'
 // phase — блок разминки/заминки (23.10.2026); сервер без колонки — выборка без нее (db/phaseColumn.js).
 const SELECT_WORKOUT =
   'id, performed_at, created_at, updated_at, user_id, ' +
-  'workout_exercises(id, position, exercise_id, phase, ' +
+  'workout_exercises(id, position, exercise_id, historical_metric, phase, ' +
   'exercise:exercises(id, name, muscle_group, submuscle, secondary, is_bench_lift, metric), ' +
   'sets(id, set_number, weight, reps))'
 const SELECT_TEMPLATE =
@@ -71,17 +72,18 @@ function rowToDoc(w, local) {
       exercise_id: we.exercise_id,
       // Единый снимок упражнения (двухуровневая модель мышц: submuscle + secondary).
       // Фолбэк при отсутствии join'а — минимальный {id, name:'—'}.
-      exercise: we.exercise
-        ? pickExerciseShape(we.exercise)
-        : { id: we.exercise_id, name: '—' },
+      exercise: {
+        ...(we.exercise ? pickExerciseShape(we.exercise) : { id: we.exercise_id, name: '—' }),
+        ...(we.historical_metric && { metric: we.historical_metric }),
+      },
       sets: [...(we.sets ?? [])]
         .sort((a, b) => (a.set_number ?? 0) - (b.set_number ?? 0))
         .map((s) => ({ weight: Number(s.weight), reps: Number(s.reps) })),
       ...(phaseValue(we.phase) ? { phase: phaseValue(we.phase) } : {}),
     }))
-  // RPC возвращает текущую метрику каталога и дату создания серверной строки.
-  // После восстановления сохраняем исходные единицы для неизменившихся подходов.
-  if (local?._restored) {
+  // Для старых импортов историческая метрика пока сохранилась только в локальной копии.
+  const historical = w.workout_exercises?.some((we) => we.historical_metric)
+  if (local?._restored && !historical) {
     for (const entry of entries) {
       const previous = local.entries?.find((e) =>
         e.exercise_id === entry.exercise_id && e.phase === entry.phase &&
@@ -91,13 +93,13 @@ function rowToDoc(w, local) {
     }
   }
   return {
-    ...(local?._restored ? { _restored: true } : {}),
+    ...(historical || local?._restored ? { _restored: true } : {}),
     id: w.id,
     user_id: w.user_id,
     performed_at: w.performed_at,
     // created_at с сервера (для сортировки хаба). Фолбэк на performed_at,
     // если сервер еще не отдает это поле.
-    created_at: (local?._restored && local.created_at) || w.created_at || w.performed_at,
+    created_at: (!historical && local?._restored && local.created_at) || w.created_at || w.performed_at,
     // updated_at — СЕРВЕРНЫЕ merge-часы (PLAN-merge-clock): монотонное время
     // последней правки, назначается сервером в upsert_workout. Сравнивается на
     // pull с локальным базисом (_base_updated_at). Фолбэк на created_at для строк
@@ -107,6 +109,15 @@ function rowToDoc(w, local) {
     _dirty: 0,
     _deleted: 0,
   }
+}
+
+export async function fetchWorkoutVersion(userId, id, minimumVersion) {
+  const res = await withPhase(SELECT_WORKOUT, (sel) =>
+    supabase.from('workouts').select(sel).eq('user_id', userId).gte('updated_at', minimumVersion).in('id', [id]))
+  if (res.error) throw res.error
+  const row = res.data?.find((w) => w.id === id && w.user_id === userId)
+  if (!row) throw new RetryableSyncError('Серверная версия тренировки пока недоступна')
+  return rowToDoc(row)
 }
 
 // server row → локальный денормализованный документ шаблона
@@ -167,8 +178,9 @@ export async function pull(userId, justPushed = new Set(), d = db, opts = {}) {
   // реджекта дали бы unhandled rejection. Разбираем результат сами ниже.
   const wrap = (p) => p.then((w) => ({ ok: true, w })).catch((e) => ({ ok: false, e }))
   const changedExerciseIds = new Set()
+  const catalog = {}
   const [ex, ros, , wk, tpl] = await Promise.all([
-    wrap(pullExercises(d, changedExerciseIds, opts)),
+    wrap(pullExercises(d, changedExerciseIds, catalog, opts)),
     wrap(pullRoster()), // ростер и его сигнатура — в общей loginDb, `d` не нужен
     wrap(pullPrivacyFlag(userId, d)), // best-effort, warnings не копит
     wrap(pullWorkouts(userId, justPushed, d, opts)),
@@ -187,9 +199,14 @@ export async function pull(userId, justPushed = new Set(), d = db, opts = {}) {
     if (r.ok) warnings.push(...(r.w ?? []))
     else warnings.push(String(r.e?.message ?? r.e))
   }
-  if (changedExerciseIds.size) {
+  if (ex.ok && catalog.signature !== undefined) {
     try {
-      warnings.push(...await refreshWorkoutsForExercises(userId, changedExerciseIds, d))
+      const pending = changedExerciseIds.size ? await refreshWorkoutsForExercises(userId, changedExerciseIds, d) : []
+      warnings.push(...pending)
+      if (!pending.length) await d.transaction('rw', d.meta, async () => {
+        await setMeta(WM_EXERCISES, catalog.watermark, d)
+        await setMeta(SIG_EXERCISES, catalog.signature, d)
+      })
     } catch (e) {
       warnings.push('история не обновлена после правки упражнения: ' + String(e?.message ?? e))
     }
@@ -222,7 +239,16 @@ async function refreshWorkoutsForExercises(userId, exerciseIds, d = db) {
       warnings.push('история не обновлена после правки упражнения: ' + (res.error.message ?? res.error))
       break
     }
+    const returned = new Set((res.data ?? []).map((row) => row.id))
     await d.transaction('rw', d.workouts, async () => {
+      for (const id of chunk) {
+        if (returned.has(id)) continue
+        const cur = await d.workouts.get(id)
+        if (cur && !cur._dirty && !cur._deleted) {
+          warnings.push('история не обновлена после правки упражнения: сервер вернул неполный список')
+          break
+        }
+      }
       for (const row of res.data ?? []) {
         const cur = await d.workouts.get(row.id)
         // Пока шел запрос, тренировку правили локально — оставляем правку.
@@ -235,7 +261,7 @@ async function refreshWorkoutsForExercises(userId, exerciseIds, d = db) {
 }
 
 // --------------------------- pull: справочник ------------------------------
-async function pullExercises(d = db, changedExerciseIds = new Set(), { identityVerified = false } = {}) {
+async function pullExercises(d, changedExerciseIds, catalog, { identityVerified = false } = {}) {
   const warnings = []
   // справочник упражнений. Инкрементально: сперва дешевая проба (id + updated_at).
   // Набор и максимум не изменились с прошлого раза → пропускаем целиком (ни
@@ -248,7 +274,8 @@ async function pullExercises(d = db, changedExerciseIds = new Set(), { identityV
   // новый сосед — появились его старые личные упражнения (updated_at НИЖЕ метки, max
   // не растет), перестал быть виден — исчезли. Один максимум не видел ни того, ни
   // другого. Проба легкая: id и время, ~сотня строк, без сортировки на сервере.
-  const exProbe = await withTimeout(supabase.from('exercises').select('id, updated_at'))
+  const exerciseQuery = (sel) => readIdPages(() => supabase.from('exercises').select(sel, { count: 'exact' }))
+  const exProbe = await exerciseQuery('id, updated_at')
   const exServerMax = exProbe.error ? null : maxUpdatedAt(exProbe.data ?? [])
   const exSig = exProbe.error ? null : rosterSignature(exProbe.data ?? [])
   const prevWm = await getMeta(WM_EXERCISES, d)
@@ -257,9 +284,7 @@ async function pullExercises(d = db, changedExerciseIds = new Set(), { identityV
   if (exChanged) {
     // НЕ затираем локально созданные упражнения, которые еще не доехали до сервера
     // (_dirty=1) — иначе свое упражнение пропадет из пикера до завершения синка.
-    const ex = await withTimeout(
-      supabase.from('exercises').select('id, name, muscle_group, submuscle, secondary, is_bench_lift, is_female_lift, is_custom, is_hidden, metric, owner_id, merged_into, updated_at')
-    )
+    const ex = await exerciseQuery('id, name, muscle_group, submuscle, secondary, is_bench_lift, is_female_lift, is_custom, is_hidden, metric, owner_id, merged_into, updated_at')
     if (ex.error) warnings.push('упражнения: ' + (ex.error.message ?? ex.error))
     // Пустой справочник без подтвержденной личности — скорее отозванная сессия (RLS
     // отдает пустоту без ошибки), чем «на сервере ничего нет»: не стираем локальный
@@ -297,10 +322,10 @@ async function pullExercises(d = db, changedExerciseIds = new Set(), { identityV
       }
       // watermark = max по фактически принятым строкам (safe против лага реплики:
       // если проба видела свежее, чем refetch, следующий прогон дотянет).
-      await setMeta(WM_EXERCISES, maxUpdatedAt(ex.data) ?? exServerMax, d)
+      catalog.watermark = maxUpdatedAt(ex.data) ?? exServerMax
       // Сигнатура — по фактически принятому набору: если проба и выборка разошлись
       // (лаг реплики), следующий прогон увидит разницу и дотянет.
-      await setMeta(SIG_EXERCISES, rosterSignature(ex.data), d)
+      catalog.signature = rosterSignature(ex.data)
     }
   }
   return warnings
@@ -356,7 +381,15 @@ async function pullPrivacyFlag(userId, d = db) {
 const HEAL_CHUNK = 100
 const WORKOUT_PAGE_SIZE = 500
 
-async function readWorkoutPages(readPage) {
+function readIdPages(build) {
+  return readPages((cursor) => {
+    let query = build()
+    if (cursor) query = query.gt('id', cursor.id)
+    return withTimeout(query.order('id').limit(WORKOUT_PAGE_SIZE))
+  })
+}
+
+async function readPages(readPage) {
   const data = []
   let cursor = null
   while (true) {
@@ -369,7 +402,9 @@ async function readWorkoutPages(readPage) {
     }
     data.push(...page.data)
     if (page.data.length === page.count) return { data }
-    cursor = page.data.at(-1)
+    const next = page.data.at(-1)
+    if (!next?.id || next.id === cursor?.id) return { error: new Error('Сервер повторил страницу') }
+    cursor = next
   }
 }
 
@@ -401,8 +436,8 @@ async function pullWorkouts(userId, justPushed = new Set(), d = db, { identityVe
   // цикле просто пропускаем (не удаляем вслепую), поэтому приводим к форме { error }
   // как у PostgREST, а не даем Promise.all зареджектиться.
   const [wk, idsRes] = await Promise.all([
-    readWorkoutPages((cursor) => withPhase(SELECT_WORKOUT, (sel) => workoutPage(sel, cursor))),
-    readWorkoutPages(idsPage).catch((e) => ({ error: e })),
+    readPages((cursor) => withPhase(SELECT_WORKOUT, (sel) => workoutPage(sel, cursor))),
+    readPages(idsPage).catch((e) => ({ error: e })),
   ])
   if (wk.error) throw wk.error
   const serverRows = wk.data ?? []
@@ -447,6 +482,8 @@ async function pullWorkouts(userId, justPushed = new Set(), d = db, { identityVe
         await d.workouts.put(serverDoc)
         continue
       }
+      // Реплика может еще видеть версию до подтвержденного push.
+      if (justPushed.has(row.id) && !local._dirty && cmpIsoAsc(serverDoc.updated_at, local.updated_at) < 0) continue
       // Часы-осведомленное решение (PLAN-merge-clock): сравниваем серверный
       // updated_at с локальным базисом (_base_updated_at).
       const decision = mergeDecision({
@@ -547,8 +584,10 @@ async function pullWorkouts(userId, justPushed = new Set(), d = db, { identityVe
   // Журнал конфликтов merge-часов (последние 50) + предупреждение в статус синка.
   if (conflicts.length) {
     try {
-      const prev = (await getMeta('merge_conflicts', d)) ?? []
-      await setMeta('merge_conflicts', [...prev, ...conflicts].slice(-50), d)
+      await d.transaction('rw', d.meta, async () => {
+        const prev = (await getMeta('merge_conflicts', d)) ?? []
+        await setMeta('merge_conflicts', [...prev, ...conflicts].slice(-50), d)
+      })
     } catch { /* журнал диагностики не критичен для синка */ }
     warnings.push(`правок перезаписано новее с другого устройства: ${conflicts.length}`)
   }
@@ -563,17 +602,20 @@ async function pullTemplates(userId, d = db, { identityVerified = false } = {}) 
   // (join с template_exercises). Сигнатура ловит и правку (updated_at растет), и
   // пропажу чужого общего (автор сделал приватным → id выпал из окна) — одного max
   // мало. Проба упала → деградируем к полному refetch.
-  const tplProbe = await withTimeout(
-    supabase.from('workout_templates').select('id, updated_at').or(`user_id.eq.${userId},is_public.eq.true`)
-  )
+  const pageQuery = (sel, cursor) => {
+    let q = supabase.from('workout_templates').select(sel, { count: 'exact' }).or(`user_id.eq.${userId},is_public.eq.true`)
+    if (cursor) q = q.gt('id', cursor.id)
+    return q.order('id').limit(WORKOUT_PAGE_SIZE)
+  }
+  const tplPages = (select) => readPages((cursor) => withPhase(select, (sel) => pageQuery(sel, cursor)))
+  const tplProbe = await readPages((cursor) => withTimeout(pageQuery('id, updated_at', cursor)))
   const tplSig = tplProbe.error ? null : rosterSignature(tplProbe.data ?? [])
   const tplChanged = tplProbe.error ? true : tplSig !== (await getMeta(SIG_TEMPLATES, d))
   if (tplChanged) {
     // Не затираем локальные несинхронизированные изменения.
-    const tplQuery = (sel) => supabase.from('workout_templates').select(sel).or(`user_id.eq.${userId},is_public.eq.true`)
-    let tpl = await withPhase(SELECT_TEMPLATE, tplQuery)
+    let tpl = await tplPages(SELECT_TEMPLATE)
     const legacyServer = tpl.error?.code === '42703' && /target_plan/.test(tpl.error.message ?? '')
-    if (legacyServer) tpl = await withPhase(SELECT_TEMPLATE.replace('target_plan, ', ''), tplQuery)
+    if (legacyServer) tpl = await tplPages(SELECT_TEMPLATE.replace('target_plan, ', ''))
     if (tpl.error) warnings.push('шаблоны: ' + (tpl.error.message ?? tpl.error))
     // Пустое окно шаблонов без подтвержденной личности — не повод удалять чистые
     // локальные (см. pullExercises и pullWorkouts).
@@ -611,7 +653,7 @@ async function pullTemplates(userId, d = db, { identityVerified = false } = {}) 
           await d.templates.delete(t.id)
         }
       })
-      if (tplSig !== null && !legacyServer) await setMeta(SIG_TEMPLATES, tplSig, d)
+      if (tplSig !== null && !legacyServer) await setMeta(SIG_TEMPLATES, rosterSignature(tpl.data), d)
     }
   }
 
@@ -656,11 +698,15 @@ export async function pullGoal(userId, d = db, { identityVerified = true } = {})
     // target_reps (PLAN-goal-reps) — необязательные повторы при целевом весе у
     // весовой цели; на не-обновленном сервере поля нет → undefined → null.
     const reps = Number(row.target_reps)
+    const previous = byEx.get(row.exercise_id)
+    const metric = normMetric(row.metric ?? ex?.metric ?? previous?.metric)
+    const sameTarget = previous && Number(previous.targetWeight) === Number(row.target_weight)
+      && (Number(previous.targetReps) || 0) === (reps || 0) && normMetric(previous.metric) === metric
     next.push({
       exerciseId: row.exercise_id,
       exerciseName: ex?.name ?? byEx.get(row.exercise_id)?.exerciseName ?? '—',
       // metric: с сервера, иначе из упражнения (одна метрика на упражнение), иначе 'weight'.
-      metric: normMetric(row.metric ?? ex?.metric ?? byEx.get(row.exercise_id)?.metric),
+      metric,
       targetWeight: Number(row.target_weight),
       targetReps: reps > 0 ? Math.round(reps) : null,
       // Достижение МОНОТОННО: раз взятую цель не «разберем» обратно из-за пустого
@@ -669,7 +715,7 @@ export async function pullGoal(userId, d = db, { identityVerified = true } = {})
       // штампует achievedAt локально). Без сохранения локального значения ближайший
       // pull затирал бы его null → 🎯 и уведомление молча исчезали. Серверное
       // achieved_at (весовые цели, бот) имеет приоритет; иначе держим локальное.
-      achievedAt: row.achieved_at ?? byEx.get(row.exercise_id)?.achievedAt ?? null,
+      achievedAt: row.achieved_at ?? (sameTarget ? previous.achievedAt : null) ?? null,
       _dirty: 0,
     })
   }

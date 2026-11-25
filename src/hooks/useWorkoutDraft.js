@@ -226,5 +226,6 @@ export function useWorkoutDraft({ userId, workoutId = null, onLoadError }) {
   return {
     entries, setEntries, feels, setFeels, performedAt, setPerformedAt,
     loading, editRestored, revertEdits, clearDraft, dropSaved, focusKey: FOCUS_KEY,
+    getEditBase: () => editBaseRef.current,
   }
 }

@@ -258,6 +258,19 @@ describe('панель автопрогрессии', () => {
     expect(screen.queryByRole('group', { name: 'Стратегия прогрессии' })).not.toBeInTheDocument()
   })
 
+  it('запоздавшее чтение истории не отменяет последний выбор стратегии', async () => {
+    await addBenchWithHistory()
+    const slow = Promise.withResolvers()
+    vi.mocked(getRecentSessionsForExercise).mockReturnValueOnce(slow.promise)
+    fireEvent.click(screen.getByRole('button', { name: 'Настройки прогрессии' }))
+    fireEvent.click(screen.getByRole('button', { name: 'ручной' }))
+    await waitFor(() => expect(getRecentSessionsForExercise.mock.results.at(-1)?.value).toBe(slow.promise))
+    fireEvent.click(screen.getByRole('button', { name: '+повт.' }))
+    await waitFor(() => expect(setProgForExercise).toHaveBeenCalledWith('u1', 'bench', { strategy: 'reps' }))
+    await act(() => slow.resolve(history))
+    expect(screen.queryByText('Прогрессия: ручной ввод')).not.toBeInTheDocument()
+  })
+
   it('после ручной правки смена стратегии не трогает введенные подходы', async () => {
     await addBenchWithHistory()
     fireEvent.click(screen.getByRole('button', { name: 'вернуть как в прошлый раз' }))

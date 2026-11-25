@@ -1,7 +1,7 @@
 // ============================================================================
 // Синк с сервером в браузере (покрытие тестами 19.10.2026). Юниты держат стадии
 // push/pull по отдельности; здесь — связка с настоящей Dexie: тренировка, записанная
-// офлайн, после появления сети уходит `upsert_workout` с правильным телом, и с нее
+// офлайн, после появления сети уходит `upsert_workout_checked` с правильным телом, и с нее
 // снимается `_dirty`. Сбой сервера (5xx) — не ошибка данных: операция остается в
 // очереди без dead-letter (lib/syncErrors.js).
 //
@@ -29,7 +29,7 @@ function fakeSession() {
   return { access_token: access, refresh_token: 'e2e-refresh', token_type: 'bearer', expires_in: 365 * 24 * 3600, expires_at: exp, user }
 }
 
-// upsertStatus() — код ответа на upsert_workout. Возвращает журнал отправленного.
+// upsertStatus() — код ответа на upsert_workout_checked. Возвращает журнал отправленного.
 async function fakeServer(context, upsertStatus) {
   const sent = { upserts: [], ids: new Set() }
   await context.route(/supabase\.co/, (route) => {
@@ -40,18 +40,22 @@ async function fakeServer(context, upsertStatus) {
     const rpc = url.pathname.match(/\/rpc\/([a-z_0-9]+)$/)?.[1]
     if (rpc === 'app_uid') return fulfillJson(route, USER_ID)
     if (rpc === 'my_login') return fulfillJson(route, 'e2e')
-    if (rpc === 'upsert_workout') {
+    if (rpc === 'upsert_workout_checked') {
       const status = upsertStatus()
       // Шлюз лежит: HTML без кода Postgres — временный сбой (lib/syncErrors.js).
       if (status !== 200) return route.fulfill({ status, headers: CORS, contentType: 'text/html', body: '<html>503 Service Unavailable</html>' })
       const body = JSON.parse(req.postData() || '{}')
       sent.upserts.push(body)
       sent.ids.add(body.p_workout_id)
-      return fulfillJson(route, null)
+      return fulfillJson(route, { outcome: 'saved', previous: null, updated_at: body.p_edited_at })
     }
     if (rpc) return fulfillJson(route, null)
-    if (req.method() === 'GET' && url.pathname === '/rest/v1/workouts' && url.searchParams.get('select') === 'id') {
-      return fulfillJson(route, [...sent.ids].map((id) => ({ id })))
+    if (req.method() === 'GET' && req.headers().prefer?.includes('count=exact')) {
+      const ids = url.pathname === '/rest/v1/workouts' && url.searchParams.get('select') === 'id'
+        ? [...sent.ids].map((id) => ({ id })) : []
+      return route.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify(ids),
+        headers: { ...CORS, 'access-control-expose-headers': 'Content-Range',
+          'content-range': ids.length ? `0-${ids.length - 1}/${ids.length}` : '*/0' } })
     }
     return fulfillJson(route, [], req.method() === 'GET' ? 200 : 201)
   })
@@ -92,7 +96,7 @@ async function setup(page, context, upsertStatus) {
   return sent
 }
 
-test('записал офлайн → появилась сеть → upsert_workout с составом, _dirty снят', async ({ page, context }) => {
+test('записал офлайн → появилась сеть → upsert_workout_checked с составом, _dirty снят', async ({ page, context }) => {
   const sent = await setup(page, context, () => 200)
   const id = await saveOffline(page)
   expect(await localState(page, id)).toEqual({ dirty: 1, ops: 1 })

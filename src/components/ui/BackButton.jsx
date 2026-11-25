@@ -2,9 +2,9 @@
 // экраны — Шаблоны, Свежесть, Достижения, Каталог, Оформление, админка, запись
 // тренировки. Раньше были текстовые «← Назад» / «‹ Назад» зеленым разного вида.
 // Подпись — в aria-label (по умолчанию «Назад»), иконка — инлайн-SVG.
-export default function BackButton({ onClick, label = 'Назад' }) {
+export default function BackButton({ onClick, label = 'Назад', disabled = false }) {
   return (
-    <button type="button" className="back-btn" onClick={onClick} aria-label={label} title={label}>
+    <button type="button" className="back-btn" onClick={onClick} disabled={disabled} aria-label={label} title={label}>
       <svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor"
         strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
         <path d="M15 18l-6-6 6-6" />
