@@ -3982,11 +3982,15 @@ label.act.busy { opacity: .55; pointer-events: none; }
       background-clip: text;
       color: transparent;
       animation: splash-rise 420ms var(--ease-out) 260ms both,
-        splash-shine 800ms ease-in-out 400ms both;
+        splash-shine 1600ms ease-in-out 400ms infinite both;
     }
   }
 }
-@keyframes splash-shine { from { background-position: 100% 0; } to { background-position: 0% 0; } }
+/* Первые 800 мс — проход слева направо, затем блик ждет за краем надписи. */
+@keyframes splash-shine {
+  from { background-position: 100% 0; }
+  50%, to { background-position: 0% 0; }
+}
 @keyframes splash-grow { from { transform: scaleX(0); } to { transform: none; } }
 @keyframes splash-slide-l { from { opacity: 0; transform: translateX(-60px); } to { opacity: 1; transform: none; } }
 @keyframes splash-slide-r { from { opacity: 0; transform: translateX(60px); } to { opacity: 1; transform: none; } }

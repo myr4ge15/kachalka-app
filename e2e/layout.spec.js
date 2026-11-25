@@ -128,18 +128,37 @@ test('крупное фото вмещается лёжа, закрываетс�
   await expect(photo).toHaveCount(0)
 })
 
-test('блик на названии при запуске идет слева направо и учитывает уменьшение движения', async ({ page }) => {
+test('блик на названии повторяется при долгом запуске и продолжается при обновлении', async ({ page }) => {
   await page.setViewportSize({ width: 393, height: 793 })
   await page.route('**/src/main.jsx*', route => route.fulfill({ contentType: 'application/javascript', body: '' }))
   await page.goto(APP)
   await page.addStyleTag({ path: 'src/index.css' })
   const title = page.locator('#splash .splash-title')
   await expect(title).toHaveText('kachalka-app')
-  const positions = await title.evaluate(el => {
-    const shine = el.getAnimations().find(animation => animation.animationName === 'splash-shine')
-    return shine.effect.getKeyframes().map(frame => frame.backgroundPositionX)
+  const result = await title.evaluate(async el => {
+    const { splashUpdateUi } = await import('/kachalka-app/src/lib/splashBoot.js')
+    const activeShine = () => el.getAnimations().find(animation => animation.animationName === 'splash-shine')
+    const shine = activeShine()
+    const { delay, duration } = shine.effect.getTiming()
+    shine.pause()
+    function position(cycles) {
+      shine.currentTime = delay + cycles * duration
+      return parseFloat(getComputedStyle(el).backgroundPositionX)
+    }
+    const first = position(0.25)
+    const second = position(1.25)
+    const ui = splashUpdateUi(document, el.closest('#splash'))
+    ui.start('9.9.9')
+    ui.progress({ pct: 35 })
+    return { first, second, continued: activeShine() === shine, later: position(1.4), third: position(2.25) }
   })
-  expect(positions).toEqual(['100%', '0%'])
+  expect(result.first).toBeGreaterThan(0)
+  expect(result.first).toBeLessThan(100)
+  expect(result.second).toBeCloseTo(result.first)
+  expect(result.continued).toBe(true)
+  expect(result.later).toBeLessThan(result.second)
+  expect(result.third).toBeCloseTo(result.first)
+  await expect(page.getByRole('progressbar')).toHaveAttribute('aria-valuenow', '35')
   await page.emulateMedia({ reducedMotion: 'reduce' })
   await expect(title).toHaveCSS('animation-name', 'none')
   await expect(title).toHaveCSS('background-image', 'none')
