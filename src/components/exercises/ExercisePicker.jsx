@@ -1,3 +1,4 @@
+import { EXERCISE_NAME_MAX, exerciseNameProblem } from '../../lib/text.js'
 import { Fragment, useState, useMemo, useDeferredValue, useLayoutEffect, useRef, useId } from 'react'
 import { findSimilar, findExactDuplicate } from '../../lib/similar.js'
 import { searchExercises } from '../../lib/exerciseSearch.js'
@@ -274,8 +275,9 @@ export default function ExercisePicker({
 
   async function submitCreate() {
     const name = newName.trim()
-    if (!name) {
-      setError('Введи название упражнения.')
+    const problem = exerciseNameProblem(name)
+    if (problem) {
+      setError(problem)
       return
     }
     if (!newGroup) {
@@ -322,6 +324,7 @@ export default function ExercisePicker({
             data-autofocus
             placeholder="Название упражнения"
             aria-label="Название своего упражнения"
+            maxLength={EXERCISE_NAME_MAX}
             value={newName}
             onChange={(e) => setNewName(e.target.value)}
             autoFocus

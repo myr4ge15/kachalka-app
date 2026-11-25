@@ -11,7 +11,7 @@
 // records — null, семантика разная.
 // ============================================================================
 import { normMetric } from './metric.js'
-import { cmpIsoDesc } from './cmp.js'
+import { cmpIsoAsc } from './cmp.js'
 
 // Разминка и заминка (23.10.2026, отзыв Ильи fb_c2774110): упражнение тренировки с phase 'warmup' |
 // 'cooldown' — отдельный блок. В рекорды, тоннаж, восстановление, дисбаланс, достижения и графики не идет —
@@ -27,20 +27,15 @@ export const entryExId = (e) => e.exercise_id ?? e.exercise?.id ?? null
 // денормализованном e.exercise.metric. Дефолт 'weight'.
 export const entryMetric = (e) => normMetric(e.metric ?? e.exercise?.metric)
 
-// История без удаленных, новейшее сверху (по performed_at, тай-брейк created_at,
-// затем id). Тай-брейк по id обязателен: при равных performed_at И created_at
-// (две записи в одну секунду) порядок массива недетерминирован → якорь инсайтов
-// (buildInsights) и «последняя тренировка»/latestPr в homeSummary флипали между
-// прогонами. Паритет с хронологией records.js (там тот же id-добор).
+// Хронология тренировок: одинаковое время разрешаем временем создания, затем id.
+export function workoutChronology(a, b) {
+  return cmpIsoAsc(a.performed_at, b.performed_at) ||
+    cmpIsoAsc(a.created_at, b.created_at) || cmpIsoAsc(String(a.id), String(b.id))
+}
+
+// История без удаленных, свежие тренировки сверху.
 export function sortDesc(workouts) {
-  return [...(workouts ?? [])]
-    .filter((w) => w && !w._deleted)
-    .sort(
-      (a, b) =>
-        cmpIsoDesc(a.performed_at, b.performed_at) ||
-        cmpIsoDesc(a.created_at, b.created_at) ||
-        cmpIsoDesc(String(a.id), String(b.id))
-    )
+  return [...(workouts ?? [])].filter((w) => w && !w._deleted).sort((a, b) => workoutChronology(b, a))
 }
 
 // Канонический денормализованный снимок упражнения внутри `entries` тренировки/

@@ -16,6 +16,7 @@
 // - серия, дошедшая до самой старой тренировки полного окна, — нижняя граница
 //   (streakFloor: «N+ нед.»), иначе честное число.
 // ============================================================================
+import { weekIndexOf } from './calendar.js'
 import { personalRecords, currentStreak, workoutsThisMonth, favExercise } from './profileStats.js'
 import { sortDesc } from './entries.js'
 
@@ -68,13 +69,6 @@ export function toWorkoutDoc(item) {
   }
 }
 
-// Индекс календарной недели (пн) — ТА ЖЕ формула, что weekIndexOf в profileStats
-// (там не экспортирована): Date.UTC от локальных Y/M/D, без сдвигов на DST.
-function mondayIndex(date) {
-  const days = Math.floor(Date.UTC(date.getFullYear(), date.getMonth(), date.getDate()) / 86400000)
-  return Math.floor((days + 3) / 7)
-}
-
 // Витрина профиля участника.
 // items — элементы ленты этого участника (любой порядок), total — точное число его
 // тренировок с сервера (null → неизвестно, берем длину окна), limit — размер окна.
@@ -87,10 +81,10 @@ export function buildMemberView(items, { total = null, limit = MEMBER_LIMIT, now
   // Серия упирается в начало окна → дальше истории не видно, это нижняя граница.
   let streakFloor = false
   if (windowFull && streak > 0 && recent.length) {
-    const oldest = new Date(recent[recent.length - 1].performed_at)
-    const cur = mondayIndex(now)
-    const startWeek = (docs.some((w) => mondayIndex(new Date(w.performed_at)) === cur) ? cur : cur - 1) - streak + 1
-    streakFloor = mondayIndex(oldest) >= startWeek
+    const oldest = recent[recent.length - 1].performed_at
+    const cur = weekIndexOf(now)
+    const startWeek = (docs.some((w) => weekIndexOf(w.performed_at) === cur) ? cur : cur - 1) - streak + 1
+    streakFloor = weekIndexOf(oldest) >= startWeek
   }
 
   const knownTotal = Number.isFinite(total) && total >= recent.length ? total : recent.length

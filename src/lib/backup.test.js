@@ -209,6 +209,15 @@ describe('planImport', () => {
     expect(ex.is_bench_lift).toBe(false)
   })
 
+  it('пустой вес и ноль повторов отсеиваются до записи, явный нулевой вес сохраняется', () => {
+    const b = snap()
+    const workout = b.workouts[0]
+    workout.entries = [{ exercise: { id: 'ex1' }, sets: [{ weight: null, reps: 5 }, { weight: 50, reps: 0 }] }]
+    expect(planImport(b, { exercises }).counts.workoutsSkipped).toBe(1)
+    workout.entries[0].sets.push({ weight: 0, reps: 5 })
+    expect(planImport(b, { exercises }).workouts[0].entries[0].sets).toEqual([{ weight: 0, reps: 5 }])
+  })
+
   it('упражнение без веса: подход 0×повторы сохраняется (не считается пустым)', () => {
     const b = snap()
     b.workouts = [{ id: W5, performed_at: '2026-02-01', entries: [{ exercise: { id: 'ex2', name: 'Планка', metric: 'time' }, sets: [{ weight: 0, reps: 45 }] }] }]

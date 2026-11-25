@@ -157,6 +157,11 @@ describe('fmtDays', () => {
 })
 
 describe('buildTrainingRhythm', () => {
+  it('дата без времени остается понедельником на запад от UTC', () => {
+    const rhythm = buildTrainingRhythm([{ performed_at: '2026-11-23' }], { now: new Date(2026, 10, 25), weeks: 1 })
+    expect(rhythm[0].days[0]).toMatchObject({ day: '2026-11-23', count: 1 })
+  })
+
   it('строит календарные недели и объединяет тренировки одного дня', () => {
     const sameDay = daysAgo(2)
     const rhythm = buildTrainingRhythm([

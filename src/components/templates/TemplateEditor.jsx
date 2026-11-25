@@ -7,7 +7,7 @@ import MoreMenu from '../ui/MoreMenu.jsx'
 import { useLiveQuery } from 'dexie-react-hooks'
 import { getExercises, getTemplate, saveTemplate, deleteTemplate, createExercise, getFavorites, toggleFavorite } from '../../db/repo.js'
 import { syncNow } from '../../db/sync.js'
-import { exerciseMetric, fmtTemplateTarget } from '../../lib/metric.js'
+import { hasWeightField, exerciseMetric, fmtTemplateTarget } from '../../lib/metric.js'
 import { ExerciseTechnique } from '../exercises/TechniqueSheet.jsx'
 import ExercisePicker from '../exercises/ExercisePicker.jsx'
 import CardsSkeleton from '../ui/CardsSkeleton.jsx'
@@ -365,7 +365,7 @@ export default function TemplateEditor({ user, templateId, onBack, backGuardRef 
             <div
               ref={expandedId === it.exercise.id ? expandedRef : added?.id === it.exercise.id ? addedRef : undefined}
               data-tpl-id={it.exercise.id}
-              className={'card exercise-card tpl-ex' + (metric === 'time' ? ' count' : '')}
+              className={'card exercise-card tpl-ex' + (hasWeightField(metric) ? '' : ' count')}
             >
               <div className="exercise-head">
                 <span className="tpl-ex-title">

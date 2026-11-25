@@ -131,6 +131,18 @@ afterEach(async () => {
 })
 
 describe('документ из серверной строки', () => {
+  it('после восстановления сохраняет дату и единицы неизмененных подходов при pull', async () => {
+    const original = localWorkout('w1', { _restored: true })
+    original.entries[0].exercise.metric = 'time'
+    await seed(original)
+    const w = row('w1', { weight: 50 })
+    serve([isDelta, ok([w])], [isIds, ok([{ id: 'w1' }])])
+    await pull(userId, new Set(), db)
+    expect(await db.workouts.get('w1')).toMatchObject({
+      created_at: T1, updated_at: T3, entries: [{ exercise: { metric: 'time' } }],
+    })
+  })
+
   it('упражнения и подходы ложатся по position/set_number, вес и повторы — числа, разминка сохраняется', async () => {
     const w = row('w1')
     w.workout_exercises = [

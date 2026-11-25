@@ -65,6 +65,27 @@ describe('computePrs (отметки рекордов в окне)', () => {
     expect(second.prs[0]).toMatchObject({ metric: 'weight', value: 90 })
   })
 
+  it('при совпавшем времени использует дату создания и затем id независимо от порядка выдачи', () => {
+    const a = it_('z', 'a', '2026-01-01', 70)
+    const b = it_('a', 'a', '2026-01-01', 75)
+    const c = it_('b', 'a', '2026-01-01', 80)
+    a.created_at = '2026-01-01'
+    b.created_at = c.created_at = '2026-01-02'
+    computePrs([c, b, a])
+    expect([a, b, c].map((w) => w.prs.map((p) => p.value))).toEqual([[], [75], [80]])
+  })
+
+  it('не сравнивает килограммы с повторами, максимум до окна относится к свежей метрике', () => {
+    const w = it_('w', 'a', '2026-01-01', 5)
+    const r = it_('r', 'a', '2026-01-02', 0)
+    r.entries[0].metric = 'reps'
+    r.entries[0].sets[0].reps = 12
+    computePrs([w, r])
+    expect(r.prs).toEqual([])
+    computePrs([w, r], baselineMap([{ user_id: 'a', exercise_id: 'ex_bench', best: 8 }]))
+    expect(r.prs).toEqual([{ name: 'Жим', metric: 'reps', value: 12 }])
+  })
+
   it('рекорды разных авторов независимы', () => {
     const items = [
       it_('a1', 'a', '2026-01-01', 80),

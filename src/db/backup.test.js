@@ -11,9 +11,10 @@ vi.mock('../lib/exportWorkout.js', async (orig) => ({
   downloadJson: (obj) => { dl.last = obj },
 }))
 
-import { openUserDb, closeUserDb } from './local.js'
+import { db, openUserDb, closeUserDb } from './local.js'
 import { uniqueUserId } from '../test/idbHarness.js'
-import { toggleFavorite, setAccentPref, getFavorites, getAccentPref, getBadges, getRpe, progKey } from './repo.js'
+import { minePrs } from '../lib/records.js'
+import { saveWorkout, getWorkouts, toggleFavorite, setAccentPref, getFavorites, getAccentPref, getBadges, getRpe, progKey } from './repo.js'
 import { getMeta } from './local.js'
 import { getUserMetaState } from './userMeta.js'
 import { exportAllMyData, importAllMyData } from './backup.js'
@@ -32,6 +33,30 @@ afterEach(async () => {
 })
 
 const file = (settings, extra = {}) => JSON.stringify({ schema: BACKUP_SCHEMA, user: { id: userId }, settings, ...extra })
+
+it('полный экспорт и восстановление сохраняют единицы, хронологию и рекорды', async () => {
+  const ex = { id: 'press', name: 'Жим', metric: 'weight' }
+  const when = '2026-01-02T12:00:00.000Z'
+  const ids = [3, 2, 1].map((n) => `00000000-0000-4000-8000-00000000000${n}`)
+  for (const [i, metric] of ['weight', 'reps', 'reps'].entries()) {
+    await saveWorkout({
+      id: ids[i], user_id: userId, performed_at: when,
+      entries: [{ exercise: { ...ex, metric }, sets: [{ weight: i ? 0 : 20, reps: 8 + i }] }],
+    })
+    await db.workouts.update(ids[i], { created_at: `2026-01-0${i + 3}T12:00:00.000Z` })
+  }
+  const before = await getWorkouts(userId)
+  await exportAllMyData(userId)
+  await db.workouts.clear()
+  await db.outbox.clear()
+  await db.exercises.put({ ...ex, metric: 'reps' })
+  expect(await importAllMyData(userId, JSON.stringify(dl.last))).toMatchObject({ workouts: 3, failed: 0 })
+  const after = await getWorkouts(userId)
+  const history = (list) => list.map(({ id, created_at, entries }) => [id, created_at, entries[0].exercise.metric, entries[0].sets])
+  expect(history(after)).toEqual(history(before))
+  expect(minePrs(after)).toEqual(minePrs(before))
+  expect(minePrs(after).map((pr) => pr.value)).toEqual([10])
+})
 
 describe('бэкап: избранное и акцент', () => {
   it('выгрузка содержит избранное и свой акцент', async () => {

@@ -27,6 +27,7 @@ import { localYmd } from './calendar.js'
 import { cleanWorkoutForExport, downloadJson } from './exportWorkout.js'
 import { cleanTemplateForExport } from './exportTemplate.js'
 import { phaseValue } from './workoutPhases.js'
+import { savableSet } from './setLimits.js'
 import { normMetric } from './metric.js'
 import { mergeRpe } from './rpe.js'
 import { normalizeFavs } from './favorites.js'
@@ -180,7 +181,7 @@ function lookupExercise(exercises, id) {
 
 // Одна запись снимка → запись для saveWorkout. Упражнение берем из ЛОКАЛЬНОГО
 // справочника (там полная форма: submuscle/secondary/is_bench_lift), снимок —
-// фолбэк для упражнений, которых на устройстве нет.
+// фолбэк для упражнений, которых на устройстве нет. Для подходов явно записанная метрика снимка приоритетна.
 // Поля упражнения из ФАЙЛА — только по белому списку и с обрезкой (ревью 06.10.2026,
 // п. 7): файл мог быть отредактирован руками, а запись пойдет в справочник и синк.
 function sanitizeFileExercise(x, id) {
@@ -203,13 +204,11 @@ function importExercise(e, exercises) {
 }
 
 function importEntry(e, exercises) {
-  const exercise = importExercise(e, exercises)
-  if (!exercise || !Array.isArray(e.sets)) return null
-  const sets = e.sets
-    .map((s) => ({ weight: Number(s?.weight) || 0, reps: Number(s?.reps) || 0 }))
-    // Пустой подход (0×0) роняет тренировку в «пустую» — отсеиваем здесь, чтобы
-    // не потерять из-за него всю запись (клампинг значений сделает saveWorkout).
-    .filter((s) => s.weight > 0 || s.reps > 0)
+  const catalog = importExercise(e, exercises)
+  if (!catalog || !Array.isArray(e.sets)) return null
+  // В файле подходы записаны в единицах снимка, даже если каталог уже изменился.
+  const exercise = e.exercise?.metric == null ? catalog : { ...catalog, metric: normMetric(e.exercise.metric) }
+  const sets = e.sets.map((s) => savableSet(s, exercise.metric)).filter(Boolean)
   if (sets.length === 0) return null
   return { exercise, sets, phase: phaseValue(e.phase) }
 }
@@ -293,7 +292,8 @@ export function planImport(snapshot, current = {}) {
       .filter(Boolean)
     if (entries.length === 0) { workoutsSkipped++; continue }
     have.add(w.id)
-    workouts.push({ id: w.id, performed_at: when, entries })
+    const created = importDate(w.created_at, current.now)
+    workouts.push({ id: w.id, performed_at: when, ...(created ? { created_at: created } : {}), entries })
   }
 
   // ── цели ─────────────────────────────────────────────────────────────────

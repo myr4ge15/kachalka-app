@@ -52,6 +52,9 @@ export const hasExtraWeight = (metric) => normMetric(metric) === 'reps'
 // умножаем, сервер new_prs_for_workout так и считает); вместо тоннажа — время под нагрузкой.
 export const hasLoadWeight = (metric) => normMetric(metric) === 'time'
 
+// У повтора и времени вес необязателен, у дистанции в этом поле километры.
+export const hasWeightField = (metric) => !isCountMetric(metric) || hasExtraWeight(metric) || hasLoadWeight(metric)
+
 // Число для показа — с десятичной ТОЧКОЙ: 62.5 → «62.5». С аудита 16.10 до 27.10.2026 была запятая;
 // владелец вернул точку (fb_92319634): так вес пишут в зале и на блинах, и так же он вводится.
 // Все дробные числа экрана идут через эту функцию — разделитель меняется здесь, в одном месте.

@@ -1,3 +1,4 @@
+import { EXERCISE_NAME_MAX, exerciseNameProblem } from '../../lib/text.js'
 import { useState } from 'react'
 import { submusclesOf, secondaryOptionsFor, labelOf, majorOf, defaultSubmuscleFor } from '../../lib/muscles.js'
 import { normMetric } from '../../lib/metric.js'
@@ -31,7 +32,8 @@ export default function ExerciseEditForm({
 
   function submit() {
     const clean = name.trim()
-    if (!clean) { setProblem('Введи название упражнения.'); return }
+    const nameError = exerciseNameProblem(clean)
+    if (nameError) { setProblem(nameError); return }
     if (!group) { setProblem('Выбери группу мышц.'); return }
     setProblem(null)
     onSubmit({ name: clean, muscle_group: group, submuscle: sub, secondary, metric, is_hidden: hidden })
@@ -44,7 +46,7 @@ export default function ExerciseEditForm({
         className="search"
         placeholder="Название упражнения"
         aria-label="Название упражнения"
-        maxLength={60}
+        maxLength={EXERCISE_NAME_MAX}
         value={name}
         onChange={(e) => setName(e.target.value)}
       />

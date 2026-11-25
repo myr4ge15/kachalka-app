@@ -22,3 +22,13 @@ it('старый подход без веса использует шаг обы
   fireEvent.click(screen.getByRole('button', { name: 'Больше, подход 1' }))
   expect(onChange).toHaveBeenCalledExactlyOnceWith([{ _k: 'a', weight: 1.25, reps: 8 }])
 })
+
+it('у изометрии вес снаряда редактируется и останавливается на верхней границе', () => {
+  const onChange = vi.fn()
+  render(<TemplateSets metric="time" sets={[{ _k: 'a', weight: 1000, reps: 30 }]} onChange={onChange} />)
+  expect(screen.getByLabelText('Вес или дистанция подхода 1')).toHaveValue('1000')
+  fireEvent.click(screen.getByRole('button', { name: 'Больше, подход 1' }))
+  expect(onChange).toHaveBeenLastCalledWith([{ _k: 'a', weight: 1000, reps: 30 }])
+  fireEvent.click(screen.getByRole('button', { name: 'Меньше, подход 1' }))
+  expect(onChange).toHaveBeenLastCalledWith([{ _k: 'a', weight: 998.75, reps: 30 }])
+})

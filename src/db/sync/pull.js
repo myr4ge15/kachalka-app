@@ -64,7 +64,7 @@ const SELECT_TEMPLATE =
   'exercise:exercises(id, name, muscle_group, submuscle, secondary, is_bench_lift, metric))'
 
 // server row → локальный денормализованный документ
-function rowToDoc(w) {
+function rowToDoc(w, local) {
   const entries = [...(w.workout_exercises ?? [])]
     .sort((a, b) => (a.position ?? 0) - (b.position ?? 0))
     .map((we) => ({
@@ -79,13 +79,25 @@ function rowToDoc(w) {
         .map((s) => ({ weight: Number(s.weight), reps: Number(s.reps) })),
       ...(phaseValue(we.phase) ? { phase: phaseValue(we.phase) } : {}),
     }))
+  // RPC возвращает текущую метрику каталога и дату создания серверной строки.
+  // После восстановления сохраняем исходные единицы для неизменившихся подходов.
+  if (local?._restored) {
+    for (const entry of entries) {
+      const previous = local.entries?.find((e) =>
+        e.exercise_id === entry.exercise_id && e.phase === entry.phase &&
+        e.sets?.length === entry.sets.length && e.sets.every((s, i) =>
+          s.weight === entry.sets[i].weight && s.reps === entry.sets[i].reps))
+      if (previous?.exercise?.metric) entry.exercise.metric = previous.exercise.metric
+    }
+  }
   return {
+    ...(local?._restored ? { _restored: true } : {}),
     id: w.id,
     user_id: w.user_id,
     performed_at: w.performed_at,
     // created_at с сервера (для сортировки хаба). Фолбэк на performed_at,
     // если сервер еще не отдает это поле.
-    created_at: w.created_at ?? w.performed_at,
+    created_at: (local?._restored && local.created_at) || w.created_at || w.performed_at,
     // updated_at — СЕРВЕРНЫЕ merge-часы (PLAN-merge-clock): монотонное время
     // последней правки, назначается сервером в upsert_workout. Сравнивается на
     // pull с локальным базисом (_base_updated_at). Фолбэк на created_at для строк
@@ -215,7 +227,7 @@ async function refreshWorkoutsForExercises(userId, exerciseIds, d = db) {
         const cur = await d.workouts.get(row.id)
         // Пока шел запрос, тренировку правили локально — оставляем правку.
         if (!cur || cur._dirty || cur._deleted || cur.updated_at !== seen.get(row.id)) continue
-        await d.workouts.put(rowToDoc(row))
+        await d.workouts.put(rowToDoc(row, cur))
       }
     })
   }
@@ -430,7 +442,7 @@ async function pullWorkouts(userId, justPushed = new Set(), d = db, { identityVe
 
     for (const row of serverRows) {
       const local = localById.get(row.id)
-      const serverDoc = rowToDoc(row)
+      const serverDoc = rowToDoc(row, local)
       if (!local) {
         await d.workouts.put(serverDoc)
         continue

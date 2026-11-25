@@ -9,7 +9,8 @@ import { useSelectOnFocus } from '../../hooks/useSelectOnFocus.js'
 import SetsCells from '../workout/SetsCells.jsx'
 import SetVoice from '../workout/SetVoice.jsx'
 import { VOICE_ENABLED } from '../../lib/features.js'
-import { exerciseMetric, isCountMetric, hasExtraWeight, hasLoadWeight, bestPace, fmtNum, fmtPace, paceSecPerKm } from '../../lib/metric.js'
+import { setStep } from '../../lib/setLimits.js'
+import { exerciseMetric, hasWeightField, hasExtraWeight, hasLoadWeight, bestPace, fmtNum, fmtPace, paceSecPerKm } from '../../lib/metric.js'
 import { resolveProgSettings } from '../../lib/progression.js'
 import {
   daysAgoLabel, progArrow, progTone, nextProgStep, fmtProgStep,
@@ -57,7 +58,7 @@ export default function ExerciseCard({
   // (v7.2.0; «−» степпера уходит ниже 0). У «На время» (23.10.2026, изометрия) — необязательный «кг» снаряда.
   const extra = hasExtraWeight(metric)
   const load = hasLoadWeight(metric)
-  const count = isCountMetric(metric) && !extra && !load
+  const count = !hasWeightField(metric)
   // Дистанция (v6.12.0): столбцы «км» и «мин:сек»; темп считаем по ходу ввода.
   const isDistance = metric === 'distance'
   const isTime = metric === 'time' || isDistance
@@ -268,7 +269,7 @@ export default function ExerciseCard({
 
           {!count && (
             <div className="stepper" role="group" aria-label={`Подход ${si + 1}, ${isDistance ? 'дистанция' : extra ? 'доп. вес или помощь' : load ? 'вес снаряда' : 'вес'}`}>
-              <HoldButton aria-label={isDistance ? 'Меньше дистанция' : 'Меньше вес'} onTrigger={() => onStep(ei, si, 'weight', isDistance ? -0.5 : extra ? -2.5 : -1.25)}>−</HoldButton>
+              <HoldButton aria-label={isDistance ? 'Меньше дистанция' : 'Меньше вес'} onTrigger={() => onStep(ei, si, 'weight', -setStep(metric, 'weight'))}>−</HoldButton>
               {/* Ноль доп. веса — пустое поле. Только ЧИСЛОВОЙ ноль: строку ввода
                   («-», «0.») показываем как есть, иначе минус и «0,5» не набрать. */}
               <SetInput
@@ -277,29 +278,29 @@ export default function ExerciseCard({
                 placeholder={isDistance ? 'км' : (extra || load) ? '0' : undefined}
                 onChange={(e) => onUpdateSet(ei, si, 'weight', e.target.value.replace(',', '.').replace('−', '-'))}
               />
-              <HoldButton aria-label={isDistance ? 'Больше дистанция' : 'Больше вес'} onTrigger={() => onStep(ei, si, 'weight', isDistance ? 0.5 : extra ? 2.5 : 1.25)}>+</HoldButton>
+              <HoldButton aria-label={isDistance ? 'Больше дистанция' : 'Больше вес'} onTrigger={() => onStep(ei, si, 'weight', setStep(metric, 'weight'))}>+</HoldButton>
             </div>
           )}
 
           {isTime ? (
             <div className="stepper" role="group" aria-label={`Подход ${si + 1}, время`}>
-              <HoldButton aria-label="Меньше время" onTrigger={() => onStep(ei, si, 'reps', isDistance ? -30 : -5)}>−</HoldButton>
+              <HoldButton aria-label="Меньше время" onTrigger={() => onStep(ei, si, 'reps', -setStep(metric, 'reps'))}>−</HoldButton>
               <TimeInput
                 value={s.reps}
                 aria-label={`Время, подход ${si + 1}`}
                 onChange={(sec) => onUpdateSet(ei, si, 'reps', sec)}
               />
-              <HoldButton aria-label="Больше время" onTrigger={() => onStep(ei, si, 'reps', isDistance ? 30 : 5)}>+</HoldButton>
+              <HoldButton aria-label="Больше время" onTrigger={() => onStep(ei, si, 'reps', setStep(metric, 'reps'))}>+</HoldButton>
             </div>
           ) : (
             <div className="stepper" role="group" aria-label={`Подход ${si + 1}, повторения`}>
-              <HoldButton aria-label="Меньше повторений" onTrigger={() => onStep(ei, si, 'reps', -1)}>−</HoldButton>
+              <HoldButton aria-label="Меньше повторений" onTrigger={() => onStep(ei, si, 'reps', -setStep(metric, 'reps'))}>−</HoldButton>
               <SetInput
                 inputMode="numeric" pattern="[0-9]*" value={s.reps}
                 aria-label={`Повторения, подход ${si + 1}`}
                 onChange={(e) => onUpdateSet(ei, si, 'reps', e.target.value.replace(/\D/g, ''))}
               />
-              <HoldButton aria-label="Больше повторений" onTrigger={() => onStep(ei, si, 'reps', 1)}>+</HoldButton>
+              <HoldButton aria-label="Больше повторений" onTrigger={() => onStep(ei, si, 'reps', setStep(metric, 'reps'))}>+</HoldButton>
             </div>
           )}
 

@@ -70,6 +70,16 @@ describe('справочник: сортировка и локальные пр�
 })
 
 describe('createExercise: края', () => {
+  it('при создании и правке принимает 60 символов, 61 отклоняет до записи', async () => {
+    const name = 'а'.repeat(60)
+    await expect(createExercise({ name: name + 'б' })).rejects.toThrow('60')
+    const ex = await createExercise({ name, owner_id: userId })
+    await expect(updateExercise({ id: ex.id, name: name + 'б', editor_id: userId })).rejects.toThrow('60')
+    expect((await db.exercises.get(ex.id)).name).toBe(name)
+    const old = await createExercise({ name: name + 'б' }, { restoreId: 'legacy' })
+    expect(old.name).toBe(name + 'б')
+  })
+
   it.each([[''], ['   '], [null], [undefined]])('пустое название (%j) — ошибка, очередь не тронута', async (name) => {
     await expect(createExercise({ name })).rejects.toThrow('Введи название')
     expect(await db.exercises.count()).toBe(0)

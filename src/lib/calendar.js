@@ -22,6 +22,13 @@ export function localYmd(value) {
   return `${y}-${m}-${day}`
 }
 
+// Неделя с понедельника. UTC от местных компонентов устраняет сдвиг при переходе на летнее время.
+export function weekIndexOf(value) {
+  const date = toDate(value)
+  const days = Math.floor(Date.UTC(date.getFullYear(), date.getMonth(), date.getDate()) / 86400000)
+  return Math.floor((days + 3) / 7)
+}
+
 // { year, month } (month 0–11) ± n месяцев.
 export function shiftMonth({ year, month }, n) {
   const d = new Date(year, month + n, 1)

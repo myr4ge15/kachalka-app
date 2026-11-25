@@ -40,6 +40,20 @@ export function repsMax(metric) {
   return m === 'time' || m === 'distance' ? TIME_MAX : REPS_MAX
 }
 
+// Изменение поля кнопкой +/− в тренировке и шаблоне.
+export function setStep(metric, field) {
+  if (field === 'weight') return metric === 'distance' ? 0.5 : hasExtraWeight(metric) ? 2.5 : 1.25
+  return metric === 'distance' ? 30 : metric === 'time' ? 5 : 1
+}
+
+export function steppedSetValue(value, metric, field, delta) {
+  const min = field === 'reps' ? 1 : weightMin(metric)
+  const max = field === 'weight' ? WEIGHT_MAX : repsMax(metric)
+  const base = toNum(value)
+  const current = Number.isFinite(base) ? base : field === 'reps' ? 1 : 0
+  return Math.min(max, Math.max(min, Math.round((current + delta) * 100) / 100))
+}
+
 // Клампинг веса. У не-весовых метрик вес не хранится → всегда 0 (инвариант).
 // Возвращает число в [weightMin(metric), WEIGHT_MAX] (2 знака — шаг 1.25 кг) либо
 // null, если значение нечисловое (подход невалиден, отбрасываем).

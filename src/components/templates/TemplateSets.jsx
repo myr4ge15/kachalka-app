@@ -1,6 +1,7 @@
 import { sk } from '../../lib/progressionCard.js'
 import HoldButton from '../ui/HoldButton.jsx'
-import { fmtNum } from '../../lib/metric.js'
+import { setStep, steppedSetValue } from '../../lib/setLimits.js'
+import { fmtNum, hasWeightField, normMetric } from '../../lib/metric.js'
 import TimeInput from '../ui/TimeInput.jsx'
 import { useSelectOnFocus } from '../../hooks/useSelectOnFocus.js'
 import './TemplateSets.css'
@@ -11,20 +12,16 @@ import Icon from '../ui/Icon.jsx'
 // .stepper, .set-rm, .set-add), что у ExerciseCard. Перестановки подходов ↑/↓ больше нет:
 // три кнопки под каждым подходом и делали карточку громоздкой; порядок — порядок добавления.
 // Управляемый редактор: каждое изменение возвращает новый список подходов.
-const STEP = { weight: { weight: 1.25, reps: 1 }, reps: { weight: 2.5, reps: 1 }, time: { reps: 5 }, distance: { weight: 0.5, reps: 30 } }
-const MIN = { weight: { weight: 0, reps: 1 }, reps: { weight: -200, reps: 1 }, time: { reps: 1 }, distance: { weight: 0, reps: 1 } }
-
 export default function TemplateSets({ metric, sets, onChange }) {
-  const m = STEP[metric] ? metric : 'weight'
+  const m = normMetric(metric)
   const isTime = m === 'time' || m === 'distance'
-  const hasWeight = m !== 'time'
+  const hasWeight = hasWeightField(m)
   function update(index, field, value) {
     onChange(sets.map((s, i) => i === index ? { ...s, [field]: value } : s))
   }
   function bump(index, field, dir) {
-    const cur = Number(String(sets[index][field] ?? '').replace(',', '.')) || 0
-    const next = Math.max(MIN[m][field], Math.round((cur + dir * STEP[m][field]) * 100) / 100)
-    update(index, field, next)
+    const delta = dir * setStep(m, field)
+    update(index, field, steppedSetValue(sets[index][field], m, field, delta))
   }
   const weightLab = m === 'distance' ? 'км' : m === 'reps' ? '±кг' : 'кг'
   return <div className="template-sets">
@@ -37,7 +34,7 @@ export default function TemplateSets({ metric, sets, onChange }) {
       <span className="set-no" aria-hidden="true">{i + 1}</span>
       {hasWeight && <div className="stepper">
         <HoldButton aria-label={`Меньше, подход ${i + 1}`} onTrigger={() => bump(i, 'weight', -1)}>−</HoldButton>
-        <SetInput inputMode="decimal" aria-label={`Вес или дистанция подхода ${i + 1}`}
+        <SetInput inputMode={m === 'reps' ? 'text' : 'decimal'} aria-label={`Вес или дистанция подхода ${i + 1}`}
           value={fmtNum(s.weight ?? '')} onChange={(e) => update(i, 'weight', e.target.value.replace(',', '.').replace('−', '-'))} />
         <HoldButton aria-label={`Больше, подход ${i + 1}`} onTrigger={() => bump(i, 'weight', 1)}>+</HoldButton>
       </div>}

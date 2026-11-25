@@ -7,6 +7,8 @@
 // Ничего не считает заново, если это уже есть в profileStats/insights: серию и
 // «за месяц» берем из profileStats, тоннаж-окна и день/группы — из insights.
 // ============================================================================
+import { buildGoalGuide } from './progressGoal.js'
+import { minePrs } from './records.js'
 import { currentStreak, currentBestValue, goalProgress } from './profileStats.js'
 import { dayIndex, tonnageInWindow } from './insights.js'
 import { mostNeglectedGroup } from './freshness.js'
@@ -14,16 +16,7 @@ import { daySubTags } from './dayTags.js'
 import { normMetric, leadingValue } from './metric.js'
 import { entryExId, sortDesc, currentExerciseShapes, entryUnitMetric, mainEntries } from './entries.js'
 import { plural } from './plural.js'
-import { toDate } from './calendar.js'
-
-function localDayKey(value) {
-  const d = value instanceof Date ? value : new Date(value)
-  if (Number.isNaN(d.getTime())) return ''
-  const y = d.getFullYear()
-  const m = String(d.getMonth() + 1).padStart(2, '0')
-  const day = String(d.getDate()).padStart(2, '0')
-  return `${y}-${m}-${day}`
-}
+import { localYmd, toDate } from './calendar.js'
 
 function mondayOf(value) {
   const d = new Date(value)
@@ -41,7 +34,7 @@ export function buildTrainingRhythm(workouts, { now = new Date(), weeks = 8 } = 
   const size = Math.max(1, Math.round(Number(weeks) || 8))
   const byDay = new Map()
   for (const w of sortDesc(workouts)) {
-    const day = localDayKey(w.performed_at)
+    const day = localYmd(w.performed_at)
     if (!day) continue
     const rec = byDay.get(day) ?? { workouts: [], entries: [] }
     rec.workouts.push(w)
@@ -65,18 +58,18 @@ export function buildTrainingRhythm(workouts, { now = new Date(), weeks = 8 } = 
     for (let dayOffset = 0; dayOffset < 7; dayOffset++) {
       const d = new Date(start)
       d.setDate(start.getDate() + dayOffset)
-      const day = localDayKey(d)
+      const day = localYmd(d)
       const rec = byDay.get(day)
       days.push({
         day,
         count: rec?.workouts.length ?? 0,
         tags: rec ? daySubTags(rec.entries) : [],
-        today: day === localDayKey(today),
+        today: day === localYmd(today),
         future: d > today,
       })
     }
     out.push({
-      key: localDayKey(start),
+      key: localYmd(start),
       start: days[0].day,
       end: days[6].day,
       current: weekOffset === 0,
@@ -86,38 +79,6 @@ export function buildTrainingRhythm(workouts, { now = new Date(), weeks = 8 } = 
     })
   }
   return out
-}
-
-// Последний зафиксированный личный рекорд (свежайший по дате): идем по истории от
-// старых к новым, держим лучший ведущий показатель по упражнению и ловим момент
-// превышения. Возвращаем самый недавний. { name, metric, value, at } | null.
-// Максимум — отдельно по каждой единице (exId + метрика записи), имя — из свежего
-// снимка: после смены типа/переименования упражнения старые снимки в тренировках
-// не обновляются, и 12 повторов иначе «били» старые 10 кг (РЕВЬЮ-КОДА-2026-10-02,
-// п. 17). Та же семантика, что у records.minePrs.
-function latestPr(sorted, shapes) {
-  const chron = [...sorted].reverse() // старые → новые
-  const best = new Map()
-  let last = null
-  for (const w of chron) {
-    for (const e of mainEntries(w)) {
-      const exId = entryExId(e)
-      if (!exId) continue
-      const shape = shapes.get(exId)
-      const m = entryUnitMetric(e, shape?.metric)
-      // Ведущее значение подхода (макс. вес / повторов / секунд) — общий leadingValue
-      // из metric.js вместо инлайнового `weight?:reps` (иначе 4-я метрика тихо разъедется).
-      const value = leadingValue(m, e.sets ?? [])
-      if (value <= 0) continue
-      const key = `${exId}:${m}`
-      const prev = best.get(key) ?? 0
-      if (value > prev) {
-        if (prev > 0) last = { name: shape?.name ?? e.name ?? e.exercise?.name ?? '—', metric: m, value, at: w.performed_at }
-        best.set(key, value)
-      }
-    }
-  }
-  return last
 }
 
 // «Забытая группа» (самая просроченная) переехала в общий движок свежести —
@@ -132,13 +93,8 @@ function nearestGoal(goals, sorted) {
     const m = normMetric(g.metric)
     const current = currentBestValue(sorted, g.exerciseId, m)
     const pct = goalProgress(current, g.targetWeight)
-    const left = Math.max(0, Number(g.targetWeight) - current)
-    const reps = m === 'weight' && Number(g.targetReps) > 0 ? Math.round(Number(g.targetReps)) : 0
-    // Цель «вес × повторы»: вес взят, а нужного числа повторов еще не было (иначе
-    // цель была бы достигнута и сюда не попала). Главная говорит, чего не хватает
-    // (как список целей в Профиле), а не «осталось: 0 кг».
-    const waitingForReps = reps > 0 && pct >= 100
-    const cand = { name: g.exerciseName ?? '—', metric: m, target: g.targetWeight, current, pct, left, reps, waitingForReps }
+    const guide = buildGoalGuide(g, current)
+    const cand = { ...guide, name: g.exerciseName ?? '—', pct }
     if (!best || pct > best.pct) best = cand
   }
   return best
@@ -225,7 +181,7 @@ export function buildHomeSummary({ workouts, goals, now = new Date() } = {}) {
     streak: currentStreak(sorted, now),
     workouts30,
     tonnage: { month, prevMonth, pct },
-    latestPr: latestPr(sorted, shapes),
+    latestPr: minePrs(sorted, shapes).at(-1) ?? null,
     nearestGoal: nearestGoal(goals, sorted),
     rhythm: buildTrainingRhythm(sorted, { now }),
     progress: exerciseProgress(sorted, today, shapes),

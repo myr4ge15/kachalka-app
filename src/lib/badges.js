@@ -11,21 +11,12 @@
 // Серии засчитываем по МАКСИМАЛЬНОЙ за историю (прерванная серия не закрывает
 // высокие вехи навсегда) — для этого локальный maxStreakWeeks.
 // ============================================================================
+import { weekIndexOf } from './calendar.js'
 import { mainEntries } from './entries.js'
 import { currentStreak, totalTonnage, fmtTonnage } from './profileStats.js'
 import { minePrs } from './records.js'
 import { cmpIsoAsc } from './cmp.js'
 import { normMetric, setTonnage } from './metric.js'
-
-// Индекс НЕДЕЛИ (Monday-based, ЛОКАЛЬНО) — паритетная копия из profileStats
-// (как freshness.js держит свои копии, чтобы не плодить связность/цикл). День
-// тренировки везде трактуется как локальный; +3 сдвигает начало недели на пн.
-function weekIndexOf(date) {
-  const days = Math.floor(
-    Date.UTC(date.getFullYear(), date.getMonth(), date.getDate()) / 86400000
-  )
-  return Math.floor((days + 3) / 7)
-}
 
 // Максимальная серия недель подряд за всю историю (число КАЛЕНДАРНЫХ недель с
 // хотя бы одной тренировкой, идущих без пропуска). Пусто → 0.
@@ -33,7 +24,7 @@ export function maxStreakWeeks(workouts) {
   const weeks = new Set()
   for (const w of workouts ?? []) {
     if (!w.performed_at) continue
-    weeks.add(weekIndexOf(new Date(w.performed_at)))
+    weeks.add(weekIndexOf(w.performed_at))
   }
   if (weeks.size === 0) return 0
   const sorted = [...weeks].sort((a, b) => a - b)
@@ -191,7 +182,7 @@ export function badgeEarnedDates(workouts) {
   // при достижении нужной длины ставим дату завершившей неделю тренировки.
   const weekFirst = new Map()
   for (const w of chron) {
-    const wi = weekIndexOf(new Date(w.performed_at))
+    const wi = weekIndexOf(w.performed_at)
     if (!weekFirst.has(wi)) weekFirst.set(wi, w.performed_at) // chron asc → первая = ранняя
   }
   const weeksSorted = [...weekFirst.keys()].sort((a, b) => a - b)

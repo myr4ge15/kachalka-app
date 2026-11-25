@@ -11,13 +11,14 @@
 // ============================================================================
 import { phaseValue } from '../lib/workoutPhases.js'
 import { withPhase } from './phaseColumn.js'
-import { mainEntries } from '../lib/entries.js'
+import { recordKey, trackPersonalBest } from '../lib/records.js'
+import { currentExerciseShapes, entryUnitMetric, mainEntries, workoutChronology } from '../lib/entries.js'
 import { supabase, isConfigured, hasSession } from './supabase.js'
 import { withTimeout } from '../lib/withTimeout.js'
 import { db, getMeta, setMeta } from './local.js'
 import { getCachedUser } from './repo.js'
-import { cmpIsoAsc, cmpIsoDesc } from '../lib/cmp.js'
-import { leadingValue, normMetric, setTonnage } from '../lib/metric.js'
+import { cmpIsoAsc } from '../lib/cmp.js'
+import { normMetric, setTonnage } from '../lib/metric.js'
 import { applyReactionQueue } from '../lib/reactions.js'
 import { rosterSignature } from '../lib/pullWatermark.js'
 import { loadComments, overlayRecentComments } from './comments.js'
@@ -42,7 +43,7 @@ const EXERCISES_SIG = 'sig_exercises'
 // (прямой + через reactions), и неявный `users(...)` падает с «more than one
 // relationship was found». Явный `!fk` снимает неоднозначность.
 export const SELECT_FEED =
-  'id, performed_at, user_id, ' +
+  'id, performed_at, created_at, user_id, ' +
   'user:users!workouts_user_id_fkey(id, name), ' +
   'workout_exercises(id, position, exercise_id, phase, ' +
   'exercise:exercises(id, name, muscle_group, is_bench_lift, is_female_lift, metric), ' +
@@ -84,6 +85,7 @@ export function rowToItem(w) {
     user_id: w.user_id,
     user_name: w.user?.name ?? 'Кто-то',
     performed_at: w.performed_at,
+    created_at: w.created_at,
     entries,
     exCount,
     setCount,
@@ -177,11 +179,16 @@ export function reactionsKey(items) {
 // Нет baseline (офлайн, старый сервер) — как раньше, по окну.
 // Экспортируется для тестов (чистая функция; мутирует item.prs на месте).
 export function computePrs(items, baseline = null) {
-  const byUser = new Map() // user_id → Map(exercise_id → лучшее ведущее значение)
-  for (const [uid, best] of baseline ?? []) byUser.set(uid, new Map(best))
-  const chronological = [...items].sort((a, b) =>
-    cmpIsoAsc(a.performed_at, b.performed_at)
-  )
+  const byUser = new Map()
+  const shapes = currentExerciseShapes(items)
+  for (const [uid, before] of baseline ?? []) {
+    const best = new Map()
+    for (const [id, value] of before) {
+      best.set(recordKey(id, shapes.get(id)?.metric), value)
+    }
+    byUser.set(uid, best)
+  }
+  const chronological = [...items].sort(workoutChronology)
   for (const item of chronological) {
     let best = byUser.get(item.user_id)
     if (!best) {
@@ -189,15 +196,9 @@ export function computePrs(items, baseline = null) {
       byUser.set(item.user_id, best)
     }
     for (const e of mainEntries(item)) {
-      if (e.sets.length === 0) continue
-      const value = leadingValue(e.metric, e.sets)
-      if (value <= 0) continue
-      const prev = best.get(e.exercise_id) ?? 0
-      if (value > prev) {
-        // первый замер по упражнению рекордом не считаем (нечего бить)
-        if (prev > 0) item.prs.push({ name: e.name, metric: e.metric, value })
-        best.set(e.exercise_id, value)
-      }
+      const metric = entryUnitMetric(e, shapes.get(e.exercise_id)?.metric)
+      const record = trackPersonalBest(best, e.exercise_id, metric, e.sets)
+      if (record) item.prs.push({ name: e.name, metric, value: record.value })
     }
   }
 }
@@ -256,11 +257,13 @@ export async function fetchFeed(userId, d = db) {
       .from('workouts')
       .select('id, updated_at')
       .order('performed_at', { ascending: false })
+      .order('created_at', { ascending: false })
+      .order('id', { ascending: false })
       .limit(FEED_LIMIT)
   )
   if (probe.error) throw probe.error
-  // |pr:2 — версия правила кубков (16.10, база до окна): после обновления кэш пересчитается один раз.
-  const sig = rosterSignature(probe.data ?? []) + '|ex:' + ((await getMeta(EXERCISES_SIG, d)) ?? '') + '|pr:2'
+  // |pr:3 — версия правила кубков (16.10, база до окна): после обновления кэш пересчитается один раз.
+  const sig = rosterSignature(probe.data ?? []) + '|ex:' + ((await getMeta(EXERCISES_SIG, d)) ?? '') + '|pr:3'
   const changed = sig !== (await getMeta(FEED_SIG, d))
 
   let items
@@ -269,6 +272,8 @@ export async function fetchFeed(userId, d = db) {
       .from('workouts')
       .select(sel)
       .order('performed_at', { ascending: false })
+      .order('created_at', { ascending: false })
+      .order('id', { ascending: false })
       .limit(FEED_LIMIT))
     if (res.error) throw res.error
     items = (res.data ?? []).map(rowToItem)
@@ -279,7 +284,7 @@ export async function fetchFeed(userId, d = db) {
     // с уже посчитанными prs) и лишь переналожим свежие реакции. Кэш пуст (первый
     // прогон/сброс) → sig не совпал бы, сюда мы бы не попали.
     items = await d.feed.toArray()
-    items.sort((a, b) => cmpIsoDesc(a.performed_at, b.performed_at))
+    items.sort((a, b) => workoutChronology(b, a))
   }
   // Снимок реакций кэша ДО переналожения (attachReactions мутирует элементы): при
   // неизменном окне по нему решаем, есть ли что писать вообще.
@@ -335,5 +340,5 @@ export async function overlayReactionOps(items, opsBefore, userId, d = db) {
 // Лента из локального кэша (офлайн-доступна), свежее сверху.
 export async function getCachedFeed() {
   const list = await db.feed.toArray()
-  return list.sort((a, b) => cmpIsoDesc(a.performed_at, b.performed_at))
+  return list.sort((a, b) => workoutChronology(b, a))
 }

@@ -13,6 +13,7 @@
 // ленте/лидерборде/уведомлениях) — переиспользуем myBestByExercise/bestWeight из
 // records.js, формулу не дублируем.
 // ============================================================================
+import { weekIndexOf } from './calendar.js'
 import { myBestByExercise, bestWeight } from './records.js'
 import { isCountMetric, leadingValue, normMetric, setTonnage, bestPace, fmtNum } from './metric.js'
 import { entryExId, currentExerciseShapes, entryUnitMetric, mainEntries } from './entries.js'
@@ -79,18 +80,6 @@ export function personalRecords(workouts) {
     )
 }
 
-// Индекс НЕДЕЛИ (Monday-based, ЛОКАЛЬНО) для даты. Считаем через Date.UTC от
-// ЛОКАЛЬНЫХ компонентов Y/M/D — так на любой TZ получаем ровно целое число дней
-// от эпохи без дробей/сдвигов (день тренировки везде трактуется как локальный,
-// см. workoutsThisMonth). +3 сдвигает так, что неделя начинается с понедельника
-// (эпоха, 1970-01-01, — четверг).
-function weekIndexOf(date) {
-  const days = Math.floor(
-    Date.UTC(date.getFullYear(), date.getMonth(), date.getDate()) / 86400000
-  )
-  return Math.floor((days + 3) / 7)
-}
-
 // Текущая серия: сколько КАЛЕНДАРНЫХ недель подряд (по понедельникам) есть хотя
 // бы одна тренировка, считая до текущей недели включительно. Грейс в одну неделю:
 // если на этой неделе еще не тренировался, серия не рвется — считаем от прошлой
@@ -100,7 +89,7 @@ export function currentStreak(workouts, now = new Date()) {
   const weeks = new Set()
   for (const w of workouts ?? []) {
     if (!w.performed_at) continue
-    weeks.add(weekIndexOf(new Date(w.performed_at)))
+    weeks.add(weekIndexOf(w.performed_at))
   }
   if (weeks.size === 0) return 0
   const cur = weekIndexOf(now)

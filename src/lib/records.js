@@ -11,9 +11,8 @@
 // Первый замер по упражнению рекордом не считаем — нечего бить (согласовано с
 // computePrs в db/feed.js).
 // ============================================================================
-import { cmpIsoAsc } from './cmp.js'
 import { leadingValue, normMetric } from './metric.js'
-import { entryExId, entryMetric, currentExerciseShapes, entryUnitMetric, isCurrentUnit, mainEntries } from './entries.js'
+import { workoutChronology, entryExId, entryMetric, currentExerciseShapes, entryUnitMetric, isCurrentUnit, mainEntries } from './entries.js'
 
 // Максимальный фактический вес среди подходов [{weight, reps}]. Оставлен для
 // весо-специфичных мест (цели в кг — profileStats.currentBest).
@@ -57,47 +56,37 @@ export function myBestByExercise(workouts) {
 // поставленный до смены типа, остается настоящим событием истории, но 12 повторов
 // не «бьют» старые 10 кг, а первый вес после reps→weight — не рекорд, а первый
 // замер (РЕВЬЮ-КОДА-2026-10-02, п. 17). Имя — из свежего снимка (переименование).
-export function minePrs(workouts) {
-  const shapes = currentExerciseShapes(workouts)
-  const best = new Map() // `${exId}:${metric}` → value
+export function minePrs(workouts, shapes = currentExerciseShapes(workouts)) {
+  const best = new Map()
   const out = []
-  // Тай-брейк: при равных performed_at (импорт, два сохранения в одну секунду)
-  // порядок массива недетерминирован → PR/prev мог приписаться не той тренировке.
-  // Дотягиваем хронологию по created_at, затем по id (стабильно и без локали).
-  const chron = [...(workouts ?? [])].sort(
-    (a, b) =>
-      cmpIsoAsc(a.performed_at, b.performed_at) ||
-      cmpIsoAsc(a.created_at, b.created_at) ||
-      cmpIsoAsc(String(a.id), String(b.id))
-  )
-  for (const w of chron) {
+  for (const w of [...(workouts ?? [])].sort(workoutChronology)) {
     for (const e of mainEntries(w)) {
       const exId = entryExId(e)
       if (!exId) continue
       const shape = shapes.get(exId)
       const metric = entryUnitMetric(e, shape?.metric)
-      const value = leadingValue(metric, e.sets)
-      if (value <= 0) continue
-      const key = `${exId}:${metric}`
-      const prev = best.get(key) ?? 0
-      if (value > prev) {
-        if (prev > 0) {
-          out.push({
-            id: `mine:${w.id}:${exId}`,
-            type: 'mine',
-            exId,
-            name: shape?.name ?? entryName(e) ?? '—',
-            metric,
-            value,
-            prev,
-            at: w.performed_at,
-          })
-        }
-        best.set(key, value)
-      }
+      const record = trackPersonalBest(best, exId, metric, e.sets)
+      if (record) out.push({
+        id: `mine:${w.id}:${exId}`, type: 'mine', exId,
+        name: shape?.name ?? entryName(e) ?? '—', metric, ...record, at: w.performed_at,
+      })
     }
   }
   return out
+}
+
+export function recordKey(exerciseId, metric) {
+  return `${exerciseId}:${normMetric(metric)}`
+}
+
+// Первый замер задает базу, повтор максимума не создает событие.
+export function trackPersonalBest(best, exerciseId, metric, sets) {
+  const key = recordKey(exerciseId, metric)
+  const value = leadingValue(metric, sets)
+  const prev = best.get(key) ?? 0
+  if (value <= prev) return null
+  best.set(key, value)
+  return prev > 0 ? { value, prev } : null
 }
 
 // «Друг побил твой рекорд»: по элементам ленты (тренировки всех) в хронологии.
@@ -124,12 +113,7 @@ export function minePrs(workouts) {
 export function computeBeaten(feedItems, userId, myBest) {
   const chron = [...(feedItems ?? [])]
     .filter((it) => it.user_id !== userId)
-    .sort(
-      (a, b) =>
-        cmpIsoAsc(a.performed_at, b.performed_at) ||
-        cmpIsoAsc(a.created_at, b.created_at) ||
-        cmpIsoAsc(String(a.id), String(b.id))
-    )
+    .sort(workoutChronology)
   const seen = new Map() // `${friend}:${exId}` → его максимум в окне (undefined — еще не видели)
   const out = []
   for (const it of chron) {

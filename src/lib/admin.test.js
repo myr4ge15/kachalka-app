@@ -185,7 +185,7 @@ describe('упражнения: сервер + локальное зеркало
     rpc.mockClear()
     await admin.adminUpdateExercise({ id: 'e1', name: 'Планка', muscle_group: 'пресс', metric: 'time' })
     expect(rpc.mock.calls[0][1].p_metric).toBe('time')
-    await expect(admin.adminUpdateExercise({ id: 'e1', name: '' })).rejects.toThrow('Название')
+    await expect(admin.adminUpdateExercise({ id: 'e1', name: '' })).rejects.toThrow('Введи название')
   })
   it('ошибка сервера — локальный кэш не трогаем', async () => {
     rpc.mockReturnValueOnce(err('not found'))

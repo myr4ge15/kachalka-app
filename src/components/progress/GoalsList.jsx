@@ -1,6 +1,7 @@
 import Chevron from '../ui/Chevron.jsx'
 import { useState } from 'react'
 import { normMetric, fmtMetricValue } from '../../lib/metric.js'
+import { buildGoalGuide } from '../../lib/progressGoal.js'
 import { currentBestValue, goalProgress } from '../../lib/profileStats.js'
 import { useRevealFocus } from '../../hooks/useRevealFocus.js'
 import PencilIcon from '../ui/PencilIcon.jsx'
@@ -55,9 +56,7 @@ export default function GoalsList({ goalList, workouts, onEdit, onAdd }) {
     : null
 
   function renderGoal({ goal: g, metric: m, current: cur, progress: pct }) {
-    const left = Math.max(0, g.targetWeight - cur)
-    const reps = m === 'weight' && Number(g.targetReps) > 0 ? Math.round(Number(g.targetReps)) : 0
-    const waitingForReps = !g.achievedAt && pct >= 100 && reps > 0
+    const { left, reps, waitingForReps } = buildGoalGuide(g, cur)
     return (
       <div
         className="goal"

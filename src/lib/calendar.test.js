@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest'
-import { localYmd, shiftMonth, monthOf, monthGrid, workoutsByDay, countInMonth, monthTitle } from './calendar.js'
+import { weekIndexOf, localYmd, shiftMonth, monthOf, monthGrid, workoutsByDay, countInMonth, monthTitle } from './calendar.js'
 
 describe('calendar', () => {
   it('сетка сентября 2026: с понедельника, 5 недель, соседние дни помечены', () => {
@@ -34,4 +34,9 @@ describe('calendar', () => {
     expect(localYmd('мусор')).toBe('')
     expect(monthTitle({ year: 2026, month: 8 })).toBe('Сентябрь 2026')
   })
+})
+
+it('календарная неделя меняется между воскресеньем и понедельником по местному дню', () => {
+  expect(weekIndexOf('2026-11-23')).toBe(weekIndexOf('2026-11-22') + 1)
+  expect(weekIndexOf('2026-11-23')).toBe(weekIndexOf(new Date(2026, 10, 23, 0, 1)))
 })

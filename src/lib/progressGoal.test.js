@@ -28,6 +28,7 @@ describe('buildGoalGuide', () => {
       left: 7.5,
       reps: 0,
       valueReached: false,
+      waitingForReps: false,
     })
   })
 

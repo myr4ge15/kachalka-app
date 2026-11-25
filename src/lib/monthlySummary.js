@@ -1,6 +1,6 @@
 import { localYmd, monthOf, shiftMonth } from './calendar.js'
-import { sortDesc, mainEntries, currentExerciseShapes, entryExId, entryUnitMetric } from './entries.js'
-import { leadingValue } from './metric.js'
+import { sortDesc, mainEntries, currentExerciseShapes, entryExId } from './entries.js'
+import { minePrs, recordKey } from './records.js'
 import { isNonMuscleGroup, isNonMuscleSub } from './muscles.js'
 import { totalTonnage } from './profileStats.js'
 
@@ -27,34 +27,28 @@ export function buildMonthlySummary(workouts, month, { now = new Date() } = {}) 
   const setsIn = (items) => items.reduce((sum, w) => sum + mainEntries(w).reduce((n, e) => n + (e.sets ?? []).length, 0), 0)
   const sets = setsIn(selected)
   const previousSets = setsIn(previous)
-  const best = new Map()
   const records = new Map()
+  for (const record of minePrs(history, shapes)) {
+    if (localYmd(record.at).startsWith(key)) {
+      const id = recordKey(record.exId, record.metric)
+      records.set(id, { id, name: record.name, metric: record.metric, value: record.value })
+    }
+  }
   const groups = new Map()
   const exercises = new Map()
-  for (const w of [...history].reverse()) {
-    const inMonth = localYmd(w.performed_at).startsWith(key)
+  for (const w of selected) {
     const seenExercises = new Set()
     for (const e of mainEntries(w)) {
       const id = entryExId(e)
       const shape = shapes.get(id)
-      if (inMonth && id && e.sets?.length && !seenExercises.has(id)) {
+      if (id && e.sets?.length && !seenExercises.has(id)) {
         seenExercises.add(id)
         const rec = exercises.get(id) ?? { id, name: shape?.name ?? e.exercise?.name ?? e.name ?? 'Упражнение', workouts: 0 }
         rec.workouts++
         exercises.set(id, rec)
       }
-      const metric = entryUnitMetric(e, shape?.metric)
-      const value = leadingValue(metric, e.sets)
-      const recordKey = `${id}:${metric}`
-      const before = best.get(recordKey) ?? 0
-      if (id && value > before) {
-        if (inMonth && before > 0) records.set(recordKey, {
-          id: recordKey, name: shape?.name ?? e.exercise?.name ?? e.name ?? 'Упражнение', metric, value,
-        })
-        best.set(recordKey, value)
-      }
       const group = e.exercise?.muscle_group ?? e.muscle_group
-      if (inMonth && group && !isNonMuscleGroup(group) && !isNonMuscleSub(e.exercise?.submuscle ?? e.submuscle)) {
+      if (group && !isNonMuscleGroup(group) && !isNonMuscleSub(e.exercise?.submuscle ?? e.submuscle)) {
         groups.set(group, (groups.get(group) ?? 0) + (e.sets ?? []).length)
       }
     }

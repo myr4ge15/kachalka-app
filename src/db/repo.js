@@ -25,11 +25,11 @@ import { cmpIsoDesc } from '../lib/cmp.js'
 import { sortUsersByOrder } from '../lib/userOrder.js'
 import { normMetric } from '../lib/metric.js'
 import { savableSet, toNum } from '../lib/setLimits.js'
-import { cleanExerciseName } from '../lib/text.js'
+import { cleanExerciseName, exerciseNameProblem } from '../lib/text.js'
 import { canEditExercise } from '../lib/exerciseCatalog.js'
 import { isReactionKind } from '../lib/reactions.js'
 import { defaultSubmuscleFor, cleanSecondary } from '../lib/muscles.js'
-import { pickExerciseShape, entryUnitMetric } from '../lib/entries.js'
+import { pickExerciseShape, sortDesc, entryUnitMetric } from '../lib/entries.js'
 import { orderByPhase, phaseValue } from '../lib/workoutPhases.js'
 import { putWorkoutFeels, pruneRpe, withFeels, feelsForWorkout } from '../lib/rpe.js'
 import { planRosterWrite, pickRosterShape } from '../lib/roster.js'
@@ -90,7 +90,10 @@ export async function applyExerciseMergeLocal(fromId, intoId = null) {
 // сюда id вошедшего; отсутствие owner_id (легаси-строки) означает «ничье».
 export async function createExercise({ name, muscle_group, metric, submuscle, secondary, owner_id }, { restoreId, d = db } = {}) {
   const clean = cleanExerciseName(name)
-  if (!clean) throw new Error('Введи название упражнения.')
+  const problem = exerciseNameProblem(clean)
+  // Старые копии могли содержать имена длиннее нынешнего предела.
+  // Восстанавливаем такое имя под исходным UUID без обрезки.
+  if (problem && !(restoreId && clean)) throw new Error(problem)
   const group = muscle_group ? String(muscle_group).trim() : null
   const mtr = normMetric(metric)
   // Двухуровневая модель мышц (PLAN-muscle-detail, слайс 1): подмышца (primary) +
@@ -174,7 +177,8 @@ export async function updateExercise({ id, name, muscle_group, metric, submuscle
   }
 
   const clean = cleanExerciseName(name)
-  if (!clean) throw new Error('Введи название упражнения.')
+  const problem = exerciseNameProblem(clean)
+  if (problem) throw new Error(problem)
 
   const key = normalizeName(clean)
   const all = await db.exercises.toArray()
@@ -279,12 +283,7 @@ export async function setCachedSex(userId, sex) {
 // created_at (что внесли позже, то выше).
 export async function getWorkouts(userId) {
   const list = await db.workouts.where('user_id').equals(userId).toArray()
-  return list
-    .filter((w) => !w._deleted)
-    .sort((a, b) =>
-      cmpIsoDesc(a.performed_at, b.performed_at) ||
-      cmpIsoDesc(a.created_at, b.created_at)
-    )
+  return sortDesc(list)
 }
 
 // Недавние сессии по упражнению (для автопрогрессии, PLAN-autoprogression).
@@ -300,13 +299,7 @@ export async function getRecentSessionsForExercise(userId, exerciseId, n = 5) {
   if (!userId || !exerciseId) return []
   const list = await db.workouts.where('user_id').equals(userId).toArray()
   const catalogMetric = (await db.exercises.get(exerciseId))?.metric
-  const sorted = list
-    .filter((w) => !w._deleted)
-    .sort(
-      (a, b) =>
-        cmpIsoDesc(a.performed_at, b.performed_at) ||
-        cmpIsoDesc(a.created_at, b.created_at)
-    )
+  const sorted = sortDesc(list)
   const out = []
   for (const w of sorted) {
     const entry = (w.entries ?? []).find(
@@ -502,7 +495,7 @@ function cleanEntries(entries) {
 
 // Создать новую или переписать существующую тренировку.
 // Возвращает id. Передай существующий id, чтобы отредактировать.
-export async function saveWorkout({ id, user_id, performed_at, entries }, { restore = false, d = db } = {}) {
+export async function saveWorkout({ id, user_id, performed_at, created_at, entries }, { restore = false, d = db } = {}) {
   const cleaned = cleanEntries(entries)
   if (cleaned.length === 0) throw new Error('Пустая тренировка: добавь хотя бы один подход.')
 
@@ -517,8 +510,8 @@ export async function saveWorkout({ id, user_id, performed_at, entries }, { rest
       user_id,
       performed_at: performed_at ?? existing?.performed_at ?? now,
       // created_at: при создании = now; при правке сохраняем существующий.
-      // Фолбэк на performed_at для записей, пришедших без него.
-      created_at: existing?.created_at ?? now,
+      created_at: existing?.created_at ?? (restore ? created_at : null) ?? now,
+      ...(restore || existing?._restored ? { _restored: true } : {}),
       // updated_at — клиентское время правки (для UI-очереди и тай-брейка
       // конфликта). Истинные merge-часы ведет сервер (PLAN-merge-clock).
       updated_at: now,
@@ -532,7 +525,7 @@ export async function saveWorkout({ id, user_id, performed_at, entries }, { rest
       _deleted: 0,
     }
     await d.workouts.put(doc)
-    await enqueue('upsert', wId, d)
+    await enqueueDocument(d.outbox, 'workoutId', wId, 'upsert')
     return wId
   })
 }
@@ -543,7 +536,7 @@ export async function deleteWorkout(id) {
     const doc = await db.workouts.get(id)
     if (!doc) return
     await db.workouts.update(id, { _deleted: 1, _dirty: 0, updated_at: nowIso() })
-    await enqueue('delete', id)
+    await enqueueDocument(db.outbox, 'workoutId', id, 'delete')
   })
 }
 
@@ -559,7 +552,7 @@ export async function softDeleteMyWorkouts(userId) {
     for (const w of mine) {
       if (w._deleted) continue // уже помечена — не плодим дубль в очереди
       await db.workouts.update(w.id, { _deleted: 1, _dirty: 0, updated_at: nowIso() })
-      await enqueue('delete', w.id)
+      await enqueueDocument(db.outbox, 'workoutId', w.id, 'delete')
       n++
     }
     return n
@@ -585,19 +578,13 @@ async function reviveOps(table, pending, type) {
 //  - upsert поверх upsert → одна операция (push всегда читает свежий документ);
 //  - delete отменяет ожидающие upsert той же тренировки;
 //  - upsert после delete (повторное создание) → заменяет delete на upsert.
-async function enqueue(type, workoutId, d = db) {
-  const pending = await d.outbox.where('workoutId').equals(workoutId).toArray()
-  if (type === 'upsert') {
-    if (await reviveOps(d.outbox, pending, 'upsert')) return
-    // если был delete — снимаем его, ставим upsert
-    for (const o of pending) if (o.type === 'delete') await d.outbox.delete(o.seq)
-    await d.outbox.add({ workoutId, type, createdAt: nowIso(), attempts: 0 })
-  } else {
-    // delete: убираем все upsert этой тренировки
-    for (const o of pending) if (o.type === 'upsert') await d.outbox.delete(o.seq)
-    if (await reviveOps(d.outbox, pending, 'delete')) return
-    await d.outbox.add({ workoutId, type, createdAt: nowIso(), attempts: 0 })
+async function enqueueDocument(table, key, id, type) {
+  const pending = await table.where(key).equals(id).toArray()
+  for (const op of pending) {
+    if (op.type !== type) await table.delete(op.seq)
   }
+  if (await reviveOps(table, pending, type)) return
+  await table.add({ [key]: id, type, createdAt: nowIso(), attempts: 0 })
 }
 
 // ------------------------- Реакции в ленте ---------------------------------
@@ -737,7 +724,7 @@ export async function saveTemplate({ id, user_id, name, exercises, is_public }, 
       _deleted: 0,
     }
     await d.templates.put(doc)
-    await enqueueTpl('upsert', tId, d)
+    await enqueueDocument(d.tpl_outbox, 'templateId', tId, 'upsert')
     return tId
   })
 }
@@ -748,23 +735,8 @@ export async function deleteTemplate(id) {
     const doc = await db.templates.get(id)
     if (!doc) return
     await db.templates.update(id, { _deleted: 1, _dirty: 0, updated_at: nowIso() })
-    await enqueueTpl('delete', id)
+    await enqueueDocument(db.tpl_outbox, 'templateId', id, 'delete')
   })
-}
-
-// Очередь шаблонов (tpl_outbox) — та же логика схлопывания дублей, что у
-// enqueue (тренировки), но по полю templateId.
-async function enqueueTpl(type, templateId, d = db) {
-  const pending = await d.tpl_outbox.where('templateId').equals(templateId).toArray()
-  if (type === 'upsert') {
-    if (await reviveOps(d.tpl_outbox, pending, 'upsert')) return
-    for (const o of pending) if (o.type === 'delete') await d.tpl_outbox.delete(o.seq)
-    await d.tpl_outbox.add({ templateId, type, createdAt: nowIso(), attempts: 0 })
-  } else {
-    for (const o of pending) if (o.type === 'upsert') await d.tpl_outbox.delete(o.seq)
-    if (await reviveOps(d.tpl_outbox, pending, 'delete')) return
-    await d.tpl_outbox.add({ templateId, type, createdAt: nowIso(), attempts: 0 })
-  }
 }
 
 // Сколько изменений ждут отправки (тренировки + упражнения + шаблоны).

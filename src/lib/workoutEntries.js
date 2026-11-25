@@ -12,7 +12,7 @@
 // подхода (общий с progressionCard), поэтому новые подходы получают уникальный _k.
 // ============================================================================
 import { exerciseMetric, isCountMetric, hasExtraWeight, hasLoadWeight } from './metric.js'
-import { WEIGHT_MAX, repsMax, weightMin, savableSet, needsSetWeight } from './setLimits.js'
+import { steppedSetValue, savableSet, needsSetWeight } from './setLimits.js'
 import { templateInputPlan } from './templatePlan.js'
 import { defaultSet, sessionsForMetric, sk } from './progressionCard.js'
 import { orderByPhase, phaseValue } from './workoutPhases.js'
@@ -73,11 +73,7 @@ export function stepSetIn(entries, ei, si, field, delta) {
   return entries.map((e, i) => {
     if (i !== ei) return e
     const metric = exerciseMetric(e.exercise)
-    const min = field === 'reps' ? 1 : weightMin(metric)
-    const max = field === 'weight' ? WEIGHT_MAX : repsMax(metric)
-    const base = Number(e.sets[si]?.[field])
-    const cur = Number.isFinite(base) ? base : field === 'reps' ? 1 : 0
-    const next = Math.min(max, Math.max(min, Math.round((cur + delta) * 100) / 100))
+    const next = steppedSetValue(e.sets[si]?.[field], metric, field, delta)
     const sets = e.sets.map((s, j) => (j === si ? { ...s, [field]: next } : s))
     return { ...e, sets }
   })

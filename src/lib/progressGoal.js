@@ -31,6 +31,7 @@ export function buildGoalGuide(goal, currentValue) {
     left,
     reps,
     valueReached: current >= target,
+    waitingForReps: !goal.achievedAt && current >= target && reps > 0,
   }
 }
 
