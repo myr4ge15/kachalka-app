@@ -383,7 +383,7 @@ export default function App() {
               ref={route === tab ? screenRef : undefined}
               inert={route !== tab} aria-hidden={route !== tab ? true : undefined}>
               <Suspense fallback={<ScreenSkeleton />}>
-            <ErrorBoundary fallback={(_err, reset) => <ScreenCrash onRetry={reset} />}>
+            <ErrorBoundary fallback={(err, reset) => <ScreenCrash error={err} onRetry={reset} />}>
               {route === 'home' && (
                 <HomeScreen
                   user={user}

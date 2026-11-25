@@ -10,6 +10,22 @@ import { enterPin, tabbar, openTab, pickerItem, layoutProblems, seedAndLogin, sw
 const APP = '/kachalka-app/'
 const EXERCISE = 'Жим лежа (e2e)'
 
+test('вставка плана на телефоне сохраняет цели и открывает подходы', async ({ page, context }) => {
+  await switchableOnline(context)
+  await seedAndLogin(page)
+  await openTab(page, 'Тренировки')
+  await page.getByRole('button', { name: 'Запланировать тренировку' }).click()
+  await page.getByRole('button', { name: 'Вставить план' }).click()
+  const sheet = page.getByRole('dialog', { name: 'Вставить план' })
+  await sheet.getByRole('textbox').fill(EXERCISE + ': 2×8–10 (35 кг)')
+  await sheet.getByRole('button', { name: 'Разобрать план' }).click()
+  await expect(sheet.getByRole('button', { name: 'Сохранить план' })).toBeInViewport()
+  await sheet.getByRole('button', { name: 'Сохранить план' }).click()
+  await page.getByRole('button', { name: 'Начать' }).click()
+  await expect(page.getByText('Цель · 35 кг · 8–10 повт.')).toHaveCount(2)
+  await expect(page.getByLabel('Вес, подход 1', { exact: true })).toHaveValue('35')
+})
+
 test('офлайн-план на телефоне открывается из истории и начинает отдельную тренировку', async ({ page, context }) => {
   await switchableOnline(context)
   await seedAndLogin(page)

@@ -3,8 +3,17 @@
 import { describe, expect, it, vi } from 'vitest'
 import { fireEvent, render, screen } from '@testing-library/react'
 import ScreenCrash from './ScreenCrash.jsx'
+import { reloadForUpdatePush } from '../../lib/launchUpdate.js'
+vi.mock('../../lib/launchUpdate.js', () => ({ reloadForUpdatePush: vi.fn().mockResolvedValue('reload') }))
 
 describe('ScreenCrash', () => {
+  it('после ошибки загрузки модуля запускает обновление по нажатию', () => {
+    const retry = vi.fn()
+    render(<ScreenCrash error={new Error("'text/html' is not a valid JavaScript MIME type for module script")} onRetry={retry} />)
+    fireEvent.click(screen.getByRole('button', { name: 'Перезагрузить приложение' }))
+    expect(reloadForUpdatePush).toHaveBeenCalledOnce()
+    expect(retry).not.toHaveBeenCalled()
+  })
   it('заголовок, пояснение про сохраненные данные; «Попробовать снова» зовет onRetry', () => {
     const onRetry = vi.fn()
     render(<ScreenCrash onRetry={onRetry} />)

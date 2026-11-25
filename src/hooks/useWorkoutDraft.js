@@ -60,7 +60,9 @@ export function startNewDraftFrom(userId, entries) {
   for (const key of [k.feel, k.date, k.start, k.focus]) dropDraft(key)
   const copy = (entries ?? []).filter((e) => e.sets?.length > 0).map((e) => ({
     exercise: e.exercise,
-    sets: e.sets.map((s) => ({ weight: s.weight, reps: s.reps, _k: sk() })),
+    sets: e.sets.map((s) => ({ weight: s.weight, reps: s.reps, _k: sk(), ...(s.targetLabel && { targetLabel: s.targetLabel }) })),
+    ...(e.planNote && { planNote: e.planNote }),
+    ...(e.planContext && { planContext: e.planContext }),
     ...(phaseValue(e.phase) ? { phase: phaseValue(e.phase) } : {}),
   }))
   writeDraft(k.draft, copy)

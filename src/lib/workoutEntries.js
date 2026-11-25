@@ -51,7 +51,8 @@ export function setsForExerciseReplacement(sets, prev, next) {
 export function replaceExerciseIn(entries, idx, ex) {
   const next = exerciseMetric(ex)
   return entries.map((e, i) => i === idx
-    ? { ...(phaseValue(e.phase) ? { phase: e.phase } : {}), exercise: ex, sets: setsForExerciseReplacement(e.sets, exerciseMetric(e.exercise), next) }
+    ? { ...(phaseValue(e.phase) ? { phase: e.phase } : {}), exercise: ex, sets: setsForExerciseReplacement(e.sets, exerciseMetric(e.exercise), next)
+      .map(s => { const copy = { ...s }; delete copy.targetLabel; return copy }) }
     : e)
 }
 
@@ -84,7 +85,7 @@ export function addSetIn(entries, ei) {
   return entries.map((e, i) => {
     if (i !== ei) return e
     const last = e.sets[e.sets.length - 1] ?? defaultSet(e.exercise)
-    return { ...e, sets: [...e.sets, { ...last, _k: sk() }] }
+    return { ...e, sets: [...e.sets, { weight: last.weight, reps: last.reps, _k: sk() }] }
   })
 }
 

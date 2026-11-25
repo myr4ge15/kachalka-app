@@ -1002,6 +1002,13 @@ button.link-btn { min-height: 44px; display: inline-flex; align-items: center; j
 .next-plan-list { list-style: none; margin: 0 0 12px; padding: 0; }
 .next-plan-row { display: grid; grid-template-columns: minmax(0, 1fr) 44px; align-items: center; gap: 12px; padding: 6px 0; }
 .next-plan-exercise { overflow-wrap: anywhere; }
+.plan-import { overflow-wrap: anywhere; }
+.plan-import label, .plan-import textarea, .plan-note { display: block; }
+.plan-import textarea { width: 100%; margin-block: 8px; }
+.plan-import-item { padding-block: 12px; border-bottom: 1px solid var(--border); }
+.plan-import-item p, .plan-note, .plan-set-target { color: var(--muted); font-size: var(--fs-small); }
+.plan-note { white-space: pre-line; overflow-wrap: anywhere; }
+.plan-set-target { grid-column: 1 / -1; }
 .next-plan-row + .next-plan-row { border-top: 1px solid var(--border); }
 .next-plan-row .btn { width: 44px; height: 44px; margin: 0; padding: 0; }
 .next-plan > .btn-row { margin-top: 12px; }

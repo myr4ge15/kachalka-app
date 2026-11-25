@@ -255,6 +255,8 @@ export default function ExerciseCard({
         </div>
       )}
 
+      {entry.planNote && <p className="muted plan-note">{entry.planNote}</p>}
+      {entry.planContext && <details><summary>Заметки к плану</summary><p className="plan-note">{entry.planContext}</p></details>}
       <div className="sets-head">
         {count
           ? <><span>#</span><span>{valLabel}</span><span></span></>
@@ -263,6 +265,7 @@ export default function ExerciseCard({
 
       {entry.sets.map((s, si) => (
         <div key={s._k ?? si} className="set-row">
+          {s.targetLabel && <small className="plan-set-target">Цель · {s.targetLabel}</small>}
           {/* Номер подхода — просто подпись (v6.1.0): отметок выполнения больше
               нет, колонка узкая, ширина уходит степперам. */}
           <span className="set-no" aria-hidden="true">{si + 1}</span>

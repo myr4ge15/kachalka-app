@@ -145,6 +145,16 @@ jobs:
         if: steps.cf.outputs.ready == 'true'
         run: find dist -name '*.map' -delete
 
+      - name: Оставить модули предыдущей беты для открытых вкладок
+        if: steps.cf.outputs.ready == 'true'
+        run: |
+          node --input-type=module <<'JS'
+          import { retainBetaAssets } from './scripts/retain-beta-assets.mjs'
+          const project = process.env.PROJECT
+          if (!/^[a-z0-9-]+$/.test(project)) throw Error('Некорректное имя проекта Pages')
+          console.log('Сохранено файлов:', await retainBetaAssets('https://' + project + '.pages.dev', 'dist'))
+          JS
+
       # Wrangler — точная версия через npx, без стороннего action: меньше движущихся частей.
       - name: Публикация на Cloudflare Pages
         id: deploy
