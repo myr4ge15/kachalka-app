@@ -92,6 +92,8 @@ export default defineConfig(({ mode }) => ({
   base: loadEnv(mode, process.cwd(), 'VITE_').VITE_APP_BASE || '/kachalka-app/',
   define: {
     __APP_VERSION__: JSON.stringify(appVersion(mode)),
+    // Тот же публичный PNG нужен кнопке как File прямо в пользовательском жесте Safari.
+    'import.meta.env.INVITE_CARD_BASE64': JSON.stringify(readFileSync(new URL('./public/share-card.png', import.meta.url), 'base64')),
   },
   // Тест-сьют (Vitest). ДЕФОЛТ окружения — node: чистый слой src/lib и src/db
   // (без UI) гоняется быстро и без DOM, как раньше. Компонентные тесты (RTL)

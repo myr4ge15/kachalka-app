@@ -1,4 +1,3 @@
-import cardData from '../../../public/share-card.png?inline'
 import { showToast } from '../ui/Toast.jsx'
 
 export default function ShareInviteButton({ text, className }) {
@@ -7,7 +6,7 @@ export default function ShareInviteButton({ text, className }) {
     try {
       if (navigator.canShare) {
         // Файл готовим в самом нажатии: Safari требует пользовательский жест для share().
-        const bytes = Uint8Array.from(atob(cardData.split(',')[1]), (char) => char.charCodeAt(0))
+        const bytes = Uint8Array.from(atob(import.meta.env.INVITE_CARD_BASE64), (char) => char.charCodeAt(0))
         const file = new File([bytes], 'kachalka-app.png', { type: 'image/png' })
         const withPhoto = { ...data, files: [file] }
         if (navigator.canShare(withPhoto)) data = withPhoto
