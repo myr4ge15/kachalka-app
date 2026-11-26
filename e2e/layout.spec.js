@@ -51,6 +51,10 @@ test('вставка плана на телефоне сохраняет цел�
   await page.getByRole('button', { name: 'Начать' }).click()
   await expect(page.getByText('Цель · 35 кг · 8–10 повт.')).toHaveCount(2)
   await expect(page.getByLabel('Вес, подход 1', { exact: true })).toHaveValue('35')
+  const reps = page.getByLabel('Повторения, подход 1', { exact: true })
+  await expect(reps).toHaveValue('10')
+  await reps.fill('9')
+  await expect(page.getByText('Отдых 180 с', { exact: true })).toHaveCount(0)
   const benchRest = page.getByRole('button', { name: 'Таймер отдыха, 3:00. Начать' })
   await benchRest.click()
   await page.getByRole('button', { name: /^Отдых, осталось/ }).click()
@@ -58,6 +62,8 @@ test('вставка плана на телефоне сохраняет цел�
   await page.getByRole('button', { name: 'готово', exact: true }).click()
   await page.getByText('Подтягивания (e2e)', { exact: true }).click()
   await expect(page.getByRole('button', { name: 'Таймер отдыха, 2:00. Начать' })).toBeVisible()
+  await page.getByText(EXERCISE, { exact: true }).click()
+  await expect(reps).toHaveValue('9')
 })
 
 test('офлайн-план на телефоне открывается из истории и начинает отдельную тренировку', async ({ page, context }) => {

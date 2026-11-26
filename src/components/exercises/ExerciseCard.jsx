@@ -16,6 +16,7 @@ import {
   daysAgoLabel, progArrow, progTone, nextProgStep, fmtProgStep,
 } from '../../lib/progressionCard.js'
 import { exerciseFocusSummary } from '../../lib/workoutFocus.js'
+import { visiblePlanNote } from '../../lib/planImport/draft.js'
 import { FEELS, FEEL_LABELS } from '../../lib/rpe.js'
 import { TitleWithTechnique } from './TechniqueSheet.jsx'
 import Icon from '../ui/Icon.jsx'
@@ -65,6 +66,7 @@ export default function ExerciseCard({
   const valLabel = isTime ? 'мин:сек' : 'повт.'
   const pace = isDistance ? bestPace(entry.sets) ?? lastPace(entry.sets) : null
   const summary = exerciseFocusSummary(entry)
+  const planNote = visiblePlanNote(entry, Boolean(restSlot))
   // Блок «Прошлая / Рекомендуем» (аудит 16.10): занимал ~40% карточки и после того, как
   // подходы уже правят. Рекомендация применена, а подходы с ней разошлись (человек ввел свое) —
   // сворачиваем в одну строку, раскрыть можно тапом; шестеренка остается в строке. Не применена
@@ -255,7 +257,7 @@ export default function ExerciseCard({
         </div>
       )}
 
-      {entry.planNote && <p className="muted plan-note">{entry.planNote}</p>}
+      {planNote && <p className="muted plan-note">{planNote}</p>}
       {entry.planContext && <details><summary>Заметки к плану</summary><p className="plan-note">{entry.planContext}</p></details>}
       <div className="sets-head">
         {count

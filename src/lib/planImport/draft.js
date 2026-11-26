@@ -1,6 +1,7 @@
 import { normalizeName } from '../similar.js'
 import { exerciseMetric, fmtNum } from '../metric.js'
 import { defaultSet } from '../progressionCard.js'
+import { clampRestSec } from '../restTimer.js'
 
 function display(value) {
   return Array.isArray(value) ? value.map(fmtNum).join('–') : fmtNum(value)
@@ -47,6 +48,15 @@ export function plannedRestSeconds(entry) {
   return old ? Number(old[1]) : null
 }
 
+export function visiblePlanNote(entry, timerVisible) {
+  const note = entry.planNote
+  if (!timerVisible || !note) return note
+  const seconds = plannedRestSeconds(entry)
+  if (seconds == null || seconds !== clampRestSec(seconds)) return note
+  const [first, ...otherLines] = note.split('\n')
+  return first === `Отдых ${seconds} с` ? otherLines.join('\n') : note
+}
+
 export function planEntry(item) {
   const { planTarget, ...exercise } = item
   if (!planTarget) return { exercise, sets: [defaultSet(exercise)] }
@@ -54,7 +64,9 @@ export function planEntry(item) {
   const sets = planTarget.sets.map(s => {
     const actual = v => !s.optional && typeof v === 'number' ? v : ''
     const load = metric === 'distance' ? s.km : s.kg
-    return { weight: actual(load), reps: Array.isArray(load) ? '' : actual(s.reps ?? s.seconds), targetLabel: describeTarget(s) }
+    const reps = Array.isArray(s.reps) ? s.reps[1] : s.reps ?? s.seconds
+    const needsLoad = Array.isArray(load) && !Array.isArray(s.reps)
+    return { weight: actual(load), reps: needsLoad ? '' : actual(reps), targetLabel: describeTarget(s) }
   })
   const phase = planTarget.sets[0]?.phase
   const note = [planTarget.rest_sec && 'Отдых ' + display(planTarget.rest_sec) + ' с', planTarget.notes].filter(Boolean).join('\n')

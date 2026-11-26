@@ -68,7 +68,7 @@ it('вставляет план, сохраняет диапазон после 
   expect(screen.getByText('2027-05-05')).toBeVisible()
   click('Начать')
   const draft = readDraft('workout_draft_new_me')
-  expect(draft[0].sets[0]).toMatchObject({ weight: 35, reps: '', targetLabel: '35 кг · 8–10 повт.' })
+  expect(draft[0].sets[0]).toMatchObject({ weight: 35, reps: 10, targetLabel: '35 кг · 8–10 повт.' })
   expect(draft[1].exercise.id).toBe('press')
 })
 

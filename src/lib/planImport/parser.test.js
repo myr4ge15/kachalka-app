@@ -2,7 +2,7 @@ import { test } from 'vitest'
 import assert from 'node:assert/strict'
 import { parseWorkoutPlan as parse } from './parser.js'
 import { matchExport, checkLastWorkout } from './catalog.js'
-import { acceptsTargets, planEntry, plannedRestSeconds, matchExercise, describeTarget } from './draft.js'
+import { acceptsTargets, planEntry, plannedRestSeconds, visiblePlanNote, matchExercise, describeTarget } from './draft.js'
 
 const parseSets = text => parse(text).plan.exercises.flatMap(e => e.sets)
 const jsonPlan = { format: 'workout-plan/v1', exercises: [{ name: 'Жим', sets: [{ kg: 25, reps: [6, 8] }] }] }
@@ -76,7 +76,7 @@ test('Столбцы с весами и запись через / не смеш�
   assert.ok(plan.exercises[4].sets.every(s => s.optional))
 })
 
-test('Черновик сохраняет цели и пустые диапазоны, сверяет метрику каталога', () => {
+test('Черновик сохраняет цели и сверяет метрику каталога', () => {
   const ex = { name: 'Планка', id: 'a', metric: 'time' }
   const item = { name: 'Планка', sets: [{ seconds: 60, phase: 'warmup' }], rest_sec: [30, 45] }
   assert.equal(matchExercise(item, [ex]), 'a')
@@ -99,6 +99,21 @@ test('Черновик сохраняет цели и пустые диапаз�
   assert.match(describeTarget({ phase: 'cooldown', seconds: 30 }), /заминка/u)
   assert.equal(acceptsTargets(ex, { sets: [{ kg: -5, seconds: 60 }] }), false)
   assert.equal(acceptsTargets(ex, { sets: [{ km: 2 }] }), false)
+})
+
+test('Верхняя граница повторений подставляется при старте обязательного подхода', () => {
+  const sets = [{ kg: 40, reps: [12, 14] }, { kg: [30, 40], reps: [10, 12] }, { reps: [8, 10], optional: true }]
+  const entry = planEntry({ metric: 'weight', planTarget: { sets } })
+  assert.deepEqual(entry.sets.map(s => [s.weight, s.reps]), [[40, 14], ['', 12], ['', '']])
+  assert.equal(entry.sets[0].targetLabel, '40 кг · 12–14 повт.')
+})
+
+test('Подпись нужна, если таймер скрыт, изменен вручную или ограничил длительность', () => {
+  const row = { planRestSec: 90, planNote: 'Отдых 90 с' }
+  assert.equal(visiblePlanNote(row, true), '')
+  assert.equal(visiblePlanNote(row, false), row.planNote)
+  assert.equal(visiblePlanNote({ ...row, planRestSec: null }, true), row.planNote)
+  assert.equal(visiblePlanNote({ planRestSec: 900, planNote: 'Отдых 900 с' }, true), 'Отдых 900 с')
 })
 
 test('Инструкции между группами подходов, отдых и контекст следующего дня', () => {
