@@ -704,7 +704,7 @@ export default function WorkoutScreen({ user, workoutId = null, onBack, onSaved,
                   onToggleProgSettings={toggleProgSettings}
                   onChangeProgSettings={changeProgSettings}
                   onLoadUnit={(idx, unit) => setEntries(prev => prev.map((row, i) => i === idx ? {
-                    ...row, inputUnit: unit, prog: null, sets: row.sets.map(s => withLoad(s, unit, loadValue(s))),
+                    ...row, inputUnit: unit, sets: row.sets.map(s => withLoad(s, unit, loadValue(s))),
                   } : row))}
                   onUpdateSet={updateSet}
                   onStep={step}

@@ -11,7 +11,11 @@ export default function LoadUnitPicker({ unit, onChange }) {
   return <label className="load-unit">
     <span aria-hidden="true">{selected.label}</span>
     <Chevron toggle size={12} />
-    <select aria-label="Единица нагрузки" value={selected.value} onChange={event => onChange(event.target.value)}>
+    <select aria-label="Единица нагрузки" value={selected.value}
+      onPointerDown={event => { event.currentTarget.dataset.pointer = 'true' }}
+      onKeyDown={event => { delete event.currentTarget.dataset.pointer }}
+      onBlur={event => { delete event.currentTarget.dataset.pointer }}
+      onChange={event => onChange(event.target.value)}>
       {options.map(option => <option key={option.value} value={option.value}>{option.title}</option>)}
     </select>
   </label>

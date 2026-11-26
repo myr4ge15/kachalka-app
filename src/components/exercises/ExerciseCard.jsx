@@ -1,6 +1,6 @@
 import { useState } from 'react'
 import LoadUnitPicker from '../workout/LoadUnitPicker.jsx'
-import { loadUnit, loadValue } from '../../lib/setLoad.js'
+import { LB_KG, loadUnit, loadValue, withLoad } from '../../lib/setLoad.js'
 import Chevron from '../ui/Chevron.jsx'
 import MoreMenu from '../ui/MoreMenu.jsx'
 import { PHASES, PHASE_LABEL, PHASE_MOVE_LABEL } from '../../lib/workoutPhases.js'
@@ -57,6 +57,7 @@ export default function ExerciseCard({
 }) {
   const metric = exerciseMetric(entry.exercise)
   const unit = entry.inputUnit ?? loadUnit(entry.sets?.[0])
+  const referenceOnly = unit !== 'kg' && Boolean(entry.prog?.recSets)
   const [phaseMenu, setPhaseMenu] = useState(false)
   // У «своего веса» (v6.16.0) — столбец «±кг»: плюс — доп. вес (пояс), минус — помощь гравитрона/резины
   // (v7.2.0; «−» степпера уходит ниже 0). У «На время» (23.10.2026, изометрия) — необязательный «кг» снаряда.
@@ -79,7 +80,7 @@ export default function ExerciseCard({
   // в его шапке. Отметка сбрасывается, когда рекомендация снята (откат / выключили).
   const [apOpen, setApOpen] = useState(false)
   const [apEdited, setApEdited] = useState(false)
-  const live = entry.prog && !entry.prog.muted && entry.prog.applied ? entry.prog : null
+  const live = entry.prog && !referenceOnly && !entry.prog.muted && entry.prog.applied ? entry.prog : null
   const diverged = Boolean(live) && !sameSets(entry.sets, live.recSets)
   if (diverged && !apEdited) setApEdited(true)
   if (!live && (apEdited || apOpen)) { setApEdited(false); setApOpen(false) }
@@ -192,7 +193,7 @@ export default function ExerciseCard({
                 </button>
               ) : (
                 <div className="ap-row">
-                  <span className="ap-lbl">Прошлая</span>
+                  <span className="ap-lbl">{referenceOnly ? 'Прошлая · кг' : 'Прошлая'}</span>
                   <span className="ap-when">{daysAgoLabel(entry.prog.whenIso)}</span>
                 </div>
               )}
@@ -200,30 +201,32 @@ export default function ExerciseCard({
                 <SetsCells metric={metric} sets={entry.prog.prev} sep=" · " empty="" />
               </div>
               <div className={`ap-rec-lbl ${progTone(entry.prog.kind)}`}>
-                {progArrow(entry.prog.kind)} Рекомендуем сегодня
+                {progArrow(entry.prog.kind)} Рекомендуем сегодня{referenceOnly && (unit === 'lb' ? ' · lb' : ' · кг')}
               </div>
               <div className="ap-rec">
-                <SetsCells metric={metric} sets={entry.prog.recSets} sep=" · " empty="" />
+                <SetsCells metric={metric} sets={referenceOnly && unit === 'lb'
+                  ? entry.prog.recSets.map(s => withLoad(s, 'lb', Math.round(s.weight / LB_KG * 10) / 10))
+                  : entry.prog.recSets} sep=" · " empty="" />
               </div>
               <span className={`reason ${progTone(entry.prog.kind)}`}>{entry.prog.reason}</span>
               <div className="ap-actions">
-                {entry.prog.applied ? (
+                {referenceOnly ? <span className="muted">{unit === 'block' ? 'Номер блока выбери на тренажере' : 'Вес для ориентира'}</span> : entry.prog.applied ? (
                   <button className="link-btn ap-revert" onClick={() => onRevertProg(ei)}>
                     {entry.fromTemplate ? 'отменить рекомендацию' : 'вернуть как в прошлый раз'}
                   </button>
                 ) : (
                   <button className="btn-apply" onClick={() => onApplyProg(ei)}>Применить рекомендацию</button>
                 )}
-                <button
+                {!referenceOnly && <button
                   className={`btn-gear${entry.prog.settingsOpen ? ' on' : ''}`}
                   aria-label="Настройки прогрессии"
                   aria-expanded={entry.prog.settingsOpen}
                   onClick={() => onToggleProgSettings(ei)}
-                ><GearIcon /></button>
+                ><GearIcon /></button>}
               </div>
             </>
           )}
-          {entry.prog.settingsOpen && (() => {
+          {!referenceOnly && entry.prog.settingsOpen && (() => {
             const eff = resolveProgSettings(prog, entry.exercise.id, metric)
             return (
               <div className="ap-settings">

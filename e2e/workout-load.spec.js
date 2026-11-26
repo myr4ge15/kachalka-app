@@ -1,6 +1,32 @@
 import { expect, test } from '@playwright/test'
 import { pickerItem, saveButton, seedAndLogin } from './helpers.js'
 
+test('смена единицы сохраняет рекомендацию и снимает рамку после касания', async ({ context, page }, testInfo) => {
+  await context.addInitScript(() => Object.defineProperty(navigator, 'onLine', { get: () => false, configurable: true }))
+  await context.route(/supabase\.co/, route => route.abort())
+  const user = await seedAndLogin(page)
+  await page.evaluate(async id => {
+    const { writeDraft } = await import('/kachalka-app/src/lib/draftStore.js')
+    const sets = [{ weight: 50, reps: 10, _k: 'first' }]
+    writeDraft('workout_draft_new_' + id, [{
+      exercise: { id: 'test-pulldown', name: 'Тяга верхнего блока', metric: 'weight' }, sets,
+      prog: { prev: [{ weight: 47.5, reps: 10 }], recSets: sets, whenIso: new Date().toISOString(),
+        kind: 'up', reason: 'Все повторы выполнены · +2.5 кг', applied: true },
+    }])
+  }, user.id)
+  await page.getByRole('button', { name: 'Записать тренировку' }).click()
+  const units = page.getByRole('combobox', { name: 'Единица нагрузки' })
+  const recommendation = page.locator('.ap-rec')
+  for (const [unit, text] of [['lb', '110.2 lb'], ['block', '50×10'], ['kg', '50×10']]) {
+    await units.dispatchEvent('pointerdown', { pointerType: 'touch' })
+    await units.focus()
+    await units.selectOption(unit)
+    await expect(recommendation).toContainText(text)
+    await expect(page.locator('.load-unit')).toHaveCSS('outline-style', 'none')
+    if (unit === 'lb') await page.screenshot({ path: testInfo.outputPath('recommendation-lb.png') })
+  }
+})
+
 test('номер блока сохраняется офлайн и подставляется в следующей тренировке', async ({ context, page }) => {
   await context.addInitScript(() => Object.defineProperty(navigator, 'onLine', { get: () => false, configurable: true }))
   await context.route(/supabase\.co/, route => route.abort())

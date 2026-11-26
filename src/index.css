@@ -1045,7 +1045,7 @@ button.link-btn { min-height: 44px; display: inline-flex; align-items: center; j
   display: inline-flex; align-items: center; justify-content: center; gap: 4px;
 }
 .load-unit select { position: absolute; inset: 0; width: 100%; height: 100%; opacity: 0; cursor: pointer; font-size: 16px; }
-.load-unit:has(select:focus-visible) { outline: 2px solid var(--acc); outline-offset: 2px; border-radius: var(--r-sm); }
+.load-unit:has(select:focus-visible:not([data-pointer])) { outline: 2px solid var(--acc); outline-offset: 2px; border-radius: var(--r-sm); }
 .sets-head, .set-row {
   display: grid; grid-template-columns: 18px minmax(0, 1fr) minmax(0, 1fr) 30px;
   gap: 7px; align-items: center;

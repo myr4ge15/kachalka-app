@@ -65,6 +65,12 @@ function renderCard(entry, cbOver = {}, propOver = {}) {
 }
 
 describe('ExerciseCard — рендер', () => {
+  it.each([['lb', '137.8'], ['block', '62.5']])('сохраняет рекомендацию при вводе в %s', (unit, expected) => {
+    const { container } = renderCard({ ...weightEntry(), inputUnit: unit, prog: prog({ applied: true }) })
+    expect(container.querySelector('.ap-rec')).toHaveTextContent(expected)
+    expect(screen.getByText('Прошлая · кг')).toBeVisible()
+    expect(screen.queryByRole('button', { name: 'вернуть как в прошлый раз' })).toBeNull()
+  })
   it('показывает имя упражнения и по строке на каждый подход', () => {
     const { container } = renderCard(weightEntry())
     expect(screen.getByText('Жим лежа')).toBeInTheDocument()
