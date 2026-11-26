@@ -11,6 +11,17 @@ const workout = {
 }
 
 describe('WorkoutFinishSheet', () => {
+  it('поясняет, какие подходы вошли в тоннаж, и раскрывает номера блоков', () => {
+    const entries = [{ exercise: { name: 'Жим' }, sets: [{ weight: 40, reps: 10 }] },
+      { exercise: { name: 'Тяга' }, sets: [{ weight: 0, reps: 12, load_input: { unit: 'block', value: 7 } }] }]
+    render(<WorkoutFinishSheet workout={{ entries }} onDone={() => {}} />)
+    expect(screen.getByText('Рабочие подходы').nextElementSibling).toHaveTextContent('2')
+    expect(screen.getByText('Повторения').nextElementSibling).toHaveTextContent('22')
+    expect(screen.getByText('Тоннаж').nextElementSibling).toHaveTextContent('400 кг')
+    expect(screen.getByText(/с известным весом \(1 из 2\)/)).toBeVisible()
+    fireEvent.click(screen.getByText('Подходы по упражнениям'))
+    expect(screen.getByText(/Номер блока 7 × 12/)).toBeInTheDocument()
+  })
   it('показывает спокойный итог сохраненной тренировки', () => {
     render(<WorkoutFinishSheet workout={workout} onDone={() => {}} />)
 

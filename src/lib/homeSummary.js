@@ -10,7 +10,7 @@
 import { buildGoalGuide } from './progressGoal.js'
 import { minePrs } from './records.js'
 import { currentStreak, currentBestValue, goalProgress } from './profileStats.js'
-import { dayIndex, tonnageInWindow } from './insights.js'
+import { dayIndex, tonnageInWindow, hasBlockInWindow } from './insights.js'
 import { mostNeglectedGroup } from './freshness.js'
 import { daySubTags } from './dayTags.js'
 import { normMetric, leadingValue } from './metric.js'
@@ -172,7 +172,7 @@ export function buildHomeSummary({ workouts, goals, now = new Date() } = {}) {
   // Рост больше чем вчетверо — не прогресс, а почти пустой прошлый период (только начал записывать):
   // «+1698%» ничего не сообщает (обращение fb_571f6d88). 0 = плитка дельту не показывает.
   const raw = prevMonth > 0 ? Math.round(((month - prevMonth) / prevMonth) * 100) : 0
-  const pct = raw > TONNAGE_PCT_MAX ? 0 : raw
+  const pct = raw > TONNAGE_PCT_MAX || hasBlockInWindow(sorted, now, 60) ? 0 : raw
 
   return {
     hasData: true,

@@ -1037,6 +1037,10 @@ button.link-btn { min-height: 44px; display: inline-flex; align-items: center; j
 .sort-lifted.sort-trashing { opacity: .45; }
 
 /* Строки подходов: узкий номер + 1–2 степпера + ✕. */
+.feed-load-gain { margin-inline-start: 0.45em; font-size: var(--fs-small); color: var(--green); white-space: nowrap; }
+.history-ex:has(.feed-load-gain) { grid-template-columns: minmax(0, 1fr); row-gap: 3px; }
+.history-ex:has(.feed-load-gain) .history-ex-sets { text-align: start; }
+.sets-head .load-unit { border: none; font-family: inherit; width: 100%; min-width: 0; min-height: 44px; padding: 4px 16px 4px 4px; color: var(--acc-2); background-color: var(--acc-soft); border-radius: var(--r-sm); text-align: center; font-size: var(--fs-meta); }
 .sets-head, .set-row {
   display: grid; grid-template-columns: 18px minmax(0, 1fr) minmax(0, 1fr) 30px;
   gap: 7px; align-items: center;

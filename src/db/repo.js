@@ -24,6 +24,7 @@ import { normalizeName } from '../lib/similar.js'
 import { cmpIsoDesc } from '../lib/cmp.js'
 import { sortUsersByOrder } from '../lib/userOrder.js'
 import { normMetric } from '../lib/metric.js'
+import { storedSet } from '../lib/setLoad.js'
 import { savableSet, toNum } from '../lib/setLimits.js'
 import { cleanExerciseName, exerciseNameProblem } from '../lib/text.js'
 import { canEditExercise } from '../lib/exerciseCatalog.js'
@@ -307,7 +308,7 @@ export async function getRecentSessionsForExercise(userId, exerciseId, n = 5) {
     )
     if (!entry) continue
     const sets = (entry.sets ?? [])
-      .map((s) => ({ weight: Number(s.weight), reps: Number(s.reps) }))
+      .map(storedSet)
       .filter((s) => Number.isFinite(s.weight) && Number.isFinite(s.reps))
     if (!sets.length) continue
     // metric — единица ЭТОЙ записи: buildRecommendation отбросит сессии в старой

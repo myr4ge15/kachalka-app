@@ -20,6 +20,11 @@ const ex = (id, name, target = {}, extra = {}) => ({
 })
 
 describe('cleanTemplateForExport', () => {
+  it('сохраняет номер блока в выгружаемом плане', () => {
+    const set = { weight: 0, reps: 12, load_input: { unit: 'block', value: 7 } }
+    const exercise = { ...ex('lat', 'Вертикальная тяга'), set_plan: [set] }
+    expect(cleanTemplateForExport(tpl('t1', 'Тяга', [exercise])).exercises[0].set_plan).toEqual([set])
+  })
   it('сохраняет фазу и точный план, даже когда у плана нет своей метрики', () => {
     const entry = { ...ex('e1', 'Подтягивания', {}, { metric: 'reps' }), phase: 'warmup', set_plan: [{ weight: '-20', reps: '8' }] }
     const out = cleanTemplateForExport(tpl('t1', 'Разминка', [entry]))

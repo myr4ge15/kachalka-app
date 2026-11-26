@@ -12,6 +12,7 @@
 // уходят РАНЬШЕ тренировок (outbox, FK на exercise_id), реакции — ПОСЛЕ (FK на
 // workout). Оркеструет порядок syncNow (../sync.js), здесь — только сами прогоны.
 // ============================================================================
+import { storedSet } from '../../lib/setLoad.js'
 import { phaseValue } from '../../lib/workoutPhases.js'
 import { templatePlan } from '../../lib/templatePlan.js'
 import { exerciseMetric } from '../../lib/metric.js'
@@ -220,11 +221,12 @@ export async function push(d = db, warnings = []) {
       const payload = doc.entries.map((e) => ({
         exercise_id: e.exercise_id,
         ...(doc._restored && { historical_metric: exerciseMetric(e.exercise) }),
-        sets: e.sets.map((s) => ({ weight: Number(s.weight), reps: Number(s.reps) })),
+        load_format: 1,
+        sets: e.sets.map(storedSet),
         ...(phaseValue(e.phase) ? { phase: phaseValue(e.phase) } : {}),
       }))
       const { data: result, error } = await withTimeout(
-        supabase.rpc('upsert_workout_checked', {
+        supabase.rpc(doc.entries.some(e => e.sets.some(s => s.load_input)) ? 'upsert_workout_with_load' : 'upsert_workout_checked', {
           p_workout_id: doc.id,
           p_user_id: doc.user_id,
           p_performed_at: doc.performed_at,

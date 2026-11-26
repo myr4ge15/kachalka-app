@@ -1,3 +1,4 @@
+import { loadUnit, loadValue, withLoad, loadLimit } from '../../lib/setLoad.js'
 import { sk } from '../../lib/progressionCard.js'
 import HoldButton from '../ui/HoldButton.jsx'
 import { setStep, steppedSetValue } from '../../lib/setLimits.js'
@@ -17,13 +18,19 @@ export default function TemplateSets({ metric, sets, onChange }) {
   const isTime = m === 'time' || m === 'distance'
   const hasWeight = hasWeightField(m)
   function update(index, field, value) {
-    onChange(sets.map((s, i) => i === index ? { ...s, [field]: value } : s))
+    onChange(sets.map((s, i) => i !== index ? s : field === 'weight' ? withLoad(s, loadUnit(s), value) : { ...s, [field]: value }))
   }
   function bump(index, field, dir) {
+    if (field === 'weight' && sets[index].load_input) {
+      const unit = loadUnit(sets[index])
+      update(index, field, Math.min(loadLimit(unit), Math.max(unit === 'block' ? 1 : 0, (Number(loadValue(sets[index])) || 0) + dir)))
+      return
+    }
     const delta = dir * setStep(m, field)
     update(index, field, steppedSetValue(sets[index][field], m, field, delta))
   }
-  const weightLab = m === 'distance' ? 'км' : m === 'reps' ? '±кг' : 'кг'
+  const unit = loadUnit(sets[0])
+  const weightLab = unit === 'block' ? 'Номер блока' : unit === 'lb' ? 'lb' : m === 'distance' ? 'км' : m === 'reps' ? '±кг' : 'кг'
   return <div className="template-sets">
     <div className="sets-head">
       {hasWeight
@@ -35,7 +42,7 @@ export default function TemplateSets({ metric, sets, onChange }) {
       {hasWeight && <div className="stepper">
         <HoldButton aria-label={`Меньше, подход ${i + 1}`} onTrigger={() => bump(i, 'weight', -1)}>−</HoldButton>
         <SetInput inputMode={m === 'reps' ? 'text' : 'decimal'} aria-label={`Вес или дистанция подхода ${i + 1}`}
-          value={fmtNum(s.weight ?? '')} onChange={(e) => update(i, 'weight', e.target.value.replace(',', '.').replace('−', '-'))} />
+          value={fmtNum(loadValue(s) ?? '')} onChange={(e) => update(i, 'weight', e.target.value.replace(',', '.').replace('−', '-'))} />
         <HoldButton aria-label={`Больше, подход ${i + 1}`} onTrigger={() => bump(i, 'weight', 1)}>+</HoldButton>
       </div>}
       <div className="stepper">

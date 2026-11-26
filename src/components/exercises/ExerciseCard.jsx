@@ -1,4 +1,6 @@
 import { useState } from 'react'
+import LoadUnitPicker from '../workout/LoadUnitPicker.jsx'
+import { loadUnit, loadValue } from '../../lib/setLoad.js'
 import Chevron from '../ui/Chevron.jsx'
 import MoreMenu from '../ui/MoreMenu.jsx'
 import { PHASES, PHASE_LABEL, PHASE_MOVE_LABEL } from '../../lib/workoutPhases.js'
@@ -49,11 +51,12 @@ export default function ExerciseCard({
   onReplace, onRemove,
   phase = 'main', onPhase = null,
   onRevertProg, onApplyProg, onToggleProgSettings, onChangeProgSettings,
-  onUpdateSet, onStep, onAddSet, onRemoveSet,
+  onUpdateSet, onStep, onAddSet, onRemoveSet, onLoadUnit,
   onVoiceSet = null, voiceCursor = 0,
   restSlot = null,
 }) {
   const metric = exerciseMetric(entry.exercise)
+  const unit = entry.inputUnit ?? loadUnit(entry.sets?.[0])
   const [phaseMenu, setPhaseMenu] = useState(false)
   // У «своего веса» (v6.16.0) — столбец «±кг»: плюс — доп. вес (пояс), минус — помощь гравитрона/резины
   // (v7.2.0; «−» степпера уходит ниже 0). У «На время» (23.10.2026, изометрия) — необязательный «кг» снаряда.
@@ -147,7 +150,9 @@ export default function ExerciseCard({
         </span>
       </div>
 
-      {entry.prog && (
+      {entry.prog?.loadHistory && <div className="ap"><div className="ap-lbl">В прошлый раз · {daysAgoLabel(entry.prog.whenIso)}</div>
+        <div className="ap-prev"><SetsCells metric={metric} sets={entry.prog.prev} /></div></div>}
+      {entry.prog && !entry.prog.loadHistory && (
         <div className={`ap${entry.prog.muted ? ' ap-muted' : ''}`}>
           {entry.prog.muted ? (
             <div className="ap-muted-row">
@@ -262,7 +267,7 @@ export default function ExerciseCard({
       <div className="sets-head">
         {count
           ? <><span>#</span><span>{valLabel}</span><span></span></>
-          : <><span>#</span><span>{isDistance ? 'км' : extra ? '±кг' : 'кг'}</span><span>{isDistance || load ? 'мин:сек' : 'повт.'}</span><span></span></>}
+          : <><span>#</span>{metric === 'weight' && onLoadUnit ? <LoadUnitPicker unit={unit} onChange={value => onLoadUnit(ei, value)} /> : <span>{isDistance ? 'км' : extra ? '±кг' : 'кг'}</span>}<span>{isDistance || load ? 'мин:сек' : 'повт.'}</span><span></span></>}
       </div>
 
       {entry.sets.map((s, si) => (
@@ -278,8 +283,8 @@ export default function ExerciseCard({
               {/* Ноль доп. веса — пустое поле. Только ЧИСЛОВОЙ ноль: строку ввода
                   («-», «0.») показываем как есть, иначе минус и «0,5» не набрать. */}
               <SetInput
-                inputMode={extra ? 'text' : 'decimal'} value={(extra || load) && s.weight === 0 ? '' : fmtNum(s.weight ?? '')}
-                aria-label={`${isDistance ? 'Дистанция, км' : extra ? 'Доп. вес' : load ? 'Вес снаряда' : 'Вес'}, подход ${si + 1}`}
+                inputMode={extra ? 'text' : 'decimal'} value={(extra || load) && s.weight === 0 ? '' : fmtNum(loadValue(s) ?? '')}
+                aria-label={`${isDistance ? 'Дистанция, км' : extra ? 'Доп. вес' : load ? 'Вес снаряда' : unit === 'block' ? 'Номер блока' : unit === 'lb' ? 'Вес, lb' : 'Вес'}, подход ${si + 1}`}
                 placeholder={isDistance ? 'км' : (extra || load) ? '0' : undefined}
                 onChange={(e) => onUpdateSet(ei, si, 'weight', e.target.value.replace(',', '.').replace('−', '-'))}
               />
@@ -322,7 +327,7 @@ export default function ExerciseCard({
       )}
 
       {/* Голос спрятан (lib/features.js), код живет. */}
-      {VOICE_ENABLED && onVoiceSet && !isTime ? (
+      {VOICE_ENABLED && onVoiceSet && unit === 'kg' && !isTime ? (
         <SetVoice exercise={entry.exercise} sets={entry.sets} cursor={voiceCursor}
           onCommit={(si, set) => onVoiceSet(ei, si, set)}>
           <AddSetButton short={Boolean(restSlot)} onClick={() => onAddSet(ei)} />

@@ -2,7 +2,8 @@ import SheetDialog from '../ui/SheetDialog.jsx'
 import CheckIcon from '../ui/CheckIcon.jsx'
 import Icon from '../ui/Icon.jsx'
 import { fmtTonnage } from '../../lib/profileStats.js'
-import { fmtTime } from '../../lib/metric.js'
+import { fmtTime, fmtSetList } from '../../lib/metric.js'
+import { entryMetric, mainEntries } from '../../lib/entries.js'
 import { formatWorkoutDuration, workoutFinishSummary } from '../../lib/workoutFinish.js'
 
 export default function WorkoutFinishSheet({
@@ -34,14 +35,15 @@ export default function WorkoutFinishSheet({
             <dd>{summary.exerciseCount}</dd>
           </div>
           <div>
-            <dt>Подходы</dt>
-            <dd>{summary.setCount}</dd>
+            <dt>{summary.blocks ? 'Рабочие подходы' : 'Подходы'}</dt>
+            <dd>{summary.workingSets ?? summary.setCount}</dd>
           </div>
+          {summary.blocks > 0 && <div><dt>Повторения</dt><dd>{summary.repetitions}</dd></div>}
           {/* Без веса (свой вес, время, дистанция) «Тоннаж 0 кг» ничего не говорит — плитку прячем (UI-ревью 23.10). */}
           {summary.tonnage > 0 && (
             <div>
               <dt>Тоннаж</dt>
-              <dd>{tonnage.value} <span>{tonnage.unit}</span></dd>
+              <dd>{summary.blocks ? Math.round(summary.tonnage).toLocaleString('ru-RU') : tonnage.value} <span>{summary.blocks ? 'кг' : tonnage.unit}</span></dd>
             </div>
           )}
           {summary.timeUnderLoad > 0 && (
@@ -57,6 +59,14 @@ export default function WorkoutFinishSheet({
             </div>
           )}
         </dl>
+        {summary.blocks > 0 && <>
+          <p className="muted">{summary.blocks === summary.workingSets ? 'Все подходы записаны по номерам блоков.' :
+            summary.blocks === summary.loadSets ? 'Для весовых упражнений записаны только номера блоков.' :
+            `В тоннаж вошли подходы с известным весом (${summary.loadSets - summary.blocks} из ${summary.loadSets}). В остальных указан номер блока.`}</p>
+          <details><summary>Подходы по упражнениям</summary>
+            {mainEntries(workout).map((e, i) => <p key={i}><strong>{e.exercise?.name}</strong> · {fmtSetList(entryMetric(e), e.sets, ' · ')}</p>)}
+          </details>
+        </>}
 
         {mainEvent && (
           <div className={`workout-finish-event event-${mainEvent.kind}`}>

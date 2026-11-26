@@ -20,6 +20,14 @@ const KEYS = ['workout_focus_new_u1', 'workout_draft_new_u1', 'workout_feel_new_
 afterEach(() => { for (const k of KEYS) clearDraft(k); vi.mocked(getWorkout).mockReset(); vi.useRealTimers() })
 
 describe('useWorkoutDraft — новая тренировка', () => {
+  it('при редактировании и копировании сохраняет номер блока, включая запись без снимка упражнения', () => {
+    const block = { weight: 0, reps: 12, load_input: { unit: 'block', value: 7 } }
+    const entries = toEntries({ entries: [{ exercise_id: 'lat', sets: [block] }] })
+    expect(entries[0].sets[0]).toMatchObject(block)
+    startNewDraftFrom(U, entries)
+    const { result } = renderHook(() => useWorkoutDraft({ userId: U }))
+    expect(result.current.entries[0].sets[0]).toMatchObject(block)
+  })
   it('возвращает основную часть перед заминкой в черновике старой версии', () => {
     const cooldown = { exercise: { id: 'run' }, sets: [], phase: 'cooldown' }
     const main = { exercise: BENCH, sets: [{ weight: 60, reps: 5 }] }

@@ -1,4 +1,5 @@
 import { totalTonnage } from './profileStats.js'
+import { mainEntries, entryMetric } from './entries.js'
 import { fmtMetricValue, normMetric, setTimeUnderLoad } from './metric.js'
 
 function explicitDurationSeconds(workout) {
@@ -12,10 +13,18 @@ function explicitDurationSeconds(workout) {
 // created_at/updated_at: это часы документа, а не время самой тренировки.
 export function workoutFinishSummary(workout) {
   const entries = (workout?.entries ?? []).filter((entry) => (entry.sets?.length ?? 0) > 0)
+  const working = mainEntries(workout)
+  const loads = working.filter(e => entryMetric(e) === 'weight').flatMap(e => e.sets ?? [])
+  const blocks = loads.filter(s => s.load_input?.unit === 'block').length
   return {
     exerciseCount: entries.length,
     setCount: entries.reduce((sum, entry) => sum + entry.sets.length, 0),
     tonnage: totalTonnage([{ entries }]),
+    ...(blocks > 0 && { blocks, loadSets: loads.length,
+      workingSets: working.reduce((sum, e) => sum + (e.sets?.length ?? 0), 0),
+      repetitions: working.filter(e => ['weight', 'reps'].includes(entryMetric(e)))
+        .reduce((sum, e) => sum + (e.sets ?? []).reduce((n, s) => n + (Number(s.reps) || 0), 0), 0),
+    }),
     // Время под нагрузкой (изометрия, fb_c2774110): сумма секунд подходов «На время» — их «объем».
     timeUnderLoad: entries.reduce((sum, e) => sum + e.sets.reduce(
       (t, s) => t + setTimeUnderLoad(e.metric ?? e.exercise?.metric, s), 0), 0),

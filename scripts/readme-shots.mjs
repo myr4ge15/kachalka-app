@@ -64,6 +64,7 @@ const EXERCISES = [
   ex('squat', 'Приседания со штангой', 'ноги', 'quads', ['glute_max'], 'weight'),
   ex('legpress', 'Жим ногами', 'ноги', 'quads', ['glute_max'], 'weight'),
   ex('row', 'Тяга штанги в наклоне', 'спина', 'lats', ['biceps'], 'weight'),
+  ex('pulldown', 'Вертикальная тяга', 'спина', 'lats', ['biceps'], 'weight'),
   ex('pullups', 'Подтягивания', 'спина', 'lats', ['biceps'], 'reps'),
   ex('press', 'Жим штанги стоя', 'плечи', 'delt_front', ['triceps'], 'weight'),
   ex('curl', 'Подъем штанги на бицепс', 'руки', 'biceps', [], 'weight'),
@@ -137,11 +138,11 @@ async function seedData({ uid, EXERCISES, FRIENDS, AVATARS, ACCENT }) {
     id: 'fw' + (++wid), performed_at: at(daysAgo, h), user_id: u, user: { id: u, name },
     workout_exercises: list.map(([e, sets], p) => ({
       id: `we${wid}_${p}`, position: p, exercise_id: e, exercise: E[e],
-      sets: sets.map(([w, r], n) => ({ id: `s${wid}_${p}_${n}`, set_number: n + 1, weight: w, reps: r })),
+      sets: sets.map(([w, r, load_input], n) => ({ id: `s${wid}_${p}_${n}`, set_number: n + 1, weight: w, reps: r, load_input })),
     })),
   })
   const rows = [
-    W('f2', 'Сергей', 0.2, 8, [['bench', [[90, 5], [90, 4], [85, 5]]], ['pullups', [[0, 15], [0, 12]]], ['plank', [[0, 150]]]]),
+    W('f2', 'Сергей', 0.2, 8, [['bench', [[90, 5], [90, 4], [85, 5]]], ['pulldown', [[0, 12, { unit: 'block', value: 7 }]]], ['plank', [[0, 150]]]]),
     W('f3', 'Аня', 0.9, 20, [['squat', [[50, 8], [50, 8], [50, 7]]], ['run', [[5, 1650]]]]),
     W(uid, 'Андрей', 2, 19, [['squat', [[92.5, 6], [92.5, 6]]], ['row', [[62.5, 10], [62.5, 10]]], ['run', [[5, 1590]]]]),
     W('f1', 'Борис', 2.3, 18, [['bench', [[100, 3], [95, 4]]], ['press', [[55, 6], [55, 5]]], ['curl', [[40, 8], [40, 8]]]]),
@@ -149,7 +150,7 @@ async function seedData({ uid, EXERCISES, FRIENDS, AVATARS, ACCENT }) {
     W('f2', 'Сергей', 4, 9, [['squat', [[110, 5], [110, 5]]], ['run', [[6, 2050]]]]),
     W('f3', 'Аня', 5, 20, [['bench', [[42.5, 6], [42.5, 6]]], ['plank', [[0, 170]]]]),
     W('f1', 'Борис', 8, 18, [['bench', [[97.5, 3], [95, 3]]], ['pullups', [[0, 9], [0, 8]]]]),
-    W('f2', 'Сергей', 9, 9, [['bench', [[87.5, 5], [85, 5]]], ['pullups', [[0, 14], [0, 12]]], ['plank', [[0, 140]]]]),
+    W('f2', 'Сергей', 9, 9, [['bench', [[87.5, 5], [85, 5]]], ['pulldown', [[0, 10, { unit: 'block', value: 7 }]]], ['plank', [[0, 140]]]]),
     W('f3', 'Аня', 11, 20, [['squat', [[47.5, 8], [47.5, 8]]], ['run', [[4, 1380]]]]),
   ]
   const items = rows.map(rowToItem)

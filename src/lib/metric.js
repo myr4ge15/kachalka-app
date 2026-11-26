@@ -221,6 +221,11 @@ export function fmtSet(metric, s) {
   const reps = Number(s?.reps) || 0
   const weight = Number(s?.weight) || 0
   const m = normMetric(metric)
+  if (m === 'weight' && s?.load_input) {
+    const { unit, value } = s.load_input
+    if (unit === 'block') return `Номер блока ${fmtNum(value)} × ${reps}`
+    if (unit === 'lb') return `${fmtNum(value)} lb × ${reps}`
+  }
   if (m === 'distance') {
     if (weight > 0 && reps > 0) return `${fmtKm(weight)} км · ${fmtTime(reps)}`
     return weight > 0 ? `${fmtKm(weight)} км` : fmtTime(reps)

@@ -1,3 +1,4 @@
+import { loadValue } from './setLoad.js'
 import { exerciseMetric, fmtSet } from './metric.js'
 import { pluralize } from './plural.js'
 
@@ -21,7 +22,7 @@ export function isExerciseIncomplete(entry) {
   const weighted = m === 'weight' || m === 'distance'
   return entry.sets.some((set) => (
     blankOrNonPositive(set?.reps) ||
-    (weighted && blankOrNonPositive(set?.weight))
+    (weighted && blankOrNonPositive(loadValue(set)))
   ))
 }
 

@@ -437,9 +437,24 @@ describe('push тренировок: края', () => {
     await push(db)
 
     expect(server.calls[0].args.p_entries).toEqual([
-      { exercise_id: 'a', sets: [{ weight: 20, reps: 10 }], phase: 'warmup' },
-      { exercise_id: 'b', sets: [{ weight: 50, reps: 5 }] },
+      { exercise_id: 'a', load_format: 1, sets: [{ weight: 20, reps: 10 }], phase: 'warmup' },
+      { exercise_id: 'b', load_format: 1, sets: [{ weight: 50, reps: 5 }] },
     ])
+  })
+
+  it('старый RPC не подтверждает потерю номера блока: запись остается в очереди до обновления сервера', async () => {
+    const set = { weight: 0, reps: 12, load_input: { unit: 'block', value: 7 } }
+    await seedWorkout('block', { entries: [{ exercise_id: 'ex1', sets: [set] }] })
+    server.rpc = () => ({ error: { code: 'PGRST202' } })
+    await expect(push(db)).rejects.toThrow(/обновление сервера/)
+    expect(server.calls[0].name).toBe('upsert_workout_with_load')
+    expect(server.calls[0].args.p_entries[0].sets).toEqual([set])
+    expect((await db.outbox.toArray())[0].attempts).toBe(0)
+    expect((await db.workouts.get('block'))._dirty).toBe(1)
+    server.rpc = () => ({ data: { outcome: 'saved', updated_at: T2 } })
+    await push(db)
+    expect(await db.outbox.count()).toBe(0)
+    expect((await db.workouts.get('block')).entries[0].sets[0]).toEqual(set)
   })
 
   it('отказ второй тренировки не откатывает первую, уже уехавшую', async () => {

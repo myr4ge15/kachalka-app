@@ -64,6 +64,14 @@ function groupTonnage(w, group) {
 
 // Суммарный тоннаж по окну «дней назад» [to, from): from — дальняя граница
 // (например 30), to — ближняя (0). Для тренда сравниваем два соседних окна.
+export function hasBlockInWindow(sorted, now, days) {
+  const today = dayIndex(now)
+  return sorted.some(w => {
+    const age = today - dayIndex(new Date(w.performed_at))
+    return age >= 0 && age < days && mainEntries(w).some(e => e.sets?.some(s => s.load_input?.unit === 'block'))
+  })
+}
+
 export function tonnageInWindow(sorted, now, fromDaysAgo, toDaysAgo) {
   const today = dayIndex(now)
   let t = 0
@@ -275,6 +283,7 @@ function rGroupNeglected(sorted, now, anchor, { threshold = 8, sex = null } = {}
 // R6. Тренд тоннажа: последние `days` дней против предыдущих `days`. Порог 10%,
 // чтобы не шуметь. Рост важнее (priority выше), спад — как мягкое предупреждение.
 function rTonnageTrend(sorted, now, anchor, { days = 30 } = {}) {
+  if (hasBlockInWindow(sorted, now, days * 2)) return null
   const cur = tonnageInWindow(sorted, now, days, 0)
   const prev = tonnageInWindow(sorted, now, 2 * days, days)
   if (prev <= 0 || cur <= 0) return null

@@ -13,6 +13,7 @@
 // ============================================================================
 import { exerciseMetric, isCountMetric, hasExtraWeight, hasLoadWeight } from './metric.js'
 import { steppedSetValue, savableSet, needsSetWeight } from './setLimits.js'
+import { loadUnit, loadValue, loadLimit, withLoad } from './setLoad.js'
 import { templateInputPlan } from './templatePlan.js'
 import { defaultSet, sessionsForMetric, sk } from './progressionCard.js'
 import { orderByPhase, phaseValue } from './workoutPhases.js'
@@ -44,7 +45,10 @@ export function setsForExerciseReplacement(sets, prev, next) {
   const unitChanged = prev !== next && (prev === 'distance' || next === 'distance')
   const keepExtra = (hasExtraWeight(next) && hasExtraWeight(prev)) || (hasLoadWeight(next) && hasLoadWeight(prev))
   const zero = isCountMetric(next) && !keepExtra
-  return zero || unitChanged ? sets.map((s) => ({ ...s, weight: zero ? 0 : '' })) : sets
+  return sets.map(s => {
+    if (s.load_input) return withLoad(s, 'kg', zero ? 0 : '')
+    return zero || unitChanged ? { ...s, weight: zero ? 0 : '' } : s
+  })
 }
 
 // Валидацию (тот же id / дубль) держит вызывающий.
@@ -60,7 +64,10 @@ export function replaceExerciseIn(entries, idx, ex) {
 export function updateSetIn(entries, ei, si, field, value) {
   return entries.map((e, i) => {
     if (i !== ei) return e
-    const sets = e.sets.map((s, j) => (j === si ? { ...s, [field]: value } : s))
+    const sets = e.sets.map((s, j) => {
+      if (j !== si) return s
+      return field === 'weight' ? withLoad(s, loadUnit(s), value) : { ...s, [field]: value }
+    })
     return { ...e, sets }
   })
 }
@@ -74,6 +81,12 @@ export function stepSetIn(entries, ei, si, field, delta) {
   return entries.map((e, i) => {
     if (i !== ei) return e
     const metric = exerciseMetric(e.exercise)
+    const row = e.sets[si]
+    if (field === 'weight' && row?.load_input) {
+      const unit = loadUnit(row)
+      const value = Math.min(loadLimit(unit), Math.max(unit === 'block' ? 1 : 0, (Number(loadValue(row)) || 0) + Math.sign(delta)))
+      return { ...e, sets: e.sets.map((s, j) => j === si ? withLoad(s, unit, value) : s) }
+    }
     const next = steppedSetValue(e.sets[si]?.[field], metric, field, delta)
     const sets = e.sets.map((s, j) => (j === si ? { ...s, [field]: next } : s))
     return { ...e, sets }
@@ -84,8 +97,9 @@ export function stepSetIn(entries, ei, si, field, delta) {
 export function addSetIn(entries, ei) {
   return entries.map((e, i) => {
     if (i !== ei) return e
-    const last = e.sets[e.sets.length - 1] ?? defaultSet(e.exercise)
-    return { ...e, sets: [...e.sets, { weight: last.weight, reps: last.reps, _k: sk() }] }
+    const last = e.sets.at(-1) ?? defaultSet(e.exercise)
+    if (!e.sets.length && e.inputUnit) return { ...e, sets: [withLoad(last, e.inputUnit, '')] }
+    return { ...e, sets: [...e.sets, { weight: last.weight, reps: last.reps, ...(last.load_input && { load_input: last.load_input }), _k: sk() }] }
   })
 }
 
@@ -160,8 +174,9 @@ export function setsFromTemplate(ex, item, sessions) {
   const metric = exerciseMetric(ex)
   const previous = metric === 'distance' ? undefined : sessionsForMetric(sessions, metric)[0]?.sets
   return templateInputPlan(ex, item).map((set, index) => {
-    const weight = previous?.[index]?.weight
-    return { ...set, weight: Number.isFinite(weight) ? weight : set.weight, _k: sk() }
+    const prior = previous?.[index] ?? (previous?.[0]?.load_input && previous.at(-1))
+    if (!prior || !Number.isFinite(prior.weight)) return { ...set, _k: sk() }
+    return { ...withLoad(set, loadUnit(prior), loadValue(prior)), _k: sk() }
   })
 }
 

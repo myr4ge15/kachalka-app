@@ -30,6 +30,7 @@ import ExercisePicker from '../components/exercises/ExercisePicker.jsx'
 import TechniqueSheet from '../components/exercises/TechniqueSheet.jsx'
 import { techniqueSlugFor } from '../lib/technique.js'
 import TemplatePicker from '../components/templates/TemplatePicker.jsx'
+import { withLoad, loadValue } from '../lib/setLoad.js'
 import ExerciseCard from '../components/exercises/ExerciseCard.jsx'
 import DateField from '../components/ui/DateField.jsx'
 import WorkoutActions from '../components/workout/WorkoutActions.jsx'
@@ -702,6 +703,9 @@ export default function WorkoutScreen({ user, workoutId = null, onBack, onSaved,
                   onApplyProg={applyProg}
                   onToggleProgSettings={toggleProgSettings}
                   onChangeProgSettings={changeProgSettings}
+                  onLoadUnit={(idx, unit) => setEntries(prev => prev.map((row, i) => i === idx ? {
+                    ...row, inputUnit: unit, prog: null, sets: row.sets.map(s => withLoad(s, unit, loadValue(s))),
+                  } : row))}
                   onUpdateSet={updateSet}
                   onStep={step}
                   onAddSet={addSet}

@@ -53,6 +53,15 @@ describe('FeedScreen', () => {
   })
   afterEach(() => { vi.restoreAllMocks() })
 
+  it.each([['block', 7, 'Номер блока 7 × 12', '+2 повт.'], ['lb', 100, '100 lb × 12', '+2 lb']])(
+    'показывает прирост рядом с текущим подходом (%s)', (unit, value, label, delta) => {
+      const set = { weight: 0, reps: 12, load_input: { unit, value } }
+      mocks.feed = [post({ entries: [{ exercise_id: 'lat', name: 'Тяга', metric: 'weight', sets: [set], loadGain: { index: 0, delta: 2 } }] })]
+      renderFeed()
+      expect(screen.getByText(delta).parentElement).toHaveTextContent(label)
+      expect(screen.queryByText(/В прошлый раз/)).not.toBeInTheDocument()
+    })
+
   it('кэша еще нет — каркас; при входе тянет свежую ленту и пишет «обновлено»', async () => {
     renderFeed()
     expect(screen.getByLabelText('Загрузка')).toBeInTheDocument()

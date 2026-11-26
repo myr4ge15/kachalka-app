@@ -10,6 +10,7 @@
 // считаются на клиенте по загруженному окну ленты.
 // ============================================================================
 import { phaseValue } from '../lib/workoutPhases.js'
+import { storedSet, personalLoadGain } from '../lib/setLoad.js'
 import { withPhase } from './phaseColumn.js'
 import { recordKey, trackPersonalBest } from '../lib/records.js'
 import { currentExerciseShapes, entryUnitMetric, mainEntries, workoutChronology } from '../lib/entries.js'
@@ -47,7 +48,7 @@ export const SELECT_FEED =
   'user:users!workouts_user_id_fkey(id, name), ' +
   'workout_exercises(id, position, exercise_id, historical_metric, phase, ' +
   'exercise:exercises(id, name, muscle_group, is_bench_lift, is_female_lift, metric), ' +
-  'sets(id, set_number, weight, reps))'
+  'sets(id, set_number, load_input, weight, reps))'
 
 // server row → элемент ленты (денормализованный, с готовой сводкой).
 // Экспортируется для тестов (чистая функция, поведение не зависит от сети/БД).
@@ -57,7 +58,7 @@ export function rowToItem(w) {
     .map((we) => {
       const sets = [...(we.sets ?? [])]
         .sort((a, b) => (a.set_number ?? 0) - (b.set_number ?? 0))
-        .map((s) => ({ weight: Number(s.weight), reps: Number(s.reps) }))
+        .map(storedSet)
       return {
         exercise_id: we.exercise_id,
         name: we.exercise?.name ?? '—',
@@ -178,7 +179,7 @@ export function reactionsKey(items) {
 // ложный кубок (обращение fb_b85b578b: «Махи 8 кг» уже были, бот промолчал верно).
 // Нет baseline (офлайн, старый сервер) — как раньше, по окну.
 // Экспортируется для тестов (чистая функция; мутирует item.prs на месте).
-export function computePrs(items, baseline = null) {
+export function computePrs(items, baseline = null, earlierLoads = new Map()) {
   const byUser = new Map()
   const shapes = currentExerciseShapes(items)
   for (const [uid, before] of baseline ?? []) {
@@ -189,6 +190,7 @@ export function computePrs(items, baseline = null) {
     byUser.set(uid, best)
   }
   const chronological = [...items].sort(workoutChronology)
+  const previousSessions = new Map()
   for (const item of chronological) {
     item.prs = []
     let best = byUser.get(item.user_id)
@@ -198,6 +200,12 @@ export function computePrs(items, baseline = null) {
     }
     for (const e of mainEntries(item)) {
       const metric = entryUnitMetric(e, shapes.get(e.exercise_id)?.metric)
+      const key = JSON.stringify([item.user_id, e.exercise_id])
+      const prior = previousSessions.get(key) ?? earlierLoads.get(JSON.stringify([item.id, e.exercise_id]))
+      const gain = metric === 'weight' && personalLoadGain(e.sets, prior)
+      if (gain) e.loadGain = gain
+      else delete e.loadGain
+      previousSessions.set(key, e.sets)
       const record = trackPersonalBest(best, e.exercise_id, metric, e.sets)
       if (record) item.prs.push({ name: e.name, metric, value: record.value })
     }
@@ -218,6 +226,22 @@ export async function fetchPrBaseline(items) {
   } catch {
     return null
   }
+}
+
+async function previousLoads(items) {
+  const seen = new Set()
+  const ids = new Set()
+  for (const item of [...items].sort(workoutChronology)) {
+    for (const entry of mainEntries(item)) {
+      const key = JSON.stringify([item.user_id, entry.exercise_id])
+      if (!seen.has(key) && entry.sets?.some(s => s.load_input)) ids.add(item.id)
+      seen.add(key)
+    }
+  }
+  if (!ids.size) return new Map()
+  const res = await withTimeout(supabase.rpc('feed_previous_loads', { p_workout_ids: [...ids] }))
+  if (res.error) throw res.error
+  return new Map((res.data ?? []).map(row => [JSON.stringify([row.workout_id, row.exercise_id]), row.previous_sets]))
 }
 
 // Строки feed_pr_baseline → Map(user_id → Map(exercise_id → best)).
@@ -265,7 +289,7 @@ export async function fetchFeed(userId, d = db, { refreshRecords = false } = {})
   if (probe.error) throw probe.error
   // |pr:3 — версия правила кубков (16.10, база до окна): после обновления кэш пересчитается один раз.
   const names = JSON.stringify((probe.data ?? []).map((w) => [w.id, w.user?.name]))
-  const sig = names + '|' + rosterSignature(probe.data ?? []) + '|ex:' + ((await getMeta(EXERCISES_SIG, d)) ?? '') + '|pr:3'
+  const sig = names + '|' + rosterSignature(probe.data ?? []) + '|ex:' + ((await getMeta(EXERCISES_SIG, d)) ?? '') + '|pr:3|loads:1'
   const changed = sig !== (await getMeta(FEED_SIG, d))
 
   let items
@@ -294,12 +318,13 @@ export async function fetchFeed(userId, d = db, { refreshRecords = false } = {})
   let baselineReady = false
   const readySig = await getMeta('feed_pr_ready', d)
   if (changed || refreshRecords || readySig !== sig) {
-    const baseline = await fetchPrBaseline(items)
-    baselineReady = Boolean(baseline) || !items.length
+    const [baseline, loads] = await Promise.all([fetchPrBaseline(items), previousLoads(items).catch(() => null)])
+    baselineReady = (Boolean(baseline) && Boolean(loads)) || !items.length
     if (changed || baselineReady) {
-      const before = JSON.stringify(items.map((item) => item.prs))
-      computePrs(items, baseline)
-      recordsChanged = before !== JSON.stringify(items.map((item) => item.prs))
+      const recordState = () => JSON.stringify(items.map(item => [item.prs, item.entries?.map(e => e.loadGain)]))
+      const before = recordState()
+      computePrs(items, baseline, loads ?? new Map())
+      recordsChanged = before !== recordState()
     }
     if (!baselineReady && !changed && readySig === sig) await setMeta('feed_pr_ready', null, d)
   }

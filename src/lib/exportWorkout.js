@@ -13,7 +13,7 @@ import { phaseValue } from './workoutPhases.js'
 
 // Один подход → чистый {weight, reps}.
 function cleanSet(s) {
-  return { weight: Number(s?.weight) || 0, reps: Number(s?.reps) || 0 }
+  return { weight: Number(s?.weight) || 0, reps: Number(s?.reps) || 0, ...(s?.load_input && { load_input: s.load_input }) }
 }
 
 // Одна тренировка → экспортный вид без внутренних флагов.

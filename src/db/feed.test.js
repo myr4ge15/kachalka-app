@@ -9,6 +9,17 @@ import { rowToItem, computePrs, baselineMap, getCachedFeed, carryComments, react
 import { overlayRecentComments, resetRecentComments } from './comments.js'
 
 describe('rowToItem (денормализация серверной строки)', () => {
+  it('читает номер блока рядом со старой неполной записью, сохраняя исходный порядок', () => {
+    const block = { weight: 0, reps: 10, load_input: { unit: 'block', value: 7 } }
+    const item = rowToItem({ workout_exercises: [
+      { exercise_id: 'legacy' },
+      { exercise_id: 'lat', historical_metric: 'weight', sets: [block, { ...block, reps: 12 }] },
+    ] })
+    expect(item.tonnage).toBe(0)
+    expect(item.entries.map(e => e.exercise_id)).toEqual(['legacy', 'lat'])
+    expect(item.entries[0].sets).toEqual([])
+    expect(item.entries[1].sets).toEqual([block, { ...block, reps: 12 }])
+  })
   const row = {
     id: 'w1', performed_at: '2026-05-01', user_id: 'u1',
     user: { id: 'u1', name: 'Петя' },
@@ -49,6 +60,20 @@ describe('rowToItem (денормализация серверной строк�
 })
 
 describe('computePrs (отметки рекордов в окне)', () => {
+  it('показывает личный прогресс только по прошлым подходам этого участника', () => {
+    const item = (id, uid, day, reps) => ({ id, user_id: uid, performed_at: day, entries: [
+      { exercise_id: 'lat', metric: 'weight', sets: [{ reps, weight: 0, load_input: { unit: 'block', value: 7 } }] },
+    ] })
+    const a = item('a', 'anna', '2026-11-19', 10)
+    const b = item('b', 'max', '2026-11-20', 20)
+    const c = item('c', 'anna', '2026-11-26', 12)
+    computePrs([c, b, a])
+    expect(c.entries[0].loadGain.delta).toBe(2)
+    expect(b.entries[0].loadGain).toBeUndefined()
+    expect(c.prs).toEqual([])
+    computePrs([c], null, new Map([[JSON.stringify(['c', 'lat']), a.entries[0].sets]]))
+    expect(c.entries[0].loadGain.delta).toBe(2)
+  })
   const it_ = (id, user_id, at, value) => ({
     id, user_id, performed_at: at,
     entries: [{ exercise_id: 'ex_bench', name: 'Жим', metric: 'weight', sets: [{ weight: value, reps: 5 }] }],

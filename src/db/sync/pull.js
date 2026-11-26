@@ -26,6 +26,7 @@ import { reconcileStaleWorkouts } from '../../lib/pullReconcile.js'
 import { maxUpdatedAt, changedSince, rosterSignature } from '../../lib/pullWatermark.js'
 import { pickExerciseShape } from '../../lib/entries.js'
 import { phaseValue } from '../../lib/workoutPhases.js'
+import { storedSet } from '../../lib/setLoad.js'
 import { withPhase } from '../phaseColumn.js'
 
 // Инкрементальный pull (BACKLOG-техдолг): вместо полного снапшота всей базы каждые
@@ -58,7 +59,7 @@ const SELECT_WORKOUT =
   'id, performed_at, created_at, updated_at, user_id, ' +
   'workout_exercises(id, position, exercise_id, historical_metric, phase, ' +
   'exercise:exercises(id, name, muscle_group, submuscle, secondary, is_bench_lift, metric), ' +
-  'sets(id, set_number, weight, reps))'
+  'sets(id, set_number, load_input, weight, reps))'
 const SELECT_TEMPLATE =
   'id, name, user_id, is_public, created_at, updated_at, author:users(name), ' +
   'template_exercises(position, exercise_id, phase, target_sets, target_reps, target_weight, target_plan, ' +
@@ -78,7 +79,7 @@ function rowToDoc(w, local) {
       },
       sets: [...(we.sets ?? [])]
         .sort((a, b) => (a.set_number ?? 0) - (b.set_number ?? 0))
-        .map((s) => ({ weight: Number(s.weight), reps: Number(s.reps) })),
+        .map(storedSet),
       ...(phaseValue(we.phase) ? { phase: phaseValue(we.phase) } : {}),
     }))
   // Для старых импортов историческая метрика пока сохранилась только в локальной копии.

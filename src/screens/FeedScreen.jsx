@@ -11,6 +11,7 @@ import { syncNow } from '../db/sync.js'
 import { onOnline, onResume, onReselect } from '../lib/appEvents.js'
 import { fmtWhen, fmtAgo } from '../lib/dates.js'
 import SetsCells from '../components/workout/SetsCells.jsx'
+import { fmtSet, fmtNum } from '../lib/metric.js'
 import { vibrate, HAPTIC } from '../lib/haptics.js'
 import { usePullToRefresh } from '../hooks/usePullToRefresh.js'
 import PullIndicator from '../components/ui/PullIndicator.jsx'
@@ -235,7 +236,12 @@ export default function FeedScreen({ user, onOpenMember, flashId = null, thread 
                 <li key={e.exercise_id ?? e.name ?? i} className="history-ex">
                   <span className="history-ex-name"><PhaseTag entry={e} />{e.name}{prForEntry(w, e) && <> <FeedPrBadge pr={prForEntry(w, e)} /></>}</span>
                   <span className="history-ex-sets">
-                    <SetsCells metric={e.metric} sets={e.sets} />
+                    {e.loadGain ? e.sets.map((set, index) => <span key={index}>
+                      {index > 0 && ', '}{fmtSet(e.metric, set)}
+                      {index === e.loadGain.index && <strong className="feed-load-gain">
+                        +{fmtNum(e.loadGain.delta)} {set.load_input.unit === 'block' ? 'повт.' : 'lb'}
+                      </strong>}
+                    </span>) : <SetsCells metric={e.metric} sets={e.sets} />}
                   </span>
                 </li>
               ))}

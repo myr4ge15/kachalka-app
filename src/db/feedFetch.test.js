@@ -67,6 +67,20 @@ afterEach(async () => {
 })
 
 describe('fetchFeed — запись кэша только при изменениях', () => {
+  it('дополняет карточку прошлым подходом за пределами ленты после восстановления связи', async () => {
+    const block = { weight: 0, reps: 12, load_input: { unit: 'block', value: 7 } }
+    server.workouts[0].workout_exercises = [{
+      exercise_id: 'lat', exercise: { name: 'Вертикальная тяга', metric: 'weight' }, sets: [block],
+    }]
+    await fetchFeed(userId, db)
+    expect((await db.feed.get('w1')).entries[0].loadGain).toBeUndefined()
+    server.rpc = name => ({ error: null, data: name === 'feed_previous_loads' ? [{
+      workout_id: 'w1', exercise_id: 'lat', previous_sets: [{ ...block, reps: 10 }],
+    }] : [] })
+    await fetchFeed(userId, db)
+    expect((await db.feed.get('w1')).entries[0].loadGain).toEqual({ index: 0, delta: 2 })
+    expect(server.rpcCalls.find(c => c.name === 'feed_previous_loads').args.p_workout_ids).toEqual(['w1'])
+  })
   it('тот же снимок второй раз не пишет в db.feed', async () => {
     await fetchFeed(userId, db)
     const writes = vi.fn()

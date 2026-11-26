@@ -32,3 +32,12 @@ it('у изометрии вес снаряда редактируется и о
   fireEvent.click(screen.getByRole('button', { name: 'Меньше, подход 1' }))
   expect(onChange).toHaveBeenLastCalledWith([{ _k: 'a', weight: 998.75, reps: 30 }])
 })
+it('меняет номер блока шаблона и сохраняет нулевой вклад в тоннаж', () => {
+  const onChange = vi.fn()
+  render(<TemplateSets metric="weight" sets={[{ _k: 'a', weight: 0, reps: 12, load_input: { unit: 'block', value: 7 } }]} onChange={onChange} />)
+  expect(screen.getByText('Номер блока')).toBeVisible()
+  fireEvent.click(screen.getByRole('button', { name: 'Больше, подход 1' }))
+  expect(onChange.mock.lastCall[0][0]).toMatchObject({ weight: 0, load_input: { unit: 'block', value: 8 } })
+  fireEvent.change(screen.getByLabelText('Вес или дистанция подхода 1'), { target: { value: '9' } })
+  expect(onChange.mock.lastCall[0][0].load_input.value).toBe('9')
+})

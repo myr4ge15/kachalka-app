@@ -89,6 +89,9 @@ export function buildRecommendation(ex, allSessions, progState) {
   const metric = exerciseMetric(ex)
   const sessions = sessionsForMetric(allSessions, metric)
   const last = sessions[0]?.sets ?? null
+  if (metric === 'weight' && last?.some(s => s.load_input)) {
+    return { sets: last.map(s => ({ ...s, _k: sk() })), meta: { loadHistory: true, prev: last, whenIso: sessions[0].performed_at } }
+  }
   const copyOrDefault = () =>
     last?.length ? last.map((s) => ({ weight: Number(s.weight), reps: Number(s.reps), _k: sk() })) : [defaultSet(ex)]
   // Глобально выключено → никаких панелей. Для дистанции прогрессию не считаем

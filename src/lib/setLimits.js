@@ -17,6 +17,7 @@
 // ============================================================================
 
 import { normMetric, isCountMetric, hasExtraWeight, hasLoadWeight } from './metric.js'
+import { loadUnit, loadValue, loadLimit, withLoad } from './setLoad.js'
 
 // Верхние границы. Подобраны с большим запасом над человеческими рекордами,
 // чтобы не резать реальные данные, но отсекать явный мусор/переполнение.
@@ -102,9 +103,17 @@ export function toNum(v) {
 // отбрасывала незаполненные — «Сохранить (5)» записывало 4 без единого слова.
 export function savableSet(set, metric = 'weight') {
   if (needsSetWeight(set, metric)) return null
+  if (set?.load_input && normMetric(metric) === 'weight') {
+    const unit = loadUnit(set)
+    const value = toNum(loadValue(set))
+    const reps = clampReps(toNum(set.reps), metric)
+    if (!['lb', 'block'].includes(unit) || !reps || !Number.isFinite(value) || value < 0 || value > loadLimit(unit)) return null
+    if (unit === 'block' && (!Number.isInteger(value) || value < 1)) return null
+    return withLoad({ reps }, unit, Math.round(value * 100) / 100)
+  }
   return clampSet(toNum(set?.weight), toNum(set?.reps), metric)
 }
 
 export function needsSetWeight(set, metric) {
-  return normMetric(metric) === 'weight' && String(set?.weight ?? '').trim() === ''
+  return normMetric(metric) === 'weight' && String(loadValue(set) ?? '').trim() === ''
 }

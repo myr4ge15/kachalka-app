@@ -8,6 +8,15 @@ const SELECT = 'id, phase, exercise_id'
 const noPhase = { code: '42703', message: 'column workout_exercises.phase does not exist' }
 const same = (p) => p // без таймаута: билдер в тестах — уже готовый ответ
 
+it('читает старый сервер без обеих колонок и не гасит прочие ошибки', async () => {
+  const build = vi.fn(fields => {
+    const missing = ['load_input', 'historical_metric'].find(name => fields.includes(name))
+    return missing ? { error: { code: '42703', message: missing } } : { data: fields }
+  })
+  await expect(withPhase('load_input, historical_metric, weight', build, { timeout: same })).resolves.toEqual({ data: 'weight' })
+  expect(build).toHaveBeenCalledTimes(3)
+})
+
 afterEach(() => resetPhaseColumn())
 
 describe('isPhaseColumnError', () => {

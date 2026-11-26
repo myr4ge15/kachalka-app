@@ -32,7 +32,7 @@ import { orderByPhase, phaseValue } from '../lib/workoutPhases.js'
 export function toEntries(workout) {
   return orderByPhase(workout?.entries).map((e) => ({
     exercise: e.exercise ?? { id: e.exercise_id, name: '—' },
-    sets: (e.sets ?? []).map((s) => ({ weight: s.weight, reps: s.reps, _k: sk() })),
+    sets: (e.sets ?? []).map((s) => ({ weight: s.weight, reps: s.reps, ...(s.load_input && { load_input: s.load_input }), _k: sk() })),
     ...(phaseValue(e.phase) ? { phase: phaseValue(e.phase) } : {}),
   }))
 }
@@ -60,7 +60,7 @@ export function startNewDraftFrom(userId, entries) {
   for (const key of [k.feel, k.date, k.start, k.focus]) dropDraft(key)
   const copy = (entries ?? []).filter((e) => e.sets?.length > 0).map((e) => ({
     exercise: e.exercise,
-    sets: e.sets.map((s) => ({ weight: s.weight, reps: s.reps, _k: sk(), ...(s.targetLabel && { targetLabel: s.targetLabel }) })),
+    sets: e.sets.map((s) => ({ weight: s.weight, reps: s.reps, ...(s.load_input && { load_input: s.load_input }), _k: sk(), ...(s.targetLabel && { targetLabel: s.targetLabel }) })),
     ...(e.planNote && { planNote: e.planNote }),
     ...('planRestSec' in e && { planRestSec: e.planRestSec }),
     ...(e.planContext && { planContext: e.planContext }),
@@ -73,7 +73,7 @@ export function startNewDraftFrom(userId, entries) {
 // Отпечаток формы для сравнения с документом: id упражнений, подходы строками, дата, оценки.
 function snapshotOf(entries, performedAt, feels) {
   return JSON.stringify({
-    e: entries.map((x) => ({ id: x.exercise?.id, phase: phaseValue(x.phase), s: x.sets.map((s) => [String(s.weight), String(s.reps)]) })),
+    e: entries.map((x) => ({ id: x.exercise?.id, phase: phaseValue(x.phase), s: x.sets.map((s) => [String(s.weight), String(s.reps), s.load_input]) })),
     p: performedAt,
     f: feels,
   })

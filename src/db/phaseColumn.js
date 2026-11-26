@@ -11,9 +11,12 @@ export async function withPhase(select, build, { timeout = withTimeout } = {}) {
   // До наката серверного хранения метрик офлайн-история и лента по-прежнему читаются.
   async function read(fields) {
     const res = await timeout(build(fields))
+    if (fields.includes('load_input, ') && res?.error?.code === '42703' && /load_input/.test(res.error.message ?? '')) {
+      return read(fields.replace('load_input, ', ''))
+    }
     if (fields.includes('historical_metric, ') && res?.error?.code === '42703'
       && /historical_metric/.test(res.error.message ?? '')) {
-      return timeout(build(fields.replace('historical_metric, ', '')))
+      return read(fields.replace('historical_metric, ', ''))
     }
     return res
   }
