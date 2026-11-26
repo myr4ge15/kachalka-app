@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useRef, useState } from 'react'
 import {
-  parseRestSettings, parseRestRun, restPhase, startRest, adjustRest, restDurationFor,
+  parseRestSettings, parseRestRun, restPhase, startRest, adjustRest, restDurationFor, clampRestSec,
   rememberRestDuration, restPushText, REST_LATE_SIGNAL_MS, REST_PUSH_CANCEL_MS,
 } from '../lib/restTimer.js'
 import { unlockRestAudio, playRestDone, holdScreen, releaseScreen } from '../lib/restSignal.js'
@@ -44,7 +44,7 @@ export function writeRestSettings(userId, settings) {
   if (!settings.on) write(restRunKey(userId), null)
 }
 
-export function useRestTimer(userId, { exercise = null, ready = true, active = true } = {}) {
+export function useRestTimer(userId, { exercise = null, plannedSec = null, onDurationChange, ready = true, active = true } = {}) {
   const [settings, setSettingsState] = useState(() => readRestSettings(userId))
   const [run, setRunState] = useState(() => parseRestRun(read(restRunKey(userId)), Date.now()))
   const [now, setNow] = useState(() => Date.now())
@@ -57,6 +57,8 @@ export function useRestTimer(userId, { exercise = null, ready = true, active = t
   const state = restPhase(run, now)
   const exId = exercise?.id ?? null
   const exName = exercise?.name ?? null
+  const planDuration = plannedSec == null ? null : clampRestSec(plannedSec)
+  const idleSec = planDuration ?? restDurationFor(settings, exId)
 
   const setRun = useCallback((next) => {
     runRef.current = next
@@ -81,13 +83,13 @@ export function useRestTimer(userId, { exercise = null, ready = true, active = t
 
   const start = useCallback((sec) => {
     const t = Date.now()
-    const dur = sec ?? restDurationFor(settingsRef.current, exId)
+    const dur = sec ?? idleSec
     unlockRestAudio() // в жесте нажатия: к концу отдыха iPhone даст звук
     const r = startRest({ durSec: dur, now: t, exerciseId: exId, exerciseName: exName })
     signaledRef.current = null
     setRun(r)
     pushFor(r, Math.round(r.durMs / 1000))
-  }, [exId, exName, setRun, pushFor])
+  }, [exId, exName, idleSec, setRun, pushFor])
 
   const stop = useCallback(() => {
     setRun(null)
@@ -101,7 +103,8 @@ export function useRestTimer(userId, { exercise = null, ready = true, active = t
     const t = Date.now()
     const prev = runRef.current
     if (!prev || restPhase(prev, t).phase !== 'run') {
-      setSettings((s) => rememberRestDuration(s, exId, restDurationFor(s, exId) + deltaSec))
+      setSettings((s) => rememberRestDuration(s, exId, (planDuration ?? restDurationFor(s, exId)) + deltaSec))
+      onDurationChange?.()
       if (prev) stop()
       return
     }
@@ -110,13 +113,14 @@ export function useRestTimer(userId, { exercise = null, ready = true, active = t
     const left = Math.round((next.endsAt - t) / 1000)
     if (left >= 1) pushFor(next, left)
     else cancelRestPush(userId)
-  }, [userId, pushFor, setRun, setSettings, exId, stop])
+  }, [userId, pushFor, setRun, setSettings, exId, stop, planDuration, onDurationChange])
 
   // Выбор пресета: запомнить для упражнения и сразу начать отдых этой длины.
   const choose = useCallback((sec) => {
     setSettings((prev) => rememberRestDuration(prev, exId, sec))
+    onDurationChange?.()
     start(sec)
-  }, [exId, setSettings, start])
+  }, [exId, setSettings, start, onDurationChange])
 
   // Тик: 4 раза в секунду, пока есть запуск и экран виден (цифры не «перепрыгивают»).
   // Свернули — тик стоит; при возврате пересчет сразу по visibilitychange.
@@ -186,7 +190,7 @@ export function useRestTimer(userId, { exercise = null, ready = true, active = t
     setSettings,
     state,
     run,
-    idleSec: restDurationFor(settings, exId),
+    idleSec,
     start,
     stop,
     adjust,

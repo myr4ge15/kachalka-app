@@ -71,6 +71,23 @@ describe('WorkoutScreen: таймер отдыха', () => {
     expect(JSON.parse(localStorage.getItem('gym_app_rest_run_u1'))).toMatchObject({ durMs: 90_000, exerciseId: 'bench' })
   })
 
+  it('в начатом плане старой беты таймер берет отдых из заметки, ручная правка переживает перезапуск', () => {
+    const row = { ...draft[0], sets: [{ ...draft[0].sets[0], targetLabel: '60 кг · 8 повт.' }], planNote: 'Отдых 120–180 с\nСпокойный темп' }
+    writeDraft('workout_draft_new_u1', [row])
+    const app = render(<WorkoutScreen user={user} />)
+    expect(pill()).toHaveAccessibleName('Таймер отдыха, 2:00. Начать')
+    fireEvent.click(pill())
+    expect(scheduleRestPush).toHaveBeenCalledWith('u1', expect.objectContaining({ inSec: 120 }))
+    expect(localStorage.getItem('gym_app_rest_u1')).toBeNull()
+    fireEvent.click(pill())
+    fireEvent.click(screen.getByRole('button', { name: 'Стоп' }))
+    fireEvent.click(screen.getByRole('button', { name: 'Плюс 15 секунд' }))
+    app.unmount()
+    resetDraftMemory()
+    render(<WorkoutScreen user={user} />)
+    expect(pill()).toHaveAccessibleName('Таймер отдыха, 2:15. Начать')
+  })
+
   it('лист: пресет запоминается для упражнения, «Стоп» снимает отдых и пуш', async () => {
     writeDraft(`workout_draft_new_${user.id}`, draft)
     render(<WorkoutScreen user={user} />)

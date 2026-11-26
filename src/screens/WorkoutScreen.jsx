@@ -20,6 +20,7 @@ import { exerciseUsageSections } from '../lib/exerciseUsage.js'
 import { useWorkoutFocus } from '../hooks/useWorkoutFocus.js'
 import { useWorkoutDraft, hasNewDraft, startNewDraftFrom } from '../hooks/useWorkoutDraft.js'
 import { useRestTimer } from '../hooks/useRestTimer.js'
+import { plannedRestSeconds } from '../lib/planImport/draft.js'
 import { localYmd } from '../lib/calendar.js'
 import { useSortable } from '../hooks/useSortable.js'
 import { createPhaseSortLayout } from '../hooks/phaseSortLayout.js'
@@ -130,13 +131,20 @@ export default function WorkoutScreen({ user, workoutId = null, onBack, onSaved,
   // кнопка — в раскрытой карточке упражнения рядом с «+ подход» (не в шапке): длинную
   // тренировку не надо листать наверх, а пустая тренировка таймера не показывает.
   const [restOpen, setRestOpen] = useState(false)
-  const activeExercise = entries.find((e) => e.exercise.id === activeExerciseId)?.exercise ?? null
+  const activeEntry = entries.find((e) => e.exercise.id === activeExerciseId)
+  const activeExercise = activeEntry?.exercise ?? null
+  const plannedSec = plannedRestSeconds(activeEntry)
   // «Сегодня» — день, когда открыли экран записи, а не текущие часы (20.10.2026): в полночь
   // тренировка, начатая в 23:5x, переставала быть «сегодняшней», и идущий отдых гас вместе с пушем.
   const [openDay] = useState(() => localYmd(new Date()))
   const isToday = !loading && localYmd(performedAt) === openDay
   const restShown = isNew && isToday
-  const rest = useRestTimer(user.id, { exercise: activeExercise, ready: !loading, active: restShown })
+  const rest = useRestTimer(user.id, {
+    exercise: activeExercise, ready: !loading, active: restShown, plannedSec,
+    // После ручного выбора источником снова служат запомненные настройки таймера.
+    onDurationChange: plannedSec == null ? undefined : () => setEntries(prev => prev.map(entry =>
+      entry.exercise.id === activeExerciseId ? { ...entry, planRestSec: null } : entry)),
+  })
   const restVisible = restShown && rest.settings.on
   function tapRest() {
     if (rest.state.phase === 'run') setRestOpen(true)

@@ -38,6 +38,15 @@ export function matchExercise(item, catalog) {
   return matches.length === 1 ? matches[0].id : ''
 }
 
+export function plannedRestSeconds(entry) {
+  if (!entry) return null
+  if ('planRestSec' in entry) return entry.planRestSec
+  // Уже начатый импорт на старой бете сохранил отдых первой строкой заметки.
+  if (!entry.planNote || !entry.sets?.some(s => s.targetLabel)) return null
+  const old = /^Отдых (\d+)(?:–\d+)? с(?:\n|$)/u.exec(entry.planNote)
+  return old ? Number(old[1]) : null
+}
+
 export function planEntry(item) {
   const { planTarget, ...exercise } = item
   if (!planTarget) return { exercise, sets: [defaultSet(exercise)] }
@@ -49,6 +58,7 @@ export function planEntry(item) {
   })
   const phase = planTarget.sets[0]?.phase
   const note = [planTarget.rest_sec && 'Отдых ' + display(planTarget.rest_sec) + ' с', planTarget.notes].filter(Boolean).join('\n')
-  return { exercise, sets, ...(note && { planNote: note }),
+  const rest = planTarget.rest_sec
+  return { exercise, sets, planRestSec: Array.isArray(rest) ? rest[0] : rest ?? null, ...(note && { planNote: note }),
     ...(phase && phase !== 'work' && planTarget.sets.every(s => s.phase === phase) && { phase }) }
 }

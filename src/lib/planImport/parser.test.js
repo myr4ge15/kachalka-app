@@ -2,7 +2,7 @@ import { test } from 'vitest'
 import assert from 'node:assert/strict'
 import { parseWorkoutPlan as parse } from './parser.js'
 import { matchExport, checkLastWorkout } from './catalog.js'
-import { acceptsTargets, planEntry, matchExercise, describeTarget } from './draft.js'
+import { acceptsTargets, planEntry, plannedRestSeconds, matchExercise, describeTarget } from './draft.js'
 
 const parseSets = text => parse(text).plan.exercises.flatMap(e => e.sets)
 const jsonPlan = { format: 'workout-plan/v1', exercises: [{ name: 'Жим', sets: [{ kg: 25, reps: [6, 8] }] }] }
@@ -88,6 +88,9 @@ test('Черновик сохраняет цели и пустые диапаз�
   assert.deepEqual(entry.exercise, ex)
   assert.equal(entry.phase, 'warmup')
   assert.equal(entry.planNote, 'Отдых 30–45 с')
+  assert.equal(plannedRestSeconds(entry), 30)
+  assert.equal(plannedRestSeconds({ ...entry, planRestSec: null }), null)
+  assert.equal(plannedRestSeconds({ sets: entry.sets, planNote: 'Заметка про отдых' }), null)
   assert.equal(entry.sets[0].reps, 60)
   const run = planEntry({ metric: 'distance', planTarget: { sets: [{ km: 2, seconds: 600 }, { seconds: [30, 45], optional: true }] } })
   assert.equal(run.sets[0].weight, 2)

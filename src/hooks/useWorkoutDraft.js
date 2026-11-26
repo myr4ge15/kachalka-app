@@ -62,6 +62,7 @@ export function startNewDraftFrom(userId, entries) {
     exercise: e.exercise,
     sets: e.sets.map((s) => ({ weight: s.weight, reps: s.reps, _k: sk(), ...(s.targetLabel && { targetLabel: s.targetLabel }) })),
     ...(e.planNote && { planNote: e.planNote }),
+    ...('planRestSec' in e && { planRestSec: e.planRestSec }),
     ...(e.planContext && { planContext: e.planContext }),
     ...(phaseValue(e.phase) ? { phase: phaseValue(e.phase) } : {}),
   }))
