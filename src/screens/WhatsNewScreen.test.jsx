@@ -24,6 +24,17 @@ describe('WhatsNewScreen (v6.4.0)', () => {
     expect(screen.queryByText('Ночной фон')).toBeNull()
   })
 
+  it('две версии 1.0.0 из разных эпох раскрываются отдельно', () => {
+    const releases = entries.map((e, i) => ({ ...e, version: '1.0.0', epoch: 3 - i }))
+    render(<WhatsNewScreen entries={releases} />)
+    const [current, previous] = screen.getAllByRole('button', { name: /1\.0\.0/ })
+    expect(previous).toHaveAttribute('aria-expanded', 'false')
+    fireEvent.click(previous)
+    fireEvent.click(current)
+    expect(previous).toHaveAttribute('aria-expanded', 'true')
+    expect(current).toHaveAttribute('aria-expanded', 'false')
+  })
+
   it('открытие гасит метку «новое» в Настройках', () => {
     render(<WhatsNewScreen onBack={() => {}} entries={entries} />)
     expect(localStorage.getItem(OPENED_KEY)).toBe('6.4.0')

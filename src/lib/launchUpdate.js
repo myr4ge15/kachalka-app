@@ -22,6 +22,7 @@
 // Чистые части (разбор манифеста, ключи кэша, прогресс) экспортируются и покрыты
 // launchUpdate.test.js; DOM и сеть приходят параметрами.
 // ============================================================================
+import { releaseKey } from './whatsNew.js'
 import { isRealUpdate } from './pwaUpdate.js'
 
 export const VERSION_TIMEOUT_MS = 3000
@@ -69,7 +70,11 @@ const realSleep = (ms) => new Promise((r) => setTimeout(r, ms))
 // Тело под тем же сроком, что и заголовки: иначе оборванный ответ держал бы сплэш до страховки.
 const serverVersion = (fetchFn, url) => withTimeout((async () => {
   const res = await fetchFn(url, { cache: 'no-store' })
-  return res.ok ? (await res.json())?.version ?? null : null
+  if (!res.ok) return null
+  const info = await res.json()
+  if (!info?.version) return null
+  const version = String(info.version)
+  return { version, epoch: info.epoch, key: info.epoch == null ? version : releaseKey(info) }
 })(), VERSION_TIMEOUT_MS)
 
 function withTimeout(promise, ms) {
@@ -116,13 +121,13 @@ export async function runLaunchUpdate({
   try {
     server = await serverVersion(fetchFn, versionUrl)
   } catch { /* офлайн/таймаут */ }
-  if (!server || !isRealUpdate(currentVersion, server)) return 'none'
+  if (!server || !isRealUpdate(currentVersion, server.version, server.epoch)) return 'none'
 
   let tried = null
   try { tried = storage?.getItem(TRIED_KEY) } catch { /* приватный режим */ }
-  if (tried === String(server)) return 'retried'
+  if (tried === server.key) return 'retried'
 
-  ui.start?.(String(server))
+  ui.start?.(server.version)
   const started = now()
   const deadline = started + waitMs
   const hardDeadline = started + Math.max(waitMs, maxWaitMs)
@@ -171,7 +176,7 @@ export async function runLaunchUpdate({
   // после него, иначе приложение открывалось с недобежавшей полоской (26.10.2026).
   let barDone
   try { barDone = Promise.resolve(ui.installing?.()).catch(() => {}) } catch { barDone = Promise.resolve() }
-  try { storage?.setItem(TRIED_KEY, String(server)) } catch { /* приватный режим */ }
+  try { storage?.setItem(TRIED_KEY, server.key) } catch { /* приватный режим */ }
   // Активируем только после полоски и «Устанавливаем…»: смена контроллера сразу перезагружает страницу, если
   // приложение уже поднялось за сплэшем (UpdatePrompt, fb_96e976ff), и подпись не успевала показаться.
   await Promise.race([barDone, sleep(BAR_DONE_MAX_MS)])
@@ -223,13 +228,13 @@ export async function reloadForUpdatePush({
   try {
     server = await serverVersion(fetchFn, versionUrl)
   } catch { /* офлайн/таймаут — остаемся, плашка догонит */ }
-  if (!server || !isRealUpdate(currentVersion, server)) return 'none'
+  if (!server || !isRealUpdate(currentVersion, server.version, server.epoch)) return 'none'
   if (recoveryOpen()) return 'recovery'
   if (resume) {
     let done = null
     try { done = storage?.getItem(RESUME_KEY) } catch { /* приватный режим */ }
-    if (done === String(server)) return 'tried'
-    try { storage?.setItem(RESUME_KEY, String(server)) } catch { /* приватный режим */ }
+    if (done === server.key) return 'tried'
+    try { storage?.setItem(RESUME_KEY, server.key) } catch { /* приватный режим */ }
   } else {
     try { storage?.removeItem(TRIED_KEY) } catch { /* приватный режим */ }
   }

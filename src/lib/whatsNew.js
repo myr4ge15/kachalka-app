@@ -4,13 +4,15 @@
 // обновление ставится на конкретный телефон, и лист должен всплыть на каждом
 // обновившемся, а не один раз на учетку (решение 03.08 из бэклога).
 
-// Эпоха нумерации (v1.0.0 э2, docs/plans/PLAN-version-reset.md): номер свернули с 9.6.0
-// на 1.0.0. Метки ниже сравниваются «больше/меньше», поэтому у эпохи 2 — свои ключи:
-// на знакомом устройстве новой метки нет → покажется свежая запись (как при первом
-// запуске 6.4.0), новичку — молча. Эпоха уходит и в version.json (Edge push-update).
-export const VERSION_EPOCH = 2
-export const SEEN_KEY = 'kachalka:whats_new_seen.e2'       // показан лист A
-export const OPENED_KEY = 'kachalka:whats_new_opened.e2'   // открыт экран «Обновления»
+// Метки отдельны для каждой эпохи. После сброса номера знакомое устройство
+// покажет свежую запись. Эпоха также уходит в version.json для push-update.
+export const VERSION_EPOCH = 3
+export const SEEN_KEY = 'kachalka:whats_new_seen.e' + VERSION_EPOCH
+export const OPENED_KEY = 'kachalka:whats_new_opened.e' + VERSION_EPOCH
+
+export function releaseKey({ version, epoch = VERSION_EPOCH }) {
+  return epoch + ':' + version
+}
 
 // '6.10.0' > '6.9.3': сравниваем по числам, а не строкой.
 export function cmpVersion(a, b) {
@@ -23,8 +25,7 @@ export function cmpVersion(a, b) {
   return 0
 }
 
-// Записи текущей эпохи. Старые (epoch: 1 — номера до 1.0.0 э2) живут только в истории
-// экрана «Обновления»: сравнивать их с номерами эпохи 2 нельзя (9.6.0 «новее» 1.2.0).
+// Записи прежних эпох показываются только в истории обновлений.
 export function ofEpoch(entries, epoch = VERSION_EPOCH) {
   return (entries ?? []).filter((e) => (e.epoch ?? VERSION_EPOCH) === epoch)
 }
@@ -86,7 +87,8 @@ export function hasUnopened(entries, opened) {
 // эпоха нумерации для сравнения версий на сервере.
 // Нет новости этого выпуска — тоже тихое обновление, старую запись не повторяем.
 export function versionJson(entries, version, epoch = VERSION_EPOCH) {
-  const latest = entries?.[0]?.version === version ? entries[0] : null
+  const first = entries?.[0]
+  const latest = first?.version === version && (first?.epoch ?? VERSION_EPOCH) === epoch ? first : null
   return { version, epoch, headline: updateHeadline(latest), ...(!latest || latest.push === false ? { silent: true } : {}) }
 }
 

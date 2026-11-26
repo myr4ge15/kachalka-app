@@ -45,7 +45,7 @@ describe('mergeForSheet', () => {
   })
   it('пусто → null', () => expect(mergeForSheet([])).toBeNull())
   it('для перехода с 1.17.0 сначала показывает возможности, блик упоминает один раз', () => {
-    const { show } = pendingWhatsNew(WHATS_NEW, '1.17.0', '1.18.3')
+    const show = ofEpoch(WHATS_NEW, 2).filter(e => cmpVersion(e.version, '1.17.0') > 0 && cmpVersion(e.version, '1.18.3') <= 0)
     const sheet = mergeForSheet(show)
     expect(sheet.main.map(item => item.t)).toEqual([
       'В «Восстановлении» выбери мышцу и посмотри упражнения для нее',
@@ -73,11 +73,11 @@ describe('mergeForSheet', () => {
 describe('versionJson (v7.5.0)', () => {
   const E = [{ version: '7.5.0', headline: 'Новое', main: [{ t: 'a' }], push: false }, { version: '7.4.0', main: [{ t: 'b' }] }]
   it('push: false у свежей записи — silent; иначе поля нет', () => {
-    expect(versionJson(E, '7.5.0')).toEqual({ version: '7.5.0', epoch: 2, headline: 'Новое', silent: true })
-    expect(versionJson(E.slice(1), '7.4.0')).toEqual({ version: '7.4.0', epoch: 2, headline: 'b' })
+    expect(versionJson(E, '7.5.0')).toEqual({ version: '7.5.0', epoch: VERSION_EPOCH, headline: 'Новое', silent: true })
+    expect(versionJson(E.slice(1), '7.4.0')).toEqual({ version: '7.4.0', epoch: VERSION_EPOCH, headline: 'b' })
   })
   it('без новости этого выпуска — без заголовка и с silent', () => {
-    expect(versionJson(E, '7.5.1')).toEqual({ version: '7.5.1', epoch: 2, headline: null, silent: true })
+    expect(versionJson(E, '7.5.1')).toEqual({ version: '7.5.1', epoch: VERSION_EPOCH, headline: null, silent: true })
   })
 })
 
@@ -151,6 +151,12 @@ describe('эпохи нумерации (v1.0.0 э2)', () => {
     expect(pendingWhatsNew(E2.slice(1), null, '1.0.0', { knownDevice: true }).show.map((e) => e.version)).toEqual(['1.0.0'])
     expect(hasUnopened(E2.slice(1), '1.0.0')).toBe(false)
     expect(hasUnopened(E2, '1.0.0')).toBe(true)
+  })
+  it('предыдущая 1.0.0 остается в истории и не объявляется в новой эпохе', () => {
+    const previous = ofEpoch(WHATS_NEW, 2).find(e => e.version === '1.0.0')
+    expect(previous).toBeDefined()
+    expect(versionJson([previous], '1.0.0')).toMatchObject({ headline: null, silent: true })
+    expect(pendingWhatsNew([previous], null, '1.0.0', { knownDevice: true }).show).toEqual([])
   })
   it('свежая запись в content — текущей эпохи, version.json несет эпоху', () => {
     expect(WHATS_NEW[0].epoch ?? VERSION_EPOCH).toBe(VERSION_EPOCH)

@@ -1,3 +1,5 @@
+import { VERSION_EPOCH } from './whatsNew.js'
+
 // Логика повторного показа баннера обновления PWA (v1.17.8).
 //
 // При registerType:'prompt' новая версия скачивается и ВИСИТ в waiting-состоянии,
@@ -43,9 +45,9 @@ export function shouldSurfaceWaiting({ hasWaiting, shown, snoozedAt, quiet }) {
 //
 // Слепой угол: пересборка БЕЗ бампа версии в package.json так не различается.
 // Это осознанно — по Definition of Done каждая правка продукта двигает версию.
-export function isRealUpdate(currentVersion, serverVersion) {
+export function isRealUpdate(currentVersion, serverVersion, serverEpoch) {
   if (!serverVersion) return true
-  return String(serverVersion) !== String(currentVersion)
+  return String(serverVersion) !== String(currentVersion) || (serverEpoch != null && serverEpoch !== VERSION_EPOCH)
 }
 
 // Автоприменение по пушу «вышла новая версия» (v6.11.1). Нажатие на такой пуш —

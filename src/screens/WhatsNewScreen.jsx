@@ -3,14 +3,14 @@ import { useRevealFocus } from '../hooks/useRevealFocus.js'
 import BackButton from '../components/ui/BackButton.jsx'
 import WhatsNewItems from '../components/onboarding/WhatsNewItems.jsx'
 import { WHATS_NEW } from '../content/whatsNew.js'
-import { fmtWhatsNewDate, OPENED_KEY, writeMark } from '../lib/whatsNew.js'
+import { fmtWhatsNewDate, releaseKey, OPENED_KEY, writeMark } from '../lib/whatsNew.js'
 
 // Экран «Обновления» (v6.4.0, Профиль → Настройки → «Что нового», или тап по версии
 // внизу Настроек). Одна запись на день; свежая раскрыта, прошлые — одной строкой
 // (тап раскрывает). Открытие гасит метку «новое» в Настройках.
 // Пропсы: onBack(), [entries] — для тестов.
 export default function WhatsNewScreen({ onBack, entries = WHATS_NEW }) {
-  const [open, setOpen] = useState(() => new Set(entries[0] ? [entries[0].version] : []))
+  const [open, setOpen] = useState(() => new Set(entries[0] ? [releaseKey(entries[0])] : []))
   useEffect(() => {
     if (entries[0]) writeMark(OPENED_KEY, entries[0].version)
   }, [entries])
@@ -35,10 +35,11 @@ export default function WhatsNewScreen({ onBack, entries = WHATS_NEW }) {
         <h2 className="admin-title">Обновления</h2>
       </div>
       {entries.map((e, i) => {
-        const isOpen = open.has(e.version)
+        const key = releaseKey(e)
+        const isOpen = open.has(key)
         return (
-          <section key={e.version} ref={reveal?.v === e.version ? revealRef : null} className={'wn-rel' + (i === 0 ? ' new' : '') + (isOpen ? ' open' : '')}>
-            <button type="button" className="wn-rel-h" onClick={() => toggle(e.version)} aria-expanded={isOpen}>
+          <section key={key} ref={reveal?.v === key ? revealRef : null} className={'wn-rel' + (i === 0 ? ' new' : '') + (isOpen ? ' open' : '')}>
+            <button type="button" className="wn-rel-h" onClick={() => toggle(key)} aria-expanded={isOpen}>
               <span className="wn-rel-v">
                 <span className="version-number">{e.version}</span>
                 {e.big && <span className="wn-big">большое</span>}

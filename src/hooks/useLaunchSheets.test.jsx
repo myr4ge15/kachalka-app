@@ -47,9 +47,9 @@ describe('useLaunchSheets', () => {
     expect(localStorage.getItem(SEEN_KEY)).not.toBe('0.9.0')
   })
 
-  it('переход на 1.0.0 (э2): старая отметка 9.6.0 не глушит лист — показываем свежую запись', () => {
+  it('переход на 1.0.0 (э3): старая отметка 1.19.0 не глушит лист — показываем свежую запись', () => {
     localStorage.setItem(SESSION_KEY, JSON.stringify({ id: 'u1' }))
-    localStorage.setItem('kachalka:whats_new_seen', '9.6.0')
+    localStorage.setItem('kachalka:whats_new_seen.e2', '1.19.0')
     const { result } = renderHook(() => useLaunchSheets(ME, false))
     expect(result.current.whatsNew?.version).toBe(WHATS_NEW[0].version)
   })

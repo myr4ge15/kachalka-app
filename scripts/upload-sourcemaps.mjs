@@ -1,3 +1,4 @@
+import { releaseKey } from '../src/lib/whatsNew.js'
 // Hawk /release: multipart file + release, авторизация интеграционным токеном.
 // CI удаляет карты до публикации, даже если загрузка не удалась.
 import { readFile, readdir } from 'node:fs/promises'
@@ -8,13 +9,13 @@ import { parseHawkToken, collectorUrl } from '../src/lib/errorReport.js'
 export async function uploadSourceMaps({ token, buildDir = 'dist', base = '/', fetchFn = fetch }) {
   const parsed = parseHawkToken(token)
   if (!parsed) throw new Error('Не задан корректный VITE_HAWK_TOKEN')
-  const { version } = JSON.parse(await readFile(path.join(buildDir, 'version.json'), 'utf8'))
+  const info = JSON.parse(await readFile(path.join(buildDir, 'version.json'), 'utf8'))
   const assets = path.join(buildDir, 'assets')
   const files = (await readdir(assets)).filter((name) => name.endsWith('.js.map'))
   if (!files.length) throw new Error('Не найдены source maps: нужна сборка HAWK_SOURCEMAPS=1')
   for (const name of files) {
     const form = new FormData()
-    form.append('release', version)
+    form.append('release', info.epoch >= 3 ? releaseKey(info) : info.version)
     form.append('file', new Blob([await readFile(path.join(assets, name))]), `${base.replace(/\/$/, '')}/assets/${name}`)
     const response = await fetchFn(`${collectorUrl(parsed)}/release`, {
       method: 'POST',

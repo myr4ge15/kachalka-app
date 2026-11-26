@@ -8,7 +8,7 @@
 //   • одна запись на ВЫПУСК (тег), не на день и не на задачу (AGENTS.md, «одна версия на
 //     выпуск»): новые пункты дописываются в запись выпуска, дата — день последней правки;
 //     новые — СВЕРХУ;
-//   • epoch: 1 — запись старой нумерации (до 1.0.0 э2, docs/plans/PLAN-version-reset.md):
+//   • epoch: 1 или 2 — запись прежней эпохи (docs/plans/PLAN-version-reset.md):
 //     только история экрана «Обновления», в лист и метку «новое» не идет;
 //   • main и minor — главное и мелочи внутри выпуска. Для общего листа priority: 'high'
 //     ставим заметной новой возможности или важному исправлению в любом разделе,
@@ -34,7 +34,16 @@
 
 export const WHATS_NEW = [
   {
+    version: '1.0.0',
+    date: '2026-11-26',
+    headline: 'Началась третья эпоха',
+    push: false,
+    main: [{ e: '🔢', t: 'После 1.19.0 начинается третья эпоха с версии 1.0.0' }],
+    minor: [],
+  },
+  {
     version: '1.19.0',
+    epoch: 2,
     date: '2026-11-26',
     headline: 'План тренировки из текста',
     main: [{ e: '📋', t: 'Вставь текст или JSON, чтобы добавить упражнения и подходы в план', priority: 'high', sub: [
@@ -45,6 +54,7 @@ export const WHATS_NEW = [
   },
   {
     version: '1.18.3',
+    epoch: 2,
     date: '2026-11-25',
     headline: 'Блик на заставке во время обновления',
     main: [
@@ -54,6 +64,7 @@ export const WHATS_NEW = [
   },
   {
     version: '1.18.2',
+    epoch: 2,
     date: '2026-11-25',
     headline: 'Блик при запуске и фото профиля',
     main: [
@@ -65,6 +76,7 @@ export const WHATS_NEW = [
   },
   {
     version: '1.18.0',
+    epoch: 2,
     date: '2026-11-24',
     headline: 'Упражнения для выбранной мышцы',
     main: [
@@ -78,6 +90,7 @@ export const WHATS_NEW = [
   },
   {
     version: '1.17.0',
+    epoch: 2,
     date: '2026-11-20',
     headline: 'Теперь можно составить план тренировки',
     main: [
@@ -108,6 +121,7 @@ export const WHATS_NEW = [
   },
   {
     version: '1.16.2',
+    epoch: 2,
     date: '2026-11-19',
     headline: 'Несколько упражнений за раз в шаблоне',
     push: false,
@@ -130,6 +144,7 @@ export const WHATS_NEW = [
   },
   {
     version: '1.15.0',
+    epoch: 2,
     date: '2026-11-17',
     headline: 'Замена упражнений и веса в шаблонах',
     main: [
@@ -148,6 +163,7 @@ export const WHATS_NEW = [
   },
   {
     version: '1.14.1',
+    epoch: 2,
     date: '2026-11-16',
     headline: 'Свежие комментарии и метки мышц',
     main: [
@@ -159,6 +175,7 @@ export const WHATS_NEW = [
   },
   {
     version: '1.14.0',
+    epoch: 2,
     date: '2026-11-16',
     headline: 'Упоминания и живые комментарии',
     main: [
@@ -174,6 +191,7 @@ export const WHATS_NEW = [
   },
   {
     version: '1.12.1',
+    epoch: 2,
     date: '2026-11-13',
     headline: 'Даты сравнения на Главной',
     main: [
@@ -184,6 +202,7 @@ export const WHATS_NEW = [
   },
   {
     version: '1.12.0',
+    epoch: 2,
     date: '2026-11-12',
     headline: 'Прогресс на Главной и полный бэкап',
     main: [
@@ -197,6 +216,7 @@ export const WHATS_NEW = [
   },
   {
     version: '1.11.1',
+    epoch: 2,
     date: '2026-11-09',
     headline: 'Тренировки, комментарии и вложения',
     push: false,
@@ -228,6 +248,7 @@ export const WHATS_NEW = [
   },
   {
     version: '1.9.3',
+    epoch: 2,
     date: '2026-11-05',
     headline: 'Переезжаем на новый адрес',
     main: [
@@ -241,6 +262,7 @@ export const WHATS_NEW = [
   },
   {
     version: '1.9.0',
+    epoch: 2,
     date: '2026-11-03',
     headline: 'Тоннаж в итогах месяца',
     main: [
@@ -251,6 +273,7 @@ export const WHATS_NEW = [
   },
   {
     version: '1.8.0',
+    epoch: 2,
     date: '2026-11-02',
     headline: 'Итоги месяца и надежнее ввод веса',
     main: [
@@ -266,6 +289,7 @@ export const WHATS_NEW = [
   },
   {
     version: '1.7.4',
+    epoch: 2,
     date: '2026-10-30',
     headline: 'Плавнее обновление и быстрый выход',
     main: [
@@ -280,6 +304,7 @@ export const WHATS_NEW = [
   },
   {
     version: '1.7.3',
+    epoch: 2,
     date: '2026-10-30',
     headline: 'Надежнее вход и синхронизация',
     main: [
@@ -290,6 +315,7 @@ export const WHATS_NEW = [
   },
   {
     version: '1.7.2',
+    epoch: 2,
     date: '2026-10-29',
     headline: 'Мелкие улучшения',
     main: [
@@ -299,6 +325,7 @@ export const WHATS_NEW = [
   },
   {
     version: '1.7.1',
+    epoch: 2,
     date: '2026-10-28',
     headline: 'Плавное обновление свайпом',
     main: [
@@ -308,6 +335,7 @@ export const WHATS_NEW = [
   },
   {
     version: '1.7.0',
+    epoch: 2,
     date: '2026-10-28',
     headline: 'Корзина для упражнений',
     main: [
@@ -320,6 +348,7 @@ export const WHATS_NEW = [
   },
   {
     version: '1.6.1',
+    epoch: 2,
     date: '2026-10-27',
     headline: 'Вес и замеры',
     main: [
@@ -339,6 +368,7 @@ export const WHATS_NEW = [
   },
   {
     version: '1.5.5',
+    epoch: 2,
     date: '2026-10-26',
     headline: 'Тренировку можно скопировать',
     main: [
@@ -361,6 +391,7 @@ export const WHATS_NEW = [
   },
   {
     version: '1.4.2',
+    epoch: 2,
     date: '2026-10-26',
     headline: 'Тренировка помнит, где ты остановился',
     main: [
@@ -371,6 +402,7 @@ export const WHATS_NEW = [
   },
   {
     version: '1.4.1',
+    epoch: 2,
     date: '2026-10-23',
     headline: 'Свайп «назад» больше не подпрыгивает',
     main: [
@@ -385,6 +417,7 @@ export const WHATS_NEW = [
   },
   {
     version: '1.4.0',
+    epoch: 2,
     date: '2026-10-23',
     headline: 'Разминка, заминка и удержания с весом',
     main: [
@@ -414,6 +447,7 @@ export const WHATS_NEW = [
   },
   {
     version: '1.3.0',
+    epoch: 2,
     date: '2026-10-21',
     headline: 'Пуш о реакции на комментарий',
     main: [
@@ -429,6 +463,7 @@ export const WHATS_NEW = [
   },
   {
     version: '1.2.1',
+    epoch: 2,
     date: '2026-10-20',
     headline: 'Комментарии пузырями и реакции',
     main: [
@@ -470,6 +505,7 @@ export const WHATS_NEW = [
   },
   {
     version: '1.1.1',
+    epoch: 2,
     date: '2026-10-19',
     headline: 'Обновления надежнее',
     main: [
@@ -486,6 +522,7 @@ export const WHATS_NEW = [
   },
   {
     version: '1.1.0',
+    epoch: 2,
     date: '2026-10-19',
     headline: 'Ответы на комментарии',
     main: [
@@ -505,6 +542,7 @@ export const WHATS_NEW = [
   },
   {
     version: '1.0.0',
+    epoch: 2,
     date: '2026-10-19',
     headline: 'Новая нумерация версий',
     push: false, // только смена номера — без пуша «Вышла версия» (9.6 объявлена в тот же день)

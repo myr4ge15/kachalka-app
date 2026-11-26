@@ -58,7 +58,7 @@ async function fetchServerVersion() {
     if (!res.ok) return null
     const data = await res.json()
     // headline (v6.4.0) — главное из новой версии для строки; старые деплои без него.
-    return data?.version ? { version: data.version, headline: data.headline ?? null } : null
+    return data?.version ? { version: data.version, epoch: data.epoch, headline: data.headline ?? null } : null
   } catch {
     return null // офлайн / таймаут / старый деплой без version.json
   } finally {
@@ -207,7 +207,7 @@ export default function UpdatePrompt() {
     lastVersionCheckRef.current = Date.now()
     fetchServerVersion().then((server) => {
       if (!alive) return
-      if (!isRealUpdate(__APP_VERSION__, server?.version)) {
+      if (!isRealUpdate(__APP_VERSION__, server?.version, server?.epoch)) {
         // Ждущий SW несет ту же версию — обновляться не на что, молча прячем.
         // Применить его сами не пытаемся: активация перезагрузит приложение
         // без спроса, а выигрыша нет. Но запоминаем, что спрятали «по версии»:

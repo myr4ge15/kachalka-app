@@ -3,7 +3,7 @@ import react from '@vitejs/plugin-react'
 import { VitePWA } from 'vite-plugin-pwa'
 import { readFileSync } from 'node:fs'
 import { WHATS_NEW } from './src/content/whatsNew.js'
-import { versionJson as versionInfo } from './src/lib/whatsNew.js'
+import { VERSION_EPOCH, versionJson as versionInfo } from './src/lib/whatsNew.js'
 import { avatarCachePattern, withBackendCsp } from './src/lib/backendOrigin.js'
 import { withReportCsp } from './src/lib/errorReport.js'
 import { ocrAssets } from './scripts/ocrAssets.mjs'
@@ -156,7 +156,7 @@ export default defineConfig(({ mode }) => ({
         // ?v=<версия> (v8.9.5): по умолчанию (updateViaCache: 'imports') браузер при обновлении SW
         // перепроверяет только sw.js, а файл из importScripts может взять из HTTP-кэша (Pages — 10 мин).
         // Так на iPhone жил старый push-sw.js, и правки перехода по пушу 8.9.2–8.9.4 не доходили.
-        importScripts: [`push-sw.js?v=${appVersion(mode)}`],
+        importScripts: [`push-sw.js?e=${VERSION_EPOCH}&v=${appVersion(mode)}`],
         // Активированный (после SKIP_WAITING) SW сразу берёт под контроль уже
         // открытые НЕконтролируемые вкладки. Без этого на десктопе первая сессия
         // часто идёт без контроллера → skipWaiting активирует новый SW, но он не

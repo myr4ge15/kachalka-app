@@ -33,7 +33,7 @@ describe('чистые части', () => {
 })
 
 // Фейковый service worker: управляем состоянием регистрации по шагам.
-function setup({ server = '6.13.0', current = '6.12.1', waiting = null, active = true, online = true, installAfter = 2 } = {}) {
+function setup({ server = '6.13.0', epoch, current = '6.12.1', waiting = null, active = true, online = true, installAfter = 2 } = {}) {
   const listeners = {}
   const reg = {
     active: active ? {} : null,
@@ -53,7 +53,7 @@ function setup({ server = '6.13.0', current = '6.12.1', waiting = null, active =
     open: async () => ({ keys: async () => [...cacheKeys].map((url) => ({ url })) }),
   }
   const fetchFn = vi.fn(async (url) => {
-    if (url === '/app/version.json') return { ok: true, json: async () => ({ version: server }) }
+    if (url === '/app/version.json') return { ok: true, json: async () => ({ version: server, epoch }) }
     return { ok: true, text: async () => SW_TEXT }
   })
   let t = 0
@@ -81,6 +81,14 @@ function setup({ server = '6.13.0', current = '6.12.1', waiting = null, active =
 }
 
 describe('runLaunchUpdate', () => {
+  it('одинаковый номер другой эпохи обновляется один раз', async () => {
+    const s = setup({ server: '1.0.0', current: '1.0.0', epoch: 2, waiting: { postMessage: vi.fn() } })
+    s.storage.setItem(TRIED_KEY, '1.0.0')
+    expect(await s.run()).toBe('applied')
+    expect(s.storage.getItem(TRIED_KEY)).toBe('2:1.0.0')
+    expect(await s.run()).toBe('retried')
+  })
+
   it('новая версия: качает с прогрессом, применяет и перезагружает', async () => {
     const s = setup()
     expect(await s.run()).toBe('applied')

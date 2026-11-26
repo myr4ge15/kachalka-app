@@ -1,3 +1,4 @@
+import { releaseKey } from './lib/whatsNew.js'
 import React from 'react'
 import ReactDOM from 'react-dom/client'
 import App from './App.jsx'
@@ -14,7 +15,7 @@ import { initErrorReporter } from './lib/errorReporter.js'
 import './index.css'
 
 // Отчеты об ошибках (lib/errorReport.js): только при заданном VITE_HAWK_TOKEN, иначе пустышка.
-initErrorReporter({ token: import.meta.env.VITE_HAWK_TOKEN, release: __APP_VERSION__ })
+initErrorReporter({ token: import.meta.env.VITE_HAWK_TOKEN, release: releaseKey({ version: __APP_VERSION__ }) })
 
 // Только бета: проверка, что стек в Sentry читается (source maps). В консоли беты: __throwTestError().
 // Ошибка бросается из кода приложения (а не из консоли), поэтому кадр ссылается на собранный файл.

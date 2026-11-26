@@ -43,7 +43,7 @@ test('обновление service worker на собранной PWA сохра
 
   const deployed = await request.post(new URL('/deploy-update', APP).href)
   expect(deployed.ok()).toBe(true)
-  const next = (await (await request.get(`${APP}version.json`)).json()).version
+  const { version: next, epoch } = await (await request.get(`${APP}version.json`)).json()
   expect(next).not.toBe(version)
   await context.setOffline(false)
   await page.evaluate(() => document.dispatchEvent(new Event('visibilitychange')))
@@ -60,7 +60,7 @@ test('обновление service worker на собранной PWA сохра
   await expect(async () => {
     if (!await installed.isVisible()) await profile.click({ timeout: 1500 })
     await expect(installed).toHaveText(`v${next}`, { timeout: 1500 })
-    expect(await page.evaluate(() => sessionStorage.getItem('gym_app_update_resume'))).toBe(next)
+    expect(await page.evaluate(() => sessionStorage.getItem('gym_app_update_resume'))).toBe(epoch + ':' + next)
   }).toPass({ timeout: 30_000 })
   await openTab(page, 'Тренировки')
   await workout.click()
