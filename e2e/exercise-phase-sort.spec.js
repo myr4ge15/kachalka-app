@@ -35,7 +35,7 @@ for (const editor of ['тренировка', 'шаблон']) {
     }
     const list = page.locator('.phase-sort-list')
     const grip = list.locator('[data-exercise-id="a"] .exercise-grip, [data-tpl-id="a"] .tpl-handle')
-    await grip.scrollIntoViewIfNeeded()
+    await grip.evaluate(el => el.scrollIntoView({ block: 'center', behavior: 'instant' }))
     const from = await grip.boundingBox()
     const x = from.x + from.width / 2
     const session = await context.newCDPSession(page)
@@ -48,21 +48,24 @@ for (const editor of ['тренировка', 'шаблон']) {
     const target = await b.boundingBox()
     await touch('touchMove', target.y + target.height / 2)
     await expect.poll(() => b.evaluate(el => el.style.order)).not.toBe('')
+    // Во время жеста возможна автопрокрутка. Все координаты превью берём из одного кадра.
     const orderAndGaps = () => list.evaluate(list => {
       const children = [...list.children].filter(el => !el.hidden).map(el => ({
         id: el.dataset.sortPhase || el.dataset.exerciseId || el.dataset.tplId,
         top: el.offsetTop, bottom: el.offsetTop + el.offsetHeight,
       })).sort((a, b) => a.top - b.top)
-      return { order: children.map(el => el.id), gaps: children.slice(1).map((el, i) => el.top - children[i].bottom) }
+      const slot = list.querySelector('.sort-slot')?.getBoundingClientRect()
+      const heading = list.querySelector('[data-sort-phase="cooldown"]').getBoundingClientRect()
+      return {
+        order: children.map(el => el.id),
+        gaps: children.slice(1).map((el, i) => el.top - children[i].bottom),
+        cooldownGap: slot ? heading.top - slot.bottom : null,
+      }
     })
     const preview = await orderAndGaps()
     expect(preview.order).toEqual(['warmup', 'w', 'main', 'b', 'a', 'cooldown', 'c'])
     expect(preview.gaps.every(gap => gap >= 0 && gap <= 10)).toBe(true)
-    if (editor === 'тренировка') {
-      const lastCard = await list.locator('.sort-slot').boundingBox()
-      const heading = await list.getByText('Заминка', { exact: true }).first().boundingBox()
-      expect(lastCard.y + lastCard.height).toBeLessThanOrEqual(heading.y)
-    }
+    if (editor === 'тренировка') expect(preview.cooldownGap).toBeGreaterThanOrEqual(0)
     await touch('touchEnd')
     await expect(list.locator('.sort-lifted')).toHaveCount(0)
     expect((await orderAndGaps()).order).toEqual(preview.order)
