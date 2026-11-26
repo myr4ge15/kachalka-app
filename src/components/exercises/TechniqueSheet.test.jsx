@@ -4,7 +4,7 @@
 // reduced-motion, сбой загрузки кадра и остановка смены после закрытия.
 import { describe, it, expect, vi, afterEach } from 'vitest'
 import { render, screen, fireEvent, act } from '@testing-library/react'
-import TechniqueSheet, { ExerciseTechnique } from './TechniqueSheet.jsx'
+import TechniqueSheet, { ExerciseTechnique, loadTechnique } from './TechniqueSheet.jsx'
 
 // Свайп листа — только iOS «на экране Домой»; в jsdom включаем подменой.
 const swipeEnv = vi.hoisted(() => ({ on: false }))
@@ -15,6 +15,15 @@ function mockReducedMotion(reduce) {
     matches: reduce && q.includes('reduce'), media: q,
     addEventListener() {}, removeEventListener() {},
   }))
+}
+
+async function renderAnimatedSheet(slug, name = slug, onClose = vi.fn()) {
+  mockReducedMotion(false)
+  vi.useFakeTimers({ toFake: ['setInterval', 'clearInterval'] })
+  const view = render(<TechniqueSheet slug={slug} name={name} onClose={onClose} />)
+  // Дожидаемся загрузки справочника и эффекта React, запускающего интервал смены поз.
+  await act(async () => { await loadTechnique() })
+  return view
 }
 
 afterEach(() => {
@@ -50,20 +59,13 @@ describe('TechniqueSheet', () => {
   })
 
   it('кадры сменяются сами без мигания подписей; пауза и выбор позы останавливают смену', async () => {
-    mockReducedMotion(false)
-    vi.useFakeTimers({ toFake: ['setInterval', 'clearInterval'] })
-    render(<TechniqueSheet slug="bench-press" name="Жим лежа со штангой" onClose={vi.fn()} />)
+    await renderAnimatedSheet('bench-press', 'Жим лежа со штангой')
     // Лист рендерится порталом в body — ищем по документу.
     const shown = () => document.querySelector('.technique-stage img.is-on').getAttribute('alt')
-    await screen.findByRole('button', { name: 'Руки выпрямлены' })
     expect(shown()).toBe('Жим лежа со штангой: Руки выпрямлены')
     // Во время смены подписи не подсвечиваются
     expect(screen.getByRole('button', { name: 'Руки выпрямлены' })).toHaveAttribute('aria-pressed', 'false')
-    // Шагами до первой смены, не дольше 3 с: одним advanceTimersByTime(1200) при FRAME_MS 1150 тест
-    // однажды не увидел смены в CI (16.10, пояс LA) — проверяем сам факт смены, а не точную миллисекунду.
-    for (let t = 0; t < 3000 && shown() === 'Жим лежа со штангой: Руки выпрямлены'; t += 100) {
-      await act(async () => { vi.advanceTimersByTime(100) })
-    }
+    act(() => { vi.advanceTimersToNextTimer() })
     expect(shown()).toBe('Жим лежа со штангой: Гриф у груди')
     expect(screen.getByRole('button', { name: 'Гриф у груди' })).toHaveAttribute('aria-pressed', 'false')
 
@@ -93,13 +95,12 @@ describe('TechniqueSheet', () => {
 
   it.each(['ab-rollout', 'side-lying-leg-raise', 'cable-kickback', 'plie-squat'])(
     '%s показывает обе фазы по очереди', async (slug) => {
-      mockReducedMotion(false)
-      vi.useFakeTimers({ toFake: ['setInterval', 'clearInterval'] })
-      render(<TechniqueSheet slug={slug} name={slug} onClose={vi.fn()} />)
-      await screen.findByRole('button', { name: 'Остановить смену кадров' })
+      await renderAnimatedSheet(slug)
       const first = screen.getByRole('img').getAttribute('src')
-      await act(async () => { vi.advanceTimersByTime(1200) })
+      act(() => { vi.advanceTimersToNextTimer() })
       expect(screen.getByRole('img').getAttribute('src')).not.toBe(first)
+      act(() => { vi.advanceTimersToNextTimer() })
+      expect(screen.getByRole('img')).toHaveAttribute('src', first)
     },
   )
 
@@ -130,11 +131,9 @@ describe('TechniqueSheet', () => {
   })
 
   it('закрытие: «закрыть» зовет onClose, после размонтирования таймер смены снят', async () => {
-    mockReducedMotion(false)
-    vi.useFakeTimers({ toFake: ['setInterval', 'clearInterval'] })
     const onClose = vi.fn()
-    const { unmount } = render(<TechniqueSheet slug="bench-press" name="Жим лежа со штангой" onClose={onClose} />)
-    await screen.findByRole('button', { name: 'Руки выпрямлены' })
+    const { unmount } = await renderAnimatedSheet('bench-press', 'Жим лежа со штангой', onClose)
+    expect(vi.getTimerCount()).toBeGreaterThan(0)
     fireEvent.click(screen.getByRole('button', { name: 'закрыть' }))
     expect(onClose).toHaveBeenCalledTimes(1)
     unmount()
