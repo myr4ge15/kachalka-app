@@ -4,8 +4,8 @@ import { getViewAll, refreshViewAll } from '../db/adminViewAll.js'
 import { viewAllActive, viewAllExtra } from '../lib/viewAll.js'
 
 // «Видеть всех» (27.10.2026, PLAN-admin-view-all.md): снимок режима из meta — null, если режима нет.
-export function useViewAll() {
-  return useLiveQuery(() => getViewAll(), [], null) ?? null
+export function useViewAll(userId) {
+  return useLiveQuery(() => getViewAll(), [userId], null) ?? null
 }
 
 // «Чужие» — Set(userId), кого видно только из-за режима (метка, без действий).
@@ -20,7 +20,8 @@ export function useViewAllExtra({ activeOnly = false } = {}) {
 export function useViewAllWatch(user) {
   const userId = user?.id ?? null
   const isAdmin = user?.role === 'admin'
-  const state = useViewAll()
+  // App монтируется до входа. После открытия личной базы нужна новая подписка.
+  const state = useViewAll(userId)
 
   useEffect(() => {
     if (!isAdmin || !userId) return

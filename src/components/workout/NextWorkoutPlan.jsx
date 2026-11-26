@@ -5,6 +5,7 @@ import { hasNewDraft, startNewDraftFrom } from '../../hooks/useWorkoutDraft.js'
 import { readDraft, writeDraft } from '../../lib/draftStore.js'
 import { planEntry, describeTarget } from '../../lib/planImport/draft.js'
 import PlanImport from './PlanImport.jsx'
+import { IS_BETA } from '../../lib/appVersion.js'
 import { exerciseUsageSections } from '../../lib/exerciseUsage.js'
 import { techniqueSlugFor } from '../../lib/technique.js'
 import ExercisePicker from '../exercises/ExercisePicker.jsx'
@@ -17,6 +18,7 @@ export default function NextWorkoutPlan({ userId, workouts, onStart }) {
   const [stored, setStored] = useState(() => readDraft(key) ?? [])
   const plan = Array.isArray(stored) ? stored : stored.items
   const info = Array.isArray(stored) ? null : stored.info
+  const notes = [info?.notes, IS_BETA && info?.context].filter(Boolean).join('\n')
   const [open, setOpen] = useState(false)
   const [picking, setPicking] = useState(false)
   const [importing, setImporting] = useState(false)
@@ -39,7 +41,7 @@ export default function NextWorkoutPlan({ userId, workouts, onStart }) {
   function start() {
     if (!hasNewDraft(userId)) {
       const entries = plan.map(planEntry)
-      const context = [info?.name, info?.date, info?.notes, info?.context].filter(Boolean).join('\n')
+      const context = [info?.name, info?.date, notes].filter(Boolean).join('\n')
       if (context && entries[0]) entries[0].planContext = context
       startNewDraftFrom(userId, entries)
       save([])
@@ -54,7 +56,7 @@ export default function NextWorkoutPlan({ userId, workouts, onStart }) {
     {open && <SheetDialog title="Запланировать тренировку" className="sheet--compact next-plan" onDismiss={() => setOpen(false)} swipeBack swipeDown>
       <div className="sheet-scroll">
         {info && <><p>{[info.name, info.date].filter(Boolean).join(' · ')}</p>
-          {(info.notes || info.context) && <details><summary>Заметки к плану</summary><p className="plan-note">{[info.notes, info.context].filter(Boolean).join('\n')}</p></details>}</>}
+          {notes && <details><summary>Заметки к плану</summary><p className="plan-note">{notes}</p></details>}</>}
         {plan.length === 0 && <p className="muted">Добавь упражнения для следующей тренировки. План сохранится на этом устройстве.</p>}
         {plan.length > 0 && <ul className="next-plan-list">{plan.map(ex => <li className="next-plan-row" key={ex.id}>
           <span className="next-plan-exercise">{ex.name}{ex.planTarget && <small className="plan-note">{ex.planTarget.sets.map(describeTarget).join(' / ')}</small>}</span>

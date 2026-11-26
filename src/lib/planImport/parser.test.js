@@ -6,6 +6,34 @@ import { acceptsTargets, planEntry, matchExercise, describeTarget } from './draf
 
 const parseSets = text => parse(text).plan.exercises.flatMap(e => e.sets)
 const jsonPlan = { format: 'workout-plan/v1', exercises: [{ name: 'Жим', sets: [{ kg: 25, reps: [6, 8] }] }] }
+
+test('JSON из переписки без метки формата переносит вес и повторы', () => {
+  const raw = { name: 'Full Body', date: '2026-11-26', exercises: [{ name: 'Жим', sets: [{ weight: 60, reps: 9 }] }] }
+  const result = parse('Участник (26.11.2026 11:38):\n' + JSON.stringify(raw)).plan
+  assert.deepEqual(result, { ...jsonPlan, name: raw.name, date: raw.date, exercises: [{ name: 'Жим', sets: [{ kg: 60, reps: 9 }] }] })
+})
+
+test('JSON с entries сохраняет порядок, разминку, отдых, диапазоны, заметки и необязательную заминку', () => {
+  const raw = { schema: jsonPlan.format, date: '2026-11-26', status: 'planned', working_sets: 2,
+    duration_minutes: { min: 65, max: 80 }, notes: 'Вес на одну гантель',
+    warmup: { exercise: { name: 'Эллипс', id: 'el' }, duration_seconds: 300 },
+    entries: [{ exercise: { id: 'pr', name: 'Жим', muscle_group: 'грудь', metric: 'weight' },
+      sets: [{ weight: 60, reps: 9 }, { weight: 60, reps: 8, reps_max: 9 }], rest_seconds: 180, warmup_sets: [{ weight: 20, reps: 12 }] }],
+    optional_cooldown: { name: 'Ходьба', duration_minutes: { min: 10, max: 15 },
+      speed_kmh: { min: 4.5, max: 5.5 }, incline_percent: { min: 3, max: 5 } } }
+  const plan = parse(JSON.stringify(raw)).plan
+  assert.deepEqual(plan.exercises, [
+    { name: 'Эллипс', exercise_id: 'el', sets: [{ seconds: 300, phase: 'warmup' }] },
+    { name: 'Жим', exercise_id: 'pr', rest_sec: 180, sets: [{ kg: 20, reps: 12, phase: 'warmup' }, { kg: 60, reps: 9 }, { kg: 60, reps: [8, 9] }] },
+    { name: 'Ходьба', sets: [{ seconds: [600, 900], phase: 'cooldown', optional: true }], notes: 'Скорость 4.5–5.5 км/ч\nУклон 3–5%' },
+  ])
+  assert.equal(plan.notes, 'Длительность 65–80 мин\nВес на одну гантель')
+  for (const invalid of [{ status: 'completed' }, { working_sets: 3 }, { entries: [] },
+    { entries: [{ exercise: { name: 'Жим' }, sets: [] }] }, { entries: [{ exercise: { name: 'Жим' }, sets: [{ weight: 60, reps: 8, reps_max: 5 }] }] },
+    { duration_minutes: { min: 30, max: '40' } }, { unexpected: 1 }]) {
+    assert.throws(() => parse(JSON.stringify({ ...raw, ...invalid })))
+  }
+})
 test('Текст с итогами прошлого дня, деталями следующего и альтернативной программой', () => {
   const r = parse('Последняя сессия прошла 19 ноября 2026 года\nЖим: 80 кг × 3\nСкорректированный план на 26.11.2026\n' +
     '1. Ноги: Присед — 3 подхода\nРазминочный: 20×15\nРабочие: 35×10 (твой результат в журнале) → пробуй 40×8 в последнем\n' +

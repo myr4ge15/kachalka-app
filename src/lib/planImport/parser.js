@@ -1,4 +1,4 @@
-import { checkPlan, checkSet, FORMAT, MAX_SETS, target, validDate } from './format.js'
+import { checkPlan, checkSet, FORMAT, MAX_SETS, readJsonPlan, target, validDate } from './format.js'
 import { SUBMUSCLES } from '../muscles.js'
 
 const number = String.raw`[+-]?\d+(?:[.,]\d+)?`
@@ -414,8 +414,9 @@ export function parseWorkoutPlan(input) {
   const fences = [...source.matchAll(/^\s*\x60{3}(json)?[ \t]*\r?\n([\s\S]*?)^[ \t]*\x60{3}[ \t]*\r?$/gimu)]
   const json = fences.filter(m => m[1] || /^[{[]/u.test(m[2].trim()))
   if (json.length > 1) throw Error('Найдено несколько блоков JSON. Вставь один план.')
-  if (json.length || /^[{[]/u.test(source) && !/^\[[ xX]\]/u.test(source)) {
-    const plan = checkPlan(JSON.parse(json[0]?.[2] ?? source))
+  const body = source.replace(/^[^\r\n]+\(\d{2}\.\d{2}\.\d{4} \d{2}:\d{2}\):\s*\r?\n(?=\s*\{)/u, '')
+  if (json.length || /^[{[]/u.test(body) && !/^\[[ xX]\]/u.test(body)) {
+    const plan = readJsonPlan(JSON.parse(json[0]?.[2] ?? body))
     return { plan, review: [], notes: [] }
   }
   return parseText(source)

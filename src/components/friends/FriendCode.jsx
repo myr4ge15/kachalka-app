@@ -48,7 +48,10 @@ export default function FriendCode({ api, myName }) {
   }
   return (
     <div className="card fc-code-card">
-      <h3 className="fc-h">Мой код</h3>
+      <div className="friend-code-head">
+        <h3 className="fc-h">Мой код</h3>
+        {code && !confirmNew && <button type="button" className="btn ghost btn--sm" onClick={() => setConfirmNew(true)} disabled={busy}>Новый код</button>}
+      </div>
       {code ? (
         <>
           <p className="fc-code" data-testid="fr-code" role="button" tabIndex={0} aria-label={`Код ${fmtCode(code.code)} — нажми, чтобы скопировать`}
@@ -57,13 +60,11 @@ export default function FriendCode({ api, myName }) {
             {canShare && <ShareInviteButton className="btn primary" text={text} />}
             <button type="button" className={canShare ? 'btn ghost' : 'btn primary'} onClick={copy}>Скопировать</button>
           </div>
-          {confirmNew ? (
+          {confirmNew && (
             <div className="fc-actions">
               <button type="button" className="btn ghost" onClick={() => setConfirmNew(false)} disabled={busy}>Отмена</button>
               <button type="button" className="btn ghost" onClick={() => load(true)} disabled={busy}>Да, новый код</button>
             </div>
-          ) : (
-            <button type="button" className="link-btn fc-new-code" onClick={() => setConfirmNew(true)} disabled={busy}>Новый код</button>
           )}
           {confirmNew && <p className="muted fc-msg">Старый код сразу перестанет работать. Друзья останутся друзьями.</p>}
           <p className="muted fc-msg">Кто откроет ссылку или введет код, сразу станет твоим другом: вы будете видеть тренировки друг друга.</p>

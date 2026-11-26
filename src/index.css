@@ -1004,7 +1004,8 @@ button.link-btn { min-height: 44px; display: inline-flex; align-items: center; j
 .next-plan-exercise { overflow-wrap: anywhere; }
 .plan-import { overflow-wrap: anywhere; }
 .plan-import label, .plan-import textarea, .plan-note { display: block; }
-.plan-import textarea { width: 100%; margin-block: 8px; }
+.plan-import textarea.admin-input { margin-block: 8px; font: inherit; font-size: 16px; resize: vertical; }
+.next-plan .add-btn + .add-btn { margin-top: 8px; }
 .plan-import-item { padding-block: 12px; border-bottom: 1px solid var(--border); }
 .plan-import-item p, .plan-note, .plan-set-target { color: var(--muted); font-size: var(--fs-small); }
 .plan-note { white-space: pre-line; overflow-wrap: anywhere; }
@@ -4587,6 +4588,9 @@ html[data-sheet-open] .content { overflow-y: hidden; }
   -webkit-user-select: none; user-select: none; -webkit-touch-callout: none; cursor: pointer;
 }
 .fc-code-meta { margin: 0 0 12px; text-align: center; font-size: var(--fs-meta); }
+.friend-code-head { display: flex; align-items: center; justify-content: space-between; gap: 8px; }
+.friend-code-head .fc-h, .friend-code-head .btn { margin: 0; }
+.friend-code-head .btn { min-height: 44px; }
 .fc-code-input { font-family: ui-monospace, SFMono-Regular, Menlo, monospace; letter-spacing: .08em; text-transform: uppercase; }
 .fc-actions { display: flex; gap: 10px; margin-top: 8px; }
 .fc-actions .btn { flex: 1; margin-top: 0; }

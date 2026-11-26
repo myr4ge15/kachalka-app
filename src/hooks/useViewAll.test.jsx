@@ -4,7 +4,10 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { renderHook, waitFor } from '@testing-library/react'
 const api = vi.hoisted(() => ({ state: null, refresh: vi.fn() }))
-vi.mock('dexie-react-hooks', () => ({ useLiveQuery: (fn) => fn() }))
+vi.mock('dexie-react-hooks', async () => {
+  const { useMemo: queryOnDeps } = await import('react')
+  return { useLiveQuery: (fn, deps) => queryOnDeps(fn, deps) }
+})
 vi.mock('../db/adminViewAll.js', () => ({
   getViewAll: () => api.state,
   refreshViewAll: (...a) => api.refresh(...a),
@@ -16,6 +19,13 @@ beforeEach(() => { api.state = null; api.refresh.mockReset() })
 afterEach(() => vi.useRealTimers())
 
 describe('useViewAllWatch', () => {
+  it('перечитывает личную базу, когда админ вошел после монтирования App', () => {
+    const { result, rerender } = renderHook(({ user }) => useViewAllWatch(user), { initialProps: { user: null } })
+    expect(result.current).toBeNull()
+    api.state = { until: soon(60000), extra: [] }
+    rerender({ user: { id: 'a', role: 'admin' } })
+    expect(result.current).toEqual(api.state)
+  })
   it('не админ — без сверки и без снимка', async () => {
     api.state = { until: soon(60000), extra: [] }
     const { result } = renderHook(() => useViewAllWatch({ id: 'u', role: 'member' }))

@@ -10,13 +10,40 @@ import { enterPin, tabbar, openTab, pickerItem, layoutProblems, seedAndLogin, sw
 const APP = '/kachalka-app/'
 const EXERCISE = 'Жим лежа (e2e)'
 
+test('после входа плашка наблюдателя реагирует на изменение личной базы прямо в Ленте', async ({ page, context }) => {
+  await switchableOnline(context)
+  await page.goto(APP)
+  const admin = await page.evaluate(async () => {
+    const { seedE2E } = await import('/kachalka-app/src/test/e2eSeed.js')
+    const { loginDb } = await import('/kachalka-app/src/db/local.js')
+    const user = await seedE2E()
+    await loginDb.meta.update('pin_' + user.id, { 'value.role': 'admin' })
+    return user
+  })
+  await page.reload()
+  await page.getByRole('button', { name: admin.name }).click()
+  await enterPin(page, admin.pin)
+  await openTab(page, 'Лента')
+  await page.evaluate(async () => {
+    const { setMeta } = await import('/kachalka-app/src/db/local.js')
+    await setMeta('view_all', { until: new Date(Date.now() + 1800000).toISOString(), extra: [] })
+  })
+  await expect(page.getByText('Наблюдатель', { exact: true })).toBeInViewport()
+  await page.evaluate(async () => (await import('/kachalka-app/src/db/local.js')).setMeta('view_all', null))
+  await expect(page.getByText('Наблюдатель', { exact: true })).toHaveCount(0)
+})
+
 test('вставка плана на телефоне сохраняет цели и открывает подходы', async ({ page, context }) => {
   await switchableOnline(context)
   await seedAndLogin(page)
   await openTab(page, 'Тренировки')
   await page.getByRole('button', { name: 'Запланировать тренировку' }).click()
+  const add = await page.getByRole('button', { name: 'Добавить упражнения' }).boundingBox()
+  const paste = await page.getByRole('button', { name: 'Вставить план' }).boundingBox()
+  expect(paste.y - (add.y + add.height)).toBeGreaterThanOrEqual(8)
   await page.getByRole('button', { name: 'Вставить план' }).click()
   const sheet = page.getByRole('dialog', { name: 'Вставить план' })
+  await expect(sheet.getByRole('textbox')).toHaveCSS('font-size', '16px')
   await sheet.getByRole('textbox').fill(EXERCISE + ': 2×8–10 (35 кг)')
   await sheet.getByRole('button', { name: 'Разобрать план' }).click()
   await expect(sheet.getByRole('button', { name: 'Сохранить план' })).toBeInViewport()

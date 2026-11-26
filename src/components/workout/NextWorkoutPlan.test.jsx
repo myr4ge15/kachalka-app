@@ -5,16 +5,19 @@ import NextWorkoutPlan from './NextWorkoutPlan.jsx'
 import { readDraft, resetDraftMemory, writeDraft } from '../../lib/draftStore.js'
 
 const star = vi.fn()
+const build = vi.hoisted(() => ({ beta: false }))
+vi.mock('../../lib/appVersion.js', () => ({ get IS_BETA() { return build.beta } }))
 const press = { id: 'press', name: 'Жим Арнольда' }
 const extras = ['a', 'b', 'c', 'd'].map(id => ({ id, name: id }))
 const bench = { id: 'bench', name: 'Жим', metric: 'weight' }
 vi.mock('dexie-react-hooks', () => ({ useLiveQuery: fn => fn() }))
 vi.mock('../../db/repo.js', () => ({ getExercises: () => [bench, press, ...extras], getFavorites: () => ['press'], toggleFavorite: (...args) => star(...args) }))
 
-beforeEach(() => { resetDraftMemory(); localStorage.clear() })
+beforeEach(() => { build.beta = false; resetDraftMemory(); localStorage.clear() })
 const click = name => fireEvent.click(screen.getByRole('button', { name }))
 
 it('показывает расхождение с журналом и разрешает закрыть подбор без замены', () => {
+  build.beta = true
   render(<NextWorkoutPlan userId="me" workouts={[{ performed_at: '2026-11-23' }]} />)
   click('Запланировать тренировку')
   click('Вставить план')
@@ -23,10 +26,23 @@ it('показывает расхождение с журналом и разр�
   expect(screen.getByText(/в журнале на устройстве 23.11.2026/)).toBeInTheDocument()
   expect(screen.getByRole('alert')).toHaveTextContent('дважды')
   const preview = screen.getByRole('dialog', { name: 'Вставить план' })
-  fireEvent.click(within(preview).getAllByRole('button', { name: 'Жим' })[0])
+  fireEvent.click(within(preview).getAllByRole('button', { name: 'Заменить «Жим»' })[0])
   fireEvent.click(within(screen.getByRole('dialog', { name: /Выбрать для/ })).getByRole('button', { name: 'закрыть' }))
   fireEvent.click(within(preview).getByRole('button', { name: 'закрыть' }))
   expect(readDraft('workout_plan_me')).toBeUndefined()
+})
+
+it('в проде совпадение сразу готово к сохранению, служебные сведения не попадают в план', () => {
+  render(<NextWorkoutPlan userId="me" workouts={[{ performed_at: '2026-11-23' }]} />)
+  click('Запланировать тренировку')
+  click('Вставить план')
+  fireEvent.change(screen.getByRole('textbox'), { target: { value: 'Последняя сессия прошла 19 ноября 2026 года\nПлан на 26.11.2026\nЖим: 2×8' } })
+  click('Разобрать план')
+  expect(screen.queryByText(/Проверить строки|Контекст ответа/)).toBeNull()
+  click('Сохранить план')
+  const saved = readDraft('workout_plan_me')
+  expect(saved.items.map(item => item.id)).toEqual(['bench'])
+  expect(saved.info).not.toHaveProperty('context')
 })
 
 it('вставляет план, сохраняет диапазон после перезапуска и переносит его в черновик', () => {
